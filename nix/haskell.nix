@@ -271,6 +271,12 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: set-git-rev: rewrite-l
             packages.unix-time.postPatch = ''
               sed -i 's/mingwex//g' unix-time.cabal
             '';
+            # haskell.nix patch for crypton-x509-system is outdated for 1.8.0
+            # Clear their patch and apply the fix via postPatch
+            packages.crypton-x509-system.patches = lib.mkForce [];
+            packages.crypton-x509-system.postPatch = ''
+              sed -i 's/Crypt32/crypt32/g' crypton-x509-system.cabal
+            '';
           })
 
           # Build fixes for library dependencies
