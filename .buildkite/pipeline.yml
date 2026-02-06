@@ -735,19 +735,9 @@ steps:
     depends_on:
       - linux-nix
     steps:
-    - block: Build Windows Artifacts (windows)
-      depends_on: []
-      if: |
-        build.branch !~ /^gh-readonly-queue\/master/
-          && build.branch != "master"
-          && build.branch != "rc-latest"
-          && build.env("RELEASE_CANDIDATE") == null
-      key: trigger-build-windows-artifacts
-
     - label: Build Package (windows)
       key: windows-package
-      depends_on:
-        - trigger-build-windows-artifacts
+      depends_on: []
       command: nix build -L -o result/windows .#ci.artifacts.win64.release
       artifact_paths: [ "./result/windows/**" ]
       agents:
@@ -756,8 +746,7 @@ steps:
 
     - label: Build Testing Bundle (windows)
       key: windows-testing-bundle
-      depends_on:
-        - trigger-build-windows-artifacts
+      depends_on: []
       command: |
         nix build -L -o result .#ci.artifacts.win64.tests
         cp result/cardano-wallet-*-tests-win64.zip ./windows-tests.zip
