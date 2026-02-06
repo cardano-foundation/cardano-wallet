@@ -17,7 +17,7 @@ steps:
       - select: "Node Sync Timeout"
         hint: "Possible timeout in hours until node is synced"
         key: "to-tip-timeout"
-        default: "4"
+        default: "infinite"
         options:
         - label: "Infinite"
           value: "infinite"
@@ -50,42 +50,3 @@ steps:
       queue: adrestia-bench
     concurrency: 1
     concurrency_group: 'restoration-benchmarks-1'
-
-  - label: Restore benchmark seq0 (linux)
-    command: |
-      nix develop path:./scripts/buildkite/main --command bash -c \
-        "./scripts/buildkite/main/bench-restore.sh mainnet seq0 $HOME/databases/node/mainnet-2"
-    depends_on:
-      - restoration-parameters
-    timeout_in_minutes: 1380
-    agents:
-      system: ${linux}
-      queue: adrestia-bench
-    concurrency: 1
-    concurrency_group: 'restoration-benchmarks-2'
-
-  - label: Restore benchmark seq1 (linux)
-    command: |
-      nix develop path:./scripts/buildkite/main --command bash -c \
-        "./scripts/buildkite/main/bench-restore.sh mainnet seq1 $HOME/databases/node/mainnet-3"
-    depends_on:
-      - restoration-parameters
-    timeout_in_minutes: 1380
-    agents:
-      system: ${linux}
-      queue: adrestia-bench
-    concurrency: 1
-    concurrency_group: 'restoration-benchmarks-3'
-
-  - label: Restore benchmark rnd5 (linux)
-    command: |
-      nix develop path:./scripts/buildkite/main --command bash -c \
-        "./scripts/buildkite/main/bench-restore.sh mainnet rnd5 $HOME/databases/node/mainnet-4"
-    depends_on:
-      - restoration-parameters
-    timeout_in_minutes: 1380
-    agents:
-      system: ${linux}
-      queue: adrestia-bench
-    concurrency: 1
-    concurrency_group: 'restoration-benchmarks-4'
