@@ -92,13 +92,13 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: set-git-rev: rewrite-l
 
       # this is a local variable, it controls only the index-state of the
       # tools
-      indexState = "2025-01-01T23:24:19Z";
+      indexState = "2026-01-20T00:00:00Z";
 
       localClusterConfigs = config.src + /lib/local-cluster/test/data/cluster-configs;
 
     in {
       name = "cardano-wallet";
-      compiler-nix-name = "ghc966";
+      compiler-nix-name = "ghc984";
 
       src = haskellLib.cleanSourceWith {
         name = "cardano-wallet-src";
