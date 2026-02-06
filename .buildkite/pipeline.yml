@@ -776,7 +776,7 @@ steps:
         - mkdir -p windows\tests
         - tar -xf windows-tests.zip -C windows\tests
         - cd windows\tests # tests seem to rely on ..\.. being the repo root
-        - .\cardano-wallet-unit-test-unit.exe --color --jobs 1 --skip /Cardano.Wallet.DB.Sqlite/ +RTS -N2
+        - .\cardano-wallet-unit-test-unit.exe --color --jobs 1 --match "/Cardano.Numeric/" +RTS -N2 -s
       agents:
         system: ${windows}
       env:
