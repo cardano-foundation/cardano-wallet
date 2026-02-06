@@ -34,20 +34,13 @@ definitions:
 
 steps:
 
-  - label: "Windows TLS Diagnostics"
+  - label: "Windows curl.exe download test"
     timeout_in_minutes: 5
     command: |
-      echo "--- curl.exe test"
-      curl.exe -sI https://github.com
-      echo "--- powershell TLS test"
-      [Net.ServicePointManager]::SecurityProtocol
-      try { Invoke-WebRequest -Uri 'https://github.com' -Method Head -UseBasicParsing | Select-Object StatusCode } catch { echo $_.Exception.Message }
-      echo "--- check USERTrust ECC root cert"
-      certutil -store Root "USERTrust ECC" 2>&1 | Select-String -Pattern "Subject|Issuer|NotAfter"
-      echo "--- check Sectigo intermediate"
-      certutil -store CA Sectigo 2>&1 | Select-String -Pattern "Subject|Issuer|NotAfter"
-      echo "--- list all Root store certs"
-      certutil -store Root 2>&1 | Select-String -Pattern "Subject"
+      echo "--- download mithril via curl.exe"
+      curl.exe -L -o mithril-2543.1-hotfix-windows-x64.tar.gz https://github.com/input-output-hk/mithril/releases/download/2543.1-hotfix/mithril-2543.1-hotfix-windows-x64.tar.gz
+      echo "--- verify file"
+      Get-Item mithril-2543.1-hotfix-windows-x64.tar.gz | Select-Object Name, Length
     agents:
       system: ${windows}
 
