@@ -107,7 +107,12 @@ genChain gen0 more = do
 shrinkChain :: Chain da -> [Chain da]
 shrinkChain (Chain [] _) = []
 shrinkChain (Chain das a0) =
-    [ Chain [] a0, Chain [last das] a0, Chain (drop 1 das) a0 ]
+    [ Chain [] a0
+    , Chain [last das] a0
+    , case das of
+        (_:rest) -> Chain rest a0
+        [] -> error "shrinkChain: impossible empty das"
+    ]
 
 -- | Test whether the law on 'updateS' is satisfied.
 --

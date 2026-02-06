@@ -91,7 +91,9 @@ genValue :: Gen Value
 genValue = injectCoin . CoinC . getPositive <$> arbitrary
 
 genNonByronEra :: Gen (EraValue Era)
-genNonByronEra = elements (drop 1 knownEras)
+genNonByronEra = case knownEras of
+    (_:rest) -> elements rest
+    [] -> error "genNonByronEra: knownEras is empty"
 
 genTxOut :: Gen TxOut
 genTxOut = do

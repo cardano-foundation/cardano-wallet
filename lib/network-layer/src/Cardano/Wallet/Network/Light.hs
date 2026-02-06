@@ -123,7 +123,7 @@ secondLatest []  = Read.GenesisPoint
 secondLatest [_] = Read.GenesisPoint
 secondLatest xs  = case sortBy (flip compareSlot) xs of
     (_:y:_) -> y
-    _ -> Read.GenesisPoint
+    _ -> error "secondLatest: sort of 2+ elements returned fewer than 2"
 
 -- | Compare the slot numbers of two 'Read.ChainPoint's,
 -- but where the 'Read.GenesisPoint' comes before all other slot numbers.

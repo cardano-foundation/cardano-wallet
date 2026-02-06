@@ -194,11 +194,15 @@ httpApiPortParser = do
                 ++ ".."
                 ++ show maxPort
         pure p
-    minPort = 1024 :: PortNumber
-    maxPort = 65535 :: PortNumber
+
+minPort :: PortNumber
+minPort = 1024
+
+maxPort :: PortNumber
+maxPort = 65535
 
 validPorts :: [PortNumber]
-validPorts = [1024 .. 65535]
+validPorts = [minPort .. maxPort]
 
 nodeToClientSocketParser
     :: Absolutizer
