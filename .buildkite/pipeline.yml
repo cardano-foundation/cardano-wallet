@@ -235,6 +235,21 @@ steps:
       concurrency: 8
       concurrency_group: 'linux-integration-tests'
 
+    - label: Sequential Integration Tests (linux)
+      key: linux-tests-integration-sequential
+      depends_on: []
+      command: |
+          mkdir -p sequential-test-dir
+          export CLUSTER_LOGS_DIR_PATH=sequential-test-dir/cluster.logs
+          export INTEGRATION_TEST_DIR=sequential-test-dir
+          nix shell 'nixpkgs#just' -c just conway-integration-tests-match 1 "STAKE_POOLS_SMASH_01"
+      artifact_paths: [ "./sequential-test-dir/**" ]
+      timeout_in_minutes: 30
+      agents:
+        system: ${linux}
+      concurrency: 1
+      concurrency_group: 'linux-integration-tests-sequential'
+
     - block: Run E2E Tests (linux)
       if: build.env("RELEASE_CANDIDATE") == null
       depends_on: []
