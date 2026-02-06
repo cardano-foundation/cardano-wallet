@@ -80,44 +80,6 @@ steps:
       concurrency: 1
       concurrency_group: 'linux-e2e-tests'
 
-    - label: Preview Network Boot Sync
-      depends_on: []
-      command: |
-        cd run/preview/nix
-        rm -rf logs
-        mkdir -p logs
-        rm -rf databases
-        ./run.sh sync 600
-      artifact_paths:
-        - "./run/preview/nix/logs/*"
-      agents:
-        system: x86_64-linux
-      env:
-        SUCCESS_STATUS: syncing
-        NODE_LOGS_FILE: ./logs/node.log
-        WALLET_LOGS_FILE: ./logs/wallet.log
-        CLEANUP_DB: true
-        NETWORK: testnet
-
-    - label: Mainnet Boot Sync
-      depends_on: []
-      command: |
-        cd run/mainnet/nix
-        rm -rf logs
-        mkdir -p logs
-        rm -rf databases
-        ./run.sh sync 600
-      artifact_paths:
-        - "./run/mainnet/nix/logs/*"
-      agents:
-        system: x86_64-linux
-      env:
-        SUCCESS_STATUS: syncing
-        NODE_LOGS_FILE: ./logs/node.log
-        WALLET_LOGS_FILE: ./logs/wallet.log
-        CLEANUP_DB: true
-        NETWORK: mainnet
-
     - block: Mainnet Boot Sync with Mithril
       if: build.env("RELEASE_CANDIDATE") == null && build.branch != "master"
       depends_on: []
