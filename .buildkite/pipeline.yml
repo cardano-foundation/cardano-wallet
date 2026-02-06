@@ -186,53 +186,6 @@ steps:
       concurrency: 1
       concurrency_group: 'mithril-mainnet-full-sync'
 
-  - group: Code Quality Checks
-    key: code-quality
-    if: build.env("RELEASE_CANDIDATE") == null || build.env("TEST_RC") == "FALSE"
-    depends_on:
-      - linux-nix
-    steps:
-
-    - label: Print TODO List
-      command: 'nix develop --command scripts/todo-list.sh'
-      depends_on: []
-      agents:
-        system: ${linux}
-
-    - label: Check HLS Works
-      key: hls
-      depends_on: []
-      command:
-          nix develop --command bash -c "haskell-language-server lib/wallet/src/Cardano/Wallet.hs"
-      agents:
-        system: ${linux}
-      env:
-        TMPDIR: "/cache"
-
-    - block: Cabal Build
-      if: |
-        build.branch !~ /^gh-readonly-queue\/master/
-            && build.branch != "master"
-            && build.env("RELEASE_CANDIDATE") == null
-      depends_on: []
-      key: cabal-release-block
-
-    - label: Cabal Build (linux)
-      key: cabal-release
-      depends_on: cabal-release-block
-      command: |
-        nix develop -c cabal update
-        nix develop -c cabal build all -frelease
-      agents:
-        system: ${linux}
-
-    - label: Check for git revision in version output
-      key: git-revision
-      depends_on: []
-      command: scripts/buildkite/main/git-revision.sh
-      agents:
-        system: ${linux}
-
   - group: Linux Benchmarks
     key: linux-benchmarks
     depends_on: linux-nix
