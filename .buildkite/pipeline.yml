@@ -765,10 +765,11 @@ steps:
       agents:
         system: ${linux}
 
+  # TODO: Windows tests disabled pending #5107 (OOM) and #5110 (TLS)
   - group: Windows Checks
     depends_on:
       - windows-artifacts
-    if: build.env("RELEASE_CANDIDATE") == null || build.env("TEST_RC") == "FALSE"
+    if: false
     steps:
     - label: Windows Unit Tests
       commands:
