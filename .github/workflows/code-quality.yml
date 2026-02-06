@@ -35,6 +35,15 @@ jobs:
           - name: "Validate Swagger"
             command: nix develop path:./scripts/buildkite/main -c ./scripts/buildkite/main/validate-swagger.sh
 
+          - name: "Print TODO List"
+            command: nix develop --command scripts/todo-list.sh
+
+          - name: "Check HLS Works"
+            command: nix develop --command bash -c "haskell-language-server lib/wallet/src/Cardano/Wallet.hs"
+
+          - name: "Check git revision"
+            command: scripts/buildkite/main/git-revision.sh
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
