@@ -224,12 +224,6 @@ executable integration-exe
   main-is:        integration-tests-exe.hs
   hs-source-dirs: exe
 
-executable integration-exe-sequential
-  import:         integration-common
-  main-is:        integration-tests-sequential.hs
-  hs-source-dirs: exe
-  build-depends:  hspec-core
-
 test-suite e2e
   import:         integration-common
   type:           exitcode-stdio-1.0

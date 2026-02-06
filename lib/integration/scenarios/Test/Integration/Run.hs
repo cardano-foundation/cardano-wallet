@@ -26,6 +26,9 @@ import Cardano.Wallet.Launch.Cluster.FileOf
 import Cardano.Wallet.Primitive.NetworkId
     ( NetworkDiscriminant (..)
     )
+import Data.List
+    ( partition
+    )
 import Data.Maybe
     ( fromMaybe
     )
@@ -36,7 +39,9 @@ import GHC.TypeNats
     ( natVal
     )
 import System.Environment
-    ( lookupEnv
+    ( getArgs
+    , lookupEnv
+    , withArgs
     )
 import System.Path
     ( absDir
@@ -98,7 +103,11 @@ import qualified Test.Integration.Scenario.CLI.Shelley.Transactions as Transacti
 import qualified Test.Integration.Scenario.CLI.Shelley.Wallets as WalletsCLI
 
 main :: forall netId n. (netId ~ 42, n ~ 'Testnet netId) => IO ()
-main = mainWith parallel
+main = do
+    (ours, theirs) <- partition (== "--sequential") <$> getArgs
+    if null ours
+        then withArgs theirs $ mainWith parallel
+        else withArgs theirs $ mainWith sequential
 
 -- | Like 'main', but with a configurable concurrency strategy.
 -- Use 'parallel' for the default behavior, or 'sequential' to

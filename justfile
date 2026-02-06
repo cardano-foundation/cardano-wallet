@@ -142,8 +142,8 @@ integration-tests-sequential match:
   nix shell \
     '.#cardano-wallet' \
     '.#local-cluster' \
-    '.#integration-exe-sequential' \
-    -c integration-exe-sequential --match="{{match}}"
+    '.#integration-exe' \
+    -c integration-exe --sequential --match="{{match}}"
 
 # run conway integration tests sequentially via nix
 conway-integration-tests-sequential match:
