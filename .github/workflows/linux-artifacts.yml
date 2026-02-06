@@ -11,41 +11,41 @@ concurrency:
 
 jobs:
   build:
-    name: ${{ matrix.name }}
+    name: "Nix build"
     runs-on: [self-hosted, linux, x86_64, cardano-wallet]
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: "Nix build"
-            command: nix build -L .#cardano-wallet
-
-          - name: "Nix evaluate shell"
-            command: nix shell -L .#cardano-node .#cardano-cli .#cardano-wallet --command cardano-wallet version
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - name: Build cardano-wallet
+        run: nix build -L .#cardano-wallet
 
-      - name: Run build
-        run: ${{ matrix.command }}
+  evaluate-shell:
+    name: "Nix evaluate shell"
+    needs: build
+    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Evaluate shell
+        run: nix shell -L .#cardano-node .#cardano-cli .#cardano-wallet --command cardano-wallet version
 
   package:
     name: "Build package"
+    needs: build
     runs-on: [self-hosted, linux, x86_64, cardano-wallet]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
       - name: Build release package
         run: |
           rm -rf ./result/*
           nix build -L -o result/linux .#ci.artifacts.linux64.release
-
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
