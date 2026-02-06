@@ -15,11 +15,13 @@ import Cardano.Address.Derivation
     , XPub
     , xprvToBytes
     )
-import Cardano.Address.Script
+import Cardano.Address.KeyHash
     ( KeyHash
     , KeyRole (..)
-    , Script (..)
     , keyHashFromBytes
+    )
+import Cardano.Address.Script
+    ( Script (..)
     )
 import Cardano.Mnemonic
     ( Mnemonic
@@ -109,7 +111,7 @@ import Test.QuickCheck.Arbitrary
     ( arbitraryBoundedEnum
     )
 
-import qualified Cardano.Address.Script as CA
+import qualified Cardano.Address.KeyHash as CA
 import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL

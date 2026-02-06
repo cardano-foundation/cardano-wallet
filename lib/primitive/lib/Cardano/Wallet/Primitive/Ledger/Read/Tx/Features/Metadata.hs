@@ -23,14 +23,32 @@ module Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Metadata
 
 import Prelude
 
+import Cardano.Ledger.Allegra
+    ( AllegraEra
+    )
 import Cardano.Ledger.Allegra.TxAuxData
     ( AllegraTxAuxData (..)
+    )
+import Cardano.Ledger.Alonzo
+    ( AlonzoEra
     )
 import Cardano.Ledger.Alonzo.TxAuxData
     ( AlonzoTxAuxData (..)
     )
+import Cardano.Ledger.Babbage
+    ( BabbageEra
+    )
 import Cardano.Ledger.BaseTypes
     ( strictMaybeToMaybe
+    )
+import Cardano.Ledger.Conway
+    ( ConwayEra
+    )
+import Cardano.Ledger.Mary
+    ( MaryEra
+    )
+import Cardano.Ledger.Shelley
+    ( ShelleyEra
     )
 import Cardano.Ledger.Shelley.TxAuxData
     ( Metadatum
@@ -48,14 +66,6 @@ import Data.Map
     )
 import Data.Word
     ( Word64
-    )
-import Ouroboros.Consensus.Shelley.Eras
-    ( StandardAllegra
-    , StandardAlonzo
-    , StandardBabbage
-    , StandardConway
-    , StandardMary
-    , StandardShelley
     )
 
 import qualified Cardano.Api.Shelley as Cardano
@@ -76,25 +86,25 @@ getMetadata = case theEra @era of
     noMetadatas _ = Nothing
     yesMetadata f (Metadata s) = f <$> strictMaybeToMaybe s
 
-fromShelleyMetadata :: ShelleyTxAuxData StandardShelley -> W.TxMetadata
+fromShelleyMetadata :: ShelleyTxAuxData ShelleyEra -> W.TxMetadata
 fromShelleyMetadata (ShelleyTxAuxData md) = fromMetadata md
 
 -- fixme: [ADP-525] It is fine for now since we do not look at script
 -- pre-images. But this is precisely what we want as part of the
 -- multisig/script balance reporting.
-fromAllegraMetadata :: AllegraTxAuxData StandardAllegra -> W.TxMetadata
+fromAllegraMetadata :: AllegraTxAuxData AllegraEra -> W.TxMetadata
 fromAllegraMetadata (AllegraTxAuxData md _scripts) = fromMetadata md
 
-fromMaryMetadata :: AllegraTxAuxData StandardMary -> W.TxMetadata
+fromMaryMetadata :: AllegraTxAuxData MaryEra -> W.TxMetadata
 fromMaryMetadata (AllegraTxAuxData md _scripts) = fromMetadata md
 
-fromAlonzoMetadata :: AlonzoTxAuxData StandardAlonzo -> W.TxMetadata
+fromAlonzoMetadata :: AlonzoTxAuxData AlonzoEra -> W.TxMetadata
 fromAlonzoMetadata (AlonzoTxAuxData md _timelock _plutus) = fromMetadata md
 
-fromBabbageMetadata :: AlonzoTxAuxData StandardBabbage -> W.TxMetadata
+fromBabbageMetadata :: AlonzoTxAuxData BabbageEra -> W.TxMetadata
 fromBabbageMetadata (AlonzoTxAuxData md _timelock _plutus) = fromMetadata md
 
-fromConwayMetadata :: AlonzoTxAuxData StandardConway -> W.TxMetadata
+fromConwayMetadata :: AlonzoTxAuxData ConwayEra -> W.TxMetadata
 fromConwayMetadata (AlonzoTxAuxData md _timelock _plutus) = fromMetadata md
 
 fromMetadata :: Map Word64 Metadatum -> W.TxMetadata

@@ -17,9 +17,11 @@ import Cardano.Address.Derivation
     ( XPub
     , xpubPublicKey
     )
-import Cardano.Address.Script
+import Cardano.Address.KeyHash
     ( KeyHash (..)
-    , Script (..)
+    )
+import Cardano.Address.Script
+    ( Script (..)
     )
 import Cardano.Crypto.Hash.Class
     ( Hash (UnsafeHash)
@@ -52,7 +54,7 @@ import Data.ByteString.Short
     )
 
 import qualified Cardano.Api as Cardano
-import qualified Cardano.Api.ReexposeLedger as Ledger
+import qualified Cardano.Api.Ledger as Ledger
 import qualified Cardano.Api.Shelley as Cardano
 
 {-----------------------------------------------------------------------------

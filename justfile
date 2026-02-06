@@ -12,6 +12,23 @@ syntax:
 hlint:
   nix develop --command bash -c 'hlint lib'
 
+# lint and test a single library (e.g., just lint-lib delta-types)
+lint-lib dir:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  cd "lib/{{dir}}"
+  pkg=$(grep -m1 "^name:" *.cabal | awk '{print $2}')
+  echo "+++ stylish-haskell"
+  stylish-haskell --config ../../.stylish-haskell.yaml --inplace $(find . -name '*.hs' -not -path '*/dist-newstyle/*' 2>/dev/null || true)
+  echo "+++ hlint"
+  hlint . --ignore-glob='dist-newstyle/**' 2>/dev/null || true
+  echo "+++ cabal-fmt"
+  cabal-fmt -i *.cabal
+  echo "+++ build $pkg"
+  cabal build "$pkg" -O0 -v0
+  echo "+++ test $pkg"
+  cabal test "$pkg:unit" -O0 -v0 2>/dev/null || echo "no unit tests"
+
 # build wallet
 build target='all':
   # shellcheck disable=SC1083

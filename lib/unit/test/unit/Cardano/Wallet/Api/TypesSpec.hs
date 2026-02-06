@@ -39,10 +39,12 @@ import Prelude hiding
     ( id
     )
 
+import Cardano.Address.KeyHash
+    ( KeyHash (..)
+    , KeyRole (..)
+    )
 import Cardano.Address.Script
     ( Cosigner (..)
-    , KeyHash (..)
-    , KeyRole (..)
     , Script (..)
     , ScriptHash (..)
     , ScriptTemplate (..)
@@ -1299,7 +1301,14 @@ instance Arbitrary ApiCredential where
               , pure $ CredentialExtendedPubKey xpubKey
               , pure $ CredentialKeyHash keyHash
               , pure $ CredentialScriptHash scriptHash
-              , CredentialScript <$> arbitrary ]
+              , CredentialScript <$> genSharedKeyHashScript ]
+          where
+            genSharedKeyHash = do
+                cred <- oneof [pure PaymentShared, pure DelegationShared]
+                KeyHash cred . BS.pack <$> vectorOf 28 arbitrary
+            genSharedKeyHashScript = do
+                keyHashes <- vectorOf 10 genSharedKeyHash
+                genScript keyHashes
 
 instance Arbitrary ApiCredentialType where
     arbitrary = ApiCredentialType <$> arbitraryBoundedEnum
@@ -3205,6 +3214,7 @@ instance Typeable n => ToSchema (ApiDecodedTransaction n) where
         addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
         addDefinition =<< declareSchemaForDefinition "TransactionMetadataValueNoSchema"
         addDefinition =<< declareSchemaForDefinition "ScriptValue"
+        addDefinition =<< declareSchemaForDefinition "ScriptValueGeneral"
         declareSchemaForDefinition "ApiDecodedTransaction"
 
 instance ToSchema ApiBlockHeader where

@@ -42,7 +42,6 @@ import Cardano.Ledger.Allegra.Scripts
 import Cardano.Ledger.Api
     ( Addr (..)
     , ScriptHash
-    , StandardCrypto
     , addrTxOutL
     , addrTxWitsL
     , bodyTxL
@@ -55,13 +54,13 @@ import Cardano.Ledger.Credential
     ( Credential (..)
     , StakeCredential
     )
-import Cardano.Ledger.Tools
-    ( addDummyWitsTx
-    )
-import Cardano.Ledger.UTxO
+import Cardano.Ledger.State
     ( EraUTxO (getScriptsHashesNeeded, getScriptsNeeded)
     , getMinFeeTxUtxo
     , txinLookup
+    )
+import Cardano.Ledger.Tools
+    ( addDummyWitsTx
     )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TxSize (..)
@@ -105,6 +104,7 @@ import Numeric.Natural
     ( Natural
     )
 
+import qualified Cardano.Address.KeyHash as CA
 import qualified Cardano.Address.Script as CA
 import qualified Cardano.Api as CardanoApi
 import qualified Cardano.Api.Shelley as CardanoApi
@@ -225,18 +225,18 @@ estimateKeyWitnessCounts utxo tx timelockKeyWitCounts =
         specifiedTimelockKeyWitnessCounts
       where
         specifiedTimelockKeyWitnessCounts
-            :: Map (ScriptHash StandardCrypto) Natural
+            :: Map (ScriptHash) Natural
         specifiedTimelockKeyWitnessCounts = Map.fromList $ mapMaybe resolve
             $ F.toList scriptsNeeded
           where
             resolve
-                :: (ScriptHash StandardCrypto)
-                -> Maybe (ScriptHash StandardCrypto, Natural)
+                :: (ScriptHash)
+                -> Maybe (ScriptHash, Natural)
             resolve h = (h,) <$> Map.lookup h
                 (getTimelockKeyWitnessCounts timelockKeyWitCounts)
 
         upperBoundEstimatedTimelockKeyWitnessCounts
-            :: Map (ScriptHash StandardCrypto) Natural
+            :: Map (ScriptHash) Natural
         upperBoundEstimatedTimelockKeyWitnessCounts = Map.mapMaybe
             (fmap (estimateMaxWitnessRequiredPerInput . toCAScript)
                 . toTimelockScript)
@@ -247,13 +247,13 @@ estimateKeyWitnessCounts utxo tx timelockKeyWitCounts =
             -- 2. ignore all non-needed scripts
             scriptsAvailableInBody
 
-        scriptsNeeded :: Set (ScriptHash StandardCrypto)
+        scriptsNeeded :: Set (ScriptHash)
         scriptsNeeded =
             getScriptsHashesNeeded
             $ getScriptsNeeded utxo
             $ view bodyTxL tx
 
-        scriptsAvailableInBody :: Map (ScriptHash StandardCrypto) (Script era)
+        scriptsAvailableInBody :: Map (ScriptHash) (Script era)
         scriptsAvailableInBody = tx ^. witsTxL . scriptTxWitsL
 
     estimateDelegSigningKeys
@@ -277,7 +277,7 @@ estimateKeyWitnessCounts utxo tx timelockKeyWitCounts =
       where
         -- Does not include the key witness needed for script credentials.
         -- They are accounted for separately in @scriptVkWitsUpperBound@.
-        estimateWitNumForCred :: StakeCredential c -> Integer
+        estimateWitNumForCred :: StakeCredential -> Integer
         estimateWitNumForCred = \case
             KeyHashObj _ -> 1
             ScriptHashObj _ -> 0
@@ -326,7 +326,7 @@ estimateKeyWitnessCounts utxo tx timelockKeyWitCounts =
 -- The 'Semigroup' instance resolves conflicts using 'max'.
 newtype TimelockKeyWitnessCounts = TimelockKeyWitnessCounts
     { getTimelockKeyWitnessCounts
-        :: Map (ScriptHash StandardCrypto) Natural
+        :: Map (ScriptHash) Natural
     }
     deriving (Show, Eq)
     deriving newtype (Monoid)

@@ -19,21 +19,23 @@ where
 import Prelude
 
 import Cardano.Api
-    ( AsType (..)
-    , File (..)
+    ( File (..)
     , HasTextEnvelope
     , Key (..)
     , SerialiseAsBech32
     , SerialiseAsCBOR (..)
+    , StakeKey
+    , VerificationKey
     , runExceptT
     )
-import Cardano.Api.Ledger
-    ( toVRFVerKeyHash
+import Cardano.Api.Shelley
+    ( StakePoolKey
+    , VrfKey
     )
 import Cardano.Binary
     ( FromCBOR (..)
     )
-import Cardano.CLI.Types.Key
+import Cardano.CLI.Type.Key
     ( VerificationKeyOrFile (..)
     , readVerificationKeyOrFile
     )
@@ -41,9 +43,6 @@ import Cardano.Launcher.Node
     ( CardanoNodeConfig (..)
     , MaybeK (..)
     , NodePort (..)
-    )
-import Cardano.Ledger.Api
-    ( StandardCrypto
     )
 import Cardano.Ledger.BaseTypes
     ( Network (Testnet)
@@ -175,6 +174,7 @@ import Test.Utils.StaticServer
     )
 
 import qualified Cardano.Ledger.Address as Ledger
+import qualified Cardano.Ledger.Hashes as Ledger
 import qualified Cardano.Ledger.Shelley.API as Ledger
 import qualified Codec.CBOR.Read as CBOR
 import qualified Data.Aeson as Aeson
@@ -199,7 +199,7 @@ data ConfiguredPool = ConfiguredPool
     -- ^ The 'PoolRecipe' used to create this 'ConfiguredPool'.
     , registerViaShelleyGenesis
         :: ClusterM
-            (ShelleyGenesis StandardCrypto -> ShelleyGenesis StandardCrypto)
+            (ShelleyGenesis -> ShelleyGenesis)
     , finalizeShelleyGenesisSetup :: RunningNode -> ClusterM ()
     -- ^ Submit any pool retirement certificate according to the 'recipe'
     -- on-chain.
@@ -325,23 +325,21 @@ readFailVerificationKeyOrFile
      . ( HasTextEnvelope (VerificationKey keyrole)
        , SerialiseAsBech32 (VerificationKey keyrole)
        )
-    => AsType keyrole
-    -> FileOf s
+    => FileOf s
     -> ClusterM (VerificationKey keyrole)
-readFailVerificationKeyOrFile role (FileOf op) =
+readFailVerificationKeyOrFile (FileOf op) =
     liftIO
         . fmap (either (error . show) id)
         . runExceptT
         $ readVerificationKeyOrFile
-                role
                 (VerificationKeyFilePath $ File $ toFilePath op)
 
 stakePoolIdFromOperatorVerKey
     :: HasCallStack
     => FileOf "op-pub"
-    -> ClusterM (Ledger.KeyHash 'Ledger.StakePool (StandardCrypto))
+    -> ClusterM (Ledger.KeyHash 'Ledger.StakePool)
 stakePoolIdFromOperatorVerKey opPub = do
-    stakePoolVerKey <- readFailVerificationKeyOrFile AsStakePoolKey opPub
+    stakePoolVerKey <- readFailVerificationKeyOrFile @StakePoolKey opPub
     let bytes = serialiseToCBOR $ verificationKeyHash stakePoolVerKey
     pure
         $ either (error . show) snd
@@ -350,9 +348,9 @@ stakePoolIdFromOperatorVerKey opPub = do
 poolVrfFromFile
     :: HasCallStack
     => FileOf "vrf-pub"
-    -> ClusterM (Ledger.Hash StandardCrypto (Ledger.VerKeyVRF StandardCrypto))
+    -> ClusterM (Ledger.VRFVerKeyHash 'Ledger.StakePoolVRF)
 poolVrfFromFile vrfPub = do
-    stakePoolVerKey <- readFailVerificationKeyOrFile AsVrfKey vrfPub
+    stakePoolVerKey <- readFailVerificationKeyOrFile @VrfKey vrfPub
     let bytes = serialiseToCBOR $ verificationKeyHash stakePoolVerKey
     pure
         $ either (error . show) snd
@@ -361,9 +359,9 @@ poolVrfFromFile vrfPub = do
 stakingKeyHashFromFile
     :: HasCallStack
     => FileOf "stake-pub"
-    -> ClusterM (Ledger.KeyHash 'Ledger.Staking StandardCrypto)
+    -> ClusterM (Ledger.KeyHash 'Ledger.Staking)
 stakingKeyHashFromFile stakePub = do
-    stakePoolVerKey <- readFailVerificationKeyOrFile AsStakeKey stakePub
+    stakePoolVerKey <- readFailVerificationKeyOrFile @StakeKey stakePub
     let bytes = serialiseToCBOR $ verificationKeyHash stakePoolVerKey
     pure
         $ either (error . show) snd
@@ -372,9 +370,9 @@ stakingKeyHashFromFile stakePub = do
 stakingAddrFromVkFile
     :: HasCallStack
     => FileOf "stake-pub"
-    -> ClusterM (Ledger.Addr StandardCrypto)
+    -> ClusterM Ledger.Addr
 stakingAddrFromVkFile stakePub = do
-    stakePoolVerKey <- readFailVerificationKeyOrFile AsStakeKey stakePub
+    stakePoolVerKey <- readFailVerificationKeyOrFile @StakeKey stakePub
     let bytes = serialiseToCBOR $ verificationKeyHash stakePoolVerKey
     let payKH =
             either (error . show) snd
@@ -479,7 +477,7 @@ configurePool metadataServer recipe = do
             let params =
                     Ledger.PoolParams
                         { ppId = poolId
-                        , ppVrf = toVRFVerKeyHash vrf
+                        , ppVrf = vrf
                         , ppPledge = Ledger.Coin $ intCast pledgeAmt
                         , ppCost = Ledger.Coin 0
                         , ppMargin = unsafeUnitInterval 0.1

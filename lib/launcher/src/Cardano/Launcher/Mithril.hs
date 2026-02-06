@@ -49,9 +49,20 @@ downloadLatestSnapshot outputParentDir (MithrilExePath mithril) = do
 downloadMithril :: FilePath -> IO MithrilExePath
 downloadMithril workingDir = withCurrentDirectory workingDir $ do
     putStrLn $ "Downloading " <> mithrilPackage <> " from " <> downloadUrl
-    req <- parseRequest downloadUrl
-    response <- httpBS req
-    BS.writeFile mithrilPackage (getResponseBody response)
+    -- On Windows, crypton-x509-system reads the current user's ROOT
+    -- certificate store which may be empty when running as SYSTEM.
+    -- Use curl.exe which uses the Local Machine store instead.
+    if isWindows
+        then do
+            callProcess "curl.exe"
+                ["-L", "-o", mithrilPackage, downloadUrl]
+        else do
+            req <- parseRequest downloadUrl
+            response <- httpBS req
+            BS.writeFile mithrilPackage (getResponseBody response)
+    downloaded <- doesFileExist mithrilPackage
+    unless downloaded $
+        fail $ "Failed to download " <> mithrilPackage
     putStrLn $ "Downloaded " <> mithrilPackage
 
     -- Extract the gz archive using 7z.

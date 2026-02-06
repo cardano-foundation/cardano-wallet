@@ -22,6 +22,14 @@ import Cardano.Api
     ( AnyCardanoEra (..)
     , CardanoEra (..)
     )
+import Cardano.Ledger.Api
+    ( AllegraEra
+    , AlonzoEra
+    , BabbageEra
+    , ConwayEra
+    , MaryEra
+    , ShelleyEra
+    )
 import Cardano.Wallet.Network.Implementation.Ouroboros
     ( LSQ (..)
     )
@@ -33,6 +41,9 @@ import Cardano.Wallet.Read
     , Conway
     , Mary
     , Shelley
+    )
+import Data.Singletons
+    ( SingI
     )
 import Ouroboros.Consensus.Cardano
     ( CardanoBlock
@@ -56,13 +67,7 @@ import Ouroboros.Consensus.Protocol.TPraos
     ( TPraos
     )
 import Ouroboros.Consensus.Shelley.Eras
-    ( StandardAllegra
-    , StandardAlonzo
-    , StandardBabbage
-    , StandardConway
-    , StandardCrypto
-    , StandardMary
-    , StandardShelley
+    ( StandardCrypto
     )
 
 import qualified Cardano.Wallet.Read as Read
@@ -78,7 +83,7 @@ byronOrShelleyBased
           . LSQ
                 ( Shelley.ShelleyBlock
                     (praos StandardCrypto)
-                    (shelleyEra StandardCrypto)
+                    shelleyEra
                 )
                 m
                 a
@@ -125,12 +130,12 @@ onAnyEra' a b c d e f g =
 -- @PParams@ in alonzo.
 onAnyEra
     :: LSQ Byron.ByronBlock m a
-    -> LSQ (Shelley.ShelleyBlock (TPraos StandardCrypto) StandardShelley) m a
-    -> LSQ (Shelley.ShelleyBlock (TPraos StandardCrypto) StandardAllegra) m a
-    -> LSQ (Shelley.ShelleyBlock (TPraos StandardCrypto) StandardMary) m a
-    -> LSQ (Shelley.ShelleyBlock (TPraos StandardCrypto) StandardAlonzo) m a
-    -> LSQ (Shelley.ShelleyBlock (Praos StandardCrypto) StandardBabbage) m a
-    -> LSQ (Shelley.ShelleyBlock (Praos StandardCrypto) StandardConway) m a
+    -> LSQ (Shelley.ShelleyBlock (TPraos StandardCrypto) ShelleyEra) m a
+    -> LSQ (Shelley.ShelleyBlock (TPraos StandardCrypto) AllegraEra) m a
+    -> LSQ (Shelley.ShelleyBlock (TPraos StandardCrypto) MaryEra) m a
+    -> LSQ (Shelley.ShelleyBlock (TPraos StandardCrypto) AlonzoEra) m a
+    -> LSQ (Shelley.ShelleyBlock (Praos StandardCrypto) BabbageEra) m a
+    -> LSQ (Shelley.ShelleyBlock (Praos StandardCrypto) ConwayEra) m a
     -> LSQ (CardanoBlock StandardCrypto) m a
 onAnyEra onByron onShelley onAllegra onMary onAlonzo onBabbage onConway =
     currentEra >>= \case
@@ -143,10 +148,12 @@ onAnyEra onByron onShelley onAllegra onMary onAlonzo onBabbage onConway =
         AnyCardanoEra ConwayEra -> mapQuery QueryIfCurrentConway onConway
   where
     mapQuery
-        :: ( forall r
-              . BlockQuery block1 r
+        :: ( forall footprint r
+              . SingI footprint
+             => BlockQuery block1 footprint r
              -> BlockQuery
                     block2
+                    footprint
                     ((Either (MismatchEraInfo (CardanoEras StandardCrypto))) r)
            )
         -> LSQ block1 m a
@@ -169,7 +176,7 @@ shelleyBased
           . LSQ
                 ( Shelley.ShelleyBlock
                     (praos StandardCrypto)
-                    (shelleyEra StandardCrypto)
+                    shelleyEra
                 )
                 m
                 a

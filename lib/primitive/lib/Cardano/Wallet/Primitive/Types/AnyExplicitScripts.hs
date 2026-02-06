@@ -11,10 +11,12 @@ where
 
 import Prelude
 
-import Cardano.Address.Script
+import Cardano.Address.KeyHash
     ( KeyHash (KeyHash)
     , KeyRole
-    , Script (..)
+    )
+import Cardano.Address.Script
+    ( Script (..)
     )
 import Cardano.Wallet.Primitive.Types.TokenMapWithScripts
     ( PlutusScriptInfo

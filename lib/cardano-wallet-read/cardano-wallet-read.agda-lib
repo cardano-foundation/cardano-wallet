@@ -1,0 +1,9 @@
+name: cardano-wallet-read
+include: agda
+depend:
+  agda2hs
+  containers
+  -- FIXME: Need to split out more Agda libraries
+  -- bytestring for `Data.Bytestring`
+  -- base for `Data.Word`
+flags: -W noUnsupportedIndexedMatch --erasure

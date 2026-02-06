@@ -38,10 +38,12 @@ import Cardano.Address.Derivation
     , xprvToBytes
     , xpubPublicKey
     )
-import Cardano.Address.Script
+import Cardano.Address.KeyHash
     ( KeyHash (..)
     , KeyRole (Delegation, Payment)
-    , Script (..)
+    )
+import Cardano.Address.Script
+    ( Script (..)
     )
 import Cardano.Api
     ( AnyCardanoEra (..)
@@ -342,13 +344,11 @@ import Test.Utils.Pretty
     )
 
 import qualified Cardano.Api as Cardano
-import qualified Cardano.Api.Error as Cardano
 import qualified Cardano.Api.Ledger as L
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Crypto.Hash.Blake2b as Crypto
 import qualified Cardano.Crypto.Hash.Class as Crypto
 import qualified Cardano.Ledger.Coin as Ledger
-import qualified Cardano.Ledger.Crypto as Crypto
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
@@ -423,7 +423,7 @@ showTransactionBody
     -> Cardano.TxBodyContent Cardano.BuildTx (Write.CardanoApiEra era)
     -> String
 showTransactionBody recentEra =
-    either Cardano.displayError show
+    either show show
         . Cardano.createTransactionBody
             (Write.shelleyBasedEraFromRecentEra recentEra)
 
@@ -432,7 +432,7 @@ unsafeMakeTransactionBody
     -> Cardano.TxBodyContent Cardano.BuildTx (Write.CardanoApiEra era)
     -> Cardano.TxBody (Write.CardanoApiEra era)
 unsafeMakeTransactionBody recentEra =
-    either (error . Cardano.displayError) id
+    either (error . show) id
         . Cardano.createTransactionBody
             (Write.shelleyBasedEraFromRecentEra recentEra)
 
@@ -442,8 +442,7 @@ stakeAddressForKey
     -> Cardano.StakeAddress
 stakeAddressForKey net pubkey =
     Cardano.StakeAddress
-        net (SL.KeyHashObj (SL.KeyHash $ hash pubkey)
-            :: SL.Credential 'SL.Staking Crypto.StandardCrypto)
+        net (SL.KeyHashObj (SL.KeyHash $ hash pubkey))
   where
     hash :: XPub -> Crypto.Hash Crypto.Blake2b_224 a
     hash = fromJust . Crypto.hashFromBytes . blake2b224 . xpubPublicKey

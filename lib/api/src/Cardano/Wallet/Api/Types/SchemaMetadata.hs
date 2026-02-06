@@ -23,9 +23,7 @@ import Cardano.Api
     , metadataFromJson
     , metadataToJson
     )
-import Cardano.Api.Error
-    ( displayError
-    )
+-- Removed: Cardano.Api.Error no longer exists
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxMetadata (..)
     )
@@ -95,10 +93,10 @@ instance FromJSON TxMetadataWithSchema where
     parseJSON = liftA2
         (<|>)
         (fmap detailedMetadata
-            . either (fail . displayError) pure
+            . either (fail . show) pure
             . metadataFromJson TxMetadataJsonDetailedSchema
         )
         (fmap noSchemaMetadata
-            . either (fail . displayError) pure
+            . either (fail . show) pure
             . metadataFromJson TxMetadataJsonNoSchema
         )

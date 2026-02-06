@@ -20,9 +20,6 @@ import Prelude
 import Cardano.Crypto.Hash
     ( Hash (..)
     )
-import Cardano.Ledger.Crypto
-    ( StandardCrypto
-    )
 import Cardano.Ledger.Keys
     ( KeyHash (..)
     , KeyRole (..)
@@ -64,7 +61,7 @@ extraSigs = case theEra @era of
     yesExtraSigs (ExtraSigs es) = getExtraSigs es
 
 getExtraSigs
-    :: Set (KeyHash 'Witness StandardCrypto)
+    :: Set (KeyHash 'Witness)
     -> [W.Hash "ExtraSignature"]
 getExtraSigs es =
     toList es <&> \(KeyHash (UnsafeHash h)) -> W.Hash $ fromShort h

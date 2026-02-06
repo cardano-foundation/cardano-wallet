@@ -6,6 +6,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE PackageImports #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 
@@ -33,6 +34,9 @@ import Cardano.BM.ToTextTracer
     )
 import Cardano.BM.Trace
     ( traceInTVarIO
+    )
+import Cardano.Ledger.BaseTypes
+    ( unsafeNonZero
     )
 import Cardano.Mnemonic
     ( SomeMnemonic
@@ -224,7 +228,7 @@ import System.Environment.Extended
 import System.IO
     ( stdout
     )
-import System.IO.Extra
+import "extra" System.IO.Extra
     ( withTempFile
     )
 import System.IO.Temp.Extra
@@ -726,7 +730,7 @@ withShelleyServer tracers action = withFaucet $ \faucetClientEnv -> do
                                 [ over #sgSlotLength (const 0.2)
                                 , -- to avoid "PastHorizonException" errors, as wallet
                                   -- doesn't keep up with retrieving fresh time interpreter.
-                                  over #sgSecurityParam (const 100)
+                                  over #sgSecurityParam (const (unsafeNonZero 100))
                                   -- when it low then cluster is not making blocks;
                                 ]
                             , cfgTracer = stdoutTextTracer

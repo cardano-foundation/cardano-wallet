@@ -79,6 +79,9 @@ import Cardano.Ledger.Api.UTxO
 import Cardano.Ledger.Babbage.TxInfo
     ( BabbageContextError (..)
     )
+import Cardano.Ledger.BaseTypes
+    ( unsafeNonZero
+    )
 import Cardano.Ledger.Conway.TxInfo
     ( ConwayContextError (..)
     )
@@ -265,7 +268,6 @@ import Internal.Cardano.Write.Tx
     , Coin (..)
     , Datum (..)
     , FeePerByte (..)
-    , StandardCrypto
     , Tx
     , TxIn
     , TxOut
@@ -1609,7 +1611,7 @@ prop_bootstrapWitnesses _era p n net accIx addr0Ix =
 
         body = mkBasicTxBody
 
-        wits :: [BootstrapWitness StandardCrypto]
+        wits :: [BootstrapWitness]
         wits = map (dummyWitForIx body) addrIxs
 
         tx = mkBasicTx body
@@ -1623,7 +1625,7 @@ prop_bootstrapWitnesses _era p n net accIx addr0Ix =
     dummyWitForIx
         :: TxBody era
         -> Index 'WholeDomain 'CredFromKeyK
-        -> BootstrapWitness StandardCrypto
+        -> BootstrapWitness
     dummyWitForIx body ix =
         let
             accK = Byron.deriveAccountPrivateKey pwd rootK accIx
@@ -1651,7 +1653,7 @@ prop_bootstrapWitnesses _era p n net accIx addr0Ix =
         -> CardanoApi.NetworkId
         -> W.Address
         -> (XPrv, Passphrase "encryption")
-        -> BootstrapWitness StandardCrypto
+        -> BootstrapWitness
     mkByronWitness body network addr encryptedKey =
         makeBootstrapWitness txHash (decrypt encryptedKey) addrAttr
       where
@@ -2113,7 +2115,7 @@ dummyTimeTranslationWithHorizon horizon =
         horizon
         (CardanoApi.EpochNo 1)
 
-    era1Params = HF.defaultEraParams (SecurityParam 2) (mkSlotLength 1)
+    era1Params = HF.defaultEraParams (SecurityParam (unsafeNonZero 2)) (mkSlotLength 1)
     summary = HF.summaryWithExactly
         (exactlyOne (HF.EraSummary t0 (HF.EraEnd t1) era1Params))
 
@@ -2540,7 +2542,7 @@ shrinkTxBodyBabbage
     shrinkValue :: (Eq a, Monoid a) => a -> [a]
     shrinkValue v = filter (/= v) [mempty]
 
-shrinkWdrl :: Withdrawals era -> [Withdrawals era]
+shrinkWdrl :: Withdrawals -> [Withdrawals]
 shrinkWdrl (Withdrawals m) = map (Withdrawals . Map.fromList) $
     shrinkList shrinkWdrl' (Map.toList m)
     where
@@ -2608,12 +2610,6 @@ instance IsRecentEra era => Buildable (Wallet era) where
 --------------------------------------------------------------------------------
 -- Miscellaneous orphan instances
 --------------------------------------------------------------------------------
-
-instance Semigroup (CardanoApi.UTxO era) where
-    CardanoApi.UTxO a <> CardanoApi.UTxO b = CardanoApi.UTxO (a <> b)
-
-instance Monoid (CardanoApi.UTxO era) where
-    mempty = CardanoApi.UTxO mempty
 
 instance Show TimeTranslation where
     show = const "TimeTranslation"

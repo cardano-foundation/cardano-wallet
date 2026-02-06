@@ -1,8 +1,12 @@
-Usage:  recovery-phrase generate [--size INT]
+Usage:  recovery-phrase generate [--size INT] [--language STR]
 
-  Generate an English recovery phrase
+  Generate a recovery phrase for a specified mnemonic size and
+  language.
 
 Available options:
   -h,--help                Show this help text
   --size INT               Number of mnemonic words to generate.
                            Must be a multiple of 3. (default: 24)
+  --language STR           Language of mnemonic words to
+                           generate. Must be one of: en, it, ja,
+                           fr, ko, es. (default: en)

@@ -262,9 +262,11 @@ import Cardano.Address.Derivation
     , xpubFromBytes
     , xpubToBytes
     )
+import Cardano.Address.KeyHash
+    ( KeyHash (..)
+    )
 import Cardano.Address.Script
     ( Cosigner (..)
-    , KeyHash (..)
     , Script
     , ScriptHash (..)
     , ScriptTemplate
@@ -273,7 +275,6 @@ import Cardano.Address.Script
 import Cardano.Api
     ( StakeAddress
     , deserialiseFromBech32
-    , proxyToAsType
     , serialiseToBech32
     )
 import Cardano.Mnemonic
@@ -2655,7 +2656,7 @@ instance HasSNetworkId n => FromJSON (ApiRedeemer n) where
                 ApiRedeemerMinting bytes <$> (o .: "policy_id")
             "rewarding" -> do
                 text <- o .: "stake_address"
-                case deserialiseFromBech32 (proxyToAsType Proxy) text of
+                case deserialiseFromBech32 @StakeAddress text of
                     Left e -> fail (show e)
                     Right addr -> pure $ ApiRedeemerRewarding bytes addr
             _ ->

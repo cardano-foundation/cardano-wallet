@@ -172,6 +172,7 @@ spec = do
             , ["key", "from-recovery-phrase", "--help"]
             , ["key", "child", "--help"]
             , ["key", "public", "--help"]
+            , ["key", "private", "--help"]
             , ["key", "inspect", "--help"]
             ]
 

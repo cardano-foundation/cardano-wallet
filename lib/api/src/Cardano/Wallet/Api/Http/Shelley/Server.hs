@@ -140,10 +140,12 @@ import Cardano.Address.Derivation
     , xpubPublicKey
     , xpubToBytes
     )
+import Cardano.Address.KeyHash
+    ( KeyHash (KeyHash)
+    , KeyRole (..)
+    )
 import Cardano.Address.Script
     ( Cosigner (..)
-    , KeyHash (KeyHash)
-    , KeyRole (..)
     , Script
     , ScriptTemplate (..)
     , ValidationLevel (..)
@@ -839,6 +841,7 @@ import UnliftIO.Exception
     ( tryAnyDeep
     )
 
+import qualified Cardano.Address.KeyHash as CA
 import qualified Cardano.Address.Script as CA
 import qualified Cardano.Address.Style.Shelley as CA
 import qualified Cardano.Api as Cardano

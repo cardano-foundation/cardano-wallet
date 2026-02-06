@@ -50,7 +50,24 @@ Create a combined changelog document (e.g., `bump-changelog.md`) that:
 
 Commit this document. It provides a unified view of all ecosystem changes.
 
-### 4. Freeze Dependencies
+### 4. Align flake.lock with cardano-node
+
+**Critical for Windows cross-compilation**: Use the same CHaP version as cardano-node to avoid wine/iserv issues.
+
+```bash
+# Check cardano-node's CHaP version
+cd /code/cardano-node
+git checkout <target-version>
+cat flake.lock | jq '.nodes.CHaP.locked.rev'
+
+# Update cardano-wallet's CHaP to match
+cd /code/cardano-wallet
+nix flake update CHaP --override-input CHaP github:intersectmbo/cardano-haskell-packages/<chap-rev>
+```
+
+**Why this matters**: Different CHaP versions can resolve different transitive dependency versions (e.g., `th-orphans`, `network`). These differences can cause the `iserv-proxy` derivation to be built differently, leading to wine socket connection failures during Windows cross-compilation.
+
+### 5. Freeze Dependencies
 
 ```bash
 cd /code/cardano-node
@@ -256,6 +273,35 @@ build-depends:
 1. `rm -rf dist-newstyle`
 2. `cabal update`
 3. `cabal build all -O0`
+
+### Windows cross-compilation fails with wine/iserv socket error
+
+```
+iserv-proxy: Network.Socket.connect: <socket: 126>: does not exist (Connection refused)
+<no location info>: error: ghc-iserv terminated (1)
+```
+
+This happens when Template Haskell packages (like `th-orphans`) fail during Windows cross-compilation. The root cause is usually a CHaP version mismatch causing different transitive dependencies.
+
+**Fix**: Align CHaP with the target cardano-node version:
+
+```bash
+# Get cardano-node's CHaP rev
+cd /code/cardano-node && git checkout <target-version>
+cat flake.lock | jq '.nodes.CHaP.locked.rev'
+
+# Update cardano-wallet to use same CHaP
+cd /code/cardano-wallet
+nix flake update CHaP --override-input CHaP github:intersectmbo/cardano-haskell-packages/<rev>
+```
+
+**Debug steps**:
+1. Compare derivation inputs between working (master) and failing builds:
+   ```bash
+   diff <(nix-store -qR /nix/store/<master-drv> | sort) \
+        <(nix-store -qR /nix/store/<failing-drv> | sort)
+   ```
+2. Look for differences in `iserv-proxy`, `network`, `th-orphans` versions
 
 ## Automation Opportunities
 

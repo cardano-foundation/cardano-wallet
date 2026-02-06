@@ -23,9 +23,7 @@ import Cardano.Api
     , metadataFromJson
     , metadataToJson
     )
-import Cardano.Api.Error
-    ( displayError
-    )
+-- Removed: Cardano.Api.Error no longer exists
 import Cardano.Pool.Metadata.Types
     ( StakePoolMetadataHash
     , StakePoolMetadataUrl
@@ -378,7 +376,7 @@ instance ToJSON (ApiT W.NonWalletCertificate) where
 
 instance FromJSON (ApiT TxMetadata) where
     parseJSON = fmap ApiT
-        . either (fail . displayError) pure
+        . either (fail . show) pure
         . metadataFromJson TxMetadataJsonDetailedSchema
 
 instance ToJSON (ApiT TxMetadata) where

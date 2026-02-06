@@ -113,6 +113,9 @@ import Network.TypedProtocol
     ( natToInt
     )
 
+import Data.Singletons
+    ( SingI
+    )
 import Network.TypedProtocol.Core
     ( N (..)
     , Nat (..)
@@ -768,7 +771,7 @@ data LSQ block (m :: Type -> Type) a where
     LSQBind :: LSQ block m a -> (a -> LSQ block m b) -> LSQ block m b
 
     -- | A local state query.
-    LSQry :: (BlockQuery block res) -> LSQ block m res
+    LSQry :: SingI footprint => BlockQuery block footprint res -> LSQ block m res
 
 instance Functor (LSQ block m) where
     fmap = liftM

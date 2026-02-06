@@ -18,6 +18,9 @@ import Cardano.BM.Data.Tracer
     ( HasSeverityAnnotation (..)
     , nullTracer
     )
+import Cardano.Ledger.BaseTypes
+    ( unsafeNonZero
+    )
 import Cardano.Slotting.Slot
     ( SlotNo (..)
     )
@@ -272,7 +275,7 @@ spec = do
                     (SlotNo 40)
                     (Cardano.EpochNo 2)
 
-            era1Params = HF.defaultEraParams (SecurityParam 2) (mkSlotLength 1)
+            era1Params = HF.defaultEraParams (SecurityParam (unsafeNonZero 2)) (mkSlotLength 1)
             summary = HF.summaryWithExactly $ exactlyTwo
                 (HF.EraSummary t0 (HF.EraEnd t1) era1Params)
                 (HF.EraSummary t1 (HF.EraEnd t2) era1Params)

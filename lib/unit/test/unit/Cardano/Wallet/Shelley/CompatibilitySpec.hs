@@ -52,9 +52,6 @@ import Cardano.Wallet.Flavor
     ( KeyFlavor
     , keyFlavor
     )
-import Cardano.Wallet.Primitive.Ledger.Shelley
-    ( StandardCrypto
-    )
 import Cardano.Wallet.Primitive.NetworkId
     ( NetworkId (..)
     , SNetworkId (..)
@@ -141,7 +138,7 @@ spec = do
         prop "(Mainnet) can be deserialised by shelley ledger spec" $ \k -> do
             let Address addr
                     = paymentAddress @ShelleyKey @'CredFromKeyK SMainnet k
-            case SL.decodeAddr @StandardCrypto addr of
+            case SL.decodeAddr addr of
                 Just _ -> property True
                 Nothing -> property False
 

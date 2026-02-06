@@ -17,6 +17,21 @@ env:
   linux: "x86_64-linux"
   windows: "windows-x64"
 
+# YAML anchors for common step configurations
+definitions:
+  - linux_unit_test: &linux_unit_test
+      depends_on: []
+      env:
+        LOCAL_CLUSTER_CONFIGS: lib/local-cluster/test/data/cluster-configs
+      agents:
+        system: x86_64-linux
+  - macos_unit_test: &macos_unit_test
+      depends_on: macos-unit-tests-block
+      env:
+        LOCAL_CLUSTER_CONFIGS: lib/local-cluster/test/data/cluster-configs
+      agents:
+        system: aarch64-darwin
+
 steps:
 
   - label: Check Nix (linux)
@@ -103,12 +118,107 @@ steps:
       env:
         CLUSTER_LOGS_DIR_PATH: local-cluster-logs
 
-    - label: Run Unit Tests (linux)
-      key: linux-tests-unit
-      depends_on: []
-      command: 'nix build -L .#ci.${linux}.tests.run.unit'
-      agents:
-        system: ${linux}
+    - label: "Unit: cardano-wallet-application-tls"
+      <<: *linux_unit_test
+      command: cd lib/application-tls && nix run ../../.#unit-cardano-wallet-application-tls -- +RTS -M2G -s -RTS
+
+    - label: "Unit: cardano-balance-tx"
+      <<: *linux_unit_test
+      command: cd lib/balance-tx && nix run ../../.#unit-cardano-balance-tx -- +RTS -M2G -s -RTS
+
+    - label: "Unit: cardano-numeric"
+      <<: *linux_unit_test
+      command: nix run .#unit-cardano-numeric -- +RTS -M2G -s -RTS
+
+    - label: "Unit: cardano-wallet-blackbox-benchmarks"
+      <<: *linux_unit_test
+      command: nix run .#unit-cardano-wallet-blackbox-benchmarks -- +RTS -M2G -s -RTS
+
+    - label: "Unit: cardano-wallet-launcher"
+      <<: *linux_unit_test
+      command: nix run .#unit-cardano-wallet-launcher -- +RTS -M2G -s -RTS
+
+    - label: "Unit: cardano-wallet-network-layer"
+      <<: *linux_unit_test
+      command: nix run .#unit-cardano-wallet-network-layer -- +RTS -M2G -s -RTS
+
+    - label: "Unit: cardano-wallet-primitive"
+      <<: *linux_unit_test
+      command: cd lib/primitive && nix run ../../.#unit-cardano-wallet-primitive -- +RTS -M2G -s -RTS
+
+    - label: "Unit: cardano-wallet-secrets"
+      <<: *linux_unit_test
+      command: nix run .#unit-cardano-wallet-secrets -- +RTS -M2G -s -RTS
+
+    - label: "Unit: cardano-wallet-test-utils"
+      <<: *linux_unit_test
+      command: nix run .#unit-cardano-wallet-test-utils -- +RTS -M2G -s -RTS
+
+    # cardano-wallet-unit split by test module prefix
+    - label: "Unit: wallet-unit / Byron + CLI"
+      <<: *linux_unit_test
+      # CLI tests need golden files from lib/unit/test/data
+      command: cd lib/unit && nix shell ../../.#cardano-cli -c nix run ../../.#unit-cardano-wallet-unit -- --match "/Cardano.Byron./" --match "/Cardano.CLI/" -j1 +RTS -M2G -s -RTS
+
+    - label: "Unit: wallet-unit / DB.Sqlite + Pool"
+      <<: *linux_unit_test
+      command: nix shell .#cardano-cli -c nix run .#unit-cardano-wallet-unit -- --match "/Cardano.DB./" --match "/Cardano.Pool./" -j1 +RTS -M2G -s -RTS
+
+    - label: "Unit: wallet-unit / Address"
+      <<: *linux_unit_test
+      command: nix shell .#cardano-cli -c nix run .#unit-cardano-wallet-unit -- --match "/Cardano.Wallet.Address./" -j1 +RTS -M2G -s -RTS
+
+    - label: "Unit: wallet-unit / Api"
+      <<: *linux_unit_test
+      command: nix shell .#cardano-cli -c nix run .#unit-cardano-wallet-unit -- --match "/Cardano.Wallet.Api./" -j1 +RTS -M2G -s -RTS
+
+    - label: "Unit: wallet-unit / Balance"
+      <<: *linux_unit_test
+      command: nix shell .#cardano-cli -c nix run .#unit-cardano-wallet-unit -- --match "/Cardano.Wallet.Balance./" -j1 +RTS -M2G -s -RTS
+
+    - label: "Unit: wallet-unit / DB"
+      <<: *linux_unit_test
+      command: nix shell .#cardano-cli -c nix run .#unit-cardano-wallet-unit -- --match "/Cardano.Wallet.DB./" -j1 +RTS -M2G -s -RTS
+
+    - label: "Unit: wallet-unit / Primitive"
+      <<: *linux_unit_test
+      command: nix shell .#cardano-cli -c nix run .#unit-cardano-wallet-unit -- --match "/Cardano.Wallet.Primitive./" -j1 +RTS -M2G -s -RTS
+
+    - label: "Unit: wallet-unit / Shelley"
+      <<: *linux_unit_test
+      command: nix shell .#cardano-cli -c nix run .#unit-cardano-wallet-unit -- --match "/Cardano.Wallet.Shelley./" -j1 +RTS -M2G -s -RTS
+
+    - label: "Unit: wallet-unit / Other Wallet"
+      <<: *linux_unit_test
+      command: nix shell .#cardano-cli -c nix run .#unit-cardano-wallet-unit -- --match "/Cardano.Wallet./" --skip "/Cardano.Wallet.Address./" --skip "/Cardano.Wallet.Api./" --skip "/Cardano.Wallet.Balance./" --skip "/Cardano.Wallet.DB./" --skip "/Cardano.Wallet.Primitive./" --skip "/Cardano.Wallet.Shelley./" -j1 +RTS -M2G -s -RTS
+
+    - label: "Unit: wallet-unit / Control + Data"
+      <<: *linux_unit_test
+      command: nix shell .#cardano-cli -c nix run .#unit-cardano-wallet-unit -- --match "/Control./" --match "/Data./" -j1 +RTS -M2G -s -RTS
+
+    - label: "Unit: delta-chain"
+      <<: *linux_unit_test
+      command: nix run .#unit-delta-chain -- +RTS -M2G -s -RTS
+
+    - label: "Unit: delta-store"
+      <<: *linux_unit_test
+      command: nix run .#unit-delta-store -- +RTS -M2G -s -RTS
+
+    - label: "Unit: delta-table"
+      <<: *linux_unit_test
+      command: nix run .#unit-delta-table -- +RTS -M2G -s -RTS
+
+    - label: "Unit: delta-types"
+      <<: *linux_unit_test
+      command: nix run .#unit-delta-types -- +RTS -M2G -s -RTS
+
+    - label: "Unit: std-gen-seed"
+      <<: *linux_unit_test
+      command: nix run .#unit-std-gen-seed -- +RTS -M2G -s -RTS
+
+    - label: "Unit: wai-middleware-logging"
+      <<: *linux_unit_test
+      command: nix run .#unit-wai-middleware-logging -- +RTS -M2G -s -RTS
 
     - label: Conway Integration Tests (linux)
       key: linux-tests-integration-conway
@@ -486,12 +596,108 @@ steps:
       agents:
         system: ${macos}
 
-    - label: Run Unit Tests (macOS, arm64)
-      key: macos-arm64-tests-run-unit
-      depends_on: macos-unit-tests-block
-      command: 'nix build -L .#ci.aarch64-darwin.tests.run.unit'
-      agents:
-        system: ${macos}
+    # macOS unit tests - run each suite with memory limits
+    - label: "Unit (macOS): cardano-wallet-application-tls"
+      <<: *macos_unit_test
+      command: cd lib/application-tls && nix run ../../.#unit-cardano-wallet-application-tls -- +RTS -M2G -s -RTS
+
+    - label: "Unit (macOS): cardano-balance-tx"
+      <<: *macos_unit_test
+      command: cd lib/balance-tx && nix run ../../.#unit-cardano-balance-tx -- +RTS -M2G -s -RTS
+
+    - label: "Unit (macOS): cardano-numeric"
+      <<: *macos_unit_test
+      command: nix run .#unit-cardano-numeric -- +RTS -M2G -s -RTS
+
+    - label: "Unit (macOS): cardano-wallet-blackbox-benchmarks"
+      <<: *macos_unit_test
+      command: nix run .#unit-cardano-wallet-blackbox-benchmarks -- +RTS -M2G -s -RTS
+
+    - label: "Unit (macOS): cardano-wallet-launcher"
+      <<: *macos_unit_test
+      command: nix run .#unit-cardano-wallet-launcher -- +RTS -M2G -s -RTS
+
+    - label: "Unit (macOS): cardano-wallet-network-layer"
+      <<: *macos_unit_test
+      command: nix run .#unit-cardano-wallet-network-layer -- +RTS -M2G -s -RTS
+
+    - label: "Unit (macOS): cardano-wallet-primitive"
+      <<: *macos_unit_test
+      command: cd lib/primitive && nix run ../../.#unit-cardano-wallet-primitive -- +RTS -M2G -s -RTS
+
+    - label: "Unit (macOS): cardano-wallet-secrets"
+      <<: *macos_unit_test
+      command: nix run .#unit-cardano-wallet-secrets -- +RTS -M2G -s -RTS
+
+    - label: "Unit (macOS): cardano-wallet-test-utils"
+      <<: *macos_unit_test
+      command: nix run .#unit-cardano-wallet-test-utils -- +RTS -M2G -s -RTS
+
+    # cardano-wallet-unit split by test module prefix
+    - label: "Unit (macOS): wallet-unit / Byron + CLI"
+      <<: *macos_unit_test
+      # CLI tests need golden files from lib/unit/test/data
+      command: cd lib/unit && nix shell ../../.#cardano-cli -c nix run ../../.#unit-cardano-wallet-unit -- --match "/Cardano.Byron./" --match "/Cardano.CLI/" -j1 +RTS -M2G -s -RTS
+
+    - label: "Unit (macOS): wallet-unit / DB.Sqlite + Pool"
+      <<: *macos_unit_test
+      command: nix shell .#cardano-cli -c nix run .#unit-cardano-wallet-unit -- --match "/Cardano.DB./" --match "/Cardano.Pool./" -j1 +RTS -M2G -s -RTS
+
+    - label: "Unit (macOS): wallet-unit / Address"
+      <<: *macos_unit_test
+      command: nix shell .#cardano-cli -c nix run .#unit-cardano-wallet-unit -- --match "/Cardano.Wallet.Address./" -j1 +RTS -M2G -s -RTS
+
+    - label: "Unit (macOS): wallet-unit / Api"
+      <<: *macos_unit_test
+      command: nix shell .#cardano-cli -c nix run .#unit-cardano-wallet-unit -- --match "/Cardano.Wallet.Api./" -j1 +RTS -M2G -s -RTS
+
+    - label: "Unit (macOS): wallet-unit / Balance"
+      <<: *macos_unit_test
+      command: nix shell .#cardano-cli -c nix run .#unit-cardano-wallet-unit -- --match "/Cardano.Wallet.Balance./" -j1 +RTS -M2G -s -RTS
+
+    - label: "Unit (macOS): wallet-unit / DB"
+      <<: *macos_unit_test
+      command: nix shell .#cardano-cli -c nix run .#unit-cardano-wallet-unit -- --match "/Cardano.Wallet.DB./" -j1 +RTS -M2G -s -RTS
+
+    - label: "Unit (macOS): wallet-unit / Primitive"
+      <<: *macos_unit_test
+      command: nix shell .#cardano-cli -c nix run .#unit-cardano-wallet-unit -- --match "/Cardano.Wallet.Primitive./" -j1 +RTS -M2G -s -RTS
+
+    - label: "Unit (macOS): wallet-unit / Shelley"
+      <<: *macos_unit_test
+      command: nix shell .#cardano-cli -c nix run .#unit-cardano-wallet-unit -- --match "/Cardano.Wallet.Shelley./" -j1 +RTS -M2G -s -RTS
+
+    - label: "Unit (macOS): wallet-unit / Other Wallet"
+      <<: *macos_unit_test
+      command: nix shell .#cardano-cli -c nix run .#unit-cardano-wallet-unit -- --match "/Cardano.Wallet./" --skip "/Cardano.Wallet.Address./" --skip "/Cardano.Wallet.Api./" --skip "/Cardano.Wallet.Balance./" --skip "/Cardano.Wallet.DB./" --skip "/Cardano.Wallet.Primitive./" --skip "/Cardano.Wallet.Shelley./" -j1 +RTS -M2G -s -RTS
+
+    - label: "Unit (macOS): wallet-unit / Control + Data"
+      <<: *macos_unit_test
+      command: nix shell .#cardano-cli -c nix run .#unit-cardano-wallet-unit -- --match "/Control./" --match "/Data./" -j1 +RTS -M2G -s -RTS
+
+    - label: "Unit (macOS): delta-chain"
+      <<: *macos_unit_test
+      command: nix run .#unit-delta-chain -- +RTS -M2G -s -RTS
+
+    - label: "Unit (macOS): delta-store"
+      <<: *macos_unit_test
+      command: nix run .#unit-delta-store -- +RTS -M2G -s -RTS
+
+    - label: "Unit (macOS): delta-table"
+      <<: *macos_unit_test
+      command: nix run .#unit-delta-table -- +RTS -M2G -s -RTS
+
+    - label: "Unit (macOS): delta-types"
+      <<: *macos_unit_test
+      command: nix run .#unit-delta-types -- +RTS -M2G -s -RTS
+
+    - label: "Unit (macOS): std-gen-seed"
+      <<: *macos_unit_test
+      command: nix run .#unit-std-gen-seed -- +RTS -M2G -s -RTS
+
+    - label: "Unit (macOS): wai-middleware-logging"
+      <<: *macos_unit_test
+      command: nix run .#unit-wai-middleware-logging -- +RTS -M2G -s -RTS
 
     - block: MacOS Integration Tests
       # if: build.env("RELEASE_CANDIDATE") == null
@@ -524,91 +730,89 @@ steps:
       concurrency: 1
       concurrency_group: 'macos-e2e-tests'
 
-  - group: Windows Artifacts
-    key: windows-artifacts
-    depends_on:
-      - linux-nix
-    steps:
-    - block: Build Windows Artifacts (windows)
-      depends_on: []
-      if: |
-        build.branch !~ /^gh-readonly-queue\/master/
-          && build.branch != "master"
-          && build.branch != "rc-latest"
-          && build.env("RELEASE_CANDIDATE") == null
-      key: trigger-build-windows-artifacts
-
-    - label: Build Package (windows)
-      key: windows-package
-      depends_on:
-        - trigger-build-windows-artifacts
-      command: nix build -L -o result/windows .#ci.artifacts.win64.release
-      artifact_paths: [ "./result/windows/**" ]
-      agents:
-        system: ${linux}
-
-
-    - label: Build Testing Bundle (windows)
-      key: windows-testing-bundle
-      depends_on:
-        - trigger-build-windows-artifacts
-      command: |
-        nix build -L -o result .#ci.artifacts.win64.tests
-        cp result/cardano-wallet-*-tests-win64.zip ./windows-tests.zip
-      artifact_paths: [ "./windows-tests.zip"]
-      agents:
-        system: ${linux}
-
-  - group: Windows Checks
-    depends_on:
-      - windows-artifacts
-    if: build.env("RELEASE_CANDIDATE") == null || build.env("TEST_RC") == "FALSE"
-    steps:
-    - label: Windows Unit Tests
-      commands:
-        - buildkite-agent artifact download "windows-tests.zip" .
-        - mkdir -p windows\tests
-        - tar -xf windows-tests.zip -C windows\tests
-        - cd windows\tests # tests seem to rely on ..\.. being the repo root
-        - .\cardano-wallet-unit-test-unit.exe --color --jobs 1 --skip /Cardano.Wallet.DB.Sqlite/ +RTS -M2G -N2
-      agents:
-        system: ${windows}
-      env:
-        LOCAL_CLUSTER_CONFIGS: test\data\cluster-configs
-      concurrency: 1
-      concurrency_group: 'windows-tests'
-
-    - label: Windows Text Class Tests
-      command: |
-        buildkite-agent artifact download "windows-tests.zip" .
-        mkdir windows-tests
-        tar -xf windows-tests.zip -C windows-tests
-        .\windows-tests\text-class-test-unit.exe --color
-      agents:
-        system: ${windows}
-      concurrency: 1
-      concurrency_group: 'windows-tests'
-
-    - block: Windows E2E Tests
-      depends_on: []
-      if: build.env("RELEASE_CANDIDATE") == null || build.env("TEST_RC") == "TRUE"
-      key: trigger-windows-e2e-tests
-
-    - label: ⚙️ Windows E2E Tests
-      timeout_in_minutes: 120
-      depends_on:
-        - trigger-windows-e2e-tests
-      commands:
-        - diff -r configs/cardano/preprod lib/integration/configs/cardano/preprod # ensure the configs don't diverge despite being duplicated
-        - buildkite-agent artifact download "windows-tests.zip" .
-        - mkdir windows-tests
-        - tar -xf windows-tests.zip -C windows-tests
-        - .\windows-tests\cardano-wallet-integration-test-e2e.exe
-      agents:
-        system: ${windows}
-      env:
-      concurrency: 1
-      concurrency_group: 'windows-tests'
+  # TODO: Windows builds disabled pending #5107 (OOM) and #5110 (TLS)
+  # - group: Windows Artifacts
+  #   key: windows-artifacts
+  #   depends_on:
+  #     - linux-nix
+  #   steps:
+  #   - block: Build Windows Artifacts (windows)
+  #     depends_on: []
+  #     if: |
+  #       build.branch !~ /^gh-readonly-queue\/master/
+  #         && build.branch != "master"
+  #         && build.branch != "rc-latest"
+  #         && build.env("RELEASE_CANDIDATE") == null
+  #     key: trigger-build-windows-artifacts
+  #
+  #   - label: Build Package (windows)
+  #     key: windows-package
+  #     depends_on:
+  #       - trigger-build-windows-artifacts
+  #     command: nix build -L -o result/windows .#ci.artifacts.win64.release
+  #     artifact_paths: [ "./result/windows/**" ]
+  #     agents:
+  #       system: ${linux}
+  #
+  #   - label: Build Testing Bundle (windows)
+  #     key: windows-testing-bundle
+  #     depends_on:
+  #       - trigger-build-windows-artifacts
+  #     command: |
+  #       nix build -L -o result .#ci.artifacts.win64.tests
+  #       cp result/cardano-wallet-*-tests-win64.zip ./windows-tests.zip
+  #     artifact_paths: [ "./windows-tests.zip"]
+  #     agents:
+  #       system: ${linux}
+  #
+  # - group: Windows Checks
+  #   depends_on:
+  #     - windows-artifacts
+  #   steps:
+  #   - label: Windows Unit Tests
+  #     commands:
+  #       - buildkite-agent artifact download "windows-tests.zip" .
+  #       - mkdir -p windows\tests
+  #       - tar -xf windows-tests.zip -C windows\tests
+  #       - cd windows\tests
+  #       - .\cardano-wallet-unit-test-unit.exe --color --jobs 1 --skip /Cardano.Wallet.DB.Sqlite/ +RTS -N2
+  #     agents:
+  #       system: ${windows}
+  #     env:
+  #       LOCAL_CLUSTER_CONFIGS: test\data\cluster-configs
+  #     concurrency: 1
+  #     concurrency_group: 'windows-tests'
+  #
+  #   - label: Windows Text Class Tests
+  #     command: |
+  #       buildkite-agent artifact download "windows-tests.zip" .
+  #       mkdir windows-tests
+  #       tar -xf windows-tests.zip -C windows-tests
+  #       .\windows-tests\text-class-test-unit.exe --color
+  #     agents:
+  #       system: ${windows}
+  #     concurrency: 1
+  #     concurrency_group: 'windows-tests'
+  #
+  #   - block: Windows E2E Tests
+  #     depends_on: []
+  #     if: build.env("RELEASE_CANDIDATE") == null || build.env("TEST_RC") == "TRUE"
+  #     key: trigger-windows-e2e-tests
+  #
+  #   - label: ⚙️ Windows E2E Tests
+  #     timeout_in_minutes: 120
+  #     depends_on:
+  #       - trigger-windows-e2e-tests
+  #     commands:
+  #       - diff -r configs/cardano/preprod lib/integration/configs/cardano/preprod
+  #       - buildkite-agent artifact download "windows-tests.zip" .
+  #       - mkdir windows-tests
+  #       - tar -xf windows-tests.zip -C windows-tests
+  #       - .\windows-tests\cardano-wallet-integration-test-e2e.exe
+  #     agents:
+  #       system: ${windows}
+  #     concurrency: 1
+  #     concurrency_group: 'windows-tests'
 
   - group: Docker
     key: docker-artifacts

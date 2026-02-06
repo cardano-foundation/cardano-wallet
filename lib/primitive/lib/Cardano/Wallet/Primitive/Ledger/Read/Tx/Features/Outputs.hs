@@ -24,8 +24,24 @@ import Cardano.Binary
 import Cardano.Chain.Common
     ( unsafeGetLovelace
     )
+import Cardano.Ledger.Allegra
+    ( AllegraEra
+    )
 import Cardano.Ledger.Alonzo
-    ( AlonzoScript
+    ( AlonzoEra
+    , AlonzoScript
+    )
+import Cardano.Ledger.Babbage
+    ( BabbageEra
+    )
+import Cardano.Ledger.Conway
+    ( ConwayEra
+    )
+import Cardano.Ledger.Mary
+    ( MaryEra
+    )
+import Cardano.Ledger.Shelley
+    ( ShelleyEra
     )
 import Cardano.Ledger.Shelley.API
     ( StrictMaybe (SJust, SNothing)
@@ -52,14 +68,6 @@ import Data.Foldable
 import GHC.Stack
     ( HasCallStack
     )
-import Ouroboros.Consensus.Shelley.Eras
-    ( StandardAllegra
-    , StandardAlonzo
-    , StandardBabbage
-    , StandardConway
-    , StandardMary
-    , StandardShelley
-    )
 
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Chain.UTxO as Byron
@@ -69,7 +77,6 @@ import qualified Cardano.Ledger.Alonzo.TxBody as Alonzo
 import qualified Cardano.Ledger.Babbage as Babbage
 import qualified Cardano.Ledger.Babbage.TxBody as Babbage
 import qualified Cardano.Ledger.Conway as Conway
-import qualified Cardano.Ledger.Crypto as SL
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Wallet.Primitive.Ledger.Convert as Ledger
 import qualified Cardano.Wallet.Primitive.Types.Address as W
@@ -97,32 +104,32 @@ getOutputs = case theEra @era of
     Babbage -> \(Outputs os) -> fst . fromBabbageTxOut <$> toList os
     Conway -> \(Outputs os) -> fst . fromConwayTxOut <$> toList os
 
-fromShelleyAddress :: SL.Addr crypto -> W.Address
+fromShelleyAddress :: SL.Addr -> W.Address
 fromShelleyAddress = W.Address . SL.serialiseAddr
 
-fromShelleyTxOut :: SL.ShelleyTxOut StandardShelley -> W.TxOut
+fromShelleyTxOut :: SL.ShelleyTxOut ShelleyEra -> W.TxOut
 fromShelleyTxOut (SL.ShelleyTxOut addr amount) = W.TxOut
     (fromShelleyAddress addr)
     (TokenBundle.fromCoin $ Ledger.toWalletCoin amount)
 
-fromAllegraTxOut :: SL.ShelleyTxOut StandardAllegra -> W.TxOut
+fromAllegraTxOut :: SL.ShelleyTxOut AllegraEra -> W.TxOut
 fromAllegraTxOut (SL.ShelleyTxOut addr amount) = W.TxOut
     (fromShelleyAddress addr)
     (TokenBundle.fromCoin $ Ledger.toWalletCoin amount)
 
-fromMaryTxOut :: SL.ShelleyTxOut StandardMary -> W.TxOut
+fromMaryTxOut :: SL.ShelleyTxOut MaryEra -> W.TxOut
 fromMaryTxOut (SL.ShelleyTxOut addr value) =
     W.TxOut (fromShelleyAddress addr) (toWalletTokenBundle value)
 
 fromAlonzoTxOut
-    :: Alonzo.AlonzoTxOut StandardAlonzo
+    :: Alonzo.AlonzoTxOut AlonzoEra
     -> W.TxOut
 fromAlonzoTxOut (Alonzo.AlonzoTxOut addr value _) =
     W.TxOut (fromShelleyAddress addr) (toWalletTokenBundle value)
 
 fromBabbageTxOut
-    :: Babbage.BabbageTxOut StandardBabbage
-    -> (W.TxOut, Maybe (AlonzoScript (Babbage.BabbageEra SL.StandardCrypto)))
+    :: Babbage.BabbageTxOut BabbageEra
+    -> (W.TxOut, Maybe (AlonzoScript Babbage.BabbageEra))
 fromBabbageTxOut (Babbage.BabbageTxOut addr value _datum refScript) =
     ( W.TxOut (fromShelleyAddress addr) (toWalletTokenBundle value)
     , case refScript of
@@ -131,8 +138,8 @@ fromBabbageTxOut (Babbage.BabbageTxOut addr value _datum refScript) =
     )
 
 fromConwayTxOut
-    :: Babbage.BabbageTxOut StandardConway
-    -> (W.TxOut, Maybe (AlonzoScript (Conway.ConwayEra SL.StandardCrypto)))
+    :: Babbage.BabbageTxOut ConwayEra
+    -> (W.TxOut, Maybe (AlonzoScript Conway.ConwayEra))
 fromConwayTxOut (Babbage.BabbageTxOut addr value _datum refScript) =
     ( W.TxOut (fromShelleyAddress addr) (toWalletTokenBundle value)
     , case refScript of

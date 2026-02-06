@@ -366,7 +366,7 @@ instance Malformed (BodyParam ApiWalletSignData) where
             { "metadata": null
             , "passphrase": #{wPassphrase}
             }|]
-          , "Error in $.metadata: The JSON metadata top level must be a map (JSON object) from word to value."
+          , "Error in $.metadata: TxMetadataJsonToplevelNotMap"
           )
         , ( Aeson.encode [aesonQQ|
             { "metadata": { "0": { "string": "metadata" } }
@@ -1688,7 +1688,7 @@ instance Malformed (BodyParam (ApiConstructTransactionData ('Testnet pm))) where
                , "Error in $['validity_interval']['invalid_before']: ApiValidityBound string must have either 'second' or 'slot' unit."
               )
             , ( [aesonQQ|{ "metadata": "hello" }|]
-               , "Error in $.metadata: The JSON metadata top level must be a map (JSON object) from word to value."
+               , "Error in $.metadata: TxMetadataJsonToplevelNotMap"
               )
             , ( [aesonQQ|{ "withdrawal": "slef" }|]
                , "Error in $.withdrawal: empty"

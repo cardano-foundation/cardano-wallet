@@ -248,9 +248,11 @@ import Cardano.Address.Derivation
     ( XPrv
     , XPub
     )
+import Cardano.Address.KeyHash
+    ( KeyHash
+    )
 import Cardano.Address.Script
     ( Cosigner (..)
-    , KeyHash
     )
 import Cardano.Api
     ( serialiseToCBOR
@@ -845,6 +847,7 @@ import UnliftIO.MVar
     , newMVar
     )
 
+import qualified Cardano.Address.KeyHash as CA
 import qualified Cardano.Address.Script as CA
 import qualified Cardano.Address.Style.Shelley as CAShelley
 import qualified Cardano.Api as Cardano

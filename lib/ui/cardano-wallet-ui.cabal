@@ -70,7 +70,7 @@ library common
     , aeson-pretty
     , base
     , bytestring
-    , cardano-addresses             >=3.12.0 && <3.13
+    , cardano-addresses             >=4.0.2 && <4.1
     , cardano-wallet-network-layer
     , containers
     , contra-tracer
@@ -119,7 +119,7 @@ library shelley
     , aeson-pretty
     , base
     , bytestring
-    , cardano-addresses             >=3.12.0  && <3.13
+    , cardano-addresses             >=4.0.2   && <4.1
     , cardano-slotting              >=0.2.0.0 && <0.3
     , cardano-wallet
     , cardano-wallet-api

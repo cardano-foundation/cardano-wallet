@@ -55,10 +55,12 @@ import Cardano.Address.Derivation
     ( XPrv
     , toXPub
     )
-import Cardano.Address.Script
+import Cardano.Address.KeyHash
     ( KeyHash (..)
     , KeyRole (..)
-    , Script (..)
+    )
+import Cardano.Address.Script
+    ( Script (..)
     , ScriptHash (..)
     , foldScript
     , toScriptHash
@@ -240,7 +242,7 @@ import qualified Cardano.Address.Script as CA
 import qualified Cardano.Address.Style.Shelley as CA
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Byron as Byron
-import qualified Cardano.Api.Error as Cardano
+-- Removed: Cardano.Api.Error no longer exists, using show instead
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Crypto as CC
 import qualified Cardano.Crypto.Hash.Class as Crypto
@@ -829,6 +831,7 @@ mkUnsignedTx
             Cardano.TxInsReference
                 babbageOnwards
                 (toNodeTxIn <$> filteredRefInp)
+                (Cardano.BuildTxWith Set.empty)
 
     , Cardano.txOuts = case refScriptM of
         Nothing ->
@@ -926,21 +929,24 @@ mkUnsignedTx
                     Cardano.SimpleScriptWitness scriptWitsSupported
                         $ Cardano.SReferenceScript
                         $ toCardanoTxIn txin
+            -- Build (PolicyAssets, ScriptWitness) per policy
             collect burn (assetId, TokenQuantity q) = do
                 scriptSource <- case Map.lookup assetId mintingSource of
                     Just script -> pure
                         $ Cardano.BuildTxWith
                         $ toScriptWitnessGeneral script
                     Nothing -> []
+                let qty = (if burn then negate else id) $ fromIntegral q
+                    policyAssets = Cardano.PolicyAssets
+                        $ Map.singleton (toCardanoAssetName $ assetName assetId) qty
                 pure $ Map.singleton
-                    ( toCardanoPolicyId . AssetId.policyId $ assetId)
-                    [ (toCardanoAssetName $ assetName assetId
-                        , (if burn then negate else id) $ fromIntegral q
-                        , scriptSource
-                        )
-                      ]
+                    (toCardanoPolicyId . AssetId.policyId $ assetId)
+                    (policyAssets, scriptSource)
+            -- Merge PolicyAssets for same PolicyId
+            mergeMint (pa1, wit) (pa2, _) =
+                (pa1 <> pa2, wit)
         in Cardano.TxMintValue maryOnwards
-            $ Map.unionsWith (<>)
+            $ Map.unionsWith mergeMint
             $ (TokenMap.toFlatList mintData >>= collect False)
                 <> (TokenMap.toFlatList burnData >>= collect True)
 
@@ -956,7 +962,7 @@ mkUnsignedTx
 
     toErrMkTx :: Cardano.TxBodyError -> ErrMkTransaction
     toErrMkTx =
-        ErrMkTransactionTxBodyError . T.pack . Cardano.displayError
+        ErrMkTransactionTxBodyError . T.pack . show
 
     -- Extra validation for HTTP API backward compatibility:
     --

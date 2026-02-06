@@ -23,12 +23,14 @@ import Cardano.Address.Derivation
     ( XPub
     , xpubPublicKey
     )
-import Cardano.Address.Script
+import Cardano.Address.KeyHash
     ( KeyHash
     , KeyRole (..)
-    , Script (..)
-    , ScriptHash (..)
     , keyHashFromBytes
+    )
+import Cardano.Address.Script
+    ( Script (..)
+    , ScriptHash (..)
     , toScriptHash
     )
 import Cardano.Api
@@ -40,9 +42,6 @@ import Cardano.Crypto.DSIGN.Class
     )
 import Cardano.Ledger.Alonzo.Core
     ( reqSignerHashesTxBodyL
-    )
-import Cardano.Ledger.Crypto
-    ( StandardCrypto
     )
 import Cardano.Mnemonic
     ( SomeMnemonic (..)
@@ -56,6 +55,9 @@ import Cardano.Pool.Types
     , PoolOwner (..)
     , decodePoolIdBech32
     , encodePoolIdBech32
+    )
+import Cardano.Protocol.Crypto
+    ( StandardCrypto
     )
 import Cardano.Wallet.Address.Derivation
     ( DerivationIndex (..)
@@ -366,7 +368,7 @@ import UnliftIO.Exception
     ( fromEither
     )
 
-import qualified Cardano.Address.Script as CA
+import qualified Cardano.Address.KeyHash as CA
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Ledger.Keys as Ledger
 import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
@@ -5725,8 +5727,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 (unsafeFromHex $ T.encodeUtf8 cborHex)
 
             (Right txBody) =
-                Cardano.deserialiseFromTextEnvelope
-                (Cardano.AsTxBody Cardano.AsAlonzoEra) textEnvelope
+                Cardano.deserialiseFromTextEnvelope @(Cardano.TxBody Cardano.AlonzoEra)
+                    textEnvelope
 
             toCborHexTx txbody =
                 T.decodeUtf8 $

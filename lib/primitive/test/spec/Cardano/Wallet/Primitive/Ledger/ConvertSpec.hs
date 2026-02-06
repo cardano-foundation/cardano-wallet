@@ -9,10 +9,15 @@ module Cardano.Wallet.Primitive.Ledger.ConvertSpec
 
 import Prelude
 
-import Cardano.Address.Script
+import Cardano.Address.KeyHash
     ( KeyHash (..)
     , KeyRole (..)
-    , Script (..)
+    )
+import Cardano.Address.Script
+    ( Script (..)
+    )
+import Cardano.Ledger.Babbage
+    ( BabbageEra
     )
 import Cardano.Wallet.Primitive.Ledger.Convert
     ( Convert (..)
@@ -66,9 +71,6 @@ import Data.Typeable
     ( Typeable
     , typeRep
     )
-import Ouroboros.Consensus.Shelley.Eras
-    ( StandardBabbage
-    )
 import Test.Cardano.Ledger.Allegra.Arbitrary
     ()
 import Test.Hspec
@@ -111,7 +113,7 @@ spec = describe "Cardano.Wallet.Primitive.Ledger.ConvertSpec" $
         ledgerRoundtrip $ Proxy @TxIn
 
     describe "Timelock roundtrips (toLedgerTimelockScript, toWalletScript)" $ do
-        let ledger = toLedgerTimelockScript @StandardBabbage
+        let ledger = toLedgerTimelockScript @BabbageEra
         let wallet = toWalletScript (const Unknown)
 
         it "ledger . wallet . ledger == ledger" $ property $ \s -> do
