@@ -302,7 +302,7 @@ prop_addressDiscoveryDoesNotChangeGapInvariance (CatalystSharedState accXPub' ac
     addr = AddressPool.addressFromIx (getAddrPool sharedState) keyIx
     (_, sharedState') = isShared @n (liftPaymentAddress @n addr) sharedState
     mapOfConsecutiveUnused
-        = L.tail
+        = drop 1
         . L.dropWhile (== Unused)
         . L.map snd
         . L.sortOn fst
@@ -339,11 +339,11 @@ prop_oursUnexpectedPrefix
     -> UnexpectedPrefix
     -> Property
 prop_oursUnexpectedPrefix s prefix =
-    let
-        (Address addr, _, _) = head $ knownAddresses s
-        addr' = BS.cons (unWord8 prefix) (BS.tail addr)
-    in
-        first isJust (isOurs (Address addr') s) === (False, s)
+    case knownAddresses s of
+        ((Address addr, _, _):_) ->
+            let addr' = BS.cons (unWord8 prefix) (BS.drop 1 addr)
+            in first isJust (isOurs (Address addr') s) === (False, s)
+        [] -> error "expected known addresses"
 
 {-------------------------------------------------------------------------------
                                 Arbitrary Instances

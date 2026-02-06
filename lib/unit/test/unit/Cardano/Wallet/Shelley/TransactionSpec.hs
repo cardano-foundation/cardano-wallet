@@ -966,7 +966,9 @@ allEras =
     ]
 
 eraNum :: AnyCardanoEra -> Int
-eraNum e = fst $ head $ filter ((== e) . snd) allEras
+eraNum e = case filter ((== e) . snd) allEras of
+    ((n, _):_) -> n
+    [] -> error "era not found"
 
 shelleyEraNum :: AnyRecentEra -> Int
 shelleyEraNum (AnyRecentEra era) =

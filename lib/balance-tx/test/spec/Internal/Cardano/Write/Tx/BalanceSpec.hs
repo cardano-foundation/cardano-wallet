@@ -647,10 +647,12 @@ spec_balanceTx era = describe "balanceTx" $ do
                     & ppCoinsPerUTxOByteL .~ testParameter_coinsPerUTxOByte
                 RecentEraConway -> def
                      & ppCoinsPerUTxOByteL .~ testParameter_coinsPerUTxOByte
-        Write.isBelowMinimumCoinForTxOut pp (head outs)
-            `shouldBe` False
-
-        head outs `shouldBe` out'
+        case outs of
+            (firstOut:_) -> do
+                Write.isBelowMinimumCoinForTxOut pp firstOut
+                    `shouldBe` False
+                firstOut `shouldBe` out'
+            [] -> expectationFailure "Expected non-empty outputs"
 
     describe "effect of txMaxSize on coin selection" $ do
 
@@ -1163,8 +1165,9 @@ spec_updateTx _era = describe "updateTx" $ do
         it "returns `Left err` with noTxUpdate" $ do
             -- Could be argued that it should instead return `Right tx`.
             let tx :: Tx era
-                tx = deserializeTx
-                    $ snd $ head signedTxs
+                tx = case signedTxs of
+                    ((_, bs):_) -> deserializeTx bs
+                    [] -> error "signedTxs unexpectedly empty"
             let res = updateTx
                     tx
                     noTxUpdate
@@ -2442,7 +2445,7 @@ shrinkScriptData
     -> [CardanoApi.TxBodyScriptData era]
 shrinkScriptData CardanoApi.TxBodyNoScriptData = []
 shrinkScriptData (CardanoApi.TxBodyScriptData era
-    (Alonzo.TxDats dats) (Alonzo.Redeemers redeemers)) = tail
+    (Alonzo.TxDats dats) (Alonzo.Redeemers redeemers)) = drop 1
         [ CardanoApi.TxBodyScriptData era
             (Alonzo.TxDats dats')
             (Alonzo.Redeemers redeemers')
@@ -2483,7 +2486,7 @@ shrinkTxBodyBabbage
     -> [CardanoApi.TxBody CardanoApi.BabbageEra]
 shrinkTxBodyBabbage
     (CardanoApi.ShelleyTxBody e bod scripts scriptData aux val) =
-    tail
+    drop 1
         [ CardanoApi.ShelleyTxBody e bod' scripts' scriptData' aux' val'
         | bod' <- prependOriginal shrinkLedgerTxBody bod
         , aux' <- aux : filter (/= aux) [Nothing]
@@ -2499,7 +2502,7 @@ shrinkTxBodyBabbage
     shrinkLedgerTxBody
         :: Ledger.TxBody Babbage
         -> [Ledger.TxBody Babbage]
-    shrinkLedgerTxBody body = tail
+    shrinkLedgerTxBody body = drop 1
         [ body
             & withdrawalsTxBodyL .~ wdrls'
             & outputsTxBodyL .~ outs'
@@ -2533,7 +2536,7 @@ shrinkTxBodyBabbage
             (body ^. scriptIntegrityHashTxBodyL)
         ]
 
-    shrinkValidity (ValidityInterval a b) = tail
+    shrinkValidity (ValidityInterval a b) = drop 1
         [ ValidityInterval a' b'
         | a' <- prependOriginal shrinkStrictMaybe a
         , b' <- prependOriginal shrinkStrictMaybe b

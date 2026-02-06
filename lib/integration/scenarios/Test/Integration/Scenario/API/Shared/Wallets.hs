@@ -970,7 +970,7 @@ spec = describe "SHARED_WALLETS" $ do
         --send funds to one change address wallet
         let minUTxOValue' = minUTxOValue (_mainEra ctx)
         addrs1 <- listAddresses walOneAddr
-        let destOneChange = (head addrs1) ^. #id
+        let destOneChange = case addrs1 of (a:_) -> a ^. #id; [] -> error "expected addresses"
         let payloadTx amt destination = Json [json|{
                 "payments": [{
                     "address": #{destination},
@@ -1018,7 +1018,7 @@ spec = describe "SHARED_WALLETS" $ do
             >>= verifyAddrs (initialTotal1+1) (initialUsed1+1)
 
         addrs2 <- listAddresses wFixture
-        let destFixture = (head addrs2) ^. #id
+        let destFixture = case addrs2 of (a:_) -> a ^. #id; [] -> error "expected addresses"
         forM_ [1,1,1,1,1] $ \num -> realizeTx walOneAddr wFixture (num * minUTxOValue') destFixture
 
         -- the fixture wallet has still 20 unused external addresses, 2 used external addresses (first and second),

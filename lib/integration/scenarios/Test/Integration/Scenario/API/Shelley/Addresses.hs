@@ -1,6 +1,7 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE QuasiQuotes #-}
@@ -325,7 +326,9 @@ spec = describe "SHELLEY_ADDRESSES" $ do
             >>= verifyAddrs initialTotalB initialUsedB
 
         -- 2. Send a transaction from A -> B
-        destination <- view #id . head <$> listAddresses @n ctx wB
+        destination <- listAddresses @n ctx wB >>= \case
+            (a:_) -> pure $ view #id a
+            [] -> error "expected addresses"
         let amount = 10 * minUTxOValue (_mainEra ctx)
         let payload = Json [json|{
                 "payments": [{

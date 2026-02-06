@@ -411,6 +411,7 @@ import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.Delta.Update as Delta
 import qualified Data.List as L
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
@@ -734,9 +735,11 @@ fileModeSpec =  do
                 \outputs if validation fails" $
                 \f -> withShelleyFileBootDBLayer f $ \db -> do
 
-                    let ourAddrs =
+                    let ourAddrs = NE.fromList $
                             map (\(a,s,_) -> (a,s)) $
                             knownAddresses (getState testCp)
+                        addr0 = fst (ourAddrs NE.!! 0)
+                        addr1 = fst (ourAddrs NE.!! 1)
 
                     ------------------------------------------------------------
                     -- Transaction 1
@@ -764,10 +767,10 @@ fileModeSpec =  do
                             , resolvedCollateralInputs = []
                             , outputs =
                                 [ TxOut
-                                    (fst $ head ourAddrs)
+                                    addr0
                                     (coinToBundle 4)
                                 , TxOut
-                                    (fst $ head $ tail ourAddrs)
+                                    addr1
                                     (coinToBundle 8)
                                 ]
                             , collateralOutput = Nothing
@@ -804,11 +807,11 @@ fileModeSpec =  do
                                 [ TxOut
                                     (dummyAddr "faucetAddr2") (coinToBundle 2)
                                 , TxOut
-                                    (fst $ ourAddrs !! 1) (coinToBundle 2)
+                                    (fst $ ourAddrs NE.!! 1) (coinToBundle 2)
                                 ]
                             , collateralOutput =
                                 Just $ TxOut
-                                    (fst $ ourAddrs !! 1) (coinToBundle 7)
+                                    (fst $ ourAddrs NE.!! 1) (coinToBundle 7)
                             , withdrawals = mempty
                             , metadata = Nothing
                             , scriptValidity = Just TxScriptInvalid
@@ -849,7 +852,7 @@ fileModeSpec =  do
                                 --
                                 [ ( TxIn (dummyHash "tx2") 2
                                   , Just $ TxOut
-                                        (fst $ ourAddrs !! 1)
+                                        (fst $ ourAddrs NE.!! 1)
                                         (coinToBundle 7)
                                   )
                                 ]
@@ -872,9 +875,10 @@ fileModeSpec =  do
                \rollback to the same place" $ \f -> do
               withShelleyFileBootDBLayer f $ \db@DBLayer{atomically, rollbackTo, readCheckpoint} -> do
 
-                let ourAddrs =
-                        map (\(a,s,_) -> (a,s)) $
+                let ourAddrs = NE.fromList $
+                        map (\(a,_,_) -> a) $
                         knownAddresses (getState testCp)
+                    ourAddr = NE.head ourAddrs
 
                 let mockApplyBlock1 = mockApply db (dummyHash "block1")
                         [ Tx
@@ -891,7 +895,7 @@ fileModeSpec =  do
                             -- TODO: (ADP-957)
                             , resolvedCollateralInputs = []
                             , outputs =
-                                [TxOut (fst $ head ourAddrs) (coinToBundle 4)]
+                                [TxOut ourAddr (coinToBundle 4)]
                             , collateralOutput = Nothing
                             , withdrawals = mempty
                             , metadata = Nothing
@@ -920,7 +924,7 @@ fileModeSpec =  do
                         , resolvedCollateralInputs = []
                         , outputs =
                             [ TxOut (dummyAddr "faucetAddr2") (coinToBundle 2)
-                            , TxOut (fst $ ourAddrs !! 1) (coinToBundle 2)
+                            , TxOut (ourAddrs NE.!! 1) (coinToBundle 2)
                             ]
                         , collateralOutput = Nothing
                         , withdrawals = mempty
