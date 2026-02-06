@@ -190,10 +190,12 @@ httpApiPortParser = do
         unless (p `elem` validPorts)
             $ fail
             $ "Invalid port number. Must be inside: "
-                ++ show (head validPorts)
+                ++ show minPort
                 ++ ".."
-                ++ show (last validPorts)
+                ++ show maxPort
         pure p
+    minPort = 1024 :: PortNumber
+    maxPort = 65535 :: PortNumber
 
 validPorts :: [PortNumber]
 validPorts = [1024 .. 65535]
