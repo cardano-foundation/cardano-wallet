@@ -21,22 +21,3 @@ jobs:
 
       - name: Check nix version
         run: nix --version
-
-  attic-cache:
-    name: "Dev Shell Attic Cache"
-    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
-    needs: check-nix
-    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Push dev shell to Attic
-        env:
-          ATTIC_TOKEN: ${{ secrets.ATTIC_TOKEN }}
-        run: |
-          attic login adrestia https://attic.cf-app.org/ "$ATTIC_TOKEN"
-          nix build --log-format raw-with-logs ".#devShells.x86_64-linux.default.inputDerivation" -o dev-shell
-          attic push adrestia dev-shell
