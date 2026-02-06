@@ -1,0 +1,49 @@
+name: Linux Local Cluster
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: "Build local cluster"
+    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Build derivations
+        run: nix build -L .#local-cluster .#test-local-cluster-exe .#cardano-cli .#cardano-node .#cardano-wallet
+
+  test:
+    name: "Run Local Cluster Tests"
+    needs: build
+    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run tests
+        env:
+          LOCAL_CLUSTER_CONFIGS: lib/local-cluster/test/data/cluster-configs
+          CLUSTER_LOGS_DIR_PATH: local-cluster-logs
+        run: |
+          mkdir -p local-cluster-logs
+          nix shell .#local-cluster .#test-local-cluster-exe .#cardano-cli .#cardano-node .#cardano-wallet \
+            -c test-local-cluster-exe
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: local-cluster-logs
+          path: local-cluster-logs/
