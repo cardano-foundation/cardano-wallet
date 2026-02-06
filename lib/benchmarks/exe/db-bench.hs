@@ -641,7 +641,7 @@ bgroupReadTxHistory tr = bgroup "TxHistory (Read)"
         lbl = unwords [show n, show a, range, ord, mstatus, search]
         range = case (r, reverse r) of
             ((inf:_), (sup:_)) -> "["+|inf|+".."+|sup|+"]"
-            _ -> "[]"
+            _ -> error "benchmark range cannot be empty"
         ord = case o of Descending -> "DESC"; Ascending -> "ASC"
         mstatus = maybe "-" pretty st
         search = case s of

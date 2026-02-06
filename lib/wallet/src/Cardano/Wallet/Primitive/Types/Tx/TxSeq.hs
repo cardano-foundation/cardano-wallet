@@ -515,9 +515,10 @@ shrinkAssetIds :: TxSeq -> TxSeq
 shrinkAssetIds s = mapAssetIds toSimpleAssetId s
   where
     toSimpleAssetId :: AssetId -> AssetId
-    toSimpleAssetId = mapToFunction
-        (NE.head simpleAssetIdsNE)
-        (Map.fromList $ F.toList (assetIds s) `zip` NE.toList simpleAssetIdsNE)
+    toSimpleAssetId = case simpleAssetIds of
+        (x:_) -> mapToFunction x
+            (Map.fromList $ F.toList (assetIds s) `zip` simpleAssetIds)
+        [] -> error "impossible: simpleAssetIds is infinite"
 
 -- | Simplifies the set of transaction identifiers within a 'TxSeq'.
 --
@@ -528,9 +529,10 @@ shrinkTxIds :: TxSeq -> TxSeq
 shrinkTxIds s = mapTxIds toSimpleTxId s
   where
     toSimpleTxId :: Hash "Tx" -> Hash "Tx"
-    toSimpleTxId = mapToFunction
-        (NE.head simpleTxIdsNE)
-        (Map.fromList $ F.toList (txIds s) `zip` NE.toList simpleTxIdsNE)
+    toSimpleTxId = case simpleTxIds of
+        (x:_) -> mapToFunction x
+            (Map.fromList $ F.toList (txIds s) `zip` simpleTxIds)
+        [] -> error "impossible: simpleTxIds is infinite"
 
 --------------------------------------------------------------------------------
 -- Internal interface
@@ -540,17 +542,16 @@ shrinkTxIds s = mapTxIds toSimpleTxId s
 -- Domain-specific constants
 --------------------------------------------------------------------------------
 
-simpleAssetIdsNE :: NonEmpty AssetId
-simpleAssetIdsNE
-    = NE.fromList
-    $ AssetId (UnsafeTokenPolicyId $ Hash mempty)
+simpleAssetIds :: [AssetId]
+simpleAssetIds
+    = AssetId (UnsafeTokenPolicyId $ Hash mempty)
     . UnsafeAssetName
     . T.encodeUtf8
     . T.pack
-    . show <$> [0 :: Integer .. 1000]
+    . show <$> [0 :: Integer ..]
 
-simpleTxIdsNE :: NonEmpty (Hash "Tx")
-simpleTxIdsNE = NE.fromList $ Hash . T.encodeUtf8 . T.pack . show <$> [0 :: Integer .. 1000]
+simpleTxIds :: [Hash "Tx"]
+simpleTxIds = Hash . T.encodeUtf8 . T.pack . show <$> [0 :: Integer ..]
 
 --------------------------------------------------------------------------------
 -- Domain-specific functions
