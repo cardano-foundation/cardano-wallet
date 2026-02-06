@@ -411,7 +411,6 @@ import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.Delta.Update as Delta
 import qualified Data.List as L
-import qualified Data.List.NonEmpty as NE
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
@@ -735,11 +734,12 @@ fileModeSpec =  do
                 \outputs if validation fails" $
                 \f -> withShelleyFileBootDBLayer f $ \db -> do
 
-                    let ourAddrs = NE.fromList $
+                    let ourAddrs =
                             map (\(a,s,_) -> (a,s)) $
                             knownAddresses (getState testCp)
-                        addr0 = fst (ourAddrs NE.!! 0)
-                        addr1 = fst (ourAddrs NE.!! 1)
+                        (addr0, addr1) = case ourAddrs of
+                            ((a0,_):(a1,_):_) -> (a0, a1)
+                            _ -> error "expected at least 2 known addresses"
 
                     ------------------------------------------------------------
                     -- Transaction 1
@@ -807,11 +807,11 @@ fileModeSpec =  do
                                 [ TxOut
                                     (dummyAddr "faucetAddr2") (coinToBundle 2)
                                 , TxOut
-                                    (fst $ ourAddrs NE.!! 1) (coinToBundle 2)
+                                    addr1 (coinToBundle 2)
                                 ]
                             , collateralOutput =
                                 Just $ TxOut
-                                    (fst $ ourAddrs NE.!! 1) (coinToBundle 7)
+                                    addr1 (coinToBundle 7)
                             , withdrawals = mempty
                             , metadata = Nothing
                             , scriptValidity = Just TxScriptInvalid
@@ -852,7 +852,7 @@ fileModeSpec =  do
                                 --
                                 [ ( TxIn (dummyHash "tx2") 2
                                   , Just $ TxOut
-                                        (fst $ ourAddrs NE.!! 1)
+                                        addr1
                                         (coinToBundle 7)
                                   )
                                 ]
@@ -875,10 +875,12 @@ fileModeSpec =  do
                \rollback to the same place" $ \f -> do
               withShelleyFileBootDBLayer f $ \db@DBLayer{atomically, rollbackTo, readCheckpoint} -> do
 
-                let ourAddrs = NE.fromList $
+                let addrs =
                         map (\(a,_,_) -> a) $
                         knownAddresses (getState testCp)
-                    ourAddr = NE.head ourAddrs
+                    (ourAddr, ourAddr1) = case addrs of
+                        (a0:a1:_) -> (a0, a1)
+                        _ -> error "expected at least 2 known addresses"
 
                 let mockApplyBlock1 = mockApply db (dummyHash "block1")
                         [ Tx
@@ -924,7 +926,7 @@ fileModeSpec =  do
                         , resolvedCollateralInputs = []
                         , outputs =
                             [ TxOut (dummyAddr "faucetAddr2") (coinToBundle 2)
-                            , TxOut (ourAddrs NE.!! 1) (coinToBundle 2)
+                            , TxOut ourAddr1 (coinToBundle 2)
                             ]
                         , collateralOutput = Nothing
                         , withdrawals = mempty

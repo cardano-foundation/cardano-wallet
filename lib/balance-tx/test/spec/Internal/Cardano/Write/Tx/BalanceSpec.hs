@@ -2445,7 +2445,7 @@ shrinkScriptData
     -> [CardanoApi.TxBodyScriptData era]
 shrinkScriptData CardanoApi.TxBodyNoScriptData = []
 shrinkScriptData (CardanoApi.TxBodyScriptData era
-    (Alonzo.TxDats dats) (Alonzo.Redeemers redeemers)) = drop 1
+    (Alonzo.TxDats dats) (Alonzo.Redeemers redeemers)) = case
         [ CardanoApi.TxBodyScriptData era
             (Alonzo.TxDats dats')
             (Alonzo.Redeemers redeemers')
@@ -2453,7 +2453,9 @@ shrinkScriptData (CardanoApi.TxBodyScriptData era
             (Map.fromList <$> shrinkList (const []) (Map.toList dats))
         , redeemers' <- redeemers :
             (Map.fromList <$> shrinkList (const []) (Map.toList redeemers))
-        ]
+        ] of
+            (_:rest) -> rest
+            [] -> error "shrinkScriptData: unexpected empty shrink list"
 
 shrinkSeq :: Foldable t => (a -> [a]) -> t a -> [StrictSeq.StrictSeq a]
 shrinkSeq shrinkElem =
@@ -2486,7 +2488,7 @@ shrinkTxBodyBabbage
     -> [CardanoApi.TxBody CardanoApi.BabbageEra]
 shrinkTxBodyBabbage
     (CardanoApi.ShelleyTxBody e bod scripts scriptData aux val) =
-    drop 1
+    case
         [ CardanoApi.ShelleyTxBody e bod' scripts' scriptData' aux' val'
         | bod' <- prependOriginal shrinkLedgerTxBody bod
         , aux' <- aux : filter (/= aux) [Nothing]
@@ -2497,12 +2499,14 @@ shrinkTxBodyBabbage
                 CardanoApi.AlonzoEraOnwardsBabbage
                 CardanoApi.ScriptValid
             ]
-        ]
+        ] of
+            (_:rest) -> rest
+            [] -> error "shrinkTxBodyBabbage: unexpected empty shrink list"
   where
     shrinkLedgerTxBody
         :: Ledger.TxBody Babbage
         -> [Ledger.TxBody Babbage]
-    shrinkLedgerTxBody body = drop 1
+    shrinkLedgerTxBody body = case
         [ body
             & withdrawalsTxBodyL .~ wdrls'
             & outputsTxBodyL .~ outs'
@@ -2534,13 +2538,17 @@ shrinkTxBodyBabbage
             (body ^. vldtTxBodyL)
         , adHash' <- prependOriginal shrinkStrictMaybe
             (body ^. scriptIntegrityHashTxBodyL)
-        ]
+        ] of
+            (_:rest) -> rest
+            [] -> error "shrinkLedgerTxBody: unexpected empty shrink list"
 
-    shrinkValidity (ValidityInterval a b) = drop 1
+    shrinkValidity (ValidityInterval a b) = case
         [ ValidityInterval a' b'
         | a' <- prependOriginal shrinkStrictMaybe a
         , b' <- prependOriginal shrinkStrictMaybe b
-        ]
+        ] of
+            (_:rest) -> rest
+            [] -> error "shrinkValidity: unexpected empty shrink list"
 
     shrinkValue :: (Eq a, Monoid a) => a -> [a]
     shrinkValue v = filter (/= v) [mempty]
