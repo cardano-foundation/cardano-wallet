@@ -106,5 +106,8 @@
       "scName": "stdout",
       "scRotation": null
     }
-  ]
+  ],
+  "LedgerDB": {
+    "Backend": "V1LMDB"
+  }
 }
