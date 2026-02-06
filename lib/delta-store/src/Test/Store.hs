@@ -106,12 +106,10 @@ genChain gen0 more = do
 -- | Shrink a chain of deltas.
 shrinkChain :: Chain da -> [Chain da]
 shrinkChain (Chain [] _) = []
-shrinkChain (Chain das a0) =
+shrinkChain (Chain (d:rest) a0) =
     [ Chain [] a0
-    , Chain [last das] a0
-    , case das of
-        (_:rest) -> Chain rest a0
-        [] -> error "shrinkChain: impossible empty das"
+    , Chain [last (d:rest)] a0
+    , Chain rest a0
     ]
 
 -- | Test whether the law on 'updateS' is satisfied.

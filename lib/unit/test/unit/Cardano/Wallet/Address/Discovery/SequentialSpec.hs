@@ -470,7 +470,9 @@ prop_oursUnexpectedPrefix
 prop_oursUnexpectedPrefix s prefix =
     case knownAddresses s of
         ((Address addr, _, _):_) ->
-            let addr' = BS.cons (unWord8 prefix) (BS.drop 1 addr)
+            let addr' = case BS.uncons addr of
+                    Just (_, rest) -> BS.cons (unWord8 prefix) rest
+                    Nothing -> error "prop_oursUnexpectedPrefix: address is empty"
             in first isJust (isOurs (Address addr') s) === (False, s)
         [] -> error "expected known addresses"
 

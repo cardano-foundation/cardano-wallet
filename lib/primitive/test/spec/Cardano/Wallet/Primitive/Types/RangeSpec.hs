@@ -19,9 +19,7 @@ import Cardano.Wallet.Primitive.Types.Range
     , isSubrangeOf
     )
 import Data.Maybe
-    ( fromJust
-    , listToMaybe
-    , mapMaybe
+    ( mapMaybe
     )
 import Test.Hspec
     ( Spec
@@ -225,8 +223,11 @@ instance (Arbitrary a, Ord a) => Arbitrary (NonSingletonRange a) where
     arbitrary = do
         -- Iterate through the infinite list of arbitrary ranges and return
         -- the first range that is not a singleton range:
-        fromJust . listToMaybe
+        firstValid
             . mapMaybe (makeNonSingletonRangeValid . NonSingletonRange)
             <$> infiniteList
+      where
+        firstValid (x:_) = x
+        firstValid [] = error "no valid NonSingletonRange found"
     shrink (NonSingletonRange r) = mapMaybe
         (makeNonSingletonRangeValid . NonSingletonRange) (shrink r)

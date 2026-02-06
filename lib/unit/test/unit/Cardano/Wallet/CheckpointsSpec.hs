@@ -199,7 +199,9 @@ prop_checkpointsEventuallyEqual args@(GenSparseCheckpointsArgs cfg h) =
         -> [SparseCheckpointsDB]
         -> Property
     prop_canNeverRollbackMoreThanKPlusGap (Quantity tip) dbs =
-        conjoin (forEachStep <$> drop 1 dbs)
+        case dbs of
+            (_:rest) -> conjoin (forEachStep <$> rest)
+            [] -> error "prop_canNeverRollbackMoreThanKPlusGap: empty dbs"
       where
         forEachStep (SparseCheckpointsDB db) =
             let
