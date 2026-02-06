@@ -25,8 +25,7 @@ jobs:
     name: "Dev Shell Attic Cache"
     needs: build
     runs-on: [self-hosted, linux, x86_64, cardano-wallet]
-    # TODO: restore to master-only after testing
-    # if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
