@@ -811,9 +811,8 @@ steps:
   #       - .\windows-tests\cardano-wallet-integration-test-e2e.exe
   #     agents:
   #       system: ${windows}
-      env:
-      concurrency: 1
-      concurrency_group: 'windows-tests'
+  #     concurrency: 1
+  #     concurrency_group: 'windows-tests'
 
   - group: Docker
     key: docker-artifacts
