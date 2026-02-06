@@ -96,10 +96,17 @@
       url = "github:intersectmbo/cardano-haskell-packages?ref=repo";
       flake = false;
     };
+    # Updated iserv-proxy with network < 3.2.8.0 constraint
+    # (network 3.2.8.0 has socket options wine doesn't support)
+    iserv-proxy = {
+      url = "github:stable-haskell/iserv-proxy?ref=iserv-syms";
+      flake = false;
+    };
     haskellNix = {
       url = "github:input-output-hk/haskell.nix";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.hackage.follows = "hackage";
+      inputs.iserv-proxy.follows = "iserv-proxy";
     };
     hackage = {
       url = "github:input-output-hk/hackage.nix";

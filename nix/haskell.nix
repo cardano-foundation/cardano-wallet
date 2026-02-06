@@ -271,9 +271,6 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: set-git-rev: rewrite-l
             packages.unix-time.postPatch = ''
               sed -i 's/mingwex//g' unix-time.cabal
             '';
-            # For these two packages the custom setups fail with multiple lib:Cabal instances
-            packages.entropy.package.buildType = lib.mkForce "Simple";
-            packages.HsOpenSSL.package.buildType = lib.mkForce "Simple";
           })
 
           # Build fixes for library dependencies

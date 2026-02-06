@@ -691,7 +691,9 @@
         "hls-2.8": "hls-2.8_2",
         "hls-2.9": "hls-2.9",
         "hpc-coveralls": "hpc-coveralls_2",
-        "iserv-proxy": "iserv-proxy_2",
+        "iserv-proxy": [
+          "iserv-proxy"
+        ],
         "nixpkgs": [
           "nixpkgs"
         ],
@@ -1198,11 +1200,11 @@
     "iserv-proxy_2": {
       "flake": false,
       "locked": {
-        "lastModified": 1742121966,
-        "narHash": "sha256-x4bg4OoKAPnayom0nWc0BmlxgRMMHk6lEPvbiyFBq1s=",
+        "lastModified": 1770174258,
+        "narHash": "sha256-x6QYupvHZM7rRpVO4AIC5gUWFprFQ59A95FPC7/Owjg=",
         "owner": "stable-haskell",
         "repo": "iserv-proxy",
-        "rev": "e9dc86ed6ad71f0368c16672081c8f26406c3a7e",
+        "rev": "91ef7ffdeedfb141a4d69dcf9e550abe3e1160c6",
         "type": "github"
       },
       "original": {
@@ -1605,6 +1607,7 @@
           "nixpkgs"
         ],
         "iohkNix": "iohkNix_2",
+        "iserv-proxy": "iserv-proxy_2",
         "mithril": "mithril",
         "nixpkgs": [
           "haskellNix",
