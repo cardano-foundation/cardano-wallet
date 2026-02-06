@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -9,6 +10,7 @@
 
 module Test.Integration.Run
     ( main
+    , mainWith
     )
 where
 
@@ -45,6 +47,7 @@ import Test.Hspec
     )
 import Test.Hspec.Core.Spec
     ( SpecM
+    , SpecWith
     , describe
     , parallel
     , sequential
@@ -95,7 +98,17 @@ import qualified Test.Integration.Scenario.CLI.Shelley.Transactions as Transacti
 import qualified Test.Integration.Scenario.CLI.Shelley.Wallets as WalletsCLI
 
 main :: forall netId n. (netId ~ 42, n ~ 'Testnet netId) => IO ()
-main = withTestsSetup $ \testDir (tr, tracers) -> do
+main = mainWith parallel
+
+-- | Like 'main', but with a configurable concurrency strategy.
+-- Use 'parallel' for the default behavior, or 'sequential' to
+-- run all tests one at a time (useful for flaky tests on CI).
+mainWith
+    :: forall netId n
+     . (netId ~ 42, n ~ 'Testnet netId)
+    => (forall a. SpecWith a -> SpecWith a)
+    -> IO ()
+mainWith adapt = withTestsSetup $ \testDir (tr, tracers) -> do
     localClusterEra <- Cluster.clusterEraFromEnv
     let testnetMagic = Cluster.TestnetMagic (natVal (Proxy @netId))
     testDataDir <- do
@@ -105,12 +118,12 @@ main = withTestsSetup $ \testDir (tr, tracers) -> do
     let testingCtx = TestingCtx{..}
     hspecMain $ do
         describe "No backend required"
-            $ parallel
+            $ adapt
             $ describe "Miscellaneous CLI tests" MiscellaneousCLI.spec
 
         aroundAll (withContext testingCtx) $ do
             describe "API Specifications" $ do
-                parallel $ do
+                adapt $ do
                     Addresses.spec @n
                     CoinSelections.spec @n
                     Blocks.spec
@@ -137,7 +150,7 @@ main = withTestsSetup $ \testDir (tr, tracers) -> do
             -- Possible conflict with StakePools - mark as not parallizable
             sequential Settings.spec
 
-            parallel $ describe "CLI Specifications" $ do
+            adapt $ describe "CLI Specifications" $ do
                 AddressesCLI.spec @n
                 TransactionsCLI.spec @n
                 WalletsCLI.spec @n

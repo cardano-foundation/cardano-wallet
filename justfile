@@ -135,6 +135,16 @@ integration-tests j match:
     '.#integration-exe' \
     -c integration-exe -j "{{j}}" --match="{{match}}"
 
+# run integration tests sequentially (one at a time) via nix
+integration-tests-sequential match:
+  CARDANO_WALLET_TEST_DATA=lib/integration/test/data \
+  TESTS_RETRY_FAILED=1 \
+  nix shell \
+    '.#cardano-wallet' \
+    '.#local-cluster' \
+    '.#integration-exe-sequential' \
+    -c integration-exe-sequential --match="{{match}}"
+
 node:
   nix shell \
   --accept-flake-config \
