@@ -38,38 +38,11 @@ steps:
     env:
       system: ${macos}
 
-  - group: Linux Artifacts
-    key: linux-artifacts
-    depends_on:
-      - linux-nix
-    steps:
-
-    - label: Nix build (linux)
-      key: linux-build
-      commands:
-        - nix build -L .#cardano-wallet
-      agents:
-        system: ${linux}
-
-    - label: Nix evaluate shell (linux)
-      commands:
-        - nix shell -L .#cardano-node .#cardano-cli .#cardano-wallet --command cardano-wallet version
-      agents:
-        system: ${linux}
-
-    - label: Build package (linux)
-      key: linux-package
-      depends_on:
-      command: ./scripts/buildkite/main/linux-package.sh
-      artifact_paths: [ "./result/linux/**" ]
-      agents:
-        system: ${linux}
-
   - group: Linux Checks
     if: build.env("RELEASE_CANDIDATE") == null || build.env("TEST_RC") == "FALSE"
     key: linux-tests
     depends_on:
-      - linux-artifacts
+      - linux-nix
     steps:
 
     - label: Run Local Cluster Tests (linux)
