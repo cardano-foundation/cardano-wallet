@@ -107,7 +107,7 @@ genChain gen0 more = do
 shrinkChain :: Chain da -> [Chain da]
 shrinkChain (Chain [] _) = []
 shrinkChain (Chain das a0) =
-    [ Chain [] a0, Chain [last das] a0, Chain (tail das) a0 ]
+    [ Chain [] a0, Chain [last das] a0, Chain (drop 1 das) a0 ]
 
 -- | Test whether the law on 'updateS' is satisfied.
 --
@@ -129,6 +129,9 @@ prop_StoreUpdate toIO mkStore gen0 more =
         let Chain adas a0 = chain
             as = map fst adas ++ [a0]
             das = map snd adas
+            expected = case as of
+                (x:_) -> x
+                [] -> error "impossible: as is always non-empty"
         in  counterexample ("\nUpdates applied:\n" <> pretty (listF das))
             $ monadicIO $ do
                 ea <- run . toIO $ do
@@ -142,10 +145,10 @@ prop_StoreUpdate toIO mkStore gen0 more =
                     Left err -> run $ throwIO err
                     Right a -> do
                         monitor $ counterexample
-                            $ "\nExpected:\n" <> show (head as)
+                            $ "\nExpected:\n" <> show expected
                         monitor $ counterexample
                             $ "\nGot:\n" <> show a
-                        assert $ a == head as
+                        assert $ a == expected
 
 {-----------------------------------------------------------------------------
     DSL for developing

@@ -33,7 +33,7 @@ shrinkRewardAccount a
     | a == simplest = []
     | otherwise = [simplest]
   where
-    simplest = head addresses
+    simplest = case addresses of (x:_) -> x; [] -> error "impossible"
 
 addresses :: [RewardAccount]
 addresses = mkRewardAccount <$> ['0' ..]
