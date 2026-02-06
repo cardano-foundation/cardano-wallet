@@ -730,10 +730,12 @@ steps:
       concurrency: 1
       concurrency_group: 'macos-e2e-tests'
 
+  # TODO: Windows builds disabled pending #5107 (OOM) and #5110 (TLS)
   - group: Windows Artifacts
     key: windows-artifacts
     depends_on:
       - linux-nix
+    if: false
     steps:
     - block: Build Windows Artifacts (windows)
       depends_on: []
