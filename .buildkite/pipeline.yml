@@ -16,4 +16,4 @@ steps:
       Write-Host "=== Current User ROOT store (all certs count) ==="
       (Get-ChildItem Cert:\CurrentUser\Root).Count
     agents:
-      system: $${windows}
+      system: ${windows}
