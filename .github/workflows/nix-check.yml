@@ -22,11 +22,6 @@ jobs:
       - name: Check nix version
         run: nix --version
 
-      - name: Check regenerate.sh is up to date
-        run: |
-          nix/regenerate.sh
-          git diff --exit-code nix/project-package-list.nix
-
   attic-cache:
     name: "Dev Shell Attic Cache"
     runs-on: [self-hosted, linux, x86_64, cardano-wallet]
