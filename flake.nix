@@ -313,6 +313,8 @@
                 unit-delta-types = project.hsPkgs.delta-types.components.tests.unit;
                 unit-std-gen-seed = project.hsPkgs.std-gen-seed.components.tests.unit;
                 unit-wai-middleware-logging = project.hsPkgs.wai-middleware-logging.components.tests.unit;
+                unit-cardano-balance-tx = project.hsPkgs.cardano-balance-tx.components.tests.test;
+                unit-cardano-wallet-blackbox-benchmarks = project.hsPkgs.cardano-wallet-blackbox-benchmarks.components.tests.unit;
 
                 # Combined project coverage report
                 testCoverageReport = coveredProject.projectCoverageReport;

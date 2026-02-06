@@ -8,4 +8,741 @@ steps:
   - label: "Windows TLS diagnostic (extended)"
     command: "powershell.exe -ExecutionPolicy Bypass -File scripts\\buildkite\\windows\\tls-diagnostic.ps1"
     agents:
-      system: ${windows}
+      system: ${linux}
+
+  - label: Dev Shell Attic Cache (linux)
+    depends_on:
+      - linux-nix
+    commands:
+      - nix develop path:$MAIN_PIPELINE_DIR -c $MAIN_PIPELINE_DIR/attic-cache.sh
+    agents:
+      system: ${linux}
+    env:
+      system: ${linux}
+
+  - label: Check Nix (macOS)
+    key: macos-nix
+    commands:
+        - nix --version
+        - nix flake info
+    agents:
+      system: ${macos}
+
+  - label: Dev Shell Attic Cache (macos)
+    depends_on:
+      - macos-nix
+    commands:
+      - nix develop path:$MAIN_PIPELINE_DIR -c $MAIN_PIPELINE_DIR/attic-cache.sh
+    agents:
+      system: ${macos}
+    env:
+      system: ${macos}
+
+  - group: Linux Artifacts
+    key: linux-artifacts
+    depends_on:
+      - linux-nix
+    steps:
+
+    - label: Nix build (linux)
+      key: linux-build
+      commands:
+        - nix build -L .#cardano-wallet
+      agents:
+        system: ${linux}
+
+    - label: Nix evaluate shell (linux)
+      commands:
+        - nix shell -L .#cardano-node .#cardano-cli .#cardano-wallet --command cardano-wallet version
+      agents:
+        system: ${linux}
+
+    - label: Build package (linux)
+      key: linux-package
+      depends_on:
+      command: ./scripts/buildkite/main/linux-package.sh
+      artifact_paths: [ "./result/linux/**" ]
+      agents:
+        system: ${linux}
+
+  - group: Linux Checks
+    if: build.env("RELEASE_CANDIDATE") == null || build.env("TEST_RC") == "FALSE"
+    key: linux-tests
+    depends_on:
+      - linux-artifacts
+    steps:
+
+    - label: Run Local Cluster Tests (linux)
+      key: local-cluster-tests
+      depends_on: []
+      timeout_in_minutes: 30
+      command: |
+        mkdir local-cluster-logs
+        nix shell "nixpkgs#just" -c just test-local-cluster
+      agents:
+        system: ${linux}
+      artifact_paths: [ "./local-cluster-logs/**" ]
+      env:
+        CLUSTER_LOGS_DIR_PATH: local-cluster-logs
+
+    - label: Conway Integration Tests (linux)
+      key: linux-tests-integration-conway
+      depends_on: []
+      command: |
+          mkdir integration-test-dir
+          export CLUSTER_LOGS_DIR_PATH=integration-test-dir/cluster.logs
+          export INTEGRATION_TEST_DIR=integration-test-dir
+          export TEST_CONCURRENCY=$(buildkite-agent meta-data get "test-concurrency" --default $DEFAULT_TEST_CONCURRENCY)
+          nix shell 'nixpkgs#just' -c just conway-integration-tests $$TEST_CONCURRENCY
+      artifact_paths: [ "./integration-test-dir/**" ]
+      agents:
+        system: ${linux}
+      concurrency: 8
+      concurrency_group: 'linux-integration-tests'
+
+    - block: Run E2E Tests (linux)
+      if: build.env("RELEASE_CANDIDATE") == null
+      depends_on: []
+      key: trigger-e2e-tests
+
+    - label: Run Linux E2E Tests (linux)
+      depends_on:
+        - trigger-e2e-tests
+      commands: |
+        nix shell 'nixpkgs#just' -c just e2e
+      artifact_paths:
+      env:
+
+      agents:
+        system: ${linux}
+      concurrency: 1
+      concurrency_group: 'linux-e2e-tests'
+
+    - label: Preview Network Boot Sync
+      depends_on: []
+      command: |
+        cd run/preview/nix
+        rm -rf logs
+        mkdir -p logs
+        rm -rf databases
+        ./run.sh sync 600
+      artifact_paths:
+        - "./run/preview/nix/logs/*"
+      agents:
+        system: x86_64-linux
+      env:
+        SUCCESS_STATUS: syncing
+        NODE_LOGS_FILE: ./logs/node.log
+        WALLET_LOGS_FILE: ./logs/wallet.log
+        CLEANUP_DB: true
+        NETWORK: testnet
+
+    - label: Mainnet Boot Sync
+      depends_on: []
+      command: |
+        cd run/mainnet/nix
+        rm -rf logs
+        mkdir -p logs
+        rm -rf databases
+        ./run.sh sync 600
+      artifact_paths:
+        - "./run/mainnet/nix/logs/*"
+      agents:
+        system: x86_64-linux
+      env:
+        SUCCESS_STATUS: syncing
+        NODE_LOGS_FILE: ./logs/node.log
+        WALLET_LOGS_FILE: ./logs/wallet.log
+        CLEANUP_DB: true
+        NETWORK: mainnet
+
+    - block: Mainnet Boot Sync with Mithril
+      if: build.env("RELEASE_CANDIDATE") == null && build.branch != "master"
+      depends_on: []
+      key: linux-mainnet-full-sync-block
+
+    - label: Mainnet Boot Sync with Mithril
+      soft_fail :
+        - exit_status: 44
+      depends_on:
+        - linux-mainnet-full-sync-block
+      command: |
+        cd run/mainnet/nix
+        rm -rf logs
+        mkdir -p logs
+        rm -rf databases
+        ./snapshot.sh
+        ./run.sh sync 7200
+      artifact_paths:
+        - "./run/mainnet/nix/logs/*"
+      agents:
+        system: x86_64-linux
+      env:
+        SUCCESS_STATUS: ready
+        NODE_LOGS_FILE: ./logs/node.log
+        WALLET_LOGS_FILE: ./logs/wallet.log
+        CLEANUP_DB: true
+        NETWORK: mainnet
+      concurrency: 1
+      concurrency_group: 'mithril-mainnet-full-sync'
+
+  - group: Code Quality Checks
+    key: code-quality
+    if: build.env("RELEASE_CANDIDATE") == null || build.env("TEST_RC") == "FALSE"
+    depends_on:
+      - linux-nix
+    steps:
+
+    - label: Check Cabal Configure
+      key: cabal-configure
+      depends_on: []
+      command: 'nix develop --command scripts/buildkite/check-haskell-nix-cabal.sh'
+      agents:
+        system: ${linux}
+
+    - label: Check Code Format
+      key: code-format
+      depends_on: []
+      command: 'nix develop --command scripts/buildkite/main/check-code-format.sh'
+      agents:
+        system: ${linux}
+
+    - label: Check HLint
+      key: hlint
+      depends_on: []
+      command: 'nix develop --command bash -c "echo +++ HLint ; hlint lib"'
+      agents:
+        system: ${linux}
+
+    - label: Validate Swagger File
+      key: openapi
+      depends_on: []
+      commands:
+        - nix develop path:$MAIN_PIPELINE_DIR -c $MAIN_PIPELINE_DIR/validate-swagger.sh
+      artifacts:
+        - artifacts/api-diffs.md
+      env:
+        RELEASE: false
+      agents:
+        system: ${linux}
+
+    - label: Print TODO List
+      command: 'nix develop --command scripts/todo-list.sh'
+      depends_on: []
+      agents:
+        system: ${linux}
+
+    - label: Lint Bash Shell Scripts
+      key: lint-bash
+      depends_on: []
+      commands:
+        - 'echo +++ Shellcheck'
+        - './scripts/shellcheck.sh'
+      agents:
+        system: ${linux}
+
+    - label: Check HLS Works
+      key: hls
+      depends_on: []
+      command:
+          nix develop --command bash -c "haskell-language-server lib/wallet/src/Cardano/Wallet.hs"
+      agents:
+        system: ${linux}
+      env:
+        TMPDIR: "/cache"
+
+    - block: Cabal Build
+      if: |
+        build.branch !~ /^gh-readonly-queue\/master/
+            && build.branch != "master"
+            && build.env("RELEASE_CANDIDATE") == null
+      depends_on: []
+      key: cabal-release-block
+
+    - label: Cabal Build (linux)
+      key: cabal-release
+      depends_on: cabal-release-block
+      command: |
+        nix develop -c cabal update
+        nix develop -c cabal build all -frelease
+      agents:
+        system: ${linux}
+
+    - label: Check eol is present
+      key: eol
+      depends_on: []
+      command: 'nix develop --command scripts/enforce-eol.sh'
+      agents:
+        system: ${linux}
+
+    - label: Check for git revision in version output
+      key: git-revision
+      depends_on: []
+      command: scripts/buildkite/main/git-revision.sh
+      agents:
+        system: ${linux}
+
+  - group: Linux Benchmarks
+    key: linux-benchmarks
+    depends_on: linux-nix
+    steps:
+
+    - label: Build Benchmarks (linux)
+      command:
+        - nix build -L .#ci.benchmarks.all
+      agents:
+        system: ${linux}
+
+    - block: Run Benchmarks
+      if: build.env("RELEASE_CANDIDATE") == null || build.env("TEST_RC") == "TRUE"
+      depends_on: []
+      key: trigger-benchmarks
+
+    - label: Nix build on benchmark queue (linux)
+      key: nix-build-benchmarks
+      depends_on: trigger-benchmarks
+      command:
+        - nix build -L
+        - nix build -L .#ci.benchmarks.all
+      agents:
+        system: ${linux}
+        queue: adrestia-bench
+
+    - label: API Benchmark (linux)
+      command: |
+        export BENCHMARK_CSV_FILE="`pwd`/bench-results.csv"
+        "./scripts/buildkite/main/bench-api.sh"
+      depends_on:
+        - nix-build-benchmarks
+      timeout_in_minutes: 20
+      agents:
+        system: x86_64-linux
+        queue: adrestia-bench
+      artifact_paths: [ "./bench-results.csv" ]
+      concurrency: 4
+      concurrency_group: 'concurrent-benchmarks'
+      key: api-benchmark
+
+    - label: Latency Benchmark (linux)
+      command: |
+        export BENCHMARK_CSV_FILE="`pwd`/bench-results.csv"
+        ./scripts/buildkite/main/bench-latency.sh
+      depends_on:
+        - nix-build-benchmarks
+      timeout_in_minutes: 30
+      agents:
+        system: x86_64-linux
+        queue: adrestia-bench
+      artifact_paths: [ "./bench-results.csv" ]
+      concurrency: 4
+      concurrency_group: 'concurrent-benchmarks'
+      key: latency-benchmark
+
+    - label: DB Benchmark (linux)
+      command: |
+        export BENCHMARK_CSV_FILE="`pwd`/bench-results.csv"
+        ./scripts/buildkite/main/bench-db.sh
+      depends_on:
+        - nix-build-benchmarks
+      timeout_in_minutes: 50
+      agents:
+        system: x86_64-linux
+        queue: adrestia-bench
+      artifact_paths: [ "./bench-results.csv" ]
+      concurrency: 4
+      concurrency_group: 'concurrent-benchmarks'
+      key: db-benchmark
+
+    - label: Read-blocks Benchmark (linux)
+      command: |
+        export BENCHMARK_CSV_FILE="`pwd`/bench-results.csv"
+        ./scripts/buildkite/main/bench-read-blocks.sh
+      depends_on:
+        - nix-build-benchmarks
+      timeout_in_minutes: 20
+      agents:
+        system: x86_64-linux
+        queue: adrestia-bench
+      artifact_paths: [ "./bench-results.csv" ]
+      concurrency: 4
+      concurrency_group: 'concurrent-benchmarks'
+      key: read-blocks-benchmark
+
+    - label: Memory Benchmark (linux)
+      command: |
+        export BENCHMARK_CSV_FILE="`pwd`/bench-results.csv"
+        ./scripts/buildkite/main/bench-memory.sh
+      depends_on:
+        - nix-build-benchmarks
+      timeout_in_minutes: 20
+      agents:
+        system: x86_64-linux
+        queue: adrestia-bench
+      artifact_paths: [ "./bench-results.csv" ]
+      concurrency: 4
+      concurrency_group: 'concurrent-benchmarks'
+      key: memory-benchmark
+
+    - label: Benchmarks history
+      if: build.env("RELEASE_CANDIDATE") != null
+      depends_on:
+        - api-benchmark
+        - latency-benchmark
+        - db-benchmark
+        - read-blocks-benchmark
+        - memory-benchmark
+        - trigger-benchmarks
+      artifact_paths:
+        - ./benchmark-history*.tgz
+        - ./benchmark-history.csv
+      command: |
+        ./scripts/buildkite/main/benchmark-history.sh
+      agents:
+        system: x86_64-linux
+      key: benchmarks-history
+
+  - group: MacOS Artifacts
+    key: macos-artifacts
+    depends_on: macos-nix
+    steps:
+
+    - block: MacOS Artifacts
+      if: |
+        build.branch !~ /^gh-readonly-queue\/master/
+          && build.branch != "master"
+          && build.env("RELEASE_CANDIDATE") == null
+      key: block-macos
+
+    - label: Build Integration Tests (macOS, arm64)
+      key: macos-arm64-tests-build-integration
+      if: build.env("TEST_RC") == null || build.env("TEST_RC") == "FALSE"
+      depends_on: block-macos
+      command: nix build -L .#packages.aarch64-darwin.integration-exe
+      agents:
+        system: ${macos}
+        queue: "cardano-wallet"
+
+    - label: Build Package (macOS, x86_64)
+      key: macos-intel-package
+      depends_on: block-macos
+      command: 'nix build -L -o result/macos-intel .#packages.x86_64-darwin.ci.artifacts.macos-intel.release'
+      artifact_paths: [ "./result/macos-intel/**" ]
+      agents:
+        system: ${macos}
+
+    - label: Build Package (macOS, arm64)
+      key: macos-arm64-package
+      depends_on: block-macos
+      command: 'nix build -L -o result/macos-silicon .#packages.aarch64-darwin.ci.artifacts.macos-silicon.release'
+      artifact_paths: [ "./result/macos-silicon/**" ]
+      agents:
+        system: ${macos}
+
+  - group: MacOS Checks
+    key: "macos-checks"
+    if: build.env("RELEASE_CANDIDATE") == null || build.env("TEST_RC") == "FALSE"
+    depends_on:
+      - macos-artifacts
+    steps:
+
+    - block: MacOS Unit Tests
+      if: |
+        build.branch !~ /^gh-readonly-queue\/master/
+          && build.branch != "master"
+          && build.env("RELEASE_CANDIDATE") == null
+      depends_on: []
+      key: macos-unit-tests-block
+
+    - label: Run Unit Tests (macOS, x86_64)
+      if: 0 == 1 # https://github.com/cardano-foundation/cardano-wallet/issues/5049
+      key: macos-intel-tests-run-unit
+      depends_on: macos-unit-tests-block
+      command: 'nix build -L .#ci.x86_64-darwin.tests.run.unit'
+      agents:
+        system: ${macos}
+
+    # macOS unit tests - run each suite with memory limits
+    - label: "Unit (macOS): cardano-wallet-application-tls"
+      <<: *macos_unit_test
+      command: cd lib/application-tls && nix run ../../.#unit-cardano-wallet-application-tls -- +RTS -M2G -s -RTS
+
+    - label: "Unit (macOS): cardano-balance-tx"
+      <<: *macos_unit_test
+      command: cd lib/balance-tx && nix run ../../.#unit-cardano-balance-tx -- +RTS -M2G -s -RTS
+
+    - label: "Unit (macOS): cardano-numeric"
+      <<: *macos_unit_test
+      command: nix run .#unit-cardano-numeric -- +RTS -M2G -s -RTS
+
+    - label: "Unit (macOS): cardano-wallet-blackbox-benchmarks"
+      <<: *macos_unit_test
+      command: nix run .#unit-cardano-wallet-blackbox-benchmarks -- +RTS -M2G -s -RTS
+
+    - label: "Unit (macOS): cardano-wallet-launcher"
+      <<: *macos_unit_test
+      command: nix run .#unit-cardano-wallet-launcher -- +RTS -M2G -s -RTS
+
+    - label: "Unit (macOS): cardano-wallet-network-layer"
+      <<: *macos_unit_test
+      command: nix run .#unit-cardano-wallet-network-layer -- +RTS -M2G -s -RTS
+
+    - label: "Unit (macOS): cardano-wallet-primitive"
+      <<: *macos_unit_test
+      command: cd lib/primitive && nix run ../../.#unit-cardano-wallet-primitive -- +RTS -M2G -s -RTS
+
+    - label: "Unit (macOS): cardano-wallet-secrets"
+      <<: *macos_unit_test
+      command: nix run .#unit-cardano-wallet-secrets -- +RTS -M2G -s -RTS
+
+    - label: "Unit (macOS): cardano-wallet-test-utils"
+      <<: *macos_unit_test
+      command: nix run .#unit-cardano-wallet-test-utils -- +RTS -M2G -s -RTS
+
+    # cardano-wallet-unit split by test module prefix
+    - label: "Unit (macOS): wallet-unit / Byron + CLI"
+      <<: *macos_unit_test
+      # CLI tests need golden files from lib/unit/test/data
+      command: cd lib/unit && nix shell ../../.#cardano-cli -c nix run ../../.#unit-cardano-wallet-unit -- --match "/Cardano.Byron./" --match "/Cardano.CLI/" -j1 +RTS -M2G -s -RTS
+
+    - label: "Unit (macOS): wallet-unit / DB.Sqlite + Pool"
+      <<: *macos_unit_test
+      command: nix shell .#cardano-cli -c nix run .#unit-cardano-wallet-unit -- --match "/Cardano.DB./" --match "/Cardano.Pool./" -j1 +RTS -M2G -s -RTS
+
+    - label: "Unit (macOS): wallet-unit / Address"
+      <<: *macos_unit_test
+      command: nix shell .#cardano-cli -c nix run .#unit-cardano-wallet-unit -- --match "/Cardano.Wallet.Address./" -j1 +RTS -M2G -s -RTS
+
+    - label: "Unit (macOS): wallet-unit / Api"
+      <<: *macos_unit_test
+      command: nix shell .#cardano-cli -c nix run .#unit-cardano-wallet-unit -- --match "/Cardano.Wallet.Api./" -j1 +RTS -M2G -s -RTS
+
+    - label: "Unit (macOS): wallet-unit / Balance"
+      <<: *macos_unit_test
+      command: nix shell .#cardano-cli -c nix run .#unit-cardano-wallet-unit -- --match "/Cardano.Wallet.Balance./" -j1 +RTS -M2G -s -RTS
+
+    - label: "Unit (macOS): wallet-unit / DB"
+      <<: *macos_unit_test
+      command: nix shell .#cardano-cli -c nix run .#unit-cardano-wallet-unit -- --match "/Cardano.Wallet.DB./" -j1 +RTS -M2G -s -RTS
+
+    - label: "Unit (macOS): wallet-unit / Primitive"
+      <<: *macos_unit_test
+      command: nix shell .#cardano-cli -c nix run .#unit-cardano-wallet-unit -- --match "/Cardano.Wallet.Primitive./" -j1 +RTS -M2G -s -RTS
+
+    - label: "Unit (macOS): wallet-unit / Shelley"
+      <<: *macos_unit_test
+      command: nix shell .#cardano-cli -c nix run .#unit-cardano-wallet-unit -- --match "/Cardano.Wallet.Shelley./" -j1 +RTS -M2G -s -RTS
+
+    - label: "Unit (macOS): wallet-unit / Other Wallet"
+      <<: *macos_unit_test
+      command: nix shell .#cardano-cli -c nix run .#unit-cardano-wallet-unit -- --match "/Cardano.Wallet./" --skip "/Cardano.Wallet.Address./" --skip "/Cardano.Wallet.Api./" --skip "/Cardano.Wallet.Balance./" --skip "/Cardano.Wallet.DB./" --skip "/Cardano.Wallet.Primitive./" --skip "/Cardano.Wallet.Shelley./" -j1 +RTS -M2G -s -RTS
+
+    - label: "Unit (macOS): wallet-unit / Control + Data"
+      <<: *macos_unit_test
+      command: nix shell .#cardano-cli -c nix run .#unit-cardano-wallet-unit -- --match "/Control./" --match "/Data./" -j1 +RTS -M2G -s -RTS
+
+    - label: "Unit (macOS): delta-chain"
+      <<: *macos_unit_test
+      command: nix run .#unit-delta-chain -- +RTS -M2G -s -RTS
+
+    - label: "Unit (macOS): delta-store"
+      <<: *macos_unit_test
+      command: nix run .#unit-delta-store -- +RTS -M2G -s -RTS
+
+    - label: "Unit (macOS): delta-table"
+      <<: *macos_unit_test
+      command: nix run .#unit-delta-table -- +RTS -M2G -s -RTS
+
+    - label: "Unit (macOS): delta-types"
+      <<: *macos_unit_test
+      command: nix run .#unit-delta-types -- +RTS -M2G -s -RTS
+
+    - label: "Unit (macOS): std-gen-seed"
+      <<: *macos_unit_test
+      command: nix run .#unit-std-gen-seed -- +RTS -M2G -s -RTS
+
+    - label: "Unit (macOS): wai-middleware-logging"
+      <<: *macos_unit_test
+      command: nix run .#unit-wai-middleware-logging -- +RTS -M2G -s -RTS
+
+    - block: MacOS Integration Tests
+      # if: build.env("RELEASE_CANDIDATE") == null
+      depends_on: []
+      key: macos-integration-tests-block
+
+    - label: Run Integration Tests (macOS)
+      key: macos-tests-integration
+      depends_on: macos-integration-tests-block
+      command: nix shell 'nixpkgs#just' -c just conway-integration-tests 2
+      agents:
+        system: ${macos}
+        queue: "cardano-wallet"
+      concurrency: 3
+      concurrency_group: 'macos-integration-tests'
+
+    - block: MacOS E2E Tests
+      if: build.env("RELEASE_CANDIDATE") == null || build.env("TEST_RC") == "TRUE"
+      depends_on: []
+      key: macos-e2e-tests-block
+
+    - label: 'Run E2E Tests (macOS, arm64)'
+      key: macos-silicon-e2e
+      depends_on:
+        - macos-e2e-tests-block
+      commands: |
+        nix shell 'nixpkgs#just' -c just e2e
+      agents:
+        system: ${macos}
+      concurrency: 1
+      concurrency_group: 'macos-e2e-tests'
+
+  # TODO: Windows builds disabled pending #5107 (OOM) and #5110 (TLS)
+  # - group: Windows Artifacts
+  #   key: windows-artifacts
+  #   depends_on:
+  #     - linux-nix
+  #   steps:
+  #   - block: Build Windows Artifacts (windows)
+  #     depends_on: []
+  #     if: |
+  #       build.branch !~ /^gh-readonly-queue\/master/
+  #         && build.branch != "master"
+  #         && build.branch != "rc-latest"
+  #         && build.env("RELEASE_CANDIDATE") == null
+  #     key: trigger-build-windows-artifacts
+  #
+  #   - label: Build Package (windows)
+  #     key: windows-package
+  #     depends_on:
+  #       - trigger-build-windows-artifacts
+  #     command: nix build -L -o result/windows .#ci.artifacts.win64.release
+  #     artifact_paths: [ "./result/windows/**" ]
+  #     agents:
+  #       system: ${linux}
+  #
+  #   - label: Build Testing Bundle (windows)
+  #     key: windows-testing-bundle
+  #     depends_on:
+  #       - trigger-build-windows-artifacts
+  #     command: |
+  #       nix build -L -o result .#ci.artifacts.win64.tests
+  #       cp result/cardano-wallet-*-tests-win64.zip ./windows-tests.zip
+  #     artifact_paths: [ "./windows-tests.zip"]
+  #     agents:
+  #       system: ${linux}
+  #
+  # - group: Windows Checks
+  #   depends_on:
+  #     - windows-artifacts
+  #   steps:
+  #   - label: Windows Unit Tests
+  #     commands:
+  #       - buildkite-agent artifact download "windows-tests.zip" .
+  #       - mkdir -p windows\tests
+  #       - tar -xf windows-tests.zip -C windows\tests
+  #       - cd windows\tests
+  #       - .\cardano-wallet-unit-test-unit.exe --color --jobs 1 --skip /Cardano.Wallet.DB.Sqlite/ +RTS -N2
+  #     agents:
+  #       system: ${windows}
+  #     env:
+  #       LOCAL_CLUSTER_CONFIGS: test\data\cluster-configs
+  #     concurrency: 1
+  #     concurrency_group: 'windows-tests'
+  #
+  #   - label: Windows Text Class Tests
+  #     command: |
+  #       buildkite-agent artifact download "windows-tests.zip" .
+  #       mkdir windows-tests
+  #       tar -xf windows-tests.zip -C windows-tests
+  #       .\windows-tests\text-class-test-unit.exe --color
+  #     agents:
+  #       system: ${windows}
+  #     concurrency: 1
+  #     concurrency_group: 'windows-tests'
+  #
+  #   - block: Windows E2E Tests
+  #     depends_on: []
+  #     if: build.env("RELEASE_CANDIDATE") == null || build.env("TEST_RC") == "TRUE"
+  #     key: trigger-windows-e2e-tests
+  #
+  #   - label: ⚙️ Windows E2E Tests
+  #     timeout_in_minutes: 120
+  #     depends_on:
+  #       - trigger-windows-e2e-tests
+  #     commands:
+  #       - diff -r configs/cardano/preprod lib/integration/configs/cardano/preprod
+  #       - buildkite-agent artifact download "windows-tests.zip" .
+  #       - mkdir windows-tests
+  #       - tar -xf windows-tests.zip -C windows-tests
+  #       - .\windows-tests\cardano-wallet-integration-test-e2e.exe
+  #     agents:
+  #       system: ${windows}
+  #     concurrency: 1
+  #     concurrency_group: 'windows-tests'
+
+  - group: Docker
+    key: docker-artifacts
+    depends_on:
+      - linux-artifacts
+    steps:
+      - label: Build Docker Image
+        key: docker-build
+        commands:
+          ./scripts/buildkite/main/docker-build.sh
+        artifact_paths:
+          - ./artifacts/*.tgz
+        agents:
+          system: x86_64-linux
+
+  - group: Docker Checks
+    depends_on:
+      - docker-artifacts
+    key: docker-e2e
+    steps:
+      - label: Mainnet Boot Sync
+        timeout_in_minutes: 30
+        command: |
+          export COMPOSE_PROJECT_NAME=$(head /dev/urandom | tr -dc a-z | head -c 8 ; echo '')
+          cd run/mainnet/docker
+          export WALLET_TAG=$(buildkite-agent meta-data get "docker-image-tag")
+          rm -rf databases
+          ./run.sh sync 600
+        agents:
+          system: x86_64-linux
+        env:
+          SUCCESS_STATUS: syncing
+          USE_LOCAL_IMAGE: true
+
+      - label: Preview Boot Sync
+        command: |
+          export COMPOSE_PROJECT_NAME=$(head /dev/urandom | tr -dc a-z | head -c 8 ; echo '')
+          cd run/preview/docker
+          export WALLET_TAG=$(buildkite-agent meta-data get "docker-image-tag")
+          rm -rf databases
+          ./run.sh sync 600
+        agents:
+          system: x86_64-linux
+        env:
+          SUCCESS_STATUS: syncing
+          USE_LOCAL_IMAGE: true
+
+      - block: Mainnet Boot Sync via Mithril
+        if: build.env("RELEASE_CANDIDATE") == null || build.env("TEST_RC") == "TRUE"
+        depends_on: []
+        key: mithril-mainnet-full-sync-block
+
+      - label: Mainnet Boot Sync via Mithril
+        depends_on: mithril-mainnet-full-sync-block
+        command: |
+          export COMPOSE_PROJECT_NAME=$(head /dev/urandom | tr -dc a-z | head -c 8 ; echo '')
+          cd run/mainnet/docker
+          export WALLET_TAG=$(buildkite-agent meta-data get "docker-image-tag")
+          rm -rf databases
+          ./snapshot.sh
+          ./run.sh sync 7200
+        agents:
+          system: x86_64-linux
+        env:
+          SUCCESS_STATUS: ready
+          USE_LOCAL_IMAGE: true
+        concurrency: 1
+        concurrency_group: 'mithril-mainnet-full-sync'
