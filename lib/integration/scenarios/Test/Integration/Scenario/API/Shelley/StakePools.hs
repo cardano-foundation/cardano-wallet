@@ -1837,8 +1837,10 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
         otherWallet <- emptyWallet ctx
 
         -- We send funds to one of our addresses but with a modified stake key.
-        foreignAddr <- head . map (view #id) <$> listAddresses @n ctx otherWallet
-        ourAddr <- head . map (view #id) <$> listAddresses @n ctx w
+        foreignAddr <- listAddresses @n ctx otherWallet >>= \case
+            (a:_) -> pure $ view #id a; [] -> error "expected addresses"
+        ourAddr <- listAddresses @n ctx w >>= \case
+            (a:_) -> pure $ view #id a; [] -> error "expected addresses"
         let ourAddr' = replaceStakeKey ourAddr foreignAddr
         let payload =
                 [json|

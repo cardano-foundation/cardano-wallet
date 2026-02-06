@@ -1211,7 +1211,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             (Link.listAddresses @'Shared walDest) Default Empty
         expectResponseCode HTTP.status200 rAddr
         let addrs = getResponse rAddr
-        let destAddr1 = (head addrs) ^. #id
+        let destAddr1 = case addrs of (a:_) -> a ^. #id; [] -> error "expected addresses"
         let destAddr2 = (addrs !! 1) ^. #id
         let payload destination amt = Json [json|{
                 "payments": [{
@@ -2657,7 +2657,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         expectResponseCode HTTP.status200 rAddr
         let addrs = getResponse rAddr
 
-        let addr0 = (head addrs) ^. #id
+        let addr0 = case addrs of (a:_) -> a ^. #id; [] -> error "expected addresses"
         let linkList0 = listTransactionsFilteredByAddress wDest (Just (apiAddress addr0))
         rl0 <- request @([ApiTransaction n]) ctx linkList0 Default Empty
         verify rl0 [expectListSize 2]

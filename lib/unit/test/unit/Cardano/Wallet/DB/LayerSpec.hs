@@ -737,6 +737,9 @@ fileModeSpec =  do
                     let ourAddrs =
                             map (\(a,s,_) -> (a,s)) $
                             knownAddresses (getState testCp)
+                        (addr0, addr1) = case ourAddrs of
+                            ((a0,_):(a1,_):_) -> (a0, a1)
+                            _ -> error "expected at least 2 known addresses"
 
                     ------------------------------------------------------------
                     -- Transaction 1
@@ -764,10 +767,10 @@ fileModeSpec =  do
                             , resolvedCollateralInputs = []
                             , outputs =
                                 [ TxOut
-                                    (fst $ head ourAddrs)
+                                    addr0
                                     (coinToBundle 4)
                                 , TxOut
-                                    (fst $ head $ tail ourAddrs)
+                                    addr1
                                     (coinToBundle 8)
                                 ]
                             , collateralOutput = Nothing
@@ -804,11 +807,11 @@ fileModeSpec =  do
                                 [ TxOut
                                     (dummyAddr "faucetAddr2") (coinToBundle 2)
                                 , TxOut
-                                    (fst $ ourAddrs !! 1) (coinToBundle 2)
+                                    addr1 (coinToBundle 2)
                                 ]
                             , collateralOutput =
                                 Just $ TxOut
-                                    (fst $ ourAddrs !! 1) (coinToBundle 7)
+                                    addr1 (coinToBundle 7)
                             , withdrawals = mempty
                             , metadata = Nothing
                             , scriptValidity = Just TxScriptInvalid
@@ -849,7 +852,7 @@ fileModeSpec =  do
                                 --
                                 [ ( TxIn (dummyHash "tx2") 2
                                   , Just $ TxOut
-                                        (fst $ ourAddrs !! 1)
+                                        addr1
                                         (coinToBundle 7)
                                   )
                                 ]
@@ -872,9 +875,12 @@ fileModeSpec =  do
                \rollback to the same place" $ \f -> do
               withShelleyFileBootDBLayer f $ \db@DBLayer{atomically, rollbackTo, readCheckpoint} -> do
 
-                let ourAddrs =
-                        map (\(a,s,_) -> (a,s)) $
+                let addrs =
+                        map (\(a,_,_) -> a) $
                         knownAddresses (getState testCp)
+                    (ourAddr, ourAddr1) = case addrs of
+                        (a0:a1:_) -> (a0, a1)
+                        _ -> error "expected at least 2 known addresses"
 
                 let mockApplyBlock1 = mockApply db (dummyHash "block1")
                         [ Tx
@@ -891,7 +897,7 @@ fileModeSpec =  do
                             -- TODO: (ADP-957)
                             , resolvedCollateralInputs = []
                             , outputs =
-                                [TxOut (fst $ head ourAddrs) (coinToBundle 4)]
+                                [TxOut ourAddr (coinToBundle 4)]
                             , collateralOutput = Nothing
                             , withdrawals = mempty
                             , metadata = Nothing
@@ -920,7 +926,7 @@ fileModeSpec =  do
                         , resolvedCollateralInputs = []
                         , outputs =
                             [ TxOut (dummyAddr "faucetAddr2") (coinToBundle 2)
-                            , TxOut (fst $ ourAddrs !! 1) (coinToBundle 2)
+                            , TxOut ourAddr1 (coinToBundle 2)
                             ]
                         , collateralOutput = Nothing
                         , withdrawals = mempty

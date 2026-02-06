@@ -765,9 +765,9 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             ]
 
         -- Make sure wallet balance is increased by withdrawalAmt - fee
-        let withdrawalAmt =
-                view (#amount . #toNatural) $ head
-                $ getFromResponse (#withdrawals) rDecodedTx
+        let withdrawalAmt = case getFromResponse (#withdrawals) rDecodedTx of
+                (w:_) -> view (#amount . #toNatural) w
+                [] -> error "expected withdrawals"
         eventually "Wallet balance is increased by withdrawalAmt - fee" $ do
             rWa <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wa) Default Empty
@@ -3026,7 +3026,9 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                   )
                 , ( "currency", \ctx w -> do
                     liftIO $ pendingWith "flaky #3124"
-                    ApiAddress addr <- view #id . head <$> listAddresses @n ctx w
+                    ApiAddress addr <- listAddresses @n ctx w >>= \case
+                        (a:_) -> pure $ view #id a
+                        [] -> error "expected addresses"
                     let getFreshUTxO = do
                             -- To obtain a fresh UTxO, we perform
                             -- coin selection and just pick the first input
@@ -3038,7 +3040,10 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                                     , amount  = ApiAmount 10_000_000
                                     , assets  = mempty
                                     }
-                            pure $ head . view #inputs <$> result
+                            pure $ firstInput . view #inputs <$> result
+                              where
+                                firstInput (x:_) = x
+                                firstInput [] = error "expected inputs"
                     txOutRef <- fromEither =<< getFreshUTxO
                     let mint = PlutusScenario.currencyTx txOutRef
                     pure (mint, [])
@@ -5188,7 +5193,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         addrs <- listExternalAddresses ctx wDest
 
-        let addr0 = (head addrs) ^. #id
+        let addr0 = case addrs of (a:_) -> a ^. #id; [] -> error "expected addresses"
         let query0 = listTransactionsFilteredByAddress wDest (Just (apiAddress addr0))
         rl0 <- request @([ApiTransaction n]) ctx query0 Default Empty
         verify rl0 [expectListSize 2]

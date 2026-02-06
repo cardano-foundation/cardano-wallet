@@ -40,7 +40,7 @@ shrinkAssetName i
     | i == simplest = []
     | otherwise = [simplest]
   where
-    simplest = head testAssetNames
+    simplest = case testAssetNames of (x:_) -> x; [] -> error "impossible"
 
 --------------------------------------------------------------------------------
 -- Asset names chosen from a large range (to minimize the risk of collisions)

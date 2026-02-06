@@ -515,9 +515,10 @@ shrinkAssetIds :: TxSeq -> TxSeq
 shrinkAssetIds s = mapAssetIds toSimpleAssetId s
   where
     toSimpleAssetId :: AssetId -> AssetId
-    toSimpleAssetId = mapToFunction
-        (head simpleAssetIds)
-        (Map.fromList $ F.toList (assetIds s) `zip` simpleAssetIds)
+    toSimpleAssetId = case simpleAssetIds of
+        (x:_) -> mapToFunction x
+            (Map.fromList $ F.toList (assetIds s) `zip` simpleAssetIds)
+        [] -> error "impossible: simpleAssetIds is infinite"
 
 -- | Simplifies the set of transaction identifiers within a 'TxSeq'.
 --
@@ -528,9 +529,10 @@ shrinkTxIds :: TxSeq -> TxSeq
 shrinkTxIds s = mapTxIds toSimpleTxId s
   where
     toSimpleTxId :: Hash "Tx" -> Hash "Tx"
-    toSimpleTxId = mapToFunction
-        (head simpleTxIds)
-        (Map.fromList $ F.toList (txIds s) `zip` simpleTxIds)
+    toSimpleTxId = case simpleTxIds of
+        (x:_) -> mapToFunction x
+            (Map.fromList $ F.toList (txIds s) `zip` simpleTxIds)
+        [] -> error "impossible: simpleTxIds is infinite"
 
 --------------------------------------------------------------------------------
 -- Internal interface

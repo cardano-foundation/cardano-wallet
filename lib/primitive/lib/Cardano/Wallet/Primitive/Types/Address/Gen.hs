@@ -37,7 +37,7 @@ shrinkAddress a
     | a == simplest = []
     | otherwise = [simplest]
   where
-    simplest = head addresses
+    simplest = case addresses of (x:_) -> x; [] -> error "impossible"
 
 addresses :: [Address]
 addresses = mkAddress <$> ['0' ..]
