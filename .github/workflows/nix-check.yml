@@ -1,0 +1,47 @@
+name: Nix Check
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check-nix:
+    name: "Check Nix"
+    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check nix version
+        run: nix --version
+
+      - name: Check regenerate.sh is up to date
+        run: |
+          nix/regenerate.sh
+          git diff --exit-code nix/project-package-list.nix
+
+  attic-cache:
+    name: "Dev Shell Attic Cache"
+    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    needs: check-nix
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Push dev shell to Attic
+        env:
+          ATTIC_TOKEN: ${{ secrets.ATTIC_TOKEN }}
+        run: |
+          attic login adrestia https://attic.cf-app.org/ "$ATTIC_TOKEN"
+          nix build --log-format raw-with-logs ".#devShells.x86_64-linux.default.inputDerivation" -o dev-shell
+          attic push adrestia dev-shell
