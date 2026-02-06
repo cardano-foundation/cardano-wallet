@@ -34,6 +34,22 @@ definitions:
 
 steps:
 
+  - label: "Windows TLS Diagnostics"
+    timeout_in_minutes: 5
+    commands:
+      - echo "--- curl.exe test"
+      - curl.exe -sI https://github.com 2>&1
+      - echo "--- powershell TLS test"
+      - powershell -Command "[Net.ServicePointManager]::SecurityProtocol; Invoke-WebRequest -Uri 'https://github.com' -Method Head -UseBasicParsing | Select-Object StatusCode"
+      - echo "--- check USERTrust ECC root cert"
+      - certutil -store Root "USERTrust ECC" 2>&1 | findstr /i "Subject Issuer NotAfter" || echo "USERTrust ECC not found in Root store"
+      - echo "--- check Sectigo intermediate"
+      - certutil -store CA Sectigo 2>&1 | findstr /i "Subject Issuer NotAfter" || echo "Sectigo not found in CA store"
+      - echo "--- list all Root store certs"
+      - certutil -store Root 2>&1 | findstr /i "Subject"
+    agents:
+      system: ${windows}
+
   - label: Check Nix (linux)
     # Check whether regenerate.sh was applied when it had to be applied.
     key: linux-nix
@@ -795,25 +811,6 @@ steps:
       concurrency: 1
       concurrency_group: 'windows-tests'
 
-    - label: ⚙️ Windows TLS Diagnostics
-      timeout_in_minutes: 10
-      depends_on: []
-      commands:
-        - echo "--- curl.exe test"
-        - curl.exe -sI https://github.com 2>&1
-        - echo "--- powershell TLS test"
-        - powershell -Command "[Net.ServicePointManager]::SecurityProtocol; Invoke-WebRequest -Uri 'https://github.com' -Method Head -UseBasicParsing | Select-Object StatusCode"
-        - echo "--- check USERTrust ECC root cert"
-        - certutil -store Root "USERTrust ECC" 2>&1 | findstr /i "Subject Issuer NotAfter" || echo "USERTrust ECC not found in Root store"
-        - echo "--- check Sectigo intermediate"
-        - certutil -store CA Sectigo 2>&1 | findstr /i "Subject Issuer NotAfter" || echo "Sectigo not found in CA store"
-        - echo "--- list all Root store certs"
-        - certutil -store Root 2>&1 | findstr /i "Subject"
-      agents:
-        system: ${windows}
-      env:
-      concurrency: 1
-      concurrency_group: 'windows-tests'
 
   - group: Docker
     key: docker-artifacts
