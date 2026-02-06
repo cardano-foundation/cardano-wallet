@@ -1,0 +1,53 @@
+name: Linux Artifacts
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: "Nix build"
+            command: nix build -L .#cardano-wallet
+
+          - name: "Nix evaluate shell"
+            command: nix shell -L .#cardano-node .#cardano-cli .#cardano-wallet --command cardano-wallet version
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run build
+        run: ${{ matrix.command }}
+
+  package:
+    name: "Build package"
+    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build release package
+        run: |
+          rm -rf ./result/*
+          nix build -L -o result/linux .#ci.artifacts.linux64.release
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-release-package
+          path: result/linux/
