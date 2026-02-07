@@ -1,0 +1,48 @@
+name: Linux Mithril Sync
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: "Build wallet and node"
+    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Build derivations
+        run: nix build -L .#cardano-wallet .#cardano-node .#cardano-cli
+
+  mithril-sync:
+    name: "Mainnet Boot Sync with Mithril"
+    needs: build
+    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    timeout-minutes: 150
+    env:
+      SUCCESS_STATUS: ready
+      NODE_LOGS_FILE: ./logs/node.log
+      WALLET_LOGS_FILE: ./logs/wallet.log
+      CLEANUP_DB: "true"
+      NETWORK: mainnet
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download Mithril snapshot and sync
+        working-directory: run/mainnet/nix
+        run: |
+          rm -rf logs databases
+          mkdir -p logs
+          ./snapshot.sh
+          ./run.sh sync 7200
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mithril-sync-logs
+          path: run/mainnet/nix/logs/

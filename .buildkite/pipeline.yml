@@ -2,11 +2,44 @@ agents:
   queue: cardano-wallet
 
 env:
+  LC_ALL: "en_US.UTF-8"
+  NIX_PATH: "channel:nixos-21.11"
+  RELEASE_SCRIPTS_DIR: "./scripts/buildkite/release"
+  MAIN_PIPELINE_DIR: "./scripts/buildkite/main"
+  # Mithril variables
+  PREPROD_AGGREGATOR_ENDPOINT: https://aggregator.release-preprod.api.mithril.network/aggregator
+  PREPROD_GENESIS_VERIFICATION_KEY: 5b3132372c37332c3132342c3136312c362c3133372c3133312c3231332c3230372c3131372c3139382c38352c3137362c3139392c3136322c3234312c36382c3132332c3131392c3134352c31332c3233322c3234332c34392c3232392c322c3234392c3230352c3230352c33392c3233352c34345d
+  PREPROD_CONFIGS_DIR: "./configs/cardano/preprod"
+  DEFAULT_TEST_CONCURRENCY: 6
+
+  # Per-host variables - shared across containers on host
+  macos: "aarch64-darwin"
+  linux: "x86_64-linux"
   windows: "windows-x64"
 
+# YAML anchors for common step configurations
+definitions:
+  - linux_unit_test: &linux_unit_test
+      depends_on: []
+      env:
+        LOCAL_CLUSTER_CONFIGS: lib/local-cluster/test/data/cluster-configs
+      agents:
+        system: x86_64-linux
+  - macos_unit_test: &macos_unit_test
+      depends_on: macos-unit-tests-block
+      env:
+        LOCAL_CLUSTER_CONFIGS: lib/local-cluster/test/data/cluster-configs
+      agents:
+        system: aarch64-darwin
+
 steps:
-  - label: "Windows TLS diagnostic (extended)"
-    command: "powershell.exe -ExecutionPolicy Bypass -File scripts\\buildkite\\windows\\tls-diagnostic.ps1"
+
+  - label: Check Nix (linux)
+    # Check whether regenerate.sh was applied when it had to be applied.
+    key: linux-nix
+    commands:
+      - nix --version
+      - nix/regenerate.sh
     agents:
       system: ${linux}
 
