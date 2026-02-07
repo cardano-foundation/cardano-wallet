@@ -1,0 +1,82 @@
+name: Code Quality
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: "Build dev shell"
+    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Build dev shell
+        run: nix build .#devShells.x86_64-linux.default.inputDerivation
+
+  attic-cache:
+    name: "Dev Shell Attic Cache"
+    needs: build
+    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Push dev shell to Attic
+        env:
+          ATTIC_TOKEN: ${{ secrets.ATTIC_TOKEN }}
+          system: x86_64-linux
+        run: nix develop path:./scripts/buildkite/main -c ./scripts/buildkite/main/attic-cache.sh
+
+  checks:
+    name: ${{ matrix.name }}
+    needs: build
+    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: "Check Code Format"
+            command: nix develop --command scripts/buildkite/main/check-code-format.sh
+
+          - name: "Check HLint"
+            command: nix develop --command bash -c "echo +++ HLint ; hlint lib"
+
+          - name: "Check Cabal Configure"
+            command: nix develop --command scripts/buildkite/check-haskell-nix-cabal.sh
+
+          - name: "Lint Bash Scripts"
+            command: ./scripts/shellcheck.sh
+
+          - name: "Check EOL"
+            command: nix develop --command scripts/enforce-eol.sh
+
+          - name: "Validate Swagger"
+            command: nix develop path:./scripts/buildkite/main -c ./scripts/buildkite/main/validate-swagger.sh
+
+          - name: "Print TODO List"
+            command: nix develop --command scripts/todo-list.sh
+
+          - name: "Check HLS Works"
+            command: nix develop --command bash -c "haskell-language-server lib/wallet/src/Cardano/Wallet.hs"
+
+          - name: "Check git revision"
+            command: scripts/buildkite/main/git-revision.sh
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run check
+        run: ${{ matrix.command }}
