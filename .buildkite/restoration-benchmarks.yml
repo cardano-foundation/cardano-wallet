@@ -17,7 +17,7 @@ steps:
       - select: "Node Sync Timeout"
         hint: "Possible timeout in hours until node is synced"
         key: "to-tip-timeout"
-        default: "4"
+        default: "infinite"
         options:
         - label: "Infinite"
           value: "infinite"

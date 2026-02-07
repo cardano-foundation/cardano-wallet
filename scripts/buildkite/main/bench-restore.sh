@@ -27,7 +27,7 @@ echo "--- Run benchmarks - $network"
 CARDANO_NODE_CONFIGS=$(pwd)/configs/cardano
 
 if [ -n "${BUILDKITE:-}" ]; then
-    TO_TIP_TIMEOUT=$(buildkite-agent meta-data get to-tip-timeout --default '4')
+    TO_TIP_TIMEOUT=$(buildkite-agent meta-data get to-tip-timeout --default 'infinite')
 else
     TO_TIP_TIMEOUT=4
 fi
