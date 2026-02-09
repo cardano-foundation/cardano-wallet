@@ -99,7 +99,7 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: set-git-rev: rewrite-l
 
     in {
       name = "cardano-wallet";
-      compiler-nix-name = "ghc984";
+      compiler-nix-name = "ghc982";
 
       src = haskellLib.cleanSourceWith {
         name = "cardano-wallet-src";
@@ -280,12 +280,6 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: set-git-rev: rewrite-l
             '';
             # haskell.nix patch for streaming-commons is already applied in 0.2.3.1
             packages.streaming-commons.patches = lib.mkForce [];
-            # fgl's {-# ANN #-} pragmas trigger TH evaluation via iserv-proxy
-            # which crashes during Windows cross-compilation
-            packages.fgl.postPatch = ''
-              sed -i '/ANN.*HLint/d' Data/Graph/Inductive/Monad.hs
-              sed -i '/ANN.*HLint/d' Data/Graph/Inductive/Query/Dominators.hs
-            '';
           })
 
           # Build fixes for library dependencies
