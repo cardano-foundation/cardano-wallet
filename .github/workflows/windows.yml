@@ -1,0 +1,198 @@
+name: Windows
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    types: [opened, synchronize, reopened, labeled]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-release:
+    name: "Build Release Package (Windows)"
+    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Cross-compile Windows release package
+        run: |
+          rm -rf ./result/*
+          nix build -L -o result/windows .#ci.artifacts.win64.release
+
+      - name: Upload release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-release-package
+          path: result/windows/
+
+  build-tests:
+    name: "Build Testing Bundle (Windows)"
+    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Cross-compile Windows test bundle
+        run: |
+          nix build -L -o result .#ci.artifacts.win64.tests
+          cp result/cardano-wallet-*-tests-win64.zip ./windows-tests.zip
+
+      - name: Upload test bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-tests
+          path: ./windows-tests.zip
+
+  unit-tests:
+    name: ${{ matrix.name }}
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'ci:windows')
+    needs: build-tests
+    runs-on: [self-hosted, Windows, x64, cardano-wallet-win]
+    env:
+      LOCAL_CLUSTER_CONFIGS: test\data\cluster-configs
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: "wallet-unit / Byron + CLI"
+            command: >-
+              .\cardano-wallet-unit-test-unit.exe
+              --match "/Cardano.Byron./"
+              --match "/Cardano.CLI/"
+              --color -j1 +RTS -N2
+
+          - name: "wallet-unit / DB.Sqlite + Pool"
+            command: >-
+              .\cardano-wallet-unit-test-unit.exe
+              --match "/Cardano.DB./"
+              --match "/Cardano.Pool./"
+              --color -j1 +RTS -N2
+
+          - name: "wallet-unit / Address"
+            command: >-
+              .\cardano-wallet-unit-test-unit.exe
+              --match "/Cardano.Wallet.Address./"
+              --color -j1 +RTS -N2
+
+          - name: "wallet-unit / Api"
+            command: >-
+              .\cardano-wallet-unit-test-unit.exe
+              --match "/Cardano.Wallet.Api./"
+              --color -j1 +RTS -N2
+
+          - name: "wallet-unit / Balance"
+            command: >-
+              .\cardano-wallet-unit-test-unit.exe
+              --match "/Cardano.Wallet.Balance./"
+              --color -j1 +RTS -N2
+
+          - name: "wallet-unit / DB"
+            command: >-
+              .\cardano-wallet-unit-test-unit.exe
+              --match "/Cardano.Wallet.DB./"
+              --color -j1 +RTS -N2
+
+          - name: "wallet-unit / Primitive"
+            command: >-
+              .\cardano-wallet-unit-test-unit.exe
+              --match "/Cardano.Wallet.Primitive./"
+              --color -j1 +RTS -N2
+
+          - name: "wallet-unit / Shelley"
+            command: >-
+              .\cardano-wallet-unit-test-unit.exe
+              --match "/Cardano.Wallet.Shelley./"
+              --color -j1 +RTS -N2
+
+          - name: "wallet-unit / Other Wallet"
+            command: >-
+              .\cardano-wallet-unit-test-unit.exe
+              --match "/Cardano.Wallet./"
+              --skip "/Cardano.Wallet.Address./"
+              --skip "/Cardano.Wallet.Api./"
+              --skip "/Cardano.Wallet.Balance./"
+              --skip "/Cardano.Wallet.DB./"
+              --skip "/Cardano.Wallet.Primitive./"
+              --skip "/Cardano.Wallet.Shelley./"
+              --color -j1 +RTS -N2
+
+          - name: "wallet-unit / Control + Data"
+            command: >-
+              .\cardano-wallet-unit-test-unit.exe
+              --match "/Control./"
+              --match "/Data./"
+              --color -j1 +RTS -N2
+
+    steps:
+      - name: Download test bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-tests
+
+      - name: Extract test bundle
+        run: |
+          New-Item -ItemType Directory -Force -Path windows-tests
+          tar -xf windows-tests.zip -C windows-tests
+
+      - name: Run tests
+        working-directory: windows-tests
+        run: ${{ matrix.command }}
+
+  text-class-tests:
+    name: "Windows Text Class Tests"
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'ci:windows')
+    needs: build-tests
+    runs-on: [self-hosted, Windows, x64, cardano-wallet-win]
+    steps:
+      - name: Download test bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-tests
+
+      - name: Extract test bundle
+        run: |
+          New-Item -ItemType Directory -Force -Path windows-tests
+          tar -xf windows-tests.zip -C windows-tests
+
+      - name: Run text-class tests
+        working-directory: windows-tests
+        run: .\text-class-test-unit.exe --color
+
+  # E2E tests - manual dispatch only, pending fix for #5110 (TLS)
+  e2e-tests:
+    name: "Windows E2E Tests"
+    if: github.event_name == 'workflow_dispatch'
+    needs: build-tests
+    runs-on: [self-hosted, Windows, x64, cardano-wallet-win]
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download test bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-tests
+
+      - name: Extract test bundle
+        run: |
+          New-Item -ItemType Directory -Force -Path windows-tests
+          tar -xf windows-tests.zip -C windows-tests
+
+      - name: Verify configs match
+        run: diff -r configs/cardano/preprod lib/integration/configs/cardano/preprod
+
+      - name: Run E2E tests
+        working-directory: windows-tests
+        run: .\cardano-wallet-integration-test-e2e.exe
