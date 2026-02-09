@@ -88,7 +88,10 @@ sudo sysadminctl -addUser gha-runner -password "changeme" -home /Users/gha-runne
 # Download ARM64 runner
 curl -sL "https://github.com/actions/runner/releases/download/v${RUNNER_VERSION}/actions-runner-osx-arm64-${RUNNER_VERSION}.tar.gz" -o runner.tar.gz
 
-# After config.sh, install as LaunchAgent then copy to LaunchDaemon:
+# After config.sh, fix .path to include nix:
+echo "/run/current-system/sw/bin:/nix/var/nix/profiles/default/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin" > ~/actions-runner-$i/.path
+
+# Install as LaunchAgent then copy to LaunchDaemon:
 cd ~/actions-runner-$i && ./svc.sh install
 sudo cp ~/Library/LaunchAgents/actions.runner.*.plist /Library/LaunchDaemons/
 sudo launchctl load /Library/LaunchDaemons/actions.runner.*.plist

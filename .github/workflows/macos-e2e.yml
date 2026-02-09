@@ -1,0 +1,34 @@
+name: macOS E2E Tests
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: "Build E2E dependencies"
+    runs-on: [self-hosted, macOS, ARM64, cardano-wallet]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Build derivations
+        run: nix build -L .#cardano-node .#cardano-wallet .#e2e
+
+  e2e:
+    name: "Run E2E Tests (macOS, arm64)"
+    needs: build
+    runs-on: [self-hosted, macOS, ARM64, cardano-wallet]
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run E2E tests
+        run: nix shell 'nixpkgs#just' -c just e2e

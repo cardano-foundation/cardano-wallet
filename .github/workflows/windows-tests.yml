@@ -1,0 +1,100 @@
+name: Windows Tests
+
+# Manual dispatch - pending fixes for #5107 (OOM) and #5110 (TLS)
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: "Build Testing Bundle (Windows)"
+    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Cross-compile Windows test bundle
+        run: |
+          nix build -L -o result .#ci.artifacts.win64.tests
+          cp result/cardano-wallet-*-tests-win64.zip ./windows-tests.zip
+
+      - name: Upload test bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-tests
+          path: ./windows-tests.zip
+
+  unit-tests:
+    name: "Windows Unit Tests"
+    needs: build
+    runs-on: windows-latest
+    env:
+      LOCAL_CLUSTER_CONFIGS: test\data\cluster-configs
+    steps:
+      - name: Download test bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-tests
+
+      - name: Extract test bundle
+        run: |
+          New-Item -ItemType Directory -Force -Path windows-tests
+          tar -xf windows-tests.zip -C windows-tests
+
+      - name: Run unit tests
+        working-directory: windows-tests
+        run: >-
+          .\cardano-wallet-unit-test-unit.exe
+          --color --jobs 1
+          --skip /Cardano.Wallet.DB.Sqlite/
+          +RTS -N2
+
+  text-class-tests:
+    name: "Windows Text Class Tests"
+    needs: build
+    runs-on: windows-latest
+    steps:
+      - name: Download test bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-tests
+
+      - name: Extract test bundle
+        run: |
+          New-Item -ItemType Directory -Force -Path windows-tests
+          tar -xf windows-tests.zip -C windows-tests
+
+      - name: Run text-class tests
+        run: .\windows-tests\text-class-test-unit.exe --color
+
+  e2e-tests:
+    name: "Windows E2E Tests"
+    needs: build
+    runs-on: windows-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download test bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-tests
+
+      - name: Extract test bundle
+        run: |
+          New-Item -ItemType Directory -Force -Path windows-tests
+          tar -xf windows-tests.zip -C windows-tests
+
+      - name: Verify configs match
+        run: diff -r configs/cardano/preprod lib/integration/configs/cardano/preprod
+
+      - name: Run E2E tests
+        run: .\windows-tests\cardano-wallet-integration-test-e2e.exe
