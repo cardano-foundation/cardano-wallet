@@ -1,4 +1,4 @@
-name: Windows Tests
+name: Windows
 
 on:
   push:
@@ -11,7 +11,27 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
+  build-release:
+    name: "Build Release Package (Windows)"
+    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Cross-compile Windows release package
+        run: |
+          rm -rf ./result/*
+          nix build -L -o result/windows .#ci.artifacts.win64.release
+
+      - name: Upload release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-release-package
+          path: result/windows/
+
+  build-tests:
     name: "Build Testing Bundle (Windows)"
     runs-on: [self-hosted, linux, x86_64, cardano-wallet]
     steps:
@@ -33,7 +53,7 @@ jobs:
 
   unit-tests:
     name: ${{ matrix.name }}
-    needs: build
+    needs: build-tests
     runs-on: [self-hosted, Windows, x64, cardano-wallet-win]
     env:
       LOCAL_CLUSTER_CONFIGS: test\data\cluster-configs
@@ -127,7 +147,7 @@ jobs:
 
   text-class-tests:
     name: "Windows Text Class Tests"
-    needs: build
+    needs: build-tests
     runs-on: [self-hosted, Windows, x64, cardano-wallet-win]
     steps:
       - name: Download test bundle
@@ -148,7 +168,7 @@ jobs:
   e2e-tests:
     name: "Windows E2E Tests"
     if: github.event_name == 'workflow_dispatch'
-    needs: build
+    needs: build-tests
     runs-on: [self-hosted, Windows, x64, cardano-wallet-win]
     timeout-minutes: 120
     steps:
