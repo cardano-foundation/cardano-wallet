@@ -3,6 +3,7 @@ name: macOS Artifacts
 on:
   push:
     branches: [master]
+  pull_request:
   workflow_dispatch:
 
 concurrency:
