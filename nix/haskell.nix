@@ -99,7 +99,7 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: set-git-rev: rewrite-l
 
     in {
       name = "cardano-wallet";
-      compiler-nix-name = "ghc982";
+      compiler-nix-name = "ghc9101";
 
       src = haskellLib.cleanSourceWith {
         name = "cardano-wallet-src";
