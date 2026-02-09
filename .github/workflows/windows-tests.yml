@@ -1,7 +1,6 @@
 name: Windows Tests
 
-# Manual dispatch only - requires Windows self-hosted runners
-# and fixes for #5107 (OOM) and #5110 (TLS)
+# Manual dispatch - pending fixes for #5107 (OOM) and #5110 (TLS)
 on:
   workflow_dispatch:
 
@@ -33,10 +32,7 @@ jobs:
   unit-tests:
     name: "Windows Unit Tests"
     needs: build
-    runs-on: [self-hosted, Windows, X64, cardano-wallet]
-    concurrency:
-      group: windows-tests
-      cancel-in-progress: false
+    runs-on: windows-latest
     env:
       LOCAL_CLUSTER_CONFIGS: test\data\cluster-configs
     steps:
@@ -61,10 +57,7 @@ jobs:
   text-class-tests:
     name: "Windows Text Class Tests"
     needs: build
-    runs-on: [self-hosted, Windows, X64, cardano-wallet]
-    concurrency:
-      group: windows-tests
-      cancel-in-progress: false
+    runs-on: windows-latest
     steps:
       - name: Download test bundle
         uses: actions/download-artifact@v4
@@ -82,11 +75,8 @@ jobs:
   e2e-tests:
     name: "Windows E2E Tests"
     needs: build
-    runs-on: [self-hosted, Windows, X64, cardano-wallet]
+    runs-on: windows-latest
     timeout-minutes: 120
-    concurrency:
-      group: windows-tests
-      cancel-in-progress: false
     steps:
       - name: Checkout
         uses: actions/checkout@v4
