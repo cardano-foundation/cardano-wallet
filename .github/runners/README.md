@@ -109,6 +109,7 @@ To trigger cross-platform CI on a PR, add one of these labels:
 |---|---|
 | `ci:macos` | Run macOS unit tests, nix check, and artifacts |
 | `ci:windows` | Run Windows unit tests and text-class tests |
+| `ci:bench` | Run Linux benchmarks (API, latency, DB, read-blocks, memory) |
 
 Labels can be added at any time — the workflow triggers on the `labeled` event, so no new push is needed.
 
