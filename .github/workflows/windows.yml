@@ -4,6 +4,7 @@ on:
   push:
     branches: [master]
   pull_request:
+    types: [opened, synchronize, reopened, labeled]
   workflow_dispatch:
 
 concurrency:
@@ -53,7 +54,7 @@ jobs:
 
   unit-tests:
     name: ${{ matrix.name }}
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'ci:windows')
     needs: build-tests
     runs-on: [self-hosted, Windows, x64, cardano-wallet-win]
     env:
@@ -148,7 +149,7 @@ jobs:
 
   text-class-tests:
     name: "Windows Text Class Tests"
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'ci:windows')
     needs: build-tests
     runs-on: [self-hosted, Windows, x64, cardano-wallet-win]
     steps:

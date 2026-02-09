@@ -99,6 +99,19 @@ sudo cp ~/Library/LaunchAgents/actions.runner.*.plist /Library/LaunchDaemons/
 sudo launchctl load /Library/LaunchDaemons/actions.runner.*.plist
 ```
 
+## PR Labels for Cross-Platform CI
+
+By default, only Linux CI runs on pull requests. macOS and Windows tests run on push to master and manual dispatch.
+
+To trigger cross-platform CI on a PR, add one of these labels:
+
+| Label | Effect |
+|---|---|
+| `ci:macos` | Run macOS unit tests, nix check, and artifacts |
+| `ci:windows` | Run Windows unit tests and text-class tests |
+
+Labels can be added at any time — the workflow triggers on the `labeled` event, so no new push is needed.
+
 ## Maintenance
 
 ### Work directory cleanup

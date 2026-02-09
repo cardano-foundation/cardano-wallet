@@ -3,6 +3,8 @@ name: macOS Unit Tests
 on:
   push:
     branches: [master]
+  pull_request:
+    types: [opened, synchronize, reopened, labeled]
   workflow_dispatch:
 
 concurrency:
@@ -12,6 +14,7 @@ concurrency:
 jobs:
   build:
     name: "Build test executables"
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'ci:macos')
     runs-on: [self-hosted, macOS, ARM64, cardano-wallet]
     steps:
       - name: Checkout
