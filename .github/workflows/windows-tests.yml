@@ -34,7 +34,7 @@ jobs:
   unit-tests:
     name: ${{ matrix.name }}
     needs: build
-    runs-on: windows-latest
+    runs-on: [self-hosted, Windows, x64, cardano-wallet-win]
     env:
       LOCAL_CLUSTER_CONFIGS: test\data\cluster-configs
     strategy:
@@ -128,7 +128,7 @@ jobs:
   text-class-tests:
     name: "Windows Text Class Tests"
     needs: build
-    runs-on: windows-latest
+    runs-on: [self-hosted, Windows, x64, cardano-wallet-win]
     steps:
       - name: Download test bundle
         uses: actions/download-artifact@v4
@@ -149,7 +149,7 @@ jobs:
     name: "Windows E2E Tests"
     if: github.event_name == 'workflow_dispatch'
     needs: build
-    runs-on: windows-latest
+    runs-on: [self-hosted, Windows, x64, cardano-wallet-win]
     timeout-minutes: 120
     steps:
       - name: Checkout

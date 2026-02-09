@@ -7,8 +7,10 @@
 | builder-new | 10.1.21.17 | 64 | 125GB | Linux x86_64 | 12 (`builder-new-{1..12}`) | `cardano-wallet` |
 | benchmark-new | 10.1.21.18 | 64 | 125GB | Linux x86_64 | 4 (`benchmark-new-{1..4}`) | `cardano-wallet-bench` |
 | cf-hal-mac | 10.1.21.14 | 10 | 32GB | macOS ARM64 | 4 (`mac-builder-{1..4}`) | `cardano-wallet-mac` |
+| cf-hal-win | 10.1.21.15 | - | - | Windows Server | 4 (`win-builder-{1..4}`) | `cardano-wallet-win` |
 
-All runners share the host Nix store via the daemon socket.
+Linux and macOS runners share the host Nix store via the daemon socket.
+Windows runners run cross-compiled test bundles (no Nix).
 
 ## Setup (per machine)
 
