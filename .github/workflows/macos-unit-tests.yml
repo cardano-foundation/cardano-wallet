@@ -1,7 +1,7 @@
 name: macOS Unit Tests
 
-# Disabled until macOS self-hosted runners are configured
 on:
+  pull_request:
   workflow_dispatch:
 
 concurrency:
