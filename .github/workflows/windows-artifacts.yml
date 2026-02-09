@@ -1,0 +1,52 @@
+name: Windows Artifacts
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  package:
+    name: "Build Package (Windows)"
+    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Cross-compile Windows release package
+        run: |
+          rm -rf ./result/*
+          nix build -L -o result/windows .#ci.artifacts.win64.release
+
+      - name: Upload release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-release-package
+          path: result/windows/
+
+  testing-bundle:
+    name: "Build Testing Bundle (Windows)"
+    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Cross-compile Windows test bundle
+        run: |
+          nix build -L -o result .#ci.artifacts.win64.tests
+          cp result/cardano-wallet-*-tests-win64.zip ./windows-tests.zip
+
+      - name: Upload test bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-tests
+          path: ./windows-tests.zip
