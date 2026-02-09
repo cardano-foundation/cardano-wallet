@@ -1,7 +1,9 @@
 name: Windows Tests
 
-# Manual dispatch - pending fixes for #5107 (OOM) and #5110 (TLS)
 on:
+  push:
+    branches: [master]
+  pull_request:
   workflow_dispatch:
 
 concurrency:
@@ -30,11 +32,84 @@ jobs:
           path: ./windows-tests.zip
 
   unit-tests:
-    name: "Windows Unit Tests"
+    name: ${{ matrix.name }}
     needs: build
     runs-on: windows-latest
     env:
       LOCAL_CLUSTER_CONFIGS: test\data\cluster-configs
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: "wallet-unit / Byron + CLI"
+            command: >-
+              .\windows-tests\cardano-wallet-unit-test-unit.exe
+              --match "/Cardano.Byron./"
+              --match "/Cardano.CLI/"
+              --color -j1 +RTS -N2
+
+          - name: "wallet-unit / DB.Sqlite + Pool"
+            command: >-
+              .\windows-tests\cardano-wallet-unit-test-unit.exe
+              --match "/Cardano.DB./"
+              --match "/Cardano.Pool./"
+              --color -j1 +RTS -N2
+
+          - name: "wallet-unit / Address"
+            command: >-
+              .\windows-tests\cardano-wallet-unit-test-unit.exe
+              --match "/Cardano.Wallet.Address./"
+              --color -j1 +RTS -N2
+
+          - name: "wallet-unit / Api"
+            command: >-
+              .\windows-tests\cardano-wallet-unit-test-unit.exe
+              --match "/Cardano.Wallet.Api./"
+              --color -j1 +RTS -N2
+
+          - name: "wallet-unit / Balance"
+            command: >-
+              .\windows-tests\cardano-wallet-unit-test-unit.exe
+              --match "/Cardano.Wallet.Balance./"
+              --color -j1 +RTS -N2
+
+          - name: "wallet-unit / DB"
+            command: >-
+              .\windows-tests\cardano-wallet-unit-test-unit.exe
+              --match "/Cardano.Wallet.DB./"
+              --color -j1 +RTS -N2
+
+          - name: "wallet-unit / Primitive"
+            command: >-
+              .\windows-tests\cardano-wallet-unit-test-unit.exe
+              --match "/Cardano.Wallet.Primitive./"
+              --color -j1 +RTS -N2
+
+          - name: "wallet-unit / Shelley"
+            command: >-
+              .\windows-tests\cardano-wallet-unit-test-unit.exe
+              --match "/Cardano.Wallet.Shelley./"
+              --color -j1 +RTS -N2
+
+          - name: "wallet-unit / Other Wallet"
+            command: >-
+              .\windows-tests\cardano-wallet-unit-test-unit.exe
+              --match "/Cardano.Wallet./"
+              --skip "/Cardano.Wallet.Address./"
+              --skip "/Cardano.Wallet.Api./"
+              --skip "/Cardano.Wallet.Balance./"
+              --skip "/Cardano.Wallet.DB./"
+              --skip "/Cardano.Wallet.Primitive./"
+              --skip "/Cardano.Wallet.Shelley./"
+              --color -j1 +RTS -N2
+
+          - name: "wallet-unit / Control + Data"
+            command: >-
+              .\windows-tests\cardano-wallet-unit-test-unit.exe
+              --match "/Control./"
+              --match "/Data./"
+              --color -j1 +RTS -N2
+
     steps:
       - name: Download test bundle
         uses: actions/download-artifact@v4
@@ -46,13 +121,8 @@ jobs:
           New-Item -ItemType Directory -Force -Path windows-tests
           tar -xf windows-tests.zip -C windows-tests
 
-      - name: Run unit tests
-        working-directory: windows-tests
-        run: >-
-          .\cardano-wallet-unit-test-unit.exe
-          --color --jobs 1
-          --skip /Cardano.Wallet.DB.Sqlite/
-          +RTS -N2
+      - name: Run tests
+        run: ${{ matrix.command }}
 
   text-class-tests:
     name: "Windows Text Class Tests"
@@ -72,8 +142,10 @@ jobs:
       - name: Run text-class tests
         run: .\windows-tests\text-class-test-unit.exe --color
 
+  # E2E tests - manual dispatch only, pending fix for #5110 (TLS)
   e2e-tests:
     name: "Windows E2E Tests"
+    if: github.event_name == 'workflow_dispatch'
     needs: build
     runs-on: windows-latest
     timeout-minutes: 120
