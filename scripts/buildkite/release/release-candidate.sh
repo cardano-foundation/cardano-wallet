@@ -101,3 +101,15 @@ if [ -n "${BUILDKITE:-}" ]; then
     buildkite-agent meta-data set "node-tag" "$CARDANO_NODE_TAG"
     buildkite-agent meta-data set "last-release-date" "$LAST_RELEASE_DATE"
 fi
+
+if [ -n "${GITHUB_OUTPUT:-}" ]; then
+    {
+        echo "release-version=$NEW_GIT_TAG"
+        echo "release-candidate-commit=$RELEASE_COMMIT"
+        echo "release-candidate-branch=$RELEASE_CANDIDATE_BRANCH"
+        echo "release-cabal-version=$NEW_CABAL_VERSION"
+        echo "test-rc=$TEST_RC"
+        echo "node-tag=$CARDANO_NODE_TAG"
+        echo "last-release-date=$LAST_RELEASE_DATE"
+    } >> "$GITHUB_OUTPUT"
+fi

@@ -2,7 +2,9 @@
 
 set -euo pipefail
 
-if [ -n "${BUILDKITE:-}" ]; then
+if [ -n "${LAST_RELEASE_DATE:-}" ]; then
+    since_date="$LAST_RELEASE_DATE"
+elif [ -n "${BUILDKITE:-}" ]; then
     since_date="$(buildkite-agent meta-data get last-release-date)"
 fi
 
