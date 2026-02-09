@@ -1,9 +1,7 @@
 name: macOS Artifacts
 
+# Disabled until macOS self-hosted runners are configured
 on:
-  push:
-    branches: [master]
-  pull_request:
   workflow_dispatch:
 
 concurrency:
