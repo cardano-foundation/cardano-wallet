@@ -32,7 +32,8 @@ jobs:
     name: "Dev Shell Attic Cache (macOS)"
     needs: check-nix
     runs-on: [self-hosted, macOS, ARM64, cardano-wallet]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    # Suspended: stale pallas fetchGit reference breaks aarch64-darwin eval (#5120)
+    if: false
     steps:
       - name: Checkout
         uses: actions/checkout@v4
