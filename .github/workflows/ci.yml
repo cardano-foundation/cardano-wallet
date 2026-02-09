@@ -471,168 +471,80 @@ jobs:
           name: windows-release-package
           path: result/windows/
 
-  win-build-tests:
-    name: "Windows Test Bundle"
-    needs: build-gate-win
-    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+  # ---------------------------------------------------------------------------
+  # macOS (build gate + artifacts)
+  # ---------------------------------------------------------------------------
+
+  build-gate-mac:
+    name: "Build Gate (macOS)"
+    runs-on: [self-hosted, macOS, ARM64, cardano-wallet]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Build Windows test bundle
-        run: |
-          nix build -L -o result .#ci.artifacts.win64.tests
-          cp result/cardano-wallet-*-tests-win64.zip ./windows-tests.zip
-      - name: Upload test bundle
+      - name: Build all macOS derivations
+        run: >-
+          nix build -L
+          .#unit-cardano-wallet-unit .#unit-cardano-numeric
+          .#unit-cardano-balance-tx .#unit-cardano-wallet-primitive
+          .#unit-cardano-wallet-secrets .#unit-cardano-wallet-test-utils
+          .#unit-cardano-wallet-launcher .#unit-cardano-wallet-network-layer
+          .#unit-cardano-wallet-application-tls .#unit-cardano-wallet-blackbox-benchmarks
+          .#unit-delta-chain .#unit-delta-store .#unit-delta-table
+          .#unit-delta-types .#unit-std-gen-seed .#unit-wai-middleware-logging
+          .#cardano-cli
+          .#packages.x86_64-darwin.ci.artifacts.macos-intel.release
+          .#packages.aarch64-darwin.ci.artifacts.macos-silicon.release
+          .#packages.aarch64-darwin.integration-exe
+
+  mac-nix-check:
+    name: "Check Nix (macOS)"
+    needs: build-gate-mac
+    runs-on: [self-hosted, macOS, ARM64, cardano-wallet]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check nix version
+        run: nix --version
+      - name: Check flake info
+        run: nix flake info
+
+  mac-package-intel:
+    name: "Build Package (macOS, x86_64)"
+    needs: build-gate-mac
+    runs-on: [self-hosted, macOS, ARM64, cardano-wallet]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Build macOS Intel package
+        run: nix build -L -o result/macos-intel .#packages.x86_64-darwin.ci.artifacts.macos-intel.release
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: windows-tests
-          path: ./windows-tests.zip
+          name: macos-intel-package
+          path: result/macos-intel/
 
-  win-unit-tests:
-    name: "Win ${{ matrix.name }}"
-    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'ci:windows')
-    needs: win-build-tests
-    runs-on: [self-hosted, Windows, x64, cardano-wallet-win]
-    env:
-      LOCAL_CLUSTER_CONFIGS: test\data\cluster-configs
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: "wallet-unit / Byron + CLI"
-            command: >-
-              .\cardano-wallet-unit-test-unit.exe
-              --match "/Cardano.Byron./"
-              --match "/Cardano.CLI/"
-              --color -j1 +RTS -N2
-
-          - name: "wallet-unit / DB.Sqlite + Pool"
-            command: >-
-              .\cardano-wallet-unit-test-unit.exe
-              --match "/Cardano.DB./"
-              --match "/Cardano.Pool./"
-              --color -j1 +RTS -N2
-
-          - name: "wallet-unit / Address"
-            command: >-
-              .\cardano-wallet-unit-test-unit.exe
-              --match "/Cardano.Wallet.Address./"
-              --color -j1 +RTS -N2
-
-          - name: "wallet-unit / Api"
-            command: >-
-              .\cardano-wallet-unit-test-unit.exe
-              --match "/Cardano.Wallet.Api./"
-              --color -j1 +RTS -N2
-
-          - name: "wallet-unit / Balance"
-            command: >-
-              .\cardano-wallet-unit-test-unit.exe
-              --match "/Cardano.Wallet.Balance./"
-              --color -j1 +RTS -N2
-
-          - name: "wallet-unit / DB"
-            command: >-
-              .\cardano-wallet-unit-test-unit.exe
-              --match "/Cardano.Wallet.DB./"
-              --color -j1 +RTS -N2
-
-          - name: "wallet-unit / Primitive"
-            command: >-
-              .\cardano-wallet-unit-test-unit.exe
-              --match "/Cardano.Wallet.Primitive./"
-              --color -j1 +RTS -N2
-
-          - name: "wallet-unit / Shelley"
-            command: >-
-              .\cardano-wallet-unit-test-unit.exe
-              --match "/Cardano.Wallet.Shelley./"
-              --color -j1 +RTS -N2
-
-          - name: "wallet-unit / Other Wallet"
-            command: >-
-              .\cardano-wallet-unit-test-unit.exe
-              --match "/Cardano.Wallet./"
-              --skip "/Cardano.Wallet.Address./"
-              --skip "/Cardano.Wallet.Api./"
-              --skip "/Cardano.Wallet.Balance./"
-              --skip "/Cardano.Wallet.DB./"
-              --skip "/Cardano.Wallet.Primitive./"
-              --skip "/Cardano.Wallet.Shelley./"
-              --color -j1 +RTS -N2
-
-          - name: "wallet-unit / Control + Data"
-            command: >-
-              .\cardano-wallet-unit-test-unit.exe
-              --match "/Control./"
-              --match "/Data./"
-              --color -j1 +RTS -N2
-
-    steps:
-      - name: Download test bundle
-        uses: actions/download-artifact@v4
-        with:
-          name: windows-tests
-
-      - name: Extract test bundle
-        run: |
-          New-Item -ItemType Directory -Force -Path windows-tests
-          tar -xf windows-tests.zip -C windows-tests
-
-      - name: Run tests
-        working-directory: windows-tests
-        run: ${{ matrix.command }}
-
-  win-text-class:
-    name: "Windows Text Class Tests"
-    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'ci:windows')
-    needs: win-build-tests
-    runs-on: [self-hosted, Windows, x64, cardano-wallet-win]
-    steps:
-      - name: Download test bundle
-        uses: actions/download-artifact@v4
-        with:
-          name: windows-tests
-
-      - name: Extract test bundle
-        run: |
-          New-Item -ItemType Directory -Force -Path windows-tests
-          tar -xf windows-tests.zip -C windows-tests
-
-      - name: Run text-class tests
-        working-directory: windows-tests
-        run: .\text-class-test-unit.exe --color
-
-  win-e2e:
-    name: "Windows E2E Tests"
-    if: github.event_name == 'workflow_dispatch'
-    needs: win-build-tests
-    runs-on: [self-hosted, Windows, x64, cardano-wallet-win]
-    timeout-minutes: 120
+  mac-package-silicon:
+    name: "Build Package (macOS, arm64)"
+    needs: build-gate-mac
+    runs-on: [self-hosted, macOS, ARM64, cardano-wallet]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Download test bundle
-        uses: actions/download-artifact@v4
+      - name: Build macOS Silicon package
+        run: nix build -L -o result/macos-silicon .#packages.aarch64-darwin.ci.artifacts.macos-silicon.release
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
         with:
-          name: windows-tests
-
-      - name: Extract test bundle
-        run: |
-          New-Item -ItemType Directory -Force -Path windows-tests
-          tar -xf windows-tests.zip -C windows-tests
-
-      - name: Verify configs match
-        run: diff -r configs/cardano/preprod lib/integration/configs/cardano/preprod
-
-      - name: Run E2E tests
-        working-directory: windows-tests
-        run: .\cardano-wallet-integration-test-e2e.exe
+          name: macos-silicon-package
+          path: result/macos-silicon/
 
   # ---------------------------------------------------------------------------
   # Code quality (needs: build-gate-quality)
