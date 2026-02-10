@@ -96,7 +96,7 @@ We use the following **tools** to help automate the release process:
 |:------------|:--------------------------------------------|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | Script      | updateVersionNumbers `release-candidate.sh` | Updates the version numbers of all packages in the repository. Useful for preparing the administrative commit.                                                                                                           |
 | Script      | draftReleaseNotes `make_changelog.sh`       | Prepares draft release notes by collecting a list of merged pull requests and known issues. To support automation, Github labels can be utilized. To support human-readability, PRs should be connected to JIRA tickets. |
-| CI pipeline |                                             | Pipeline that automatically creates release artifacts and runs tests on them, used for the release candidate branches. It’s important that the created executables are subject to test, not a surrogate.                 |
+| CI workflow | [`release.yml`](https://github.com/cardano-foundation/cardano-wallet/actions/workflows/release.yml) | Workflow that automatically creates release artifacts and runs tests on them, used for the release candidate branches. It's important that the created executables are subject to test, not a surrogate. |
 
 # **Rationale**
 

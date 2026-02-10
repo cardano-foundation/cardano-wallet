@@ -6,11 +6,11 @@
       [Release-vYYYY-MM-DD]()
       documented as a new page on cardano-wallet's wiki called [Release-vYYYY-MM-DD']()
       and substituted the version number in the title and the links.
-- [ ] Picked up the latest green commgit from the release pipeline and prove it's green by linking the successful buildkite and github actions builds here.
-    - [ ] [release pipeline build](https://buildkite.com/cardano-foundation/cardano-wallet-release/)
+- [ ] Picked up the latest green commit from the release pipeline and prove it's green by linking the successful GitHub Actions builds here.
+    - [ ] [release pipeline build](https://github.com/cardano-foundation/cardano-wallet/actions/workflows/release.yml)
     - [ ] check for performance regressions on the `release commit` artifacts:
-    - [ ] check that the [restoration benchmarks](https://buildkite.com/cardano-foundation/cardano-wallet-restoration-benchmarks) ran
-- [ ] Unblock the release blocked on [release pipeline build](https://buildkite.com/cardano-foundation/cardano-wallet-release/)
+    - [ ] check that the [restoration benchmarks](https://github.com/cardano-foundation/cardano-wallet/actions/workflows/linux-benchmarks.yml) ran
+- [ ] Unblock the release blocked on [release pipeline build](https://github.com/cardano-foundation/cardano-wallet/actions/workflows/release.yml)
 
 ## Update the release page
 

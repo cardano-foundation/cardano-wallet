@@ -11,17 +11,32 @@
     <a href="https://github.com/cardano-foundation/cardano-wallet/releases">
         <img src="https://img.shields.io/github/release-pre/cardano-foundation/cardano-wallet.svg?style=for-the-badge"  />
     </a>
-    <a href="https://buildkite.com/cardano-foundation/cardano-wallet">
-        <img src="https://img.shields.io/buildkite/da223f1dbf24e8a64a27f50a49190ce7a9ee867d221c20d70a/master?label=BUILD&style=for-the-badge"/>
+    <a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/ci.yml">
+        <img src="https://img.shields.io/github/actions/workflow/status/cardano-foundation/cardano-wallet/ci.yml?label=CI&style=for-the-badge&branch=master"/>
     </a>
     <a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/publish.yml">
-        <img src="https://img.shields.io/github/actions/workflow/status/cardano-foundation/cardano-wallet/publish.yml?label=Docs&style=for-the-badge&branch=master"  />
+        <img src="https://img.shields.io/github/actions/workflow/status/cardano-foundation/cardano-wallet/publish.yml?label=Docs&style=for-the-badge&branch=master"/>
     </a>
-    <a href="https://buildkite.com/cardano-foundation/cardano-wallet-restoration-benchmarks">
-        <img src="https://img.shields.io/buildkite/1973e5126d02674d8b2489eb7bc31203ad429c31787ab8a830/master?label=BENCHMARKS&style=for-the-badge"  />
+    <a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/linux-benchmarks.yml">
+        <img src="https://img.shields.io/github/actions/workflow/status/cardano-foundation/cardano-wallet/linux-benchmarks.yml?label=Benchmarks&style=for-the-badge&branch=master"/>
     </a>
-    <a href="https://buildkite.com/cardano-foundation/cardano-wallet-release">
-        <img src="https://img.shields.io/buildkite/782570d86cfcb9cdc2f5fc5048a770777ec980bcfc135f5fe6/master?label=RELEASE-CANDIDATE&style=for-the-badge"  />
+    <a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/release.yml">
+        <img src="https://img.shields.io/github/actions/workflow/status/cardano-foundation/cardano-wallet/release.yml?label=Release&style=for-the-badge&branch=master"/>
+    </a>
+    <a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/linux-e2e.yml">
+        <img src="https://img.shields.io/github/actions/workflow/status/cardano-foundation/cardano-wallet/linux-e2e.yml?label=Linux%20E2E&style=for-the-badge&branch=master"/>
+    </a>
+    <a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/linux-mithril-sync.yml">
+        <img src="https://img.shields.io/github/actions/workflow/status/cardano-foundation/cardano-wallet/linux-mithril-sync.yml?label=Mithril%20Sync&style=for-the-badge&branch=master"/>
+    </a>
+    <a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/windows.yml">
+        <img src="https://img.shields.io/github/actions/workflow/status/cardano-foundation/cardano-wallet/windows.yml?label=Windows&style=for-the-badge&branch=master"/>
+    </a>
+    <a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/macos-unit-tests.yml">
+        <img src="https://img.shields.io/github/actions/workflow/status/cardano-foundation/cardano-wallet/macos-unit-tests.yml?label=macOS&style=for-the-badge&branch=master"/>
+    </a>
+    <a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/lean.yml">
+        <img src="https://img.shields.io/github/actions/workflow/status/cardano-foundation/cardano-wallet/lean.yml?label=Lean&style=for-the-badge&branch=master"/>
     </a>
 </p>
 
