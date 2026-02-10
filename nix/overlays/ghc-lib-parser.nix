@@ -6,8 +6,10 @@ final: prev: {
     overrides = hfinal: hprev: {
       ghc-lib-parser = hprev.ghc-lib-parser.overrideAttrs (old: {
         postPatch = (old.postPatch or "") + ''
-          substituteInPlace compiler/cbits/genSym.c \
-            --replace-fail 'atomic_inc64' 'atomic_inc'
+          if grep -q 'atomic_inc64' compiler/cbits/genSym.c; then
+            substituteInPlace compiler/cbits/genSym.c \
+              --replace-fail 'atomic_inc64' 'atomic_inc'
+          fi
         '';
       });
     };
