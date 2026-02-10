@@ -3,7 +3,6 @@ name: macOS Boot Sync
 on:
   push:
     branches: [master]
-  pull_request:  # temporary – remove after first successful run
   workflow_dispatch:
 
 concurrency:

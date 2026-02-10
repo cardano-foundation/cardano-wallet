@@ -122,13 +122,13 @@ if [[ -z ${NO_WALLET-} ]]; then
     echo "Starting the wallet service..."
 
     # Generate a random port for the wallet service and export it
-    RANDOM_PORT=$(shuf -i 2000-65000 -n 1)
+    RANDOM_PORT=$(( RANDOM % 63001 + 2000 ))
     WALLET_PORT=${WALLET_PORT:=$RANDOM_PORT}
 
-    RANDOM_PORT=$(shuf -i 2000-65000 -n 1)
+    RANDOM_PORT=$(( RANDOM % 63001 + 2000 ))
     WALLET_UI_PORT=${WALLET_UI_PORT:=$RANDOM_PORT}
 
-    RANDOM_PORT=$(shuf -i 2000-65000 -n 1)
+    RANDOM_PORT=$(( RANDOM % 63001 + 2000 ))
     # Define the wallet logs file
     LOCAL_WALLET_LOGS_FILE=./wallet.log
     WALLET_LOGS_FILE="${WALLET_LOGS_FILE:=$LOCAL_WALLET_LOGS_FILE}"
