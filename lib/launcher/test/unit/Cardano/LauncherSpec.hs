@@ -262,10 +262,14 @@ setupMockCommands
         , foreverCommand = Command "sleep" ["20"] (pure ()) Inherit Inherit
         }
     mockCommandsWin = MockCommands
-        { mockCommand = \success before -> if success
-            then Command "TIMEOUT" ["1"] before Inherit Inherit
-            else Command "CHOICE" ["/T", "1", "/C", "wat", "/D", "w"] before Inherit Inherit
-        , foreverCommand = Command "TIMEOUT" ["20"] (pure ()) Inherit Inherit
+        { mockCommand = \success before ->
+            let exitCode = if success then "0" else "1" :: String
+            in Command "powershell"
+                ["-Command", "Start-Sleep -Seconds 1; exit " ++ exitCode]
+                before Inherit Inherit
+        , foreverCommand = Command "powershell"
+            ["-Command", "Start-Sleep -Seconds 20"]
+            (pure ()) Inherit Inherit
         }
 
 -- | A command that ignores SIGTERM (POSIX only)

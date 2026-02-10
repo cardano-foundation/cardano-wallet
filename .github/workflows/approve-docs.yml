@@ -4,7 +4,7 @@ on: pull_request_target
 jobs:
   review:
     if: '${{ github.ref_protected }}'
-    runs-on: ubuntu-20.04
+    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
     steps:
       - uses: actions/checkout@v3.2.0
 

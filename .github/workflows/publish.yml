@@ -10,7 +10,7 @@ on:
 
 jobs:
   docs:
-    runs-on: ubuntu-20.04
+    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
     env:
       PUBLISH_DIR: _build
       PR_NUMBER: ${{ github.event.pull_request.number }}

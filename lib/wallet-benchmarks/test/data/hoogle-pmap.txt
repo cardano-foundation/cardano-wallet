@@ -1,0 +1,94 @@
+2316565:   /nix/store/2a2sbgbjg11g40awcizfbcrhsqa580wx-hoogle-exe-hoogle-5.0.18.4/bin/hoogle serve --database /nix/store/vk9yi9ww5bslmy49jv1g4ahifj527kjy-hoogle-with-packages/share/doc/hoogle/default.hoo --local
+0000000000400000  17376K r-x-- hoogle
+00000000014f9000      8K r---- hoogle
+00000000014fb000   2628K rw--- hoogle
+000000000178c000     12K rw---   [ anon ]
+00000000018d4000    276K rw---   [ anon ]
+0000004200000000  15360K rw---   [ anon ]
+0000004200f00000 1073727488K -----   [ anon ]
+00007f1204000000    132K rw---   [ anon ]
+00007f1204021000  65404K -----   [ anon ]
+00007f1208feb000 114772K r---- default.hoo
+00007f1210000000   1360K rw---   [ anon ]
+00007f1210154000  64176K -----   [ anon ]
+00007f1216ffe000      4K -----   [ anon ]
+00007f1216fff000   8192K rw---   [ anon ]
+00007f12177ff000      4K -----   [ anon ]
+00007f1217800000   9388K rw---   [ anon ]
+00007f121812b000  64340K -----   [ anon ]
+00007f121c000000    132K rw---   [ anon ]
+00007f121c021000  65404K -----   [ anon ]
+00007f1220000000    132K rw---   [ anon ]
+00007f1220021000  65404K -----   [ anon ]
+00007f12246d3000      4K -----   [ anon ]
+00007f12246d4000   8192K rw---   [ anon ]
+00007f1224ed4000      4K -----   [ anon ]
+00007f1224ed5000   8192K rw---   [ anon ]
+00007f12256d5000      4K -----   [ anon ]
+00007f12256d6000  12296K rw---   [ anon ]
+00007f12262d8000    460K r---- locale-archive
+00007f122634b000     16K rw---   [ anon ]
+00007f122634f000     16K r---- libgcc_s.so.1
+00007f1226353000     92K r-x-- libgcc_s.so.1
+00007f122636a000     16K r---- libgcc_s.so.1
+00007f122636e000      4K r---- libgcc_s.so.1
+00007f122636f000      4K rw--- libgcc_s.so.1
+00007f1226370000      8K rw---   [ anon ]
+00007f1226372000     16K r---- libnuma.so.1.0.0
+00007f1226376000     24K r-x-- libnuma.so.1.0.0
+00007f122637c000      8K r---- libnuma.so.1.0.0
+00007f122637e000      4K r---- libnuma.so.1.0.0
+00007f122637f000      4K rw--- libnuma.so.1.0.0
+00007f1226380000      8K r---- libffi.so.8.1.2
+00007f1226382000     28K r-x-- libffi.so.8.1.2
+00007f1226389000      8K r---- libffi.so.8.1.2
+00007f122638b000      4K r---- libffi.so.8.1.2
+00007f122638c000      4K rw--- libffi.so.8.1.2
+00007f122638d000      4K r---- libdl.so.2
+00007f122638e000      4K r-x-- libdl.so.2
+00007f122638f000      4K r---- libdl.so.2
+00007f1226390000      4K r---- libdl.so.2
+00007f1226391000      4K rw--- libdl.so.2
+00007f1226392000      4K r---- librt.so.1
+00007f1226393000      4K r-x-- librt.so.1
+00007f1226394000      4K r---- librt.so.1
+00007f1226395000      4K r---- librt.so.1
+00007f1226396000      4K rw--- librt.so.1
+00007f1226397000    136K r---- libc.so.6
+00007f12263b9000   1380K r-x-- libc.so.6
+00007f1226512000    352K r---- libc.so.6
+00007f122656a000     16K r---- libc.so.6
+00007f122656e000      8K rw--- libc.so.6
+00007f1226570000     60K rw---   [ anon ]
+00007f122657f000     72K r---- libgmp.so.10.5.0
+00007f1226591000    476K r-x-- libgmp.so.10.5.0
+00007f1226608000     92K r---- libgmp.so.10.5.0
+00007f122661f000      8K r---- libgmp.so.10.5.0
+00007f1226621000      4K rw--- libgmp.so.10.5.0
+00007f1226622000    644K r---- libstdc++.so.6.0.30
+00007f12266c3000   1052K r-x-- libstdc++.so.6.0.30
+00007f12267ca000    444K r---- libstdc++.so.6.0.30
+00007f1226839000     52K r---- libstdc++.so.6.0.30
+00007f1226846000      4K rw--- libstdc++.so.6.0.30
+00007f1226847000     12K rw---   [ anon ]
+00007f122684a000     12K r---- libz.so.1.3
+00007f122684d000     72K r-x-- libz.so.1.3
+00007f122685f000     28K r---- libz.so.1.3
+00007f1226866000      4K r---- libz.so.1.3
+00007f1226867000      4K rw--- libz.so.1.3
+00007f1226868000     56K r---- libm.so.6
+00007f1226876000    464K r-x-- libm.so.6
+00007f12268ea000    368K r---- libm.so.6
+00007f1226946000      4K r---- libm.so.6
+00007f1226947000      4K rw--- libm.so.6
+00007f1226948000      8K rw---   [ anon ]
+00007f122694a000      4K r---- ld-linux-x86-64.so.2
+00007f122694b000    152K r-x-- ld-linux-x86-64.so.2
+00007f1226971000     40K r---- ld-linux-x86-64.so.2
+00007f122697b000      8K r---- ld-linux-x86-64.so.2
+00007f122697d000      8K rw--- ld-linux-x86-64.so.2
+00007ffc25363000    196K rw---   [ stack ]
+00007ffc253c2000     16K r----   [ anon ]
+00007ffc253c6000      8K r-x--   [ anon ]
+ffffffffff600000      4K --x--   [ anon ]
+ total       1074257720K
