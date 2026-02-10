@@ -20,7 +20,7 @@ with pkgs.lib; let
     phases = ["installPhase"];
     installPhase =
       ''
-        cp -R ${exe} $out
+        cp -RL ${exe} $out
       ''
       + (optionalString (set-git-rev != null && gitrev != null) ''
         chmod +w $out/bin/*
@@ -28,7 +28,7 @@ with pkgs.lib; let
       '')
       + (optionalString (pkgs.stdenv.hostPlatform.isWindows && backend != null) ''
         # fixme: remove this
-        cp -Rv ${backend.deployments} $out/deployments
+        cp -RvL ${backend.deployments} $out/deployments
       '');
     meta.platforms = platforms.all;
     passthru =
