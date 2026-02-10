@@ -124,7 +124,7 @@ jobs:
 
       - name: Run benchmark history
         run: |
-          nix shell .#benchmark-history -c \
+          nix shell .#benchmark-history 'nixpkgs#gh' -c \
             bash scripts/gha/benchmark-history.sh
 
       - name: Upload Benchmark History
