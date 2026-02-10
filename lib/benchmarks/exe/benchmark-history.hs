@@ -48,9 +48,9 @@ import System.Directory
     ( listDirectory
     )
 import System.FilePath
-    ( (<.>)
+    ( takeFileName
+    , (<.>)
     , (</>)
-    , takeFileName
     )
 
 import qualified Data.ByteString.Lazy.Char8 as BL8
