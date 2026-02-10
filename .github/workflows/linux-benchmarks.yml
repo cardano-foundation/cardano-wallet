@@ -35,39 +35,56 @@ jobs:
               nix shell 'nixpkgs#coreutils' 'nixpkgs#gnugrep' 'nixpkgs#gawk' -c \
                 bash scripts/buildkite/main/bench-api.sh
             timeout: 20
-            artifacts: "*.txt,*.json,*.csv"
+            artifacts: |
+              *.txt
+              *.json
+              *.csv
+            csv_file: api-bench-results.csv
 
           - name: "Latency Benchmark"
             command: |
               bash scripts/buildkite/main/bench-latency.sh
             timeout: 30
-            artifacts: "*.csv"
+            artifacts: |
+              *.csv
+            csv_file: latency-bench-results.csv
 
           - name: "DB Benchmark"
             command: |
               nix shell 'nixpkgs#coreutils' -c \
                 bash scripts/buildkite/main/bench-db.sh
             timeout: 50
-            artifacts: "bench-db.*"
+            artifacts: |
+              bench-db.*
+              *.csv
+            csv_file: db-bench-results.csv
 
           - name: "Read-blocks Benchmark"
             command: |
               nix shell 'nixpkgs#coreutils' 'nixpkgs#gnugrep' 'nixpkgs#gawk' -c \
                 bash scripts/buildkite/main/bench-read-blocks.sh
             timeout: 20
-            artifacts: "*.log,*.csv"
+            artifacts: |
+              *.log
+              *.csv
+            csv_file: read-blocks-bench-results.csv
 
           - name: "Memory Benchmark"
             command: |
               nix shell 'nixpkgs#coreutils' 'nixpkgs#gnugrep' 'nixpkgs#gawk' 'nixpkgs#time' 'nixpkgs#haskellPackages.hp2pretty' -c \
                 bash scripts/buildkite/main/bench-memory.sh
             timeout: 20
-            artifacts: "*.log,*.svg,*.hp,*.csv"
+            artifacts: |
+              *.log
+              *.svg
+              *.hp
+              *.csv
+            csv_file: memory-bench-results.csv
 
     env:
       LC_ALL: C.UTF-8
       TMPDIR: /tmp/gha-bench
-      BENCHMARK_CSV_FILE: bench-results.csv
+      BENCHMARK_CSV_FILE: ${{ github.workspace }}/${{ matrix.csv_file }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4

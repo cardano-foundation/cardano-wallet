@@ -173,7 +173,8 @@ getHistory progressTracer mkQuery d0 = do
         $ getReleaseCandidateBuilds bailoutQ d0
         & bind (getArtifacts bailoutQ)
         & exitOnCheckpoint progressTracer getAnyCSVArtifact
-        & S.filter (\(_, a) -> "bench-results.csv" `isSuffixOf` path a)
+        & S.filter (\(_, a) -> "-bench-results.csv" `isSuffixOf` path a
+                              || "bench-results.csv" == path a)
         & S.chain
             ( \(b, _) ->
                 liftIO

@@ -81,7 +81,7 @@ import Cardano.Wallet.Benchmarks.Collect
     , Result (..)
     , Unit (Milliseconds)
     , mkSemantic
-    , newReporterResourceTFromEnv
+    , newReporterFromEnv
     , report
     )
 import Cardano.Wallet.Benchmarks.Latency.BenchM
@@ -289,19 +289,20 @@ main = withUtf8 $ evalContT $ do
                 , networkTracer = onlyErrors
                 }
     (tracers, capture) <- withLatencyLogging setupTracers
+    let ToTextTracer tr' = tr
+        semantic = mkSemantic ["latency"]
+    reporter <- newReporterFromEnv tr' semantic
     liftIO
         $ withShelleyServer tracers
         $ \massiveWalletMnemonic' ctx ->
-            runReaderT (runResourceT $ walletApiBench tr massiveWalletMnemonic')
+            runReaderT
+                (runResourceT $ walletApiBench reporter massiveWalletMnemonic')
                 $ BenchCtx ctx capture
 
 -- Creates n fixture wallets and return 3 of them
 
-walletApiBench :: ToTextTracer -> SomeMnemonic -> BenchM ()
-walletApiBench (ToTextTracer tr) massiveMnemonic = do
-
-    let semantic = mkSemantic ["latency"]
-    reporter <- newReporterResourceTFromEnv tr semantic
+walletApiBench :: Reporter IO -> SomeMnemonic -> BenchM ()
+walletApiBench reporter massiveMnemonic = do
 
     let runScenarioR semSeg scen = do
             let sem = mkSemantic [T.pack semSeg]
