@@ -441,14 +441,38 @@
                     platform = "win64";
                     format = "zip";
                   };
-                  # Testing on Windows is done using a collection of executables.
-                  tests = import ./nix/windows-testing-bundle.nix {
-                    inherit pkgs;
-                    cardano-wallet = windowsPackages.cardano-wallet;
-                    cardano-cli = windowsPackages.cardano-cli;
-                    cardano-node = windowsPackages.cardano-node;
-                    tests = lib.collect lib.isDerivation windowsPackages.tests;
-                    benchmarks = lib.collect lib.isDerivation windowsPackages.benchmarks;
+                  # Per-test-exe bundles for Windows CI.
+                  tests = let
+                    mkTest = name: test:
+                      import ./nix/windows-test-exe.nix {
+                        inherit pkgs test name;
+                      };
+                  in {
+                    wallet-unit = import ./nix/windows-test-exe.nix {
+                      inherit pkgs;
+                      name = "wallet-unit";
+                      test = windowsPackages.unit-cardano-wallet-unit;
+                      extraPkgs = [windowsPackages.cardano-cli];
+                      testDataDirs = [
+                        ./lib/unit/test/data
+                        ./lib/local-cluster/test/data
+                      ];
+                    };
+                    wallet-primitive = mkTest "wallet-primitive" windowsPackages.unit-cardano-wallet-primitive;
+                    wallet-secrets = mkTest "wallet-secrets" windowsPackages.unit-cardano-wallet-secrets;
+                    wallet-network-layer = mkTest "wallet-network-layer" windowsPackages.unit-cardano-wallet-network-layer;
+                    wallet-test-utils = mkTest "wallet-test-utils" windowsPackages.unit-cardano-wallet-test-utils;
+                    wallet-launcher = mkTest "wallet-launcher" windowsPackages.unit-cardano-wallet-launcher;
+                    wallet-application-tls = mkTest "wallet-application-tls" windowsPackages.unit-cardano-wallet-application-tls;
+                    cardano-numeric = mkTest "cardano-numeric" windowsPackages.unit-cardano-numeric;
+                    cardano-balance-tx = mkTest "cardano-balance-tx" windowsPackages.unit-cardano-balance-tx;
+                    wallet-blackbox-benchmarks = mkTest "wallet-blackbox-benchmarks" windowsPackages.unit-cardano-wallet-blackbox-benchmarks;
+                    delta-chain = mkTest "delta-chain" windowsPackages.unit-delta-chain;
+                    delta-store = mkTest "delta-store" windowsPackages.unit-delta-store;
+                    delta-table = mkTest "delta-table" windowsPackages.unit-delta-table;
+                    delta-types = mkTest "delta-types" windowsPackages.unit-delta-types;
+                    std-gen-seed = mkTest "std-gen-seed" windowsPackages.unit-std-gen-seed;
+                    wai-middleware-logging = mkTest "wai-middleware-logging" windowsPackages.unit-wai-middleware-logging;
                   };
                 };
             }

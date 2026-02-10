@@ -30,9 +30,8 @@ jobs:
           name: windows-release-package
           path: result/windows/
 
-  build-tests:
-    if: false
-    name: "Build Testing Bundle (Windows)"
+  build-gate-win-tests:
+    name: "Build Gate (Windows Tests)"
     runs-on: [self-hosted, linux, x86_64, cardano-wallet]
     steps:
       - name: Checkout
@@ -40,21 +39,68 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Cross-compile Windows test bundle
-        run: |
-          nix build -L -o result .#ci.artifacts.win64.tests
-          cp result/cardano-wallet-*-tests-win64.zip ./windows-tests.zip
+      - name: Cross-compile all Windows test bundles
+        run: >-
+          nix build --no-link -L
+          .#ci.artifacts.win64.tests.wallet-unit
+          .#ci.artifacts.win64.tests.wallet-primitive
+          .#ci.artifacts.win64.tests.wallet-secrets
+          .#ci.artifacts.win64.tests.wallet-network-layer
+          .#ci.artifacts.win64.tests.wallet-test-utils
+          .#ci.artifacts.win64.tests.wallet-launcher
+          .#ci.artifacts.win64.tests.wallet-application-tls
+          .#ci.artifacts.win64.tests.cardano-numeric
+          .#ci.artifacts.win64.tests.cardano-balance-tx
+          .#ci.artifacts.win64.tests.wallet-blackbox-benchmarks
+          .#ci.artifacts.win64.tests.delta-chain
+          .#ci.artifacts.win64.tests.delta-store
+          .#ci.artifacts.win64.tests.delta-table
+          .#ci.artifacts.win64.tests.delta-types
+          .#ci.artifacts.win64.tests.std-gen-seed
+          .#ci.artifacts.win64.tests.wai-middleware-logging
 
-      - name: Upload test bundle
+  upload-win-test:
+    name: "Upload ${{ matrix.name }}"
+    needs: build-gate-win-tests
+    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: wallet-unit
+          - name: wallet-primitive
+          - name: wallet-secrets
+          - name: wallet-network-layer
+          - name: wallet-test-utils
+          - name: wallet-launcher
+          - name: wallet-application-tls
+          - name: cardano-numeric
+          - name: cardano-balance-tx
+          - name: wallet-blackbox-benchmarks
+          - name: delta-chain
+          - name: delta-store
+          - name: delta-table
+          - name: delta-types
+          - name: std-gen-seed
+          - name: wai-middleware-logging
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build (from cache)
+        run: nix build .#ci.artifacts.win64.tests.${{ matrix.name }} -o result
+
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: windows-tests
-          path: ./windows-tests.zip
+          name: win-test-${{ matrix.name }}
+          path: result/
 
   unit-tests:
-    if: false
     name: ${{ matrix.name }}
-    needs: build-tests
+    needs: upload-win-test
     runs-on: [self-hosted, Windows, x64, cardano-wallet-win]
     env:
       LOCAL_CLUSTER_CONFIGS: test\data\cluster-configs
@@ -62,59 +108,69 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # --- wallet-unit sub-splits ---
           - name: "wallet-unit / Byron + CLI"
+            artifact: win-test-wallet-unit
             command: >-
-              .\cardano-wallet-unit-test-unit.exe
+              .\unit.exe
               --match "/Cardano.Byron./"
               --match "/Cardano.CLI/"
-              --color -j1 +RTS -N2
+              --color -j1 +RTS -M2G -s -N2 -RTS
 
           - name: "wallet-unit / DB.Sqlite + Pool"
+            artifact: win-test-wallet-unit
             command: >-
-              .\cardano-wallet-unit-test-unit.exe
+              .\unit.exe
               --match "/Cardano.DB./"
               --match "/Cardano.Pool./"
-              --color -j1 +RTS -N2
+              --color -j1 +RTS -M2G -s -N2 -RTS
 
           - name: "wallet-unit / Address"
+            artifact: win-test-wallet-unit
             command: >-
-              .\cardano-wallet-unit-test-unit.exe
+              .\unit.exe
               --match "/Cardano.Wallet.Address./"
-              --color -j1 +RTS -N2
+              --color -j1 +RTS -M2G -s -N2 -RTS
 
           - name: "wallet-unit / Api"
+            artifact: win-test-wallet-unit
             command: >-
-              .\cardano-wallet-unit-test-unit.exe
+              .\unit.exe
               --match "/Cardano.Wallet.Api./"
-              --color -j1 +RTS -N2
+              --color -j1 +RTS -M2G -s -N2 -RTS
 
           - name: "wallet-unit / Balance"
+            artifact: win-test-wallet-unit
             command: >-
-              .\cardano-wallet-unit-test-unit.exe
+              .\unit.exe
               --match "/Cardano.Wallet.Balance./"
-              --color -j1 +RTS -N2
+              --color -j1 +RTS -M2G -s -N2 -RTS
 
           - name: "wallet-unit / DB"
+            artifact: win-test-wallet-unit
             command: >-
-              .\cardano-wallet-unit-test-unit.exe
+              .\unit.exe
               --match "/Cardano.Wallet.DB./"
-              --color -j1 +RTS -N2
+              --color -j1 +RTS -M2G -s -N2 -RTS
 
           - name: "wallet-unit / Primitive"
+            artifact: win-test-wallet-unit
             command: >-
-              .\cardano-wallet-unit-test-unit.exe
+              .\unit.exe
               --match "/Cardano.Wallet.Primitive./"
-              --color -j1 +RTS -N2
+              --color -j1 +RTS -M2G -s -N2 -RTS
 
           - name: "wallet-unit / Shelley"
+            artifact: win-test-wallet-unit
             command: >-
-              .\cardano-wallet-unit-test-unit.exe
+              .\unit.exe
               --match "/Cardano.Wallet.Shelley./"
-              --color -j1 +RTS -N2
+              --color -j1 +RTS -M2G -s -N2 -RTS
 
           - name: "wallet-unit / Other Wallet"
+            artifact: win-test-wallet-unit
             command: >-
-              .\cardano-wallet-unit-test-unit.exe
+              .\unit.exe
               --match "/Cardano.Wallet./"
               --skip "/Cardano.Wallet.Address./"
               --skip "/Cardano.Wallet.Api./"
@@ -122,47 +178,85 @@ jobs:
               --skip "/Cardano.Wallet.DB./"
               --skip "/Cardano.Wallet.Primitive./"
               --skip "/Cardano.Wallet.Shelley./"
-              --color -j1 +RTS -N2
+              --color -j1 +RTS -M2G -s -N2 -RTS
 
           - name: "wallet-unit / Control + Data"
+            artifact: win-test-wallet-unit
             command: >-
-              .\cardano-wallet-unit-test-unit.exe
+              .\unit.exe
               --match "/Control./"
               --match "/Data./"
-              --color -j1 +RTS -N2
+              --color -j1 +RTS -M2G -s -N2 -RTS
+
+          # --- standalone suites (test.exe) ---
+          - name: "wallet-primitive"
+            artifact: win-test-wallet-primitive
+            command: .\test.exe --color +RTS -M2G -s -N2 -RTS
+
+          - name: "wallet-secrets"
+            artifact: win-test-wallet-secrets
+            command: .\test.exe --color +RTS -M2G -s -N2 -RTS
+
+          - name: "cardano-balance-tx"
+            artifact: win-test-cardano-balance-tx
+            command: .\test.exe --color +RTS -M2G -s -N2 -RTS
+
+          # --- standalone suites (unit.exe) ---
+          - name: "wallet-network-layer"
+            artifact: win-test-wallet-network-layer
+            command: .\unit.exe --color +RTS -M2G -s -N2 -RTS
+
+          - name: "wallet-test-utils"
+            artifact: win-test-wallet-test-utils
+            command: .\unit.exe --color +RTS -M2G -s -N2 -RTS
+
+          - name: "wallet-launcher"
+            artifact: win-test-wallet-launcher
+            command: .\unit.exe --color +RTS -M2G -s -N2 -RTS
+
+          - name: "wallet-application-tls"
+            artifact: win-test-wallet-application-tls
+            command: .\unit.exe --color +RTS -M2G -s -N2 -RTS
+
+          - name: "cardano-numeric"
+            artifact: win-test-cardano-numeric
+            command: .\unit.exe --color +RTS -M2G -s -N2 -RTS
+
+          - name: "wallet-blackbox-benchmarks"
+            artifact: win-test-wallet-blackbox-benchmarks
+            command: .\unit.exe --color +RTS -M2G -s -N2 -RTS
+
+          - name: "delta-chain"
+            artifact: win-test-delta-chain
+            command: .\unit.exe --color +RTS -M2G -s -N2 -RTS
+
+          - name: "delta-store"
+            artifact: win-test-delta-store
+            command: .\unit.exe --color +RTS -M2G -s -N2 -RTS
+
+          - name: "delta-table"
+            artifact: win-test-delta-table
+            command: .\unit.exe --color +RTS -M2G -s -N2 -RTS
+
+          - name: "delta-types"
+            artifact: win-test-delta-types
+            command: .\unit.exe --color +RTS -M2G -s -N2 -RTS
+
+          - name: "std-gen-seed"
+            artifact: win-test-std-gen-seed
+            command: .\unit.exe --color +RTS -M2G -s -N2 -RTS
+
+          - name: "wai-middleware-logging"
+            artifact: win-test-wai-middleware-logging
+            command: .\unit.exe --color +RTS -M2G -s -N2 -RTS
 
     steps:
-      - name: Download test bundle
+      - name: Download test artifact
         uses: actions/download-artifact@v4
         with:
-          name: windows-tests
-
-      - name: Extract test bundle
-        run: |
-          New-Item -ItemType Directory -Force -Path windows-tests
-          tar -xf windows-tests.zip -C windows-tests
+          name: ${{ matrix.artifact }}
+          path: test-bundle
 
       - name: Run tests
-        working-directory: windows-tests
+        working-directory: test-bundle
         run: ${{ matrix.command }}
-
-  text-class-tests:
-    if: false
-    name: "Windows Text Class Tests"
-    needs: build-tests
-    runs-on: [self-hosted, Windows, x64, cardano-wallet-win]
-    steps:
-      - name: Download test bundle
-        uses: actions/download-artifact@v4
-        with:
-          name: windows-tests
-
-      - name: Extract test bundle
-        run: |
-          New-Item -ItemType Directory -Force -Path windows-tests
-          tar -xf windows-tests.zip -C windows-tests
-
-      - name: Run text-class tests
-        working-directory: windows-tests
-        run: .\text-class-test-unit.exe --color
-
