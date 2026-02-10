@@ -107,7 +107,7 @@ jobs:
   benchmark-history:
     name: "Benchmark History"
     needs: benchmarks
-    if: github.ref == 'refs/heads/master'
+    if: github.ref == 'refs/heads/master' || github.event_name == 'workflow_dispatch'
     runs-on: [self-hosted, linux, x86_64, cardano-wallet-bench]
     env:
       GH_TOKEN: ${{ github.token }}
