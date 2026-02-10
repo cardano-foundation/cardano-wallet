@@ -116,6 +116,17 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: set-git-rev: rewrite-l
           haskell-language-server = {
             index-state = indexState;
             version = "latest";
+            # Patch ghc-lib-parser genSym.c: atomic_inc64 → atomic_inc
+            # (upstream bug in 9.8.5.20250214)
+            modules = [{
+              packages.ghc-lib-parser.postPatch = ''
+                if [ -f compiler/cbits/genSym.c ] \
+                    && grep -q 'atomic_inc64' compiler/cbits/genSym.c; then
+                  substituteInPlace compiler/cbits/genSym.c \
+                    --replace-fail 'atomic_inc64' 'atomic_inc'
+                fi
+              '';
+            }];
           };
           hoogle = {
             index-state = indexState;
@@ -147,18 +158,21 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: set-git-rev: rewrite-l
           jq
           yq
           mdbook
-          haskellPackages.fourmolu
           haskellPackages.ghcid
-          haskellPackages.hlint
           haskellPackages.hp2pretty
           haskellPackages.lentil
           haskellPackages.markdown-unlit
           haskellPackages.pretty-simple
           haskellPackages.weeder
-          haskellPackages.stylish-haskell
           mithrilPkgs.mithril-client-cli
-
-        ]);
+        ]) ++ [
+          # These tools depend on ghc-lib-parser which needs patching.
+          # Pull from top-level pkgs where the ghc-lib-parser overlay applies,
+          # rather than buildPackages.buildPackages where it doesn't propagate.
+          pkgs.haskellPackages.fourmolu
+          pkgs.haskellPackages.hlint
+          pkgs.haskellPackages.stylish-haskell
+        ];
         shellHook = "export LOCAL_CLUSTER_CONFIGS=${localClusterConfigs}";
       };
 
