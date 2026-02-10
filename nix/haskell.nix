@@ -112,7 +112,8 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: set-git-rev: rewrite-l
         packages = ps: builtins.attrValues (haskellLib.selectProjectPackages ps);
         tools = {
           cabal = { index-state = indexState; };
-          cabal-fmt = { index-state = indexState; };
+          # cabal-fmt doesn't support base-4.20 (GHC 9.10) yet
+          # cabal-fmt = { index-state = indexState; };
           haskell-language-server = {
             index-state = indexState;
             version = "latest";
