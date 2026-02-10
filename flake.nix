@@ -245,6 +245,15 @@
             inherit nixpkgs flake-utils haskellNix;
           };
 
+          # Git revision for stamping release binaries (injected in
+          # release-build.nix, outside the Haskell project, so that
+          # changing the commit hash does not invalidate nix caches).
+          gitrev =
+            if config.gitrev != null then
+              config.gitrev
+            else
+              self.rev or "0000000000000000000000000000000000000000";
+
           walletProject =
             (import ./nix/haskell.nix CHaP pkgs.haskell-nix nixpkgs-unstable.legacyPackages.${system}
               nodePackages
@@ -253,13 +262,6 @@
               rewrite-libs.packages.default
             ).appendModule
               [
-                {
-                  gitrev =
-                    if config.gitrev != null then
-                      config.gitrev
-                    else
-                      self.rev or "0000000000000000000000000000000000000000";
-                }
                 config.haskellNix
               ];
 
@@ -270,7 +272,8 @@
               self = {
                 # Cardano wallet
                 cardano-wallet = import ./nix/release-build.nix {
-                  inherit pkgs;
+                  inherit pkgs gitrev;
+                  set-git-rev = set-git-rev.packages.default;
                   exe = project.hsPkgs.cardano-wallet-application.components.exes.cardano-wallet;
                   backend = self.cardano-node;
                 };

@@ -7,6 +7,7 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: set-git-rev: rewrite-l
       gitrev = lib.mkOption {
         type = lib.types.str;
         description = "Git revision of sources";
+        default = "0000000000000000000000000000000000000000";
       };
       profiling = lib.mkOption {
         type = lib.types.bool;
@@ -242,8 +243,8 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: set-git-rev: rewrite-l
                 };
 
               # Add shell completions for main executables.
-              packages.cardano-wallet-application.components.exes.cardano-wallet.postInstall = optparseCompletionPostInstall + setGitRevPostInstall + rewriteLibsPostInstall + stripBinariesPostInstall;
-              packages.cardano-wallet.components.exes.cardano-wallet.postInstall = optparseCompletionPostInstall + setGitRevPostInstall + rewriteLibsPostInstall + stripBinariesPostInstall;
+              packages.cardano-wallet-application.components.exes.cardano-wallet.postInstall = optparseCompletionPostInstall + rewriteLibsPostInstall + stripBinariesPostInstall;
+              packages.cardano-wallet.components.exes.cardano-wallet.postInstall = optparseCompletionPostInstall + rewriteLibsPostInstall + stripBinariesPostInstall;
             })
 
           # Provide the swagger file in an environment variable for
