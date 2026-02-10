@@ -23,7 +23,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Build all Linux derivations
+      - name: Build test and runtime derivations
         run: >-
           nix build -L
           .#cardano-wallet .#cardano-node .#cardano-cli
@@ -35,6 +35,18 @@ jobs:
           .#unit-cardano-wallet-application-tls .#unit-cardano-wallet-blackbox-benchmarks
           .#unit-delta-chain .#unit-delta-store .#unit-delta-table
           .#unit-delta-types .#unit-std-gen-seed .#unit-wai-middleware-logging
+
+  build-gate-artifacts:
+    name: "Build Gate (Linux Artifacts)"
+    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Build release artifacts (musl static)
+        run: >-
+          nix build -L
           .#ci.artifacts.linux64.release .#dockerTestImage
 
   build-gate-win:
@@ -345,12 +357,12 @@ jobs:
           path: ${{ matrix.dir }}/logs/
 
   # ---------------------------------------------------------------------------
-  # Linux artifacts (needs: build-gate)
+  # Linux artifacts (needs: build-gate-artifacts)
   # ---------------------------------------------------------------------------
 
   artifacts-package:
     name: "Build Linux Package"
-    needs: build-gate
+    needs: build-gate-artifacts
     runs-on: [self-hosted, linux, x86_64, cardano-wallet]
     steps:
       - name: Checkout
@@ -369,7 +381,7 @@ jobs:
 
   artifacts-shell:
     name: "Evaluate Linux Shell"
-    needs: build-gate
+    needs: build-gate-artifacts
     runs-on: [self-hosted, linux, x86_64, cardano-wallet]
     steps:
       - name: Checkout
@@ -380,12 +392,12 @@ jobs:
         run: nix shell -L .#cardano-node .#cardano-cli .#cardano-wallet --command cardano-wallet version
 
   # ---------------------------------------------------------------------------
-  # Docker (needs: build-gate)
+  # Docker (needs: build-gate-artifacts)
   # ---------------------------------------------------------------------------
 
   docker:
     name: "Docker Image"
-    needs: build-gate
+    needs: build-gate-artifacts
     runs-on: [self-hosted, linux, x86_64, cardano-wallet]
     outputs:
       image-tag: ${{ steps.build.outputs.tag }}
