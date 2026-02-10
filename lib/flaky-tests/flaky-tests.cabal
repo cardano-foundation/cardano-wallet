@@ -93,5 +93,4 @@ test-suite unit
   if flag(release)
     ghc-options: -O2 -Werror
 
-  other-modules:
-    FlakyTests.HspecParserSpec
+  other-modules:      FlakyTests.HspecParserSpec

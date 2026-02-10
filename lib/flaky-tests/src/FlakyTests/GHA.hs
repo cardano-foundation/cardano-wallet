@@ -255,4 +255,3 @@ extractConwayLog zipBytes =
         let name = T.toLower (T.pack (eRelativePath e))
         in  T.isInfixOf "conway" name
                 && T.isInfixOf "integration" name
-
