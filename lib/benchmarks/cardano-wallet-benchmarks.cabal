@@ -275,28 +275,30 @@ executable benchmark-history
   hs-source-dirs: exe
   main-is:        benchmark-history.hs
   build-depends:
-    , aeson
     , base
     , bytestring
     , cardano-wallet-benchmarks
-    , cardano-wallet-buildkite
     , cassava
-    , containers
-    , contra-tracer
     , directory
-    , exceptions
     , filepath
-    , foldl
-    , http-client
-    , http-client-tls
-    , http-media
-    , http-types
-    , monoidal-containers
     , optparse-applicative
-    , pretty-simple
-    , servant
-    , servant-client
-    , streaming
     , text
     , time
-    , vector
+
+test-suite benchmark-history-test
+  import:             language, opts-exe
+  type:               exitcode-stdio-1.0
+  hs-source-dirs:     test/unit
+  main-is:            benchmark-history-test.hs
+  build-depends:
+    , base
+    , bytestring
+    , cardano-wallet-benchmarks
+    , cassava
+    , containers
+    , hspec
+    , monoidal-containers
+    , time
+
+  build-tool-depends: hspec-discover:hspec-discover
+  other-modules:      Cardano.Wallet.Benchmarks.HistorySpec

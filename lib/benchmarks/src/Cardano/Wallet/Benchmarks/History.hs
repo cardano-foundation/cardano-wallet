@@ -9,13 +9,16 @@ module Cardano.Wallet.Benchmarks.History
     , pastDays
     , renderHarmonizedHistoryCsv
     , parseHistory
+    , parseResults
+    , historyFromResults
     )
 where
 
 import Prelude
 
 import Cardano.Wallet.Benchmarks.Collect
-    ( Result (Result, resultUnit)
+    ( Benchmark (..)
+    , Result (Result, resultUnit)
     , Semantic
     , Unit (..)
     , convertUnit
@@ -258,3 +261,22 @@ renderHarmonizedHistoryCsv (HarmonizedHistory h ds) = (header', rows)
         (IndexedSemantic s i, Harmonized m' u) <- MMap.assocs h
         pure $ Row s i u $ do
             toList ds <&> \d -> (d, Map.lookup d m')
+
+-- | Parse benchmark CSV results into indexed history points.
+parseResults
+    :: BL8.ByteString
+    -> Either String [(IndexedSemantic, Result)]
+parseResults =
+    fmap (fmap f . zip [0 ..] . toList . snd) . decodeByName
+  where
+    f (i, (Benchmark s r)) = (IndexedSemantic s i, r)
+
+-- | Build a 'History' from parsed results for a given day.
+historyFromResults
+    :: Day -> [(IndexedSemantic, Result)] -> History
+historyFromResults day rs = fold $ do
+    (i, r) <- rs
+    pure
+        $ MMap.singleton i
+        $ MMap.singleton day
+        $ First r
