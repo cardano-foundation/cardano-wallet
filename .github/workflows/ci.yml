@@ -477,7 +477,8 @@ jobs:
           .#unit-cardano-wallet-application-tls .#unit-cardano-wallet-blackbox-benchmarks
           .#unit-delta-chain .#unit-delta-store .#unit-delta-table
           .#unit-delta-types .#unit-std-gen-seed .#unit-wai-middleware-logging
-          .#cardano-cli
+          .#cardano-cli .#cardano-node .#cardano-wallet
+          .#local-cluster .#test-local-cluster-exe
           .#packages.x86_64-darwin.ci.artifacts.macos-intel.release
           .#packages.aarch64-darwin.ci.artifacts.macos-silicon.release
           .#packages.aarch64-darwin.integration-exe
@@ -495,6 +496,33 @@ jobs:
         run: nix --version
       - name: Check flake info
         run: nix flake info
+
+  mac-local-cluster:
+    name: "Local Cluster Tests (macOS)"
+    needs: build-gate-mac
+    runs-on: [self-hosted, macOS, ARM64, cardano-wallet]
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run tests
+        env:
+          LOCAL_CLUSTER_CONFIGS: lib/local-cluster/test/data/cluster-configs
+          CLUSTER_LOGS_DIR_PATH: local-cluster-logs
+        run: |
+          mkdir -p local-cluster-logs
+          nix shell .#local-cluster .#test-local-cluster-exe .#cardano-cli .#cardano-node .#cardano-wallet \
+            -c test-local-cluster-exe
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-local-cluster-logs
+          path: local-cluster-logs/
 
   mac-package-intel:
     name: "Build Package (macOS, x86_64)"
