@@ -10,6 +10,12 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  # Nix eval-cache uses POSIX write locks on ~/.cache/nix/eval-cache-v5/*.sqlite.
+  # All runners share the same OS user, so one evaluating job blocks every other
+  # nix command. Per-job XDG_CACHE_HOME eliminates the contention.
+  XDG_CACHE_HOME: /home/gha-runner/.nix-eval-cache/${{ github.job }}
+
 jobs:
   # ---------------------------------------------------------------------------
   # Build gates — one runner each, populates the shared nix store
