@@ -89,5 +89,4 @@ test-suite unit
     , hspec
 
   build-tool-depends: hspec-discover:hspec-discover
-  other-modules:
-    Cardano.Wallet.Benchmark.Memory.PmapSpec
+  other-modules:      Cardano.Wallet.Benchmark.Memory.PmapSpec

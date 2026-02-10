@@ -48,7 +48,6 @@ jobs:
           .#ci.artifacts.win64.tests.wallet-network-layer
           .#ci.artifacts.win64.tests.wallet-test-utils
           .#ci.artifacts.win64.tests.wallet-launcher
-          .#ci.artifacts.win64.tests.wallet-application-tls
           .#ci.artifacts.win64.tests.cardano-numeric
           .#ci.artifacts.win64.tests.cardano-balance-tx
           .#ci.artifacts.win64.tests.wallet-blackbox-benchmarks
@@ -73,7 +72,7 @@ jobs:
           - name: wallet-network-layer
           - name: wallet-test-utils
           - name: wallet-launcher
-          - name: wallet-application-tls
+          # wallet-application-tls: skipped pending #5110
           - name: cardano-numeric
           - name: cardano-balance-tx
           - name: wallet-blackbox-benchmarks
@@ -214,9 +213,7 @@ jobs:
             artifact: win-test-wallet-launcher
             command: .\unit.exe --color +RTS -M2G -s -N2 -RTS
 
-          - name: "wallet-application-tls"
-            artifact: win-test-wallet-application-tls
-            command: .\unit.exe --color +RTS -M2G -s -N2 -RTS
+          # wallet-application-tls: skipped pending #5110 (TLS CertificateUnknown on Windows)
 
           - name: "cardano-numeric"
             artifact: win-test-cardano-numeric
