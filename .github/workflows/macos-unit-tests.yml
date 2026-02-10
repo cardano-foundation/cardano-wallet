@@ -202,4 +202,6 @@ jobs:
           fetch-depth: 0
 
       - name: Run E2E tests
+        env:
+          HAL_E2E_PREPROD_MNEMONICS: ${{ secrets.HAL_E2E_PREPROD_MNEMONICS }}
         run: nix shell .#cardano-node .#cardano-wallet .#e2e 'nixpkgs#gnutar' 'nixpkgs#p7zip' -c e2e
