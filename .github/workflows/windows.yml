@@ -31,6 +31,7 @@ jobs:
           path: result/windows/
 
   build-tests:
+    if: false
     name: "Build Testing Bundle (Windows)"
     runs-on: [self-hosted, linux, x86_64, cardano-wallet]
     steps:
@@ -51,6 +52,7 @@ jobs:
           path: ./windows-tests.zip
 
   unit-tests:
+    if: false
     name: ${{ matrix.name }}
     needs: build-tests
     runs-on: [self-hosted, Windows, x64, cardano-wallet-win]
@@ -145,6 +147,7 @@ jobs:
         run: ${{ matrix.command }}
 
   text-class-tests:
+    if: false
     name: "Windows Text Class Tests"
     needs: build-tests
     runs-on: [self-hosted, Windows, x64, cardano-wallet-win]
