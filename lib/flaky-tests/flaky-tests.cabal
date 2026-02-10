@@ -1,0 +1,97 @@
+cabal-version: 3.0
+name:          flaky-tests
+version:       0.2025.12.15
+description:   Mine GH Actions history for flaky test detection
+license:       Apache-2.0
+license-file:  LICENSE
+author:        Cardano Foundation (High Assurance Lab)
+maintainer:    hal@cardanofoundation.org
+synopsis:      Flaky test collector for Conway integration tests
+copyright:     2025 Cardano Foundation
+build-type:    Simple
+
+common language
+  default-language:   Haskell2010
+  default-extensions:
+    NoImplicitPrelude
+    OverloadedStrings
+
+flag release
+  description: Enable optimization and `-Werror`
+  default:     False
+  manual:      True
+
+common opts-lib
+  ghc-options:
+    -O2 -Wall -Wincomplete-record-updates -Wincomplete-uni-patterns
+    -Wunused-foralls -Wunused-foralls -fprint-explicit-foralls
+    -fprint-explicit-kinds -Wcompat -Widentities
+    -Werror=incomplete-patterns -Wredundant-constraints
+    -Wpartial-fields -Wtabs -fhelpful-errors -fprint-expanded-synonyms
+    -fwarn-unused-do-bind -fwarn-incomplete-uni-patterns
+    -freverse-errors
+
+common opts-exe
+  import:      opts-lib
+  ghc-options: -threaded -rtsopts
+
+library
+  import:          language, opts-lib
+  build-depends:
+    , aeson
+    , base
+    , bytestring
+    , containers
+    , github
+    , http-client
+    , http-client-tls
+    , http-types
+    , text
+    , time
+    , vector
+    , zip-archive
+
+  if flag(release)
+    ghc-options: -O2 -Werror
+
+  hs-source-dirs:  src
+  exposed-modules:
+    FlakyTests.GHA
+    FlakyTests.HspecParser
+    FlakyTests.Types
+
+executable flaky-tests
+  import:         language, opts-exe
+  main-is:        flaky-tests.hs
+  hs-source-dirs: exe
+  build-depends:
+    , aeson
+    , base
+    , bytestring
+    , containers
+    , flaky-tests
+    , github
+    , optparse-applicative
+    , text
+
+  if flag(release)
+    ghc-options: -O2 -Werror
+
+test-suite unit
+  import:             language, opts-exe
+  type:               exitcode-stdio-1.0
+  hs-source-dirs:     test/unit
+  main-is:            flaky-tests-unit-test.hs
+  build-tool-depends: hspec-discover:hspec-discover
+  build-depends:
+    , base
+    , bytestring
+    , flaky-tests
+    , hspec
+    , text
+
+  if flag(release)
+    ghc-options: -O2 -Werror
+
+  other-modules:
+    FlakyTests.HspecParserSpec

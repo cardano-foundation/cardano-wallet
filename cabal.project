@@ -71,6 +71,7 @@ packages:
   lib/delta-store
   lib/delta-table
   lib/delta-types
+  lib/flaky-tests
   lib/faucet
   lib/integration
   lib/iohk-monitoring-extra
@@ -192,6 +193,9 @@ cabal-lib-version: 3.6
 test-show-details: direct
 
 package cardano-wallet-buildkite
+  tests: True
+
+package flaky-tests
   tests: True
 
 package delta-chain
