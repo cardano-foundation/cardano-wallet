@@ -1,6 +1,8 @@
 name: Linux Mithril Sync
 
 on:
+  push:
+    branches: [master]
   workflow_dispatch:
 
 jobs:
