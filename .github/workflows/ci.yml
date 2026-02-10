@@ -14,7 +14,7 @@ env:
   # Nix eval-cache uses POSIX write locks on ~/.cache/nix/eval-cache-v5/*.sqlite.
   # All runners share the same OS user, so one evaluating job blocks every other
   # nix command. Per-job XDG_CACHE_HOME eliminates the contention.
-  XDG_CACHE_HOME: /home/gha-runner/.nix-eval-cache/${{ github.job }}
+  XDG_CACHE_HOME: /tmp/nix-eval-cache/${{ github.job }}
 
 jobs:
   # ---------------------------------------------------------------------------
@@ -55,17 +55,6 @@ jobs:
           nix build -L
           .#ci.artifacts.linux64.release .#dockerTestImage
 
-  build-gate-win:
-    name: "Build Gate (Windows cross-compile)"
-    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Cross-compile Windows artifacts
-        run: |
-          nix build -L .#ci.artifacts.win64.release .#ci.artifacts.win64.tests
 
   build-gate-quality:
     name: "Build Gate (Dev Shell)"
@@ -467,37 +456,12 @@ jobs:
           ./run.sh sync ${{ matrix.timeout }}
 
   # ---------------------------------------------------------------------------
-  # Windows (needs: build-gate-win)
-  # ---------------------------------------------------------------------------
-
-  win-build-release:
-    name: "Windows Release Package"
-    needs: build-gate-win
-    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Build Windows release package
-        run: |
-          rm -rf ./result/*
-          nix build -L -o result/windows .#ci.artifacts.win64.release
-      - name: Upload release artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: windows-release-package
-          path: result/windows/
-
-  # ---------------------------------------------------------------------------
   # macOS (build gate + artifacts)
   # ---------------------------------------------------------------------------
 
   build-gate-mac:
     name: "Build Gate (macOS)"
     runs-on: [self-hosted, macOS, ARM64, cardano-wallet]
-    env:
-      XDG_CACHE_HOME: ""
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -522,8 +486,6 @@ jobs:
     name: "Check Nix (macOS)"
     needs: build-gate-mac
     runs-on: [self-hosted, macOS, ARM64, cardano-wallet]
-    env:
-      XDG_CACHE_HOME: ""
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -538,8 +500,6 @@ jobs:
     name: "Build Package (macOS, x86_64)"
     needs: build-gate-mac
     runs-on: [self-hosted, macOS, ARM64, cardano-wallet]
-    env:
-      XDG_CACHE_HOME: ""
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -557,8 +517,6 @@ jobs:
     name: "Build Package (macOS, arm64)"
     needs: build-gate-mac
     runs-on: [self-hosted, macOS, ARM64, cardano-wallet]
-    env:
-      XDG_CACHE_HOME: ""
     steps:
       - name: Checkout
         uses: actions/checkout@v4
