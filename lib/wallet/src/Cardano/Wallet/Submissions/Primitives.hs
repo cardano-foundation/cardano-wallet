@@ -46,10 +46,6 @@ import Control.Lens
     , (&)
     , (.~)
     )
-import Data.Foldable
-    ( Foldable (..)
-    )
-
 import qualified Data.Map.Strict as Map
 
 -- | Primitive operations to change a 'Submissions' store.

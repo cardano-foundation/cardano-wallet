@@ -752,9 +752,7 @@ import Data.Generics.Product.Typed
 import Data.IntCast
     ( intCast
     )
-import Data.List
-    ( foldl'
-    )
+import qualified Data.Functor
 import Data.List.NonEmpty
     ( NonEmpty (..)
     )
@@ -1404,7 +1402,7 @@ restoreBlocks ctx tr blocks nodeTip = db & \DBLayer{..} -> atomically $ do
     -- not wrapping this into a call to 'atomically'.
     -- However, this only works if the latest database checkpoint, `cp0`,
     -- does not change in the meantime.
-    (filteredBlocks', cps') <- liftIO $ NE.unzip <$> applyBlocks blocks cp0
+    (filteredBlocks', cps') <- liftIO $ Data.Functor.unzip <$> applyBlocks blocks cp0
     let cps = NE.map snd cps'
         filteredBlocks = concat filteredBlocks'
         slotPoolDelegations =
