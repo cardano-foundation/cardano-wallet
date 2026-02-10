@@ -27,13 +27,14 @@ import Data.ByteString.Lazy
     )
 import qualified Data.ByteString.Lazy as BL
 import Data.Maybe
-    ( mapMaybe
+    ( catMaybes
+    , mapMaybe
     )
 import Data.Text
     ( Text
     )
 import qualified Data.Text as T
-import qualified Data.Text.Encoding as TE
+import qualified Data.Text.Encoding as T
 import qualified Data.Vector as V
 import GitHub
     ( Auth (..)
@@ -133,7 +134,7 @@ fetchFlakyRuns auth cfg = do
                     <> show total
                     <> ")"
             pairs <- mapM (processRun auth manager cfg) runList
-            pure (Right (mapMaybe id pairs))
+            pure (Right (catMaybes pairs))
 
 processRun
     :: Auth
@@ -154,7 +155,7 @@ processRun auth manager cfg run = do
     mLog <- downloadConwayLog auth manager cfg runIdVal
     case mLog of
         Nothing -> do
-            hPutStrLn stderr $ "  No Conway log found"
+            hPutStrLn stderr "  No Conway log found"
             pure Nothing
         Just logContent -> do
             let (mSummary, failures) = parseLog logContent
@@ -201,7 +202,7 @@ downloadConwayLog auth manager cfg runIdVal = do
     mZip <- downloadZip auth manager apiUrl
     case mZip of
         Nothing -> do
-            hPutStrLn stderr $ "  Failed to download logs zip"
+            hPutStrLn stderr "  Failed to download logs zip"
             pure Nothing
         Just zipBytes -> do
             let archive = toArchive zipBytes
@@ -247,7 +248,7 @@ extractConwayLog zipBytes =
             [] -> Nothing
             (e : _) ->
                 Just
-                    $ TE.decodeUtf8
+                    $ T.decodeUtf8
                     $ BL.toStrict
                     $ fromEntry e
   where

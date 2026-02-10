@@ -11,7 +11,7 @@ import Data.Text
     ( Text
     )
 import qualified Data.Text as T
-import qualified Data.Text.Encoding as TE
+import qualified Data.Text.Encoding as T
 import GitHub
     ( Auth (..)
     )
@@ -85,7 +85,7 @@ main = do
             hPutStrLn stderr "GITHUB_TOKEN env var not set"
             exitFailure
         Just token -> do
-            let auth = OAuth (TE.encodeUtf8 (T.pack token))
+            let auth = OAuth (T.encodeUtf8 (T.pack token))
                 cfg =
                     defaultFetchConfig
                         { cfgBranch = mBranch

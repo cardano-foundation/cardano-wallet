@@ -6,7 +6,7 @@ import qualified Data.ByteString as BS
 import Data.Text
     ( Text
     )
-import qualified Data.Text.Encoding as TE
+import qualified Data.Text.Encoding as T
 import Test.Hspec
     ( Spec
     , describe
@@ -27,7 +27,7 @@ import FlakyTests.Types
 readGolden :: IO Text
 readGolden = do
     bs <- BS.readFile "test/golden/conway-integration.log"
-    pure (TE.decodeUtf8 bs)
+    pure (T.decodeUtf8 bs)
 
 spec :: Spec
 spec = describe "HspecParser" $ do
