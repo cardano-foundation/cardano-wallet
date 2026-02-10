@@ -1,7 +1,7 @@
 # Nix
 
 [Nix](https://nixos.org) is a package manager and build tool. It is used in `cardano-wallet` for:
- - Provisioning dependencies in [Buildkite CI](https://github.com/cardano-foundation/cardano-wallet/blob/master/.buildkite).
+ - Provisioning dependencies in [GitHub Actions CI](https://github.com/cardano-foundation/cardano-wallet/actions).
  - Reproducible development environments ([nix develop][flake.nix]).
 
 Nix is required for `cardano-wallet`
@@ -58,10 +58,6 @@ To do this, run:
 ```
 
 Then add and commit the files that it creates.
-
-Alternatively, wait for Buildkite to run this same command. It will
-produce a patch, and also push a commit with updates back to your
-branch.
 
 ### Haskell.nix pin
 
