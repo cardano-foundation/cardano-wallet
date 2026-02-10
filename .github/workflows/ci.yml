@@ -496,6 +496,8 @@ jobs:
   build-gate-mac:
     name: "Build Gate (macOS)"
     runs-on: [self-hosted, macOS, ARM64, cardano-wallet]
+    env:
+      XDG_CACHE_HOME: ""
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -520,6 +522,8 @@ jobs:
     name: "Check Nix (macOS)"
     needs: build-gate-mac
     runs-on: [self-hosted, macOS, ARM64, cardano-wallet]
+    env:
+      XDG_CACHE_HOME: ""
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -534,6 +538,8 @@ jobs:
     name: "Build Package (macOS, x86_64)"
     needs: build-gate-mac
     runs-on: [self-hosted, macOS, ARM64, cardano-wallet]
+    env:
+      XDG_CACHE_HOME: ""
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -551,6 +557,8 @@ jobs:
     name: "Build Package (macOS, arm64)"
     needs: build-gate-mac
     runs-on: [self-hosted, macOS, ARM64, cardano-wallet]
+    env:
+      XDG_CACHE_HOME: ""
     steps:
       - name: Checkout
         uses: actions/checkout@v4
