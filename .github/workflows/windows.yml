@@ -3,8 +3,6 @@ name: Windows
 on:
   push:
     branches: [master]
-  pull_request:
-    types: [opened, synchronize, reopened, labeled]
   workflow_dispatch:
 
 concurrency:
@@ -54,7 +52,6 @@ jobs:
 
   unit-tests:
     name: ${{ matrix.name }}
-    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'ci:windows')
     needs: build-tests
     runs-on: [self-hosted, Windows, x64, cardano-wallet-win]
     env:
@@ -149,7 +146,6 @@ jobs:
 
   text-class-tests:
     name: "Windows Text Class Tests"
-    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'ci:windows')
     needs: build-tests
     runs-on: [self-hosted, Windows, x64, cardano-wallet-win]
     steps:
@@ -167,32 +163,3 @@ jobs:
         working-directory: windows-tests
         run: .\text-class-test-unit.exe --color
 
-  # E2E tests - manual dispatch only, pending fix for #5110 (TLS)
-  e2e-tests:
-    name: "Windows E2E Tests"
-    if: github.event_name == 'workflow_dispatch'
-    needs: build-tests
-    runs-on: [self-hosted, Windows, x64, cardano-wallet-win]
-    timeout-minutes: 120
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Download test bundle
-        uses: actions/download-artifact@v4
-        with:
-          name: windows-tests
-
-      - name: Extract test bundle
-        run: |
-          New-Item -ItemType Directory -Force -Path windows-tests
-          tar -xf windows-tests.zip -C windows-tests
-
-      - name: Verify configs match
-        run: diff -r configs/cardano/preprod lib/integration/configs/cardano/preprod
-
-      - name: Run E2E tests
-        working-directory: windows-tests
-        run: .\cardano-wallet-integration-test-e2e.exe

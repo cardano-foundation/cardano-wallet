@@ -3,8 +3,6 @@ name: Linux Benchmarks
 on:
   push:
     branches: [master]
-  pull_request:
-    types: [opened, synchronize, reopened, labeled]
   workflow_dispatch:
 
 concurrency:
@@ -14,7 +12,6 @@ concurrency:
 jobs:
   build:
     name: "Build benchmarks"
-    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'ci:bench')
     runs-on: [self-hosted, linux, x86_64, cardano-wallet-bench]
     steps:
       - name: Checkout

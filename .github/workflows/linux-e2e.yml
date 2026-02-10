@@ -1,6 +1,8 @@
 name: Linux E2E Tests
 
 on:
+  push:
+    branches: [master]
   workflow_dispatch:
 
 jobs:

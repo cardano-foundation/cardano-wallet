@@ -1,0 +1,623 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Nix eval-cache uses POSIX write locks on ~/.cache/nix/eval-cache-v5/*.sqlite.
+  # All runners share the same OS user, so one evaluating job blocks every other
+  # nix command. Per-job XDG_CACHE_HOME eliminates the contention.
+  XDG_CACHE_HOME: /tmp/nix-eval-cache/${{ github.job }}
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Build gates — one runner each, populates the shared nix store
+  # ---------------------------------------------------------------------------
+
+  build-gate:
+    name: "Build Gate (Linux)"
+    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Build test and runtime derivations
+        run: >-
+          nix build -L
+          .#cardano-wallet .#cardano-node .#cardano-cli
+          .#local-cluster .#integration-exe .#test-local-cluster-exe
+          .#unit-cardano-wallet-unit .#unit-cardano-numeric
+          .#unit-cardano-balance-tx .#unit-cardano-wallet-primitive
+          .#unit-cardano-wallet-secrets .#unit-cardano-wallet-test-utils
+          .#unit-cardano-wallet-launcher .#unit-cardano-wallet-network-layer
+          .#unit-cardano-wallet-application-tls .#unit-cardano-wallet-blackbox-benchmarks
+          .#unit-delta-chain .#unit-delta-store .#unit-delta-table
+          .#unit-delta-types .#unit-std-gen-seed .#unit-wai-middleware-logging
+
+  build-gate-artifacts:
+    name: "Build Gate (Linux Artifacts)"
+    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Build release artifacts (musl static)
+        run: >-
+          nix build -L
+          .#ci.artifacts.linux64.release .#dockerTestImage
+
+
+  build-gate-quality:
+    name: "Build Gate (Dev Shell)"
+    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Build dev shell
+        run: nix build .#devShells.x86_64-linux.default.inputDerivation
+
+  # ---------------------------------------------------------------------------
+  # Nix check
+  # ---------------------------------------------------------------------------
+
+  nix-check:
+    name: "Check Nix"
+    needs: build-gate
+    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check nix version
+        run: nix --version
+
+  # ---------------------------------------------------------------------------
+  # Linux unit tests (needs: build-gate)
+  # ---------------------------------------------------------------------------
+
+  unit-tests:
+    name: ${{ matrix.name }}
+    needs: build-gate
+    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: "cardano-wallet-application-tls"
+            working-directory: lib/application-tls
+            command: nix run ../../.#unit-cardano-wallet-application-tls -- +RTS -M2G -s -RTS
+
+          - name: "cardano-balance-tx"
+            working-directory: lib/balance-tx
+            command: nix run ../../.#unit-cardano-balance-tx -- +RTS -M2G -s -RTS
+
+          - name: "cardano-numeric"
+            command: nix run .#unit-cardano-numeric -- +RTS -M2G -s -RTS
+
+          - name: "cardano-wallet-blackbox-benchmarks"
+            command: nix run .#unit-cardano-wallet-blackbox-benchmarks -- +RTS -M2G -s -RTS
+
+          - name: "cardano-wallet-launcher"
+            command: nix run .#unit-cardano-wallet-launcher -- +RTS -M2G -s -RTS
+
+          - name: "cardano-wallet-network-layer"
+            command: nix run .#unit-cardano-wallet-network-layer -- +RTS -M2G -s -RTS
+
+          - name: "cardano-wallet-primitive"
+            working-directory: lib/primitive
+            command: nix run ../../.#unit-cardano-wallet-primitive -- +RTS -M2G -s -RTS
+
+          - name: "cardano-wallet-secrets"
+            command: nix run .#unit-cardano-wallet-secrets -- +RTS -M2G -s -RTS
+
+          - name: "cardano-wallet-test-utils"
+            command: nix run .#unit-cardano-wallet-test-utils -- +RTS -M2G -s -RTS
+
+          - name: "delta-chain"
+            command: nix run .#unit-delta-chain -- +RTS -M2G -s -RTS
+
+          - name: "delta-store"
+            command: nix run .#unit-delta-store -- +RTS -M2G -s -RTS
+
+          - name: "delta-table"
+            command: nix run .#unit-delta-table -- +RTS -M2G -s -RTS
+
+          - name: "delta-types"
+            command: nix run .#unit-delta-types -- +RTS -M2G -s -RTS
+
+          - name: "std-gen-seed"
+            command: nix run .#unit-std-gen-seed -- +RTS -M2G -s -RTS
+
+          - name: "wai-middleware-logging"
+            command: nix run .#unit-wai-middleware-logging -- +RTS -M2G -s -RTS
+
+          - name: "wallet-unit / Byron + CLI"
+            working-directory: lib/unit
+            command: >-
+              nix shell ../../.#cardano-cli -c
+              nix run ../../.#unit-cardano-wallet-unit --
+              --match "/Cardano.Byron./"
+              --match "/Cardano.CLI/"
+              -j1 +RTS -M2G -s -RTS
+
+          - name: "wallet-unit / DB.Sqlite + Pool"
+            command: >-
+              nix shell .#cardano-cli -c
+              nix run .#unit-cardano-wallet-unit --
+              --match "/Cardano.DB./"
+              --match "/Cardano.Pool./"
+              -j1 +RTS -M2G -s -RTS
+
+          - name: "wallet-unit / Address"
+            command: >-
+              nix shell .#cardano-cli -c
+              nix run .#unit-cardano-wallet-unit --
+              --match "/Cardano.Wallet.Address./"
+              -j1 +RTS -M2G -s -RTS
+
+          - name: "wallet-unit / Api"
+            command: >-
+              nix shell .#cardano-cli -c
+              nix run .#unit-cardano-wallet-unit --
+              --match "/Cardano.Wallet.Api./"
+              -j1 +RTS -M2G -s -RTS
+
+          - name: "wallet-unit / Balance"
+            command: >-
+              nix shell .#cardano-cli -c
+              nix run .#unit-cardano-wallet-unit --
+              --match "/Cardano.Wallet.Balance./"
+              -j1 +RTS -M2G -s -RTS
+
+          - name: "wallet-unit / DB"
+            command: >-
+              nix shell .#cardano-cli -c
+              nix run .#unit-cardano-wallet-unit --
+              --match "/Cardano.Wallet.DB./"
+              -j1 +RTS -M2G -s -RTS
+
+          - name: "wallet-unit / Primitive"
+            command: >-
+              nix shell .#cardano-cli -c
+              nix run .#unit-cardano-wallet-unit --
+              --match "/Cardano.Wallet.Primitive./"
+              -j1 +RTS -M2G -s -RTS
+
+          - name: "wallet-unit / Shelley"
+            command: >-
+              nix shell .#cardano-cli -c
+              nix run .#unit-cardano-wallet-unit --
+              --match "/Cardano.Wallet.Shelley./"
+              -j1 +RTS -M2G -s -RTS
+
+          - name: "wallet-unit / Other Wallet"
+            command: >-
+              nix shell .#cardano-cli -c
+              nix run .#unit-cardano-wallet-unit --
+              --match "/Cardano.Wallet./"
+              --skip "/Cardano.Wallet.Address./"
+              --skip "/Cardano.Wallet.Api./"
+              --skip "/Cardano.Wallet.Balance./"
+              --skip "/Cardano.Wallet.DB./"
+              --skip "/Cardano.Wallet.Primitive./"
+              --skip "/Cardano.Wallet.Shelley./"
+              -j1 +RTS -M2G -s -RTS
+
+          - name: "wallet-unit / Control + Data"
+            command: >-
+              nix shell .#cardano-cli -c
+              nix run .#unit-cardano-wallet-unit --
+              --match "/Control./"
+              --match "/Data./"
+              -j1 +RTS -M2G -s -RTS
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run tests
+        working-directory: ${{ matrix.working-directory || '.' }}
+        run: ${{ matrix.command }}
+
+  # ---------------------------------------------------------------------------
+  # Integration tests (needs: build-gate)
+  # ---------------------------------------------------------------------------
+
+  integration:
+    name: "Conway Integration Tests"
+    needs: build-gate
+    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    timeout-minutes: 120
+    env:
+      LOCAL_CLUSTER_CONFIGS: lib/local-cluster/test/data/cluster-configs
+      LOCAL_CLUSTER_ERA: conway
+      CARDANO_WALLET_TEST_DATA: lib/integration/test/data
+      TESTS_RETRY_FAILED: 1
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run integration tests
+        run: |
+          mkdir -p integration-test-dir/cluster.logs
+          export CLUSTER_LOGS_DIR_PATH=integration-test-dir/cluster.logs
+          export INTEGRATION_TEST_DIR=integration-test-dir
+          nix shell .#cardano-node .#cardano-cli -c \
+            nix shell .#cardano-wallet .#local-cluster .#integration-exe \
+              -c integration-exe -j6
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-test-logs
+          path: integration-test-dir/
+
+  # ---------------------------------------------------------------------------
+  # Local cluster tests (needs: build-gate)
+  # ---------------------------------------------------------------------------
+
+  local-cluster:
+    name: "Local Cluster Tests"
+    needs: build-gate
+    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run tests
+        env:
+          LOCAL_CLUSTER_CONFIGS: lib/local-cluster/test/data/cluster-configs
+          CLUSTER_LOGS_DIR_PATH: local-cluster-logs
+        run: |
+          mkdir -p local-cluster-logs
+          nix shell .#local-cluster .#test-local-cluster-exe .#cardano-cli .#cardano-node .#cardano-wallet \
+            -c test-local-cluster-exe
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: local-cluster-logs
+          path: local-cluster-logs/
+
+  # ---------------------------------------------------------------------------
+  # Boot syncs (needs: build-gate)
+  # ---------------------------------------------------------------------------
+
+  boot-syncs:
+    name: "${{ matrix.name }}"
+    needs: build-gate
+    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: "Preview Network Boot Sync"
+            dir: run/preview/nix
+            timeout: 600
+            status: syncing
+            network: testnet
+
+          - name: "Mainnet Boot Sync"
+            dir: run/mainnet/nix
+            timeout: 600
+            status: syncing
+            network: mainnet
+
+    env:
+      SUCCESS_STATUS: ${{ matrix.status }}
+      NODE_LOGS_FILE: ./logs/node.log
+      WALLET_LOGS_FILE: ./logs/wallet.log
+      CLEANUP_DB: "true"
+      NETWORK: ${{ matrix.network }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run boot sync
+        working-directory: ${{ matrix.dir }}
+        run: |
+          rm -rf logs databases
+          mkdir -p logs
+          ./run.sh sync ${{ matrix.timeout }}
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: boot-sync-logs-${{ strategy.job-index }}
+          path: ${{ matrix.dir }}/logs/
+
+  # ---------------------------------------------------------------------------
+  # Linux artifacts (needs: build-gate-artifacts)
+  # ---------------------------------------------------------------------------
+
+  artifacts-package:
+    name: "Build Linux Package"
+    needs: build-gate-artifacts
+    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Build release package
+        run: |
+          rm -rf ./result/*
+          nix build -L -o result/linux .#ci.artifacts.linux64.release
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-release-package
+          path: result/linux/
+
+  artifacts-shell:
+    name: "Evaluate Linux Shell"
+    needs: build-gate-artifacts
+    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Evaluate shell
+        run: nix shell -L .#cardano-node .#cardano-cli .#cardano-wallet --command cardano-wallet version
+
+  # ---------------------------------------------------------------------------
+  # Docker (needs: build-gate-artifacts)
+  # ---------------------------------------------------------------------------
+
+  docker:
+    name: "Docker Image"
+    needs: build-gate-artifacts
+    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    outputs:
+      image-tag: ${{ steps.build.outputs.tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build and load image
+        id: build
+        run: |
+          mkdir -p artifacts
+          nix build -L .#dockerTestImage -o artifacts/docker-image.tgz
+          output=$(docker load < artifacts/docker-image.tgz)
+          tag=$(echo "$output" | sed -n 's/Loaded image: cardanofoundation\/cardano-wallet:\(.*\)/\1/p')
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "Docker image tag: $tag"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image
+          path: artifacts/docker-image.tgz
+
+  docker-boot-sync:
+    name: "${{ matrix.name }}"
+    needs: docker
+    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: "Docker Mainnet Boot Sync"
+            dir: run/mainnet/docker
+            timeout: 600
+            status: syncing
+
+          - name: "Docker Preview Boot Sync"
+            dir: run/preview/docker
+            timeout: 600
+            status: syncing
+
+    timeout-minutes: 30
+    env:
+      WALLET_TAG: ${{ needs.docker.outputs.image-tag }}
+      USE_LOCAL_IMAGE: "true"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run boot sync
+        working-directory: ${{ matrix.dir }}
+        env:
+          SUCCESS_STATUS: ${{ matrix.status }}
+          COMPOSE_PROJECT_NAME: gha-${{ github.run_id }}-${{ strategy.job-index }}
+        run: |
+          rm -rf databases
+          ./run.sh sync ${{ matrix.timeout }}
+
+  # ---------------------------------------------------------------------------
+  # macOS (build gate + artifacts)
+  # ---------------------------------------------------------------------------
+
+  build-gate-mac:
+    name: "Build Gate (macOS)"
+    runs-on: [self-hosted, macOS, ARM64, cardano-wallet]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Build all macOS derivations
+        run: >-
+          nix build -L
+          .#unit-cardano-wallet-unit .#unit-cardano-numeric
+          .#unit-cardano-balance-tx .#unit-cardano-wallet-primitive
+          .#unit-cardano-wallet-secrets .#unit-cardano-wallet-test-utils
+          .#unit-cardano-wallet-launcher .#unit-cardano-wallet-network-layer
+          .#unit-cardano-wallet-application-tls .#unit-cardano-wallet-blackbox-benchmarks
+          .#unit-delta-chain .#unit-delta-store .#unit-delta-table
+          .#unit-delta-types .#unit-std-gen-seed .#unit-wai-middleware-logging
+          .#cardano-cli .#cardano-node .#cardano-wallet
+          .#local-cluster .#test-local-cluster-exe
+          .#packages.x86_64-darwin.ci.artifacts.macos-intel.release
+          .#packages.aarch64-darwin.ci.artifacts.macos-silicon.release
+          .#packages.aarch64-darwin.integration-exe
+
+  mac-nix-check:
+    name: "Check Nix (macOS)"
+    needs: build-gate-mac
+    runs-on: [self-hosted, macOS, ARM64, cardano-wallet]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check nix version
+        run: nix --version
+      - name: Check flake info
+        run: nix flake info
+
+  mac-local-cluster:
+    name: "Local Cluster Tests (macOS)"
+    needs: build-gate-mac
+    runs-on: [self-hosted, macOS, ARM64, cardano-wallet]
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run tests
+        env:
+          LOCAL_CLUSTER_CONFIGS: lib/local-cluster/test/data/cluster-configs
+          CLUSTER_LOGS_DIR_PATH: local-cluster-logs
+        run: |
+          mkdir -p local-cluster-logs
+          nix shell .#local-cluster .#test-local-cluster-exe .#cardano-cli .#cardano-node .#cardano-wallet \
+            -c test-local-cluster-exe
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-local-cluster-logs
+          path: local-cluster-logs/
+
+  mac-package-intel:
+    name: "Build Package (macOS, x86_64)"
+    needs: build-gate-mac
+    runs-on: [self-hosted, macOS, ARM64, cardano-wallet]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Build macOS Intel package
+        run: nix build -L -o result/macos-intel .#packages.x86_64-darwin.ci.artifacts.macos-intel.release
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-intel-package
+          path: result/macos-intel/
+
+  mac-package-silicon:
+    name: "Build Package (macOS, arm64)"
+    needs: build-gate-mac
+    runs-on: [self-hosted, macOS, ARM64, cardano-wallet]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Build macOS Silicon package
+        run: nix build -L -o result/macos-silicon .#packages.aarch64-darwin.ci.artifacts.macos-silicon.release
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-silicon-package
+          path: result/macos-silicon/
+
+  # ---------------------------------------------------------------------------
+  # Code quality (needs: build-gate-quality)
+  # ---------------------------------------------------------------------------
+
+  quality-checks:
+    name: ${{ matrix.name }}
+    needs: build-gate-quality
+    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: "Check Code Format"
+            command: nix develop --command scripts/buildkite/main/check-code-format.sh
+
+          - name: "Check HLint"
+            command: nix develop --command bash -c "echo +++ HLint ; hlint lib"
+
+          - name: "Check Cabal Configure"
+            command: nix develop --command scripts/buildkite/check-haskell-nix-cabal.sh
+
+          - name: "Lint Bash Scripts"
+            command: ./scripts/shellcheck.sh
+
+          - name: "Check EOL"
+            command: nix develop --command scripts/enforce-eol.sh
+
+          - name: "Validate Swagger"
+            command: nix develop path:./scripts/buildkite/main -c ./scripts/buildkite/main/validate-swagger.sh
+
+          - name: "Print TODO List"
+            command: nix develop --command scripts/todo-list.sh
+
+          - name: "Check HLS Works"
+            command: nix develop --command bash -c "haskell-language-server lib/wallet/src/Cardano/Wallet.hs"
+
+          - name: "Check git revision"
+            command: scripts/buildkite/main/git-revision.sh
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run check
+        run: ${{ matrix.command }}
+
+  attic-cache:
+    name: "Dev Shell Attic Cache"
+    needs: build-gate-quality
+    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Push dev shell to Attic
+        env:
+          ATTIC_TOKEN: ${{ secrets.ATTIC_TOKEN }}
+          system: x86_64-linux
+        run: nix develop path:./scripts/buildkite/main -c ./scripts/buildkite/main/attic-cache.sh
