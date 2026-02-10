@@ -91,4 +91,3 @@ test-suite unit
   build-tool-depends: hspec-discover:hspec-discover
   other-modules:
     Cardano.Wallet.Benchmark.Memory.PmapSpec
-    Paths_cardano_wallet_blackbox_benchmarks

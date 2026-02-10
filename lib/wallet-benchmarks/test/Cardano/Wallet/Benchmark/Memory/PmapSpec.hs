@@ -15,9 +15,6 @@ import Control.Monad
 import Data.Attoparsec.ByteString.Char8
     ( parseOnly
     )
-import Paths_cardano_wallet_blackbox_benchmarks
-    ( getDataFileName
-    )
 import Test.Hspec
     ( Spec
     , describe
@@ -46,8 +43,7 @@ spec = do
                     ]
         it "can parse a topline and lines of pmap output" $ do
             input <-
-                getDataFileName "data/hoogle-pmap.txt"
-                    >>= B8.readFile
+                B8.readFile "test/data/hoogle-pmap.txt"
             case parseOnly pmapParser input of
                 Left e -> fail e
                 Right _ -> pure ()
