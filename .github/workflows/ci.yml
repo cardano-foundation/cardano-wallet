@@ -41,6 +41,7 @@ jobs:
           .#unit-cardano-wallet-application-tls .#unit-cardano-wallet-blackbox-benchmarks
           .#unit-delta-chain .#unit-delta-store .#unit-delta-table
           .#unit-delta-types .#unit-std-gen-seed .#unit-wai-middleware-logging
+          .#unit-benchmark-history
 
   build-gate-artifacts:
     name: "Build Gate (Linux Artifacts)"
@@ -143,6 +144,9 @@ jobs:
 
           - name: "wai-middleware-logging"
             command: nix run .#unit-wai-middleware-logging -- +RTS -M2G -s -RTS
+
+          - name: "benchmark-history-test"
+            command: nix run .#unit-benchmark-history -- +RTS -M2G -s -RTS
 
           - name: "wallet-unit / Byron + CLI"
             working-directory: lib/unit
@@ -478,6 +482,7 @@ jobs:
           .#unit-cardano-wallet-application-tls .#unit-cardano-wallet-blackbox-benchmarks
           .#unit-delta-chain .#unit-delta-store .#unit-delta-table
           .#unit-delta-types .#unit-std-gen-seed .#unit-wai-middleware-logging
+          .#unit-benchmark-history
           .#cardano-cli .#cardano-node .#cardano-wallet
           .#local-cluster .#test-local-cluster-exe
           .#packages.x86_64-darwin.ci.artifacts.macos-intel.release

@@ -257,6 +257,9 @@ package cardano-wallet-ui
 package cardano-wallet-application-tls
   tests: True
 
+package cardano-wallet-benchmarks
+  tests: True
+
 package cardano-wallet-blackbox-benchmarks
   tests: True
 

@@ -103,3 +103,34 @@ jobs:
           name: ${{ matrix.name }}
           path: ${{ matrix.artifacts }}
           if-no-files-found: ignore
+
+  benchmark-history:
+    name: "Benchmark History"
+    needs: benchmarks
+    if: github.ref == 'refs/heads/master' || github.event_name == 'workflow_dispatch'
+    runs-on: [self-hosted, linux, x86_64, cardano-wallet-bench]
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download current run artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: current-run-artifacts
+
+      - name: Run benchmark history
+        run: |
+          nix shell .#benchmark-history 'nixpkgs#gh' -c \
+            bash scripts/gha/benchmark-history.sh
+
+      - name: Upload Benchmark History
+        uses: actions/upload-artifact@v4
+        with:
+          name: Benchmark History
+          path: |
+            benchmark-history/benchmark-history.csv
+            benchmark-history/*.svg

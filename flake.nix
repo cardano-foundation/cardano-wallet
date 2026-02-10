@@ -316,6 +316,7 @@
                 unit-delta-types = project.hsPkgs.delta-types.components.tests.unit;
                 unit-std-gen-seed = project.hsPkgs.std-gen-seed.components.tests.unit;
                 unit-wai-middleware-logging = project.hsPkgs.wai-middleware-logging.components.tests.unit;
+                unit-benchmark-history = project.hsPkgs.cardano-wallet-benchmarks.components.tests.benchmark-history-test;
 
                 # Combined project coverage report
                 testCoverageReport = coveredProject.projectCoverageReport;
