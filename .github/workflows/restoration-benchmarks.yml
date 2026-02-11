@@ -40,7 +40,7 @@ jobs:
       max-parallel: 1
       matrix:
         include:
-          - bench: baseline
+          - bench: base
             node-db: mainnet-1
           # TODO: enable after testing
           # - bench: seq0
