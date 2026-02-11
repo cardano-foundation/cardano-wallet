@@ -158,7 +158,7 @@
                         <h1 id="nix"><a class="header" href="#nix">Nix</a></h1>
 <p><a href="https://nixos.org">Nix</a> is a package manager and build tool. It is used in <code>cardano-wallet</code> for:</p>
 <ul>
-<li>Provisioning dependencies in <a href="https://github.com/cardano-foundation/cardano-wallet/blob/master/.buildkite">Buildkite CI</a>.</li>
+<li>Provisioning dependencies in <a href="https://github.com/cardano-foundation/cardano-wallet/actions">GitHub Actions CI</a>.</li>
 <li>Reproducible development environments (<a href="https://github.com/cardano-foundation/cardano-wallet/blob/master/flake.nix">nix develop</a>).</li>
 </ul>
 <p>Nix is required for <code>cardano-wallet</code>
@@ -194,9 +194,6 @@ need to update the generated files.</p>
 <pre><code>./nix/regenerate.sh
 </code></pre>
 <p>Then add and commit the files that it creates.</p>
-<p>Alternatively, wait for Buildkite to run this same command. It will
-produce a patch, and also push a commit with updates back to your
-branch.</p>
 <h3 id="haskellnix-pin"><a class="header" href="#haskellnix-pin">Haskell.nix pin</a></h3>
 <p>The Nix build also depends on the <a href="https://github.com/input-output-hk/haskell.nix">Haskell.nix</a> build infrastructure.
 It may be necessary to update <code>haskell.nix</code> when moving to a

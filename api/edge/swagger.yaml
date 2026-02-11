@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Cardano Wallet Backend API
-  version: v2025-03-31
+  version: v2025-12-15
   license:
     name: Apache-2.0
     url: https://raw.githubusercontent.com/cardano-foundation/cardano-wallet/master/LICENSE
@@ -679,6 +679,82 @@ x-ScriptValue: &ScriptValue
               minItems: 1
               items:
                 $ref: "#/components/schemas/ScriptValue"
+
+    - title: Active from slot
+      type: object
+      required:
+        - active_from
+      properties:
+        active_from:
+          description: Transaction is only valid starting at the specified slot number (`≥ active_from`).
+          type: integer
+          minimum: 0
+
+    - title: Active until slot
+      type: object
+      required:
+        - active_until
+      properties:
+        active_until:
+          description: Transaction is only valid before the specified slot number (`< active_until`).
+          type: integer
+          minimum: 0
+
+# ScriptValueGeneral allows any key hash prefix, used in decoded transactions
+# where scripts can come from any source (not just shared wallets)
+x-ScriptValueGeneral: &ScriptValueGeneral
+  oneOf:
+    - title: Key Hash
+      description: Leaf value for a script designating a required verification key hash.
+      type: string
+      format: bech32
+      pattern: "^((addr_shared_vkh)|(stake_shared_vkh)|(addr_vkh)|(stake_vkh)|(policy_vkh))1[0-9a-z]*$"
+
+    - title: All
+      type: object
+      required:
+        - all
+      properties:
+        all:
+          description: Script primitive for which all signing keys corresponding to all list elements' verification keys are expected to make the script valid.
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/ScriptValueGeneral"
+
+    - title: Any
+      type: object
+      required:
+        - any
+      properties:
+        any:
+          description: Script primitive for which a signing key corresponding to any of the list elements' verification keys is expected to make the script valid. It is equivalent to `some` with `"at_least"=1`.
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/ScriptValueGeneral"
+
+    - title: Some
+      type: object
+      required:
+        - some
+      properties:
+        some:
+          description: Script primitive for which at least a given number of signing keys corresponding to the list elements' verification keys are expected to make the script valid.
+          type: object
+          required:
+            - at_least
+            - from
+          properties:
+            at_least:
+              type: integer
+              minimum: 1
+              maximum: 255
+            from:
+              type: array
+              minItems: 1
+              items:
+                $ref: "#/components/schemas/ScriptValueGeneral"
 
     - title: Active from slot
       type: object
@@ -2716,7 +2792,7 @@ components:
             script_type:
               type: string
               enum: ["native"]
-            script: *ScriptValue
+            script: *ScriptValueGeneral
             reference: *referenceInput
         - type: object
           title: plutus script
@@ -3856,6 +3932,8 @@ components:
     CredentialValue: *CredentialValue
 
     ScriptValue: *ScriptValue
+
+    ScriptValueGeneral: *ScriptValueGeneral
 
     ScriptTemplateValue: *ScriptTemplateValue
 

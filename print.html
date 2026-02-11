@@ -6240,7 +6240,7 @@ instance (IsErr err, HasSwagger sub) =&gt; HasSwagger (Throws err :&gt; sub)
 <div style="break-before: page; page-break-before: always;"></div><h1 id="nix"><a class="header" href="#nix">Nix</a></h1>
 <p><a href="https://nixos.org">Nix</a> is a package manager and build tool. It is used in <code>cardano-wallet</code> for:</p>
 <ul>
-<li>Provisioning dependencies in <a href="https://github.com/cardano-foundation/cardano-wallet/blob/master/.buildkite">Buildkite CI</a>.</li>
+<li>Provisioning dependencies in <a href="https://github.com/cardano-foundation/cardano-wallet/actions">GitHub Actions CI</a>.</li>
 <li>Reproducible development environments (<a href="https://github.com/cardano-foundation/cardano-wallet/blob/master/flake.nix">nix develop</a>).</li>
 </ul>
 <p>Nix is required for <code>cardano-wallet</code>
@@ -6276,9 +6276,6 @@ need to update the generated files.</p>
 <pre><code>./nix/regenerate.sh
 </code></pre>
 <p>Then add and commit the files that it creates.</p>
-<p>Alternatively, wait for Buildkite to run this same command. It will
-produce a patch, and also push a commit with updates back to your
-branch.</p>
 <h3 id="haskellnix-pin"><a class="header" href="#haskellnix-pin">Haskell.nix pin</a></h3>
 <p>The Nix build also depends on the <a href="https://github.com/input-output-hk/haskell.nix">Haskell.nix</a> build infrastructure.
 It may be necessary to update <code>haskell.nix</code> when moving to a
@@ -6566,7 +6563,171 @@ $ eog restore.svg
 <h2 id="qa-schedule"><a class="header" href="#qa-schedule">QA Schedule</a></h2>
 <p>See our Advice Process on Continuous Integration for information on which test is executed when.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="continuous-integration"><a class="header" href="#continuous-integration">Continuous Integration</a></h1>
-<p>See <a href="https://github.com/cardano-foundation/cardano-wallet/blob/master/.buildkite/README.md#L1">Buildkite workflow descriptors</a> for details about the CI process currently in use.</p>
+<p>All CI for <code>cardano-wallet</code> runs on <a href="https://github.com/cardano-foundation/cardano-wallet/actions">GitHub Actions</a>. Workflows are defined in <a href="https://github.com/cardano-foundation/cardano-wallet/tree/master/.github/workflows"><code>.github/workflows/</code></a>.</p>
+<h2 id="workflows"><a class="header" href="#workflows">Workflows</a></h2>
+<h3 id="core-ci"><a class="header" href="#core-ci">Core CI</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Workflow</th><th>Trigger</th><th>Description</th></tr></thead><tbody>
+<tr><td><a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/ci.yml"><code>ci.yml</code></a></td><td>push, PR</td><td>Main build &amp; test pipeline — Linux unit/integration tests, builds all artifacts</td></tr>
+</tbody></table>
+</div>
+<h3 id="platform-specific"><a class="header" href="#platform-specific">Platform-specific</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Workflow</th><th>Trigger</th><th>Description</th></tr></thead><tbody>
+<tr><td><a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/windows.yml"><code>windows.yml</code></a></td><td>push, dispatch</td><td>Windows build &amp; unit tests (self-hosted)</td></tr>
+<tr><td><a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/macos-unit-tests.yml"><code>macos-unit-tests.yml</code></a></td><td>push, dispatch</td><td>macOS unit tests (self-hosted Apple Silicon)</td></tr>
+<tr><td><a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/macos-integration.yml"><code>macos-integration.yml</code></a></td><td>dispatch</td><td>macOS integration tests (self-hosted)</td></tr>
+</tbody></table>
+</div>
+<h3 id="end-to-end"><a class="header" href="#end-to-end">End-to-end</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Workflow</th><th>Trigger</th><th>Description</th></tr></thead><tbody>
+<tr><td><a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/linux-e2e.yml"><code>linux-e2e.yml</code></a></td><td>push, dispatch</td><td>Linux E2E tests against preprod</td></tr>
+<tr><td><a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/windows-e2e.yml"><code>windows-e2e.yml</code></a></td><td>dispatch</td><td>Windows E2E tests (self-hosted)</td></tr>
+</tbody></table>
+</div>
+<h3 id="benchmarks--sync"><a class="header" href="#benchmarks--sync">Benchmarks &amp; sync</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Workflow</th><th>Trigger</th><th>Description</th></tr></thead><tbody>
+<tr><td><a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/linux-benchmarks.yml"><code>linux-benchmarks.yml</code></a></td><td>push, dispatch</td><td>Restoration benchmarks on mainnet (long-running)</td></tr>
+<tr><td><a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/linux-mithril-sync.yml"><code>linux-mithril-sync.yml</code></a></td><td>push, dispatch</td><td>Mithril snapshot sync test</td></tr>
+</tbody></table>
+</div>
+<h3 id="release"><a class="header" href="#release">Release</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Workflow</th><th>Trigger</th><th>Description</th></tr></thead><tbody>
+<tr><td><a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/release.yml"><code>release.yml</code></a></td><td>push, tags</td><td>Creates release candidate branches and release artifacts</td></tr>
+<tr><td><a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/publish.yml"><code>publish.yml</code></a></td><td>push, tags, PR</td><td>Publishes documentation to GitHub Pages</td></tr>
+</tbody></table>
+</div>
+<h3 id="housekeeping"><a class="header" href="#housekeeping">Housekeeping</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Workflow</th><th>Trigger</th><th>Description</th></tr></thead><tbody>
+<tr><td><a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/cleanup.yml"><code>cleanup.yml</code></a></td><td>dispatch</td><td>Deletes old workflow runs</td></tr>
+<tr><td><a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/approve-docs.yml"><code>approve-docs.yml</code></a></td><td>PR target</td><td>Auto-approves docs-only PRs</td></tr>
+<tr><td><a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/lean.yml"><code>lean.yml</code></a></td><td>push, PR</td><td>Lean specification checks (path-filtered to <code>specifications/</code>)</td></tr>
+</tbody></table>
+</div>
+<h2 id="self-hosted-runners"><a class="header" href="#self-hosted-runners">Self-hosted runners</a></h2>
+<p>Several workflows run on self-hosted machines. The GHA runner service replaces the former Buildkite agent on these machines.</p>
+<h3 id="windows-machine"><a class="header" href="#windows-machine">Windows machine</a></h3>
+<h4 id="system-configuration"><a class="header" href="#system-configuration">System configuration</a></h4>
+<p>We assume the machine is configured with a recent Windows version (2022 Server) and has winget installed.</p>
+<ul>
+<li>Install the <a href="https://docs.github.com/en/actions/hosting-your-own-runners/managing-self-hosted-runners/adding-self-hosted-runners">GitHub Actions runner</a> as a Windows service</li>
+<li>Install the <strong>Ruby</strong> environment in version 2.7 using winget (needed for E2E tests):
+<pre><code>winget install RubyInstallerTeam.Ruby.2.7 --force --disable-interactivity  --accept-source-agreements --accept-package-agreements
+</code></pre>
+</li>
+<li>Install Ruby installer toolkit to be able to compile native extensions:
+<pre><code>ridk install
+</code></pre>
+</li>
+<li>Install some more packages:
+<ul>
+<li><code>winget install zstandard</code> — decompressing hosted archives</li>
+<li><code>winget install nssm</code> — running cardano-node as a service</li>
+</ul>
+</li>
+</ul>
+<h4 id="runner-configuration"><a class="header" href="#runner-configuration">Runner configuration</a></h4>
+<ul>
+<li>When launched as a service, the GHA runner runs as the <a href="https://learn.microsoft.com/en-us/windows/win32/services/localsystem-account"><code>Local System Account</code></a> which does not inherit the environment from the <code>hal</code> user. Ensure software installed through <code>winget</code> is on the runner's PATH.</li>
+<li>Configure environment secrets (<code>FIXTURE_DECRYPTION_KEY</code>, etc.) via the runner's <code>.env</code> file or repository/org-level GitHub Actions secrets.</li>
+<li>Ensure node DB files can be removed (they are created readonly which breaks <code>git clean -xfd</code>):
+<pre><code>icacls . /grant hal:F /T /Q
+</code></pre>
+</li>
+<li>Ensure <code>cardano-node</code> and <code>cardano-wallet</code> services are cleaned up after each run to avoid leaks from interrupted workflows.</li>
+</ul>
+<h4 id="troubleshooting-1"><a class="header" href="#troubleshooting-1">Troubleshooting</a></h4>
+<p>Windows permissions are complex. Stick to the default <code>Local System Account</code> as the user for the runner service.</p>
+<ol>
+<li>
+<p>Ensure the user <code>SYSTEM</code> has full control to the runner work directory and this right is <em>inherited</em>:</p>
+<pre><code>PS C:\actions-runner&gt; icacls.exe .
+. NT AUTHORITY\SYSTEM:(OI)(CI)(F)
+  BUILTIN\Administrators:(F)
+  ZUR1-S-D-027\hal:(OI)(CI)(F)
+</code></pre>
+</li>
+<li>
+<p>To operate under the right identity, use <a href="https://learn.microsoft.com/en-us/sysinternals/downloads/pstools">pstools</a>:</p>
+<pre><code>psexec -s -i cmd
+</code></pre>
+</li>
+<li>
+<p>If steps fail to delete the checkout directory, ensure no other process is locking it.</p>
+</li>
+</ol>
+<h3 id="macos-machine-hal-mac"><a class="header" href="#macos-machine-hal-mac">macOS machine (hal-mac)</a></h3>
+<p>The macOS builder runs on a Mac Mini (Apple Silicon) managed via nix-darwin. Access via SSH through the jumpbox:</p>
+<pre><code class="language-bash">ssh mac-builder  # requires SSH config with ProxyJump through jumpbox-dev
+</code></pre>
+<h4 id="runner-configuration-1"><a class="header" href="#runner-configuration-1">Runner configuration</a></h4>
+<p>The GHA runner runs as a launchd service. Key paths:</p>
+<ul>
+<li><strong>Service plist</strong>: <code>/Library/LaunchDaemons/org.nixos.github-runner-hal-mac.plist</code></li>
+<li><strong>Runner directory</strong>: <code>/var/lib/github-runner-hal-mac/</code></li>
+<li><strong>Log file</strong>: check via <code>journalctl</code> or the runner's <code>_diag/</code> directory</li>
+</ul>
+<h4 id="updating-the-runner-token"><a class="header" href="#updating-the-runner-token">Updating the runner token</a></h4>
+<p>If the runner token expires or becomes invalid:</p>
+<ol>
+<li><strong>Create a new runner token</strong> at the repository's Settings &gt; Actions &gt; Runners page</li>
+<li><strong>Update the token on the machine</strong>:
+<pre><code class="language-bash">ssh mac-builder
+# Re-configure the runner with the new token
+</code></pre>
+</li>
+<li><strong>Restart the runner</strong>:
+<pre><code class="language-bash">sudo launchctl kickstart -k system/org.nixos.github-runner-hal-mac
+</code></pre>
+</li>
+<li><strong>Verify the runner is connected</strong> in the repository's Settings &gt; Actions &gt; Runners page</li>
+</ol>
+<h4 id="environment-variables-1"><a class="header" href="#environment-variables-1">Environment variables</a></h4>
+<p>Secrets are configured via:</p>
+<ul>
+<li><code>ATTIC_TOKEN</code> — from <code>/var/lib/buildkite-agent-hal-mac/env-attic-token</code></li>
+<li><code>FIXTURE_DECRYPTION_KEY</code> — from <code>/var/lib/buildkite-agent-hal-mac/env-fixture-decryption-key</code></li>
+<li><code>HAL_E2E_PREPROD_MNEMONICS</code> — from <code>/var/lib/buildkite-agent-hal-mac/env-hal-e2e-preprod-mnemonics</code></li>
+</ul>
+<h4 id="troubleshooting-2"><a class="header" href="#troubleshooting-2">Troubleshooting</a></h4>
+<ul>
+<li><strong>Check runner status</strong>: repository Settings &gt; Actions &gt; Runners</li>
+<li><strong>View logs</strong>: check the runner's <code>_diag/</code> directory</li>
+<li><strong>Restart service</strong>: <code>sudo launchctl kickstart -k system/org.nixos.github-runner-hal-mac</code></li>
+<li><strong>Stop service</strong>: <code>sudo launchctl stop system/org.nixos.github-runner-hal-mac</code></li>
+</ul>
+<h5 id="attic-cache-failures"><a class="header" href="#attic-cache-failures">Attic cache failures</a></h5>
+<p>The Attic cache job pushes build artifacts to the Attic cache server. If it fails:</p>
+<ol>
+<li>
+<p><strong>Check Attic token</strong> — The JWT token in <code>/var/lib/buildkite-agent-hal-mac/env-attic-token</code> may have expired. Decode it:</p>
+<pre><code class="language-bash">cat /var/lib/buildkite-agent-hal-mac/env-attic-token | cut -d. -f2 | base64 -d
+</code></pre>
+<p>Look for the <code>exp</code> field (Unix timestamp).</p>
+</li>
+<li>
+<p><strong>Test Attic login</strong>:</p>
+<pre><code class="language-bash">ATTIC_TOKEN=$(cat /var/lib/buildkite-agent-hal-mac/env-attic-token)
+nix-shell -p attic-client --run "attic login adrestia https://attic.cf-app.org/ $ATTIC_TOKEN"
+</code></pre>
+</li>
+<li>
+<p><strong>Verify Attic server</strong> is reachable: <code>curl -I https://attic.cf-app.org/</code></p>
+</li>
+<li>
+<p><strong>SSL Certificate Error</strong> — If you see <code>invalid peer certificate: UnknownIssuer</code>, the machine may be resolving <code>attic.cf-app.org</code> to an internal IP with an untrusted certificate.</p>
+<p>Check which IP is being used:</p>
+<pre><code class="language-bash">ping -c1 attic.cf-app.org
+</code></pre>
+<p>If it resolves to an internal IP (e.g., <code>10.1.21.x</code>), override with the external IP in <code>/etc/hosts</code>:</p>
+<pre><code class="language-bash">sudo sed -i '' 's/ attic.cf-app.org//g; s/ attic//g' /etc/hosts
+echo "195.48.82.220 attic.cf-app.org" | sudo tee -a /etc/hosts
+</code></pre>
+</li>
+</ol>
+<h5 id="stale-processes"><a class="header" href="#stale-processes">Stale processes</a></h5>
+<p>Test cluster processes (cardano-node) may accumulate if builds are interrupted:</p>
+<pre><code class="language-bash">ps aux | grep cardano-node
+pkill -f "cardano-node.*test-cluster"
+</code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="release-process"><a class="header" href="#release-process">Release Process</a></h1>
 <h2 id="trunk-based-development"><a class="header" href="#trunk-based-development"><strong>Trunk-based development</strong></a></h2>
 <p>We use <a href="https://martinfowler.com/articles/branching-patterns.html#Trunk-basedDevelopment">Trunk-based Development</a>: We merge features and improvements into the <code>master</code> branch very frequently. If a large feature takes more than one pull request to develop, and is therefore incomplete, we hide it behind a feature flag. The <code>master</code> branch should be kept in a state where all tests pass, so that we can <strong>release</strong> it <strong>at any time</strong>.</p>
@@ -6660,7 +6821,7 @@ $ eog restore.svg
 <div class="table-wrapper"><table><thead><tr><th style="text-align: left">Type</th><th style="text-align: left">Name</th><th style="text-align: left">Task</th></tr></thead><tbody>
 <tr><td style="text-align: left">Script</td><td style="text-align: left">updateVersionNumbers <code>release-candidate.sh</code></td><td style="text-align: left">Updates the version numbers of all packages in the repository. Useful for preparing the administrative commit.</td></tr>
 <tr><td style="text-align: left">Script</td><td style="text-align: left">draftReleaseNotes <code>make_changelog.sh</code></td><td style="text-align: left">Prepares draft release notes by collecting a list of merged pull requests and known issues. To support automation, Github labels can be utilized. To support human-readability, PRs should be connected to JIRA tickets.</td></tr>
-<tr><td style="text-align: left">CI pipeline</td><td style="text-align: left"></td><td style="text-align: left">Pipeline that automatically creates release artifacts and runs tests on them, used for the release candidate branches. It’s important that the created executables are subject to test, not a surrogate.</td></tr>
+<tr><td style="text-align: left">CI workflow</td><td style="text-align: left"><a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/release.yml"><code>release.yml</code></a></td><td style="text-align: left">Workflow that automatically creates release artifacts and runs tests on them, used for the release candidate branches. It's important that the created executables are subject to test, not a surrogate.</td></tr>
 </tbody></table>
 </div>
 <h1 id="rationale"><a class="header" href="#rationale"><strong>Rationale</strong></a></h1>
@@ -6710,18 +6871,18 @@ Made a copy of the latest release
 documented as a new page on cardano-wallet's wiki called <a href="contributor/how/">Release-vYYYY-MM-DD'</a>
 and substituted the version number in the title and the links.</li>
 <li><input disabled="" type="checkbox"/>
-Picked up the latest green commgit from the release pipeline and prove it's green by linking the successful buildkite and github actions builds here.
+Picked up the latest green commit from the release pipeline and prove it's green by linking the successful GitHub Actions builds here.
 <ul>
 <li><input disabled="" type="checkbox"/>
-<a href="https://buildkite.com/cardano-foundation/cardano-wallet-release/">release pipeline build</a></li>
+<a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/release.yml">release pipeline build</a></li>
 <li><input disabled="" type="checkbox"/>
 check for performance regressions on the <code>release commit</code> artifacts:</li>
 <li><input disabled="" type="checkbox"/>
-check that the <a href="https://buildkite.com/cardano-foundation/cardano-wallet-restoration-benchmarks">restoration benchmarks</a> ran</li>
+check that the <a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/linux-benchmarks.yml">restoration benchmarks</a> ran</li>
 </ul>
 </li>
 <li><input disabled="" type="checkbox"/>
-Unblock the release blocked on <a href="https://buildkite.com/cardano-foundation/cardano-wallet-release/">release pipeline build</a></li>
+Unblock the release blocked on <a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/release.yml">release pipeline build</a></li>
 </ul>
 <h2 id="update-the-release-page"><a class="header" href="#update-the-release-page">Update the release page</a></h2>
 <ul>
@@ -6894,7 +7055,7 @@ index 1ba2edf625..109534719a 100644
 <ul>
 <li>Update haskell.nix <code>nix flake lock --update-input haskellNix</code>.</li>
 </ul>
-<h2 id="troubleshooting-1"><a class="header" href="#troubleshooting-1">Troubleshooting</a></h2>
+<h2 id="troubleshooting-3"><a class="header" href="#troubleshooting-3">Troubleshooting</a></h2>
 <p>The following is a list of issues encountered so far while executing this process:</p>
 <h3 id="compile-time-error-when-building-a-package-or-dependency"><a class="header" href="#compile-time-error-when-building-a-package-or-dependency">Compile-time error when building a package or dependency</a></h3>
 <p>For example:</p>
