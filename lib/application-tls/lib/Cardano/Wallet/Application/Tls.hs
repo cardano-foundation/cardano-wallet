@@ -22,7 +22,10 @@ import Data.X509
     , HashALG (..)
     )
 import Data.X509.CertificateStore
-    ( readCertificateStore
+    ( makeCertificateStore
+    )
+import Data.X509.File
+    ( readSignedObject
     )
 import Data.X509.Validation
     ( ValidationChecks (..)
@@ -94,16 +97,15 @@ requireClientAuth TlsConfiguration{tlsCaCert,tlsSvCert,tlsSvKey} = tlsSettings
         }
 
     -- This solely verify that the provided certificate is valid and was signed by authority we
-    -- recognize (tpCaPath)
+    -- recognize (tpCaPath).
+    -- Note: we use readSignedObject + makeCertificateStore rather than
+    -- readCertificateStore because the latter fails on Windows when
+    -- given a single PEM file (it calls CertOpenSystemStore internally).
     validateCertificate cert = do
-        mstore <- readCertificateStore tlsCaCert
-        maybe
-            (pure $ Just "Cannot init a store, unable to validate client certificates")
-            (fmap fromX509FailedReasons . validateStore)
-            mstore
-      where
-        validateStore store =
-            X509.validate HashSHA256 hooks checks store def serviceID cert
+        caCerts <- readSignedObject tlsCaCert
+        let store = makeCertificateStore caCerts
+        fromX509FailedReasons
+            <$> X509.validate HashSHA256 hooks checks store def serviceID cert
 
     fromX509FailedReasons reasons =
         case reasons of
