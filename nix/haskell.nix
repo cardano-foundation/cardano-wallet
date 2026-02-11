@@ -300,6 +300,10 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: set-git-rev: rewrite-l
               sed -i '/ANN.*HLint/d' Data/Graph/Inductive/Monad.hs
               sed -i '/ANN.*HLint/d' Data/Graph/Inductive/Query/Dominators.hs
             '';
+            # iserv-proxy (used for TH during cross-compilation) does not
+            # support parallel module compilation — the protocol is strictly
+            # synchronous.  Force -j1 globally for Windows builds.
+            ghcOptions = [ "-j1" ];
           })
 
           # Build fixes for library dependencies
