@@ -64,7 +64,8 @@ jobs:
             command: nix run .#unit-cardano-numeric -- +RTS -M2G -s -RTS
 
           - name: "cardano-wallet-blackbox-benchmarks"
-            command: nix run .#unit-cardano-wallet-blackbox-benchmarks -- +RTS -M2G -s -RTS
+            working-directory: lib/wallet-benchmarks
+            command: nix run ../../.#unit-cardano-wallet-blackbox-benchmarks -- +RTS -M2G -s -RTS
 
           - name: "cardano-wallet-launcher"
             command: nix run .#unit-cardano-wallet-launcher -- +RTS -M2G -s -RTS
