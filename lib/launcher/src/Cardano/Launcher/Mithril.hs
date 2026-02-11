@@ -65,13 +65,11 @@ downloadMithril workingDir = withCurrentDirectory workingDir $ do
         fail $ "Failed to download " <> mithrilPackage
     putStrLn $ "Downloaded " <> mithrilPackage
 
-    -- Extract the gz archive using 7z.
-    putStrLn $ "Extracting " <> mithrilPackage <> " using 7z..."
-    callProcess "7z" ["x", mithrilPackage]
-
-    -- Extract the tar archive.
-    putStrLn $ "Extracting " <> mithrilTar <> " using tar..."
-    callProcess "tar" ["xf", mithrilTar]
+    -- Extract the tar.gz archive in one step.
+    -- Windows 10+ ships BSD tar with gzip support, so this works
+    -- cross-platform without requiring 7z.
+    putStrLn $ "Extracting " <> mithrilPackage <> "..."
+    callProcess "tar" ["xzf", mithrilPackage]
 
     let clientPath = workingDir </> ("mithril-client" <> if isWindows then ".exe" else "")
     mithrilClientExists <- doesFileExist clientPath
@@ -103,7 +101,6 @@ downloadMithril workingDir = withCurrentDirectory workingDir $ do
             other -> other
 
     version = "2543.1-hotfix"
-    mithrilTar    = "mithril-" <> version <> "-" <> platform <> ".tar"
-    mithrilPackage = mithrilTar <> ".gz"
+    mithrilPackage = "mithril-" <> version <> "-" <> platform <> ".tar.gz"
     downloadUrl   = "https://github.com/input-output-hk/mithril/releases/download/"
                    <> version <> "/" <> mithrilPackage

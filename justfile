@@ -100,7 +100,7 @@ unit-tests-cabal:
 
 # run cardano-wallet-integration:e2e suite against the preprod network
 e2e:
-  nix shell '.#cardano-node' '.#cardano-wallet' '.#e2e' nixpkgs#gnutar nixpkgs#p7zip -c e2e
+  nix shell '.#cardano-node' '.#cardano-wallet' '.#e2e' nixpkgs#gnutar -c e2e
 
 add_missing_json_goldens:
     CREATE_MISSING_GOLDEN=1 just unit-tests-cabal-match "JSON"
