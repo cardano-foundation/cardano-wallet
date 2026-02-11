@@ -490,6 +490,16 @@
                     std-gen-seed = mkTest "std-gen-seed" windowsPackages.unit-std-gen-seed;
                     wai-middleware-logging = mkTest "wai-middleware-logging" windowsPackages.unit-wai-middleware-logging;
                   };
+                  e2e = import ./nix/windows-test-exe.nix {
+                    inherit pkgs;
+                    name = "e2e";
+                    test = windowsPackages.e2e;
+                    extraPkgs = [
+                      windowsPackages.cardano-wallet
+                      windowsPackages.cardano-node
+                      windowsPackages.cardano-cli
+                    ];
+                  };
                 };
             }
             # macos is never cross-compiled

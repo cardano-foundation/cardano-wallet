@@ -8,8 +8,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-tests:
-    name: "Build Testing Bundle (Windows)"
+  build-e2e:
+    name: "Build E2E Bundle (Windows)"
     runs-on: [self-hosted, linux, x86_64, cardano-wallet]
     steps:
       - name: Checkout
@@ -17,22 +17,18 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Cross-compile Windows test bundle
-        run: |
-          nix build -L -o result .#ci.artifacts.win64.tests
-          cp result/cardano-wallet-*-tests-win64.zip ./windows-tests.zip
+      - name: Cross-compile Windows E2E bundle
+        run: nix build -L .#ci.artifacts.win64.e2e -o result
 
-      - name: Upload test bundle
+      - name: Upload E2E bundle
         uses: actions/upload-artifact@v4
         with:
-          name: windows-tests
-          path: ./windows-tests.zip
+          name: win-e2e
+          path: result/
 
-  # Pending fix for #5110 (TLS)
   e2e-tests:
     name: "Windows E2E Tests"
-    if: false
-    needs: build-tests
+    needs: build-e2e
     runs-on: [self-hosted, Windows, x64, cardano-wallet-win]
     timeout-minutes: 120
     steps:
@@ -41,19 +37,14 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Download test bundle
+      - name: Download E2E bundle
         uses: actions/download-artifact@v4
         with:
-          name: windows-tests
-
-      - name: Extract test bundle
-        run: |
-          New-Item -ItemType Directory -Force -Path windows-tests
-          tar -xf windows-tests.zip -C windows-tests
-
-      - name: Verify configs match
-        run: diff -r configs/cardano/preprod lib/integration/configs/cardano/preprod
+          name: win-e2e
+          path: e2e-bundle
 
       - name: Run E2E tests
-        working-directory: windows-tests
-        run: .\cardano-wallet-integration-test-e2e.exe
+        working-directory: e2e-bundle
+        env:
+          HAL_E2E_PREPROD_MNEMONICS: ${{ secrets.HAL_E2E_PREPROD_MNEMONICS }}
+        run: .\e2e.exe
