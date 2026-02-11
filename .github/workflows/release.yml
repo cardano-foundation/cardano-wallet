@@ -1,29 +1,287 @@
-name: release
+name: Release
 
 on:
+  schedule:
+    - cron: '0 3 * * *'
   workflow_dispatch:
-  push:
-    branches:
-      - master
-    tags:
-      - 'v*'
+    inputs:
+      release_type:
+        description: 'Release type'
+        required: true
+        default: 'nightly'
+        type: choice
+        options:
+          - nightly
+          - release
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+env:
+  RELEASE_SCRIPTS_DIR: ./scripts/release
 
 jobs:
-  release:
-    if: ${{ startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/heads/release/v') }}
-    runs-on: ubuntu-20.04
+  prepare:
+    name: "Prepare Release Candidate"
+    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    outputs:
+      release-version: ${{ steps.rc.outputs.release-version }}
+      release-candidate-commit: ${{ steps.rc.outputs.release-candidate-commit }}
+      release-candidate-branch: ${{ steps.rc.outputs.release-candidate-branch }}
+      release-cabal-version: ${{ steps.rc.outputs.release-cabal-version }}
+      test-rc: ${{ steps.rc.outputs.test-rc }}
+      node-tag: ${{ steps.rc.outputs.node-tag }}
+      last-release-date: ${{ steps.rc.outputs.last-release-date }}
     steps:
-      # This should create an empty release draft
-      # TODO: get artifacts from Buildkite to be attached to the draft
-      # Task: https://cardanofoundation.atlassian.net/browse/ADP-2502
-      - name: '🚀 Release'
-        uses: softprops/action-gh-release@v1
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
-          draft: true
-          # fail_on_unmatched_files: true
-          # files: |
-          #   *.tar.gz
-          #   *.zip
+          fetch-depth: 0
+
+      - name: Create release candidate
+        id: rc
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: $RELEASE_SCRIPTS_DIR/release-candidate.sh
 
+  build-artifacts:
+    name: "Build ${{ matrix.name }}"
+    needs: prepare
+    runs-on: ${{ fromJson(matrix.runner) }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux
+            runner: '["self-hosted", "linux", "x86_64", "cardano-wallet"]'
+            output: ci.artifacts.linux64.release
+            artifact-name: linux-release
+          - name: Windows
+            runner: '["self-hosted", "linux", "x86_64", "cardano-wallet"]'
+            output: ci.artifacts.win64.release
+            artifact-name: windows-release
+          - name: macOS Silicon
+            runner: '["self-hosted", "macOS", "ARM64", "cardano-wallet"]'
+            output: packages.aarch64-darwin.ci.artifacts.macos-silicon.release
+            artifact-name: macos-silicon-release
+          - name: Docker Image
+            runner: '["self-hosted", "linux", "x86_64", "cardano-wallet"]'
+            output: ci.artifacts.dockerImage
+            artifact-name: docker-image
+    steps:
+      - name: Checkout release candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.release-candidate-branch }}
+          fetch-depth: 0
+
+      - name: Build
+        run: nix build -L -o result .#${{ matrix.output }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact-name }}
+          path: result
+
+  changelog:
+    name: "Generate Changelog & API Diff"
+    needs: prepare
+    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.release-candidate-branch }}
+          fetch-depth: 0
+
+      - name: Generate changelog
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LAST_RELEASE_DATE: ${{ needs.prepare.outputs.last-release-date }}
+        run: nix develop path:$RELEASE_SCRIPTS_DIR -c $RELEASE_SCRIPTS_DIR/make_changelog.sh
+
+      - name: Generate API diff
+        run: nix develop path:$RELEASE_SCRIPTS_DIR -c $RELEASE_SCRIPTS_DIR/openapi-diff.sh
+
+      - name: Upload changelog artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-notes
+          path: artifacts/
+
+  create-release:
+    name: "Create ${{ inputs.release_type || 'nightly' }} Release"
+    needs: [prepare, build-artifacts, changelog]
+    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    environment: ${{ (inputs.release_type == 'release' && github.ref == 'refs/heads/master') && 'release' || '' }}
+    env:
+      RELEASE_VERSION: ${{ needs.prepare.outputs.release-version }}
+      RELEASE_CANDIDATE_COMMIT: ${{ needs.prepare.outputs.release-candidate-commit }}
+      RELEASE_CABAL_VERSION: ${{ needs.prepare.outputs.release-cabal-version }}
+      TEST_RC: ${{ needs.prepare.outputs.test-rc }}
+      NODE_TAG: ${{ needs.prepare.outputs.node-tag }}
+      IS_RELEASE: ${{ inputs.release_type == 'release' && 'true' || 'false' }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.release-candidate-branch }}
+          fetch-depth: 0
+
+      - name: Determine tag
+        id: tag
+        run: |
+          if [ "$IS_RELEASE" == "true" ]; then
+            echo "tag=$RELEASE_VERSION" >> "$GITHUB_OUTPUT"
+            echo "title=Release $RELEASE_VERSION" >> "$GITHUB_OUTPUT"
+          elif [ "$TEST_RC" == "TRUE" ]; then
+            echo "tag=test" >> "$GITHUB_OUTPUT"
+            echo "title=Test $RELEASE_VERSION" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=nightly" >> "$GITHUB_OUTPUT"
+            echo "title=Nightly $RELEASE_VERSION" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Push tag
+        run: |
+          TAG="${{ steps.tag.outputs.tag }}"
+          git tag -l | xargs git tag -d
+          git fetch --tags
+          if [ "$IS_RELEASE" == "true" ]; then
+            exists=$(git tag -l "$TAG")
+            if [ -n "$exists" ]; then
+              echo "Tag $TAG already exists. Remove it before proceeding."
+              exit 1
+            fi
+          else
+            git tag -d "$TAG" 2>/dev/null || true
+          fi
+          git tag -m "$TAG" "$TAG" "$RELEASE_CANDIDATE_COMMIT"
+          git push origin -f "$TAG"
+
+      - name: Download release notes
+        uses: actions/download-artifact@v4
+        with:
+          name: release-notes
+          path: artifacts/
+
+      - name: Prepare release body
+        shell: nix shell nixpkgs#gettext -c bash -e {0}
+        run: |
+          export CHANGES=$(cat artifacts/changes.md)
+          export API_CHANGES=$(cat artifacts/api-diff.md)
+          export DOCKER_SHA=xxx
+          envsubst < "$RELEASE_SCRIPTS_DIR/release-template.md" > release-body.md
+
+      - name: Delete existing release (nightly/test)
+        if: env.IS_RELEASE == 'false'
+        shell: nix shell nixpkgs#gh -c bash -e {0}
+        run: gh release delete "${{ steps.tag.outputs.tag }}" --yes || true
+
+      - name: Create GitHub release
+        shell: nix shell nixpkgs#gh -c bash -e {0}
+        run: |
+          gh release create \
+            -d \
+            -F release-body.md \
+            -t "${{ steps.tag.outputs.title }}" \
+            "${{ steps.tag.outputs.tag }}"
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: build-artifacts/
+
+      - name: Upload release artifacts
+        shell: nix shell nixpkgs#gh -c bash -e {0}
+        run: |
+          TAG="${{ steps.tag.outputs.tag }}"
+          cd build-artifacts
+
+          upload() {
+            local dir="$1" pattern="$2" label="$3"
+            [ -d "$dir" ] || return 0
+            local file
+            file=$(find "$dir" $pattern | head -1)
+            if [ -n "$file" ]; then
+              gh release upload "$TAG" "$file#$label"
+            fi
+          }
+
+          upload linux-release          "-name '*.tar.gz'"  "cardano-wallet-$TAG-linux64.tar.gz"
+          upload windows-release        "-name '*.zip'"     "cardano-wallet.exe-$TAG-win64.zip"
+          upload macos-silicon-release   "-name '*.tar.gz'"  "cardano-wallet-$TAG-macos-silicon.tar.gz"
+          upload docker-image           "-type f"            "cardano-wallet-$TAG-docker-image.tgz"
+
+  push-docker:
+    name: "Push Docker Image"
+    needs: [prepare, create-release]
+    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    env:
+      RELEASE_VERSION: ${{ needs.prepare.outputs.release-version }}
+      RELEASE_CABAL_VERSION: ${{ needs.prepare.outputs.release-cabal-version }}
+      TEST_RC: ${{ needs.prepare.outputs.test-rc }}
+      IS_RELEASE: ${{ inputs.release_type == 'release' && 'true' || 'false' }}
+    steps:
+      - name: Download Docker image
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image
+          path: docker-image/
+
+      - name: Determine tag
+        id: tag
+        run: |
+          if [ "$IS_RELEASE" == "true" ]; then
+            echo "tag=$RELEASE_VERSION" >> "$GITHUB_OUTPUT"
+          elif [ "$TEST_RC" == "TRUE" ]; then
+            echo "tag=test" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=nightly" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Login to Docker Hub
+        run: docker login -u cfhal -p "${{ secrets.DOCKER_HUB_TOKEN }}"
+
+      - name: Load and push Docker image
+        run: |
+          TAG="${{ steps.tag.outputs.tag }}"
+          REPO="cardanofoundation/cardano-wallet"
+
+          image_file=$(find docker-image -type f | head -1)
+          echo "Loading docker image from: $image_file ($(stat -c%s "$image_file") bytes)"
+          docker load -i "$image_file"
+
+          LOADED_IMAGE="$REPO:$RELEASE_CABAL_VERSION"
+          docker tag "$LOADED_IMAGE" "$REPO:$TAG"
+          docker push "$REPO:$TAG"
+
+          if [ "$IS_RELEASE" == "true" ]; then
+            docker tag "$REPO:$TAG" "$REPO:latest"
+            docker push "$REPO:latest"
+          fi
+
+  update-docs:
+    name: "Update Documentation Links"
+    if: inputs.release_type == 'release'
+    needs: [prepare, create-release]
+    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout gh-pages
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          fetch-depth: 0
+
+      - name: Update redirects
+        run: |
+          cd releases
+          ./make_redirects.sh "${{ needs.prepare.outputs.release-version }}"
+
+      - name: Push updates
+        run: git push origin gh-pages
