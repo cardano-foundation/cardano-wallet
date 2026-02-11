@@ -1,0 +1,79 @@
+name: Restoration Benchmarks
+
+on:
+  schedule:
+    - cron: "0 0 * * 1" # every Monday at midnight UTC
+  workflow_dispatch:
+    inputs:
+      to-tip-timeout:
+        description: "Node sync timeout in hours"
+        type: choice
+        default: "4"
+        options:
+          - "infinite"
+          - "1"
+          - "2"
+          - "4"
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: "Build benchmarks"
+    runs-on: [self-hosted, linux, x86_64, cardano-wallet-bench]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Build benchmark derivations
+        run: nix build -L .#ci.benchmarks.restore
+
+  restore:
+    name: "Restore ${{ matrix.bench }}"
+    needs: build
+    runs-on: [self-hosted, linux, x86_64, cardano-wallet-bench]
+    timeout-minutes: 1380
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        include:
+          - bench: base
+            node-db: mainnet-1
+          - bench: seq0
+            node-db: mainnet-2
+          - bench: seq1
+            node-db: mainnet-3
+          - bench: rnd5
+            node-db: mainnet-4
+    env:
+      LC_ALL: C.UTF-8
+      TMPDIR: /tmp/gha-bench
+      TO_TIP_TIMEOUT: ${{ inputs.to-tip-timeout }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run restore benchmark
+        run: |
+          mkdir -p "$TMPDIR"
+          nix shell 'nixpkgs#coreutils' 'nixpkgs#gnugrep' 'nixpkgs#gawk' 'nixpkgs#time' 'nixpkgs#haskellPackages.hp2pretty' -c \
+            bash scripts/buildkite/main/bench-restore.sh \
+              mainnet ${{ matrix.bench }} $HOME/databases/node/${{ matrix.node-db }}
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: restore-${{ matrix.bench }}
+          path: |
+            *.txt
+            *.log
+            *.svg
+            *.hp
+          if-no-files-found: ignore
