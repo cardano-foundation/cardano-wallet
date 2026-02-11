@@ -4,6 +4,11 @@ set -euo pipefail
 
 if [ -n "${BUILDKITE:-}" ]; then
     since_date="$(buildkite-agent meta-data get last-release-date)"
+elif [ -n "${LAST_RELEASE_DATE:-}" ]; then
+    since_date="$LAST_RELEASE_DATE"
+else
+    echo "Error: no last release date available (set LAST_RELEASE_DATE or run in Buildkite)"
+    exit 1
 fi
 
 per_page=30
