@@ -1,7 +1,8 @@
 name: Restoration Benchmarks
 
 on:
-  pull_request:
+  schedule:
+    - cron: "0 0 * * 1" # every Monday at midnight UTC
   workflow_dispatch:
     inputs:
       to-tip-timeout:
@@ -42,13 +43,12 @@ jobs:
         include:
           - bench: base
             node-db: mainnet-1
-          # TODO: enable after testing
-          # - bench: seq0
-          #   node-db: mainnet-2
-          # - bench: seq1
-          #   node-db: mainnet-3
-          # - bench: rnd5
-          #   node-db: mainnet-4
+          - bench: seq0
+            node-db: mainnet-2
+          - bench: seq1
+            node-db: mainnet-3
+          - bench: rnd5
+            node-db: mainnet-4
     env:
       LC_ALL: C.UTF-8
       TMPDIR: /tmp/gha-bench
