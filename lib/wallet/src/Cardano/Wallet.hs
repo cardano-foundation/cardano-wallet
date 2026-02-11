@@ -733,6 +733,7 @@ import Data.Functor
     ( ($>)
     , (<&>)
     )
+import qualified Data.Functor
 import Data.Functor.Contravariant
     ( (>$<)
     )
@@ -752,7 +753,6 @@ import Data.Generics.Product.Typed
 import Data.IntCast
     ( intCast
     )
-import qualified Data.Functor
 import Data.List.NonEmpty
     ( NonEmpty (..)
     )

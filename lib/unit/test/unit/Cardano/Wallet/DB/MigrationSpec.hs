@@ -121,6 +121,7 @@ newtype MonadDatabase a = MonadDatabase
 instance MonadThrow MonadDatabase where
     throwIO = MonadDatabase . ExceptT . pure . Left . toException
     bracket = error "not defined"
+    annotateIO _ = id
 
 liftState :: State Database a -> MonadDatabase a
 liftState = MonadDatabase . lift

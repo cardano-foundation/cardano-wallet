@@ -275,9 +275,6 @@ import Data.Functor
 import Data.Functor.Contravariant
     ( contramap
     )
-import Data.List
-    ( foldl'
-    )
 import Data.Percentage
     ( Percentage
     )

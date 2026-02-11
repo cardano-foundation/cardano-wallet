@@ -264,9 +264,6 @@ import Data.Functor
 import Data.Functor.Identity
     ( Identity (..)
     )
-import Data.List
-    ( foldl'
-    )
 import Data.Maybe
     ( fromMaybe
     )
