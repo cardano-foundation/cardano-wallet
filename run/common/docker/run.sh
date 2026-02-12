@@ -149,6 +149,14 @@ case "$1" in
                 sleep 1
             fi
         done
+        # Dump container logs before cleanup for debugging
+        if [[ "$result" != "success" ]]; then
+            echo "=== cardano-node logs ==="
+            docker compose -p "$COMPOSE_PROJECT_NAME" logs cardano-node 2>&1 | tail -200
+            echo "=== cardano-wallet logs ==="
+            docker compose -p "$COMPOSE_PROJECT_NAME" logs cardano-wallet 2>&1 | tail -200
+        fi
+
         cleanup
 
         # Stop the service after syncing
