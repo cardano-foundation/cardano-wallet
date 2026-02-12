@@ -11,8 +11,6 @@ module Cardano.Wallet.Api.Http.Server.Handlers.NetworkInformation
     )
 where
 
-import Prelude
-
 import Cardano.Api
     ( NetworkId
     , toNetworkMagic
@@ -62,7 +60,8 @@ import Data.Generics.Internal.VL.Lens
     ( (^.)
     )
 import Data.Generics.Labels
-    ()
+    (
+    )
 import Data.Quantity
     ( Quantity (..)
     )
@@ -78,6 +77,7 @@ import Numeric.Natural
 import Servant.Server
     ( Handler (..)
     )
+import Prelude
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Wallet.Api.Types as Api
@@ -133,7 +133,8 @@ getNetworkInformation
 
         -- (network tip, next epoch)
         -- May be unavailable if the node is still syncing.
-        networkTipInfo :: RelativeTime -> MaybeT IO (ApiSlotReference, EpochInfo)
+        networkTipInfo
+            :: RelativeTime -> MaybeT IO (ApiSlotReference, EpochInfo)
         networkTipInfo now = do
             networkTipSlot <- interpretQuery ti $ ongoingSlotAt now
             tip <- makeApiSlotReference ti networkTipSlot
@@ -148,7 +149,10 @@ makeApiBlockReferenceFromHeader
     -> BlockHeader
     -> m ApiBlockReference
 makeApiBlockReferenceFromHeader ti tip =
-    makeApiBlockReference ti (tip ^. #slotNo) (natural $ tip ^. #blockHeight)
+    makeApiBlockReference
+        ti
+        (tip ^. #slotNo)
+        (natural $ tip ^. #blockHeight)
 
 natural :: Quantity q Word32 -> Quantity q Natural
 natural = Quantity . fromIntegral . getQuantity
@@ -193,7 +197,7 @@ makeApiBlockReferenceFromTip
     -> m ApiBlockReference
 makeApiBlockReferenceFromTip ti Read.GenesisTip =
     makeApiBlockReference ti 0 (Quantity 0)
-makeApiBlockReferenceFromTip ti Read.BlockTip{slotNo,blockNo} =
+makeApiBlockReferenceFromTip ti Read.BlockTip{slotNo, blockNo} =
     makeApiBlockReference
         ti
         (fromIntegral $ Read.unSlotNo slotNo)

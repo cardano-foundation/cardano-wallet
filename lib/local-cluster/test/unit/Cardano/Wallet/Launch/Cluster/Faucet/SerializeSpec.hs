@@ -4,9 +4,7 @@
 module Cardano.Wallet.Launch.Cluster.Faucet.SerializeSpec
     ( spec
     )
-    where
-
-import Prelude
+where
 
 import Cardano.Wallet.Faucet.Gen.Address
     ( NetworkTag (..)
@@ -21,9 +19,6 @@ import Cardano.Wallet.Launch.Cluster.Faucet.Serialize
 import Cardano.Wallet.Launch.Cluster.FileOf
     ( FileOf (..)
     )
-import "extra" System.IO.Extra
-    ( withTempFile
-    )
 import System.Path
     ( absFile
     )
@@ -36,6 +31,10 @@ import Test.Hspec
 import Test.QuickCheck
     ( forAll
     )
+import "extra" System.IO.Extra
+    ( withTempFile
+    )
+import Prelude
 
 spec :: Spec
 spec = do
@@ -43,11 +42,11 @@ spec = do
         let roundTripTest tag =
                 forAll (genFaucetFunds [tag])
                     $ \funds ->
-                    withTempFile $ \fp -> do
-                        let file = FileOf . absFile $ fp
-                        saveFunds file funds
-                        funds' <- retrieveFunds file
-                        funds' `shouldBe` funds
+                        withTempFile $ \fp -> do
+                            let file = FileOf . absFile $ fp
+                            saveFunds file funds
+                            funds' <- retrieveFunds file
+                            funds' `shouldBe` funds
         it "should roundtrip for Testnet addresses"
             $ roundTripTest TestnetTag
         it "should roundtrip for Mainnet addresses"

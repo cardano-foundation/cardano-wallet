@@ -1,12 +1,11 @@
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 
-{- |
-Copyright: © 2020-2022 IOHK
-License: Apache-2.0
-
-Raw collateral output data extraction from 'Tx'
--}
+-- |
+-- Copyright: © 2020-2022 IOHK
+-- License: Apache-2.0
+--
+-- Raw collateral output data extraction from 'Tx'
 module Cardano.Read.Ledger.Tx.CollateralOutputs
     ( -- * Collateral output type
       CollateralOutputsType
@@ -17,14 +16,15 @@ module Cardano.Read.Ledger.Tx.CollateralOutputs
     )
 where
 
-import Prelude
-
 import Cardano.Ledger.Babbage.Collateral
-    ()
+    (
+    )
 import Cardano.Ledger.Babbage.Rules
-    ()
+    (
+    )
 import Cardano.Ledger.Babbage.Tx
-    ()
+    (
+    )
 import Cardano.Ledger.Babbage.TxBody
     ( BabbageTxOut (..)
     , collateralReturnTxBodyL
@@ -55,6 +55,7 @@ import Control.Lens
 import Data.Maybe.Strict
     ( StrictMaybe
     )
+import Prelude
 
 -- |
 -- Era-specific collateral return output type.

@@ -3,21 +3,19 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE TypeFamilies #-}
+
 -- |
 -- Copyright: © 2023 IOHK
 -- License: Apache-2.0
 module Cardano.Wallet.DB.Store.Info.Store
-    (
-    -- * Synopsis
-    -- | 'Store' of wallet metadata.
-    --
+    ( -- * Synopsis
+
+      -- | 'Store' of wallet metadata.
       mkStoreInfo
     , DeltaWalletInfo (..)
     , WalletInfo (..)
     , StoreInfo
     ) where
-
-import Prelude
 
 import Cardano.Wallet.DB.Errors
     ( ErrWalletNotInitialized (ErrWalletNotInitialized)
@@ -31,7 +29,11 @@ import Cardano.Wallet.DB.Sqlite.Types
     , getBlockId
     )
 import Cardano.Wallet.Primitive.Passphrase.Types
-    ( WalletPassphraseInfo (WalletPassphraseInfo, lastUpdatedAt, passphraseScheme)
+    ( WalletPassphraseInfo
+        ( WalletPassphraseInfo
+        , lastUpdatedAt
+        , passphraseScheme
+        )
     )
 import Cardano.Wallet.Primitive.Types
     ( GenesisParameters (..)
@@ -81,12 +83,14 @@ import Fmt
 import GHC.Generics
     ( Generic
     )
+import Prelude
 
 mkWalletMetadataUpdate :: WalletMetadata -> [Update Wallet]
 mkWalletMetadataUpdate meta =
     [ WalName =. meta ^. #name . to getWalletName
     , WalCreationTime =. meta ^. #creationTime
-    , WalPassphraseLastUpdatedAt =. lastUpdatedAt <$> meta ^. #passphraseInfo
+    , WalPassphraseLastUpdatedAt
+        =. lastUpdatedAt <$> meta ^. #passphraseInfo
     , WalPassphraseScheme =. passphraseScheme <$> meta ^. #passphraseInfo
     ]
 
@@ -119,7 +123,7 @@ instance Buildable DeltaWalletInfo where
 
 instance Delta DeltaWalletInfo where
     type Base DeltaWalletInfo = WalletInfo
-    apply (UpdateWalletMetadata meta) wi = wi { walletMeta = meta }
+    apply (UpdateWalletMetadata meta) wi = wi{walletMeta = meta}
 
 -- | 'Store' of wallet metadata.
 type StoreInfo = UpdateStore (SqlPersistT IO) DeltaWalletInfo
@@ -147,15 +151,16 @@ mkStoreInfo = mkUpdateStore load write update
     exceptNothing = maybe (Left $ SomeException ErrWalletNotInitialized) Right
 
 toWalletEntity :: WalletInfo -> Wallet
-toWalletEntity (WalletInfo wid meta gp) = Wallet
-    { walId = wid
-    , walName = meta ^. #name . to getWalletName
-    , walCreationTime = meta ^. #creationTime
-    , walPassphraseLastUpdatedAt = lastUpdatedAt <$> meta ^. #passphraseInfo
-    , walPassphraseScheme = passphraseScheme <$> meta ^. #passphraseInfo
-    , walGenesisHash = BlockId $ hashConversion (gp ^. #getGenesisBlockHash)
-    , walGenesisStart = utcTimeOfStartTime (gp ^. #getGenesisBlockDate)
-    }
+toWalletEntity (WalletInfo wid meta gp) =
+    Wallet
+        { walId = wid
+        , walName = meta ^. #name . to getWalletName
+        , walCreationTime = meta ^. #creationTime
+        , walPassphraseLastUpdatedAt = lastUpdatedAt <$> meta ^. #passphraseInfo
+        , walPassphraseScheme = passphraseScheme <$> meta ^. #passphraseInfo
+        , walGenesisHash = BlockId $ hashConversion (gp ^. #getGenesisBlockHash)
+        , walGenesisStart = utcTimeOfStartTime (gp ^. #getGenesisBlockDate)
+        }
 
 fromWalletEntity :: Wallet -> WalletInfo
 fromWalletEntity wal =

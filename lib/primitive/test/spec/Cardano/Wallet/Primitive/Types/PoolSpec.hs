@@ -5,8 +5,6 @@ module Cardano.Wallet.Primitive.Types.PoolSpec
     ( spec
     ) where
 
-import Prelude
-
 import Cardano.Wallet.Primitive.Types.Pool
     ( PoolId (..)
     , decodePoolIdBech32
@@ -23,6 +21,7 @@ import Test.QuickCheck
     , withMaxSuccess
     , (===)
     )
+import Prelude
 
 import qualified Data.ByteString as BS
 

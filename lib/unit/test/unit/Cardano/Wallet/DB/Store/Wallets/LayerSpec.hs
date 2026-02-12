@@ -7,8 +7,6 @@ module Cardano.Wallet.DB.Store.Wallets.LayerSpec
     ( spec
     ) where
 
-import Prelude
-
 import Cardano.DB.Sqlite
     ( ForeignKeysSetting (..)
     , runQuery
@@ -36,6 +34,7 @@ import Test.QuickCheck
 import Test.Store
     ( prop_StoreUpdate
     )
+import Prelude
 
 spec :: Spec
 spec = do

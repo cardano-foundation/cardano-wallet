@@ -1,6 +1,7 @@
 comma-style: leading
 function-arrows: leading
 import-export-style: leading
+import-grouping: by-qualified
 fixities:
   - infixr 9  .
   - infixr 5  ++

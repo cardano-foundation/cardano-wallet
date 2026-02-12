@@ -7,9 +7,6 @@ module Cardano.Wallet.CLI
 where
 
 import Cardano.Launcher.Node
-import "optparse-applicative" Options.Applicative
-import Prelude
-
 import Cardano.Wallet.Network.Config
     ( NetworkConfiguration (..)
     )
@@ -20,6 +17,8 @@ import Data.Text.Class
     ( FromText (..)
     , TextDecodingError (getTextDecodingError)
     )
+import "optparse-applicative" Options.Applicative
+import Prelude
 
 import qualified Data.Text as T
 
@@ -39,16 +38,16 @@ networkConfigurationOption = mainnet <|> testnet
     genesisFileOption era net =
         option (eitherReader $ first getTextDecodingError . fromText . T.pack)
             $ long net
-            <> metavar "FILE"
-            <> help ("Path to the " <> era <> " genesis data in JSON format.")
+                <> metavar "FILE"
+                <> help ("Path to the " <> era <> " genesis data in JSON format.")
 
 -- | --node-socket=FILE
 nodeSocketOption :: Parser CardanoNodeConn
 nodeSocketOption =
     option (eitherReader (addHelp . cardanoNodeConn))
         $ long "node-socket"
-        <> metavar (if isWindows then "PIPENAME" else "FILE")
-        <> help helpText
+            <> metavar (if isWindows then "PIPENAME" else "FILE")
+            <> help helpText
   where
     helpText =
         mconcat

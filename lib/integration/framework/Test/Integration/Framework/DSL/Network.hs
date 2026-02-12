@@ -4,8 +4,6 @@
 
 module Test.Integration.Framework.DSL.Network where
 
-import Prelude
-
 import Cardano.Wallet.Api.Types
     ( ApiNetworkInformation
     )
@@ -23,15 +21,17 @@ import Test.Integration.Framework.DSL
     )
 import Test.Integration.Framework.DSL.TestM
     ( TestM
-    , pattern Partial
     , request
+    , pattern Partial
     )
+import Prelude
 
 import qualified Cardano.Wallet.Api.Clients.Network as C
 
 tipInfo :: TestM EpochNo
 tipInfo = do
-    Partial (netInfo :: ApiNetworkInformation) <- request C.networkInformation
+    Partial (netInfo :: ApiNetworkInformation) <-
+        request C.networkInformation
     pure $ netInfo ^. #nodeTip . #slotId . #epochNumber . #getApiT
 
 waitSomeEpochs :: Int -> TestM ()

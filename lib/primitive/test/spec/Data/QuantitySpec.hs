@@ -7,8 +7,6 @@ module Data.QuantitySpec
     ( spec
     ) where
 
-import Prelude
-
 import Data.Proxy
     ( Proxy (..)
     )
@@ -26,6 +24,7 @@ import Test.QuickCheck
 import Test.Text.Roundtrip
     ( textRoundtrip
     )
+import Prelude
 
 import qualified Data.Aeson as Aeson
 
@@ -39,8 +38,7 @@ spec = do
                 \value in 'bytes' (e.g. { \"unit\": \"bytes\", \"quantity\"\
                 \: ... }) but got something else."
         Aeson.eitherDecode "{\"unit\":\"patate\",\"quantity\":14}"
-            `shouldBe`
-            (Left @String @(Quantity "bytes" Int) msg)
+            `shouldBe` (Left @String @(Quantity "bytes" Int) msg)
 
 --------------------------------------------------------------------------------
 -- Arbitrary instances

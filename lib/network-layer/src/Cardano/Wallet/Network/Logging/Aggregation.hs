@@ -15,8 +15,6 @@ module Cardano.Wallet.Network.Logging.Aggregation
     , overCurrent
     ) where
 
-import Prelude
-
 import Cardano.BM.Data.Severity
     ( Severity (..)
     )
@@ -57,6 +55,7 @@ import NoThunks.Class
     ( AllowThunksIn (..)
     , NoThunks (..)
     )
+import Prelude
 
 import qualified Cardano.Wallet.Read as Read
 
@@ -149,7 +148,8 @@ instance ToText (FollowStats Rearview) where
                 , pretty (using (-) r) <> " rollbacks "
                 , "in the last " <> pretty (using diffUTCTime t) <> ". "
                 , "Current tip is "
-                    <> Read.prettyChainPoint (current tip) <> "."
+                    <> Read.prettyChainPoint (current tip)
+                    <> "."
                 ]
           where
             using f x = f (current x) (past x)
@@ -166,7 +166,8 @@ instance ToText (FollowStats Rearview) where
 -- But this check might be in the wrong place. Might be better to
 -- produce new logs from inside the updateStats function and immeditely
 -- warn there.
-explainedSeverityAnnotation :: FollowStats Rearview -> (Severity, Maybe Text)
+explainedSeverityAnnotation
+    :: FollowStats Rearview -> (Severity, Maybe Text)
 explainedSeverityAnnotation s
     | progressMovedBackwards = (Warning, Just "progress decreased")
     | noBlocks && notRestored = (Warning, Just "not applying blocks")

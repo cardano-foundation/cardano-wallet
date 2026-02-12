@@ -3,8 +3,6 @@ module Cardano.Wallet.Network.Rollback.One
     )
 where
 
-import Prelude
-
 import Cardano.Wallet.Network.Rollback.ChainPoints
     ( ChainPoints (..)
     )
@@ -17,6 +15,7 @@ import Control.Monad.Fix
 import Data.Map.Lazy
     ( Map
     )
+import Prelude
 
 import qualified Data.Map.Lazy as Map
 

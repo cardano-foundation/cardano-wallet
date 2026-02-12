@@ -6,8 +6,6 @@ module Cardano.Wallet.Launch.Cluster.Http.Faucet.APISpec
     )
 where
 
-import Prelude
-
 import Cardano.Wallet.Launch.Cluster.Http.Faucet.SendFaucetAssets
     ( genSendFaucetAssets
     )
@@ -34,6 +32,7 @@ import Test.Hspec
 import Test.QuickCheck
     ( forAll
     )
+import Prelude
 
 jsonRoundtrip :: (ToJSON a, FromJSON a, Eq a, Show a) => a -> IO ()
 jsonRoundtrip a = fromJSON (toJSON a) `shouldBe` Success a

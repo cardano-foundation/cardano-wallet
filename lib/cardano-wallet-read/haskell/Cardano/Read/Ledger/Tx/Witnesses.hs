@@ -1,12 +1,11 @@
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 
-{- |
-Copyright: © 2020-2022 IOHK
-License: Apache-2.0
-
-Raw witnesses data extraction from 'Tx'
--}
+-- |
+-- Copyright: © 2020-2022 IOHK
+-- License: Apache-2.0
+--
+-- Raw witnesses data extraction from 'Tx'
 module Cardano.Read.Ledger.Tx.Witnesses
     ( -- * Witness type
       WitnessesType
@@ -15,8 +14,6 @@ module Cardano.Read.Ledger.Tx.Witnesses
       -- * Extraction
     , getEraWitnesses
     ) where
-
-import Prelude
 
 import Cardano.Ledger.Alonzo.TxWits
     ( AlonzoTxWits
@@ -47,6 +44,7 @@ import Cardano.Read.Ledger.Tx.Tx
 import Control.Lens
     ( view
     )
+import Prelude
 
 -- |
 -- Era-specific witness type.

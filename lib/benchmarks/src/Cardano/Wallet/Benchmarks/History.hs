@@ -14,8 +14,6 @@ module Cardano.Wallet.Benchmarks.History
     )
 where
 
-import Prelude
-
 import Cardano.Wallet.Benchmarks.Collect
     ( Benchmark (..)
     , Result (Result, resultUnit)
@@ -71,6 +69,7 @@ import Data.Time
     , getCurrentTime
     , parseTimeM
     )
+import Prelude
 
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy.Char8 as BL8
@@ -89,7 +88,8 @@ data IndexedSemantic = IndexedSemantic
     deriving stock (Eq, Ord, Show)
 
 -- | A history of results, indexed by semantic and day.
-type History = MonoidalMap IndexedSemantic (MonoidalMap Day (First Result))
+type History =
+    MonoidalMap IndexedSemantic (MonoidalMap Day (First Result))
 
 -- | A row of unit-harmonized data, indexed by day.
 data HarmonizedRow

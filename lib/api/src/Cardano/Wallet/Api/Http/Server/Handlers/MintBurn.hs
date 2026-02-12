@@ -3,17 +3,11 @@
 -- |
 -- Copyright: © 2020 IOHK
 -- License: Apache-2.0
---
-
 module Cardano.Wallet.Api.Http.Server.Handlers.MintBurn
-  ( convertApiAssetMintBurn
-  , getTxApiAssetMintBurn
-  )
-  where
-
-import Prelude hiding
-    ( (.)
+    ( convertApiAssetMintBurn
+    , getTxApiAssetMintBurn
     )
+where
 
 import Cardano.Wallet
     ( WalletLayer
@@ -50,6 +44,9 @@ import Data.Either.Extra
 import Servant
     ( Handler
     )
+import Prelude hiding
+    ( (.)
+    )
 
 -- | Promote mint and burn to their API type.
 convertApiAssetMintBurn
@@ -58,16 +55,19 @@ convertApiAssetMintBurn
     -> (TokenMapWithScripts, TokenMapWithScripts)
     -> Handler (ApiAssetMintBurn, ApiAssetMintBurn)
 convertApiAssetMintBurn ctx (mint, burn) = do
-    xpubM <- fmap (fmap fst . eitherToMaybe)
-        <$> liftIO $ readPolicyPublicKey ctx
-    let  convert tokenWithScripts =  ApiAssetMintBurn
-            { tokens = toApiTokens tokenWithScripts
-            , walletPolicyKeyHash =
-                uncurry ApiPolicyKey . computeKeyPayload (Just True) <$>
-                includePolicyKeyInfo tokenWithScripts xpubM
-            , walletPolicyKeyIndex =
-                policyIx <$ includePolicyKeyInfo tokenWithScripts xpubM
-            }
+    xpubM <-
+        fmap (fmap fst . eitherToMaybe)
+            <$> liftIO
+            $ readPolicyPublicKey ctx
+    let convert tokenWithScripts =
+            ApiAssetMintBurn
+                { tokens = toApiTokens tokenWithScripts
+                , walletPolicyKeyHash =
+                    uncurry ApiPolicyKey . computeKeyPayload (Just True)
+                        <$> includePolicyKeyInfo tokenWithScripts xpubM
+                , walletPolicyKeyIndex =
+                    policyIx <$ includePolicyKeyInfo tokenWithScripts xpubM
+                }
     pure (convert mint, convert burn)
 
 getTxApiAssetMintBurn

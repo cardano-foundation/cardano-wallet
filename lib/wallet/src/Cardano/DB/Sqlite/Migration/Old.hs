@@ -17,21 +17,19 @@ module Cardano.DB.Sqlite.Migration.Old
     , noManualMigration
     , foldMigrations
 
-    -- ** Errors
+      -- ** Errors
     , MigrationError (..)
     , MatchMigrationError (..)
 
-    -- ** Logs
+      -- ** Logs
     , DBMigrationOldLog (..)
 
-    -- * Migration helpers
+      -- * Migration helpers
     , DBField (..)
     , tableName
     , fieldName
     , fieldType
     ) where
-
-import Prelude
 
 import Cardano.BM.Data.Severity
     ( Severity (..)
@@ -78,6 +76,7 @@ import Database.Sqlite
 import GHC.Generics
     ( Generic
     )
+import Prelude
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Text as T

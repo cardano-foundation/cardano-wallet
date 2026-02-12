@@ -7,8 +7,6 @@ module Cardano.Wallet.Primitive.Types.FeePolicy
     )
 where
 
-import Prelude
-
 import Control.Arrow
     ( left
     )
@@ -23,6 +21,7 @@ import Data.Text.Class
 import GHC.Generics
     ( Generic
     )
+import Prelude
 
 import qualified Data.Text as T
 

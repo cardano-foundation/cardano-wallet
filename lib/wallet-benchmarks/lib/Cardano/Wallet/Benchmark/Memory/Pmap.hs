@@ -9,8 +9,6 @@ module Cardano.Wallet.Benchmark.Memory.Pmap
     , Header (..)
     ) where
 
-import Prelude
-
 import Control.Monad
     ( void
     )
@@ -37,6 +35,7 @@ import UnliftIO.Process
     ( ProcessHandle
     , readProcess
     )
+import Prelude
 
 import qualified Data.Attoparsec.ByteString.Char8 as A
 import qualified Data.ByteString.Char8 as B8

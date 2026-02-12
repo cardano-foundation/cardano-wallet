@@ -1,15 +1,13 @@
 {-# LANGUAGE GADTs #-}
+
 -- |
 -- Copyright: © 2024 Cardano Foundation
 -- License: Apache-2.0
 --
 -- A local state query that looks up UTxOs based on TxIns.
---
 module Cardano.Wallet.Network.LocalStateQuery.UTxO
     ( getUTxOByTxIn
     ) where
-
-import Prelude
 
 import Cardano.Ledger.State
     ( UTxO
@@ -35,6 +33,7 @@ import Ouroboros.Consensus.Cardano
 import Ouroboros.Consensus.Shelley.Eras
     ( StandardCrypto
     )
+import Prelude
 
 import qualified Ouroboros.Consensus.Shelley.Ledger as Shelley
 

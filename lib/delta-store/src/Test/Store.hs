@@ -11,12 +11,12 @@ module Test.Store
       GenDelta
     , prop_StoreUpdate
 
-    -- * Generators
+      -- * Generators
     , Chain (..)
     , genChain
     , shrinkChain
 
-    -- * Unit test DSL for developing a Store
+      -- * Unit test DSL for developing a Store
     , unitTestStore
     , applyS
     , checkLaw
@@ -25,8 +25,6 @@ module Test.Store
     , observe
     , ignore
     ) where
-
-import Prelude
 
 import Control.Exception
     ( throwIO
@@ -75,10 +73,12 @@ import Test.QuickCheck.Monadic
     , monitor
     , run
     )
+import Prelude
 
 {-----------------------------------------------------------------------------
     Store laws
 ------------------------------------------------------------------------------}
+
 -- | Given a value, generate a random delta that applies to this value.
 type GenDelta da = Base da -> Gen da
 
@@ -97,7 +97,7 @@ genChain gen0 more = do
     a0 <- gen0
     go n a0 [] a0
   where
-    go 0 _  das a0 = pure $ Chain das a0
+    go 0 _ das a0 = pure $ Chain das a0
     go n alast das a0 = do
         da <- more alast
         let a = apply da alast
@@ -106,9 +106,9 @@ genChain gen0 more = do
 -- | Shrink a chain of deltas.
 shrinkChain :: Chain da -> [Chain da]
 shrinkChain (Chain [] _) = []
-shrinkChain (Chain (d:rest) a0) =
+shrinkChain (Chain (d : rest) a0) =
     [ Chain [] a0
-    , Chain [last (d:rest)] a0
+    , Chain [last (d : rest)] a0
     , Chain rest a0
     ]
 
@@ -116,7 +116,13 @@ shrinkChain (Chain (d:rest) a0) =
 --
 -- Subsumes test for the law on 'writeS' / 'loadS'.
 prop_StoreUpdate
-    :: (Monad m, Delta da, Eq (Base da), Buildable da, Show da, Show (Base da))
+    :: ( Monad m
+       , Delta da
+       , Eq (Base da)
+       , Buildable da
+       , Show da
+       , Show (Base da)
+       )
     => (forall b. m b -> IO b)
     -- ^ Function to embed the monad in 'IO'
     -> m (Store m qa da)
@@ -128,34 +134,38 @@ prop_StoreUpdate
     -> Property
 prop_StoreUpdate toIO mkStore gen0 more =
     forAll gen0 $ \a0' ->
-    forAllShrink (genChain (pure a0') more) shrinkChain $ \chain ->
-        let Chain adas a0 = chain
-            as = map fst adas ++ [a0]
-            das = map snd adas
-            expected = case as of
-                (x:_) -> x
-                [] -> error "impossible: as is always non-empty"
-        in  counterexample ("\nUpdates applied:\n" <> pretty (listF das))
-            $ monadicIO $ do
-                ea <- run . toIO $ do
-                    store <- mkStore
-                    writeS store a0
-                    -- first update is applied last!
-                    let updates = reverse $ zip das (drop 1 as)
-                    forM_ updates $ \(da, a) -> updateS store (Just a) da
-                    loadS store
-                case ea of
-                    Left err -> run $ throwIO err
-                    Right a -> do
-                        monitor $ counterexample
-                            $ "\nExpected:\n" <> show expected
-                        monitor $ counterexample
-                            $ "\nGot:\n" <> show a
-                        assert $ a == expected
+        forAllShrink (genChain (pure a0') more) shrinkChain $ \chain ->
+            let Chain adas a0 = chain
+                as = map fst adas ++ [a0]
+                das = map snd adas
+                expected = case as of
+                    (x : _) -> x
+                    [] -> error "impossible: as is always non-empty"
+            in  counterexample ("\nUpdates applied:\n" <> pretty (listF das))
+                    $ monadicIO
+                    $ do
+                        ea <- run . toIO $ do
+                            store <- mkStore
+                            writeS store a0
+                            -- first update is applied last!
+                            let updates = reverse $ zip das (drop 1 as)
+                            forM_ updates $ \(da, a) -> updateS store (Just a) da
+                            loadS store
+                        case ea of
+                            Left err -> run $ throwIO err
+                            Right a -> do
+                                monitor
+                                    $ counterexample
+                                    $ "\nExpected:\n" <> show expected
+                                monitor
+                                    $ counterexample
+                                    $ "\nGot:\n" <> show a
+                                assert $ a == expected
 
 {-----------------------------------------------------------------------------
     DSL for developing
 ------------------------------------------------------------------------------}
+
 -- | A DSL to unit test a 'Store'.
 type StoreUnitTest m qa da =
     RWST
@@ -218,11 +228,13 @@ context d f = do
     pure x
 
 -- | Observe a property on the current value of the store.
-observe :: Monad m => (Base da -> Property) -> StoreUnitTest m qa da ()
+observe
+    :: Monad m => (Base da -> Property) -> StoreUnitTest m qa da ()
 observe f = do
     (_, s, _) <- get
     tell [f s]
 
 -- | Ignore the properties of a sub-test.
-ignore :: Monad m => StoreUnitTest m qa da x -> StoreUnitTest m qa da x
+ignore
+    :: Monad m => StoreUnitTest m qa da x -> StoreUnitTest m qa da x
 ignore = censor (const [])

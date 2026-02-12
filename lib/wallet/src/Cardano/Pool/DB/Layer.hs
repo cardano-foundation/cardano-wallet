@@ -32,8 +32,6 @@ module Cardano.Pool.DB.Layer
     , createViews
     ) where
 
-import Prelude
-
 import Cardano.BM.Extra
     ( bracketTracer
     )
@@ -198,6 +196,7 @@ import UnliftIO.Exception
     , handleJust
     , throwIO
     )
+import Prelude
 
 import qualified Cardano.Pool.DB.Sqlite.TH as TH
 import qualified Cardano.Wallet.Primitive.Types as W
@@ -1043,7 +1042,8 @@ handlingPersistError tr fp action =
 backoff :: UTCTime -> Word8 -> UTCTime
 backoff time iter = addUTCTime delay time
   where
-    delay = fromIntegral @Integer $ foldr (*) 3 (replicate (fromIntegral iter) 3)
+    delay =
+        fromIntegral @Integer $ foldr (*) 3 (replicate (fromIntegral iter) 3)
 
 {-------------------------------------------------------------------------------
                                    Queries
@@ -1134,7 +1134,8 @@ fromStakeDistribution distribution =
     , Quantity (stakeDistributionStake distribution)
     )
 
-fromPoolMeta :: PoolMetadata -> (StakePoolMetadataHash, StakePoolMetadata)
+fromPoolMeta
+    :: PoolMetadata -> (StakePoolMetadataHash, StakePoolMetadata)
 fromPoolMeta meta =
     ( poolMetadataHash meta
     , StakePoolMetadata

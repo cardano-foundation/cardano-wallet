@@ -9,10 +9,6 @@ module Cardano.Wallet.UI.Shelley.Html.Pages.Addresses
     )
 where
 
-import Prelude hiding
-    ( id
-    )
-
 import Cardano.Wallet.Address.Encoding
     ( encodeAddress
     )
@@ -58,6 +54,9 @@ import Lucid
     , id_
     , li_
     , ul_
+    )
+import Prelude hiding
+    ( id
     )
 
 addressesPageH :: Monad m => HtmlT m ()

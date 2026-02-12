@@ -10,12 +10,10 @@ module Cardano.Wallet.Read.Eras.EraValue
       EraValue (..)
     , getEra
     , knownEras
-
     , applyEraFun
     , applyEraFunValue
     , extractEraValue
     , sequenceEraValue
-
     , parseEraIndex
     , eraValueSerialize
     )

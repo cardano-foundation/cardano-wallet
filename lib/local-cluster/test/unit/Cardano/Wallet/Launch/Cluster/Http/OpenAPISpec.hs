@@ -2,8 +2,6 @@ module Cardano.Wallet.Launch.Cluster.Http.OpenAPISpec
     ( spec
     ) where
 
-import Prelude
-
 import Cardano.Wallet.Launch.Cluster.Http.OpenApi
     ( generateOpenapi3
     )
@@ -24,6 +22,7 @@ import UnliftIO.Directory
     ( doesDirectoryExist
     , doesFileExist
     )
+import Prelude
 
 import qualified Data.ByteString.Lazy.Char8 as BL
 

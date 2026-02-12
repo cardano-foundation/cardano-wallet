@@ -22,8 +22,6 @@
 -- and can be run "offline".
 module Main where
 
-import Prelude
-
 import Cardano.BM.Data.Severity
     ( Severity (..)
     )
@@ -166,6 +164,17 @@ import Main.Utf8
 import Network.URI
     ( URI
     )
+import System.Environment
+    ( getArgs
+    , getExecutablePath
+    )
+import System.Exit
+    ( ExitCode (..)
+    , exitWith
+    )
+import UnliftIO.Exception
+    ( withException
+    )
 import "optparse-applicative" Options.Applicative
     ( CommandFields
     , Mod
@@ -180,17 +189,7 @@ import "optparse-applicative" Options.Applicative
     , progDesc
     , value
     )
-import System.Environment
-    ( getArgs
-    , getExecutablePath
-    )
-import System.Exit
-    ( ExitCode (..)
-    , exitWith
-    )
-import UnliftIO.Exception
-    ( withException
-    )
+import Prelude
 
 import qualified Cardano.BM.Backend.EKGView as EKG
 import qualified Cardano.Wallet.Application.Version as V

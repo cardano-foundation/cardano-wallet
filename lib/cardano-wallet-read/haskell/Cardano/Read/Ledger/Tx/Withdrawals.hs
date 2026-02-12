@@ -1,12 +1,11 @@
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 
-{- |
-Copyright: © 2020-2022 IOHK
-License: Apache-2.0
-
-Raw withdrawals data extraction from 'Tx'
--}
+-- |
+-- Copyright: © 2020-2022 IOHK
+-- License: Apache-2.0
+--
+-- Raw withdrawals data extraction from 'Tx'
 module Cardano.Read.Ledger.Tx.Withdrawals
     ( -- * Withdrawal type
       WithdrawalsType
@@ -18,13 +17,10 @@ module Cardano.Read.Ledger.Tx.Withdrawals
     , shelleyWithdrawals
     ) where
 
-import Prelude
-
 import Cardano.Ledger.Address
     ( RewardAccount
     , unWithdrawals
     )
-import qualified Cardano.Ledger.Api as Ledger
 import Cardano.Ledger.Coin
     ( Coin
     )
@@ -55,6 +51,9 @@ import Control.Lens
 import Data.Map
     ( Map
     )
+import Prelude
+
+import Cardano.Ledger.Api qualified as Ledger
 
 -- |
 -- Era-specific withdrawal type.

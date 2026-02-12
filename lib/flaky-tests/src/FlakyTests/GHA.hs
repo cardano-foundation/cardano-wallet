@@ -10,12 +10,6 @@ module FlakyTests.GHA
     )
 where
 
-import Prelude
-
-import Data.Proxy
-    ( Proxy (..)
-    )
-
 import Codec.Archive.Zip
     ( Archive (..)
     , Entry (..)
@@ -25,17 +19,23 @@ import Codec.Archive.Zip
 import Data.ByteString.Lazy
     ( ByteString
     )
-import qualified Data.ByteString.Lazy as BL
 import Data.Maybe
     ( catMaybes
     , mapMaybe
     )
+import Data.Proxy
+    ( Proxy (..)
+    )
 import Data.Text
     ( Text
     )
-import qualified Data.Text as T
-import qualified Data.Text.Encoding as T
-import qualified Data.Vector as V
+import FlakyTests.HspecParser
+    ( parseLog
+    )
+import FlakyTests.Types
+    ( RunInfo (..)
+    , TestFailure (..)
+    )
 import GitHub
     ( Auth (..)
     , Error
@@ -77,14 +77,12 @@ import System.IO
     ( hPutStrLn
     , stderr
     )
+import Prelude
 
-import FlakyTests.HspecParser
-    ( parseLog
-    )
-import FlakyTests.Types
-    ( RunInfo (..)
-    , TestFailure (..)
-    )
+import qualified Data.ByteString.Lazy as BL
+import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
+import qualified Data.Vector as V
 
 -- | Configuration for fetching flaky test data.
 data FetchConfig = FetchConfig

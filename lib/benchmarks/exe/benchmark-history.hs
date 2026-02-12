@@ -1,7 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-import Prelude
-
 import Cardano.Wallet.Benchmarks.Charting
     ( renderHarmonizedHistoryChartSVG
     )
@@ -52,6 +50,7 @@ import System.FilePath
     , (<.>)
     , (</>)
     )
+import Prelude
 
 import qualified Data.ByteString.Lazy.Char8 as BL8
 import qualified Data.Text as T

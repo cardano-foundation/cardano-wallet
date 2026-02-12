@@ -21,7 +21,6 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
-
 -- Orphan instances for {Encode,Decode}Address until we get rid of the
 -- Jörmungandr dual support.
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -44,8 +43,6 @@ module Cardano.Wallet.Address.Encoding
     , encodeAddress
     , decodeAddress
     ) where
-
-import Prelude
 
 import Cardano.Address
     ( unsafeMkAddress
@@ -101,6 +98,7 @@ import Data.Text.Class
 import Data.Word
     ( Word8
     )
+import Prelude
 
 import qualified Cardano.Address as CA
 import qualified Cardano.Address.Style.Shelley as CA
@@ -142,7 +140,6 @@ scripthashStakeAddressPrefix = 0xF0
 --
 -- Unlike with Jörmungandr, the reward account payload doesn't represent a
 -- public key but a HASH of a public key.
---
 fromStakeCredential :: SL.Credential 'SL.Staking -> W.RewardAccount
 fromStakeCredential = \case
     SL.ScriptHashObj (SL.ScriptHash h) ->
@@ -172,23 +169,25 @@ shelleyEncodeStakeAddress network acct =
                 putByteString bs
 
 -- necessary evil for use of MonadFail in a library
-newtype ReportFailure a = ReportFailure { reportFailure :: Either String a }
+newtype ReportFailure a = ReportFailure {reportFailure :: Either String a}
     deriving (Functor, Applicative, Monad) via (Either String)
 
 instance MonadFail ReportFailure where fail = ReportFailure . Left
 
-shelleyDecodeStakeAddress ::
-    SL.Network -> Text -> Either TextDecodingError W.RewardAccount
+shelleyDecodeStakeAddress
+    :: SL.Network -> Text -> Either TextDecodingError W.RewardAccount
 shelleyDecodeStakeAddress serverNetwork txt = do
     (_, dp) <- left (const errBech32) $ Bech32.decodeLenient txt
     bytes <- maybe (Left errBech32) Right $ dataPartToBytes dp
-    rewardAcnt <- SL.decodeRewardAccount bytes
-        & left (TextDecodingError . show @String) . reportFailure
+    rewardAcnt <-
+        SL.decodeRewardAccount bytes
+            & left (TextDecodingError . show @String) . reportFailure
     guardNetwork (SL.raNetwork rewardAcnt) serverNetwork
     pure $ fromStakeCredential $ SL.raCredential rewardAcnt
   where
-    errBech32 = TextDecodingError
-        "Unable to decode stake-address: must be a valid bech32 string."
+    errBech32 =
+        TextDecodingError
+            "Unable to decode stake-address: must be a valid bech32 string."
 
 shelleyEncodeAddress :: SL.Network -> W.Address -> Text
 shelleyEncodeAddress network (W.Address bytes) =
@@ -208,11 +207,13 @@ decodeBytes t =
         Just bytes ->
             Right bytes
         _ ->
-            Left $ TextDecodingError $ unwords
-                [ "Unrecognized address encoding: must be either bech32 or base58."
-                , "Perhaps your address is not entirely correct?"
-                , "Please double-check each character within the address and try again."
-                ]
+            Left
+                $ TextDecodingError
+                $ unwords
+                    [ "Unrecognized address encoding: must be either bech32 or base58."
+                    , "Perhaps your address is not entirely correct?"
+                    , "Please double-check each character within the address and try again."
+                    ]
 
 -- | Attempt to decode a Shelley 'Address' using a Bech32 encoding.
 tryBech32 :: Text -> Maybe ByteString
@@ -236,37 +237,37 @@ tryBase58 :: Text -> Maybe ByteString
 tryBase58 = fmap CA.unAddress . CA.fromBase58
 
 errMalformedAddress :: TextDecodingError
-errMalformedAddress = TextDecodingError
-    "Unable to decode address: not a well-formed Shelley nor Byron address."
+errMalformedAddress =
+    TextDecodingError
+        "Unable to decode address: not a well-formed Shelley nor Byron address."
 
 -- Note that for 'Byron', we always assume no discrimination. In
 -- practice, there is one discrimination for 'Shelley' addresses, and one for
 -- 'Byron' addresses. Yet, on Mainnet, 'Byron' addresses have no explicit
 -- discrimination.
-shelleyDecodeAddress :: SL.Network -> Text -> Either TextDecodingError W.Address
+shelleyDecodeAddress
+    :: SL.Network -> Text -> Either TextDecodingError W.Address
 shelleyDecodeAddress serverNetwork =
     decodeBytes >=> decodeShelleyAddress
   where
-    decodeShelleyAddress :: ByteString -> Either TextDecodingError W.Address
+    decodeShelleyAddress
+        :: ByteString -> Either TextDecodingError W.Address
     decodeShelleyAddress bytes = do
         case SL.decodeAddrLenient bytes of
             Just (SL.Addr addrNetwork _ _) -> do
                 guardNetwork addrNetwork serverNetwork
                 pure (W.Address bytes)
-
             Just (SL.AddrBootstrap (SL.BootstrapAddress addr)) -> do
                 guardNetwork
                     (fromByronNetworkMagic (Byron.addrNetworkMagic addr))
                     serverNetwork
                 pure (W.Address bytes)
-
             Nothing -> Left errMalformedAddress
-
       where
         fromByronNetworkMagic :: Byron.NetworkMagic -> SL.Network
         fromByronNetworkMagic = \case
             Byron.NetworkMainOrStage -> SL.Mainnet
-            Byron.NetworkTestnet{}   -> SL.Testnet
+            Byron.NetworkTestnet{} -> SL.Testnet
 
 -- FIXME: 'cardano-addresses' currently gives us an opaque 'Value'. It'd be
 -- nicer to model this as a proper Haskell type and to serialize in due times.
@@ -277,9 +278,10 @@ inspectAddress =
     decodeBytes >=> inspect
   where
     inspect :: ByteString -> Either TextDecodingError Aeson.Value
-    inspect = maybe (Left errMalformedAddress) Right
-        . CA.inspectAddress mRootPub
-        . unsafeMkAddress
+    inspect =
+        maybe (Left errMalformedAddress) Right
+            . CA.inspectAddress mRootPub
+            . unsafeMkAddress
     -- TODO: It's possible to inspect a byron address, given a root XPub.
     -- However, this is not yet exposed by the API.
     mRootPub = Nothing
@@ -288,9 +290,10 @@ toHDPayloadAddress :: W.Address -> Maybe Byron.HDAddressPayload
 toHDPayloadAddress (W.Address addr) = do
     payload <- CBOR.deserialiseCbor CBOR.decodeAddressPayload addr
     attributes <- CBOR.deserialiseCbor decodeAllAttributes' payload
-    case filter (\(tag,_) -> tag == 1) attributes of
+    case filter (\(tag, _) -> tag == 1) attributes of
         [(1, bytes)] ->
-            Byron.HDAddressPayload <$> CBOR.decodeNestedBytes CBOR.decodeBytes bytes
+            Byron.HDAddressPayload
+                <$> CBOR.decodeNestedBytes CBOR.decodeBytes bytes
         _ ->
             Nothing
   where
@@ -299,11 +302,13 @@ toHDPayloadAddress (W.Address addr) = do
         _ <- CBOR.decodeBytes
         CBOR.decodeAllAttributes
 
-guardNetwork :: SL.Network -> SL.Network -> Either TextDecodingError ()
+guardNetwork
+    :: SL.Network -> SL.Network -> Either TextDecodingError ()
 guardNetwork addrNetwork serverNetwork =
-    when (addrNetwork /= serverNetwork) $
-        Left $ TextDecodingError $
-            "Invalid network discrimination on address. Expecting "
+    when (addrNetwork /= serverNetwork)
+        $ Left
+        $ TextDecodingError
+        $ "Invalid network discrimination on address. Expecting "
             <> show serverNetwork
             <> " but got "
             <> show addrNetwork
@@ -312,14 +317,15 @@ guardNetwork addrNetwork serverNetwork =
 encodeStakeAddress :: SNetworkId n -> W.RewardAccount -> Text
 encodeStakeAddress = shelleyEncodeStakeAddress . sToNetwork
 
-decodeStakeAddress ::
-    SNetworkId n -> Text -> Either TextDecodingError W.RewardAccount
+decodeStakeAddress
+    :: SNetworkId n -> Text -> Either TextDecodingError W.RewardAccount
 decodeStakeAddress = shelleyDecodeStakeAddress . sToNetwork
 
 encodeAddress :: SNetworkId n -> W.Address -> Text
 encodeAddress = shelleyEncodeAddress . sToNetwork
 
-decodeAddress :: SNetworkId n -> Text -> Either TextDecodingError W.Address
+decodeAddress
+    :: SNetworkId n -> Text -> Either TextDecodingError W.Address
 decodeAddress = shelleyDecodeAddress . sToNetwork
 
 sToNetwork :: SNetworkId n -> SL.Network

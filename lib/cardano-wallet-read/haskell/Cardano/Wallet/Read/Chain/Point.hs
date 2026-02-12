@@ -2,31 +2,29 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NoFieldSelectors #-}
-{- |
-Copyright: © 2024 Cardano Foundation
-License: Apache-2.0
 
-Points on the blockchain.
--}
+-- |
+-- Copyright: © 2024 Cardano Foundation
+-- License: Apache-2.0
+--
+-- Points on the blockchain.
 module Cardano.Wallet.Read.Chain.Point
     ( -- * Slot
       WithOrigin (At, Origin)
     , Slot
     , slotFromChainPoint
 
-    -- * ChainPoint
+      -- * ChainPoint
     , ChainPoint (..)
     , getChainPoint
     , prettyChainPoint
     , chainPointFromChainTip
 
-    -- * ChainTip
+      -- * ChainTip
     , ChainTip (..)
     , getChainTip
     , prettyChainTip
     ) where
-
-import Prelude
 
 import Cardano.Ledger.BaseTypes
     ( WithOrigin (At, Origin)
@@ -51,13 +49,15 @@ import GHC.Generics
 import NoThunks.Class
     ( NoThunks (..)
     )
+import Prelude
 
-import qualified Cardano.Wallet.Read.Hash as Hash
-import qualified Data.Text as T
+import Cardano.Wallet.Read.Hash qualified as Hash
+import Data.Text qualified as T
 
 {-----------------------------------------------------------------------------
     Slot
 ------------------------------------------------------------------------------}
+
 -- | Either genesis or a numbered slot.
 type Slot = WithOrigin SlotNo
 
@@ -69,6 +69,7 @@ slotFromChainPoint (BlockPoint slotNo _) = At slotNo
 {-----------------------------------------------------------------------------
     ChainPoint
 ------------------------------------------------------------------------------}
+
 -- | A point (block) on the Cardano blockchain.
 data ChainPoint
     = GenesisPoint
@@ -80,7 +81,8 @@ data ChainPoint
 
 instance NoThunks ChainPoint
 
-{-# INLINABLE getChainPoint #-}
+{-# INLINEABLE getChainPoint #-}
+
 -- | Get 'ChainPoint' of this block.
 getChainPoint :: IsEra era => Block era -> ChainPoint
 getChainPoint block =
@@ -107,6 +109,7 @@ chainPointFromChainTip (BlockTip slot hash _) = BlockPoint slot hash
 {-----------------------------------------------------------------------------
     Tip
 ------------------------------------------------------------------------------}
+
 -- | Point on the blockchain.
 -- Used in chain-sync protocol to advertise the tip of the server's chain.
 -- Records both the 'ChainPoint' and the 'BlockNo' of the block.
@@ -121,7 +124,8 @@ data ChainTip
 
 instance NoThunks ChainTip
 
-{-# INLINABLE getChainTip #-}
+{-# INLINEABLE getChainTip #-}
+
 -- | Get 'ChainTip' corresponding to this block.
 getChainTip :: IsEra era => Block era -> ChainTip
 getChainTip block =
@@ -135,10 +139,13 @@ getChainTip block =
 prettyChainTip :: ChainTip -> T.Text
 prettyChainTip GenesisTip =
     "[tip genesis]"
-prettyChainTip BlockTip{slotNo,headerHash,blockNo} =
-    "[tip " <> hashF headerHash
-        <> " at slot " <> slotNoF slotNo
-        <> " at blockNo " <> blockNoF blockNo
+prettyChainTip BlockTip{slotNo, headerHash, blockNo} =
+    "[tip "
+        <> hashF headerHash
+        <> " at slot "
+        <> slotNoF slotNo
+        <> " at blockNo "
+        <> blockNoF blockNo
         <> "]"
   where
     hashF = T.take 8 . Hash.hashToTextAsHex

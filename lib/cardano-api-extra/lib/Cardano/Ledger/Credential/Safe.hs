@@ -6,10 +6,8 @@
 --
 -- Re-exports functionality provided by module 'Cardano.Ledger.Credential',
 -- but with a safer interface.
---
 module Cardano.Ledger.Credential.Safe
-    (
-      -- * Safe 'Ptr' interface
+    ( -- * Safe 'Ptr' interface
       Ptr
     , safePtr
     , safeUnwrapPtr
@@ -19,9 +17,7 @@ module Cardano.Ledger.Credential.Safe
     , toSlotNo32
     , fromSlotNo32
     )
-    where
-
-import Prelude
+where
 
 import Cardano.Api
     ( SlotNo (..)
@@ -42,6 +38,7 @@ import Data.Word
     ( Word32
     , Word64
     )
+import Prelude
 
 --------------------------------------------------------------------------------
 -- Safe public interface
@@ -54,7 +51,6 @@ import Data.Word
 -- This function should satisfy the following property:
 --
 -- prop> safeUnwrapPtr (safePtr s t c) == (s, t, c)
---
 safePtr :: SlotNo32 -> TxIx -> CertIx -> Ptr
 safePtr = Ptr
 
@@ -65,18 +61,15 @@ safePtr = Ptr
 -- This function should satisfy the following property:
 --
 -- prop> safeUnwrapPtr (safePtr s t c) == (s, t, c)
---
 safeUnwrapPtr :: Ptr -> (SlotNo32, TxIx, CertIx)
 safeUnwrapPtr (Ptr s t c) = (s, t, c)
 
 -- | Converts an ordinary 'SlotNo' into a 'SlotNo32'.
 --
 -- Returns 'Nothing' if the slot number could not be converted safely.
---
 toSlotNo32 :: SlotNo -> Maybe SlotNo32
 toSlotNo32 (SlotNo n) = SlotNo32 <$> intCastMaybe @Word64 @Word32 n
 
 -- | Converts a 'SlotNo32' into an ordinary 'SlotNo'.
---
 fromSlotNo32 :: SlotNo32 -> SlotNo
 fromSlotNo32 (SlotNo32 n) = SlotNo (intCast @Word32 @Word64 n)

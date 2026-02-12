@@ -9,7 +9,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -19,7 +18,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
-
+{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# OPTIONS_GHC -Wno-unused-foralls #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -42,15 +41,12 @@
 --
 -- This module follows the article and example code (Version1.hs), pretty much
 -- exactly.
-
 module Cardano.Wallet.DB.StateMachine
     ( prop_sequential
     , validateGenerators
     , TestConstraints
     , Model
     ) where
-
-import Prelude
 
 import Cardano.Address.Script
     ( ScriptTemplate (..)
@@ -69,7 +65,8 @@ import Cardano.Wallet.Address.Derivation
     , Role (..)
     )
 import Cardano.Wallet.Address.Derivation.Shared
-    ()
+    (
+    )
 import Cardano.Wallet.Address.Derivation.SharedKey
     ( SharedKey
     )
@@ -352,6 +349,7 @@ import UnliftIO.Concurrent
 import UnliftIO.Exception
     ( evaluate
     )
+import Prelude
 
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Address.Pool as AddressPool
@@ -444,24 +442,24 @@ instance Traversable (Resp s) where
   Interpreter: mock implementation
 -------------------------------------------------------------------------------}
 
-runMock :: HasCallStack => Cmd s MWid -> Mock s -> (Resp s MWid, Mock s)
+runMock
+    :: HasCallStack => Cmd s MWid -> Mock s -> (Resp s MWid, Mock s)
 runMock = \case
     CreateWallet -> \db@(Database wid _ _) -> (Resp $ Right $ NewWallet wid, db)
     ListCheckpoints ->
         first (Resp . fmap ChainPoints) . mListCheckpoints
     ReadCheckpoint ->
         first (Resp . fmap Checkpoint) . mReadCheckpoint
-
     PutTxHistory txs ->
         first (Resp . fmap Unit) . mPutTxHistory txs
     ReadTxHistory minW order range status ->
         first (Resp . fmap TxHistory)
-        . mReadTxHistory timeInterpreter minW order range status Nothing
+            . mReadTxHistory timeInterpreter minW order range status Nothing
     GetTx _tid ->
         first (Resp . fmap (TxHistory . maybe [] pure))
-        -- TODO: Implement mGetTx
-        -- . mGetTx wid tid
-        . (Right Nothing,)
+            -- TODO: Implement mGetTx
+            -- . mGetTx wid tid
+            . (Right Nothing,)
     ReadGenesisParameters ->
         first (Resp . fmap GenesisParams) . mReadGenesisParameters
     RollbackTo _wid point ->
@@ -485,10 +483,10 @@ runIO DBLayer{..} = fmap Resp . go
     wid = walletId_
 
     runDBSuccess
-      :: (stm a -> m a)
-         -> (a -> Success s WalletId)
-         -> stm a
-         -> m (Either Err (Success s WalletId))
+        :: (stm a -> m a)
+        -> (a -> Success s WalletId)
+        -> stm a
+        -> m (Either Err (Success s WalletId))
     runDBSuccess atomically' s action = do
         r <- atomically' action
         pure $ Right $ s r
@@ -497,19 +495,22 @@ runIO DBLayer{..} = fmap Resp . go
         -> m (Either Err (Success s WalletId))
     go = \case
         CreateWallet -> pure $ Right $ NewWallet wid
-        ReadCheckpoint -> Right . Checkpoint <$>
-            atomically readCheckpoint
-        ListCheckpoints -> Right . ChainPoints <$>
-            atomically listCheckpoints
+        ReadCheckpoint ->
+            Right . Checkpoint
+                <$> atomically readCheckpoint
+        ListCheckpoints ->
+            Right . ChainPoints
+                <$> atomically listCheckpoints
         PutTxHistory txs -> runDBSuccess atomically Unit $ putTxHistory txs
         ReadTxHistory minWith order range status ->
-            fmap (Right . TxHistory) $
-            atomically $
-            readTransactions minWith order range status Nothing Nothing
+            fmap (Right . TxHistory)
+                $ atomically
+                $ readTransactions minWith order range status Nothing Nothing
         GetTx tid ->
             runDBSuccess atomically (TxHistory . maybe [] pure) $ getTx tid
-        ReadGenesisParameters -> Right . GenesisParams <$>
-            atomically readGenesisParameters
+        ReadGenesisParameters ->
+            Right . GenesisParams
+                <$> atomically readGenesisParameters
         RollbackTo _wid sl -> runDBSuccess atomically Point $ rollbackTo sl
 
 {-------------------------------------------------------------------------------
@@ -571,17 +572,19 @@ data Event s r = Event
 deriving instance (Show1 r, Show s) => Show (Event s r)
 
 lockstep
-    :: forall s r. Eq1 r
-    => Model s   r
-    -> Cmd s  :@ r
+    :: forall s r
+     . Eq1 r
+    => Model s r
+    -> Cmd s :@ r
     -> Resp s :@ r
-    -> Event s   r
-lockstep m@(Model _ ws) c (At resp) = Event
-    { before = m
-    , cmd = c
-    , after = Model mock' (ws <> ws')
-    , mockResp = resp'
-    }
+    -> Event s r
+lockstep m@(Model _ ws) c (At resp) =
+    Event
+        { before = m
+        , cmd = c
+        , after = Model mock' (ws <> ws')
+        , mockResp = resp'
+        }
   where
     (resp', mock') = step m c
     ws' :: WidRefs r
@@ -595,15 +598,22 @@ lockstep m@(Model _ ws) c (At resp) = Event
 generator
     :: Model s Symbolic
     -> Maybe (Gen (Cmd s :@ Symbolic))
-generator (Model _ wids) = Just $ frequency $ fmap (fmap At) . snd <$> concat
-    [ generatorWithoutId
-    , if null wids then [] else generatorWithWid (fst <$> wids)
-    ]
+generator (Model _ wids) =
+    Just
+        $ frequency
+        $ fmap (fmap At) . snd
+            <$> concat
+                [ generatorWithoutId
+                , if null wids then [] else generatorWithWid (fst <$> wids)
+                ]
 
 declareGenerator
-    :: String -- ^ A readable name
-    -> Int -- ^ Frequency
-    -> Gen cmd -- ^ Generator
+    :: String
+    -- ^ A readable name
+    -> Int
+    -- ^ Frequency
+    -> Gen cmd
+    -- ^ Generator
     -> (String, (Int, Gen cmd))
 declareGenerator name f gen = (name, (f, gen))
 
@@ -632,10 +642,10 @@ generatorWithWid wids =
             <*> arbitrary
     , declareGenerator "RollbackTo" 1
         $ RollbackTo <$> genId <*> arbitrary
-    -- TODO: Implement mPrune
-    -- , declareGenerator "Prune" 1
-    --     $ Prune <$> genId <*> arbitrary
-    , declareGenerator "ReadGenesisParameters" 1
+    , -- TODO: Implement mPrune
+      -- , declareGenerator "Prune" 1
+      --     $ Prune <$> genId <*> arbitrary
+      declareGenerator "ReadGenesisParameters" 1
         $ pure ReadGenesisParameters
     ]
   where
@@ -649,10 +659,11 @@ generatorWithWid wids =
     genRange = applyArbitrary2 Range
 
     genMinWithdrawal :: Gen (Maybe Coin)
-    genMinWithdrawal = frequency
-        [ (10, pure Nothing)
-        , (1, Just <$> arbitrary)
-        ]
+    genMinWithdrawal =
+        frequency
+            [ (10, pure Nothing)
+            , (1, Just <$> arbitrary)
+            ]
 
 isUnordered :: Ord x => [x] -> Bool
 isUnordered xs = xs /= L.sort xs
@@ -679,7 +690,8 @@ shrinker (At cmd) = case cmd of
   The state machine proper
 -------------------------------------------------------------------------------}
 
-transition :: Eq1 r => Model s r -> Cmd s :@ r -> Resp s :@ r -> Model s r
+transition
+    :: Eq1 r => Model s r -> Cmd s :@ r -> Resp s :@ r -> Model s r
 transition m c = after . lockstep m c
 
 precondition :: Model s Symbolic -> Cmd s :@ Symbolic -> Logic
@@ -700,10 +712,11 @@ semantics
     -> Cmd s :@ Concrete
     -> m (Resp s :@ Concrete)
 semantics db (At c) =
-    (At . fmap QSM.reference) <$>
-        runIO db (fmap QSM.concrete c)
+    (At . fmap QSM.reference)
+        <$> runIO db (fmap QSM.concrete c)
 
-symbolicResp :: Model s Symbolic -> Cmd s :@ Symbolic -> GenSym (Resp s :@ Symbolic)
+symbolicResp
+    :: Model s Symbolic -> Cmd s :@ Symbolic -> GenSym (Resp s :@ Symbolic)
 symbolicResp m c =
     At <$> traverse (const QSM.genSym) resp
   where
@@ -722,18 +735,19 @@ sm
     -> DBLayerParams s
     -> DBLayer m s
     -> StateMachine (Model s) (At (Cmd s)) m (At (Resp s))
-sm mwid params db = QSM.StateMachine
-    { initModel = initModel mwid params
-    , transition = transition
-    , precondition = precondition
-    , postcondition = postcondition
-    , invariant = Nothing
-    , generator = generator
-    , shrinker = const shrinker
-    , semantics = semantics db
-    , mock = symbolicResp
-    , cleanup = const $ pure ()
-    }
+sm mwid params db =
+    QSM.StateMachine
+        { initModel = initModel mwid params
+        , transition = transition
+        , precondition = precondition
+        , postcondition = postcondition
+        , invariant = Nothing
+        , generator = generator
+        , shrinker = const shrinker
+        , semantics = semantics db
+        , mock = symbolicResp
+        , cleanup = const $ pure ()
+        }
 
 {-------------------------------------------------------------------------------
   Additional type class instances required to run the QSM tests
@@ -755,10 +769,10 @@ instance Traversable t => Rank2.Traversable (At t) where
     traverse = \f (At x) -> At <$> traverse (lift f) x
       where
         lift
-          :: Functor f
-          => (r x -> f (r' x))
-          -> QSM.Reference x r
-          -> f (QSM.Reference x r')
+            :: Functor f
+            => (r x -> f (r' x))
+            -> QSM.Reference x r
+            -> f (QSM.Reference x r')
         lift f (QSM.Reference x) = QSM.Reference <$> f x
 
 deriving instance ToExpr SlotNo
@@ -797,7 +811,10 @@ deriving instance ToExpr PoolId
 
 deriving instance ToExpr AddressState
 
-instance (ToExpr addr, ToExpr ix, Show addr, Show ix) => ToExpr (AddressPool.Pool addr ix) where
+instance
+    (ToExpr addr, ToExpr ix, Show addr, Show ix)
+    => ToExpr (AddressPool.Pool addr ix)
+    where
     toExpr = defaultExprViaShow
 
 instance ToExpr DerivationPrefix where
@@ -918,11 +935,11 @@ deriving instance ToExpr RewardAccount
 data Tag
     = SuccessfulReadTxHistory
     | UnsuccessfulReadTxHistory
-    | TxUnsortedInputs
-      -- ^ Putting a transaction with unsorted inputs.
+    | -- | Putting a transaction with unsorted inputs.
+      TxUnsortedInputs
     | TxUnsortedOutputs
-    | RolledBackOnce
-      -- ^ We have rolled back at least once
+    | -- | We have rolled back at least once
+      RolledBackOnce
     deriving (Bounded, Enum, Eq, Ord, Show)
 
 -- | The list of all possible 'Tag' values.
@@ -930,23 +947,29 @@ allTags :: [Tag]
 allTags = enumerate
 
 tag :: forall s. [Event s Symbolic] -> [Tag]
-tag = Foldl.fold $ catMaybes <$> sequenceA
-    [ readTransactions (not . null) SuccessfulReadTxHistory
-    , readTransactions null UnsuccessfulReadTxHistory
-    , txUnsorted inputs TxUnsortedInputs
-    , txUnsorted outputs TxUnsortedOutputs
-    , countAction RolledBackOnce (>= 1) isRollbackSuccess
-    ]
+tag =
+    Foldl.fold
+        $ catMaybes
+            <$> sequenceA
+                [ readTransactions (not . null) SuccessfulReadTxHistory
+                , readTransactions null UnsuccessfulReadTxHistory
+                , txUnsorted inputs TxUnsortedInputs
+                , txUnsorted outputs TxUnsortedOutputs
+                , countAction RolledBackOnce (>= 1) isRollbackSuccess
+                ]
   where
     isRollbackSuccess :: Event s Symbolic -> Maybe MWid
     isRollbackSuccess ev = case (cmd ev, mockResp ev, before ev) of
-        (At (RollbackTo wid _), Resp (Right Point{}), Model _ wids ) ->
+        (At (RollbackTo wid _), Resp (Right Point{}), Model _ wids) ->
             Just (wids ! wid)
         _otherwise ->
             Nothing
 
     countAction
-        :: forall k. Ord k => Tag -> (Int -> Bool)
+        :: forall k
+         . Ord k
+        => Tag
+        -> (Int -> Bool)
         -> (Event s Symbolic -> Maybe k)
         -> Fold (Event s Symbolic) (Maybe Tag)
     countAction res enough match = Fold update mempty extract
@@ -971,11 +994,12 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
     readTransactions check res = Fold update False (extractf res)
       where
         update :: Bool -> Event s Symbolic -> Bool
-        update didRead ev = didRead || case (cmd ev, mockResp ev) of
-            (At ReadTxHistory {}, Resp (Right (TxHistory h))) ->
-                check h
-            _otherwise ->
-                False
+        update didRead ev =
+            didRead || case (cmd ev, mockResp ev) of
+                (At ReadTxHistory{}, Resp (Right (TxHistory h))) ->
+                    check h
+                _otherwise ->
+                    False
 
     txUnsorted
         :: Ord a
@@ -985,12 +1009,13 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
     txUnsorted sel res = Fold update False (extractf res)
       where
         update :: Bool -> Event s Symbolic -> Bool
-        update didRead ev = didRead ||
-            case (cmd ev, mockResp ev) of
-                (At (PutTxHistory h), Resp (Right _)) ->
-                    any (isUnordered . sel . fst) h
-                _otherwise ->
-                    False
+        update didRead ev =
+            didRead
+                || case (cmd ev, mockResp ev) of
+                    (At (PutTxHistory h), Resp (Right _)) ->
+                        any (isUnordered . sel . fst) h
+                    _otherwise ->
+                        False
 
     extractf :: a -> Bool -> Maybe a
     extractf a t = if t then Just a else Nothing
@@ -1038,8 +1063,9 @@ genDBParams
        )
     => Gen (DBLayerParams s)
 genDBParams =
-    (DBLayerParams . getInitialCheckpoint
-        <$> arbitrary)
+    ( DBLayerParams . getInitialCheckpoint
+        <$> arbitrary
+    )
         <*> pure RestorationPointAtGenesis
         <*> arbitrary
         <*> fmap unGenTxHistory arbitrary
@@ -1048,12 +1074,14 @@ genDBParams =
 prop_sequential
     :: forall s
      . (CanDiff (Model s Concrete), TestConstraints s)
-    => (WalletId -> DBLayerParams s -> (IO (IO (),DBLayer IO s)))
+    => (WalletId -> DBLayerParams s -> (IO (IO (), DBLayer IO s)))
     -> Property
 prop_sequential newDB =
     QC.forAllBlind genDBParams $ \params ->
-        let measureTagCoverage :: Commands (At (Cmd s)) (At (Resp s))
-                -> Property -> Property
+        let measureTagCoverage
+                :: Commands (At (Cmd s)) (At (Resp s))
+                -> Property
+                -> Property
             measureTagCoverage cmds prop = foldl' measureTag prop allTags
               where
                 matchedTags :: Set Tag
@@ -1062,16 +1090,16 @@ prop_sequential newDB =
                 measureTag :: Property -> Tag -> Property
                 measureTag p t =
                     QC.cover 5 (t `Set.member` matchedTags) (show t) p
-        in QC.checkCoverage $
-        forAllCommands (sm @IO @s testMWid params dbLayerUnused) Nothing $
-            \cmds -> monadicIO $ do
-                (destroyDB, db) <- run (newDB testWid params)
-                let sm' = sm testMWid params db
-                (hist, _model, res) <- runCommands sm' cmds
-                prettyCommands sm' hist
-                    $ measureTagCoverage cmds
-                    $ res === Ok
-                run destroyDB -- fixme: bracket difficult
+        in  QC.checkCoverage
+                $ forAllCommands (sm @IO @s testMWid params dbLayerUnused) Nothing
+                $ \cmds -> monadicIO $ do
+                    (destroyDB, db) <- run (newDB testWid params)
+                    let sm' = sm testMWid params db
+                    (hist, _model, res) <- runCommands sm' cmds
+                    prettyCommands sm' hist
+                        $ measureTagCoverage cmds
+                        $ res === Ok
+                    run destroyDB -- fixme: bracket difficult
 
 -- Controls that generators and shrinkers can run within a reasonable amount of
 -- time. We have been bitten several times already by generators which took much
@@ -1081,16 +1109,20 @@ validateGenerators
 validateGenerators = describe "Validate generators & shrinkers" $ do
     forM_ allGenerators $ \(name, (_frequency, gen)) -> do
         let titleGen = "Generator for " <> name
-        it titleGen $ expectWithin 1
-            (pure gen)
-            sanityCheckGen
+        it titleGen
+            $ expectWithin
+                1
+                (pure gen)
+                sanityCheckGen
 
         let titleShrink = "Shrinker for " <> name
-        it titleShrink $ expectWithin 1
-            -- NOTE: 97 is prime, i.e. not likely a multiple of any 'scale' or
-            -- 'resize' arguments already given to underlying generators.
-            (generate (resize 97 gen))
-            (sanityCheckShrink . pure . At)
+        it titleShrink
+            $ expectWithin
+                1
+                -- NOTE: 97 is prime, i.e. not likely a multiple of any 'scale' or
+                -- 'resize' arguments already given to underlying generators.
+                (generate (resize 97 gen))
+                (sanityCheckShrink . pure . At)
   where
     expectWithin :: NominalDiffTime -> IO a -> (a -> IO ()) -> IO ()
     expectWithin delay pre action = do
@@ -1100,10 +1132,11 @@ validateGenerators = describe "Validate generators & shrinkers" $ do
             a <- pre
             race_ (threadDelay (toMicro delay)) (action a)
             getCurrentTime
-        let times = zipWith diffUTCTime ticks (start:ticks)
+        let times = zipWith diffUTCTime ticks (start : ticks)
         let avg = (sum (fromEnum <$> times)) `div` n
-        when (toEnum (withConfidence avg) >= delay) $
-            expectationFailure $ unlines
+        when (toEnum (withConfidence avg) >= delay)
+            $ expectationFailure
+            $ unlines
                 [ "Timed out."
                 , "Min: " <> show (minimum times)
                 , "Max: " <> show (maximum times)
@@ -1117,16 +1150,22 @@ validateGenerators = describe "Validate generators & shrinkers" $ do
         withConfidence x = x * 12 `div` 10
 
     allGenerators = generatorWithoutId @s ++ generatorWithWid @s wids
-      where wids = QSM.reference . unMockWid . MWid <$> ["a", "b", "c"]
+      where
+        wids = QSM.reference . unMockWid . MWid <$> ["a", "b", "c"]
 
     sanityCheckGen gen = do
-        cmds <- generate (sequence [ resize s gen | s <- [0 .. 999] ])
+        cmds <- generate (sequence [resize s gen | s <- [0 .. 999]])
         void . traverse evaluate $ cmds
 
     sanityCheckShrink = \case
-        []  -> pure ()
+        [] -> pure ()
         [x] -> sanityCheckShrink (shrinker x)
-        xs  -> sanityCheckShrink (concatMap shrinker [NE.head (NE.fromList xs), NE.last (NE.fromList xs)])
+        xs ->
+            sanityCheckShrink
+                ( concatMap
+                    shrinker
+                    [NE.head (NE.fromList xs), NE.last (NE.fromList xs)]
+                )
 
 dbLayerUnused :: DBLayer m s
 dbLayerUnused = error "DBLayer not used during command generation"

@@ -17,7 +17,8 @@ import Cardano.Address
     ( NetworkTag
     )
 import Cardano.Faucet.Http.Api.OrphanInstances
-    ()
+    (
+    )
 import Cardano.Faucet.Mnemonics
     ( MnemonicLength
     )
@@ -42,22 +43,22 @@ import Servant.API
 
 type FaucetApi =
     "mnemonics"
-    :> Capture "size" MnemonicLength
-    :> (MnemonicsByRange :<|> MnemonicByIndex)
+        :> Capture "size" MnemonicLength
+        :> (MnemonicsByRange :<|> MnemonicByIndex)
 
 type MnemonicsByRange =
     Capture "minIndex" MnemonicIndex
-    :> Capture "maxIndex" MnemonicIndex
-    :> Get '[JSON] [IndexedMnemonic]
+        :> Capture "maxIndex" MnemonicIndex
+        :> Get '[JSON] [IndexedMnemonic]
 
 type MnemonicByIndex =
     Capture "index" MnemonicIndex
-    :> (Get '[JSON] Mnemonic :<|> AddressesByRange)
+        :> (Get '[JSON] Mnemonic :<|> AddressesByRange)
 
 type AddressesByRange =
     "addresses"
-    :> Capture "style" AddressStyle
-    :> Capture "networkTag" NetworkTag
-    :> Capture "minIndex" AddressIndex
-    :> Capture "maxIndex" AddressIndex
-    :> Get '[JSON] [IndexedAddress]
+        :> Capture "style" AddressStyle
+        :> Capture "networkTag" NetworkTag
+        :> Capture "minIndex" AddressIndex
+        :> Capture "maxIndex" AddressIndex
+        :> Get '[JSON] [IndexedAddress]

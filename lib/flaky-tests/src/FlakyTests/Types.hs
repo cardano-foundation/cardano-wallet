@@ -11,8 +11,6 @@ module FlakyTests.Types
     )
 where
 
-import Prelude
-
 import Data.Aeson
     ( ToJSON (..)
     , object
@@ -27,6 +25,7 @@ import Data.Text
 import Data.Time
     ( UTCTime
     )
+import Prelude
 
 -- | A single test failure extracted from a log.
 data TestFailure = TestFailure

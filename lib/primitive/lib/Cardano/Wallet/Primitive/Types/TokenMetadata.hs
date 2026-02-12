@@ -18,8 +18,6 @@ module Cardano.Wallet.Primitive.Types.TokenMetadata
     , validateMetadataLogo
     ) where
 
-import Prelude
-
 import Control.DeepSeq
     ( NFData
     )
@@ -51,6 +49,7 @@ import Network.URI
 import Quiet
     ( Quiet (..)
     )
+import Prelude
 
 import qualified Data.ByteString as BS
 import qualified Data.Text as T
@@ -63,7 +62,8 @@ data AssetMetadata = AssetMetadata
     , url :: Maybe AssetURL
     , logo :: Maybe AssetLogo
     , decimals :: Maybe AssetDecimals
-    } deriving stock (Eq, Ord, Generic)
+    }
+    deriving stock (Eq, Ord, Generic)
     deriving (Show) via (Quiet AssetMetadata)
 
 instance NFData AssetMetadata
@@ -71,7 +71,8 @@ instance NFData AssetMetadata
 -- | Specify an asset logo as an image data payload
 newtype AssetLogo = AssetLogo
     { unAssetLogo :: ByteString
-    } deriving (Eq, Ord, Generic)
+    }
+    deriving (Eq, Ord, Generic)
     deriving (Show) via (Quiet AssetLogo)
 
 instance NFData AssetLogo
@@ -79,7 +80,8 @@ instance NFData AssetLogo
 -- | The validated URL for the asset.
 newtype AssetURL = AssetURL
     { unAssetURL :: URI
-    } deriving (Eq, Ord, Generic)
+    }
+    deriving (Eq, Ord, Generic)
     deriving (Show) via (Quiet AssetURL)
 
 instance NFData AssetURL
@@ -92,7 +94,8 @@ instance FromText AssetURL where
 
 newtype AssetDecimals = AssetDecimals
     { unAssetDecimals :: Int
-    } deriving (Eq, Ord, Generic)
+    }
+    deriving (Eq, Ord, Generic)
     deriving (Show) via (Quiet AssetDecimals)
 
 instance NFData AssetDecimals
@@ -108,24 +111,28 @@ instance FromText AssetDecimals where
 validateMinLength :: Int -> Text -> Either String Text
 validateMinLength n text
     | len >= n = Right text
-    | otherwise = Left $ mconcat
-        [ "Length must be at least "
-        , show n
-        , " characters, got "
-        , show len
-        ]
+    | otherwise =
+        Left
+            $ mconcat
+                [ "Length must be at least "
+                , show n
+                , " characters, got "
+                , show len
+                ]
   where
     len = T.length text
 
 validateMaxLength :: Int -> Text -> Either String Text
 validateMaxLength n text
     | len <= n = Right text
-    | otherwise = Left $ mconcat
-        [ "Length must be no more than "
-        , show n
-        , " characters, got "
-        , show len
-        ]
+    | otherwise =
+        Left
+            $ mconcat
+                [ "Length must be no more than "
+                , show n
+                , " characters, got "
+                , show len
+                ]
   where
     len = T.length text
 
@@ -139,12 +146,14 @@ validateMetadataDescription :: Text -> Either String Text
 validateMetadataDescription = validateMaxLength 500
 
 validateMetadataURL :: Text -> Either String AssetURL
-validateMetadataURL = fmap AssetURL .
-    (validateMaxLength 250 >=> validateURI >=> validateHttps)
+validateMetadataURL =
+    fmap AssetURL
+        . (validateMaxLength 250 >=> validateURI >=> validateHttps)
   where
-    validateURI = maybe (Left "Not an absolute URI") Right
-        . parseAbsoluteURI
-        . T.unpack
+    validateURI =
+        maybe (Left "Not an absolute URI") Right
+            . parseAbsoluteURI
+            . T.unpack
     validateHttps u@(uriScheme -> scheme)
         | scheme == "https:" = Right u
         | otherwise = Left $ "Scheme must be https: but got " ++ scheme
@@ -152,17 +161,20 @@ validateMetadataURL = fmap AssetURL .
 validateMetadataLogo :: AssetLogo -> Either String AssetLogo
 validateMetadataLogo logo
     | len <= maxLen = Right logo
-    | otherwise = Left $ mconcat
-        [ "Length must be no more than "
-        , show maxLen
-        , " bytes, got "
-        , show len
-        ]
+    | otherwise =
+        Left
+            $ mconcat
+                [ "Length must be no more than "
+                , show maxLen
+                , " bytes, got "
+                , show len
+                ]
   where
     len = BS.length $ unAssetLogo logo
     maxLen = 65536
 
-validateMetadataDecimals :: AssetDecimals -> Either String AssetDecimals
+validateMetadataDecimals
+    :: AssetDecimals -> Either String AssetDecimals
 validateMetadataDecimals (AssetDecimals n)
     | n >= 0 && n <= 255 =
         Right $ AssetDecimals n

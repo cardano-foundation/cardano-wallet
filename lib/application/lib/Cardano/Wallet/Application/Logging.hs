@@ -5,8 +5,6 @@ module Cardano.Wallet.Application.Logging
     ( ApplicationLog (..)
     ) where
 
-import Prelude
-
 import Cardano.BM.Data.Severity
     ( Severity (..)
     )
@@ -26,6 +24,7 @@ import Data.Text.Class
 import GHC.Generics
     ( Generic
     )
+import Prelude
 
 data ApplicationLog
     = ApiApplicationLog ApiApplicationLog

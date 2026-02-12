@@ -28,8 +28,6 @@ module Cardano.X509.Configuration
     , genCertificate
     ) where
 
-import Prelude
-
 import Control.Monad
     ( when
     , (>=>)
@@ -45,6 +43,9 @@ import Crypto.PubKey.RSA
     ( PrivateKey
     , PublicKey
     )
+import Data.ASN1.OID
+    ( OIDable (..)
+    )
 import Data.Aeson
     ( FromJSON (parseJSON)
     , KeyValue ((.=))
@@ -53,9 +54,6 @@ import Data.Aeson
     , object
     , withObject
     , (.:)
-    )
-import Data.ASN1.OID
-    ( OIDable (..)
     )
 import Data.Hourglass
     ( Minutes (..)
@@ -109,6 +107,7 @@ import Time.System
 import Time.Types
     ( DateTime (..)
     )
+import Prelude
 
 import qualified Data.Aeson.Key as Aeson
 import qualified Data.Aeson.KeyMap as Aeson

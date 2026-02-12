@@ -1,14 +1,12 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-
 {-# OPTIONS_GHC -Wno-orphans #-}
 
-{- |
-Copyright: © 2020-2022 IOHK, 2024 Cardano Foundation
-License: Apache-2.0
-
-Binary serialization of transactions.
--}
+-- |
+-- Copyright: © 2020-2022 IOHK, 2024 Cardano Foundation
+-- License: Apache-2.0
+--
+-- Binary serialization of transactions.
 module Cardano.Wallet.Read.Tx.CBOR
     ( TxCBOR
     , renderTxToCBOR
@@ -16,9 +14,7 @@ module Cardano.Wallet.Read.Tx.CBOR
     , roundTripTxCBOR
     , prettyTxCBOR
     )
-    where
-
-import Prelude
+where
 
 import Cardano.Ledger.Binary.Decoding
     ( DecoderError
@@ -49,9 +45,10 @@ import Fmt
     ( Buildable (..)
     , pretty
     )
+import Prelude
 
-import qualified Data.ByteString.Lazy as BL
-import qualified Data.Text as T
+import Data.ByteString.Lazy qualified as BL
+import Data.Text qualified as T
 
 -- | Serialized version of a transaction. Deserializing should at least expose
 -- enough information to compute the 'TxId'.

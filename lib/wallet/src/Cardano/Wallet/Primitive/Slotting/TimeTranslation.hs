@@ -3,8 +3,6 @@ module Cardano.Wallet.Primitive.Slotting.TimeTranslation
     , toTimeTranslationPure
     ) where
 
-import Prelude
-
 import Cardano.Slotting.EpochInfo.API
     ( hoistEpochInfo
     )
@@ -29,6 +27,7 @@ import Internal.Cardano.Write.Tx.TimeTranslation
 import UnliftIO.Exception
     ( throwIO
     )
+import Prelude
 
 toTimeTranslation
     :: TimeInterpreter (ExceptT PastHorizonException IO)
@@ -37,7 +36,8 @@ toTimeTranslation timeInterpreter = do
     info <-
         runExceptT (toEpochInfo timeInterpreter)
             >>= either throwIO (pure . hoistEpochInfo runExcept)
-    pure $ timeTranslationFromEpochInfo (getSystemStart timeInterpreter) info
+    pure
+        $ timeTranslationFromEpochInfo (getSystemStart timeInterpreter) info
 
 toTimeTranslationPure
     :: TimeInterpreter Identity

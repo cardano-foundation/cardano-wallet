@@ -8,8 +8,6 @@ module Cardano.Wallet.UI.Common.Html.Pages.Template.Head
     )
 where
 
-import Prelude
-
 import Cardano.Wallet.UI.Common.Html.Copy
     ( offscreenCss
     )
@@ -51,12 +49,14 @@ import Lucid
 import Servant
     ( Link
     )
+import Prelude
 
 bootstrapLink :: Monad m => HtmlT m ()
 bootstrapLink =
     link_
         [ rel_ "stylesheet"
-        , href_ "https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+        , href_
+            "https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
         , integrity_
             "sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
         , crossorigin_ "anonymous"
@@ -78,7 +78,8 @@ bootstrapIcons :: Monad m => HtmlT m ()
 bootstrapIcons =
     link_
         [ rel_ "stylesheet"
-        , href_ "https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
+        , href_
+            "https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
         , integrity_
             "sha384-XGjxtQfXaH2tnPFa9x+ruJTuLE3Aa6LhHSWRr1XeTyhezb4abCG4ccI5AkVDxqC+"
         , crossorigin_ "anonymous"
@@ -139,7 +140,8 @@ truncatedTdTextWorkaround =
         $ toHtml @Text
             ".table { table-layout: fixed; }"
 
-pageFromBodyH :: Monad m => Link -> PageConfig -> HtmlT m () -> HtmlT m ()
+pageFromBodyH
+    :: Monad m => Link -> PageConfig -> HtmlT m () -> HtmlT m ()
 pageFromBodyH faviconLink PageConfig{..} body =
     html_ [term "data-bs-theme" "dark", class_ "p-1"]
         $ do

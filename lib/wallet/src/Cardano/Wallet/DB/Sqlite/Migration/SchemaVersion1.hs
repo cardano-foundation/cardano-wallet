@@ -6,12 +6,9 @@
 --
 -- Historical record of SchemaVersion 1.
 -- Necessary for migrations.
-
 module Cardano.Wallet.DB.Sqlite.Migration.SchemaVersion1
     ( sqlCreateSchemaVersion1TablesIfMissing
     ) where
-
-import Prelude
 
 import Data.String.Interpolate
     ( i
@@ -20,13 +17,15 @@ import Data.Text
     ( Text
     , split
     )
+import Prelude
 
 -- | List of raw SQL queries that
 -- create any missing tables from SchemaVersion 1.
 sqlCreateSchemaVersion1TablesIfMissing :: [Text]
 sqlCreateSchemaVersion1TablesIfMissing =
-  split (== ';')
-    [i|
+    split
+        (== ';')
+        [i|
 CREATE TABLE IF NOT EXISTS database_schema_version
   (
     name    TEXT PRIMARY KEY,
@@ -390,5 +389,6 @@ CREATE TABLE IF NOT EXISTS "c_b_o_r"
      PRIMARY KEY ("tx_id")
   )
 |]
+
 -- Don't put a semicolon ';' after the last "CREATE" statement,
 -- or the list created by 'split' will contain an empty statement.

@@ -11,8 +11,6 @@ module Cardano.Wallet.Launch.Cluster.Http
     )
 where
 
-import Prelude
-
 import Cardano.Wallet.Launch.Cluster.Http.Monitor.Client
     ( RunMonitorQ
     , withHttpClient
@@ -70,6 +68,7 @@ import Data.Time
 import Network.Socket
     ( PortNumber
     )
+import Prelude
 
 import qualified Control.Foldl as F
 
@@ -87,9 +86,9 @@ timedMonitor
     :: forall m w a
      . (MonadSTM m, MonadIO m)
     => StateS w
-    -> m (Monitor m a [(UTCTime,a)])
+    -> m (Monitor m a [(UTCTime, a)])
 timedMonitor initialState = do
-    let tracer :: Tracing w (UTCTime, a) [(UTCTime,a)]
+    let tracer :: Tracing w (UTCTime, a) [(UTCTime, a)]
         tracer = mkTracingFromFold F.list initialState
     mkMonitor
         (AnyTracing initialState tracer)

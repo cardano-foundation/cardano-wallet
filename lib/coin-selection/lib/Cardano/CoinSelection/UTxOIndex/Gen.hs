@@ -7,8 +7,6 @@ module Cardano.CoinSelection.UTxOIndex.Gen
     , shrinkUTxOIndex
     ) where
 
-import Prelude
-
 import Cardano.CoinSelection.UTxOIndex
     ( UTxOIndex
     )
@@ -37,6 +35,7 @@ import Test.QuickCheck.Extra
     , (<:>)
     , (<@>)
     )
+import Prelude
 
 import qualified Cardano.CoinSelection.UTxOIndex as UTxOIndex
 
@@ -50,15 +49,20 @@ genUTxOIndex genUTxO = UTxOIndex.fromSequence <$> listOf genEntry
     genEntry :: Gen (u, TokenBundle)
     genEntry = (,) <$> genUTxO <*> genTokenBundleSmallRangePositive
 
-shrinkUTxOIndex :: forall u. Ord u => (u -> [u]) -> UTxOIndex u -> [UTxOIndex u]
+shrinkUTxOIndex
+    :: forall u. Ord u => (u -> [u]) -> UTxOIndex u -> [UTxOIndex u]
 shrinkUTxOIndex shrinkUTxO =
-    shrinkMapBy UTxOIndex.fromSequence UTxOIndex.toList (shrinkList shrinkEntry)
+    shrinkMapBy
+        UTxOIndex.fromSequence
+        UTxOIndex.toList
+        (shrinkList shrinkEntry)
   where
     shrinkEntry :: (u, TokenBundle) -> [(u, TokenBundle)]
-    shrinkEntry = genericRoundRobinShrink
-        <@> shrinkUTxO
-        <:> shrinkTokenBundleSmallRangePositive
-        <:> Nil
+    shrinkEntry =
+        genericRoundRobinShrink
+            <@> shrinkUTxO
+            <:> shrinkTokenBundleSmallRangePositive
+            <:> Nil
 
 --------------------------------------------------------------------------------
 -- Large indices
@@ -68,7 +72,8 @@ genUTxOIndexLarge :: Ord u => Gen u -> Gen (UTxOIndex u)
 genUTxOIndexLarge genUTxO =
     genUTxOIndexLargeN genUTxO =<< choose (1024, 4096)
 
-genUTxOIndexLargeN :: forall u. Ord u => Gen u -> Int -> Gen (UTxOIndex u)
+genUTxOIndexLargeN
+    :: forall u. Ord u => Gen u -> Int -> Gen (UTxOIndex u)
 genUTxOIndexLargeN genUTxO n = UTxOIndex.fromSequence <$> replicateM n genEntry
   where
     genEntry :: Gen (u, TokenBundle)

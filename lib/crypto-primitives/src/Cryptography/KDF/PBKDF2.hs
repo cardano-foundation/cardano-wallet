@@ -4,12 +4,9 @@
 module Cryptography.KDF.PBKDF2
     ( PBKDF2Config (..)
     , generateKey
-
     , Parameters (..)
     , fastPBKDF2_SHA512
     ) where
-
-import Prelude
 
 import Crypto.Hash.Algorithms
     ( HashAlgorithm
@@ -26,6 +23,7 @@ import Data.ByteString
 import Data.Maybe
     ( fromMaybe
     )
+import Prelude
 
 import qualified Data.ByteString as BS
 
@@ -66,11 +64,12 @@ generateKey
     -- ^ salt
     -> (ByteString, ByteString)
     -- ^ (key, iv)
-generateKey PBKDF2Config{hash,iterations,keyLength,ivLength} password saltM =
+generateKey PBKDF2Config{hash, iterations, keyLength, ivLength} password saltM =
     BS.splitAt keyLength whole
   where
-    whole = generate
-        (prfHMAC hash)
-        (Parameters iterations (keyLength + ivLength))
-        password
-        (fromMaybe BS.empty saltM)
+    whole =
+        generate
+            (prfHMAC hash)
+            (Parameters iterations (keyLength + ivLength))
+            password
+            (fromMaybe BS.empty saltM)

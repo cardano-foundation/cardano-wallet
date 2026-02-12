@@ -9,10 +9,6 @@ module Cardano.Wallet.Cli.Launcher
     , WalletProcessConfig (..)
     ) where
 
-import Prelude
-
-import qualified Data.Text as T
-
 import Cardano.Node.Cli.Launcher
     ( NodeApi
     , nodeApiSocket
@@ -45,6 +41,9 @@ import System.Process.Typed
     , stopProcess
     , useHandleClose
     )
+import Prelude
+
+import qualified Data.Text as T
 
 newtype WalletInstance = WalletInstance (Process () () ())
 
@@ -83,25 +82,27 @@ start WalletProcessConfig{..} = do
             $ setStdout (useHandleClose handle)
             $ proc "cardano-wallet"
             $ concat
-                [ [ "serve" ]
+                [ ["serve"]
                 , case walletByronGenesisForTestnet of
                     Nothing ->
-                        [ "--mainnet" ]
+                        ["--mainnet"]
                     Just walletByronGenesis ->
-                        [ "--testnet", toFilePath
+                        [ "--testnet"
+                        , toFilePath
                             $ absFileOf walletByronGenesis
                         ]
-                , [ "--node-socket"
-                  , toFilePath (nodeApiSocket walletNodeApi)
-                  , "--database"
-                  , toFilePath $ absDirOf walletDatabase
-                  , "--listen-address"
-                  , T.unpack host
-                  , "--port"
-                  , show port
-                  , "--log-level"
-                  , "DEBUG"
-                  ]
+                ,
+                    [ "--node-socket"
+                    , toFilePath (nodeApiSocket walletNodeApi)
+                    , "--database"
+                    , toFilePath $ absDirOf walletDatabase
+                    , "--listen-address"
+                    , T.unpack host
+                    , "--port"
+                    , show port
+                    , "--log-level"
+                    , "DEBUG"
+                    ]
                 ]
     pure (WalletInstance process, config)
 

@@ -5,8 +5,6 @@
 
 module Cardano.Wallet.Primitive.Types.TxParameters where
 
-import Prelude
-
 import Cardano.Wallet.Primitive.Types.FeePolicy
     ( FeePolicy
     )
@@ -20,7 +18,8 @@ import Control.Lens
     ( (^.)
     )
 import Data.Generics.Labels
-    ()
+    (
+    )
 import Data.Quantity
     ( Quantity (Quantity)
     )
@@ -41,6 +40,7 @@ import GHC.Generics
 import GHC.Natural
     ( Natural
     )
+import Prelude
 
 -- | Parameters that relate to the construction of __transactions__.
 data TxParameters = TxParameters

@@ -3,8 +3,6 @@
 module Cardano.Wallet.UI.Common.Html.Pages.Wallet
 where
 
-import Prelude
-
 import Cardano.Wallet.UI.Common.API
     ( Visible (..)
     )
@@ -44,6 +42,7 @@ import Lucid
 import Servant
     ( Link
     )
+import Prelude
 
 import qualified Data.Text as T
 
@@ -78,7 +77,8 @@ postWalletFormTagH idName PostWalletConfig{} =
 --------------------------------------------------------------------------------
 
 -- | Widget to create a new wallet from a mnemonic
-newWalletFromMnemonicH :: (Maybe Bool -> Link) -> PostWalletConfig -> Html ()
+newWalletFromMnemonicH
+    :: (Maybe Bool -> Link) -> PostWalletConfig -> Html ()
 newWalletFromMnemonicH walletMnemonicLink config = do
     box "Restore from Mnemonic" mempty $ do
         div_ [class_ "p-2"] $ do
@@ -99,7 +99,8 @@ mnemonicH (Just mnemonic) = do
         copyButton "copy-mnemonic"
 
 -- | Form fields for restoring a wallet from a mnemonic
-mnemonicSetupFieldsH :: (Maybe Bool -> Link) -> PostWalletConfig -> Html ()
+mnemonicSetupFieldsH
+    :: (Maybe Bool -> Link) -> PostWalletConfig -> Html ()
 mnemonicSetupFieldsH walletMnemonicLink PostWalletConfig{..} = do
     div_ [class_ "border-start"] $ do
         div_ [class_ "d-flex justify-content-end align-items-center"]

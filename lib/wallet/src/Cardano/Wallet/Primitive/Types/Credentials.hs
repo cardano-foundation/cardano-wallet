@@ -8,8 +8,6 @@ module Cardano.Wallet.Primitive.Types.Credentials
     , ClearCredentials
     ) where
 
-import Prelude
-
 import Cardano.Address.Derivation
     ( XPrv
     )
@@ -20,6 +18,7 @@ import Cardano.Wallet.Primitive.Passphrase.Types
     ( Passphrase
     , PassphraseHash
     )
+import Prelude
 
 -- | A 'PrivateKey' for a given 'KeyFlavor'.
 data RootCredentials k pw = RootCredentials
@@ -27,8 +26,10 @@ data RootCredentials k pw = RootCredentials
     , credentialsPassword :: pw
     }
 
-deriving instance (Eq (k 'RootK XPrv), Eq pw) => Eq (RootCredentials k pw)
-deriving instance (Show (k 'RootK XPrv), Show pw) => Show (RootCredentials k pw)
+deriving instance
+    (Eq (k 'RootK XPrv), Eq pw) => Eq (RootCredentials k pw)
+deriving instance
+    (Show (k 'RootK XPrv), Show pw) => Show (RootCredentials k pw)
 
 type HashedCredentials k = RootCredentials k PassphraseHash
 

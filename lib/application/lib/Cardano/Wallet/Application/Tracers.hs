@@ -7,7 +7,6 @@
 -- License: Apache-2.0
 --
 -- Tracing functionality for the Shelley wallet
---
 module Cardano.Wallet.Application.Tracers
     ( Tracers' (..)
     , Tracers
@@ -18,8 +17,6 @@ module Cardano.Wallet.Application.Tracers
     , tracerSeverities
     , nullTracers
     ) where
-
-import Prelude
 
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation
@@ -72,20 +69,21 @@ import Network.NTP.Client
 import Network.Wai.Middleware.Logging
     ( ApiLog
     )
+import Prelude
 
 import qualified Data.Text as T
 
 -- | The types of trace events produced by the Shelley API server.
 data Tracers' f = Tracers
-    { applicationTracer   :: f ApplicationLog
-    , apiServerTracer     :: f ApiLog
+    { applicationTracer :: f ApplicationLog
+    , apiServerTracer :: f ApiLog
     , tokenMetadataTracer :: f TokenMetadataLog
-    , walletEngineTracer  :: f WalletEngineLog
-    , walletDbTracer      :: f DBFactoryLog
-    , poolsEngineTracer   :: f StakePoolLog
-    , poolsDbTracer       :: f PoolDbLog
-    , ntpClientTracer     :: f NtpTrace
-    , networkTracer       :: f NetworkLayerLog
+    , walletEngineTracer :: f WalletEngineLog
+    , walletDbTracer :: f DBFactoryLog
+    , poolsEngineTracer :: f StakePoolLog
+    , poolsDbTracer :: f PoolDbLog
+    , ntpClientTracer :: f NtpTrace
+    , networkTracer :: f NetworkLayerLog
     }
 
 -- | All of the Shelley 'Tracer's.
@@ -101,23 +99,24 @@ deriving instance Eq TracerSeverities
 -- | Construct a 'TracerSeverities' record with all tracers set to the given
 -- severity.
 tracerSeverities :: Maybe Severity -> TracerSeverities
-tracerSeverities sev = Tracers
-    { applicationTracer   = Const sev
-    , apiServerTracer     = Const sev
-    , tokenMetadataTracer = Const sev
-    , walletDbTracer      = Const sev
-    , walletEngineTracer  = Const sev
-    , poolsEngineTracer   = Const sev
-    , poolsDbTracer       = Const sev
-    , ntpClientTracer     = Const sev
-    , networkTracer       = Const sev
-    }
+tracerSeverities sev =
+    Tracers
+        { applicationTracer = Const sev
+        , apiServerTracer = Const sev
+        , tokenMetadataTracer = Const sev
+        , walletDbTracer = Const sev
+        , walletEngineTracer = Const sev
+        , poolsEngineTracer = Const sev
+        , poolsDbTracer = Const sev
+        , ntpClientTracer = Const sev
+        , networkTracer = Const sev
+        }
 
 -- | Set up tracing with textual log messages.
-setupTracers ::
-    TracerSeverities ->
-    Trace IO Text ->
-    Tracers IO
+setupTracers
+    :: TracerSeverities
+    -> Trace IO Text
+    -> Tracers IO
 setupTracers sev tr =
     Tracers
         { applicationTracer =
@@ -141,7 +140,8 @@ setupTracers sev tr =
         }
   where
     onoff
-        :: forall m a b. (Monad m, HasSeverityAnnotation b)
+        :: forall m a b
+         . (Monad m, HasSeverityAnnotation b)
         => (TracerSeverities -> Const (Maybe Severity) a)
         -> Tracer m b
         -> Tracer m b
@@ -159,62 +159,73 @@ setupTracers sev tr =
 
 -- | Strings that the user can refer to tracers by.
 tracerLabels :: Tracers' (Const Text)
-tracerLabels = Tracers
-    { applicationTracer   = Const "application"
-    , apiServerTracer     = Const "api-server"
-    , tokenMetadataTracer = Const "token-metadata"
-    , walletEngineTracer  = Const "wallet-engine"
-    , walletDbTracer      = Const "wallet-db"
-    , poolsEngineTracer   = Const "pools-engine"
-    , poolsDbTracer       = Const "pools-db"
-    , ntpClientTracer     = Const "ntp-client"
-    , networkTracer       = Const "network"
-    }
+tracerLabels =
+    Tracers
+        { applicationTracer = Const "application"
+        , apiServerTracer = Const "api-server"
+        , tokenMetadataTracer = Const "token-metadata"
+        , walletEngineTracer = Const "wallet-engine"
+        , walletDbTracer = Const "wallet-db"
+        , poolsEngineTracer = Const "pools-engine"
+        , poolsDbTracer = Const "pools-db"
+        , ntpClientTracer = Const "ntp-client"
+        , networkTracer = Const "network"
+        }
 
 -- | Names and descriptions of the tracers, for user documentation.
 tracerDescriptions :: [(String, String)]
 tracerDescriptions =
-    [ ( lbl applicationTracer
-      , "About start-up logic and the server's surroundings."
-      )
-    , ( lbl apiServerTracer
-      , "About the HTTP API requests and responses."
-      )
-    , ( lbl walletEngineTracer
-      , "About background wallet workers events and core wallet engine."
-      )
-    , ( lbl walletDbTracer
-      , "About database operations of each wallet."
-      )
-    , ( lbl tokenMetadataTracer
-      , "About the fetching of token metadata."
-      )
-    , ( lbl poolsEngineTracer
-      , "About the background worker monitoring stake pools and stake pools engine."
-      )
-    , ( lbl poolsDbTracer
-      , "About database operations on stake pools."
-      )
-    , ( lbl ntpClientTracer
-      , "About ntp-client."
-      )
-    , ( lbl networkTracer
-      , "About network communication with the node."
-      )
+    [
+        ( lbl applicationTracer
+        , "About start-up logic and the server's surroundings."
+        )
+    ,
+        ( lbl apiServerTracer
+        , "About the HTTP API requests and responses."
+        )
+    ,
+        ( lbl walletEngineTracer
+        , "About background wallet workers events and core wallet engine."
+        )
+    ,
+        ( lbl walletDbTracer
+        , "About database operations of each wallet."
+        )
+    ,
+        ( lbl tokenMetadataTracer
+        , "About the fetching of token metadata."
+        )
+    ,
+        ( lbl poolsEngineTracer
+        , "About the background worker monitoring stake pools and stake pools engine."
+        )
+    ,
+        ( lbl poolsDbTracer
+        , "About database operations on stake pools."
+        )
+    ,
+        ( lbl ntpClientTracer
+        , "About ntp-client."
+        )
+    ,
+        ( lbl networkTracer
+        , "About network communication with the node."
+        )
     ]
   where
     lbl f = T.unpack . getConst . f $ tracerLabels
 
 -- | Use a 'nullTracer' for each of the 'Tracer's in 'Tracers'
 nullTracers :: Monad m => Tracers m
-nullTracers = Tracers
-    { applicationTracer   = nullTracer
-    , apiServerTracer     = nullTracer
-    , tokenMetadataTracer = nullTracer
-    , walletEngineTracer  = nullTracer
-    , walletDbTracer      = nullTracer
-    , poolsEngineTracer   = nullTracer
-    , poolsDbTracer       = nullTracer
-    , ntpClientTracer     = nullTracer
-    , networkTracer       = nullTracer
-    }
+nullTracers =
+    Tracers
+        { applicationTracer = nullTracer
+        , apiServerTracer = nullTracer
+        , tokenMetadataTracer = nullTracer
+        , walletEngineTracer = nullTracer
+        , walletDbTracer = nullTracer
+        , poolsEngineTracer = nullTracer
+        , poolsDbTracer = nullTracer
+        , ntpClientTracer = nullTracer
+        , networkTracer = nullTracer
+        }

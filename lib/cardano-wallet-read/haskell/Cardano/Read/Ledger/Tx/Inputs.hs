@@ -1,10 +1,9 @@
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 
-{- |
-Copyright: © 2020-2024 IOHK
-License: Apache-2.0
--}
+-- |
+-- Copyright: © 2020-2024 IOHK
+-- License: Apache-2.0
 module Cardano.Read.Ledger.Tx.Inputs
     ( -- * Input types
       InputsType
@@ -15,14 +14,10 @@ module Cardano.Read.Ledger.Tx.Inputs
     )
 where
 
-import Prelude
-
-import qualified Cardano.Chain.UTxO as BY
 import Cardano.Ledger.Core
     ( bodyTxL
     , inputsTxBodyL
     )
-import qualified Cardano.Ledger.Shelley.API as SH
 import Cardano.Read.Ledger.Eras
     ( Allegra
     , Alonzo
@@ -49,6 +44,10 @@ import Data.List.NonEmpty
 import Data.Set
     ( Set
     )
+import Prelude
+
+import Cardano.Chain.UTxO qualified as BY
+import Cardano.Ledger.Shelley.API qualified as SH
 
 -- |
 -- Era-specific input collection type.

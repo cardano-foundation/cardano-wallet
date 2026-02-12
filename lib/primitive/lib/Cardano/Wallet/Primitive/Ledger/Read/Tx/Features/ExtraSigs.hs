@@ -1,21 +1,15 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 
 -- |
 -- Copyright: © 2020-2022 IOHK
 -- License: Apache-2.0
---
-
-module Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.ExtraSigs
-    ( extraSigs )
-
- where
-
-import Prelude
+module Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.ExtraSigs (extraSigs)
+where
 
 import Cardano.Crypto.Hash
     ( Hash (..)
@@ -43,11 +37,13 @@ import Data.Functor
 import Data.Set
     ( Set
     )
+import Prelude
 
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 
-{-# INLINABLE extraSigs #-}
-extraSigs :: forall era. IsEra era => ExtraSigs era -> [W.Hash "ExtraSignature"]
+{-# INLINEABLE extraSigs #-}
+extraSigs
+    :: forall era. IsEra era => ExtraSigs era -> [W.Hash "ExtraSignature"]
 extraSigs = case theEra @era of
     Byron -> noExtraSigs
     Shelley -> noExtraSigs

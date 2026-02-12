@@ -10,18 +10,13 @@
 -- wallet. (This is also known as "sweeping" a wallet.)
 --
 -- Use 'createPlan' to create a migration plan.
---
 module Cardano.Wallet.Balance.Migration
-    (
-    -- * Creating a migration plan
+    ( -- * Creating a migration plan
       createPlan
     , MigrationPlan (..)
     , RewardWithdrawal (..)
     , Selection (..)
-
     ) where
-
-import Prelude
 
 import Cardano.Wallet.Balance.Migration.Selection
     ( RewardWithdrawal (..)
@@ -49,26 +44,27 @@ import Data.Generics.Internal.VL.Lens
     ( view
     )
 import Data.Generics.Labels
-    ()
+    (
+    )
 import GHC.Generics
     ( Generic
     )
+import Prelude
 
 import qualified Cardano.Wallet.Balance.Migration.Planning as Planning
 
 -- | Represents a plan for migrating a 'UTxO' set.
 --
 -- See 'createPlan' to create a migration plan.
---
 data MigrationPlan = MigrationPlan
     { selections :: ![Selection (TxIn, TxOut)]
-      -- ^ A list of generated selections: each selection is the basis for a
-      -- single transaction.
+    -- ^ A list of generated selections: each selection is the basis for a
+    -- single transaction.
     , unselected :: !UTxO
-      -- ^ The portion of the UTxO that was not selected.
+    -- ^ The portion of the UTxO that was not selected.
     , totalFee :: !Coin
-      -- ^ The total fee payable: equal to the sum of the fees of the
-      -- individual selections.
+    -- ^ The total fee payable: equal to the sum of the fees of the
+    -- individual selections.
     }
     deriving (Eq, Generic, Show)
 
@@ -78,17 +74,20 @@ instance NFData MigrationPlan
 --   amount.
 --
 -- See 'MigrationPlan'.
---
 createPlan
     :: TxConstraints
     -> UTxO
     -> RewardWithdrawal
     -> MigrationPlan
-createPlan constraints utxo reward = MigrationPlan
-    { selections = view #selections plan
-    , unselected = Planning.uncategorizeUTxO (view #unselected plan)
-    , totalFee = view #totalFee plan
-    }
+createPlan constraints utxo reward =
+    MigrationPlan
+        { selections = view #selections plan
+        , unselected = Planning.uncategorizeUTxO (view #unselected plan)
+        , totalFee = view #totalFee plan
+        }
   where
-    plan = Planning.createPlan
-        constraints (Planning.categorizeUTxO constraints utxo) reward
+    plan =
+        Planning.createPlan
+            constraints
+            (Planning.categorizeUTxO constraints utxo)
+            reward

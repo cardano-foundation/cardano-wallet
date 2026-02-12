@@ -11,15 +11,12 @@
 -- License: Apache-2.0
 --
 -- Provides the 'ProtocolMagic' type and related constants.
---
 module Cardano.Wallet.Primitive.Types.ProtocolMagic
     ( ProtocolMagic (..)
     , mainnetMagic
     , testnetMagic
     , magicSNetworkId
     ) where
-
-import Prelude
 
 import Cardano.Wallet.Primitive.NetworkId
     ( SNetworkId (..)
@@ -52,12 +49,12 @@ import GHC.TypeLits
 import Numeric.Natural
     ( Natural
     )
+import Prelude
 
 import qualified Data.Text as T
 
 -- | Magic constant associated with a given network.
---
-newtype ProtocolMagic = ProtocolMagic { getProtocolMagic :: Int32 }
+newtype ProtocolMagic = ProtocolMagic {getProtocolMagic :: Int32}
     deriving (Generic, Show, Eq, NFData, FromJSON, ToJSON)
 
 instance ToText ProtocolMagic where
@@ -68,7 +65,7 @@ instance FromText ProtocolMagic where
 
 -- | Hard-coded protocol magic for the Byron MainNet
 mainnetMagic :: ProtocolMagic
-mainnetMagic =  ProtocolMagic 764824073
+mainnetMagic = ProtocolMagic 764824073
 
 -- | Derive testnet magic from a type-level Nat
 testnetMagic :: forall pm. KnownNat pm => ProtocolMagic

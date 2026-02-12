@@ -25,8 +25,6 @@ module Cardano.Wallet.Application
     , module Tracers
     ) where
 
-import Prelude
-
 import Cardano.Wallet
     ( WalletException
     )
@@ -241,6 +239,7 @@ import System.IOManager
 import UnliftIO
     ( withAsync
     )
+import Prelude
 
 import qualified Cardano.Pool.DB.Layer as Pool
 import qualified Cardano.Wallet.Api.Http.Shelley.Server as Server
@@ -438,8 +437,7 @@ serveWallet
                     Server.idleWorker
         startShelleyUiServer
             :: forall n
-             . ( HasSNetworkId n
-               )
+             . (HasSNetworkId n)
             => UILayer (Maybe WalletId)
             -> SNetworkId n
             -> Socket

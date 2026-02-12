@@ -7,8 +7,6 @@ module Control.Concurrent.ConciergeSpec
     ( spec
     ) where
 
-import Prelude
-
 import Control.Concurrent.Concierge
     ( atomicallyWithLifted
     , newConcierge
@@ -40,19 +38,23 @@ import Test.QuickCheck
     ( Property
     , (===)
     )
+import Prelude
 
 spec :: Spec
 spec =
     describe "Control.Concurrent.Concierge" $ do
-        it "Atomic operations do not interleave"
+        it
+            "Atomic operations do not interleave"
             unit_atomic
 
-        it "throwIO releases lock"
+        it
+            "throwIO releases lock"
             unit_release_lock
 
 {-------------------------------------------------------------------------------
     Properties
 -------------------------------------------------------------------------------}
+
 -- | Deterministic test for atomicity.
 -- We have to compare a program run that interleaves against one that is atomic.
 unit_atomic :: Bool

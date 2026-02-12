@@ -11,13 +11,10 @@
 -- Dummy implementation of the database-layer, using 'MVar'. This may be good
 -- for testing to compare with an implementation on a real data store, or to use
 -- when compiling the wallet for targets which don't have SQLite.
-
 module Cardano.Wallet.DB.Pure.Layer
     ( withBootDBLayer
     , throwErrorReadDB
     ) where
-
-import Prelude
 
 import Cardano.Wallet.DB
     ( DBLayer (..)
@@ -67,6 +64,7 @@ import UnliftIO.Exception
     ( Exception
     , throwIO
     )
+import Prelude
 
 import qualified Cardano.Wallet.Primitive.Types.Range as Range
 
@@ -74,8 +72,7 @@ import qualified Cardano.Wallet.Primitive.Types.Range as Range
 -- a local MVar. Data vanishes if the software is shut down.
 withBootDBLayer
     :: forall m s
-     . ( MonadIO m
-       )
+     . (MonadIO m)
     => TimeInterpreter Identity
     -> WalletId
     -> DBLayerParams s
@@ -84,88 +81,79 @@ withBootDBLayer
 withBootDBLayer timeInterpreter wid params k = do
     lock <- liftIO $ newMVar ()
     db <- liftIO $ newMVar $ mInitializeWallet wid params
-    k $ DBLayer
+    k
+        $ DBLayer
+            { {-----------------------------------------------------------------------
+                                            Wallets
+              -----------------------------------------------------------------------}
 
-        {-----------------------------------------------------------------------
-                                      Wallets
-        -----------------------------------------------------------------------}
+              walletId_ = wid
+            , {-----------------------------------------------------------------------
+                                          Checkpoints
+              -----------------------------------------------------------------------}
+              walletState = error "MVar.walletState: not implemented"
+            , transactionsStore = error "MVar.transactionsStore: not implemented"
+            , readCheckpoint = throwErrorReadDB db mReadCheckpoint
+            , listCheckpoints = fromMaybe [] <$> readDBMaybe db mListCheckpoints
+            , rollbackTo =
+                noErrorAlterDB db
+                    . mRollbackTo
+            , {-----------------------------------------------------------------------
+                                           Tx History
+              -----------------------------------------------------------------------}
 
-        { walletId_ = wid
-
-        {-----------------------------------------------------------------------
-                                    Checkpoints
-        -----------------------------------------------------------------------}
-        , walletState = error "MVar.walletState: not implemented"
-        , transactionsStore = error "MVar.transactionsStore: not implemented"
-
-        , readCheckpoint = throwErrorReadDB db mReadCheckpoint
-
-        , listCheckpoints = fromMaybe [] <$> readDBMaybe db mListCheckpoints
-
-        , rollbackTo = noErrorAlterDB db
-            . mRollbackTo
-
-        {-----------------------------------------------------------------------
-                                     Tx History
-        -----------------------------------------------------------------------}
-
-        , putTxHistory = noErrorAlterDB db . mPutTxHistory
-
-        , readTransactions = \minWithdrawal order range mstatus _mlimit maddress ->
-            fmap (fromMaybe []) $
-            readDBMaybe db $
-                mReadTxHistory
-                    timeInterpreter
-                    minWithdrawal
-                    order
-                    range
-                    mstatus
-                    maddress
-
-        -- TODO: shift implementation to mGetTx
-        , getTx = \tid -> do
-                txInfos <- fmap (fromMaybe [])
+              putTxHistory = noErrorAlterDB db . mPutTxHistory
+            , readTransactions = \minWithdrawal order range mstatus _mlimit maddress ->
+                fmap (fromMaybe [])
                     $ readDBMaybe db
                     $ mReadTxHistory
                         timeInterpreter
-                        Nothing
-                        Descending
-                        Range.everything
-                        Nothing
-                        Nothing
+                        minWithdrawal
+                        order
+                        range
+                        mstatus
+                        maddress
+            , -- TODO: shift implementation to mGetTx
+              getTx = \tid -> do
+                txInfos <-
+                    fmap (fromMaybe [])
+                        $ readDBMaybe db
+                        $ mReadTxHistory
+                            timeInterpreter
+                            Nothing
+                            Descending
+                            Range.everything
+                            Nothing
+                            Nothing
                 let txPresent (TransactionInfo{..}) = txInfoId == tid
                 case filter txPresent txInfos of
                     [] -> pure Nothing
-                    t:_ -> pure $ Just t
+                    t : _ -> pure $ Just t
+            , {-----------------------------------------------------------------------
+                                             Pending Tx
+              -----------------------------------------------------------------------}
 
-        {-----------------------------------------------------------------------
-                                       Pending Tx
-        -----------------------------------------------------------------------}
+              resubmitTx =
+                error "resubmitTx not tested in State Machine tests"
+            , rollForwardTxSubmissions =
+                error "rollForwardTxSubmissions not tested in State Machine tests"
+            , {-----------------------------------------------------------------------
+                                       Protocol Parameters
+              -----------------------------------------------------------------------}
 
-        , resubmitTx =
-            error "resubmitTx not tested in State Machine tests"
+              readGenesisParameters = join <$> readDBMaybe db mReadGenesisParameters
+            , {-----------------------------------------------------------------------
+                                            Execution
+              -----------------------------------------------------------------------}
 
-        , rollForwardTxSubmissions =
-            error "rollForwardTxSubmissions not tested in State Machine tests"
-
-        {-----------------------------------------------------------------------
-                                 Protocol Parameters
-        -----------------------------------------------------------------------}
-
-        , readGenesisParameters = join <$> readDBMaybe db mReadGenesisParameters
-
-        {-----------------------------------------------------------------------
-                                      Execution
-        -----------------------------------------------------------------------}
-
-        , getSchemaVersion =
-            error "getSchemaVersion not tested in State Machine tests"
-
-        , atomically = \action -> withMVar lock $ \() -> action
-        }
+              getSchemaVersion =
+                error "getSchemaVersion not tested in State Machine tests"
+            , atomically = \action -> withMVar lock $ \() -> action
+            }
 
 -- | Read the database, but return 'Nothing' if the operation fails.
-readDBMaybe :: MonadIO m
+readDBMaybe
+    :: MonadIO m
     => MVar (Database WalletId s xprv)
     -> ModelOp WalletId s xprv a
     -> m (Maybe a)

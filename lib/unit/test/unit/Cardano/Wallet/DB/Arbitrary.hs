@@ -17,9 +17,8 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
-
-{-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Cardano.Wallet.DB.Arbitrary
     ( GenTxHistory (..)
@@ -28,8 +27,6 @@ module Cardano.Wallet.DB.Arbitrary
     , MockChain (..)
     , InitialCheckpoint (..)
     ) where
-
-import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv
@@ -62,7 +59,8 @@ import Cardano.Wallet.Address.Derivation.Byron
     ( ByronKey (..)
     )
 import Cardano.Wallet.Address.Derivation.Shared
-    ()
+    (
+    )
 import Cardano.Wallet.Address.Derivation.SharedKey
     ( SharedKey
     , purposeCIP1854
@@ -247,7 +245,8 @@ import Data.Generics.Internal.VL.Lens
     ( (^.)
     )
 import Data.Generics.Labels
-    ()
+    (
+    )
 import Data.List
     ( unfoldr
     )
@@ -284,11 +283,11 @@ import Fmt
     , suffixF
     , tupleF
     )
-import Generics.SOP
-    ( NP (..)
-    )
 import GHC.Generics
     ( Generic
+    )
+import Generics.SOP
+    ( NP (..)
     )
 import Numeric.Natural
     ( Natural
@@ -331,6 +330,7 @@ import Test.QuickCheck.Extra
 import Test.Utils.Time
     ( genUniformTime
     )
+import Prelude
 
 import qualified Cardano.Wallet.Address.Derivation.Byron as Byron
 import qualified Cardano.Wallet.Address.Derivation.MintBurn as MintBurn
@@ -365,17 +365,17 @@ type GenState s =
 newtype KeyValPairs k v = KeyValPairs [(k, v)]
     deriving (Generic, Show, Eq)
 
-newtype GenTxHistory = GenTxHistory { unGenTxHistory :: TxHistory }
+newtype GenTxHistory = GenTxHistory {unGenTxHistory :: TxHistory}
     deriving stock (Show, Eq)
     deriving newtype (Semigroup, Monoid)
 
 newtype MockChain = MockChain
-    { getMockChain :: [Block] }
+    {getMockChain :: [Block]}
     deriving stock (Eq, Show)
 
 -- | Generate arbitrary checkpoints, but that always have their tip at 0 0.
-newtype InitialCheckpoint s =
-    InitialCheckpoint { getInitialCheckpoint :: Wallet s }
+newtype InitialCheckpoint s
+    = InitialCheckpoint {getInitialCheckpoint :: Wallet s}
     deriving newtype (Show, Eq, NFData)
 
 instance (Arbitrary k, Ord k, Arbitrary v) => Arbitrary (KeyValPairs k v) where
@@ -387,14 +387,15 @@ instance (Arbitrary k, Ord k, Arbitrary v) => Arbitrary (KeyValPairs k v) where
 instance Arbitrary GenTxHistory where
     shrink (GenTxHistory txs) = GenTxHistory <$> shrinkList shrinkOne txs
       where
-        shrinkOne (tx,meta) = [(tx', meta) | tx' <- shrink tx]
+        shrinkOne (tx, meta) = [(tx', meta) | tx' <- shrink tx]
 
-    arbitrary = GenTxHistory . sortTxHistory <$> do
-        -- NOTE
-        -- We only generate transactions that are `InLedger`
-        -- here, because the pending and expired transactions are
-        -- tracked as part of the WalletState.
-        filter (isInLedger . snd) <$> scale (min 25) arbitrary
+    arbitrary =
+        GenTxHistory . sortTxHistory <$> do
+            -- NOTE
+            -- We only generate transactions that are `InLedger`
+            -- here, because the pending and expired transactions are
+            -- tracked as part of the WalletState.
+            filter (isInLedger . snd) <$> scale (min 25) arbitrary
       where
         sortTxHistory =
             filterTxHistory Nothing Descending Range.everything Nothing
@@ -412,23 +413,26 @@ instance Arbitrary MockChain where
         n0 <- choose (1, 10)
         slot0 <- arbitrary
         height0 <- fromIntegral <$> choose (0, unSlotNo slot0)
-        blocks <- sequence $ flip unfoldr (slot0, height0, n0) $
-            \(slot, height, n) ->
+        blocks <- sequence
+            $ flip unfoldr (slot0, height0, n0)
+            $ \(slot, height, n) ->
                 if n <= (0 :: Int)
                     then Nothing
-                    else Just
-                        ( genBlock slot height
-                        , (SlotNo (unSlotNo slot + 1), height + 1, n - 1)
-                        )
+                    else
+                        Just
+                            ( genBlock slot height
+                            , (SlotNo (unSlotNo slot + 1), height + 1, n - 1)
+                            )
         return (MockChain blocks)
       where
         genBlock :: SlotNo -> Word32 -> Gen Block
         genBlock slot height = do
-            let h = BlockHeader
-                    slot
-                    (Quantity height)
-                    (mockHash slot)
-                    (Just $ mockHash slot)
+            let h =
+                    BlockHeader
+                        slot
+                        (Quantity height)
+                        (mockHash slot)
+                        (Just $ mockHash slot)
             Block h
                 <$> (choose (1, 10) >>= vector)
                 <*> pure []
@@ -437,10 +441,12 @@ instance GenState s => Arbitrary (InitialCheckpoint s) where
     shrink (InitialCheckpoint cp) = InitialCheckpoint <$> shrink cp
     arbitrary = do
         cp <- arbitrary @(Wallet s)
-        pure $ InitialCheckpoint $ unsafeInitWallet
-            (utxo cp)
-            (block0 ^. #header)
-            (getState cp)
+        pure
+            $ InitialCheckpoint
+            $ unsafeInitWallet
+                (utxo cp)
+                (block0 ^. #header)
+                (getState cp)
 
 {-------------------------------------------------------------------------------
                                    Wallets
@@ -449,25 +455,29 @@ instance GenState s => Arbitrary (InitialCheckpoint s) where
 instance GenState s => Arbitrary (Wallet s) where
     shrink w =
         [ unsafeInitWallet u (currentTip w) s
-        | (u, s) <- shrink (utxo w, getState w) ]
-    arbitrary = unsafeInitWallet
-        <$> arbitrary
-        <*> arbitrary
-        <*> arbitrary
+        | (u, s) <- shrink (utxo w, getState w)
+        ]
+    arbitrary =
+        unsafeInitWallet
+            <$> arbitrary
+            <*> arbitrary
+            <*> arbitrary
 
 instance Arbitrary WalletId where
     shrink _ = []
-    arbitrary = WalletId . hash . B8.pack . pure <$> elements ['a'..'k']
+    arbitrary = WalletId . hash . B8.pack . pure <$> elements ['a' .. 'k']
 
 instance Arbitrary WalletMetadata where
     shrink _ = []
-    arbitrary =  (WalletMetadata . WalletName
-        <$> elements ["bulbazaur", "charmander", "squirtle"])
-        <*> genUniformTime
-        <*> oneof
-            [ pure Nothing
-            , Just <$> (WalletPassphraseInfo <$> genUniformTime <*> arbitrary)
-            ]
+    arbitrary =
+        ( WalletMetadata . WalletName
+            <$> elements ["bulbazaur", "charmander", "squirtle"]
+        )
+            <*> genUniformTime
+            <*> oneof
+                [ pure Nothing
+                , Just <$> (WalletPassphraseInfo <$> genUniformTime <*> arbitrary)
+                ]
 
 instance Arbitrary PassphraseScheme where
     arbitrary = genericArbitrary
@@ -489,14 +499,18 @@ instance Arbitrary SlotNo where
     arbitrary = do
         SlotInEpoch sl <- arbitrary
         EpochNo ep <- arbitrary
-        pure $ SlotNo $ fromIntegral $ fromIntegral ep * arbitraryChainLength + sl
+        pure
+            $ SlotNo
+            $ fromIntegral
+            $ fromIntegral ep * arbitraryChainLength + sl
     shrink = shrinkSlotNo
 
 instance Arbitrary Slot where
-    arbitrary = frequency
-        [ ( 1, pure Origin)
-        , (40, At <$> arbitrary)
-        ]
+    arbitrary =
+        frequency
+            [ (1, pure Origin)
+            , (40, At <$> arbitrary)
+            ]
     shrink Origin = [Origin]
     shrink (At slot) = At <$> shrinkSlotNo slot
 
@@ -531,8 +545,8 @@ instance Arbitrary TxCBOR where
 instance Arbitrary Tx where
     shrink (Tx _tid cbor fees ins cins outs cout wdrls md validity) =
         [ mkTx cbor fees ins' cins' outs' cout' wdrls' md' validity'
-        | (ins', cins', outs', cout', wdrls', md', validity')
-            <- shrink
+        | (ins', cins', outs', cout', wdrls', md', validity') <-
+            shrink
                 (ins, cins, outs, cout, wdrls, md, validity)
         ]
 
@@ -544,21 +558,24 @@ instance Arbitrary Tx where
         wdrls <- fmap (Map.fromList . L.take 5) arbitrary
         fees <- arbitrary
         mkTx Nothing fees ins cins outs cout wdrls
-            <$> arbitrary <*> liftArbitrary genTxScriptValidity
+            <$> arbitrary
+            <*> liftArbitrary genTxScriptValidity
 
 instance Arbitrary TokenMap where
     arbitrary = genTokenMap
     shrink = shrinkTokenMap
 
 instance Arbitrary TxIn where
-    arbitrary = TxIn
-        <$> arbitrary
-        <*> scale (`mod` 3) arbitrary -- No need for a high indexes
+    arbitrary =
+        TxIn
+            <$> arbitrary
+            <*> scale (`mod` 3) arbitrary -- No need for a high indexes
 
 instance Arbitrary TxOut where
-    arbitrary = TxOut
-        <$> arbitrary
-        <*> genTokenBundleSmallRange
+    arbitrary =
+        TxOut
+            <$> arbitrary
+            <*> genTokenBundleSmallRange
 
 instance Arbitrary TxMeta where
     arbitrary = do
@@ -585,17 +602,19 @@ instance Arbitrary UTxO where
         UTxO <$> shrink u
     arbitrary = do
         n <- choose (1, 10)
-        u <- zip
-            <$> vector n
-            <*> vector n
+        u <-
+            zip
+                <$> vector n
+                <*> vector n
         return $ UTxO $ Map.fromList u
 
 instance (Ord a, Arbitrary a) => Arbitrary (Range a) where
     arbitrary = Range <$> arbitrary <*> arbitrary
 
-    shrink (Range from to) = filter Range.isValid $
-        [Range from' to | from' <- shrink from]
-        ++ [Range from to' | to' <- shrink to]
+    shrink (Range from to) =
+        filter Range.isValid
+            $ [Range from' to | from' <- shrink from]
+                ++ [Range from to' | to' <- shrink to]
 
 {-------------------------------------------------------------------------------
                                  Address
@@ -622,24 +641,26 @@ instance Arbitrary (Index 'WholeDomain depth) where
 
 instance Arbitrary (SeqState 'Mainnet ShelleyKey) where
     shrink (SeqState intPool extPool ixs acc policy rwd prefix change) =
-            (\(i, e, x) -> SeqState i e x acc policy rwd prefix change)
-        <$> shrink (intPool, extPool, ixs)
-    arbitrary = SeqState
-        <$> arbitrary
-        <*> arbitrary
-        <*> arbitrary
-        <*> pure arbitrarySeqAccount
-        <*> pure (Just arbitraryPolicyKey)
-        <*> pure arbitraryRewardAccount
-        <*> pure defaultSeqStatePrefix
-        <*> arbitrary
+        (\(i, e, x) -> SeqState i e x acc policy rwd prefix change)
+            <$> shrink (intPool, extPool, ixs)
+    arbitrary =
+        SeqState
+            <$> arbitrary
+            <*> arbitrary
+            <*> arbitrary
+            <*> pure arbitrarySeqAccount
+            <*> pure (Just arbitraryPolicyKey)
+            <*> pure arbitraryRewardAccount
+            <*> pure defaultSeqStatePrefix
+            <*> arbitrary
 
 defaultSeqStatePrefix :: DerivationPrefix
-defaultSeqStatePrefix = DerivationPrefix
-    ( purposeCIP1852
-    , coinTypeAda
-    , minBound
-    )
+defaultSeqStatePrefix =
+    DerivationPrefix
+        ( purposeCIP1852
+        , coinTypeAda
+        , minBound
+        )
 
 instance Arbitrary (ShelleyKey 'RootK XPrv) where
     shrink _ = []
@@ -666,11 +687,15 @@ instance Arbitrary (ShelleyKey 'RootK XPrv) where
 instance Arbitrary (PendingIxs 'CredFromKeyK) where
     arbitrary = pure emptyPendingIxs
 
-instance ( Typeable ( c :: Role ) )
+instance
+    (Typeable (c :: Role))
     => Arbitrary (Seq.SeqAddressPool c ShelleyKey)
-  where
-    arbitrary = pure $ Seq.newSeqAddressPool @'Mainnet
-        arbitrarySeqAccount defaultAddressPoolGap
+    where
+    arbitrary =
+        pure
+            $ Seq.newSeqAddressPool @'Mainnet
+                arbitrarySeqAccount
+                defaultAddressPoolGap
 
 -- Properties are quite heavy on the generation of values, although for
 -- private keys, it isn't particularly useful / relevant to generate many of
@@ -682,7 +707,8 @@ rootKeysSeq = unsafePerformIO $ generate (vectorOf 10 genRootKeysSeq)
     genRootKeysSeq :: Gen (ShelleyKey 'RootK XPrv)
     genRootKeysSeq = do
         s <- SomeMnemonic <$> genMnemonic @12
-        g <- frequency
+        g <-
+            frequency
                 [ (1, return Nothing)
                 , (3, Just . SomeMnemonic <$> genMnemonic @12)
                 ]
@@ -710,10 +736,10 @@ arbitraryPolicyKey
     :: ShelleyKey 'PolicyK XPub
 arbitraryPolicyKey =
     publicKey ShelleyKeyS
-        $ liftRawKey ShelleyKeyS $
-    MintBurn.derivePolicyPrivateKey mempty rootXPrv minBound
+        $ liftRawKey ShelleyKeyS
+        $ MintBurn.derivePolicyPrivateKey mempty rootXPrv minBound
   where
-    rootXPrv:_ = getRawKey ShelleyKeyS <$> take 1 rootKeysSeq
+    rootXPrv : _ = getRawKey ShelleyKeyS <$> take 1 rootKeysSeq
 
 {-------------------------------------------------------------------------------
                                  Random State
@@ -724,21 +750,23 @@ instance Arbitrary (RndState 'Mainnet) where
         [ RndState k ix' addrs' pending' g
         | (ix', addrs', pending') <- shrink (ix, addrs, pending)
         ]
-    arbitrary = RndState
-        (Passphrase "passphrase")
-        minBound
-        <$> scale (min 10) arbitrary
-        <*> (pure mempty) -- FIXME: see comment on 'Arbitrary Seq.PendingIxs'
-        <*> pure (mkStdGen 42)
+    arbitrary =
+        RndState
+            (Passphrase "passphrase")
+            minBound
+            <$> scale (min 10) arbitrary
+            <*> (pure mempty) -- FIXME: see comment on 'Arbitrary Seq.PendingIxs'
+            <*> pure (mkStdGen 42)
 
 instance Arbitrary (ByronKey 'RootK XPrv) where
     shrink _ = []
     arbitrary = elements rootKeysRnd
 
 genRootKeysRnd :: Gen (ByronKey 'RootK XPrv)
-genRootKeysRnd = Byron.generateKeyFromSeed
-    <$> arbitrary
-    <*> genPassphrase @"encryption" (0, 16)
+genRootKeysRnd =
+    Byron.generateKeyFromSeed
+        <$> arbitrary
+        <*> genPassphrase @"encryption" (0, 16)
 
 genPassphrase :: (Int, Int) -> Gen (Passphrase purpose)
 genPassphrase range = do
@@ -763,35 +791,42 @@ rootKeysRnd = unsafePerformIO $ generate (vectorOf 10 genRootKeysRnd)
 instance Arbitrary (SharedState 'Mainnet SharedKey) where
     arbitrary = do
         pt <- genScriptTemplateHardCoded
-        pure $ SharedState
-            defaultSharedStatePrefix
-            arbitrarySharedAccount
-            pt
-            Nothing
-            Nothing
-            defaultAddressPoolGap
-            IncreasingChangeAddresses
-            (Shared.Active $ SharedAddressPools
-                (Shared.newSharedAddressPool @'Mainnet defaultAddressPoolGap pt Nothing)
-                (Shared.newSharedAddressPool @'Mainnet defaultAddressPoolGap pt Nothing)
-                emptyPendingIxs
-            )
+        pure
+            $ SharedState
+                defaultSharedStatePrefix
+                arbitrarySharedAccount
+                pt
+                Nothing
+                Nothing
+                defaultAddressPoolGap
+                IncreasingChangeAddresses
+                ( Shared.Active
+                    $ SharedAddressPools
+                        (Shared.newSharedAddressPool @'Mainnet defaultAddressPoolGap pt Nothing)
+                        (Shared.newSharedAddressPool @'Mainnet defaultAddressPoolGap pt Nothing)
+                        emptyPendingIxs
+                )
 
 defaultSharedStatePrefix :: DerivationPrefix
-defaultSharedStatePrefix = DerivationPrefix
-    ( purposeCIP1854
-    , coinTypeAda
-    , minBound @(Index 'Hardened 'AccountK)
-    )
+defaultSharedStatePrefix =
+    DerivationPrefix
+        ( purposeCIP1854
+        , coinTypeAda
+        , minBound @(Index 'Hardened 'AccountK)
+        )
 
 instance Arbitrary (Script Cosigner) where
-    arbitrary = pure $
-        RequireAllOf [RequireSignatureOf (Cosigner 0), RequireAnyOf [ActiveFromSlot 200, ActiveUntilSlot 100]]
+    arbitrary =
+        pure
+            $ RequireAllOf
+                [ RequireSignatureOf (Cosigner 0)
+                , RequireAnyOf [ActiveFromSlot 200, ActiveUntilSlot 100]
+                ]
 
 genScriptTemplateHardCoded :: Gen ScriptTemplate
 genScriptTemplateHardCoded =
     ScriptTemplate
-        (Map.fromList
+        ( Map.fromList
             [(Cosigner 0, getRawKey ShelleyKeyS arbitrarySeqAccount)]
         )
         <$> arbitrary
@@ -812,25 +847,27 @@ arbitrarySharedAccount =
 -------------------------------------------------------------------------------}
 
 instance Arbitrary ProtocolParameters where
-    shrink = genericRoundRobinShrink
-        <@> shrink
-        <:> shrink
-        <:> shrink
-        <:> shrink
-        <:> shrink
-        <:> shrink
-        <:> shrink
-        <:> shrink
-        <:> Nil
-    arbitrary = ProtocolParameters
-        <$> arbitrary
-        <*> arbitrary
-        <*> choose (0, 100)
-        <*> arbitrary
-        <*> arbitrary
-        <*> genMaximumCollateralInputCount
-        <*> genMinimumCollateralPercentage
-        <*> arbitrary
+    shrink =
+        genericRoundRobinShrink
+            <@> shrink
+            <:> shrink
+            <:> shrink
+            <:> shrink
+            <:> shrink
+            <:> shrink
+            <:> shrink
+            <:> shrink
+            <:> Nil
+    arbitrary =
+        ProtocolParameters
+            <$> arbitrary
+            <*> arbitrary
+            <*> choose (0, 100)
+            <*> arbitrary
+            <*> arbitrary
+            <*> genMaximumCollateralInputCount
+            <*> genMinimumCollateralPercentage
+            <*> arbitrary
       where
         genMaximumCollateralInputCount :: Gen Word16
         genMaximumCollateralInputCount = arbitrarySizedNatural
@@ -852,22 +889,25 @@ instance Arbitrary (EraInfo EpochNo) where
 
 instance Arbitrary TxParameters where
     shrink = genericShrink
-    arbitrary = TxParameters
-        <$> arbitrary
-        <*> fmap Quantity (choose (0, 1_000))
-        <*> arbitrary
-        <*> arbitrary
+    arbitrary =
+        TxParameters
+            <$> arbitrary
+            <*> fmap Quantity (choose (0, 1_000))
+            <*> arbitrary
+            <*> arbitrary
 
 instance Arbitrary ExecutionUnits where
     shrink = genericShrink
-    arbitrary = ExecutionUnits
-        <$> arbitrary
-        <*> arbitrary
+    arbitrary =
+        ExecutionUnits
+            <$> arbitrary
+            <*> arbitrary
 
 instance Arbitrary FeePolicy where
-    arbitrary = (LinearFee . ) . LinearFunction
-        <$> choose (0, 1_000)
-        <*> choose (0, 100)
+    arbitrary =
+        (LinearFee .) . LinearFunction
+            <$> choose (0, 1_000)
+            <*> choose (0, 100)
 
 instance (Integral a, Arbitrary a) => Arbitrary (Quantity n a) where
     shrink (Quantity a) = Quantity <$> shrinkIntegral a
@@ -909,11 +949,14 @@ instance Arbitrary PoolId where
     arbitrary = PoolId . convertToBase Base16 . BS.pack <$> vector 16
 
 instance Arbitrary DelegationCertificate where
-    arbitrary = oneof
-        [ CertDelegateNone <$> genArbitraryRewardAccount
-        , CertVoteAndDelegate <$> genArbitraryRewardAccount <*>
-          (Just <$> arbitrary) <*> pure Nothing
-        ]
+    arbitrary =
+        oneof
+            [ CertDelegateNone <$> genArbitraryRewardAccount
+            , CertVoteAndDelegate
+                <$> genArbitraryRewardAccount
+                <*> (Just <$> arbitrary)
+                <*> pure Nothing
+            ]
       where
         genArbitraryRewardAccount = pure $ FromKeyHash $ BS.replicate 32 0
 
@@ -938,9 +981,10 @@ instance Arbitrary ChangeAddressMode where
 instance Arbitrary DRepID where
     arbitrary = do
         InfiniteList bytes _ <- arbitrary
-        oneof [ pure $ DRepFromKeyHash $ DRepKeyHash $ BS.pack $ take 28 bytes
-              , pure $ DRepFromScriptHash $ DRepScriptHash $ BS.pack $ take 28 bytes
-              ]
+        oneof
+            [ pure $ DRepFromKeyHash $ DRepKeyHash $ BS.pack $ take 28 bytes
+            , pure $ DRepFromScriptHash $ DRepScriptHash $ BS.pack $ take 28 bytes
+            ]
 
 instance Arbitrary DRep where
     arbitrary =

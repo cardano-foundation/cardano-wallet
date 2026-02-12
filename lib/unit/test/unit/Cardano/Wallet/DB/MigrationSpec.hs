@@ -8,10 +8,6 @@
 -- Tests for database migration library.
 module Cardano.Wallet.DB.MigrationSpec where
 
-import Prelude hiding
-    ( (.)
-    )
-
 import Cardano.Wallet.DB.Migration
     ( ErrWrongVersion (ErrWrongVersion)
     , Migration
@@ -56,6 +52,9 @@ import Test.Hspec
     , it
     , shouldReturn
     , shouldThrow
+    )
+import Prelude hiding
+    ( (.)
     )
 
 data Database = Database
@@ -115,7 +114,7 @@ m12 = m2 . m1
     Test harness
 ------------------------------------------------------------------------------}
 newtype MonadDatabase a = MonadDatabase
-    { unMonadDatabase :: ExceptT SomeException (State Database) a }
+    {unMonadDatabase :: ExceptT SomeException (State Database) a}
     deriving (Functor, Applicative, Monad)
 
 instance MonadThrow MonadDatabase where
@@ -135,19 +134,20 @@ runMonadDatabase db0 (MonadDatabase action) = do
 type Handle = ()
 
 mkMigrationInterface :: MigrationInterface MonadDatabase Handle
-mkMigrationInterface = MigrationInterface
-    { backupDatabaseFile = \_ v ->
-        liftState . modify $ \db -> db{ backups = backups db <> [v] }
-    , withDatabaseFile =
-        \_ action -> action ()
-    , getVersion = \_ ->
-        version <$> liftState get
-    , setVersion = \_ v ->
-        liftState . modify $ \db -> db{ version = v }
-    }
+mkMigrationInterface =
+    MigrationInterface
+        { backupDatabaseFile = \_ v ->
+            liftState . modify $ \db -> db{backups = backups db <> [v]}
+        , withDatabaseFile =
+            \_ action -> action ()
+        , getVersion = \_ ->
+            version <$> liftState get
+        , setVersion = \_ v ->
+            liftState . modify $ \db -> db{version = v}
+        }
 
 migrate :: [Int] -> ReaderT Handle MonadDatabase ()
-migrate xs = lift . liftState . modify $ \db -> db{ state = state db <> xs }
+migrate xs = lift . liftState . modify $ \db -> db{state = state db <> xs}
 
 runTestMigrations
     :: (KnownNat from, KnownNat to)
@@ -156,6 +156,6 @@ runTestMigrations
     -> IO Database
 runTestMigrations v0 =
     runMonadDatabase initialDatabase
-    . runMigrations mkMigrationInterface "filepath"
+        . runMigrations mkMigrationInterface "filepath"
   where
     initialDatabase = Database (Version v0) [] []

@@ -17,8 +17,6 @@ module Cardano.Wallet.Benchmarks.Latency.BenchM
     )
 where
 
-import Prelude
-
 import Cardano.Wallet.Api.Types
     ( ApiWallet
     )
@@ -58,6 +56,7 @@ import Test.Integration.Framework.DSL
     ( Context
     , clientEnv
     )
+import Prelude
 
 import qualified Cardano.Wallet.Api.Clients.Testnet.Id as C
 import qualified Cardano.Wallet.Api.Clients.Testnet.Shelley as C
@@ -103,5 +102,5 @@ fixtureWallet :: BenchM ApiWallet
 fixtureWallet = runDSL DSL.fixtureWallet
 
 fixtureWalletWith :: [Natural] -> BenchM ApiWallet
-fixtureWalletWith w = runDSL $
-    \ctx -> DSL.fixtureWalletWith @C.Testnet42 ctx w
+fixtureWalletWith w = runDSL
+    $ \ctx -> DSL.fixtureWalletWith @C.Testnet42 ctx w

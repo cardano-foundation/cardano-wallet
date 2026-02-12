@@ -21,8 +21,6 @@ module Cardano.Wallet.Launch.Cluster.Http.Monitor.Client
     )
 where
 
-import Prelude
-
 import Cardano.Wallet.Launch.Cluster
     ( RunningNode
     )
@@ -85,6 +83,7 @@ import UnliftIO
     , UnliftIO (..)
     , askUnliftIO
     )
+import Prelude
 
 -- | Queries that can be sent to the monitoring server via HTTP.
 data MonitorQ a where
@@ -134,7 +133,7 @@ instance ToText MsgMonitorClient where
 
 newRunMonitorQ
     :: forall m
-        . MonadUnliftIO m
+     . MonadUnliftIO m
     => (forall a. ClientM a -> IO a)
     -> Tracer m MsgMonitorClient
     -> MonitorClient
@@ -144,9 +143,11 @@ newRunMonitorQ query tr MonitorClient{ready, observe, step, switch} =
         UnliftIO unlift <- askUnliftIO
         pure $ RunMonitorQ $ \request -> do
             traceWith tr $ MsgMonitorClientReq $ AnyQuery request
-            let f = unlift
-                    . traceWith tr . MsgMonitorClientRetry
-                    $ AnyQuery request
+            let f =
+                    unlift
+                        . traceWith tr
+                        . MsgMonitorClientRetry
+                        $ AnyQuery request
             liftIO $ recovering f $ case request of
                 ReadyQ -> query ready
                 ObserveQ -> unApiT <$> query observe
@@ -158,13 +159,13 @@ recovering f doing = recoverAll retryPolicy
     $ \rt -> do
         unless (firstTry rt) f
         doing
-    where
-        retryPolicy :: RetryPolicyM IO
-        retryPolicy = capDelay (60 * oneSecond) $ exponentialBackoff oneSecond
-        oneSecond = 1_000_000 :: Int
-        firstTry :: RetryStatus -> Bool
-        firstTry (RetryStatus 0 _ _) = True
-        firstTry _ = False
+  where
+    retryPolicy :: RetryPolicyM IO
+    retryPolicy = capDelay (60 * oneSecond) $ exponentialBackoff oneSecond
+    oneSecond = 1_000_000 :: Int
+    firstTry :: RetryStatus -> Bool
+    firstTry (RetryStatus 0 _ _) = True
+    firstTry _ = False
 
 waitForRunningNode :: RunMonitorQ IO -> IO RunningNode
 waitForRunningNode (RunMonitorQ q) = fix $ \loop -> do

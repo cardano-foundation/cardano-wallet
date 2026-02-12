@@ -5,9 +5,7 @@
 module Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.CollateralOutputs
     ( getCollateralOutputs
     )
-    where
-
-import Prelude
+where
 
 import Cardano.Ledger.Babbage
     ( BabbageEra
@@ -31,12 +29,13 @@ import Cardano.Wallet.Read.Eras
 import Data.Maybe.Strict
     ( strictMaybeToMaybe
     )
+import Prelude
 
 import qualified Cardano.Ledger.Babbage as Babbage
 import qualified Cardano.Ledger.Babbage.TxBody as Babbage
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
 
-{-# INLINABLE getCollateralOutputs #-}
+{-# INLINEABLE getCollateralOutputs #-}
 getCollateralOutputs
     :: forall era
      . IsEra era

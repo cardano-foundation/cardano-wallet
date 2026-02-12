@@ -4,14 +4,10 @@
 -- |
 -- Copyright: © 2020-2024 IOHK
 -- License: Apache-2.0
---
-
 module Cardano.Wallet.Read.Tx.CollateralInputs
     ( getCollateralInputs
     )
-    where
-
-import Prelude
+where
 
 import Cardano.Wallet.Read.Eras
     ( Era (..)
@@ -26,13 +22,15 @@ import Cardano.Wallet.Read.Tx.TxIn
 import Data.Set
     ( Set
     )
+import Prelude
 
-import qualified Cardano.Read.Ledger.Tx.CollateralInputs as L
-import qualified Data.Set as Set
+import Cardano.Read.Ledger.Tx.CollateralInputs qualified as L
+import Data.Set qualified as Set
 
-{-# INLINABLE getCollateralInputs #-}
+{-# INLINEABLE getCollateralInputs #-}
+
 -- | Extract the collateral inputs from a transaction in any era.
-getCollateralInputs :: forall era . IsEra era => Tx era -> Set TxIn
+getCollateralInputs :: forall era. IsEra era => Tx era -> Set TxIn
 getCollateralInputs = case theEra :: Era era of
     Byron -> const Set.empty
     Shelley -> const Set.empty
@@ -42,5 +40,6 @@ getCollateralInputs = case theEra :: Era era of
     Babbage -> unCollateralInputs . L.getEraCollateralInputs
     Conway -> unCollateralInputs . L.getEraCollateralInputs
 
-unCollateralInputs :: L.CollateralInputs era -> L.CollateralInputsType era
+unCollateralInputs
+    :: L.CollateralInputs era -> L.CollateralInputsType era
 unCollateralInputs (L.CollateralInputs x) = x

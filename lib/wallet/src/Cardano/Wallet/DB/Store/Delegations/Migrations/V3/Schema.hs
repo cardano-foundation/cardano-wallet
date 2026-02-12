@@ -25,8 +25,6 @@ module Cardano.Wallet.DB.Store.Delegations.Migrations.V3.Schema
     )
 where
 
-import Prelude
-
 import Cardano.Pool.Types
     ( PoolId
     )
@@ -84,6 +82,7 @@ import Web.HttpApiData
 import Web.PathPieces
     ( PathPiece (..)
     )
+import Prelude
 
 instance PersistField PoolId where
     toPersistValue :: PoolId -> PersistValue
@@ -117,7 +116,8 @@ instance PathPiece SlotNo where
     toPathPiece = error "toPathPiece stub needed for persistent"
     fromPathPiece = error "fromPathPiece stub needed for persistent"
 
-mkPersist (sqlSettings { mpsPrefixFields = False })
+mkPersist
+    (sqlSettings{mpsPrefixFields = False})
     [persistLowerCase|
         Delegations                                     sql=delegations
             delegationSlot      SlotNo                  sql=slot
@@ -133,10 +133,11 @@ data DelegationStatusEnum = InactiveE | RegisteredE | ActiveE
     deriving (Eq, Show, Enum, Generic)
 
 instance PersistField DelegationStatusEnum where
-    toPersistValue = toPersistValue . \case
-        InactiveE -> "inactive" :: Text
-        RegisteredE -> "registered"
-        ActiveE -> "active"
+    toPersistValue =
+        toPersistValue . \case
+            InactiveE -> "inactive" :: Text
+            RegisteredE -> "registered"
+            ActiveE -> "active"
     fromPersistValue = fromPersistValue >=> readDelegationStatus
 
 readDelegationStatus :: Text -> Either Text DelegationStatusEnum

@@ -9,15 +9,11 @@
 module Cardano.Wallet.Delegation.Model
     ( Operation (..)
     , slotOf
-
     , Transition (..)
     , applyTransition
-
     , Status (..)
-
     , History
     , status
-
     , pattern Register
     , pattern Delegate
     , pattern Vote
@@ -29,8 +25,6 @@ module Cardano.Wallet.Delegation.Model
     , pattern DelegatingAndVoting
     ) where
 
-import Prelude
-
 import Data.Delta
     ( Delta (..)
     )
@@ -40,6 +34,7 @@ import Data.Function
 import Data.Map.Strict
     ( Map
     )
+import Prelude
 
 import qualified Data.Map.Strict as Map
 
@@ -79,25 +74,28 @@ instance (Ord slot, Eq pool, Eq drep) => Delta (Operation slot drep pool) where
             ApplyTransition t _ -> applyTransition t $ status slot hist
             Rollback _ -> status slot hist
 
-applyTransition :: Transition drep pool -> Status drep pool -> Status drep pool
+applyTransition
+    :: Transition drep pool -> Status drep pool -> Status drep pool
 applyTransition Deregister _ = Inactive
 applyTransition (VoteAndDelegate d p) (Active d' p') = Active d'' p''
-    where
-        d'' = insertIfJust d d'
-        p'' = insertIfJust p p'
+  where
+    d'' = insertIfJust d d'
+    p'' = insertIfJust p p'
 applyTransition (VoteAndDelegate d p) _ = Active d p
 
 insertIfJust :: Maybe a -> Maybe a -> Maybe a
 insertIfJust (Just y) _ = Just y
 insertIfJust Nothing x = x
 
-type Change slot drep pool = History slot drep pool -> History slot drep pool
+type Change slot drep pool =
+    History slot drep pool -> History slot drep pool
 
 cut :: (slot -> Bool) -> Change slot drep pool
 cut op = fst . Map.spanAntitone op
 
 -- | Status of the delegation at a given slot.
-status :: Ord slot => slot -> Map slot (Status drep pool) -> Status drep pool
+status
+    :: Ord slot => slot -> Map slot (Status drep pool) -> Status drep pool
 status x = maybe Inactive snd . Map.lookupMax . cut (<= x)
 
 pattern Register :: slot -> Operation slot drep pool
@@ -112,9 +110,10 @@ pattern Vote v i = ApplyTransition (VoteAndDelegate (Just v) Nothing) i
 pattern Deregister' :: slot -> Operation slot drep pool
 pattern Deregister' i = ApplyTransition Deregister i
 
-pattern DelegateAndVote :: pool -> drep -> slot -> Operation slot drep pool
-pattern DelegateAndVote p v i
-    = ApplyTransition (VoteAndDelegate (Just v) (Just p)) i
+pattern DelegateAndVote
+    :: pool -> drep -> slot -> Operation slot drep pool
+pattern DelegateAndVote p v i =
+    ApplyTransition (VoteAndDelegate (Just v) (Just p)) i
 
 pattern Registered :: Status drep pool
 pattern Registered = Active Nothing Nothing

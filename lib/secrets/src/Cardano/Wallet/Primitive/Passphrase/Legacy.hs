@@ -13,8 +13,6 @@
 --  - r = 8
 --  - p = 1
 --  - outputLength = 64
---
-
 module Cardano.Wallet.Primitive.Passphrase.Legacy
     ( -- * Legacy passphrases
       checkPassphrase
@@ -27,8 +25,6 @@ module Cardano.Wallet.Primitive.Passphrase.Legacy
     , getSalt
     , genSalt
     ) where
-
-import Prelude
 
 import Cardano.Wallet.Primitive.Passphrase.Types
     ( Passphrase (..)
@@ -51,6 +47,7 @@ import Data.ByteString
 import Data.Word
     ( Word64
     )
+import Prelude
 
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
@@ -61,6 +58,7 @@ import qualified Data.ByteString.Char8 as B8
 {-----------------------------------------------------------------------------
     Passphrase hashing and verification using the Scrypt algorithm
 ------------------------------------------------------------------------------}
+
 -- | Verify a wallet spending password using the legacy Byron scrypt encryption
 -- scheme.
 checkPassphrase :: Passphrase "encryption" -> PassphraseHash -> Bool
@@ -109,8 +107,8 @@ parsePassphraseHash (PassphraseHash stored) =
     case B8.split '|' (BA.convert stored) of
         [_logN, _r, _p, salt64, hash64]
             | Right salt <- convertFromBase Base64 salt64
-            , Right hash <- convertFromBase Base64 hash64
-            -> Just (Passphrase salt, B8.length hash)
+            , Right hash <- convertFromBase Base64 hash64 ->
+                Just (Passphrase salt, B8.length hash)
         _ -> Nothing
 
 {-----------------------------------------------------------------------------
@@ -126,13 +124,15 @@ encryptPassphraseCryptoniteWithLength
 encryptPassphraseCryptoniteWithLength len (Passphrase salt) pwd =
     PassphraseHash $ BA.convert combined
   where
-    combined = B8.intercalate "|"
-        [ showBS logN
-        , showBS r
-        , showBS p
-        , convertToBase Base64 salt
-        , convertToBase Base64 passphraseHash
-        ]
+    combined =
+        B8.intercalate
+            "|"
+            [ showBS logN
+            , showBS r
+            , showBS p
+            , convertToBase Base64 salt
+            , convertToBase Base64 passphraseHash
+            ]
 
     passphraseHash :: ByteString
     passphraseHash = Scrypt.generate params (cborify pwd) salt
@@ -148,8 +148,13 @@ r = 8
 p = 1
 
 cborify :: Passphrase "encryption" -> Passphrase "encryption"
-cborify = Passphrase . BA.convert . CBOR.toStrictByteString
-    . CBOR.encodeBytes . BA.convert . unPassphrase
+cborify =
+    Passphrase
+        . BA.convert
+        . CBOR.toStrictByteString
+        . CBOR.encodeBytes
+        . BA.convert
+        . unPassphrase
 
 genSalt :: MonadRandom m => m (Passphrase "salt")
 genSalt = Passphrase <$> getRandomBytes 32

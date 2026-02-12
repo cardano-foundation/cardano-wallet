@@ -2,18 +2,16 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
 module Cardano.Wallet.UI.Shelley.API where
-
-import Prelude
 
 import Cardano.Wallet.Primitive.Types
     ( WalletId (..)
@@ -50,6 +48,7 @@ import Servant
     , (:<|>) (..)
     , (:>)
     )
+import Prelude
 
 import qualified Data.ByteString.Lazy as BL
 
@@ -61,6 +60,7 @@ type Pages =
         :<|> "wallets" :> SessionedHtml Get
         :<|> "addresses" :> SessionedHtml Get
         :<|> "settings" :> SessionedHtml Get
+
 -- | Data endpoints
 type Data =
     "network" :> "info" :> SessionedHtml Get
@@ -111,7 +111,6 @@ settingsSseToggleLink :: Link
 settingsWalletSelectLink :: WalletId -> Link
 sseLink :: Link
 faviconLink :: Link
-
 homePageLink
     :<|> aboutPageLink
     :<|> networkPageLink

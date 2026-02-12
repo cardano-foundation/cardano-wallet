@@ -9,8 +9,6 @@ module Cardano.Wallet.UI.Common.Html.Scrolling
     )
 where
 
-import Prelude
-
 import Cardano.Wallet.UI.Common.Html.Htmx
     ( hxInclude_
     , hxPost_
@@ -38,6 +36,7 @@ import Lucid
     , name_
     , value_
     )
+import Prelude
 
 import qualified Data.Set as Set
 
@@ -100,7 +99,8 @@ changes configuration presences signal = case Set.toList presences of
 -- updates.
 -- 'Delete' is actually a pure operation as it does not require any
 -- effect to be performed, but 'Add' does require retrieving the new data
-renderChange :: Monad m => Configuration m index -> Change index -> m (Html ())
+renderChange
+    :: Monad m => Configuration m index -> Change index -> m (Html ())
 renderChange c (Delete i) = pure $ do
     scrollableContainer
         c
@@ -186,7 +186,8 @@ appendIndex :: Configuration m index -> index -> Text -> Text
 appendIndex Configuration{renderIdOfIndex} j = (<> ("-" <> renderIdOfIndex j))
 
 -- | Append an index and a scrolling identifier to a text.
-appendIndexAndScrollingId :: Configuration m index -> index -> Text -> Text
+appendIndexAndScrollingId
+    :: Configuration m index -> index -> Text -> Text
 appendIndexAndScrollingId c j = appendScrollingId c . appendIndex c j
 
 -- | Add a no-swap attribute to a list of attributes.
@@ -208,7 +209,8 @@ includeStates c =
     controlState = controlSelector c
 
 -- | Add a tbody data identifier to a list of attributes.
-indexDataId :: Configuration m index -> index -> [Attribute] -> [Attribute]
+indexDataId
+    :: Configuration m index -> index -> [Attribute] -> [Attribute]
 indexDataId c j =
     (:)
         $ id_
@@ -225,7 +227,8 @@ renderIndexId c j =
         ]
 
 -- | Add the htmx post attribute to a list of attributes.
-postToUpdate :: Configuration m index -> index -> [Attribute] -> [Attribute]
+postToUpdate
+    :: Configuration m index -> index -> [Attribute] -> [Attribute]
 postToUpdate c j = (:) $ hxPost_ $ updateURL c j
 
 -- | Create a list of attributes for an index tag that will

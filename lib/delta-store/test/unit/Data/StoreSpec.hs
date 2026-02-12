@@ -1,14 +1,13 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
+
 -- |
 -- Copyright: © 2023 IOHK
 -- License: Apache-2.0
 module Data.StoreSpec
     ( spec
     ) where
-
-import Prelude
 
 import Data.Delta
     ( Delta (..)
@@ -44,26 +43,27 @@ import Test.QuickCheck.Monadic
 import Test.Store
     ( prop_StoreUpdate
     )
+import Prelude
 
 spec :: Spec
 spec = do
     parallel $ describe "Data.Delta" $ do
-        it "Dummy test, to be expanded"
+        it
+            "Dummy test, to be expanded"
             True
     describe "CachedStore" $ do
-        it "respects store laws" $
-            let setupStore = do
+        it "respects store laws"
+            $ let setupStore = do
                     testStore <- newTestStore
                     resetTestStoreBase testStore
                     newCachedStore testStore
-            in  prop_StoreUpdate
+              in  prop_StoreUpdate
                     id
                     setupStore
                     (pure emptyTestStore)
                     $ const genTestStoreDeltas
 
         it "behaves like the cached one" $ monadicIO $ run $ do
-
             das <- generate $ listOf genTestStoreDeltas
 
             testStore <- newTestStore
@@ -89,7 +89,8 @@ updateStore store = mapM_ (updateS store Nothing)
 genTestStoreDeltas :: Gen TestStoreDelta
 genTestStoreDeltas = elements [AddOne, AddTwo, RemoveOne]
 
-resetTestStoreBase :: (Base da ~ TestStoreBase) => Store m qa da -> m ()
+resetTestStoreBase
+    :: (Base da ~ TestStoreBase) => Store m qa da -> m ()
 resetTestStoreBase store = writeS store emptyTestStore
 
 emptyTestStore :: TestStoreBase
@@ -102,16 +103,16 @@ data TestStoreDelta
     = AddOne
     | AddTwo
     | RemoveOne
-
     deriving (Show, Eq)
 instance Buildable TestStoreDelta where
     build = build . show
 
 instance Delta TestStoreDelta where
     type Base TestStoreDelta = TestStoreBase
-    apply AddOne = overTestStoreBase (1:)
-    apply AddTwo = overTestStoreBase (2:)
+    apply AddOne = overTestStoreBase (1 :)
+    apply AddTwo = overTestStoreBase (2 :)
     apply RemoveOne = overTestStoreBase (drop 1)
 
-overTestStoreBase :: ([Int] -> [Int]) -> TestStoreBase -> TestStoreBase
+overTestStoreBase
+    :: ([Int] -> [Int]) -> TestStoreBase -> TestStoreBase
 overTestStoreBase f (TestStoreBase xs) = TestStoreBase (f xs)

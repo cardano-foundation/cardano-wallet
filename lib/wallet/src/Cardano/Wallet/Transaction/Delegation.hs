@@ -6,12 +6,9 @@
 -- License: Apache-2.0
 --
 -- Tools for creating transactions that change the delegation status.
---
 module Cardano.Wallet.Transaction.Delegation
     ( certificateFromDelegationAction
     ) where
-
-import Prelude
 
 import Cardano.Address.Derivation
     ( XPub
@@ -52,6 +49,7 @@ import Cryptography.Hash.Blake
 import Data.ByteString.Short
     ( toShort
     )
+import Prelude
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Ledger as Ledger
@@ -62,15 +60,15 @@ import qualified Cardano.Api.Shelley as Cardano
 ------------------------------------------------------------------------------}
 certificateFromDelegationAction
     :: RecentEra era
-        -- ^ Era in which we create the certificate
+    -- ^ Era in which we create the certificate
     -> Either XPub (Script KeyHash)
-        -- ^ Our staking credential
+    -- ^ Our staking credential
     -> Maybe Coin
-        -- ^ Optional deposit value
+    -- ^ Optional deposit value
     -> DelegationAction
-        -- ^ Delegation action that we plan to take
+    -- ^ Delegation action that we plan to take
     -> [Cardano.Certificate (CardanoApiEra era)]
-        -- ^ Certificates representing the action
+    -- ^ Certificates representing the action
 certificateFromDelegationAction RecentEraBabbage cred _ da = case da of
     Join poolId ->
         [ Cardano.makeStakeAddressDelegationCertificate
@@ -100,38 +98,40 @@ certificateFromDelegationAction RecentEraBabbage cred _ da = case da of
     babbageWitness = Cardano.ShelleyToBabbageEraBabbage
 certificateFromDelegationAction RecentEraConway cred depositM da =
     case (da, depositM) of
-       (Join poolId, _) ->
-           [ Cardano.makeStakeAddressDelegationCertificate
-               $ Cardano.StakeDelegationRequirementsConwayOnwards
-                   conwayWitness
-                   (toCardanoStakeCredential cred)
-                   (toLedgerDelegatee (Just poolId) Nothing)
-           ]
-       (JoinRegisteringKey poolId, Just deposit) ->
-           [ Cardano.makeStakeAddressRegistrationCertificate
-               $ Cardano.StakeAddrRegistrationConway
-                   conwayWitness
-                   (toCardanoLovelace deposit)
-                   (toCardanoStakeCredential cred)
-           , Cardano.makeStakeAddressDelegationCertificate
-               $ Cardano.StakeDelegationRequirementsConwayOnwards
-                   conwayWitness
-                   (toCardanoStakeCredential cred)
-                   (toLedgerDelegatee (Just poolId) Nothing)
-           ]
-       (JoinRegisteringKey _, Nothing) ->
-           error "certificateFromDelegationAction: deposit value required in \
-                 \Conway era when registration is carried out (joining)"
-       (Quit, Just deposit) ->
-           [ Cardano.makeStakeAddressUnregistrationCertificate
-               $ Cardano.StakeAddrRegistrationConway
-                   conwayWitness
-                   (toCardanoLovelace deposit)
-                   (toCardanoStakeCredential cred)
-           ]
-       (Quit, Nothing) ->
-           error "certificateFromDelegationAction: deposit value required in \
-                 \Conway era when registration is carried out (quitting)"
+        (Join poolId, _) ->
+            [ Cardano.makeStakeAddressDelegationCertificate
+                $ Cardano.StakeDelegationRequirementsConwayOnwards
+                    conwayWitness
+                    (toCardanoStakeCredential cred)
+                    (toLedgerDelegatee (Just poolId) Nothing)
+            ]
+        (JoinRegisteringKey poolId, Just deposit) ->
+            [ Cardano.makeStakeAddressRegistrationCertificate
+                $ Cardano.StakeAddrRegistrationConway
+                    conwayWitness
+                    (toCardanoLovelace deposit)
+                    (toCardanoStakeCredential cred)
+            , Cardano.makeStakeAddressDelegationCertificate
+                $ Cardano.StakeDelegationRequirementsConwayOnwards
+                    conwayWitness
+                    (toCardanoStakeCredential cred)
+                    (toLedgerDelegatee (Just poolId) Nothing)
+            ]
+        (JoinRegisteringKey _, Nothing) ->
+            error
+                "certificateFromDelegationAction: deposit value required in \
+                \Conway era when registration is carried out (joining)"
+        (Quit, Just deposit) ->
+            [ Cardano.makeStakeAddressUnregistrationCertificate
+                $ Cardano.StakeAddrRegistrationConway
+                    conwayWitness
+                    (toCardanoLovelace deposit)
+                    (toCardanoStakeCredential cred)
+            ]
+        (Quit, Nothing) ->
+            error
+                "certificateFromDelegationAction: deposit value required in \
+                \Conway era when registration is carried out (quitting)"
   where
     conwayWitness = Cardano.ConwayEraOnwardsConway
 
@@ -144,13 +144,13 @@ toCardanoStakeCredential
 toCardanoStakeCredential = \case
     Left xpub ->
         Cardano.StakeCredentialByKey
-        . toHashStakeKey
-        $ xpub
+            . toHashStakeKey
+            $ xpub
     Right script ->
         Cardano.StakeCredentialByScript
-        . Cardano.hashScript
-        . Cardano.SimpleScript
-        $ toCardanoSimpleScript script
+            . Cardano.hashScript
+            . Cardano.SimpleScript
+            $ toCardanoSimpleScript script
 
 toCardanoPoolId :: PoolId -> Cardano.PoolId
 toCardanoPoolId (PoolId pid) =
@@ -159,8 +159,8 @@ toCardanoPoolId (PoolId pid) =
 toHashStakeKey :: XPub -> Cardano.Hash Cardano.StakeKey
 toHashStakeKey =
     Cardano.StakeKeyHash
-    . Ledger.KeyHash
-    . UnsafeHash
-    . toShort
-    . blake2b224
-    . xpubPublicKey
+        . Ledger.KeyHash
+        . UnsafeHash
+        . toShort
+        . blake2b224
+        . xpubPublicKey

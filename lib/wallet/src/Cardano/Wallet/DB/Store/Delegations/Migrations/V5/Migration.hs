@@ -6,8 +6,6 @@ module Cardano.Wallet.DB.Store.Delegations.Migrations.V5.Migration
     ( migrateDelegations
     ) where
 
-import Prelude
-
 import Cardano.DB.Sqlite
     ( ReadDBHandle
     , dbConn
@@ -38,6 +36,7 @@ import Control.Monad.Reader
 import Data.Text
     ( Text
     )
+import Prelude
 
 import qualified Data.Text as T
 import qualified Database.Sqlite as Sqlite
@@ -56,23 +55,37 @@ addColumnIfMissing
     -> IO ()
 addColumnIfMissing conn field = do
     isFieldPresent conn field >>= \case
-        TableMissing -> fail $ T.unpack $ T.unwords
-            [ headerFail
-            , "Expected TABLE", tableName field
-            , "to exist."
-            ]
+        TableMissing ->
+            fail
+                $ T.unpack
+                $ T.unwords
+                    [ headerFail
+                    , "Expected TABLE"
+                    , tableName field
+                    , "to exist."
+                    ]
         ColumnMissing -> do
-            query <- Sqlite.prepare conn $ T.unwords
-                [ "ALTER TABLE", tableName field
-                , "ADD COLUMN", fieldName field
-                , fieldType field , "NULL"
-                , ";"
-                ]
+            query <-
+                Sqlite.prepare conn
+                    $ T.unwords
+                        [ "ALTER TABLE"
+                        , tableName field
+                        , "ADD COLUMN"
+                        , fieldName field
+                        , fieldType field
+                        , "NULL"
+                        , ";"
+                        ]
             _ <- Sqlite.step query
             Sqlite.finalize query
-        ColumnPresent -> fail $ T.unpack $ T.unwords
-            [ headerFail
-            , "Expected COLUMN", fieldName field
-            , "in TABLE", tableName field
-            , "to not exist."
-            ]
+        ColumnPresent ->
+            fail
+                $ T.unpack
+                $ T.unwords
+                    [ headerFail
+                    , "Expected COLUMN"
+                    , fieldName field
+                    , "in TABLE"
+                    , tableName field
+                    , "to not exist."
+                    ]

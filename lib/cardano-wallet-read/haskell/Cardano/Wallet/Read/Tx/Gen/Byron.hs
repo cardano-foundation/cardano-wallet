@@ -7,8 +7,6 @@ module Cardano.Wallet.Read.Tx.Gen.Byron
     )
 where
 
-import Prelude
-
 import Cardano.Chain.Common
     ( mkAttributes
     )
@@ -49,11 +47,12 @@ import Data.Functor
 import GHC.Stack
     ( HasCallStack
     )
+import Prelude
 
-import qualified Cardano.Chain.Common as Byron
-import qualified Cardano.Chain.UTxO as Byron
-import qualified Cardano.Crypto.Signing as Byron
-import qualified Cardano.Wallet.Read.Hash as Hash
+import Cardano.Chain.Common qualified as Byron
+import Cardano.Chain.UTxO qualified as Byron
+import Cardano.Crypto.Signing qualified as Byron
+import Cardano.Wallet.Read.Hash qualified as Hash
 
 mkByronTx
     :: HasCallStack

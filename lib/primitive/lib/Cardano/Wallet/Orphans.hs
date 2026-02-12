@@ -7,10 +7,7 @@
 -- License: Apache-2.0
 --
 -- Module for orphans which would be too inconvenient to avoid.
-
 module Cardano.Wallet.Orphans where
-
-import Prelude
 
 import Cardano.Api
     ( TxMetadata (..)
@@ -38,6 +35,7 @@ import Ouroboros.Consensus.HardFork.History.Qry
 import UnliftIO.Exception
     ( displayException
     )
+import Prelude
 
 import qualified Data.Map as Map
 
@@ -55,9 +53,12 @@ instance Buildable TxMetadata where
       where
         buildElem (n, d) = nameF ("element " <> build n) $ buildDatum d
         buildDatum = \case
-            TxMetaMap as -> blockListF $ mconcat
-                [ [ nameF "key" (buildDatum k), nameF "val" (buildDatum v) ]
-                | (k, v) <- as ]
+            TxMetaMap as ->
+                blockListF
+                    $ mconcat
+                        [ [nameF "key" (buildDatum k), nameF "val" (buildDatum v)]
+                        | (k, v) <- as
+                        ]
             TxMetaList xs -> nameF "list" $ blockListF (map buildDatum xs)
             TxMetaNumber i -> build i
             TxMetaBytes bs -> hexF bs

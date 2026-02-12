@@ -1,10 +1,9 @@
 {-# LANGUAGE DeriveGeneric #-}
+
 module Cardano.Wallet.Primitive.Types.NetworkParameters
     ( NetworkParameters (..)
     )
 where
-
-import Prelude
 
 import Cardano.Wallet.Primitive.Types.GenesisParameters
     ( GenesisParameters
@@ -24,6 +23,7 @@ import Fmt
 import GHC.Generics
     ( Generic
     )
+import Prelude
 
 -- | Records the complete set of parameters currently in use by the network
 --   that are relevant to the wallet.

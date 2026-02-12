@@ -17,8 +17,6 @@ module Cardano.Wallet.Delegation.ModelSpec
     )
 where
 
-import Prelude
-
 import Cardano.Wallet.Delegation.Model
     ( History
     , Operation (..)
@@ -65,6 +63,7 @@ import Test.QuickCheck.Property
 import Text.Pretty.Simple
     ( pShow
     )
+import Prelude
 
 import qualified Data.Map.Strict as Map
 import qualified Data.Text.Lazy as T

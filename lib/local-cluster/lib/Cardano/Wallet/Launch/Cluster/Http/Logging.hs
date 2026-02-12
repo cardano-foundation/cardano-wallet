@@ -6,8 +6,6 @@ module Cardano.Wallet.Launch.Cluster.Http.Logging
     )
 where
 
-import Prelude
-
 import Cardano.BM.Tracing
     ( HasSeverityAnnotation (..)
     , Severity (..)
@@ -21,6 +19,7 @@ import Data.Text.Class
 import Network.Socket
     ( PortNumber
     )
+import Prelude
 
 -- | Messages for the HTTP monitoring service
 data MsgHttpService

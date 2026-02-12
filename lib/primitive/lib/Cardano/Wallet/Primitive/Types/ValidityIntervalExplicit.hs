@@ -8,8 +8,6 @@ module Cardano.Wallet.Primitive.Types.ValidityIntervalExplicit
     )
 where
 
-import Prelude
-
 import Control.DeepSeq
     ( NFData
     )
@@ -22,10 +20,11 @@ import Data.Word
 import GHC.Generics
     ( Generic
     )
+import Prelude
 
 data ValidityIntervalExplicit = ValidityIntervalExplicit
     { invalidBefore :: !(Quantity "slot" Word64)
     , invalidHereafter :: !(Quantity "slot" Word64)
     }
     deriving (Generic, Eq, Show)
-    deriving anyclass NFData
+    deriving anyclass (NFData)

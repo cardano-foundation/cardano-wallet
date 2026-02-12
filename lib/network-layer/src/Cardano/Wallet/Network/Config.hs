@@ -12,15 +12,11 @@
 -- License: Apache-2.0
 --
 -- Convert abbreviated NetworkConfiguration into extended configuration data.
---
-
 module Cardano.Wallet.Network.Config
     ( -- * Network
       NetworkConfiguration (..)
     , parseGenesisData
     ) where
-
-import Prelude
 
 import Cardano.Chain.Genesis
     ( GenesisData (..)
@@ -45,6 +41,7 @@ import Ouroboros.Network.Magic
 import Ouroboros.Network.NodeToClient
     ( NodeToClientVersionData (..)
     )
+import Prelude
 
 import qualified Cardano.Wallet.Primitive.Ledger.Byron as Byron
 import qualified Cardano.Wallet.Primitive.Types.ProtocolMagic as W
@@ -55,17 +52,18 @@ data NetworkConfiguration where
     -- | Mainnet does not have network discrimination.
     MainnetConfig
         :: NetworkConfiguration
-
     -- | Testnet has network magic.
     TestnetConfig
         :: FilePath
         -- ^ Genesis data in JSON format, for byron era.
         -> NetworkConfiguration
-  deriving (Show, Eq)
+    deriving (Show, Eq)
 
 parseGenesisData
     :: NetworkConfiguration
-    -> ExceptT String IO
+    -> ExceptT
+        String
+        IO
         ( NetworkId
         , NetworkParameters
         , NodeToClientVersionData
@@ -77,22 +75,24 @@ parseGenesisData = \case
             ( NMainnet
             , Byron.mainnetNetworkParameters
             , NodeToClientVersionData
-                { networkMagic = NetworkMagic $
-                    fromIntegral $ W.getProtocolMagic W.mainnetMagic
+                { networkMagic =
+                    NetworkMagic
+                        $ fromIntegral
+                        $ W.getProtocolMagic W.mainnetMagic
                 , query = False
                 }
             , Byron.emptyGenesis
                 (genesisParameters Byron.mainnetNetworkParameters)
             )
-
     TestnetConfig byronGenesisFile -> do
         (genesisData, genesisHash) <-
             withExceptT show $ readGenesisData byronGenesisFile
 
         let (np, outs) = Byron.fromGenesisData (genesisData, genesisHash)
-            protoMagic = W.getProtocolMagic
-                $ Byron.fromProtocolMagicId
-                $ gdProtocolMagicId genesisData
+            protoMagic =
+                W.getProtocolMagic
+                    $ Byron.fromProtocolMagicId
+                    $ gdProtocolMagicId genesisData
         pure
             ( NTestnet $ fromIntegral protoMagic
             , np

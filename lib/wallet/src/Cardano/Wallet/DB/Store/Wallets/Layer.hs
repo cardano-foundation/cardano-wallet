@@ -4,19 +4,16 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 
-{- |
-Copyright: © 2022 IOHK
-License: Apache-2.0
-
-Implementation of a 'QueryStore' for 'TxWalletsHistory'.
--}
+-- |
+-- Copyright: © 2022 IOHK
+-- License: Apache-2.0
+--
+-- Implementation of a 'QueryStore' for 'TxWalletsHistory'.
 module Cardano.Wallet.DB.Store.Wallets.Layer
     ( QueryTxWalletsHistory (..)
     , QueryStoreTxWalletsHistory
     , newQueryStoreTxWalletsHistory
     ) where
-
-import Prelude
 
 import Cardano.Slotting.Slot
     ( SlotNo
@@ -65,6 +62,7 @@ import Database.Persist.Sql
 import GHC.Natural
     ( Natural
     )
+import Prelude
 
 import qualified Cardano.Wallet.DB.Store.Transactions.Layer as TxSet
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
@@ -90,12 +88,13 @@ data QueryTxWalletsHistory b where
 
 instance Query QueryTxWalletsHistory where
     type World QueryTxWalletsHistory = TxWalletsHistory
-    query q (txs,metas) = case q of
+    query q (txs, metas) = case q of
         GetByTxId txid -> query (TxSet.GetByTxId txid) txs
         GetTxOut key -> query (TxSet.GetTxOut key) txs
         OneMeta txId -> query (GetOne txId) metas
-        SomeMetas range limit order -> flip query metas
-            $ GetSome range limit order
+        SomeMetas range limit order ->
+            flip query metas
+                $ GetSome range limit order
 
 {-----------------------------------------------------------------------------
     Query Store type
@@ -117,5 +116,6 @@ newQueryStoreTxWalletsHistory =
         GetByTxId txid -> queryS txs $ TxSet.GetByTxId txid
         GetTxOut key -> queryS txs $ TxSet.GetTxOut key
         OneMeta txId -> queryS metas $ GetOne txId
-        SomeMetas range limit order -> queryS metas
-            $ GetSome range limit order
+        SomeMetas range limit order ->
+            queryS metas
+                $ GetSome range limit order

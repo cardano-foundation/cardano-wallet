@@ -6,14 +6,11 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
-
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Cardano.Wallet.Primitive.Ledger.ShelleySpec
     ( spec
     ) where
-
-import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv
@@ -163,6 +160,7 @@ import Test.QuickCheck.Monadic
     , monitor
     , run
     )
+import Prelude
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Ledger.BaseTypes as SL
@@ -177,12 +175,10 @@ import qualified Data.Text.Encoding as T
 spec :: Spec
 spec = do
     describe "Conversions" $ do
-
-        it "unsafeIntToWord" $
-            property prop_unsafeIntToWord
+        it "unsafeIntToWord"
+            $ property prop_unsafeIntToWord
 
     describe "decentralizationLevelFromPParams" $ do
-
         let mkDecentralizationParam
                 :: SL.UnitInterval
                 -> PParams SL.ShelleyEra
@@ -190,64 +186,74 @@ spec = do
 
         let testCases :: [(Ratio Word64, Text)]
             testCases =
-                [ (10 % 10,   "0.00%")
-                , ( 9 % 10,  "10.00%")
-                , ( 5 % 10,  "50.00%")
-                , ( 1 % 10,  "90.00%")
-                , ( 0 % 10, "100.00%")
+                [ (10 % 10, "0.00%")
+                , (9 % 10, "10.00%")
+                , (5 % 10, "50.00%")
+                , (1 % 10, "90.00%")
+                , (0 % 10, "100.00%")
                 ]
 
         forM_ testCases $ \(input, expectedOutput) -> do
             let title = show input <> " -> " <> show expectedOutput
-            let output = input
-                    & toRational
-                    & unsafeBoundRational
-                    & mkDecentralizationParam
-                    & decentralizationLevelFromPParams
-                    & getDecentralizationLevel
-                    & toText
+            let output =
+                    input
+                        & toRational
+                        & unsafeBoundRational
+                        & mkDecentralizationParam
+                        & decentralizationLevelFromPParams
+                        & getDecentralizationLevel
+                        & toText
             it title $ output `shouldBe` expectedOutput
 
     describe "Cardano.Api.Value-TokenBundle conversion" $ do
         it "roundtrips" $ checkCoverage $ property $ \tb ->
-            cover 20 (TokenBundle.getCoin tb /= Coin 0) "has ada" $
-            cover 2 (TokenBundle.getCoin tb == Coin 0) "has no ada" $
-            cover 10 (length (snd $ TokenBundle.toFlatList tb) > 3)
-                "has some assets" $
-            fromCardanoValue (toCardanoValue tb) === tb
+            cover 20 (TokenBundle.getCoin tb /= Coin 0) "has ada"
+                $ cover 2 (TokenBundle.getCoin tb == Coin 0) "has no ada"
+                $ cover
+                    10
+                    (length (snd $ TokenBundle.toFlatList tb) > 3)
+                    "has some assets"
+                $ fromCardanoValue (toCardanoValue tb) === tb
 
     describe "Utilities" $ do
-
         describe "UnitInterval" $ do
+            it "coverage adequate"
+                $ checkCoverage
+                $ property
+                $ \i ->
+                    let half = unsafeBoundRational (1 % 2)
+                    in  cover 10 (i == half) "i = 0.5"
+                            $ cover 10 (i == interval0) "i = 0"
+                            $ cover 10 (i == interval1) "i = 1"
+                            $ cover 10 (i > interval0 && i < half) "0 < i < 0.5"
+                            $ cover
+                                10
+                                (half < i && i < interval1)
+                                "0.5 < i < 1"
+                                True
 
-            it "coverage adequate" $
-                checkCoverage $ property $ \i ->
-                    let half = unsafeBoundRational (1 % 2) in
-                    cover 10 (i == half) "i = 0.5" $
-                    cover 10 (i == interval0) "i = 0" $
-                    cover 10 (i == interval1) "i = 1" $
-                    cover 10 (i > interval0 && i < half) "0 < i < 0.5" $
-                    cover 10 (half < i && i < interval1) "0.5 < i < 1"
-                    True
-
-            it "invertUnitInterval . invertUnitInterval == id" $
-                property $ \i ->
+            it "invertUnitInterval . invertUnitInterval == id"
+                $ property
+                $ \i ->
                     invertUnitInterval (invertUnitInterval i) `shouldBe` i
 
-            it "intervalValue i + intervalValue (invertUnitInterval i) == 1" $
-                property $ \i ->
+            it "intervalValue i + intervalValue (invertUnitInterval i) == 1"
+                $ property
+                $ \i ->
                     SL.unboundRational i + SL.unboundRational (invertUnitInterval i)
                         `shouldBe` 1
 
-            it "invertUnitInterval interval0 == interval1" $
-                invertUnitInterval interval0 `shouldBe` interval1
+            it "invertUnitInterval interval0 == interval1"
+                $ invertUnitInterval interval0
+                `shouldBe` interval1
 
-            it "invertUnitInterval interval1 == interval0" $
-                invertUnitInterval interval1 `shouldBe` interval0
+            it "invertUnitInterval interval1 == interval0"
+                $ invertUnitInterval interval1
+                `shouldBe` interval0
 
-            it "invertUnitInterval half == half" $
-                let half = unsafeBoundRational (1 % 2) in
-                invertUnitInterval half `shouldBe` half
+            it "invertUnitInterval half == half"
+                $ let half = unsafeBoundRational (1 % 2)
+                  in  invertUnitInterval half `shouldBe` half
 
     describe "golden tests for script hashes" $ do
         testScriptsAllLangs
@@ -288,7 +294,8 @@ toKeyHash txt = case fromBase16 (T.encodeUtf8 txt) of
 
 toPaymentHash :: Text -> Cardano.SimpleScript
 toPaymentHash txt =
-    case Cardano.deserialiseFromRawBytesHex @(Cardano.Hash Cardano.PaymentKey) (T.encodeUtf8 txt) of
+    case Cardano.deserialiseFromRawBytesHex @(Cardano.Hash Cardano.PaymentKey)
+        (T.encodeUtf8 txt) of
         Right payKeyHash -> Cardano.RequireSignature payKeyHash
         Left err -> error $ "toPaymentHash: " <> show err
 
@@ -297,9 +304,10 @@ checkScriptHashes
     -> Script KeyHash
     -> Cardano.Script lang
     -> SpecWith ()
-checkScriptHashes title adrestiaScript nodeScript = it title $
-    unScriptHash (toScriptHash adrestiaScript) `shouldBe`
-    Cardano.serialiseToRawBytes (Cardano.hashScript nodeScript)
+checkScriptHashes title adrestiaScript nodeScript =
+    it title
+        $ unScriptHash (toScriptHash adrestiaScript)
+        `shouldBe` Cardano.serialiseToRawBytes (Cardano.hashScript nodeScript)
 
 checkScriptPreimage
     :: Cardano.SerialiseAsCBOR (Cardano.Script lang)
@@ -307,90 +315,156 @@ checkScriptPreimage
     -> Script KeyHash
     -> Cardano.Script lang
     -> SpecWith ()
-checkScriptPreimage title adrestiaScript nodeScript = it title $
-    (serializeScript adrestiaScript) `shouldBe`
-    BS.append "\00" (Cardano.serialiseToCBOR nodeScript)
+checkScriptPreimage title adrestiaScript nodeScript =
+    it title
+        $ (serializeScript adrestiaScript)
+        `shouldBe` BS.append "\00" (Cardano.serialiseToCBOR nodeScript)
 
 scriptMatrix
     :: [(String, Script KeyHash, Cardano.Script Cardano.SimpleScript')]
 scriptMatrix =
-    [ ( "RequireSignatureOf"
-      , toKeyHash hashKeyTxt1
-      , toSimpleScript $ toPaymentHash hashKeyTxt1
-      )
-    , ( "RequireSignatureOf"
-      , toKeyHash hashKeyTxt2
-      , toSimpleScript $ toPaymentHash hashKeyTxt2
-      )
-    , ( "RequireSignatureOf"
-      , toKeyHash hashKeyTxt3
-      , toSimpleScript $ toPaymentHash hashKeyTxt3
-      )
-    , ( "RequireSignatureOf"
-      , toKeyHash hashKeyTxt4
-      , toSimpleScript $ toPaymentHash hashKeyTxt4
-      )
-    , ( "RequireAllOf"
-      , RequireAllOf [toKeyHash hashKeyTxt1, toKeyHash hashKeyTxt2]
-      , toSimpleScript $
-          Cardano.RequireAllOf [toPaymentHash hashKeyTxt1, toPaymentHash hashKeyTxt2]
-      )
-    , ( "RequireAllOf"
-      , RequireAllOf [toKeyHash hashKeyTxt1, toKeyHash hashKeyTxt2, toKeyHash hashKeyTxt3]
-      , toSimpleScript $
-          Cardano.RequireAllOf [toPaymentHash hashKeyTxt1, toPaymentHash hashKeyTxt2, toPaymentHash hashKeyTxt3]
-      )
-    , ( "RequireAnyOf"
-      , RequireAnyOf [toKeyHash hashKeyTxt1, toKeyHash hashKeyTxt2]
-      , toSimpleScript $
-          Cardano.RequireAnyOf [toPaymentHash hashKeyTxt1, toPaymentHash hashKeyTxt2]
-      )
-    , ( "RequireAnyOf"
-      , RequireAnyOf [toKeyHash hashKeyTxt1, toKeyHash hashKeyTxt2, toKeyHash hashKeyTxt3]
-      , toSimpleScript $
-          Cardano.RequireAnyOf [toPaymentHash hashKeyTxt1, toPaymentHash hashKeyTxt2, toPaymentHash hashKeyTxt3]
-      )
-    , ( "RequireSomeOf"
-      , RequireSomeOf 2 [toKeyHash hashKeyTxt1, toKeyHash hashKeyTxt2, toKeyHash hashKeyTxt3]
-      , toSimpleScript $
-          Cardano.RequireMOf 2 [toPaymentHash hashKeyTxt1, toPaymentHash hashKeyTxt2, toPaymentHash hashKeyTxt3]
-      )
-    , ( "RequireSomeOf"
-      , RequireSomeOf 2 [toKeyHash hashKeyTxt1, toKeyHash hashKeyTxt2, toKeyHash hashKeyTxt3, toKeyHash hashKeyTxt4]
-      , toSimpleScript $
-          Cardano.RequireMOf 2 [toPaymentHash hashKeyTxt1, toPaymentHash hashKeyTxt2, toPaymentHash hashKeyTxt3, toPaymentHash hashKeyTxt4]
-      )
-    , ( "nested 1"
-      , RequireSomeOf 2 [ toKeyHash hashKeyTxt1, toKeyHash hashKeyTxt2
-                        , RequireAllOf [toKeyHash hashKeyTxt3, toKeyHash hashKeyTxt4]
-                        ]
-      , toSimpleScript $
-          Cardano.RequireMOf 2 [ toPaymentHash hashKeyTxt1, toPaymentHash hashKeyTxt2
-                               , Cardano.RequireAllOf [toPaymentHash hashKeyTxt3, toPaymentHash hashKeyTxt4]
-                                       ]
-      )
-    , ( "nested 2"
-      , RequireAllOf [ toKeyHash hashKeyTxt1
-                     , RequireAnyOf [toKeyHash hashKeyTxt2, toKeyHash hashKeyTxt3, toKeyHash hashKeyTxt4]
-                     ]
-      , toSimpleScript $
-          Cardano.RequireAllOf [ toPaymentHash hashKeyTxt1
-                               , Cardano.RequireAnyOf [toPaymentHash hashKeyTxt2, toPaymentHash hashKeyTxt3, toPaymentHash hashKeyTxt4]
-                               ]
-      )
-    , ( "nested 3"
-      , RequireSomeOf 1 [ toKeyHash hashKeyTxt1
-                        , RequireAllOf [ toKeyHash hashKeyTxt2
-                                       , RequireAnyOf [toKeyHash hashKeyTxt3, toKeyHash hashKeyTxt4 ]
-                                       ]
-                        ]
-      , toSimpleScript $
-          Cardano.RequireMOf 1 [ toPaymentHash hashKeyTxt1
-                               , Cardano.RequireAllOf [ toPaymentHash hashKeyTxt2
-                                                      , Cardano.RequireAnyOf [toPaymentHash hashKeyTxt3, toPaymentHash hashKeyTxt4]
-                                                      ]
-                               ]
-      )
+    [
+        ( "RequireSignatureOf"
+        , toKeyHash hashKeyTxt1
+        , toSimpleScript $ toPaymentHash hashKeyTxt1
+        )
+    ,
+        ( "RequireSignatureOf"
+        , toKeyHash hashKeyTxt2
+        , toSimpleScript $ toPaymentHash hashKeyTxt2
+        )
+    ,
+        ( "RequireSignatureOf"
+        , toKeyHash hashKeyTxt3
+        , toSimpleScript $ toPaymentHash hashKeyTxt3
+        )
+    ,
+        ( "RequireSignatureOf"
+        , toKeyHash hashKeyTxt4
+        , toSimpleScript $ toPaymentHash hashKeyTxt4
+        )
+    ,
+        ( "RequireAllOf"
+        , RequireAllOf [toKeyHash hashKeyTxt1, toKeyHash hashKeyTxt2]
+        , toSimpleScript
+            $ Cardano.RequireAllOf
+                [toPaymentHash hashKeyTxt1, toPaymentHash hashKeyTxt2]
+        )
+    ,
+        ( "RequireAllOf"
+        , RequireAllOf
+            [toKeyHash hashKeyTxt1, toKeyHash hashKeyTxt2, toKeyHash hashKeyTxt3]
+        , toSimpleScript
+            $ Cardano.RequireAllOf
+                [ toPaymentHash hashKeyTxt1
+                , toPaymentHash hashKeyTxt2
+                , toPaymentHash hashKeyTxt3
+                ]
+        )
+    ,
+        ( "RequireAnyOf"
+        , RequireAnyOf [toKeyHash hashKeyTxt1, toKeyHash hashKeyTxt2]
+        , toSimpleScript
+            $ Cardano.RequireAnyOf
+                [toPaymentHash hashKeyTxt1, toPaymentHash hashKeyTxt2]
+        )
+    ,
+        ( "RequireAnyOf"
+        , RequireAnyOf
+            [toKeyHash hashKeyTxt1, toKeyHash hashKeyTxt2, toKeyHash hashKeyTxt3]
+        , toSimpleScript
+            $ Cardano.RequireAnyOf
+                [ toPaymentHash hashKeyTxt1
+                , toPaymentHash hashKeyTxt2
+                , toPaymentHash hashKeyTxt3
+                ]
+        )
+    ,
+        ( "RequireSomeOf"
+        , RequireSomeOf
+            2
+            [toKeyHash hashKeyTxt1, toKeyHash hashKeyTxt2, toKeyHash hashKeyTxt3]
+        , toSimpleScript
+            $ Cardano.RequireMOf
+                2
+                [ toPaymentHash hashKeyTxt1
+                , toPaymentHash hashKeyTxt2
+                , toPaymentHash hashKeyTxt3
+                ]
+        )
+    ,
+        ( "RequireSomeOf"
+        , RequireSomeOf
+            2
+            [ toKeyHash hashKeyTxt1
+            , toKeyHash hashKeyTxt2
+            , toKeyHash hashKeyTxt3
+            , toKeyHash hashKeyTxt4
+            ]
+        , toSimpleScript
+            $ Cardano.RequireMOf
+                2
+                [ toPaymentHash hashKeyTxt1
+                , toPaymentHash hashKeyTxt2
+                , toPaymentHash hashKeyTxt3
+                , toPaymentHash hashKeyTxt4
+                ]
+        )
+    ,
+        ( "nested 1"
+        , RequireSomeOf
+            2
+            [ toKeyHash hashKeyTxt1
+            , toKeyHash hashKeyTxt2
+            , RequireAllOf [toKeyHash hashKeyTxt3, toKeyHash hashKeyTxt4]
+            ]
+        , toSimpleScript
+            $ Cardano.RequireMOf
+                2
+                [ toPaymentHash hashKeyTxt1
+                , toPaymentHash hashKeyTxt2
+                , Cardano.RequireAllOf
+                    [toPaymentHash hashKeyTxt3, toPaymentHash hashKeyTxt4]
+                ]
+        )
+    ,
+        ( "nested 2"
+        , RequireAllOf
+            [ toKeyHash hashKeyTxt1
+            , RequireAnyOf
+                [toKeyHash hashKeyTxt2, toKeyHash hashKeyTxt3, toKeyHash hashKeyTxt4]
+            ]
+        , toSimpleScript
+            $ Cardano.RequireAllOf
+                [ toPaymentHash hashKeyTxt1
+                , Cardano.RequireAnyOf
+                    [ toPaymentHash hashKeyTxt2
+                    , toPaymentHash hashKeyTxt3
+                    , toPaymentHash hashKeyTxt4
+                    ]
+                ]
+        )
+    ,
+        ( "nested 3"
+        , RequireSomeOf
+            1
+            [ toKeyHash hashKeyTxt1
+            , RequireAllOf
+                [ toKeyHash hashKeyTxt2
+                , RequireAnyOf [toKeyHash hashKeyTxt3, toKeyHash hashKeyTxt4]
+                ]
+            ]
+        , toSimpleScript
+            $ Cardano.RequireMOf
+                1
+                [ toPaymentHash hashKeyTxt1
+                , Cardano.RequireAllOf
+                    [ toPaymentHash hashKeyTxt2
+                    , Cardano.RequireAnyOf
+                        [toPaymentHash hashKeyTxt3, toPaymentHash hashKeyTxt4]
+                    ]
+                ]
+        )
     ]
   where
     toSimpleScript = Cardano.SimpleScript
@@ -414,32 +488,35 @@ testScriptPreimages = do
 timelockScriptMatrix
     :: [(String, Script KeyHash, Cardano.Script Cardano.SimpleScript')]
 timelockScriptMatrix =
-    [ ( "SimpleScript ActiveFromSlot"
-      , RequireAllOf [toKeyHash hashKeyTxt1, ActiveFromSlot 120]
-      , toSimpleScript $
-          Cardano.RequireAllOf
-              [toPaymentHash hashKeyTxt1, Cardano.RequireTimeAfter (SlotNo 120)]
-      )
-    , ( "SimpleScript ActiveUntilSlot"
-      , RequireAllOf [toKeyHash hashKeyTxt1, ActiveUntilSlot 120]
-      , toSimpleScript $
-          Cardano.RequireAllOf
-              [toPaymentHash hashKeyTxt1, Cardano.RequireTimeBefore (SlotNo 120)]
-      )
-    , ( "SimpleScript ActiveFromSlot and ActiveUntilSlot"
-      , RequireAllOf
-          [ ActiveFromSlot 120
-          , ActiveUntilSlot 150
-          , RequireAnyOf [toKeyHash hashKeyTxt1, toKeyHash hashKeyTxt2]
-          ]
-      , toSimpleScript $
-          Cardano.RequireAllOf
-          [ Cardano.RequireTimeAfter (SlotNo 120)
-          , Cardano.RequireTimeBefore (SlotNo 150)
-          , Cardano.RequireAnyOf
-              [toPaymentHash hashKeyTxt1, toPaymentHash hashKeyTxt2 ]
-          ]
-      )
+    [
+        ( "SimpleScript ActiveFromSlot"
+        , RequireAllOf [toKeyHash hashKeyTxt1, ActiveFromSlot 120]
+        , toSimpleScript
+            $ Cardano.RequireAllOf
+                [toPaymentHash hashKeyTxt1, Cardano.RequireTimeAfter (SlotNo 120)]
+        )
+    ,
+        ( "SimpleScript ActiveUntilSlot"
+        , RequireAllOf [toKeyHash hashKeyTxt1, ActiveUntilSlot 120]
+        , toSimpleScript
+            $ Cardano.RequireAllOf
+                [toPaymentHash hashKeyTxt1, Cardano.RequireTimeBefore (SlotNo 120)]
+        )
+    ,
+        ( "SimpleScript ActiveFromSlot and ActiveUntilSlot"
+        , RequireAllOf
+            [ ActiveFromSlot 120
+            , ActiveUntilSlot 150
+            , RequireAnyOf [toKeyHash hashKeyTxt1, toKeyHash hashKeyTxt2]
+            ]
+        , toSimpleScript
+            $ Cardano.RequireAllOf
+                [ Cardano.RequireTimeAfter (SlotNo 120)
+                , Cardano.RequireTimeBefore (SlotNo 150)
+                , Cardano.RequireAnyOf
+                    [toPaymentHash hashKeyTxt1, toPaymentHash hashKeyTxt2]
+                ]
+        )
     ]
   where
     hashKeyTxt1 = "deeae4e895d8d57378125ed4fd540f9bf245d59f7936a504379cfc1e"
@@ -466,47 +543,52 @@ instance Arbitrary RewardAccount where
     arbitrary = FromKeyHash . BS.pack <$> vector 28
 
 instance Arbitrary (Tip (CardanoBlock StandardCrypto)) where
-    arbitrary = frequency
-        [ (10, return TipGenesis)
-        , (90, arbitraryTip)
-        ]
+    arbitrary =
+        frequency
+            [ (10, return TipGenesis)
+            , (90, arbitraryTip)
+            ]
       where
         arbitraryTip = do
             n <- choose (0, 100)
-            hash <- toCardanoHash
-                . Hash
-                . digest (Proxy @HASH)
-                . BS.pack <$> vector 5
+            hash <-
+                toCardanoHash
+                    . Hash
+                    . digest (Proxy @HASH)
+                    . BS.pack
+                    <$> vector 5
             return $ Tip (SlotNo n) hash (BlockNo n)
 
 instance Arbitrary SL.UnitInterval where
-    arbitrary = oneof
-        [ pure interval0
-        , pure interval1
-        , pure $ unsafeBoundRational (1 % 2)
-        , unsafeBoundRational . (% 1000) <$> choose (0, 1000)
-        ]
+    arbitrary =
+        oneof
+            [ pure interval0
+            , pure interval1
+            , pure $ unsafeBoundRational (1 % 2)
+            , unsafeBoundRational . (% 1000) <$> choose (0, 1000)
+            ]
     shrink = map unsafeBoundRational . shrink . SL.unboundRational
 
 instance Arbitrary SlotId where
-    arbitrary = SlotId . W.EpochNo . fromIntegral
-        <$> choose (0, 10 :: Word32)
-        <*> (W.SlotInEpoch <$> choose (0, 10))
+    arbitrary =
+        SlotId . W.EpochNo . fromIntegral
+            <$> choose (0, 10 :: Word32)
+            <*> (W.SlotInEpoch <$> choose (0, 10))
 
 instance Arbitrary SomeMnemonic where
     arbitrary = SomeMnemonic <$> genMnemonic @12
 
 genMnemonic
-    :: forall mw ent csz.
-     ( ConsistentEntropy ent mw csz
-     , EntropySize mw ~ ent
-     )
+    :: forall mw ent csz
+     . ( ConsistentEntropy ent mw csz
+       , EntropySize mw ~ ent
+       )
     => Gen (Mnemonic mw)
 genMnemonic = do
-        let n = fromIntegral (natVal $ Proxy @(EntropySize mw)) `div` 8
-        bytes <- BS.pack <$> vector n
-        let ent = unsafeMkEntropy @(EntropySize mw) bytes
-        return $ entropyToMnemonic ent
+    let n = fromIntegral (natVal $ Proxy @(EntropySize mw)) `div` 8
+    bytes <- BS.pack <$> vector n
+    let ent = unsafeMkEntropy @(EntropySize mw) bytes
+    return $ entropyToMnemonic ent
 
 instance Show XPrv where
     show _ = "<xprv>"
@@ -515,47 +597,53 @@ instance Arbitrary TokenBundle.TokenBundle where
     arbitrary = genTokenBundleSmallRange
     shrink = shrinkTokenBundleSmallRange
 
-newtype FixedSize32 a = FixedSize32 { unFixedSize32 :: a }
+newtype FixedSize32 a = FixedSize32 {unFixedSize32 :: a}
     deriving (Eq, Show)
 
-newtype FixedSize48 a = FixedSize48 { unFixedSize48 :: a }
+newtype FixedSize48 a = FixedSize48 {unFixedSize48 :: a}
     deriving (Eq, Show)
 
-newtype FixedSize64 a = FixedSize64 { unFixedSize64 :: a }
+newtype FixedSize64 a = FixedSize64 {unFixedSize64 :: a}
     deriving (Eq, Show)
 
-newtype FixedSize128 a = FixedSize128 { unFixedSize128 :: a }
+newtype FixedSize128 a = FixedSize128 {unFixedSize128 :: a}
     deriving (Eq, Show)
 
-newtype VariableSize16 a = VariableSize16 { unVariableSize16 :: a}
+newtype VariableSize16 a = VariableSize16 {unVariableSize16 :: a}
     deriving (Eq, Show)
 
-newtype VariableSize1024 a = VariableSize1024 { unVariableSize1024 :: a}
+newtype VariableSize1024 a = VariableSize1024 {unVariableSize1024 :: a}
     deriving (Eq, Show)
 
 instance Arbitrary (FixedSize32 TokenBundle) where
     arbitrary = FixedSize32 <$> genTxOutTokenBundle 32
-    -- No shrinking
+
+-- No shrinking
 
 instance Arbitrary (FixedSize48 TokenBundle) where
     arbitrary = FixedSize48 <$> genTxOutTokenBundle 48
-    -- No shrinking
+
+-- No shrinking
 
 instance Arbitrary (FixedSize64 TokenBundle) where
     arbitrary = FixedSize64 <$> genTxOutTokenBundle 64
-    -- No shrinking
+
+-- No shrinking
 
 instance Arbitrary (FixedSize128 TokenBundle) where
     arbitrary = FixedSize128 <$> genTxOutTokenBundle 128
-    -- No shrinking
+
+-- No shrinking
 
 instance Arbitrary (VariableSize16 TokenBundle) where
     arbitrary = VariableSize16 <$> resize 16 genTokenBundle
-    -- No shrinking
+
+-- No shrinking
 
 instance Arbitrary (VariableSize1024 TokenBundle) where
     arbitrary = VariableSize1024 <$> resize 1024 genTokenBundle
-    -- No shrinking
+
+-- No shrinking
 
 --
 -- Helpers
@@ -564,4 +652,4 @@ instance Arbitrary (VariableSize1024 TokenBundle) where
 unsafeBoundRational :: Rational -> SL.UnitInterval
 unsafeBoundRational =
     fromMaybe (error "unsafeBoundRational: the impossible happened")
-    . SL.boundRational
+        . SL.boundRational

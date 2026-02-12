@@ -3,19 +3,17 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-{- |
-Copyright: © 2024 Cardano Foundation
-License: Apache-2.0
-
-SQL statements for typed database tables.
--}
+-- |
+-- Copyright: © 2024 Cardano Foundation
+-- License: Apache-2.0
+--
+-- SQL statements for typed database tables.
 module Database.Table.SQL.Stmt
-    (
-    -- * SQL statements
-    Stmt
+    ( -- * SQL statements
+      Stmt
     , renderStmt
 
-    -- * Specific statements
+      -- * Specific statements
     , createTable
     , selectAll
     , selectWhere
@@ -26,8 +24,6 @@ module Database.Table.SQL.Stmt
     , deleteAll
     , deleteWhere
     ) where
-
-import Prelude
 
 import Data.Text
     ( Text
@@ -51,6 +47,7 @@ import Database.Table.SQL.Table
     ( IsTableSql
     , getColumnTypes
     )
+import Prelude
 
 import qualified Data.Text as T
 import qualified Database.SQLite.Simple.ToField as Sqlite
@@ -79,40 +76,52 @@ data Where where
 {-------------------------------------------------------------------------------
     Rendering
 -------------------------------------------------------------------------------}
+
 -- | Render an statement as SQL source code.
 renderStmt :: Stmt -> Var.Lets Text
-renderStmt (CreateTable table cols) = Expr.text
-    $ "CREATE TABLE IF NOT EXISTS "
-        <> renderName table
-        <> " " <> renderTuple (map renderCol cols)
-        <> ";"
+renderStmt (CreateTable table cols) =
+    Expr.text
+        $ "CREATE TABLE IF NOT EXISTS "
+            <> renderName table
+            <> " "
+            <> renderTuple (map renderCol cols)
+            <> ";"
   where
-    renderCol (col, typ)= renderName col <> " " <> escapeSqlType typ
-renderStmt (Insert table cols) = Expr.text
-    $ "INSERT INTO "
-        <> renderName table
-        <> " " <> renderTuple (map renderName cols)
-        <> " VALUES " <> renderTuple ("?" <$ cols)
-        <> ";"
-renderStmt (Select cols table All) = Expr.text
-    $ "SELECT " <> T.intercalate "," (map renderName cols)
-        <> " FROM " <> renderName table
-        <> ";"
+    renderCol (col, typ) = renderName col <> " " <> escapeSqlType typ
+renderStmt (Insert table cols) =
+    Expr.text
+        $ "INSERT INTO "
+            <> renderName table
+            <> " "
+            <> renderTuple (map renderName cols)
+            <> " VALUES "
+            <> renderTuple ("?" <$ cols)
+            <> ";"
+renderStmt (Select cols table All) =
+    Expr.text
+        $ "SELECT "
+            <> T.intercalate "," (map renderName cols)
+            <> " FROM "
+            <> renderName table
+            <> ";"
 renderStmt (Select cols table (Where expr)) =
     Expr.text ("SELECT " <> T.intercalate "," (map renderName cols))
         <> Expr.text (" FROM " <> renderName table)
-        <> Expr.text " WHERE " <> Expr.renderExpr expr
+        <> Expr.text " WHERE "
+        <> Expr.renderExpr expr
         <> Expr.text ";"
-renderStmt (Delete table All) = Expr.text
-    $ "DELETE FROM " <> renderName table
+renderStmt (Delete table All) =
+    Expr.text
+        $ "DELETE FROM " <> renderName table
 renderStmt (Delete table (Where expr)) =
     Expr.text ("DELETE FROM " <> renderName table)
-        <> Expr.text " WHERE " <> Expr.renderExpr expr
+        <> Expr.text " WHERE "
+        <> Expr.renderExpr expr
         <> Expr.text ";"
 renderStmt (UpdateWhere table updates whereClause) =
     Expr.text ("UPDATE " <> renderName table)
         <> Expr.text " SET "
-            <> (T.intercalate ", " <$> for updates renderUpdate)
+        <> (T.intercalate ", " <$> for updates renderUpdate)
         <> renderWhereClause whereClause
         <> Expr.text ";"
   where
@@ -122,7 +131,7 @@ renderStmt (UpdateWhere table updates whereClause) =
         Expr.text " WHERE " <> Expr.renderExpr expr
 
 renderUpdate :: Update -> Var.Lets Text
-renderUpdate (Update{lhs,rhs}) =
+renderUpdate (Update{lhs, rhs}) =
     Expr.text (renderName lhs)
         <> Expr.text " = "
         <> (Var.bindValue rhs >>= Expr.var)
@@ -171,12 +180,14 @@ data Update = Update
 
 -- | Set the value of a given column.
 (=.)
-    :: forall n a. (IsColumnName n, Sqlite.ToField a)
+    :: forall n a
+     . (IsColumnName n, Sqlite.ToField a)
     => Col n a -> a -> Update
-(=.) col a = Update
-    { lhs = getColumnName col
-    , rhs = Sqlite.toField a
-    }
+(=.) col a =
+    Update
+        { lhs = getColumnName col
+        , rhs = Sqlite.toField a
+        }
 
 -- | Update those rows in a database table that satisfy a condition.
 updateWhere

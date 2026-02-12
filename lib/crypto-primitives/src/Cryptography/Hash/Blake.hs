@@ -5,14 +5,11 @@ module Cryptography.Hash.Blake
     ( Blake2b_160
     , Blake2b_224
     , Blake2b_256
-
     , blake2b160
     , blake2b256
     , blake2b224
     , hashSizeBlake2b224
     ) where
-
-import Prelude
 
 import Crypto.Hash
     ( hash
@@ -31,6 +28,7 @@ import Data.ByteArray
 import Data.ByteString
     ( ByteString
     )
+import Prelude
 
 import qualified Data.ByteArray as BA
 

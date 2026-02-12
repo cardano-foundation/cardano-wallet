@@ -3,14 +3,13 @@
 
 module Cardano.Wallet.UI.Lib.ListOf where
 
-import Prelude
-
 import Control.Monad.Operational
     ( Program
     , ProgramView
     , ProgramViewT (Return, (:>>=))
     , view
     )
+import Prelude
 
 data Cons e a where
     Elem :: e -> Cons e ()

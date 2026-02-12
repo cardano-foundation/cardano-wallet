@@ -1,32 +1,32 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 
-{- |
-Copyright: © 2024 Cardano Foundation
-License: Apache-2.0
-
-Data types relating to the consensus about the blockchain.
--}
+-- |
+-- Copyright: © 2024 Cardano Foundation
+-- License: Apache-2.0
+--
+-- Data types relating to the consensus about the blockchain.
 module Cardano.Wallet.Read.Chain
-    (
-    -- * Points on the blockchain
-    -- ** Slot
+    ( -- * Points on the blockchain
+
+      -- ** Slot
       WithOrigin (At, Origin)
     , Slot
     , slotFromChainPoint
 
-    -- ** ChainPoint
+      -- ** ChainPoint
     , ChainPoint (..)
     , getChainPoint
     , prettyChainPoint
     , chainPointFromChainTip
 
-    -- ** ChainTip
+      -- ** ChainTip
     , ChainTip (..)
     , getChainTip
     , prettyChainTip
 
-    -- * Genesis
-    -- ** Genesis Data
+      -- * Genesis
+
+      -- ** Genesis Data
     , GenesisData
     , GenesisHash
     , GenesisDataError
@@ -34,7 +34,7 @@ module Cardano.Wallet.Read.Chain
     , genesisHashMainnet
     , mockGenesisDataMainnet
 
-    -- ** NetworkId
+      -- ** NetworkId
     , NetworkId (Mainnet, Testnet)
     , NetworkMagic (..)
     , getNetworkId

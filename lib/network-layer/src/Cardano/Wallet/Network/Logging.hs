@@ -20,8 +20,6 @@ module Cardano.Wallet.Network.Logging
     , updateStats
     ) where
 
-import Prelude
-
 import Cardano.BM.Data.Severity
     ( Severity (..)
     )
@@ -79,6 +77,7 @@ import UnliftIO.Async
 import UnliftIO.Concurrent
     ( threadDelay
     )
+import Prelude
 
 import qualified Cardano.Wallet.Read as Read
 import qualified Data.List.NonEmpty as NE
@@ -116,7 +115,9 @@ instance ToText (ChainSyncLog BlockHeader Read.ChainPoint) where
                 [ "Requesting intersection using "
                 , toText (length cps)
                 , " points"
-                , maybe "" ((", the latest being " <>) . Read.prettyChainPoint)
+                , maybe
+                    ""
+                    ((", the latest being " <>) . Read.prettyChainPoint)
                     (headMay cps)
                 ]
         MsgChainRollForward headers tip ->
@@ -124,7 +125,7 @@ instance ToText (ChainSyncLog BlockHeader Read.ChainPoint) where
                 buildRange xs = NE.head xs <> ".." <> NE.last xs
                 slots =
                     Read.prettySlotNo . Read.applyEraFun Read.getEraSlotNo
-                    <$> headers
+                        <$> headers
             in  mconcat
                     [ "ChainSync roll forward: "
                     , "applying blocks at slots ["

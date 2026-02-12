@@ -1,25 +1,22 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE TypeFamilies #-}
 
-{-|
-Copyright: © 2021-2023 IOHK, 2024 Cardano Foundation
-License: Apache-2.0
-
-Delta types for 'Set'.
--}
+-- |
+-- Copyright: © 2021-2023 IOHK, 2024 Cardano Foundation
+-- License: Apache-2.0
+--
+-- Delta types for 'Set'.
 module Data.Delta.Set
     ( -- * Single element
       DeltaSet1 (..)
-    -- $DeltaSet1-laws
+      -- $DeltaSet1-laws
 
-    -- * Multiple elements
+      -- * Multiple elements
     , DeltaSet
     , diffSet
     , listFromDeltaSet
     , deltaSetFromList
     ) where
-
-import Prelude
 
 import Data.Delta.Core
     ( Delta (..)
@@ -27,6 +24,7 @@ import Data.Delta.Core
 import Data.Set
     ( Set
     )
+import Prelude
 
 import qualified Data.Set as Set
 
@@ -74,7 +72,7 @@ diffSet new old =
 -- In the result list, the set of @a@ appearing as 'Insert'@ a@
 -- is /disjoint/ from the set of @a@ appearing as 'Delete'@ a@.
 listFromDeltaSet :: DeltaSet a -> [DeltaSet1 a]
-listFromDeltaSet DeltaSet{inserts,deletes} =
+listFromDeltaSet DeltaSet{inserts, deletes} =
     map Insert (Set.toList inserts) <> map Delete (Set.toList deletes)
 
 -- | Collect insertions or deletions of elements into a 'DeltaSet'.
@@ -92,16 +90,15 @@ deltaSetFromList = foldr step empty
     step (Delete a) (DeltaSet i d) = DeltaSet (Set.delete a i) (Set.insert a d)
 
 -- Note [DeltaSet1 Laws]
-{-$DeltaSet1-laws
 
-The following cancellation laws hold:
-
-prop> apply [Insert a, Delete a] = apply (Insert a)
-prop> apply [Insert a, Insert a] = apply (Insert a)
-prop> apply [Delete a, Insert a] = apply (Delete a)
-prop> apply [Delete a, Delete a] = apply (Delete a)
-
--}
+-- $DeltaSet1-laws
+--
+-- The following cancellation laws hold:
+--
+-- prop> apply [Insert a, Delete a] = apply (Insert a)
+-- prop> apply [Insert a, Insert a] = apply (Insert a)
+-- prop> apply [Delete a, Insert a] = apply (Delete a)
+-- prop> apply [Delete a, Delete a] = apply (Delete a)
 
 -- | Remember that the semigroup instance is required to satisfy
 -- the following properties:
@@ -109,10 +106,12 @@ prop> apply [Delete a, Delete a] = apply (Delete a)
 -- prop> apply mempty = id
 -- prop> apply (d1 <> d2) = apply d1 . apply d2
 instance Ord a => Semigroup (DeltaSet a) where
-    (DeltaSet i1 d1) <> (DeltaSet i2 d2) = DeltaSet
-        (i1 `Set.union` (i2 `Set.difference` d1))
-        (d1 `Set.union` (d2 `Set.difference` i1))
-        -- This takes into account [DeltaSet1 Cancellations]
+    (DeltaSet i1 d1) <> (DeltaSet i2 d2) =
+        DeltaSet
+            (i1 `Set.union` (i2 `Set.difference` d1))
+            (d1 `Set.union` (d2 `Set.difference` i1))
+
+-- This takes into account [DeltaSet1 Cancellations]
 
 instance Ord a => Monoid (DeltaSet a) where
     mempty = DeltaSet Set.empty Set.empty

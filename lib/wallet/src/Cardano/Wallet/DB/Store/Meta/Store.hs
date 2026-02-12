@@ -1,17 +1,13 @@
 {-# LANGUAGE TypeApplications #-}
 
-{- |
- Copyright: © 2018-2022 IOHK, 2023 Cardano Foundation
- License: Apache-2.0
-
-Low level 'Store' for a collection of meta-transactions,
-i.e. additional data ('TxMeta') that the wallet stores for each transaction.
-Meta-transactions are specific to a wallet.
-
--}
-module Cardano.Wallet.DB.Store.Meta.Store ( mkStoreMetaTransactions ) where
-
-import Prelude
+-- |
+--  Copyright: © 2018-2022 IOHK, 2023 Cardano Foundation
+--  License: Apache-2.0
+--
+-- Low level 'Store' for a collection of meta-transactions,
+-- i.e. additional data ('TxMeta') that the wallet stores for each transaction.
+-- Meta-transactions are specific to a wallet.
+module Cardano.Wallet.DB.Store.Meta.Store (mkStoreMetaTransactions) where
 
 import Cardano.Wallet.DB.Sqlite.Schema
     ( EntityField (..)
@@ -49,14 +45,15 @@ import Database.Persist.Sql
     , selectList
     , (>.)
     )
+import Prelude
 
 import qualified Data.Map.Strict as Map
 
 -- | Create an SQL store to hold meta transactions for a wallet.
 mkStoreMetaTransactions
     :: UpdateStore (SqlPersistT IO) DeltaTxMetaHistory
-mkStoreMetaTransactions
-    = mkUpdateStore load write update
+mkStoreMetaTransactions =
+    mkUpdateStore load write update
 
 update
     :: Maybe TxMetaHistory
@@ -75,20 +72,22 @@ write txs = do
     deleteWhere @_ @_ @TxMeta []
     putMetas txs
 
-load ::SqlPersistT IO (Either SomeException TxMetaHistory)
+load :: SqlPersistT IO (Either SomeException TxMetaHistory)
 load =
     Right
-    . TxMetaHistory
-    . Map.fromList
-    . fmap ((txMetaTxId &&& id) . entityVal)
-    <$> selectList [] []
+        . TxMetaHistory
+        . Map.fromList
+        . fmap ((txMetaTxId &&& id) . entityVal)
+        <$> selectList [] []
 
 -- | Insert multiple meta-transactions, overwriting the previous version in
 -- case of the same transaction index.
 -- Only one meta-transaction can be stored per transaction for a given wallet.
 putMetas :: TxMetaHistory -> SqlPersistT IO ()
 putMetas (TxMetaHistory metas) =
-    chunked repsertMany [(fromJust keyFromRecordM x, x) | x <- toList metas]
-    where
-        -- needed to submit large numberot transactions
-        chunked f xs = mapM_ f (chunksOf 1000 xs)
+    chunked
+        repsertMany
+        [(fromJust keyFromRecordM x, x) | x <- toList metas]
+  where
+    -- needed to submit large numberot transactions
+    chunked f xs = mapM_ f (chunksOf 1000 xs)

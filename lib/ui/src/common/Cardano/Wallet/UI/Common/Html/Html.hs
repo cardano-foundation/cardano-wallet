@@ -2,8 +2,6 @@
 
 module Cardano.Wallet.UI.Common.Html.Html where
 
-import Prelude
-
 import Lucid
     ( Html
     , renderBS
@@ -16,6 +14,7 @@ import Servant
     ( Accept (contentType)
     , MimeRender (..)
     )
+import Prelude
 
 import qualified Data.ByteString.Lazy as BL
 

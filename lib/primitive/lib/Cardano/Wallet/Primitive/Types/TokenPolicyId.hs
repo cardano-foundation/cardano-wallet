@@ -8,8 +8,6 @@ module Cardano.Wallet.Primitive.Types.TokenPolicyId
     ( TokenPolicyId (..)
     ) where
 
-import Prelude
-
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
     )
@@ -42,15 +40,16 @@ import GHC.Generics
 import Quiet
     ( Quiet (..)
     )
+import Prelude
 
 -- | Token policy identifiers, represented by the hash of the monetary policy
 -- script.
-newtype TokenPolicyId =
-    -- | Construct a 'TokenPolicyId' without any validation.
-    UnsafeTokenPolicyId { unTokenPolicyId :: Hash "TokenPolicy" }
+newtype TokenPolicyId
+    = -- | Construct a 'TokenPolicyId' without any validation.
+      UnsafeTokenPolicyId {unTokenPolicyId :: Hash "TokenPolicy"}
     deriving stock (Data, Eq, Ord, Generic)
     deriving (Read, Show) via (Quiet TokenPolicyId)
-    deriving anyclass Hashable
+    deriving anyclass (Hashable)
 
 instance NFData TokenPolicyId
 

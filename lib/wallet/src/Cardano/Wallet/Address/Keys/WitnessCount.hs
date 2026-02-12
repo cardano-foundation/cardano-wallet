@@ -3,17 +3,13 @@
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
-
+{-# LANGUAGE TypeOperators #-}
 -- GHC 8.10.7 cannot figure out the constraint is necessary in
 -- toWitnessCount, so we disable the warning.
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
-{-# LANGUAGE TypeOperators #-}
 
-module Cardano.Wallet.Address.Keys.WitnessCount
-    ( toWitnessCountCtx)
-    where
-
-import Prelude
+module Cardano.Wallet.Address.Keys.WitnessCount (toWitnessCountCtx)
+where
 
 import Cardano.Address.Derivation
     ( xpubToBytes
@@ -55,12 +51,13 @@ import Cardano.Wallet.Flavor
 import Cardano.Wallet.Transaction
     ( WitnessCountCtx (..)
     )
+import Prelude
 
 import qualified Cardano.Address.KeyHash as CA
 import qualified Data.Map as Map
 
 toWitnessCountCtx
-    :: IncludingStates '[ 'IcarusF, 'ShelleyF,  'SharedF] (FlavorOf s)
+    :: IncludingStates '[ 'IcarusF, 'ShelleyF, 'SharedF] (FlavorOf s)
     => WalletFlavorS s
     -> s
     -> WitnessCountCtx
@@ -72,7 +69,9 @@ toWitnessCountCtx SharedWallet s =
             maybe [] allCosignerStakingKeys delegationTemplateM
     in  SharedWalletCtx stakingKeyHashes
 
-count :: forall s n k. (s ~ SeqState n k, WalletFlavor s)
+count
+    :: forall s n k
+     . (s ~ SeqState n k, WalletFlavor s)
     => s -> WitnessCountCtx
 count s = case policyXPub s of
     Just key ->

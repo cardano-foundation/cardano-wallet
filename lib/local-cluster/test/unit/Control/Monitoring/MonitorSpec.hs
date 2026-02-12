@@ -3,8 +3,6 @@ module Control.Monitoring.MonitorSpec
     )
 where
 
-import Prelude
-
 import Control.Concurrent
     ( threadDelay
     )
@@ -43,6 +41,7 @@ import UnliftIO
     , forConcurrently_
     , link
     )
+import Prelude
 
 import qualified Control.Foldl as L
 

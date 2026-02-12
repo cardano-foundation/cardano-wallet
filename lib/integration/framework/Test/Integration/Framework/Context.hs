@@ -10,8 +10,6 @@ module Test.Integration.Framework.Context
     , runPartialClientRequest
     ) where
 
-import Prelude
-
 import Cardano.Address
     ( Address
     )
@@ -65,56 +63,53 @@ import Servant.Client
     , parseBaseUrl
     , runClientM
     )
+import Prelude
 
 -- | Context for integration tests.
---
 data Context = Context
     { _manager
         :: (URI, Manager)
-        -- ^ The underlying base URL and manager used by the wallet client.
+    -- ^ The underlying base URL and manager used by the wallet client.
     , _walletPort
         :: Port "wallet"
-        -- ^ Server TCP port.
+    -- ^ Server TCP port.
     , _faucet
         :: Faucet
-        -- ^ Provides access to funded wallets.
+    -- ^ Provides access to funded wallets.
     , _networkParameters :: NetworkParameters
-        -- ^ Blockchain parameters for the underlying chain.
+    -- ^ Blockchain parameters for the underlying chain.
     , _testnetMagic :: TestnetMagic
-        -- ^ The protocol magic of the underlying test network.
+    -- ^ The protocol magic of the underlying test network.
     , _poolGarbageCollectionEvents
         :: IORef [PoolGarbageCollectionEvent]
-        -- ^ The complete list of pool garbage collection events.
-        -- Most recent events are stored at the head of the list.
+    -- ^ The complete list of pool garbage collection events.
+    -- Most recent events are stored at the head of the list.
     , _mainEra
         :: ApiEra
-        -- ^ The main era the tests are expected to run on. Allows tests to make
-        -- era-specific assertions.
+    -- ^ The main era the tests are expected to run on. Allows tests to make
+    -- era-specific assertions.
     , _smashUrl :: Text
-        -- ^ Base URL of the mock smash server.
-
+    -- ^ Base URL of the mock smash server.
     , _mintSeaHorseAssets :: Int -> Int -> Coin -> [Address] -> IO ()
-        -- ^ TODO: Remove once we can unify cardano-wallet-integration and
-        -- cardano-wallet:integration, or when the wallet supports minting.
-        --
-        -- Cannot be used by several tests at a time. (!)
+    -- ^ TODO: Remove once we can unify cardano-wallet-integration and
+    -- cardano-wallet:integration, or when the wallet supports minting.
+    --
+    -- Cannot be used by several tests at a time. (!)
     , _preprodWallets
         :: [WalletId]
-        -- ^ Only non-empty when when running against preprod.
-
+    -- ^ Only non-empty when when running against preprod.
     }
-    deriving Generic
+    deriving (Generic)
 
 -- | Records the parameters and return value of a single call to the
 --   'removeRetiredPools' operation of 'Pool.DB.DBLayer'.
---
 data PoolGarbageCollectionEvent = PoolGarbageCollectionEvent
     { poolGarbageCollectionEpochNo
         :: EpochNo
-        -- ^ The epoch number parameter.
+    -- ^ The epoch number parameter.
     , poolGarbageCollectionCertificates
         :: [PoolRetirementCertificate]
-        -- ^ The pools that were removed from the database.
+    -- ^ The pools that were removed from the database.
     }
     deriving (Eq, Show)
 
@@ -129,7 +124,7 @@ data TxDescription
         , nChanges
             :: Int
         }
-    deriving Show
+    deriving (Show)
 
 -- one day we will export the manager from the context
 clientEnv :: Context -> ClientEnv
@@ -137,7 +132,8 @@ clientEnv ctx = case parseBaseUrl $ show (fst $ _manager ctx) of
     Left _ -> error "Invalid base URL"
     Right bu -> mkClientEnv (snd $ _manager ctx) bu
 
-runClientRequest :: MonadIO m => Context -> ClientM a -> m (Either ClientError a)
+runClientRequest
+    :: MonadIO m => Context -> ClientM a -> m (Either ClientError a)
 runClientRequest ctx action = liftIO $ runClientM action (clientEnv ctx)
 
 runPartialClientRequest :: MonadIO m => Context -> ClientM a -> m a

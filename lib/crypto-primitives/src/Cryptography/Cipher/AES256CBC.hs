@@ -32,7 +32,6 @@
 -- One can always read the last byte and remove that number of padding bytes,
 -- and then detect if the decryption was successful by checking that all of
 -- the bytes removed have the same value.
---
 module Cryptography.Cipher.AES256CBC
     ( CipherMode (..)
     , CipherError (..)
@@ -40,8 +39,6 @@ module Cryptography.Cipher.AES256CBC
     , decrypt
     , getSaltFromEncrypted
     ) where
-
-import Prelude
 
 import Control.Monad
     ( when
@@ -68,16 +65,18 @@ import Data.ByteString
 import Data.Either.Extra
     ( maybeToEither
     )
+import Prelude
 
 import qualified Cryptography.Padding.PKCS7 as PKCS7
 import qualified Data.ByteString as BS
 
-data CipherMode =
-    WithoutPadding | WithPadding
+data CipherMode
+    = WithoutPadding
+    | WithPadding
     deriving (Eq, Show)
 
-data CipherError =
-      FromCryptonite CryptoError
+data CipherError
+    = FromCryptonite CryptoError
     | EmptyPayload
     | WrongPayloadSize
     | WrongSaltSize
@@ -141,21 +140,24 @@ decrypt
     -> Either CipherError (ByteString, Maybe ByteString)
     -- ^ Decrypted payload and optionally salt that was used for encryption.
 decrypt mode key iv msg = do
-    when (mode == WithoutPadding && BS.length msg `mod` 16 /= 0) $
-        Left WrongPayloadSize
+    when (mode == WithoutPadding && BS.length msg `mod` 16 /= 0)
+        $ Left WrongPayloadSize
     initedIV <- first FromCryptonite (createIV iv)
     case BS.stripPrefix saltPrefix msg of
         Just rest ->
-            second (, Just $ BS.take saltLengthBytes rest) $
-            bimap FromCryptonite
-            (\c -> cbcDecrypt c initedIV (BS.drop saltLengthBytes rest))
-            (initCipher key) >>=
-            unpad
+            second (,Just $ BS.take saltLengthBytes rest)
+                $ bimap
+                    FromCryptonite
+                    (\c -> cbcDecrypt c initedIV (BS.drop saltLengthBytes rest))
+                    (initCipher key)
+                    >>= unpad
         Nothing ->
-            second (, Nothing) $
-            bimap FromCryptonite
-            (\c -> cbcDecrypt c initedIV msg) (initCipher key) >>=
-            unpad
+            second (,Nothing)
+                $ bimap
+                    FromCryptonite
+                    (\c -> cbcDecrypt c initedIV msg)
+                    (initCipher key)
+                    >>= unpad
   where
     unpad :: ByteString -> Either CipherError ByteString
     unpad p = case mode of
@@ -171,4 +173,5 @@ saltPrefix = "Salted__"
 getSaltFromEncrypted :: ByteString -> Maybe ByteString
 getSaltFromEncrypted msg
     | BS.length msg < 32 = Nothing
-    | otherwise = BS.take saltLengthBytes <$> BS.stripPrefix saltPrefix msg
+    | otherwise =
+        BS.take saltLengthBytes <$> BS.stripPrefix saltPrefix msg

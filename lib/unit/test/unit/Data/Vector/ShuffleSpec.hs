@@ -4,8 +4,6 @@ module Data.Vector.ShuffleSpec
     ( spec
     ) where
 
-import Prelude
-
 import Data.Vector.Shuffle
     ( mkSeed
     , shuffle
@@ -39,6 +37,7 @@ import Test.QuickCheck.Monadic
     , pick
     , run
     )
+import Prelude
 
 import qualified Data.List as L
 import qualified Data.Text as T
@@ -46,22 +45,26 @@ import qualified Data.Text as T
 spec :: Spec
 spec = do
     describe "shuffle" $ do
-        it "every non-empty list can be shuffled, ultimately"
+        it
+            "every non-empty list can be shuffled, ultimately"
             (checkCoverageWith lowerConfidence prop_shuffleCanShuffle)
-        it "shuffle is non-deterministic"
+        it
+            "shuffle is non-deterministic"
             (checkCoverageWith lowerConfidence prop_shuffleNotDeterministic)
-        it "sort (shuffled xs) == sort xs"
+        it
+            "sort (shuffled xs) == sort xs"
             (checkCoverageWith lowerConfidence prop_shufflePreserveElements)
 
     describe "shuffleWith / mkSeed" $ do
-        it "shuffling with the same seed is deterministic"
+        it
+            "shuffling with the same seed is deterministic"
             (checkCoverageWith lowerConfidence prop_shuffleWithDeterministic)
-        it "different seed means different shuffles"
+        it
+            "different seed means different shuffles"
             (checkCoverageWith lowerConfidence prop_shuffleDifferentSeed)
-
   where
     lowerConfidence :: Confidence
-    lowerConfidence = Confidence (10^(6 :: Integer)) 0.75
+    lowerConfidence = Confidence (10 ^ (6 :: Integer)) 0.75
 
 {-------------------------------------------------------------------------------
                                  Properties
@@ -87,7 +90,8 @@ prop_shufflePreserveElements
     -> Property
 prop_shufflePreserveElements xs = monadicIO $ run $ do
     xs' <- shuffle xs
-    return $ cover 90 (not $ null xs) "non-empty" (L.sort xs == L.sort xs')
+    return
+        $ cover 90 (not $ null xs) "non-empty" (L.sort xs == L.sort xs')
 
 -- ∀(g :: RandomGen).
 -- ∀(es :: [a]).
@@ -114,14 +118,15 @@ prop_shuffleDifferentSeed
     -> Positive Int
     -> Property
 prop_shuffleDifferentSeed (x0, x1) (Positive len) = do
-    x0 /= x1 ==> monadicIO $ do
-        let g0 = mkStdGen $ mkSeed $ T.pack $ getPrintableString x0
-        let g1 = mkStdGen $ mkSeed $ T.pack $ getPrintableString x1
-        es <- pick $ vectorOf len (arbitrary @Int)
-        ys0 <- run $ shuffleWith g0 es
-        ys1 <- run $ shuffleWith g1 es
-        monitor $ label (prettyLen es)
-        monitor $ cover 90 (ys0 /= ys1) "different"
+    x0 /= x1 ==>
+        monadicIO $ do
+            let g0 = mkStdGen $ mkSeed $ T.pack $ getPrintableString x0
+            let g1 = mkStdGen $ mkSeed $ T.pack $ getPrintableString x1
+            es <- pick $ vectorOf len (arbitrary @Int)
+            ys0 <- run $ shuffleWith g0 es
+            ys1 <- run $ shuffleWith g1 es
+            monitor $ label (prettyLen es)
+            monitor $ cover 90 (ys0 /= ys1) "different"
   where
     prettyLen :: [a] -> String
     prettyLen xs = case length xs of

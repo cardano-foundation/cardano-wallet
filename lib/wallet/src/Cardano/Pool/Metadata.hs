@@ -13,34 +13,30 @@
 --
 -- HTTP-client(s) for fetching stake pool metadata from remote servers (directly
 -- from pool operators, or from smash).
-
 module Cardano.Pool.Metadata
-    (
-    -- * Fetch
+    ( -- * Fetch
       fetchFromRemote
     , StakePoolMetadataFetchLog (..)
     , fetchDelistedPools
-    , HealthCheckSMASH(..)
+    , HealthCheckSMASH (..)
     , healthCheck
     , isHealthyStatus
     , toHealthCheckSMASH
     , HealthStatusSMASH (..)
 
-    -- * Construct URLs
+      -- * Construct URLs
     , UrlBuilder
     , identityUrlBuilder
     , registryUrlBuilder
 
-    -- * re-exports
+      -- * re-exports
     , Manager
     , newManager
     , defaultManagerSettings
 
-    -- * Types
+      -- * Types
     , SMASHPoolId (..)
     ) where
-
-import Prelude
 
 import Cardano.BM.Data.Severity
     ( Severity (..)
@@ -150,6 +146,7 @@ import UnliftIO.Exception
     , IOException
     , handle
     )
+import Prelude
 
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
@@ -162,11 +159,11 @@ import qualified Network.HTTP.Client.TLS as HTTPS
 -- | Build the SMASH metadata fetch endpoint for a single pool. Does not
 -- contain leading '/'.
 metadaFetchEp :: PoolId -> StakePoolMetadataHash -> String
-metadaFetchEp pid (StakePoolMetadataHash bytes)
-    = intercalate "/" (["api", "v1", "metadata"] ++ [pidStr, hashStr])
+metadaFetchEp pid (StakePoolMetadataHash bytes) =
+    intercalate "/" (["api", "v1", "metadata"] ++ [pidStr, hashStr])
   where
     hashStr = T.unpack $ T.decodeUtf8 $ convertToBase Base16 bytes
-    pidStr  = T.unpack $ toText pid
+    pidStr = T.unpack $ toText pid
 
 -- TODO: use SMASH servant types
 healthCheckEP :: String
@@ -184,7 +181,8 @@ toPoolId (SMASHPoolId pid) =
 defaultManagerSettings :: ManagerSettings
 defaultManagerSettings =
     HTTPS.tlsManagerSettings
-        { managerResponseTimeout = responseTimeoutMicro tenSeconds }
+        { managerResponseTimeout = responseTimeoutMicro tenSeconds
+        }
   where
     tenSeconds = 10_000_000 -- in μs
 
@@ -202,7 +200,7 @@ identityUrlBuilder _poolId (StakePoolMetadataUrl urlText) _metadataHash =
 -- | Build a URL from a metadata hash compatible with an aggregation registry
 registryUrlBuilder :: URI -> UrlBuilder
 registryUrlBuilder baseUrl pid _metadataUrl hash =
-    pure baseUrl{ uriPath = "/" <> metadaFetchEp pid hash }
+    pure baseUrl{uriPath = "/" <> metadaFetchEp pid hash}
 
 -- | A smash GET request that reads the result at once into memory.
 smashRequest
@@ -226,10 +224,12 @@ smashRequest tr uri manager = getPayload
             let body = responseBody response
             Right . BS.concat <$> brConsume body
         s ->
-            pure $ Left $ mconcat
-                [ "The server replied with something unexpected: "
-                , show s
-                ]
+            pure
+                $ Left
+                $ mconcat
+                    [ "The server replied with something unexpected: "
+                    , show s
+                    ]
 
     fromHttpException :: Monad m => HttpException -> m (Either String a)
     fromHttpException = return . Left . ("HTTP exception: " <>) . show
@@ -242,24 +242,28 @@ healthCheck
     -> Manager
     -> IO (Maybe HealthStatusSMASH)
 healthCheck tr uri manager = runExceptTLog $ do
-    pl <- smashRequest tr (
-        uri { uriPath = "/" <> healthCheckEP
-            , uriQuery = ""
-            , uriFragment = ""
-            }
-        )
-        manager
+    pl <-
+        smashRequest
+            tr
+            ( uri
+                { uriPath = "/" <> healthCheckEP
+                , uriQuery = ""
+                , uriFragment = ""
+                }
+            )
+            manager
     except . eitherDecodeStrict @HealthStatusSMASH $ pl
   where
     runExceptTLog
         :: ExceptT String IO HealthStatusSMASH
         -> IO (Maybe HealthStatusSMASH)
-    runExceptTLog action = runExceptT action >>= \case
-        Left msg ->
-            Nothing <$ traceWith tr (MsgFetchHealthCheckFailure msg)
-        Right health -> do
-            traceWith tr (MsgFetchHealthCheckSuccess health)
-            pure $ Just health
+    runExceptTLog action =
+        runExceptT action >>= \case
+            Left msg ->
+                Nothing <$ traceWith tr (MsgFetchHealthCheckFailure msg)
+            Right health -> do
+                traceWith tr (MsgFetchHealthCheckSuccess health)
+                pure $ Just health
 
 -- | Convert the result of @healthCheck@, which represents the
 -- server response to our own @HealthCheckSMASH@ type, which is a
@@ -272,7 +276,7 @@ toHealthCheckSMASH = \case
     _ -> Unreachable
 
 isHealthyStatus :: HealthStatusSMASH -> Bool
-isHealthyStatus (HealthStatusSMASH {..}) = T.toLower status == "ok"
+isHealthyStatus (HealthStatusSMASH{..}) = T.toLower status == "ok"
 
 fetchDelistedPools
     :: Tracer IO StakePoolMetadataFetchLog
@@ -280,17 +284,20 @@ fetchDelistedPools
     -> Manager
     -> IO (Maybe [PoolId])
 fetchDelistedPools tr uri manager = runExceptTLog $ do
-    pl <- smashRequest tr
-        (uri { uriPath = "/" <> delistedEP , uriQuery = "", uriFragment = "" })
-        manager
+    pl <-
+        smashRequest
+            tr
+            (uri{uriPath = "/" <> delistedEP, uriQuery = "", uriFragment = ""})
+            manager
     smashPids <- except $ eitherDecodeStrict @[SMASHPoolId] pl
     forM smashPids $ except . first getTextDecodingError . toPoolId
   where
     runExceptTLog :: ExceptT String IO [PoolId] -> IO (Maybe [PoolId])
-    runExceptTLog action = runExceptT action >>= \case
-        Left msg -> Nothing <$ traceWith tr (MsgFetchDelistedPoolsFailure msg)
-        Right meta ->
-            Just meta <$ traceWith tr (MsgFetchDelistedPoolsSuccess meta)
+    runExceptTLog action =
+        runExceptT action >>= \case
+            Left msg -> Nothing <$ traceWith tr (MsgFetchDelistedPoolsFailure msg)
+            Right meta ->
+                Just meta <$ traceWith tr (MsgFetchDelistedPoolsSuccess meta)
 
 -- TODO: refactor/simplify this
 fetchFromRemote
@@ -303,25 +310,28 @@ fetchFromRemote
     -> IO (Maybe StakePoolMetadata)
 fetchFromRemote tr builders manager pid url hash = runExceptTLog $ do
     chunk <- getChunk `fromFirst` builders
-    when (BS.length chunk > 512) $ throwE
-        "Metadata exceeds max length of 512 bytes"
-    when (blake2b256 chunk /= coerce hash) $ throwE $ mconcat
-        [ "Metadata hash mismatch. Saw: "
-        , B8.unpack $ hex $ blake2b256 chunk
-        , ", but expected: "
-        , B8.unpack $ hex $ coerce @_ @ByteString hash
-        ]
+    when (BS.length chunk > 512)
+        $ throwE
+            "Metadata exceeds max length of 512 bytes"
+    when (blake2b256 chunk /= coerce hash)
+        $ throwE
+        $ mconcat
+            [ "Metadata hash mismatch. Saw: "
+            , B8.unpack $ hex $ blake2b256 chunk
+            , ", but expected: "
+            , B8.unpack $ hex $ coerce @_ @ByteString hash
+            ]
     except $ eitherDecodeStrict chunk
   where
     runExceptTLog
         :: ExceptT String IO StakePoolMetadata
         -> IO (Maybe StakePoolMetadata)
-    runExceptTLog action = runExceptT action >>= \case
-        Left msg ->
-            Nothing <$ traceWith tr (MsgFetchPoolMetadataFailure hash msg)
-
-        Right meta ->
-            Just meta <$ traceWith tr (MsgFetchPoolMetadataSuccess hash meta)
+    runExceptTLog action =
+        runExceptT action >>= \case
+            Left msg ->
+                Nothing <$ traceWith tr (MsgFetchPoolMetadataFailure hash msg)
+            Right meta ->
+                Just meta <$ traceWith tr (MsgFetchPoolMetadataSuccess hash meta)
 
     -- Try each builder in order, but only if the previous builder led to an
     -- IO exception. Other exceptions like HTTP exceptions are treated as
@@ -329,7 +339,7 @@ fetchFromRemote tr builders manager pid url hash = runExceptTLog $ do
     -- retry.
     fromFirst _ [] =
         throwE "Metadata server(s) didn't reply in a timely manner."
-    fromFirst action (builder:rest) = do
+    fromFirst action (builder : rest) = do
         uri <- withExceptT show $ except $ builder pid url hash
         action uri >>= \case
             Nothing -> do
@@ -345,31 +355,33 @@ fetchFromRemote tr builders manager pid url hash = runExceptTLog $ do
         ExceptT
             $ handle fromIOException
             $ handle fromHttpException
-            $ withResponse req manager $ \res -> do
-            -- NOTE
-            -- Metadata are _supposed to_ be made of:
-            --
-            -- - A name (at most 50 UTF-8 bytes)
-            -- - An optional description (at most 255 UTF-8 bytes)
-            -- - A ticker (between 3 and 5 UTF-8 bytes)
-            --
-            -- So, the total, including a pretty JSON encoding with newlines ought
-            -- to be less than or equal to 512 bytes. For security reasons, we only
-            -- download the first 513 bytes and check the length at the
-            -- call-site.
-            case responseStatus res of
-                s | s == status200 -> do
-                    let body = responseBody res
-                    Right . Just . BL.toStrict <$> brReadSome body 513
-
-                s | s == status404 ->
-                    pure $ Left "There's no known metadata for this pool."
-
-                s ->
-                    pure $ Left $ mconcat
-                        [ "The server replied with something unexpected: "
-                        , show s
-                        ]
+            $ withResponse req manager
+            $ \res -> do
+                -- NOTE
+                -- Metadata are _supposed to_ be made of:
+                --
+                -- - A name (at most 50 UTF-8 bytes)
+                -- - An optional description (at most 255 UTF-8 bytes)
+                -- - A ticker (between 3 and 5 UTF-8 bytes)
+                --
+                -- So, the total, including a pretty JSON encoding with newlines ought
+                -- to be less than or equal to 512 bytes. For security reasons, we only
+                -- download the first 513 bytes and check the length at the
+                -- call-site.
+                case responseStatus res of
+                    s | s == status200 -> do
+                        let body = responseBody res
+                        Right . Just . BL.toStrict <$> brReadSome body 513
+                    s
+                        | s == status404 ->
+                            pure $ Left "There's no known metadata for this pool."
+                    s ->
+                        pure
+                            $ Left
+                            $ mconcat
+                                [ "The server replied with something unexpected: "
+                                , show s
+                                ]
 
     fromHttpException :: HttpException -> IO (Either String (Maybe a))
     fromHttpException exception = do
@@ -383,32 +395,33 @@ fromIOException = pure . Left . ("IO exception: " <>) . show
 -- Types
 --------------------------------------------------------------------------------
 
-newtype SMASHPoolId = SMASHPoolId { poolId :: T.Text }
+newtype SMASHPoolId = SMASHPoolId {poolId :: T.Text}
     deriving newtype (Eq, Show, Ord)
     deriving stock (Generic)
 
 instance FromJSON SMASHPoolId where
-    parseJSON = genericParseJSON smashRecordTypeOptions{fieldLabelModifier=id}
+    parseJSON = genericParseJSON smashRecordTypeOptions{fieldLabelModifier = id}
 
 -- | Parses the SMASH HealthCheck type from the SMASH API.
-data HealthStatusSMASH = HealthStatusSMASH { status :: Text, version :: Text }
+data HealthStatusSMASH = HealthStatusSMASH {status :: Text, version :: Text}
     deriving stock (Generic, Show, Eq, Ord)
 
 instance FromJSON HealthStatusSMASH where
     parseJSON = genericParseJSON smashRecordTypeOptions
 
 smashRecordTypeOptions :: Aeson.Options
-smashRecordTypeOptions = Aeson.defaultOptions
-    { fieldLabelModifier = camelTo2 '_' . dropWhile (== '_')
-    , omitNothingFields = True
-    }
+smashRecordTypeOptions =
+    Aeson.defaultOptions
+        { fieldLabelModifier = camelTo2 '_' . dropWhile (== '_')
+        , omitNothingFields = True
+        }
 
 -- | Dscribes the health status of the SMASH server.
 data HealthCheckSMASH
-    = Available          -- server available
-    | Unavailable        -- server reachable, but unavailable
-    | Unreachable        -- could not get a response from the SMASH server
-    | NoSmashConfigured  -- no SMASH server has been configured
+    = Available -- server available
+    | Unavailable -- server reachable, but unavailable
+    | Unreachable -- could not get a response from the SMASH server
+    | NoSmashConfigured -- no SMASH server has been configured
     deriving stock (Generic, Show, Eq, Ord)
 
 --------------------------------------------------------------------------------
@@ -443,43 +456,64 @@ instance HasSeverityAnnotation StakePoolMetadataFetchLog where
 
 instance ToText StakePoolMetadataFetchLog where
     toText = \case
-        MsgFetchPoolMetadata hash uri -> mconcat
-            [ "Fetching metadata with hash ", pretty hash
-            , " from ", T.pack (show uri)
-            ]
-        MsgFetchPoolMetadataSuccess hash meta -> mconcat
-            [ "Successfully fetched metadata with hash ", pretty hash
-            , ": ", T.pack (show meta)
-            ]
-        MsgFetchPoolMetadataHttpException exception -> mconcat
-            [ "Exception occurred while fetching a pool metadata: "
-            , T.pack (displayException exception)
-            ]
-        MsgFetchPoolMetadataFailure hash msg -> mconcat
-            [ "Failed to fetch metadata with hash "
-            , pretty hash, ": ", T.pack msg
-            ]
-        MsgFetchPoolMetadataFallback uri noMoreUrls -> mconcat
-            [ "Couldn't reach server at ", T.pack (show uri), "."
-            , if noMoreUrls
-                then ""
-                else " Falling back using a different strategy."
-            ]
-        MsgFetchSMASH uri -> mconcat
-            [ "Making a SMASH request to ", T.pack (show uri)
-            ]
-        MsgFetchDelistedPoolsSuccess poolIds -> mconcat
-            [ "Successfully fetched delisted "
-            , T.pack (show . length $ poolIds)
-            , " pools."
-            ]
-        MsgFetchDelistedPoolsFailure err -> mconcat
-            [ "Failed to fetch delisted pools: ", T.pack err
-            ]
-        MsgFetchHealthCheckSuccess health -> mconcat
-            [ "Successfully checked health "
-            , T.pack (show health)
-            ]
-        MsgFetchHealthCheckFailure err -> mconcat
-            [ "Failed to check health: ", T.pack err
-            ]
+        MsgFetchPoolMetadata hash uri ->
+            mconcat
+                [ "Fetching metadata with hash "
+                , pretty hash
+                , " from "
+                , T.pack (show uri)
+                ]
+        MsgFetchPoolMetadataSuccess hash meta ->
+            mconcat
+                [ "Successfully fetched metadata with hash "
+                , pretty hash
+                , ": "
+                , T.pack (show meta)
+                ]
+        MsgFetchPoolMetadataHttpException exception ->
+            mconcat
+                [ "Exception occurred while fetching a pool metadata: "
+                , T.pack (displayException exception)
+                ]
+        MsgFetchPoolMetadataFailure hash msg ->
+            mconcat
+                [ "Failed to fetch metadata with hash "
+                , pretty hash
+                , ": "
+                , T.pack msg
+                ]
+        MsgFetchPoolMetadataFallback uri noMoreUrls ->
+            mconcat
+                [ "Couldn't reach server at "
+                , T.pack (show uri)
+                , "."
+                , if noMoreUrls
+                    then ""
+                    else " Falling back using a different strategy."
+                ]
+        MsgFetchSMASH uri ->
+            mconcat
+                [ "Making a SMASH request to "
+                , T.pack (show uri)
+                ]
+        MsgFetchDelistedPoolsSuccess poolIds ->
+            mconcat
+                [ "Successfully fetched delisted "
+                , T.pack (show . length $ poolIds)
+                , " pools."
+                ]
+        MsgFetchDelistedPoolsFailure err ->
+            mconcat
+                [ "Failed to fetch delisted pools: "
+                , T.pack err
+                ]
+        MsgFetchHealthCheckSuccess health ->
+            mconcat
+                [ "Successfully checked health "
+                , T.pack (show health)
+                ]
+        MsgFetchHealthCheckFailure err ->
+            mconcat
+                [ "Failed to check health: "
+                , T.pack err
+                ]

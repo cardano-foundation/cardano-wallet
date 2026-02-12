@@ -1,19 +1,15 @@
 module Cardano.Wallet.Primitive.Types.TokenPolicyId.Gen
-    (
-    -- * Generators and shrinkers
+    ( -- * Generators and shrinkers
       genTokenPolicyId
     , genTokenPolicyIdLargeRange
     , shrinkTokenPolicyId
 
-    -- * Test values
+      -- * Test values
     , testTokenPolicyIds
 
-    -- * Creation of test values
+      -- * Creation of test values
     , mkTokenPolicyId
-
     ) where
-
-import Prelude
 
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
@@ -33,6 +29,7 @@ import Test.QuickCheck
     , sized
     , vector
     )
+import Prelude
 
 import qualified Data.ByteString as BS
 import qualified Data.Text as T
@@ -50,7 +47,7 @@ shrinkTokenPolicyId i
     | i == simplest = []
     | otherwise = [simplest]
   where
-    simplest = case testTokenPolicyIds of (x:_) -> x; [] -> error "impossible"
+    simplest = case testTokenPolicyIds of (x : _) -> x; [] -> error "impossible"
 
 --------------------------------------------------------------------------------
 -- Token policy identifiers chosen from a large range (to minimize the risk of
@@ -75,14 +72,15 @@ mkTokenPolicyIdValidChars = ['0' .. '9'] <> ['A' .. 'F']
 -- The input must be a character in the range [0-9] or [A-F].
 --
 mkTokenPolicyId :: Char -> TokenPolicyId
-mkTokenPolicyId c
-    = fromRight reportError
-    $ fromText
-    $ T.pack
-    $ replicate tokenPolicyIdHexStringLength c
+mkTokenPolicyId c =
+    fromRight reportError
+        $ fromText
+        $ T.pack
+        $ replicate tokenPolicyIdHexStringLength c
   where
-    reportError = error $
-        "Unable to generate token policy id from character: " <> show c
+    reportError =
+        error
+            $ "Unable to generate token policy id from character: " <> show c
 
 tokenPolicyIdHexStringLength :: Int
 tokenPolicyIdHexStringLength = 56

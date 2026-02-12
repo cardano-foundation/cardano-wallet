@@ -6,8 +6,6 @@ module Cardano.Wallet.Launch.Cluster.PoolMetadataServer
     )
 where
 
-import Prelude
-
 import Cardano.BM.Tracing
     ( traceWith
     )
@@ -49,6 +47,7 @@ import System.Path.Directory
 import Test.Utils.StaticServer
     ( withStaticServer
     )
+import Prelude
 
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Char8 as B8

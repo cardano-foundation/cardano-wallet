@@ -1,14 +1,12 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 
 module Cardano.Wallet.UI.Shelley.Server where
-
-import Prelude
 
 import Cardano.Wallet.Address.Derivation.Icarus
     ( IcarusKey
@@ -52,15 +50,15 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..)
     )
+import Cardano.Wallet.UI.Common.Handlers.SSE
+    ( sse
+    )
 import Cardano.Wallet.UI.Common.Handlers.Session
     ( withSessionLayer
     , withSessionLayerRead
     )
 import Cardano.Wallet.UI.Common.Handlers.Settings
     ( toggleSSE
-    )
-import Cardano.Wallet.UI.Common.Handlers.SSE
-    ( sse
     )
 import Cardano.Wallet.UI.Common.Handlers.State
     ( getState
@@ -156,6 +154,7 @@ import Servant
     , Server
     , (:<|>) (..)
     )
+import Prelude
 
 pageHandler
     :: UILayer (Maybe WalletId)

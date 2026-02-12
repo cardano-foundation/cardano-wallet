@@ -7,8 +7,6 @@ module Cardano.Wallet.Read.Tx.Gen.Mary
     )
 where
 
-import Prelude
-
 import Cardano.Ledger.Allegra.Core
     ( ValidityInterval (..)
     )
@@ -68,6 +66,7 @@ import Data.Sequence.Strict
     ( StrictSeq
     , fromList
     )
+import Prelude
 
 mkMaryTx
     :: TxParameters

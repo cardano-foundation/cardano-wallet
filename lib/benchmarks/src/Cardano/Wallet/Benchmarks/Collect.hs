@@ -5,7 +5,6 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE RankNTypes #-}
-
 {-# HLINT ignore "Functor law" #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 
@@ -35,10 +34,7 @@ module Cardano.Wallet.Benchmarks.Collect
       -- * Collecting results from criterion benchmarks
     , runCriterionBenchmark
     , convertUnit
-
     ) where
-
-import Prelude
 
 import Cardano.BM.Tracing
     ( HasSeverityAnnotation (..)
@@ -113,6 +109,7 @@ import UnliftIO
     , newTVarIO
     , readTVarIO
     )
+import Prelude
 
 import qualified Criterion.Measurement.Types as Cr
 import qualified Data.ByteString.Char8 as B8
@@ -403,7 +400,8 @@ instance Semigroup MeasureAndTotal where
 instance Monoid MeasureAndTotal where
     mempty = MeasureAndTotal 0 0
 
-stateFromMeasured :: (Measured, Time) -> CountAndAppend MeasureAndTotal
+stateFromMeasured
+    :: (Measured, Time) -> CountAndAppend MeasureAndTotal
 stateFromMeasured (m, t) =
     CountAndAppend
         (measIters m)

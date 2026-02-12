@@ -7,8 +7,6 @@ module Buildkite.Artifacts.CSV
     )
 where
 
-import Prelude
-
 import Buildkite.API
     ( GetArtifact
     , WithAuthPipeline
@@ -31,6 +29,7 @@ import Servant.Client
     ( ClientM
     , client
     )
+import Prelude
 
 import qualified Data.ByteString.Lazy.Char8 as BL8
 

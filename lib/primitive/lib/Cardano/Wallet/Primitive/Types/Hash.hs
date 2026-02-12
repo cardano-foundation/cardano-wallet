@@ -14,7 +14,6 @@
 -- License: Apache-2.0
 --
 -- Types and functions relating to hash values.
---
 module Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
     , hashFromText
@@ -22,8 +21,6 @@ module Cardano.Wallet.Primitive.Types.Hash
     , mockHashRewardAccount
     , toRawHeaderHash
     ) where
-
-import Prelude
 
 import Cardano.Wallet.Util
     ( mapFirst
@@ -87,6 +84,7 @@ import NoThunks.Class
 import Quiet
     ( Quiet (..)
     )
+import Prelude
 
 import qualified Cardano.Wallet.Read as Read
 import qualified Cardano.Wallet.Read.Hash as Hash
@@ -96,7 +94,7 @@ import qualified Data.ByteString.Char8 as B8
 import qualified Data.Char as C
 import qualified Data.Text.Encoding as T
 
-newtype Hash (tag :: Symbol) = Hash { getHash :: ByteString }
+newtype Hash (tag :: Symbol) = Hash {getHash :: ByteString}
     deriving stock (Data, Generic, Eq, Ord)
     deriving newtype (ByteArrayAccess)
     deriving (Read, Show) via (Quiet (Hash tag))
@@ -105,47 +103,61 @@ newtype Hash (tag :: Symbol) = Hash { getHash :: ByteString }
 instance NoThunks (Hash tag)
 
 instance Buildable (Hash tag) where
-    build h = mempty
-        <> prefixF 8 builder
+    build h =
+        mempty
+            <> prefixF 8 builder
       where
         builder = build . toText $ h
 
 instance ToText (Hash tag) where
     toText = T.decodeUtf8 . convertToBase Base16 . getHash
 
-instance FromText (Hash "Tx")              where fromText = hashFromText 32
-instance FromText (Hash "Account")         where fromText = hashFromText 32
-instance FromText (Hash "Genesis")         where fromText = hashFromText 32
-instance FromText (Hash "Block")           where fromText = hashFromText 32
-instance FromText (Hash "BlockHeader")     where fromText = hashFromText 32
-instance FromText (Hash "RewardAccount")   where fromText = hashFromText 28
-instance FromText (Hash "TokenPolicy")     where fromText = hashFromText 28 -- Script Hash
-instance FromText (Hash "Datum")           where fromText = hashFromText 32
-instance FromText (Hash "VerificationKey") where fromText = hashFromText 28
-instance FromText (Hash "ScriptIntegrity") where fromText = hashFromText 32
+instance FromText (Hash "Tx") where
+    fromText = hashFromText 32
+instance FromText (Hash "Account") where
+    fromText = hashFromText 32
+instance FromText (Hash "Genesis") where
+    fromText = hashFromText 32
+instance FromText (Hash "Block") where
+    fromText = hashFromText 32
+instance FromText (Hash "BlockHeader") where
+    fromText = hashFromText 32
+instance FromText (Hash "RewardAccount") where
+    fromText = hashFromText 28
+instance FromText (Hash "TokenPolicy") where
+    fromText = hashFromText 28 -- Script Hash
+instance FromText (Hash "Datum") where
+    fromText = hashFromText 32
+instance FromText (Hash "VerificationKey") where
+    fromText = hashFromText 28
+instance FromText (Hash "ScriptIntegrity") where
+    fromText = hashFromText 32
 
 hashFromText
-    :: forall t. (KnownSymbol t)
+    :: forall t
+     . (KnownSymbol t)
     => Int
-        -- ^ Expected decoded hash length
+    -- ^ Expected decoded hash length
     -> Text
     -> Either TextDecodingError (Hash t)
 hashFromText len text = case decoded of
-    Right bytes | BS.length bytes == len ->
-        Right $ Hash bytes
+    Right bytes
+        | BS.length bytes == len ->
+            Right $ Hash bytes
     _ ->
-        Left $ TextDecodingError $ unwords
-            [ "Invalid"
-            , mapFirst C.toLower $ symbolVal $ Proxy @t
-            , "hash: expecting a hex-encoded value that is"
-            , show len
-            , "bytes in length."
-            ]
+        Left
+            $ TextDecodingError
+            $ unwords
+                [ "Invalid"
+                , mapFirst C.toLower $ symbolVal $ Proxy @t
+                , "hash: expecting a hex-encoded value that is"
+                , show len
+                , "bytes in length."
+                ]
   where
     decoded = convertFromBase Base16 $ T.encodeUtf8 text
 
 -- | Constructs a hash that is good enough for testing.
---
 mockHash :: Show a => a -> Hash whatever
 mockHash = Hash . blake2b256 . B8.pack . show
 
@@ -156,10 +168,11 @@ toRawHeaderHash :: Hash "BlockHeader" -> Read.RawHeaderHash
 toRawHeaderHash h =
     fromMaybe err . Hash.hashFromBytes $ getHash h
   where
-    err = error
-        $ "toRawHeaderHash:"
-        <> "invalid value of type Hash \"BlockHeader\":"
-        <> show h
+    err =
+        error
+            $ "toRawHeaderHash:"
+                <> "invalid value of type Hash \"BlockHeader\":"
+                <> show h
 
 -- | Construct a hash that is good enough for testing (28 byte length).
 mockHashRewardAccount :: Show a => a -> Hash "RewardAccount"

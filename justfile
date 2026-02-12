@@ -5,7 +5,7 @@ LC_ALL := 'C.UTF-8'
 default:
   @just --list
 
-# check that the code is formatted with stylish-haskell
+# check that the code is formatted with fourmolu
 syntax:
   scripts/buildkite/main/check-code-format.sh
 
@@ -18,8 +18,8 @@ lint-lib dir:
   set -euo pipefail
   cd "lib/{{dir}}"
   pkg=$(grep -m1 "^name:" *.cabal | awk '{print $2}')
-  echo "+++ stylish-haskell"
-  stylish-haskell --config ../../.stylish-haskell.yaml --inplace $(find . -name '*.hs' -not -path '*/dist-newstyle/*' 2>/dev/null || true)
+  echo "+++ fourmolu"
+  fourmolu --mode inplace $(find . -name '*.hs' -not -path '*/dist-newstyle/*' 2>/dev/null || true)
   echo "+++ hlint"
   hlint . --ignore-glob='dist-newstyle/**' 2>/dev/null || true
   echo "+++ cabal-fmt"

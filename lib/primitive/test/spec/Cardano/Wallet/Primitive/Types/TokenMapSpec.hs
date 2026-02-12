@@ -3,20 +3,19 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+
 {- HLINT ignore "Use camelCase" -}
 {- HLINT ignore "Functor law" -}
 
 module Cardano.Wallet.Primitive.Types.TokenMapSpec
     ( spec
     ) where
-
-import Prelude
 
 import Cardano.Numeric.Util
     ( inAscendingPartialOrder
@@ -161,13 +160,15 @@ import Test.QuickCheck.Classes.Semigroup.Cancellative
     , rightReductiveLaws
     )
 import Test.QuickCheck.Instances.ByteString
-    ()
+    (
+    )
 import Test.Utils.Laws
     ( testLawsMany
     )
 import Test.Utils.Laws.PartialOrd
     ( partialOrdLaws
     )
+import Prelude
 
 import qualified Cardano.Wallet.Primitive.Types.AssetName as AssetName
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
@@ -181,151 +182,153 @@ import qualified Test.QuickCheck as QC
 
 spec :: Spec
 spec =
-    describe "Token map properties" $
-    modifyMaxSuccess (const 1000) $ do
+    describe "Token map properties"
+        $ modifyMaxSuccess (const 1000)
+        $ do
+            describe "Class instances obey laws" $ do
+                testLawsMany @TokenMap
+                    [ commutativeLaws
+                    , eqLaws
+                    , gcdMonoidLaws
+                    , leftGCDMonoidLaws
+                    , leftReductiveLaws
+                    , monoidLaws
+                    , monoidNullLaws
+                    , monusLaws
+                    , overlappingGCDMonoidLaws
+                    , partialOrdLaws
+                    , reductiveLaws
+                    , rightGCDMonoidLaws
+                    , rightReductiveLaws
+                    , semigroupLaws
+                    , semigroupMonoidLaws
+                    ]
+                testLawsMany @(Lexicographic TokenMap)
+                    [ eqLaws
+                    , ordLaws
+                    ]
 
-    describe "Class instances obey laws" $ do
-        testLawsMany @TokenMap
-            [ commutativeLaws
-            , eqLaws
-            , gcdMonoidLaws
-            , leftGCDMonoidLaws
-            , leftReductiveLaws
-            , monoidLaws
-            , monoidNullLaws
-            , monusLaws
-            , overlappingGCDMonoidLaws
-            , partialOrdLaws
-            , reductiveLaws
-            , rightGCDMonoidLaws
-            , rightReductiveLaws
-            , semigroupLaws
-            , semigroupMonoidLaws
-            ]
-        testLawsMany @(Lexicographic TokenMap)
-            [ eqLaws
-            , ordLaws
-            ]
+            describe "Construction and deconstruction" $ do
+                it "prop_fromFlatList"
+                    $ property prop_fromFlatList
+                it "prop_fromNestedList"
+                    $ property prop_fromNestedList
+                it "prop_empty_toFlatList"
+                    $ property prop_empty_toFlatList
+                it "prop_singleton_toFlatList"
+                    $ property prop_singleton_toFlatList
+                it "prop_toFlatList_fromFlatList"
+                    $ property prop_toFlatList_fromFlatList
+                it "prop_toNestedList_fromNestedList"
+                    $ property prop_toNestedList_fromNestedList
 
-    describe "Construction and deconstruction" $ do
+            describe "Filtering" $ do
+                it "prop_filter_conjoin"
+                    $ property prop_filter_conjoin
+                it "prop_filter_partition"
+                    $ property prop_filter_partition
+                it "prop_filter_twice"
+                    $ property prop_filter_twice
 
-        it "prop_fromFlatList" $
-            property prop_fromFlatList
-        it "prop_fromNestedList" $
-            property prop_fromNestedList
-        it "prop_empty_toFlatList" $
-            property prop_empty_toFlatList
-        it "prop_singleton_toFlatList" $
-            property prop_singleton_toFlatList
-        it "prop_toFlatList_fromFlatList" $
-            property prop_toFlatList_fromFlatList
-        it "prop_toNestedList_fromNestedList" $
-            property prop_toNestedList_fromNestedList
+            describe "Quantities" $ do
+                it "prop_removeQuantity_isEmpty"
+                    $ property prop_removeQuantity_isEmpty
+                it "prop_setQuantity_getQuantity"
+                    $ property prop_setQuantity_getQuantity
+                it "prop_setQuantity_hasQuantity"
+                    $ property prop_setQuantity_hasQuantity
+                it "prop_adjustQuantity_getQuantity"
+                    $ property prop_adjustQuantity_getQuantity
+                it "prop_adjustQuantity_hasQuantity"
+                    $ property prop_adjustQuantity_hasQuantity
+                it "prop_maximumQuantity_all"
+                    $ property prop_maximumQuantity_all
+                it "prop_maximumQuantity_mempty"
+                    $ property prop_maximumQuantity_mempty
 
-    describe "Filtering" $ do
+            describe "Queries" $ do
+                it "prop_size_isEmpty" $ do
+                    property prop_size_isEmpty
+                it "prop_size_toFlatList" $ do
+                    property prop_size_toFlatList
 
-        it "prop_filter_conjoin" $
-            property prop_filter_conjoin
-        it "prop_filter_partition" $
-            property prop_filter_partition
-        it "prop_filter_twice" $
-            property prop_filter_twice
+            describe "Transformations" $ do
+                it "prop_mapAssetIds_identity" $ do
+                    prop_mapAssetIds_identity & property
+                it "prop_mapAssetIds_composition" $ do
+                    prop_mapAssetIds_composition & property
 
-    describe "Quantities" $ do
+            describe "Partitioning assets" $ do
+                it "prop_equipartitionAssets_coverage"
+                    $ property prop_equipartitionAssets_coverage
+                it "prop_equipartitionAssets_length"
+                    $ property prop_equipartitionAssets_length
+                it "prop_equipartitionAssets_sizes"
+                    $ property prop_equipartitionAssets_sizes
+                it "prop_equipartitionAssets_sum"
+                    $ property prop_equipartitionAssets_sum
 
-        it "prop_removeQuantity_isEmpty" $
-            property prop_removeQuantity_isEmpty
-        it "prop_setQuantity_getQuantity" $
-            property prop_setQuantity_getQuantity
-        it "prop_setQuantity_hasQuantity" $
-            property prop_setQuantity_hasQuantity
-        it "prop_adjustQuantity_getQuantity" $
-            property prop_adjustQuantity_getQuantity
-        it "prop_adjustQuantity_hasQuantity" $
-            property prop_adjustQuantity_hasQuantity
-        it "prop_maximumQuantity_all" $
-            property prop_maximumQuantity_all
-        it "prop_maximumQuantity_mempty" $
-            property prop_maximumQuantity_mempty
+            describe "Partitioning quantities" $ do
+                it "prop_equipartitionQuantities_fair"
+                    $ property prop_equipartitionQuantities_fair
+                it "prop_equipartitionQuantities_length"
+                    $ property prop_equipartitionQuantities_length
+                it "prop_equipartitionQuantities_order"
+                    $ property prop_equipartitionQuantities_order
+                it "prop_equipartitionQuantities_sum"
+                    $ property prop_equipartitionQuantities_sum
 
-    describe "Queries" $ do
+            describe "Partitioning quantities with an upper bound" $ do
+                it "prop_equipartitionQuantitiesWithUpperBound_coverage"
+                    $ property prop_equipartitionQuantitiesWithUpperBound_coverage
+                it "prop_equipartitionQuantitiesWithUpperBound_length"
+                    $ property prop_equipartitionQuantitiesWithUpperBound_length
+                it "prop_equipartitionQuantitiesWithUpperBound_max"
+                    $ property prop_equipartitionQuantitiesWithUpperBound_max
+                it "prop_equipartitionQuantitiesWithUpperBound_order"
+                    $ property prop_equipartitionQuantitiesWithUpperBound_order
+                it "prop_equipartitionQuantitiesWithUpperBound_sum"
+                    $ property prop_equipartitionQuantitiesWithUpperBound_sum
 
-        it "prop_size_isEmpty" $ do
-            property prop_size_isEmpty
-        it "prop_size_toFlatList" $ do
-            property prop_size_toFlatList
+            describe "Generating partitions" $ do
+                it "prop_genTokenMapPartition_fold"
+                    $ prop_genTokenMapPartition_fold
+                    & property
+                it "prop_genTokenMapPartition_length"
+                    $ prop_genTokenMapPartition_length
+                    & property
+                it "prop_genTokenMapPartition_nonPositive"
+                    $ prop_genTokenMapPartition_nonPositive
+                    & property
 
-    describe "Transformations" $ do
-
-        it "prop_mapAssetIds_identity" $ do
-            prop_mapAssetIds_identity & property
-        it "prop_mapAssetIds_composition" $ do
-            prop_mapAssetIds_composition & property
-
-    describe "Partitioning assets" $ do
-
-        it "prop_equipartitionAssets_coverage" $
-            property prop_equipartitionAssets_coverage
-        it "prop_equipartitionAssets_length" $
-            property prop_equipartitionAssets_length
-        it "prop_equipartitionAssets_sizes" $
-            property prop_equipartitionAssets_sizes
-        it "prop_equipartitionAssets_sum" $
-            property prop_equipartitionAssets_sum
-
-    describe "Partitioning quantities" $ do
-
-        it "prop_equipartitionQuantities_fair" $
-            property prop_equipartitionQuantities_fair
-        it "prop_equipartitionQuantities_length" $
-            property prop_equipartitionQuantities_length
-        it "prop_equipartitionQuantities_order" $
-            property prop_equipartitionQuantities_order
-        it "prop_equipartitionQuantities_sum" $
-            property prop_equipartitionQuantities_sum
-
-    describe "Partitioning quantities with an upper bound" $ do
-
-        it "prop_equipartitionQuantitiesWithUpperBound_coverage" $
-            property prop_equipartitionQuantitiesWithUpperBound_coverage
-        it "prop_equipartitionQuantitiesWithUpperBound_length" $
-            property prop_equipartitionQuantitiesWithUpperBound_length
-        it "prop_equipartitionQuantitiesWithUpperBound_max" $
-            property prop_equipartitionQuantitiesWithUpperBound_max
-        it "prop_equipartitionQuantitiesWithUpperBound_order" $
-            property prop_equipartitionQuantitiesWithUpperBound_order
-        it "prop_equipartitionQuantitiesWithUpperBound_sum" $
-            property prop_equipartitionQuantitiesWithUpperBound_sum
-
-    describe "Generating partitions" $ do
-
-        it "prop_genTokenMapPartition_fold" $
-            prop_genTokenMapPartition_fold & property
-        it "prop_genTokenMapPartition_length" $
-            prop_genTokenMapPartition_length & property
-        it "prop_genTokenMapPartition_nonPositive" $
-            prop_genTokenMapPartition_nonPositive & property
-
-    describe "Textual serialization" $ do
-        it "Flat style" $
-            property testPrettyFlat
-        it "Nested style" $
-            property testPrettyNested
+            describe "Textual serialization" $ do
+                it "Flat style"
+                    $ property testPrettyFlat
+                it "Nested style"
+                    $ property testPrettyNested
 
 --------------------------------------------------------------------------------
 -- Construction and deconstruction properties
 --------------------------------------------------------------------------------
 
 prop_fromFlatList :: [(AssetId, TokenQuantity)] -> Property
-prop_fromFlatList assetQuantities = checkCoverage $ property $
-    cover 2 (length assetQuantities == length combinedAssetQuantities)
-        "Every asset has exactly one quantity" $
-    cover 20 (length assetQuantities > length combinedAssetQuantities)
-        "Some assets have more than one quantity" $
-    -- Check that multiple quantities for the same asset are combined
-    -- additively:
-    F.all (\(a, q) -> TokenMap.getQuantity tokenMap a == q)
-        combinedAssetQuantities
+prop_fromFlatList assetQuantities =
+    checkCoverage
+        $ property
+        $ cover
+            2
+            (length assetQuantities == length combinedAssetQuantities)
+            "Every asset has exactly one quantity"
+        $ cover
+            20
+            (length assetQuantities > length combinedAssetQuantities)
+            "Some assets have more than one quantity"
+        $
+        -- Check that multiple quantities for the same asset are combined
+        -- additively:
+        F.all
+            (\(a, q) -> TokenMap.getQuantity tokenMap a == q)
+            combinedAssetQuantities
   where
     tokenMap = TokenMap.fromFlatList assetQuantities
     combinedAssetQuantities =
@@ -334,19 +337,28 @@ prop_fromFlatList assetQuantities = checkCoverage $ property $
 prop_fromNestedList
     :: [(TokenPolicyId, NonEmpty (AssetName, TokenQuantity))]
     -> Property
-prop_fromNestedList assetQuantities = checkCoverage $ property $
-    cover 2 (length flattenedAssetQuantities == length combinedAssetQuantities)
-        "Every asset has exactly one quantity" $
-    cover 20 (length flattenedAssetQuantities > length combinedAssetQuantities)
-        "Some assets have more than one quantity" $
-    -- Check that multiple quantities for the same asset are combined
-    -- additively:
-    F.all (\(a, q) -> TokenMap.getQuantity tokenMap a == q)
-        combinedAssetQuantities
+prop_fromNestedList assetQuantities =
+    checkCoverage
+        $ property
+        $ cover
+            2
+            (length flattenedAssetQuantities == length combinedAssetQuantities)
+            "Every asset has exactly one quantity"
+        $ cover
+            20
+            (length flattenedAssetQuantities > length combinedAssetQuantities)
+            "Some assets have more than one quantity"
+        $
+        -- Check that multiple quantities for the same asset are combined
+        -- additively:
+        F.all
+            (\(a, q) -> TokenMap.getQuantity tokenMap a == q)
+            combinedAssetQuantities
   where
     tokenMap = TokenMap.fromNestedList assetQuantities
-    combinedAssetQuantities = Map.toList $
-        Map.fromListWith TokenQuantity.add flattenedAssetQuantities
+    combinedAssetQuantities =
+        Map.toList
+            $ Map.fromListWith TokenQuantity.add flattenedAssetQuantities
     flattenedAssetQuantities =
         [ (AssetId p t, q)
         | (p, tq) <- fmap (fmap NE.toList) assetQuantities
@@ -359,8 +371,8 @@ prop_empty_toFlatList =
 
 prop_singleton_toFlatList
     :: (AssetId, TokenQuantity) -> Property
-prop_singleton_toFlatList entry@(asset, quantity) = property $
-    case TokenMap.toFlatList $ TokenMap.singleton asset quantity of
+prop_singleton_toFlatList entry@(asset, quantity) = property
+    $ case TokenMap.toFlatList $ TokenMap.singleton asset quantity of
         [] -> quantity === TokenQuantity.zero
         [entryRetrieved] -> entryRetrieved === entry
         _ -> error "prop_singleton_toFlatList"
@@ -399,7 +411,7 @@ prop_filter_partition f b =
 prop_filter_twice :: Fun AssetId Bool -> TokenMap -> Property
 prop_filter_twice f b =
     let
-        once  = TokenMap.filter (applyFun f) b
+        once = TokenMap.filter (applyFun f) b
         twice = TokenMap.filter (applyFun f) once
     in
         once === twice
@@ -460,23 +472,23 @@ prop_maximumQuantity_mempty = TokenMap.maximumQuantity mempty === mempty
 
 prop_size_isEmpty :: TokenMap -> Property
 prop_size_isEmpty m =
-    checkCoverage_size m $
-    if TokenMap.isEmpty m
-    then TokenMap.size m == 0
-    else TokenMap.size m > 0
+    checkCoverage_size m
+        $ if TokenMap.isEmpty m
+            then TokenMap.size m == 0
+            else TokenMap.size m > 0
 
 prop_size_toFlatList :: TokenMap -> Property
 prop_size_toFlatList m =
-    checkCoverage_size m $
-    TokenMap.size m === length (TokenMap.toFlatList m)
+    checkCoverage_size m
+        $ TokenMap.size m === length (TokenMap.toFlatList m)
 
 checkCoverage_size :: Testable prop => TokenMap -> (prop -> Property)
-checkCoverage_size m
-    = checkCoverage
-    . cover 2 (TokenMap.size m == 0) "size == 0"
-    . cover 2 (TokenMap.size m == 1) "size == 1"
-    . cover 2 (TokenMap.size m == 2) "size == 2"
-    . cover 2 (TokenMap.size m >= 3) "size >= 3"
+checkCoverage_size m =
+    checkCoverage
+        . cover 2 (TokenMap.size m == 0) "size == 0"
+        . cover 2 (TokenMap.size m == 1) "size == 1"
+        . cover 2 (TokenMap.size m == 2) "size == 2"
+        . cover 2 (TokenMap.size m >= 3) "size >= 3"
 
 --------------------------------------------------------------------------------
 -- Transformations
@@ -489,8 +501,8 @@ prop_mapAssetIds_identity m =
 prop_mapAssetIds_composition
     :: TokenMap -> Fun AssetId AssetId -> Fun AssetId AssetId -> Property
 prop_mapAssetIds_composition m (applyFun -> f) (applyFun -> g) =
-    TokenMap.mapAssetIds f (TokenMap.mapAssetIds g m) ===
-    TokenMap.mapAssetIds (f . g) m
+    TokenMap.mapAssetIds f (TokenMap.mapAssetIds g m)
+        === TokenMap.mapAssetIds (f . g) m
 
 --------------------------------------------------------------------------------
 -- Partitioning assets
@@ -498,16 +510,25 @@ prop_mapAssetIds_composition m (applyFun -> f) (applyFun -> g) =
 
 prop_equipartitionAssets_coverage
     :: Blind (Large TokenMap) -> Property
-prop_equipartitionAssets_coverage m = checkCoverage $
-    cover 4 (assetCount == 0)
-        "asset count = 0" $
-    cover 4 (assetCount == 1)
-        "asset count = 1" $
-    cover 20 (2 <= assetCount && assetCount <= 31)
-        "2 <= asset count <= 31" $
-    cover 20 (32 <= assetCount && assetCount <= 63)
-        "32 <= asset count <= 63"
-    True
+prop_equipartitionAssets_coverage m =
+    checkCoverage
+        $ cover
+            4
+            (assetCount == 0)
+            "asset count = 0"
+        $ cover
+            4
+            (assetCount == 1)
+            "asset count = 1"
+        $ cover
+            20
+            (2 <= assetCount && assetCount <= 31)
+            "2 <= asset count <= 31"
+        $ cover
+            20
+            (32 <= assetCount && assetCount <= 63)
+            "32 <= asset count <= 63"
+            True
   where
     assetCount = TokenMap.size $ getLarge $ getBlind m
 
@@ -518,9 +539,10 @@ prop_equipartitionAssets_length (Blind (Large m)) count =
 
 prop_equipartitionAssets_sizes
     :: Blind (Large TokenMap) -> NonEmpty () -> Property
-prop_equipartitionAssets_sizes (Blind (Large m)) count = (.||.)
-    (assetCountDifference == 0)
-    (assetCountDifference == 1)
+prop_equipartitionAssets_sizes (Blind (Large m)) count =
+    (.||.)
+        (assetCountDifference == 0)
+        (assetCountDifference == 1)
   where
     assetCounts = TokenMap.size <$> results
     assetCountMin = F.minimum assetCounts
@@ -541,9 +563,11 @@ prop_equipartitionAssets_sum (Blind (Large m)) count =
 --
 -- Each token quantity portion must be within unity of the ideal portion.
 --
-prop_equipartitionQuantities_fair :: TokenMap -> NonEmpty () -> Property
-prop_equipartitionQuantities_fair m count = property $
-    isZeroOrOne maximumDifference
+prop_equipartitionQuantities_fair
+    :: TokenMap -> NonEmpty () -> Property
+prop_equipartitionQuantities_fair m count =
+    property
+        $ isZeroOrOne maximumDifference
   where
     -- Here we take advantage of the fact that the resultant maps are sorted
     -- into ascending order when compared with the 'leq' function.
@@ -570,15 +594,20 @@ prop_equipartitionQuantities_fair m count = property $
 
     results = TokenMap.equipartitionQuantities m count
 
-prop_equipartitionQuantities_length :: TokenMap -> NonEmpty () -> Property
+prop_equipartitionQuantities_length
+    :: TokenMap -> NonEmpty () -> Property
 prop_equipartitionQuantities_length m count =
-    NE.length (TokenMap.equipartitionQuantities m count) === NE.length count
+    NE.length (TokenMap.equipartitionQuantities m count)
+        === NE.length count
 
-prop_equipartitionQuantities_order :: TokenMap -> NonEmpty () -> Property
-prop_equipartitionQuantities_order m count = property $
-    inAscendingPartialOrder (TokenMap.equipartitionQuantities m count)
+prop_equipartitionQuantities_order
+    :: TokenMap -> NonEmpty () -> Property
+prop_equipartitionQuantities_order m count =
+    property
+        $ inAscendingPartialOrder (TokenMap.equipartitionQuantities m count)
 
-prop_equipartitionQuantities_sum :: TokenMap -> NonEmpty () -> Property
+prop_equipartitionQuantities_sum
+    :: TokenMap -> NonEmpty () -> Property
 prop_equipartitionQuantities_sum m count =
     F.fold (TokenMap.equipartitionQuantities m count) === m
 
@@ -588,35 +617,50 @@ prop_equipartitionQuantities_sum m count =
 
 -- | Computes the number of parts that 'equipartitionQuantitiesWithUpperBound'
 --   should return.
---
 equipartitionQuantitiesWithUpperBound_expectedLength
     :: TokenMap -> TokenQuantity -> Int
 equipartitionQuantitiesWithUpperBound_expectedLength
-    m (TokenQuantity maxQuantity) =
+    m
+    (TokenQuantity maxQuantity) =
         max 1 $ ceiling $ currentMaxQuantity % maxQuantity
-  where
-    TokenQuantity currentMaxQuantity = TokenMap.maximumQuantity m
+      where
+        TokenQuantity currentMaxQuantity = TokenMap.maximumQuantity m
 
 prop_equipartitionQuantitiesWithUpperBound_coverage
     :: TokenMap -> Positive TokenQuantity -> Property
 prop_equipartitionQuantitiesWithUpperBound_coverage m (Positive maxQuantity) =
-    checkCoverage $
-    cover 4 (maxQuantity == TokenQuantity 1)
-        "Maximum allowable quantity == 1" $
-    cover 4 (maxQuantity == TokenQuantity 2)
-        "Maximum allowable quantity == 2" $
-    cover 8 (maxQuantity >= TokenQuantity 3)
-        "Maximum allowable quantity >= 3" $
-    cover 8 (expectedLength == 1)
-        "Expected number of parts == 1" $
-    cover 8 (expectedLength == 2)
-        "Expected number of parts == 2" $
-    cover 8 (expectedLength >= 3)
-        "Expected number of parts >= 3" $
-    property $ expectedLength > 0
+    checkCoverage
+        $ cover
+            4
+            (maxQuantity == TokenQuantity 1)
+            "Maximum allowable quantity == 1"
+        $ cover
+            4
+            (maxQuantity == TokenQuantity 2)
+            "Maximum allowable quantity == 2"
+        $ cover
+            8
+            (maxQuantity >= TokenQuantity 3)
+            "Maximum allowable quantity >= 3"
+        $ cover
+            8
+            (expectedLength == 1)
+            "Expected number of parts == 1"
+        $ cover
+            8
+            (expectedLength == 2)
+            "Expected number of parts == 2"
+        $ cover
+            8
+            (expectedLength >= 3)
+            "Expected number of parts >= 3"
+        $ property
+        $ expectedLength > 0
   where
-    expectedLength = equipartitionQuantitiesWithUpperBound_expectedLength
-        m maxQuantity
+    expectedLength =
+        equipartitionQuantitiesWithUpperBound_expectedLength
+            m
+            maxQuantity
 
 prop_equipartitionQuantitiesWithUpperBound_length
     :: TokenMap -> Positive TokenQuantity -> Property
@@ -627,10 +671,13 @@ prop_equipartitionQuantitiesWithUpperBound_length m (Positive maxQuantity) =
 prop_equipartitionQuantitiesWithUpperBound_max
     :: TokenMap -> Positive TokenQuantity -> Property
 prop_equipartitionQuantitiesWithUpperBound_max m (Positive maxQuantity) =
-    checkCoverage $
-    cover 10 (maxResultQuantity == maxQuantity)
-        "At least one resultant token map has a maximal quantity" $
-    property $ maxResultQuantity <= maxQuantity
+    checkCoverage
+        $ cover
+            10
+            (maxResultQuantity == maxQuantity)
+            "At least one resultant token map has a maximal quantity"
+        $ property
+        $ maxResultQuantity <= maxQuantity
   where
     results = TokenMap.equipartitionQuantitiesWithUpperBound m maxQuantity
     maxResultQuantity = F.maximum (TokenMap.maximumQuantity <$> results)
@@ -638,13 +685,15 @@ prop_equipartitionQuantitiesWithUpperBound_max m (Positive maxQuantity) =
 prop_equipartitionQuantitiesWithUpperBound_order
     :: TokenMap -> Positive TokenQuantity -> Property
 prop_equipartitionQuantitiesWithUpperBound_order m (Positive maxQuantity) =
-    property $ inAscendingPartialOrder
-        (TokenMap.equipartitionQuantitiesWithUpperBound m maxQuantity)
+    property
+        $ inAscendingPartialOrder
+            (TokenMap.equipartitionQuantitiesWithUpperBound m maxQuantity)
 
 prop_equipartitionQuantitiesWithUpperBound_sum
     :: TokenMap -> Positive TokenQuantity -> Property
 prop_equipartitionQuantitiesWithUpperBound_sum m (Positive maxQuantity) =
-    F.fold (TokenMap.equipartitionQuantitiesWithUpperBound m maxQuantity) === m
+    F.fold (TokenMap.equipartitionQuantitiesWithUpperBound m maxQuantity)
+        === m
 
 --------------------------------------------------------------------------------
 -- Generating partitions
@@ -678,22 +727,24 @@ testPrettyNested =
     pretty (Nested testMap) `shouldBe` testMapPrettyNested
 
 testMap :: TokenMap
-testMap = testMapData
-    & fmap (second TokenQuantity)
-    & fmap (first (bimap dummyTokenPolicyId dummyAssetName))
-    & fmap (first (uncurry AssetId))
-    & TokenMap.fromFlatList
+testMap =
+    testMapData
+        & fmap (second TokenQuantity)
+        & fmap (first (bimap dummyTokenPolicyId dummyAssetName))
+        & fmap (first (uncurry AssetId))
+        & TokenMap.fromFlatList
 
 testMapData :: [((Char, ByteString), Natural)]
 testMapData =
-    [ (('A', "APPLE"    ), 1)
-    , (('A', "AVOCADO"  ), 2)
-    , (('B', "BANANA"   ), 3)
+    [ (('A', "APPLE"), 1)
+    , (('A', "AVOCADO"), 2)
+    , (('B', "BANANA"), 3)
     , (('B', "BLUEBERRY"), 4)
     ]
 
 testMapPrettyFlat :: Text
-testMapPrettyFlat = [s|
+testMapPrettyFlat =
+    [s|
 - policyId: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
   assetName: 4150504c45
   quantity: 1
@@ -709,7 +760,8 @@ testMapPrettyFlat = [s|
 |]
 
 testMapPrettyNested :: Text
-testMapPrettyNested = [s|
+testMapPrettyNested =
+    [s|
 - policyId: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
   tokens:
     - assetName: 4150504c45
@@ -731,20 +783,22 @@ testMapPrettyNested = [s|
 dummyAssetName :: ByteString -> AssetName
 dummyAssetName t = fromRight reportError $ AssetName.fromByteString t
   where
-    reportError = error $
-        "Unable to construct dummy asset name from bytes: " <> show t
+    reportError =
+        error
+            $ "Unable to construct dummy asset name from bytes: " <> show t
 
 -- The input must be a character in the range [0-9] or [A-Z].
 --
 dummyTokenPolicyId :: Char -> TokenPolicyId
-dummyTokenPolicyId c
-    = fromRight reportError
-    $ fromText
-    $ T.pack
-    $ replicate tokenPolicyIdHexStringLength c
+dummyTokenPolicyId c =
+    fromRight reportError
+        $ fromText
+        $ T.pack
+        $ replicate tokenPolicyIdHexStringLength c
   where
-    reportError = error $
-        "Unable to construct dummy token policy id from character: " <> show c
+    reportError =
+        error
+            $ "Unable to construct dummy token policy id from character: " <> show c
 
 tokenPolicyIdHexStringLength :: Int
 tokenPolicyIdHexStringLength = 56
@@ -754,11 +808,11 @@ tokenPolicyIdHexStringLength = 56
 --------------------------------------------------------------------------------
 
 newtype Large a = Large
-    { getLarge :: a }
+    {getLarge :: a}
     deriving (Eq, Show)
 
 newtype Positive a = Positive
-    { getPositive :: a }
+    {getPositive :: a}
     deriving (Eq, Show)
 
 deriving newtype instance Arbitrary (Lexicographic TokenMap)
@@ -787,18 +841,22 @@ instance Arbitrary TokenMap where
     shrink = shrinkTokenMap
 
 instance Arbitrary (Large TokenMap) where
-    arbitrary = Large <$> do
-        assetCount <- frequency
-            [ (1, pure 0)
-            , (1, pure 1)
-            , (8, choose (2, 63))
-            ]
-        TokenMap.fromFlatList <$> replicateM assetCount genAssetQuantity
+    arbitrary =
+        Large <$> do
+            assetCount <-
+                frequency
+                    [ (1, pure 0)
+                    , (1, pure 1)
+                    , (8, choose (2, 63))
+                    ]
+            TokenMap.fromFlatList <$> replicateM assetCount genAssetQuantity
       where
-        genAssetQuantity = (,)
-            <$> genAssetIdLargeRange
-            <*> genTokenQuantityPositive
-    -- No shrinking
+        genAssetQuantity =
+            (,)
+                <$> genAssetIdLargeRange
+                <*> genTokenQuantityPositive
+
+-- No shrinking
 
 instance Arbitrary AssetName where
     arbitrary = genAssetName

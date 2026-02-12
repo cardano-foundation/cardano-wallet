@@ -3,14 +3,11 @@
 -- License: Apache-2.0
 --
 -- Utility function for finding the package test data directory.
-
 module Test.Utils.Paths
     ( getTestData
     , getTestDataPath
     , inNixBuild
     ) where
-
-import Prelude
 
 import Control.Monad.IO.Class
     ( liftIO
@@ -29,6 +26,7 @@ import System.Environment
 import System.FilePath
     ( (</>)
     )
+import Prelude
 
 -- | A TH function to get the test data directory.
 --

@@ -6,8 +6,6 @@ module Cardano.Wallet.Launch.Cluster.StakeCertificates
     )
 where
 
-import Prelude
-
 import Cardano.Wallet.Launch.Cluster.CardanoCLI
     ( cli
     )
@@ -30,7 +28,8 @@ import Control.Monad.Reader
     ( asks
     )
 import Data.Generics.Labels
-    ()
+    (
+    )
 import Data.Tagged
     ( Tagged (..)
     , untag
@@ -40,6 +39,7 @@ import System.Path
     , (<.>)
     , (</>)
     )
+import Prelude
 
 -- | Create a stake address registration certificate from a vk
 issueStakeVkCert

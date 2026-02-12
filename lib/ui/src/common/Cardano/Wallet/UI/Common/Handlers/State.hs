@@ -4,8 +4,6 @@ module Cardano.Wallet.UI.Common.Handlers.State
     ( getState
     ) where
 
-import Prelude
-
 import Cardano.Wallet.UI.Common.Html.Html
     ( RawHtml (..)
     )
@@ -19,6 +17,7 @@ import Control.Monad.Trans
 import Servant
     ( Handler
     )
+import Prelude
 
 -- | Get the current state and render it using the provided function.
 getState

@@ -1,20 +1,18 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE NamedFieldPuns #-}
-{-|
-Copyright: © 2024 Cardano Foundation
-License: Apache-2.0
 
-Conversions between types from @ouroboros-consensus@
-and "Cardano.Wallet.Read".
--}
+-- |
+-- Copyright: © 2024 Cardano Foundation
+-- License: Apache-2.0
+--
+-- Conversions between types from @ouroboros-consensus@
+-- and "Cardano.Wallet.Read".
 module Cardano.Wallet.Network.Implementation.Types
     ( fromOuroborosPoint
     , toOuroborosPoint
     , fromOuroborosTip
     , toOuroborosTip
     ) where
-
-import Prelude
 
 import Cardano.Wallet.Read
     ( BlockNo (..)
@@ -39,6 +37,7 @@ import Ouroboros.Consensus.Cardano.Block
 import Ouroboros.Consensus.HardFork.Combinator
     ( OneEraHash (..)
     )
+import Prelude
 
 import qualified Ouroboros.Network.Block as O
 
@@ -65,7 +64,7 @@ fromOuroborosPoint (O.BlockPoint slot h) =
 toOuroborosTip :: ChainTip -> O.Tip (CardanoBlock sc)
 toOuroborosTip GenesisTip =
     O.TipGenesis
-toOuroborosTip BlockTip{slotNo,headerHash,blockNo} =
+toOuroborosTip BlockTip{slotNo, headerHash, blockNo} =
     O.Tip
         (toCardanoSlotNo slotNo)
         (toCardanoHash headerHash)

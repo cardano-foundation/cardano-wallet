@@ -6,14 +6,11 @@
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
-
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Cardano.Wallet.DB.Pure.ImplementationSpec
     ( spec
     ) where
-
-import Prelude
 
 import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey
@@ -50,18 +47,20 @@ import Test.QuickCheck
 import Test.Utils.Platform
     ( pendingOnMacOS
     )
+import Prelude
 
 import qualified Cardano.Wallet.DB.Pure.Layer as PureLayer
 
 spec :: Spec
 spec =
     before (pendingOnMacOS "#2472: timeouts in CI mac builds")
-    $ describe "PureLayer"
-    $ properties $ \wid params ->
-        PureLayer.withBootDBLayer @_ @(SeqState 'Mainnet ShelleyKey)
-            dummyTimeInterpreter
-            wid
-            params
+        $ describe "PureLayer"
+        $ properties
+        $ \wid params ->
+            PureLayer.withBootDBLayer @_ @(SeqState 'Mainnet ShelleyKey)
+                dummyTimeInterpreter
+                wid
+                params
 
 newtype DummyStatePureLayer = DummyStatePureLayer Int
     deriving (Show, Eq)

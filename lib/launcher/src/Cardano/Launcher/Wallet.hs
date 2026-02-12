@@ -16,7 +16,10 @@ module Cardano.Launcher.Wallet
     -- , getWalletPort
     ) where
 
-import Prelude
+-- import Data.Text.Class
+--     ( FromText (..)
+--     , ToText (..)
+--     )
 
 import Cardano.Launcher
     ( IfToSendSigINT (DoNotSendSigINT)
@@ -35,10 +38,6 @@ import Control.Tracer
 import Data.Maybe
     ( fromMaybe
     )
--- import Data.Text.Class
---     ( FromText (..)
---     , ToText (..)
---     )
 import Network.Socket
     ( PortNumber
     )
@@ -46,6 +45,7 @@ import UnliftIO.Process
     ( CreateProcess (..)
     , proc
     )
+import Prelude
 
 {-----------------------------------------------------------------------------
     Launching a `cardano-wallet` process
@@ -98,7 +98,8 @@ withCardanoWallet tr node cfg@CardanoWalletConfig{..} action =
         DoNotSendSigINT
         $ \h -> action $ CardanoWalletConn walletPort h
 
-cardanoWallet :: CardanoWalletConfig -> CardanoNodeConn -> CreateProcess
+cardanoWallet
+    :: CardanoWalletConfig -> CardanoNodeConn -> CreateProcess
 cardanoWallet CardanoWalletConfig{..} node =
     let cp =
             proc (fromMaybe "cardano-wallet" executable)

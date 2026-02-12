@@ -8,13 +8,6 @@ module Cardano.Faucet.Http.Server
     , initApp
     ) where
 
-import Prelude
-
-import qualified Cardano.Faucet as Faucet
-import qualified Network.Wai as Wai
-import qualified Network.Wai.Handler.Warp as Warp
-import qualified Servant
-
 import Cardano.Faucet
     ( serveAddresses
     , serveMnemonic
@@ -37,6 +30,12 @@ import Network.Wai.Middleware.RequestLogger
 import Servant
     ( (:<|>) (..)
     )
+import Prelude
+
+import qualified Cardano.Faucet as Faucet
+import qualified Network.Wai as Wai
+import qualified Network.Wai.Handler.Warp as Warp
+import qualified Servant
 
 --------------------------------------------------------------------------------
 

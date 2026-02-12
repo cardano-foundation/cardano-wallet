@@ -8,14 +8,13 @@ module Cardano.Wallet.DB.Store.Wallets.StoreSpec
     , genDeltaTxWallets
     ) where
 
-import Prelude
-
 import Cardano.DB.Sqlite
     ( ForeignKeysSetting (..)
     , runQuery
     )
 import Cardano.Wallet.DB.Arbitrary
-    ()
+    (
+    )
 import Cardano.Wallet.DB.Fixtures
     ( WalletProperty
     , initializeWalletTable
@@ -68,6 +67,7 @@ import Test.Store
     ( GenDelta
     , prop_StoreUpdate
     )
+import Prelude
 
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.Map.Strict as Map
@@ -116,4 +116,4 @@ genDeltaTxWallets wid (_, metas) = do
             : metaGens
 
 chooseFromMap :: Map.Map k a -> Gen a
-chooseFromMap m = snd . (`Map.elemAt` m) <$> choose (0, Map.size m-1)
+chooseFromMap m = snd . (`Map.elemAt` m) <$> choose (0, Map.size m - 1)

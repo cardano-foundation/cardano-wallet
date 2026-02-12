@@ -26,13 +26,12 @@ module Cardano.Wallet.UI.Common.Html.Lib
     )
 where
 
-import Prelude
-
 import Cardano.Wallet.UI.Common.Html.Copy
     ( copyButton
     )
 import Data.Generics.Product
-    ()
+    (
+    )
 import Data.Text
     ( Text
     )
@@ -66,6 +65,7 @@ import Servant.Links
     ( Link
     , linkURI
     )
+import Prelude
 
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text as T
@@ -141,8 +141,9 @@ tdEnd :: Monad m => HtmlT m () -> HtmlT m ()
 tdEnd = td_ [class_ "text-end p-1 align-bottom"]
 
 thEnd :: Monad m => Maybe Int -> HtmlT m () -> HtmlT m ()
-thEnd mw x = ($ em_ x) $
-    th_
+thEnd mw x =
+    ($ em_ x)
+        $ th_
         $ [ class_ "text-end p-1 align-bottom"
           , style_ "background:#26263d;font-weight:normal"
           ]

@@ -10,8 +10,6 @@ module Cardano.Wallet.Launch.Cluster.Http.Monitor.APISpec
     )
 where
 
-import Prelude
-
 import Cardano.Launcher.Node
     ( CardanoNodeConn
     , cardanoNodeConn
@@ -88,6 +86,7 @@ import Test.QuickCheck
     , shrinkList
     , shrinkNothing
     )
+import Prelude
 
 import qualified Data.ByteString.Lazy.Char8 as BL
 
@@ -97,7 +96,8 @@ jsonRoundtrip a = fromJSON (toJSON a) `shouldBe` Success a
 validate :: Definitions Schema -> Schema -> Value -> Expectation
 validate defs sch x = validateJSON defs sch x `shouldBe` []
 
-validateInstance :: ToJSON a => Definitions Schema -> Schema -> a -> Expectation
+validateInstance
+    :: ToJSON a => Definitions Schema -> Schema -> a -> Expectation
 validateInstance defs sch = validate defs sch . toJSON
 
 counterExampleJSON
@@ -144,7 +144,8 @@ spec = do
             $ counterExampleJSONInstance "validate"
             $ validateInstance monitoringDefinitions monitorStateSchema
 
-shrinkObservation :: (History, MonitorState) -> [(History, MonitorState)]
+shrinkObservation
+    :: (History, MonitorState) -> [(History, MonitorState)]
 shrinkObservation (h, s) = [(h', s) | h' <- shrinkHistory h]
 
 shrinkHistory :: History -> [History]

@@ -5,15 +5,11 @@
 -- |
 -- Copyright: © 2020 IOHK
 -- License: Apache-2.0
---
-
 module Cardano.Wallet.Api.Http.Server.Handlers.TxCBOR
-  ( parseTxCBOR
-  , ParsedTxCBOR (..)
-  )
-  where
-
-import Prelude
+    ( parseTxCBOR
+    , ParsedTxCBOR (..)
+    )
+where
 
 import Cardano.Binary
     ( DecoderError
@@ -77,6 +73,7 @@ import Servant.Server
     ( Handler
     , err500
     )
+import Prelude
 
 import qualified Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Certificates as Feature
 import qualified Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.ExtraSigs as Feature
@@ -90,10 +87,11 @@ newtype ErrParseCBOR = ErrParseCBOR DecoderError
 
 instance IsServerError ErrParseCBOR where
     toServerError (ErrParseCBOR decoderError) =
-        apiError err500 UnexpectedError $ T.unwords
-            [ "Error while trying to parse a transaction CBOR from the database"
-            , showT decoderError
-            ]
+        apiError err500 UnexpectedError
+            $ T.unwords
+                [ "Error while trying to parse a transaction CBOR from the database"
+                , showT decoderError
+                ]
 
 -- | Values parsed out of a CBOR for a 'Tx' in any era
 data ParsedTxCBOR = ParsedTxCBOR
@@ -103,7 +101,7 @@ data ParsedTxCBOR = ParsedTxCBOR
     , scriptIntegrity :: Maybe (Hash "ScriptIntegrity")
     , extraSignatures :: [Hash "ExtraSignature"]
     }
-    deriving Generic
+    deriving (Generic)
 
 parser :: IsEra era => Tx era -> ParsedTxCBOR
 parser = do

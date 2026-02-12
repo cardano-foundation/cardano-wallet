@@ -13,8 +13,6 @@ module Cardano.Wallet.Launch.Cluster.Cluster
     , FaucetFunds (..)
     ) where
 
-import Prelude
-
 import Cardano.Address
     ( Address (..)
     )
@@ -112,7 +110,8 @@ import Data.Either
     , isRight
     )
 import Data.Generics.Labels
-    ()
+    (
+    )
 import Data.List
     ( nub
     , permutations
@@ -146,6 +145,7 @@ import UnliftIO.Exception
     , handle
     , throwIO
     )
+import Prelude
 
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
@@ -186,7 +186,7 @@ withCluster config@Config{..} faucetFunds onClusterStart = runClusterM config
     $ bracketTracer' "withCluster"
     $ do
         let debug :: MonadIO m => Text -> m ()
-            debug  x = liftIO $ traceWith cfgTracer $ MsgDebug x
+            debug x = liftIO $ traceWith cfgTracer $ MsgDebug x
         liftIO resetGlobals
 
         let clusterDir = absDirOf cfgClusterDir
@@ -251,10 +251,12 @@ withCluster config@Config{..} faucetFunds onClusterStart = runClusterM config
                 Just others -> do
                     ContT $ \k -> do
                         debug "Starting pools"
-                        r <- launchPools
-                            others
-                            genesisFiles
-                            poolPorts $ k ()
+                        r <-
+                            launchPools
+                                others
+                                genesisFiles
+                                poolPorts
+                                $ k ()
                         debug "Pools are down"
                         pure r
                     liftIO $ onClusterStart relayNode

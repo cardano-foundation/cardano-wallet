@@ -18,10 +18,8 @@
 -- An extra interface for operation on transactions (e.g. creating witnesses,
 -- estimating size...). This makes it possible to decouple those operations from
 -- our wallet layer, keeping the implementation flexible to various backends.
---
 module Cardano.Wallet.Transaction
-    (
-    -- * Interface
+    ( -- * Interface
       TransactionLayer (..)
     , DelegationAction (..)
     , VotingAction (..)
@@ -51,7 +49,7 @@ module Cardano.Wallet.Transaction
     , toKeyRole
     , ScriptSource
 
-    -- * Errors
+      -- * Errors
     , ErrSignTx (..)
     , ErrMkTransaction (..)
     , ErrMkTransactionOutputTokenQuantityExceedsLimitError (..)
@@ -59,8 +57,6 @@ module Cardano.Wallet.Transaction
     , ErrCannotQuit (..)
     , ErrCannotVote (..)
     ) where
-
-import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv
@@ -76,7 +72,8 @@ import Cardano.Api
     ( AnyCardanoEra
     )
 import Cardano.Api.Extra
-    ()
+    (
+    )
 import Cardano.Wallet.Address.Derivation
     ( Depth (..)
     , DerivationIndex
@@ -130,6 +127,9 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
 import Cardano.Wallet.Primitive.Types.Tx.Tx
     ( TxMetadata
     )
+import Cardano.Wallet.Primitive.Types.Tx.TxExtended
+    ( TxExtended
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..)
     )
@@ -173,11 +173,9 @@ import GHC.Generics
 import Internal.Cardano.Write.Tx.SizeEstimation
     ( TxWitnessTag
     )
+import Prelude
 
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
-import Cardano.Wallet.Primitive.Types.Tx.TxExtended
-    ( TxExtended
-    )
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
 import qualified Data.Foldable as F
 import qualified Data.Map.Strict as Map
@@ -185,32 +183,30 @@ import qualified Data.Map.Strict as Map
 data TransactionLayer (k :: Depth -> Type -> Type) ktype tx = TransactionLayer
     { addVkWitnesses
         :: AnyCardanoEra
-            -- Preferred latest era
+        -- Preferred latest era
         -> WitnessCountCtx
         -> [(XPrv, Passphrase "encryption")]
-            -- Reward accounts
+        -- Reward accounts
         -> Maybe (KeyHash, XPrv, Passphrase "encryption")
-            -- policy key hash and private key
+        -- policy key hash and private key
         -> Maybe (KeyHash, XPrv, Passphrase "encryption")
-            -- optional staking key hash and private key
+        -- optional staking key hash and private key
         -> (Address -> Maybe (k ktype XPrv, Passphrase "encryption"))
-            -- Key store / address resolution
+        -- Key store / address resolution
         -> (TxIn -> Maybe Address)
-            -- Input resolution
+        -- Input resolution
         -> tx
-            -- The transaction to sign
+        -- The transaction to sign
         -> tx
-        -- ^ Add Vk witnesses to a transaction for known inputs.
-        --
-        -- If inputs can't be resolved, they are simply skipped, hence why this
-        -- function cannot fail.
-
+    -- ^ Add Vk witnesses to a transaction for known inputs.
+    --
+    -- If inputs can't be resolved, they are simply skipped, hence why this
+    -- function cannot fail.
     , decodeTx
         :: AnyCardanoEra
         -> tx
         -> TxExtended
     -- ^ Decode an externally-created transaction.
-
     , transactionWitnessTag :: TxWitnessTag
     }
 
@@ -247,32 +243,32 @@ data TransactionCtx = TransactionCtx
     -- ^ A map of script hashes related to inputs. Only for multisig wallets
     , txReferenceScript :: Maybe (Script KeyHash)
     -- ^ The reference script.
-    } deriving Generic
+    }
+    deriving (Generic)
 
 -- | Represents a preliminary selection of tx outputs typically made by user.
-newtype PreSelection = PreSelection { outputs :: [TxOut] }
+newtype PreSelection = PreSelection {outputs :: [TxOut]}
     deriving stock (Generic, Show)
     deriving newtype (Eq)
 
 -- | Represents a balanced selection.
---
 data SelectionOf change = Selection
     { inputs :: !(NonEmpty (TxIn, TxOut))
-        -- ^ Selected inputs.
+    -- ^ Selected inputs.
     , collateral :: ![(TxIn, TxOut)]
-        -- ^ Selected collateral inputs.
+    -- ^ Selected collateral inputs.
     , outputs :: ![TxOut]
-        -- ^ User-specified outputs
+    -- ^ User-specified outputs
     , change :: ![change]
-        -- ^ Generated change outputs.
+    -- ^ Generated change outputs.
     , assetsToMint :: !TokenMap
-        -- ^ Assets to mint.
+    -- ^ Assets to mint.
     , assetsToBurn :: !TokenMap
-        -- ^ Assets to burn.
+    -- ^ Assets to burn.
     , extraCoinSource :: !Coin
-        -- ^ An extra source of ada.
+    -- ^ An extra source of ada.
     , extraCoinSink :: !Coin
-        -- ^ An extra sink for ada.
+    -- ^ An extra sink for ada.
     }
     deriving (Eq, Generic, Show)
 
@@ -281,39 +277,43 @@ instance NFData change => NFData (SelectionOf change)
 -- | Computes the ada surplus of a selection, assuming there is a surplus.
 --
 -- If there is no surplus, this function returns 'Coin 0'.
---
 selectionDelta :: SelectionOf TxOut -> Coin
 selectionDelta selection = balanceIn <\> balanceOut
   where
     balanceIn =
         extraCoinSource
-        <> F.foldMap (TxOut.coin . snd) inputs
+            <> F.foldMap (TxOut.coin . snd) inputs
     balanceOut =
         extraCoinSink
-        <> F.foldMap TxOut.coin outputs
-        <> F.foldMap TxOut.coin change
+            <> F.foldMap TxOut.coin outputs
+            <> F.foldMap TxOut.coin change
     Selection
-        {inputs, outputs, change, extraCoinSource, extraCoinSink} = selection
+        { inputs
+        , outputs
+        , change
+        , extraCoinSource
+        , extraCoinSink
+        } = selection
 
 data Withdrawal
     = WithdrawalSelf RewardAccount (NonEmpty DerivationIndex) Coin
-    | WithdrawalExternal
+    | -- | The 'XPrv' to be used for signing. Must be unencrypted.
+      WithdrawalExternal
         RewardAccount
         (NonEmpty DerivationIndex)
         Coin
         XPrv
-        -- ^ The 'XPrv' to be used for signing. Must be unencrypted.
     | NoWithdrawal
 
 containsWithdrawal :: Withdrawal -> Bool
 containsWithdrawal = \case
     NoWithdrawal -> False
-    _            -> True
+    _ -> True
 
 containsSelfWithdrawal :: Withdrawal -> Bool
 containsSelfWithdrawal = \case
-    WithdrawalSelf {} -> True
-    _            -> False
+    WithdrawalSelf{} -> True
+    _ -> False
 
 withdrawalToCoin :: Withdrawal -> Coin
 withdrawalToCoin = \case
@@ -324,77 +324,78 @@ withdrawalToCoin = \case
 -- | A default context with sensible placeholder. Can be used to reduce
 -- repetition for changing only sub-part of the default context.
 defaultTransactionCtx :: TransactionCtx
-defaultTransactionCtx = TransactionCtx
-    { txWithdrawal = NoWithdrawal
-    , txDeposit = Nothing
-    , txMetadata = Nothing
-    , txValidityInterval = (Nothing, maxBound)
-    , txDelegationAction = Nothing
-    , txVotingAction = Nothing
-    , txAssetsToMint = (TokenMap.empty, Map.empty)
-    , txAssetsToBurn = (TokenMap.empty, Map.empty)
-    , txPaymentCredentialScriptTemplate = Nothing
-    , txStakingCredentialScriptTemplate = Nothing
-    , txNativeScriptInputs = Map.empty
-    , txReferenceScript = Nothing
-    }
+defaultTransactionCtx =
+    TransactionCtx
+        { txWithdrawal = NoWithdrawal
+        , txDeposit = Nothing
+        , txMetadata = Nothing
+        , txValidityInterval = (Nothing, maxBound)
+        , txDelegationAction = Nothing
+        , txVotingAction = Nothing
+        , txAssetsToMint = (TokenMap.empty, Map.empty)
+        , txAssetsToBurn = (TokenMap.empty, Map.empty)
+        , txPaymentCredentialScriptTemplate = Nothing
+        , txStakingCredentialScriptTemplate = Nothing
+        , txNativeScriptInputs = Map.empty
+        , txReferenceScript = Nothing
+        }
 
 -- | User-requested action related to a delegation
 -- that is taken into account when constructing a transaction.
 data DelegationAction
-    = JoinRegisteringKey PoolId
-    -- ^ Join stake pool, registering stake key.
-    | Join PoolId
-    -- ^ Join stake pool, assuming that stake key has been registered before.
-    | Quit
-    -- ^ Quit all stake pools
+    = -- | Join stake pool, registering stake key.
+      JoinRegisteringKey PoolId
+    | -- | Join stake pool, assuming that stake key has been registered before.
+      Join PoolId
+    | -- | Quit all stake pools
+      Quit
     deriving (Show, Eq, Generic)
 
 instance Buildable DelegationAction where
     build = genericF
 
 data VotingAction
-    = VoteRegisteringKey DRep
-    -- ^ Vote and registering stake key.
-    | Vote DRep
-    -- ^ Vote
+    = -- | Vote and registering stake key.
+      VoteRegisteringKey DRep
+    | -- | Vote
+      Vote DRep
     deriving (Show, Eq, Generic)
 
 instance Buildable VotingAction where
     build = genericF
 
 data ErrMkTransaction
-    =  ErrMkTransactionTxBodyError Text
-    -- ^ We failed to construct a transaction for some reasons.
+    = -- | We failed to construct a transaction for some reasons.
+      ErrMkTransactionTxBodyError Text
     | ErrMkTransactionOutputTokenQuantityExceedsLimit
         ErrMkTransactionOutputTokenQuantityExceedsLimitError
-    | ErrMkTransactionInvalidEra AnyCardanoEra
-    -- ^ Should never happen, means that that we have programmatically provided
-    -- an invalid era.
+    | -- | Should never happen, means that that we have programmatically provided
+      -- an invalid era.
+      ErrMkTransactionInvalidEra AnyCardanoEra
     | ErrMkTransactionJoinStakePool ErrCannotJoin
     | ErrMkTransactionQuitStakePool ErrCannotQuit
     | ErrMkTransactionIncorrectTTL PastHorizonException
     deriving (Generic, Eq, Show)
 
-data ErrMkTransactionOutputTokenQuantityExceedsLimitError =
-    ErrMkTransactionOutputTokenQuantityExceedsLimitError
+data ErrMkTransactionOutputTokenQuantityExceedsLimitError
+    = ErrMkTransactionOutputTokenQuantityExceedsLimitError
     { address :: Address
-      -- ^ The address to which this token quantity was to be sent.
+    -- ^ The address to which this token quantity was to be sent.
     , asset :: AssetId
-      -- ^ The asset identifier to which this token quantity corresponds.
+    -- ^ The asset identifier to which this token quantity corresponds.
     , quantity :: TokenQuantity
-      -- ^ The token quantity that exceeded the bound.
+    -- ^ The token quantity that exceeded the bound.
     , quantityMaxBound :: TokenQuantity
-      -- ^ The maximum allowable token quantity.
+    -- ^ The maximum allowable token quantity.
     }
     deriving (Eq, Generic, Show)
 
 -- | Possible signing error
 data ErrSignTx
-    = ErrSignTxAddressUnknown TxIn
-    -- ^ We tried to sign a transaction with inputs that are unknown to us?
-    | ErrSignTxUnimplemented
-    -- ^ TODO: [ADP-919] Remove ErrSignTxUnimplemented
+    = -- | We tried to sign a transaction with inputs that are unknown to us?
+      ErrSignTxAddressUnknown TxIn
+    | -- | TODO: [ADP-919] Remove ErrSignTxUnimplemented
+      ErrSignTxUnimplemented
     deriving (Generic, Eq, Show)
 
 data ErrCannotJoin

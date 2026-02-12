@@ -5,11 +5,7 @@ module Cardano.Launcher.Mithril
     , downloadMithril
     , MithrilExePath (..)
     )
-    where
-
-import Prelude
-
-import qualified Data.ByteString as BS
+where
 
 import Control.Monad
     ( unless
@@ -33,13 +29,24 @@ import System.Info
 import System.Process
     ( callProcess
     )
+import Prelude
 
-newtype MithrilExePath = MithrilExePath { mithrilExePath :: FilePath }
+import qualified Data.ByteString as BS
+
+newtype MithrilExePath = MithrilExePath {mithrilExePath :: FilePath}
 
 -- | Download the latest snapshot node db into /db relative to the supplied dir.
 downloadLatestSnapshot :: FilePath -> MithrilExePath -> IO ()
 downloadLatestSnapshot outputParentDir (MithrilExePath mithril) = do
-    callProcess mithril ["cdb", "download", "latest", "--include-ancillary", "--download-dir", outputParentDir]
+    callProcess
+        mithril
+        [ "cdb"
+        , "download"
+        , "latest"
+        , "--include-ancillary"
+        , "--download-dir"
+        , outputParentDir
+        ]
 
 -- | Downloads the latest Mithril release package,
 -- extracts it, and returns the path to the mithril client executable.
@@ -54,15 +61,17 @@ downloadMithril workingDir = withCurrentDirectory workingDir $ do
     -- Use curl.exe which uses the Local Machine store instead.
     if isWindows
         then do
-            callProcess "curl.exe"
+            callProcess
+                "curl.exe"
                 ["-L", "-o", mithrilPackage, downloadUrl]
         else do
             req <- parseRequest downloadUrl
             response <- httpBS req
             BS.writeFile mithrilPackage (getResponseBody response)
     downloaded <- doesFileExist mithrilPackage
-    unless downloaded $
-        fail $ "Failed to download " <> mithrilPackage
+    unless downloaded
+        $ fail
+        $ "Failed to download " <> mithrilPackage
     putStrLn $ "Downloaded " <> mithrilPackage
 
     -- Extract the tar.gz archive in one step.
@@ -71,10 +80,12 @@ downloadMithril workingDir = withCurrentDirectory workingDir $ do
     putStrLn $ "Extracting " <> mithrilPackage <> "..."
     callProcess "tar" ["xzf", mithrilPackage]
 
-    let clientPath = workingDir </> ("mithril-client" <> if isWindows then ".exe" else "")
+    let clientPath =
+            workingDir </> ("mithril-client" <> if isWindows then ".exe" else "")
     mithrilClientExists <- doesFileExist clientPath
-    unless mithrilClientExists $
-        fail $ unwords
+    unless mithrilClientExists
+        $ fail
+        $ unwords
             [ "downloadLatest: didn't find"
             , clientPath
             , "in mithril archive"
@@ -90,9 +101,9 @@ downloadMithril workingDir = withCurrentDirectory workingDir $ do
       where
         osTag :: String
         osTag = case os of
-          "darwin" -> "macos"
-          "mingw32" -> "windows"
-          other -> other
+            "darwin" -> "macos"
+            "mingw32" -> "windows"
+            other -> other
 
         osArch :: String
         osArch = case arch of
@@ -102,5 +113,8 @@ downloadMithril workingDir = withCurrentDirectory workingDir $ do
 
     version = "2543.1-hotfix"
     mithrilPackage = "mithril-" <> version <> "-" <> platform <> ".tar.gz"
-    downloadUrl   = "https://github.com/input-output-hk/mithril/releases/download/"
-                   <> version <> "/" <> mithrilPackage
+    downloadUrl =
+        "https://github.com/input-output-hk/mithril/releases/download/"
+            <> version
+            <> "/"
+            <> mithrilPackage

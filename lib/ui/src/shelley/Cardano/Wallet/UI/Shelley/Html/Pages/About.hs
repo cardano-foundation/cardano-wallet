@@ -1,11 +1,10 @@
 module Cardano.Wallet.UI.Shelley.Html.Pages.About where
 
-import Prelude
-
 import Lucid
     ( HtmlT
     , p_
     )
+import Prelude
 
 aboutH :: Monad m => HtmlT m ()
 aboutH = do

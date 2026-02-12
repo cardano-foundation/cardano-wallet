@@ -5,14 +5,11 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
-
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Cardano.Wallet.Address.Derivation.IcarusSpec
     ( spec
     ) where
-
-import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv
@@ -37,7 +34,8 @@ import Cardano.Wallet.Address.Derivation.Icarus
     , unsafeGenerateKeyFromSeed
     )
 import Cardano.Wallet.Address.DerivationSpec
-    ()
+    (
+    )
 import Cardano.Wallet.Address.Keys.WalletKey
     ( publicKey
     )
@@ -70,6 +68,7 @@ import Test.QuickCheck
     , vector
     , (===)
     )
+import Prelude
 
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
@@ -77,14 +76,14 @@ import qualified Data.ByteString as BS
 spec :: Spec
 spec = do
     describe "BIP-0044 Derivation Properties" $ do
-        it "deriveAccountPrivateKey works for various indexes" $
-            property prop_accountKeyDerivation
-        it "N(CKDpriv((kpar, cpar), i)) === CKDpub(N(kpar, cpar), i)" $
-            property prop_publicChildKeyDerivation
+        it "deriveAccountPrivateKey works for various indexes"
+            $ property prop_accountKeyDerivation
+        it "N(CKDpriv((kpar, cpar), i)) === CKDpub(N(kpar, cpar), i)"
+            $ property prop_publicChildKeyDerivation
 
     describe "MkKeyFingerprint Properties" $ do
-        it "paymentKeyFingerprint . liftPaymentAddress == pure" $
-            property prop_roundtripFingerprintLift
+        it "paymentKeyFingerprint . liftPaymentAddress == pure"
+            $ property prop_roundtripFingerprintLift
 
 {-------------------------------------------------------------------------------
                                  Properties
@@ -116,7 +115,8 @@ prop_publicChildKeyDerivation seed encPwd cc ix =
   where
     accXPrv = unsafeGenerateKeyFromSeed seed encPwd :: IcarusKey 'AccountK XPrv
     -- N(CKDpriv((kpar, cpar), i))
-    addrXPub1 = publicKey IcarusKeyS  $ deriveAddressPrivateKey encPwd accXPrv cc ix
+    addrXPub1 =
+        publicKey IcarusKeyS $ deriveAddressPrivateKey encPwd accXPrv cc ix
     -- CKDpub(N(kpar, cpar), i)
     addrXPub2 = deriveAddressPublicKey (publicKey IcarusKeyS accXPrv) cc ix
 
@@ -137,8 +137,9 @@ prop_roundtripFingerprintLift
 prop_roundtripFingerprintLift addr =
     let
         fingerprint = paymentKeyFingerprint @IcarusKey addr
-        eAddr = liftPaymentAddress @IcarusKey @'CredFromKeyK SMainnet
-            <$> fingerprint
+        eAddr =
+            liftPaymentAddress @IcarusKey @'CredFromKeyK SMainnet
+                <$> fingerprint
     in
         eAddr === Right addr
 

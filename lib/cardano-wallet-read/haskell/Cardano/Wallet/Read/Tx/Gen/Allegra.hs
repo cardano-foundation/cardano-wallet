@@ -7,8 +7,6 @@ module Cardano.Wallet.Read.Tx.Gen.Allegra
     )
 where
 
-import Prelude
-
 import Cardano.Ledger.Allegra.TxAuxData
     ( AllegraTxAuxData
     )
@@ -49,6 +47,7 @@ import Data.List.NonEmpty
 import Data.Maybe.Strict
     ( maybeToStrictMaybe
     )
+import Prelude
 
 mkAllegraTx
     :: TxParameters

@@ -11,8 +11,6 @@ module Cardano.Wallet.Primitive.Ledger.Read.Tx
     )
 where
 
-import Prelude
-
 import Cardano.Read.Ledger.Tx.CollateralInputs
     ( getEraCollateralInputs
     )
@@ -75,6 +73,7 @@ import Cardano.Wallet.Read.Tx.CBOR
 import Data.Foldable
     ( fold
     )
+import Prelude
 
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W

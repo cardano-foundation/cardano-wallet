@@ -13,12 +13,10 @@ module Test.Integration.Framework.Request
     ( request
     , rawRequest
     , unsafeRequest
-    , Headers(..)
-    , Payload(..)
-    , RequestException(..)
+    , Headers (..)
+    , Payload (..)
+    , RequestException (..)
     ) where
-
-import Prelude
 
 import Control.Monad.IO.Class
     ( liftIO
@@ -84,6 +82,7 @@ import UnliftIO.Exception
     , handle
     , throwIO
     )
+import Prelude
 
 import qualified Data.Text as T
 import qualified Network.HTTP.Client as HTTP
@@ -91,15 +90,15 @@ import qualified Network.HTTP.Types.Status as HTTP
 
 -- | The result when 'request' fails.
 data RequestException
-    = DecodeFailure ByteString String
-      -- ^ JSON decoding the given response data failed.
-    | ClientError Value
-      -- ^ The HTTP response status code indicated failure.
-    | RawClientError ByteString
-      -- ^ The HTTP response status code indicated failure and the response was
+    = -- | JSON decoding the given response data failed.
+      DecodeFailure ByteString String
+    | -- | The HTTP response status code indicated failure.
+      ClientError Value
+    | -- | The HTTP response status code indicated failure and the response was
       -- not valid JSON.
-    | HttpException HttpExceptionContent
-      -- ^ A wild exception upon sending the request
+      RawClientError ByteString
+    | -- | A wild exception upon sending the request
+      HttpException HttpExceptionContent
     deriving (Show)
 
 instance Exception RequestException
@@ -120,18 +119,18 @@ data Headers
 
 -- | Makes a request to the API and decodes the response.
 request
-    :: forall a m s.
-        ( FromJSON a
-        , MonadUnliftIO m
-        , HasType (URI, Manager) s
-        )
+    :: forall a m s
+     . ( FromJSON a
+       , MonadUnliftIO m
+       , HasType (URI, Manager) s
+       )
     => s
     -> (Method, Text)
-        -- ^ HTTP method and request path
+    -- ^ HTTP method and request path
     -> Headers
-        -- ^ Request headers
+    -- ^ Request headers
     -> Payload
-        -- ^ Request body
+    -- ^ Request body
     -> m (HTTP.Status, Either RequestException a)
 request = baseRequest defaultHeaders handleResponse
   where
@@ -153,21 +152,22 @@ request = baseRequest defaultHeaders handleResponse
 
     defaultHeaders =
         [ ("Content-Type", "application/json")
-        , ("Accept", "application/json") ]
+        , ("Accept", "application/json")
+        ]
 
 -- | Like 'request', but does not attempt to deserialize the response.
 rawRequest
-    :: forall m s.
-        ( MonadUnliftIO m
-        , HasType (URI, Manager) s
-        )
+    :: forall m s
+     . ( MonadUnliftIO m
+       , HasType (URI, Manager) s
+       )
     => s
     -> (Method, Text)
-        -- ^ HTTP method and request path
+    -- ^ HTTP method and request path
     -> Headers
-        -- ^ Request headers
+    -- ^ Request headers
     -> Payload
-        -- ^ Request body
+    -- ^ Request body
     -> m (HTTP.Status, Either RequestException ByteString)
 rawRequest = baseRequest mempty handleResponse
   where
@@ -176,19 +176,19 @@ rawRequest = baseRequest mempty handleResponse
         s -> (s, Right $ responseBody res)
 
 baseRequest
-    :: forall a m s.
-        ( MonadUnliftIO m
-        , HasType (URI, Manager) s
-        )
+    :: forall a m s
+     . ( MonadUnliftIO m
+       , HasType (URI, Manager) s
+       )
     => RequestHeaders
     -> (HTTP.Response ByteString -> (HTTP.Status, Either RequestException a))
     -> s
     -> (Method, Text)
-        -- ^ HTTP method and request path
+    -- ^ HTTP method and request path
     -> Headers
-        -- ^ Request headers
+    -- ^ Request headers
     -> Payload
-        -- ^ Request body
+    -- ^ Request body
     -> m (HTTP.Status, Either RequestException a)
 baseRequest defaultHeaders handleResponse ctx (verb, path) headers payload = do
     let (base, manager) = ctx ^. typed @(URI, Manager)
@@ -197,7 +197,7 @@ baseRequest defaultHeaders handleResponse ctx (verb, path) headers payload = do
         handleResponse <$> liftIO (httpLbs (prepareReq req) manager)
   where
     prepareReq :: HTTP.Request -> HTTP.Request
-    prepareReq req = req { method = verb, requestBody, requestHeaders }
+    prepareReq req = req{method = verb, requestBody, requestHeaders}
 
     requestHeaders = case headers of
         Headers x -> x
@@ -209,18 +209,18 @@ baseRequest defaultHeaders handleResponse ctx (verb, path) headers payload = do
         NonJson x -> RequestBodyLBS x
         Empty -> mempty
 
-    handleException ::
-        HttpException -> m (HTTP.Status, Either RequestException a)
+    handleException
+        :: HttpException -> m (HTTP.Status, Either RequestException a)
     handleException = \case
         e@InvalidUrlException{} -> throwIO e
         HttpExceptionRequest _ e -> pure (status500, Left (HttpException e))
 
 -- | Makes a request to the API, but throws if it fails.
 unsafeRequest
-    :: forall a m.
-        ( FromJSON a
-        , MonadUnliftIO m
-        )
+    :: forall a m
+     . ( FromJSON a
+       , MonadUnliftIO m
+       )
     => Context
     -> (Method, Text)
     -> Payload

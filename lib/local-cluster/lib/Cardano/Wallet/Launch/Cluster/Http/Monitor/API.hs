@@ -20,8 +20,6 @@ module Cardano.Wallet.Launch.Cluster.Http.Monitor.API
     )
 where
 
-import Prelude
-
 import Cardano.Launcher.Node
     ( cardanoNodeConn
     , nodeSocketFile
@@ -83,13 +81,16 @@ import Servant.API
     , (:<|>)
     , (:>)
     )
+import Prelude
 
 import qualified Data.Map as Map
 
 type ReadyAPI = "ready" :> Get '[JSON] Bool
 type StepAPI = "control" :> "step" :> PostNoContent
-type SwitchAPI = "control" :> "switch" :> Post '[JSON] (ApiT MonitorState)
-type ObserveAPI = "control" :> "observe" :> Get '[JSON] (ApiT (History, MonitorState))
+type SwitchAPI =
+    "control" :> "switch" :> Post '[JSON] (ApiT MonitorState)
+type ObserveAPI =
+    "control" :> "observe" :> Get '[JSON] (ApiT (History, MonitorState))
 
 -- | The API to control the monitoring server
 type ControlAPI = ReadyAPI :<|> StepAPI :<|> SwitchAPI :<|> ObserveAPI

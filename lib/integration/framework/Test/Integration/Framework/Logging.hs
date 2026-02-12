@@ -8,8 +8,6 @@ module Test.Integration.Framework.Logging
     )
 where
 
-import Prelude
-
 import Cardano.BM.Data.Severity
     ( Severity (..)
     )
@@ -78,6 +76,7 @@ import UnliftIO.Exception
     ( SomeException (..)
     , isAsyncException
     )
+import Prelude
 
 import qualified Cardano.BM.Backend.EKGView as EKG
 import qualified Data.Text as T
@@ -118,8 +117,8 @@ instance ToText TestsLog where
                             ]
                 ]
         MsgServerError e
-            | isAsyncException (SomeException e)
-                -> "Server thread cancelled: " <> T.pack (show e)
+            | isAsyncException (SomeException e) ->
+                "Server thread cancelled: " <> T.pack (show e)
             | otherwise -> T.pack (show e)
         MsgRewardWalletDelegationFailed msg ->
             T.unlines
@@ -157,9 +156,11 @@ withTracers testDir action = do
                 , LogToStdStreams minSev
                 ]
 
-    walletLogOutputs <- getLogOutputs walletMinSeverityFromEnv
-        $ relFile "wallet.log"
-    testLogOutputs <- getLogOutputs testMinSeverityFromEnv $ relFile "test.log"
+    walletLogOutputs <-
+        getLogOutputs walletMinSeverityFromEnv
+            $ relFile "wallet.log"
+    testLogOutputs <-
+        getLogOutputs testMinSeverityFromEnv $ relFile "test.log"
 
     withLogging walletLogOutputs $ \(sb, (cfg, walTr)) -> do
         ekgEnabled >>= flip when (EKG.plugin cfg walTr sb >>= loadPlugin sb)

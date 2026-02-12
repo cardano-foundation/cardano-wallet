@@ -1,9 +1,8 @@
-{- |
-Copyright: © 2020-2022 IOHK, 2024 Cardano Foundation
-License: Apache-2.0
-
-A type list of known eras, useful for indexing types by era.
--}
+-- |
+-- Copyright: © 2020-2022 IOHK, 2024 Cardano Foundation
+-- License: Apache-2.0
+--
+-- A type list of known eras, useful for indexing types by era.
 module Cardano.Read.Ledger.Eras.KnownEras
     ( -- * Era singleton
       Era (..)
@@ -23,8 +22,6 @@ module Cardano.Read.Ledger.Eras.KnownEras
     , Conway
     ) where
 
-import Prelude
-
 import Cardano.Ledger.Api
     ( AllegraEra
     , AlonzoEra
@@ -34,6 +31,7 @@ import Cardano.Ledger.Api
     , MaryEra
     , ShelleyEra
     )
+import Prelude
 
 -- | The Byron era (pre-Shelley).
 type Byron = ByronEra
@@ -56,10 +54,9 @@ type Babbage = BabbageEra
 -- | The Conway era (governance).
 type Conway = ConwayEra
 
-{- | Singleton type for eras.
-
-This GADT provides a value-level representation of eras.
--}
+-- | Singleton type for eras.
+--
+-- This GADT provides a value-level representation of eras.
 data Era era where
     Byron :: Era ByronEra
     Shelley :: Era ShelleyEra

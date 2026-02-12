@@ -12,10 +12,6 @@ module Cardano.Wallet.Shelley.Network
     , NetworkLayerLog (..)
     ) where
 
-import Prelude
-
-import qualified Cardano.Wallet.Network.Implementation as Node
-
 import Cardano.BM.Tracing
     ( HasPrivacyAnnotation
     , HasSeverityAnnotation (..)
@@ -52,12 +48,15 @@ import Data.Text.Class
 import GHC.Stack
     ( HasCallStack
     )
+import Prelude
+
+import qualified Cardano.Wallet.Network.Implementation as Node
 
 newtype NetworkLayerLog = NodeNetworkLog Node.Log
 
 instance ToText NetworkLayerLog where
     toText = \case
-      NodeNetworkLog l -> toText l
+        NodeNetworkLog l -> toText l
 
 instance HasPrivacyAnnotation NetworkLayerLog
 
@@ -77,5 +76,10 @@ withNetworkLayer tr pipeliningStrategy blockchainSrc _net netParams =
     ContT $ case blockchainSrc of
         NodeSource nodeConn ver tol ->
             let tr' = NodeNetworkLog >$< tr
-            in Node.withNetworkLayer
-                tr' pipeliningStrategy netParams nodeConn ver tol
+            in  Node.withNetworkLayer
+                    tr'
+                    pipeliningStrategy
+                    netParams
+                    nodeConn
+                    ver
+                    tol

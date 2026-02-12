@@ -1,9 +1,8 @@
-{- |
-Copyright: © 2024 Cardano Foundation
-License: Apache-2.0
-
-Abstract and specific Hash functionality.
--}
+-- |
+-- Copyright: © 2024 Cardano Foundation
+-- License: Apache-2.0
+--
+-- Abstract and specific Hash functionality.
 module Cardano.Wallet.Read.Hash
     ( -- * Core operations
       H.Hash
@@ -11,14 +10,14 @@ module Cardano.Wallet.Read.Hash
     , H.sizeHash
     , H.hashWith
 
-    -- * Conversions
+      -- * Conversions
     , H.castHash
     , H.hashToBytes
     , H.hashFromBytes
     , H.hashToBytesShort
     , H.hashFromBytesShort
 
-    -- * Rendering and parsing
+      -- * Rendering and parsing
     , H.hashToBytesAsHex
     , H.hashFromBytesAsHex
     , H.hashToTextAsHex
@@ -26,7 +25,7 @@ module Cardano.Wallet.Read.Hash
     , H.hashToStringAsHex
     , H.hashFromStringAsHex
 
-    -- * Specific Hash algorithms
+      -- * Specific Hash algorithms
     , Blake2b_224
     , Blake2b_256
     ) where
@@ -35,4 +34,5 @@ import Cardano.Crypto.Hash.Blake2b
     ( Blake2b_224
     , Blake2b_256
     )
-import qualified Cardano.Crypto.Hash.Class as H
+
+import Cardano.Crypto.Hash.Class qualified as H

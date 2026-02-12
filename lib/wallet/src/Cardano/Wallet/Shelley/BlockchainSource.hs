@@ -3,7 +3,6 @@
 -- License: Apache-2.0
 --
 -- Source of the blockchain data for the wallet
---
 module Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..)
     ) where

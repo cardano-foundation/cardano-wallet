@@ -30,10 +30,6 @@ module Cardano.Wallet.DB.Migration
     , ErrWrongVersion (..)
     ) where
 
-import Prelude hiding
-    ( (.)
-    )
-
 import Control.Category
     ( Category (..)
     )
@@ -63,6 +59,9 @@ import GHC.TypeNats
     , Nat
     , natVal
     , type (+)
+    )
+import Prelude hiding
+    ( (.)
     )
 
 --------------------------------------------------------------------------------
@@ -110,15 +109,15 @@ getTargetVersion _ = Version $ natVal (Proxy :: Proxy vtarget)
 -- | Functions to interact with the database.
 data MigrationInterface m handle = MigrationInterface
     { backupDatabaseFile :: FilePath -> Version -> m ()
-        -- ^ Back up the (closed) database file.
-        -- The 'Version' argument can be used to find a new file path
-        -- for the backup copy.
+    -- ^ Back up the (closed) database file.
+    -- The 'Version' argument can be used to find a new file path
+    -- for the backup copy.
     , withDatabaseFile :: forall r. FilePath -> (handle -> m r) -> m r
-        -- ^ Open a database file and close it after use or on exception.
+    -- ^ Open a database file and close it after use or on exception.
     , getVersion :: handle -> m Version
-        -- ^ Get the current version.
+    -- ^ Get the current version.
     , setVersion :: handle -> Version -> m ()
-        -- ^ Set the current version.
+    -- ^ Set the current version.
     }
 
 -- | Migrate the given database file.
@@ -129,16 +128,16 @@ runMigrations
     :: forall m vmin vtarget handle
      . (MonadThrow m, KnownNat vmin, KnownNat vtarget)
     => MigrationInterface m handle
-        -- ^ Functions to interact with the database.
+    -- ^ Functions to interact with the database.
     -> FilePath
-        -- ^ File path of database to run migrations on.
+    -- ^ File path of database to run migrations on.
     -> Migration (ReaderT handle m) vmin vtarget
-        -- ^ Migration path to run.
-        --
-        -- @vmin@ is the minimum version that a database can be
-        -- migrated from.
-        --
-        -- @vtarget@ is the version to which the database is migrated.
+    -- ^ Migration path to run.
+    --
+    -- @vmin@ is the minimum version that a database can be
+    -- migrated from.
+    --
+    -- @vtarget@ is the version to which the database is migrated.
     -> m ()
 runMigrations interface filepath (Migration steps) = do
     let nfrom = Version $ natVal (Proxy :: Proxy vmin)
@@ -154,11 +153,13 @@ data ErrWrongVersion = ErrWrongVersion
     deriving (Show, Eq, Exception)
 
 instance Buildable ErrWrongVersion where
-    build (ErrWrongVersion expected actual) = "Expected database version "
-        <> build expected
-        <> ", but found "
-        <> build actual
-        <> "."
+    build (ErrWrongVersion expected actual) =
+        "Expected database version "
+            <> build expected
+            <> ", but found "
+            <> build actual
+            <> "."
+
 --------------------------------------------------------------------------------
 -------  internal --------------------------------------------------------------
 --------------------------------------------------------------------------------

@@ -7,15 +7,12 @@
 -- License: Apache-2.0
 --
 -- This module provides the 'UTxOStatistics' type.
---
 module Cardano.Wallet.Primitive.Types.UTxOStatistics
     ( UTxOStatistics (..)
     , BoundType
     , HistogramBar (..)
     , compute
     ) where
-
-import Prelude
 
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..)
@@ -41,6 +38,7 @@ import Fmt
 import GHC.Generics
     ( Generic
     )
+import Prelude
 
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
@@ -53,7 +51,8 @@ data UTxOStatistics = UTxOStatistics
     { histogram :: ![HistogramBar]
     , allStakes :: !Word64
     , boundType :: BoundType
-    } deriving (Show, Generic, Ord)
+    }
+    deriving (Show, Generic, Ord)
 
 instance NFData UTxOStatistics
 
@@ -80,15 +79,16 @@ instance NFData UTxOStatistics
 --     ... 45000000000000000 0
 --  @
 instance Buildable UTxOStatistics where
-    build (UTxOStatistics hist val _) = mconcat
-        [ "= Total value of "
-        , build val
-        , " lovelace across "
-        , wordF $ sum $ map bucketCount hist
-        , " UTxOs"
-        , "\n"
-        , blockListF' "" buildBar hist
-        ]
+    build (UTxOStatistics hist val _) =
+        mconcat
+            [ "= Total value of "
+            , build val
+            , " lovelace across "
+            , wordF $ sum $ map bucketCount hist
+            , " UTxOs"
+            , "\n"
+            , blockListF' "" buildBar hist
+            ]
       where
         buildBar (HistogramBar b c) =
             -- NOTE: Picked to fit well with the max value of Lovelace.
@@ -109,8 +109,9 @@ instance Eq UTxOStatistics where
 -- the bucket upper bound, and its corresponding distribution (on the y-axis).
 data HistogramBar = HistogramBar
     { bucketUpperBound :: !Word64
-    , bucketCount      :: !Word64
-    } deriving (Show, Eq, Ord, Generic)
+    , bucketCount :: !Word64
+    }
+    deriving (Show, Eq, Ord, Generic)
 
 instance NFData HistogramBar
 
@@ -124,10 +125,10 @@ instance NFData BoundType
 
 -- | Computes a 'UTxOStatistics' object from a 'UTxO' set.
 compute :: UTxO -> UTxOStatistics
-compute
-    = computeWith (pure . Coin.unsafeToWord64 . TxOut.coin) Log10
-    . Map.elems
-    . unUTxO
+compute =
+    computeWith (pure . Coin.unsafeToWord64 . TxOut.coin) Log10
+        . Map.elems
+        . unUTxO
 
 -- | Computes a 'UTxOStatistics' object from an abstract source of values.
 computeWith :: (a -> [Word64]) -> BoundType -> [a] -> UTxOStatistics
@@ -135,25 +136,26 @@ computeWith getCoins btype utxos =
     (F.fold foldStatistics (mconcat $ getCoins <$> utxos)) btype
   where
     foldStatistics :: F.Fold Word64 (BoundType -> UTxOStatistics)
-    foldStatistics = UTxOStatistics
-        <$> foldBuckets (generateBounds btype)
-        <*> F.sum
+    foldStatistics =
+        UTxOStatistics
+            <$> foldBuckets (generateBounds btype)
+            <*> F.sum
 
     foldBuckets :: NonEmpty Word64 -> F.Fold Word64 [HistogramBar]
     foldBuckets bounds = F.Fold step initial extract
       where
         step :: Map Word64 Word64 -> Word64 -> Map Word64 Word64
         step x a = case Map.lookupGE a x of
-            Just (k, v) -> Map.insert k (v+1) x
-            Nothing -> Map.adjust (+1) (NE.head bounds) x
+            Just (k, v) -> Map.insert k (v + 1) x
+            Nothing -> Map.adjust (+ 1) (NE.head bounds) x
         initial :: Map Word64 Word64
-        initial = Map.fromList $ map (, 0) (NE.toList bounds)
+        initial = Map.fromList $ map (,0) (NE.toList bounds)
         extract :: Map Word64 Word64 -> [HistogramBar]
         extract = map (uncurry HistogramBar) . Map.toList
 
     generateBounds :: BoundType -> NonEmpty Word64
     generateBounds = \case
-        Log10 -> NE.fromList $ map (10 ^!) [1..16] ++ [45 * (10 ^! 15)]
+        Log10 -> NE.fromList $ map (10 ^!) [1 .. 16] ++ [45 * (10 ^! 15)]
 
     (^!) :: Word64 -> Word64 -> Word64
     (^!) = (^)

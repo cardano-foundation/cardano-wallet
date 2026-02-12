@@ -24,8 +24,6 @@ module Cardano.Wallet.Primitive.Types.Certificates
     )
 where
 
-import Prelude
-
 import Cardano.Slotting.Slot
     ( SlotNo
     )
@@ -57,7 +55,8 @@ import Control.Lens
     , view
     )
 import Data.Generics.Labels
-    ()
+    (
+    )
 import Data.Percentage
     ( Percentage
     )
@@ -75,6 +74,7 @@ import Fmt
 import GHC.Generics
     ( Generic
     )
+import Prelude
 
 data DelegationCertificate
     = CertDelegateNone RewardAccount
@@ -121,7 +121,8 @@ getPoolCertificatePoolId = \case
     Retirement cert ->
         view #poolId cert
 
-setPoolCertificatePoolId :: PoolId -> PoolCertificate -> PoolCertificate
+setPoolCertificatePoolId
+    :: PoolId -> PoolCertificate -> PoolCertificate
 setPoolCertificatePoolId newPoolId = \case
     Registration cert ->
         Registration
@@ -194,7 +195,7 @@ instance FromText NonWalletCertificate where
     fromText "resign_committee_cold_key" = Right ResignCommitteeColdKey
     fromText "reg_DRep" = Right RegDRep
     fromText "unreg_DRep" = Right UnRegDRep
-    fromText "update_DRep" =  Right UpdateDRep
+    fromText "update_DRep" = Right UpdateDRep
     fromText _ =
         Left
             $ TextDecodingError

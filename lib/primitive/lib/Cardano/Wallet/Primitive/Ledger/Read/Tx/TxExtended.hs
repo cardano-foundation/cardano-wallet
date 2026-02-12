@@ -13,8 +13,6 @@ module Cardano.Wallet.Primitive.Ledger.Read.Tx.TxExtended
     )
 where
 
-import Prelude
-
 import Cardano.Read.Ledger.Tx.Certificates
     ( getEraCertificates
     )
@@ -59,6 +57,7 @@ import Cardano.Wallet.Read
     , Tx (Tx)
     , (:*:) ((:*:))
     )
+import Prelude
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Shelley as Cardano

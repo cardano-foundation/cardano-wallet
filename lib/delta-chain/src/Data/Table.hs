@@ -46,8 +46,6 @@ module Data.Table
     , consume
     ) where
 
-import Prelude
-
 import Control.Monad
     ( forM
     )
@@ -77,6 +75,7 @@ import Data.Ord
 import Data.Set
     ( Set
     )
+import Prelude
 
 import qualified Data.Delta as Delta
 import qualified Data.IntMap.Strict as Map

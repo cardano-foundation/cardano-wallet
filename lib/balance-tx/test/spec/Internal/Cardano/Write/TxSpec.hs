@@ -3,12 +3,9 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
-
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Internal.Cardano.Write.TxSpec where
-
-import Prelude
 
 import Cardano.Ledger.Api
     ( PParams
@@ -34,11 +31,14 @@ import Internal.Cardano.Write.Tx
     , isBelowMinimumCoinForTxOut
     )
 import Test.Cardano.Ledger.Alonzo.Serialisation.Generators
-    ()
+    (
+    )
 import Test.Cardano.Ledger.Babbage.Arbitrary
-    ()
+    (
+    )
 import Test.Cardano.Ledger.Conway.Arbitrary
-    ()
+    (
+    )
 import Test.Hspec
     ( Spec
     , describe
@@ -64,6 +64,7 @@ import Test.QuickCheck.Classes
 import Test.Utils.Laws
     ( testLawsMany
     )
+import Prelude
 
 import qualified Data.ByteString as BS
 
@@ -79,9 +80,10 @@ spec = do
 
     describe "DatumHash" $ do
         it "datumHashFromBytes . datumHashToBytes == Just"
-            $ property $ \h -> do
-                 let f = datumHashFromBytes . datumHashToBytes
-                 f h === Just h
+            $ property
+            $ \h -> do
+                let f = datumHashFromBytes . datumHashToBytes
+                f h === Just h
 
         describe "datumHashFromBytes goldens" $ do
             it "32 bytes -> Just" $ do
@@ -96,23 +98,31 @@ spec = do
 
     describe "TxOut" $ do
         describe "computeMinimumCoinForTxOut" $ do
-            it "isBelowMinimumCoinForTxOut (setCoin (result <> delta)) \
-               \ == False (Babbage)"
-                $ property $ \out delta perByte -> do
-                    let pp = (def :: PParams Babbage)
-                            & ppCoinsPerUTxOByteL .~ perByte
+            it
+                "isBelowMinimumCoinForTxOut (setCoin (result <> delta)) \
+                \ == False (Babbage)"
+                $ property
+                $ \out delta perByte -> do
+                    let pp =
+                            (def :: PParams Babbage)
+                                & ppCoinsPerUTxOByteL .~ perByte
                     let c = delta <> computeMinimumCoinForTxOut pp out
-                    isBelowMinimumCoinForTxOut pp
-                        (out & coinTxOutL .~ c )
+                    isBelowMinimumCoinForTxOut
+                        pp
+                        (out & coinTxOutL .~ c)
                         === False
 
-            it "isBelowMinimumCoinForTxOut (setCoin (result <> delta)) \
-               \ == False (Conway)"
-                $ property $ \out delta perByte -> do
-                    let pp = (def :: PParams Conway)
-                            & ppCoinsPerUTxOByteL .~ perByte
+            it
+                "isBelowMinimumCoinForTxOut (setCoin (result <> delta)) \
+                \ == False (Conway)"
+                $ property
+                $ \out delta perByte -> do
+                    let pp =
+                            (def :: PParams Conway)
+                                & ppCoinsPerUTxOByteL .~ perByte
                     let c = delta <> computeMinimumCoinForTxOut pp out
-                    isBelowMinimumCoinForTxOut pp
+                    isBelowMinimumCoinForTxOut
+                        pp
                         (out & coinTxOutL .~ c)
                         === False
 
@@ -160,7 +170,8 @@ testIsomorphism
     :: (Arbitrary a, Arbitrary b, Show a, Show b, Eq a, Eq b)
     => NamedFun a b
     -> NamedFun b a
-    -> (b -> b) -- ^ Optional normalization, otherwise use @id@.
+    -> (b -> b)
+    -- ^ Optional normalization, otherwise use @id@.
     -> Property
 testIsomorphism (NamedFun f fName) (NamedFun g gName) normalize =
     conjoin

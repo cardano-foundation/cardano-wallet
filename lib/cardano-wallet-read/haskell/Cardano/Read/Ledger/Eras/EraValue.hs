@@ -1,11 +1,10 @@
 {-# LANGUAGE UndecidableInstances #-}
 
-{- |
-Copyright: © 2020-2022 IOHK
-License: Apache-2.0
-
-A datatype that represents values that can be different in any known eras.
--}
+-- |
+-- Copyright: © 2020-2022 IOHK
+-- License: Apache-2.0
+--
+-- A datatype that represents values that can be different in any known eras.
 module Cardano.Read.Ledger.Eras.EraValue
     ( -- * Era-existential values
       EraValue (..)
@@ -23,8 +22,6 @@ module Cardano.Read.Ledger.Eras.EraValue
     , eraValueSerialize
     )
 where
-
-import Prelude
 
 import Cardano.Read.Ledger.Eras.KnownEras
     ( Era (..)
@@ -48,6 +45,7 @@ import Generics.SOP
     , K (..)
     , (:.:) (..)
     )
+import Prelude
 
 -- |
 -- A value which is in one particular 'Era'.
@@ -181,8 +179,7 @@ indexEraValue = applyEraFun indexOfEra . getEra
 renderEraValue :: EraValue (K a) -> (a, Int)
 renderEraValue e = (extractEraValue e, indexEraValue e)
 
-{- | The prism to serialize EraValues into the value at the
-era expressed as Int, starting from 0, see 'KnownEras'.
--}
+-- | The prism to serialize EraValues into the value at the
+-- era expressed as Int, starting from 0, see 'KnownEras'.
 eraValueSerialize :: Prism' (a, Int) (EraValue (K a))
 eraValueSerialize = prism renderEraValue parseEraValue

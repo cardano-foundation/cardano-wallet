@@ -1,26 +1,21 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-
-{-# OPTIONS_GHC -Wno-unticked-promoted-constructors #-}
-
 -- `cardano-addresses` library marks byron functionality as deprecated
 -- but in a meaning that new projects shouldn't use it. However, we still
 -- need to support byron addresses in the wallet and make sure they work forever
 -- so for this purpose it isn't deprecated.
 -- This option allows to avoid a compiler warning;
 {-# OPTIONS_GHC -Wno-deprecations #-}
+{-# OPTIONS_GHC -Wno-unticked-promoted-constructors #-}
 
-{- | Module contains functionality to generate addresses
-     of various styles for the faucet.
--}
+-- | Module contains functionality to generate addresses
+--      of various styles for the faucet.
 module Cardano.Faucet.Addresses
     ( byron
     , icarus
     , shelley
     , shelleyRewardAccount
     ) where
-
-import Prelude
 
 import Cardano.Address
     ( Address
@@ -63,6 +58,7 @@ import Data.Tuple.Extra
 import GHC.TypeLits
     ( KnownNat
     )
+import Prelude
 
 import qualified Cardano.Address as CA
 import qualified Cardano.Address.Style.Byron as Byron
@@ -74,7 +70,7 @@ byron netTag mw = mkPaymentAddrForIx <$> paymentKeyIxs
   where
     paymentKeyIxs :: [Index (AddressIndexDerivationType Byron) PaymentK] =
         let firstIx = minBound
-        in firstIx : unfoldr (fmap dupe . nextIndex) firstIx
+        in  firstIx : unfoldr (fmap dupe . nextIndex) firstIx
     mkPaymentAddrForIx paymentAddrIx =
         Byron.paymentAddress
             (CA.RequiresNetworkTag, netTag)
@@ -96,7 +92,7 @@ icarus netTag mw = mkPaymentAddrForIx <$> paymentKeyIxs
   where
     paymentKeyIxs :: [Index (AddressIndexDerivationType Icarus) PaymentK] =
         let firstIx = minBound
-        in firstIx : unfoldr (fmap dupe . nextIndex) firstIx
+        in  firstIx : unfoldr (fmap dupe . nextIndex) firstIx
     mkPaymentAddrForIx paymentAddrIx =
         Icarus.paymentAddress
             (CA.RequiresNetworkTag, netTag)
@@ -116,7 +112,7 @@ shelley netTag mnemonic = mkPaymentAddrForIx <$> paymentKeyIxs
   where
     paymentKeyIxs :: [Index (AddressIndexDerivationType Shelley) PaymentK] =
         let firstIx = minBound
-            in firstIx : unfoldr (fmap dupe . nextIndex) firstIx
+        in  firstIx : unfoldr (fmap dupe . nextIndex) firstIx
     mkPaymentAddrForIx paymentAddrIx =
         Shelley.delegationAddress
             netTag
@@ -138,9 +134,11 @@ shelleyRewardAccount
     -> (Shelley DelegationK XPub, Shelley DelegationK XPrv)
 shelleyRewardAccount mnemonic = (toXPub <$> xPrv, xPrv)
   where
-    xPrv = Shelley.deriveDelegationPrivateKey (deriveShelleyAccountKey mnemonic)
+    xPrv =
+        Shelley.deriveDelegationPrivateKey (deriveShelleyAccountKey mnemonic)
 
-deriveShelleyAccountKey :: KnownNat n => Mnemonic n -> Shelley AccountK XPrv
+deriveShelleyAccountKey
+    :: KnownNat n => Mnemonic n -> Shelley AccountK XPrv
 deriveShelleyAccountKey mnemonic = deriveAccountPrivateKey masterKey accountIx
   where
     accountIx :: Index 'Hardened 'AccountK = minBound

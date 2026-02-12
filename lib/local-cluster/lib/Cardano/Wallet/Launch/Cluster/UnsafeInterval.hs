@@ -5,8 +5,6 @@ module Cardano.Wallet.Launch.Cluster.UnsafeInterval
     )
 where
 
-import Prelude
-
 import Cardano.Ledger.BaseTypes
     ( BoundedRational (boundRational)
     , NonNegativeInterval
@@ -19,6 +17,7 @@ import Data.Maybe
 import GHC.Stack
     ( HasCallStack
     )
+import Prelude
 
 unsafeUnitInterval :: HasCallStack => Rational -> UnitInterval
 unsafeUnitInterval x =
@@ -26,13 +25,15 @@ unsafeUnitInterval x =
         (error $ "unsafeUnitInterval: " <> show x <> " is out of bounds")
         (boundRational x)
 
-unsafeNonNegativeInterval :: HasCallStack => Rational -> NonNegativeInterval
+unsafeNonNegativeInterval
+    :: HasCallStack => Rational -> NonNegativeInterval
 unsafeNonNegativeInterval x =
     fromMaybe
         (error $ "unsafeNonNegativeInterval: " <> show x <> " is out of bounds")
         (boundRational x)
 
-unsafePositiveUnitInterval :: HasCallStack => Rational -> PositiveUnitInterval
+unsafePositiveUnitInterval
+    :: HasCallStack => Rational -> PositiveUnitInterval
 unsafePositiveUnitInterval x =
     fromMaybe
         (error $ "unsafeNonNegativeInterval: " <> show x <> " is out of bounds")

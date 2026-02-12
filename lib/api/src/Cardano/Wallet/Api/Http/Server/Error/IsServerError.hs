@@ -10,9 +10,7 @@ module Cardano.Wallet.Api.Http.Server.Error.IsServerError
     , err425
     , showT
     )
-    where
-
-import Prelude
+where
 
 import Cardano.Wallet.Api.Types.Error
     ( ApiError (..)
@@ -45,6 +43,7 @@ import Servant
     , Proxy (..)
     , ServerError (..)
     )
+import Prelude
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Text as T

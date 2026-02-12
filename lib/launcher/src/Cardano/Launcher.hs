@@ -13,22 +13,19 @@
 --
 -- This module contains a mechanism for launching external processes, ensuring
 -- that they are terminated on exceptions.
-
 module Cardano.Launcher
     ( Command (..)
     , ProcessHandles (..)
-    , StdStream(..)
-    , ProcessHasExited(..)
+    , StdStream (..)
+    , ProcessHasExited (..)
     , withBackendProcess
     , withBackendCreateProcess
     , IfToSendSigINT (..)
     , TimeoutInSecs (..)
 
-    -- * Logging
-    , LauncherLog(..)
+      -- * Logging
+    , LauncherLog (..)
     ) where
-
-import Prelude
 
 import Cardano.BM.Data.Severity
     ( Severity (..)
@@ -125,6 +122,7 @@ import UnliftIO.Process
     , proc
     , waitForProcess
     )
+import Prelude
 
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
@@ -145,12 +143,13 @@ data Command = Command
     { cmdName :: String
     , cmdArgs :: [String]
     , cmdSetup :: IO ()
-        -- ^ An extra action to run _before_ the command
+    -- ^ An extra action to run _before_ the command
     , cmdInput :: StdStream
-        -- ^ Input to supply to command
+    -- ^ Input to supply to command
     , cmdOutput :: StdStream
-        -- ^ What to do with stdout & stderr
-    } deriving (Generic)
+    -- ^ What to do with stdout & stderr
+    }
+    deriving (Generic)
 
 instance Show Command where
     show = TL.unpack . toLazyText . build
@@ -174,10 +173,11 @@ buildCommand name args = mconcat [build name, "\n", indentF 4 argsBuilder]
     buildOptions ("", grp) arg =
         (arg, grp)
     buildOptions (partial, grp) arg =
-        if ("--" `isPrefixOf` partial) && not ("--" `isPrefixOf` arg) then
-            ("", grp ++ [partial <> " " <> arg])
-        else
-            (arg, grp ++ [partial])
+        if ("--" `isPrefixOf` partial) && not ("--" `isPrefixOf` arg)
+            then
+                ("", grp ++ [partial <> " " <> arg])
+            else
+                (arg, grp ++ [partial])
 
 instance Buildable Command where
     build (Command name args _ _ _) = buildCommand name args
@@ -205,6 +205,7 @@ data ProcessHandles = ProcessHandles
     , errorHandle :: Maybe Handle
     , processHandle :: ProcessHandle
     }
+
 -- | Starts a command in the background and then runs an action. If the action
 -- finishes (through an exception or otherwise) then the process is terminated
 -- (see 'withCreateProcess') for details. If the process exits, the action is
@@ -300,9 +301,9 @@ withBackendCreateProcess tr process mTimeoutSecs ifToSendSigINT action = do
         | name `isPrefixOf` show e = Just (ProcessDidNotStart name e)
         | otherwise = Nothing
 
-     -- Run the 'cleanupProcess' function from the process library, but wait for
-     -- the process to exit, rather than immediately returning. If the process
-     -- doesn't exit after timeout, kill it, to avoid blocking indefinitely.
+    -- Run the 'cleanupProcess' function from the process library, but wait for
+    -- the process to exit, rather than immediately returning. If the process
+    -- doesn't exit after timeout, kill it, to avoid blocking indefinitely.
     cleanupProcessAndWait getExitStatus ps@(_, _, _, ph) = do
         traceWith tr MsgLauncherCleanup
         -- we also send a sigINT to the process to make sure it terminates
@@ -409,23 +410,23 @@ instance HasSeverityAnnotation WaitForProcessLog where
 
 instance ToText ProcessHasExited where
     toText (ProcessHasExited name code) =
-        "Child process "+|name|+" exited with "+|statusText code|+""
+        "Child process " +| name |+ " exited with " +| statusText code |+ ""
     toText (ProcessDidNotStart name _e) =
-        "Could not start "+|name|+""
+        "Could not start " +| name |+ ""
 
 instance ToText LauncherLog where
     toText ll = fmt $ case ll of
         MsgLauncherStart cmd args ->
-            "Starting process "+|buildCommand cmd args|+""
+            "Starting process " +| buildCommand cmd args |+ ""
         WithProcessInfo name pid msg ->
-            "["+|name|+"."+|pid|+"] "+|toText msg|+""
+            "[" +| name |+ "." +| pid |+ "] " +| toText msg |+ ""
         MsgLauncherFinish Nothing ->
             "Action finished"
         MsgLauncherFinish (Just exited) -> build $ toText exited
         MsgLauncherCleanup ->
             "Begin process cleanup"
         MsgLauncherCleanupTimedOut t ->
-            "Timed out waiting for process to exit after "+|t|+" seconds"
+            "Timed out waiting for process to exit after " +| t |+ " seconds"
         MsgLauncherCleanupFinished ->
             "Process cleanup finished"
 
@@ -440,13 +441,16 @@ instance ToText WaitForProcessLog where
     toText = \case
         MsgWaitBefore ->
             "Waiting for process to exit"
-        MsgWaitAfter status -> fmt $
-            "Process exited with "+|statusText status|+""
+        MsgWaitAfter status ->
+            fmt
+                $ "Process exited with "
+                +| statusText status
+                |+ ""
         MsgWaitCancelled ->
             "There was an exception waiting for the process"
 
 statusText :: ExitCode -> Text
 statusText ExitSuccess = "success"
 statusText (ExitFailure n)
-    | n >= 0 = fmt $ "code "+||n||+" (failure)"
-    | otherwise = fmt $ "signal "+||(-n)||+""
+    | n >= 0 = fmt $ "code " +|| n ||+ " (failure)"
+    | otherwise = fmt $ "signal " +|| (-n) ||+ ""

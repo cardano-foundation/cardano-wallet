@@ -1,33 +1,30 @@
 {-# LANGUAGE TupleSections #-}
 
-{- |
-Copyright: © 2024 Cardano Foundation
-License: Apache-2.0
-
-Variables and bindings.
--}
+-- |
+-- Copyright: © 2024 Cardano Foundation
+-- License: Apache-2.0
+--
+-- Variables and bindings.
 module Database.Table.SQL.Var
-    (
-    -- * Variables and Bindings
-    -- ** Variable names
-    VarName
+    ( -- * Variables and Bindings
+
+      -- ** Variable names
+      VarName
     , renderVarName
     , Fresh
     , newVarName
 
-    -- ** Bindings
+      -- ** Bindings
     , Value
     , Bindings
     , Lets
     , freshVarName
     , bindValue
 
-    -- ** Rendering
+      -- ** Rendering
     , Rendering (..)
     , render
     ) where
-
-import Prelude
 
 import Control.Monad
     ( ap
@@ -47,15 +44,16 @@ import Data.Text
 import Numeric.Natural
     ( Natural
     )
+import Prelude
 
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
-
 import qualified Database.SQLite.Simple as Sqlite
 
 {-------------------------------------------------------------------------------
     Name allocation
 -------------------------------------------------------------------------------}
+
 -- | Name for a variable.
 newtype VarName = Var Text
     deriving (Eq, Ord)
@@ -77,12 +75,13 @@ mkVarName = Var . T.pack . (":var" <>) . show
 newVarName :: Fresh VarName
 newVarName = do
     c <- get
-    put $! (c+1)
+    put $! (c + 1)
     pure $ mkVarName c
 
 {-------------------------------------------------------------------------------
     Bindings
 -------------------------------------------------------------------------------}
+
 -- | Value that can be bound to a variable.
 type Value = Sqlite.SQLData
 
@@ -123,6 +122,7 @@ bindValue value =
 {-------------------------------------------------------------------------------
     Rendering
 -------------------------------------------------------------------------------}
+
 -- | A value together with variable bindings.
 data Rendering a = Rendering
     { val :: a

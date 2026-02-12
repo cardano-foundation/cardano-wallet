@@ -1,18 +1,16 @@
-{- |
-Copyright: © 2024 Cardano Foundation
-License: Apache-2.0
-
-Storing 'Table' in SQLite databases.
-
-This module is meant to be imported qualified, e.g.
-
-@
-import qualified Database.Table.SQLite.Simple as Sqlite
-@
--}
+-- |
+-- Copyright: © 2024 Cardano Foundation
+-- License: Apache-2.0
+--
+-- Storing 'Table' in SQLite databases.
+--
+-- This module is meant to be imported qualified, e.g.
+--
+-- @
+-- import qualified Database.Table.SQLite.Simple as Sqlite
+-- @
 module Database.Table.SQLite.Simple
-    (
-      module Database.Table.SQL.Table
+    ( module Database.Table.SQL.Table
     , module Database.Table.SQL.Expr
     , module Database.Table.SQLite.Simple.Monad
     , module Database.Table.SQLite.Simple.Exec

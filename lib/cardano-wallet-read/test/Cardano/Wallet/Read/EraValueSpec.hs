@@ -3,8 +3,6 @@
 
 module Cardano.Wallet.Read.EraValueSpec (spec) where
 
-import Prelude
-
 import Cardano.Wallet.Read.Eras
     ( Era (..)
     , EraValue (..)
@@ -39,6 +37,7 @@ import Test.QuickCheck
     , forAll
     , (===)
     )
+import Prelude
 
 genEra :: Gen (EraValue Era)
 genEra = elements knownEras
@@ -51,13 +50,13 @@ generate = do
 inject :: forall era a. IsEra era => Era era -> a -> EraValue (K a)
 inject _ x = EraValue (K x :: K a era)
 
-injectInt :: forall era. IsEra era => Era era -> Int -> EraValue (K Int)
+injectInt
+    :: forall era. IsEra era => Era era -> Int -> EraValue (K Int)
 injectInt = inject
 
 spec :: Spec
 spec =
     describe "EraValue" $ do
-
         it "respects Eq" $ do
             injectInt Byron 1 `shouldBe` injectInt Byron 1
             injectInt Byron 1 `shouldNotBe` injectInt Byron 2
@@ -78,17 +77,18 @@ spec =
         it "roundrips serialization" $ do
             property $ forAll generate $ prismLaw eraValueSerialize
 
-        it "parseEraIndex is left-inverse of indexOfEra" $
-            let isLeftInverse (EraValue era) =
+        it "parseEraIndex is left-inverse of indexOfEra"
+            $ let isLeftInverse (EraValue era) =
                     parseEraIndex (indexOfEra era) === Just (EraValue era)
-            in  conjoin (map isLeftInverse knownEras)
+              in  conjoin (map isLeftInverse knownEras)
 
-        it "indexOfEra is left-inverse of parseEraIndex on domain" $
-            forAll arbitrary $ \(ix :: Int) ->
+        it "indexOfEra is left-inverse of parseEraIndex on domain"
+            $ forAll arbitrary
+            $ \(ix :: Int) ->
                 case parseEraIndex ix of
                     Just (EraValue era) ->
                         counterexample ("era == " <> show era)
-                        $ ix === indexOfEra era
+                            $ ix === indexOfEra era
                     Nothing -> property True
 
 prismLaw :: (Eq a, Show a) => Prism' s a -> a -> Expectation

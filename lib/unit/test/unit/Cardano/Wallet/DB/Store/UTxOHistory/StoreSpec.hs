@@ -1,20 +1,19 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
 module Cardano.Wallet.DB.Store.UTxOHistory.StoreSpec (spec) where
-
-import Prelude
 
 import Cardano.DB.Sqlite
     ( ForeignKeysSetting (..)
     , runQuery
     )
 import Cardano.Wallet.DB.Arbitrary
-    ()
+    (
+    )
 import Cardano.Wallet.DB.Fixtures
     ( WalletProperty
     , initializeWalletTable
@@ -52,12 +51,13 @@ import Test.QuickCheck
 import Test.Store
     ( prop_StoreUpdate
     )
+import Prelude
 
 spec :: Spec
 spec = around (withDBInMemory ForeignKeysEnabled) $ do
     describe "UTxOHistory store" $ do
-        it "respects store laws" $
-            property . prop_StoreUTxOHistoryLaws
+        it "respects store laws"
+            $ property . prop_StoreUTxOHistoryLaws
 
 genDeltas :: UTxOHistory -> Gen DeltaUTxOHistory
 genDeltas history =

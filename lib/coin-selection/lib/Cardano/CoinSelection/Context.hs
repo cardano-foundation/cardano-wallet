@@ -7,18 +7,15 @@
 --
 -- This module provides the 'SelectionContext' class, which provides a shared
 -- context for types used by coin selection.
---
 module Cardano.CoinSelection.Context
-    (
-    -- * Selection contexts
+    ( -- * Selection contexts
       SelectionContext (..)
     )
-    where
+where
 
 import Prelude
 
 -- | Provides a shared context for types used by coin selection.
---
 class
     ( Ord (Address c)
     , Ord (UTxO c)
@@ -26,8 +23,7 @@ class
     , Show (UTxO c)
     ) =>
     SelectionContext c
-  where
-
+    where
     -- | A target address to which payments can be made.
     type Address c
 

@@ -6,12 +6,11 @@ module Cardano.Wallet.UI.Static
     )
 where
 
-import Prelude
-
 import Data.FileEmbed
 import Data.Text
     ( Text
     )
+import Prelude
 
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL

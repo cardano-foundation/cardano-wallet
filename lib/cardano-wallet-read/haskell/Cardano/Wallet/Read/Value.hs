@@ -30,14 +30,10 @@ module Cardano.Wallet.Read.Value
     , lessOrEqual
     , largerOrEqual
 
-    -- * Internal
+      -- * Internal
     , fromEraValue
     , toMaryValue
     ) where
-
-import Prelude hiding
-    ( subtract
-    )
 
 import Cardano.Ledger.Coin
     ( Coin (Coin)
@@ -50,11 +46,14 @@ import Cardano.Read.Ledger.Eras
     ( Era (..)
     , IsEra (..)
     )
+import Prelude hiding
+    ( subtract
+    )
 
-import qualified Cardano.Ledger.BaseTypes as SH
-import qualified Cardano.Ledger.Coin as L
-import qualified Cardano.Ledger.Mary.Value as MA
-import qualified Cardano.Read.Ledger.Value as L
+import Cardano.Ledger.BaseTypes qualified as SH
+import Cardano.Ledger.Coin qualified as L
+import Cardano.Ledger.Mary.Value qualified as MA
+import Cardano.Read.Ledger.Value qualified as L
 
 {-----------------------------------------------------------------------------
     Coin
@@ -110,14 +109,15 @@ pattern ValueC{getCoin, getAssets} = Value (MA.MaryValue getCoin getAssets)
 
 -- | Internal: Convert from era-indexed 'L.Value'.
 fromEraValue :: forall era. IsEra era => L.Value era -> Value
-fromEraValue = fromMaryValue . case theEra :: Era era of
-    Byron -> onValue L.maryValueFromByronValue
-    Shelley -> onValue L.maryValueFromShelleyValue
-    Allegra -> onValue L.maryValueFromShelleyValue
-    Mary -> onValue id
-    Alonzo -> onValue id
-    Babbage -> onValue id
-    Conway -> onValue id
+fromEraValue =
+    fromMaryValue . case theEra :: Era era of
+        Byron -> onValue L.maryValueFromByronValue
+        Shelley -> onValue L.maryValueFromShelleyValue
+        Allegra -> onValue L.maryValueFromShelleyValue
+        Mary -> onValue id
+        Alonzo -> onValue id
+        Babbage -> onValue id
+        Conway -> onValue id
 
 -- Helper function for type inference.
 onValue :: (L.ValueType era -> t) -> L.Value era -> t

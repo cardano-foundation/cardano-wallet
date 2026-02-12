@@ -23,8 +23,7 @@
 -- data-type representation so that the code can be re-used / shared between
 -- Byron and Shelley.
 module Cardano.Wallet.Network.Implementation.Ouroboros
-    (
-      -- * ChainSyncFollowTip
+    ( -- * ChainSyncFollowTip
       chainSyncFollowTip
 
       -- * ChainSyncFetchBlock
@@ -33,7 +32,7 @@ module Cardano.Wallet.Network.Implementation.Ouroboros
 
       -- * ChainSyncWithBlocks
     , chainSyncWithBlocks
-    , PipeliningStrategy(..)
+    , PipeliningStrategy (..)
     , thousandPipeliningStrategy
     , tunedForMainnetPipeliningStrategy
 
@@ -49,8 +48,6 @@ module Cardano.Wallet.Network.Implementation.Ouroboros
       -- * Helpers
     , send
     ) where
-
-import Prelude
 
 import Cardano.BM.Data.Tracer
     ( Tracer
@@ -103,6 +100,9 @@ import Data.List.NonEmpty
 import Data.Ord
     ( comparing
     )
+import Data.Singletons
+    ( SingI
+    )
 import Data.Text
     ( Text
     )
@@ -111,10 +111,6 @@ import Data.Void
     )
 import Network.TypedProtocol
     ( natToInt
-    )
-
-import Data.Singletons
-    ( SingI
     )
 import Network.TypedProtocol.Core
     ( N (..)
@@ -167,6 +163,7 @@ import Ouroboros.Network.Protocol.LocalTxSubmission.Client
 import Ouroboros.Network.Protocol.LocalTxSubmission.Type
     ( SubmitResult (..)
     )
+import Prelude
 
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
@@ -183,7 +180,8 @@ import qualified Ouroboros.Network.Protocol.LocalStateQuery.Client as LSQ
 -- This is used in the same way as 'chainSyncWithBlocks', except that only one
 -- of these clients is necessary, rather than one client per wallet.
 chainSyncFollowTip
-    :: forall m block era. (Monad m)
+    :: forall m block era
+     . (Monad m)
     => (block -> era)
     -> (Maybe era -> Tip block -> m ())
     -- ^ Callback for when the tip changes.
@@ -207,7 +205,8 @@ chainSyncFollowTip toCardanoEra onTipUpdate =
     clientStNext
         :: Bool
         -> ClientStNext block (Point block) (Tip block) m Void
-    clientStNext False = ClientStNext
+    clientStNext False =
+        ClientStNext
             { recvMsgRollBackward = const findIntersect
             , recvMsgRollForward = const findIntersect
             }
@@ -221,9 +220,10 @@ chainSyncFollowTip toCardanoEra onTipUpdate =
     -- era-agnostic (for now at least!) which isn't a big deal really because
     -- the era will simply be updated on the next RollForward which follows
     -- immediately after.
-    clientStNext True = ClientStNext
+    clientStNext True =
+        ClientStNext
             { recvMsgRollBackward = doUpdate . const Nothing
-            , recvMsgRollForward  = doUpdate . Just . toCardanoEra
+            , recvMsgRollForward = doUpdate . Just . toCardanoEra
             }
       where
         doUpdate
@@ -238,29 +238,32 @@ chainSyncFollowTip toCardanoEra onTipUpdate =
     -- set.
     clientStIntersect
         :: ClientStIntersect block (Point block) (Tip block) m Void
-    clientStIntersect = ClientStIntersect
-        { recvMsgIntersectFound = \_intersection _tip ->
-            ChainSyncClient . pure $ clientStIdle True
-        , recvMsgIntersectNotFound = \_tip ->
-            ChainSyncClient . pure $ clientStIdle False
-        }
+    clientStIntersect =
+        ClientStIntersect
+            { recvMsgIntersectFound = \_intersection _tip ->
+                ChainSyncClient . pure $ clientStIdle True
+            , recvMsgIntersectNotFound = \_tip ->
+                ChainSyncClient . pure $ clientStIdle False
+            }
 
 {-----------------------------------------------------------------------------
     chainSyncFetchBlock
 ------------------------------------------------------------------------------}
+
 -- | Type of commands that are stored in a queue for fetching the next block.
-data FetchBlockCmd m block point =
-    FetchBlockCmd point (Maybe block -> m ())
+data FetchBlockCmd m block point
+    = FetchBlockCmd point (Maybe block -> m ())
 
 -- | Client for the 'Chain Sync' mini-protocol,
 -- which retrieves a single block and stops after that.
 chainSyncFetchNextBlock
-    :: forall m block point tip. (MonadSTM m, Eq point)
+    :: forall m block point tip
+     . (MonadSTM m, Eq point)
     => TQueue m (FetchBlockCmd m block point)
-        -- ^ We use a 'TQueue' as a communication channel to drive queries from
-        -- outside of the network client to the client itself.
-        -- Requests are pushed to the queue which are then transformed into
-        -- messages to keep the state-machine moving.
+    -- ^ We use a 'TQueue' as a communication channel to drive queries from
+    -- outside of the network client to the client itself.
+    -- Requests are pushed to the queue which are then transformed into
+    -- messages to keep the state-machine moving.
     -> ChainSyncClient block point tip m Void
 chainSyncFetchNextBlock queue =
     ChainSyncClient idle
@@ -295,19 +298,20 @@ chainSyncFetchNextBlock queue =
     -- Fetch the block on rollforward.
     clientStNext
         :: point -> ClientStNext block point tip m Void
-    clientStNext point = ClientStNext
-        { recvMsgRollForward = \block _ ->
-            result $ Just block
-        , recvMsgRollBackward = \point' _ ->
-            -- Note: When starting the chainsync protocol,
-            -- the cardano-node may send an initial rollback message,
-            -- which we will detect here and treat as a no-op.
-            if point' == point
-            then ChainSyncClient $ pure $ clientRequestBlock point
-            else result Nothing
-        }
+    clientStNext point =
+        ClientStNext
+            { recvMsgRollForward = \block _ ->
+                result $ Just block
+            , recvMsgRollBackward = \point' _ ->
+                -- Note: When starting the chainsync protocol,
+                -- the cardano-node may send an initial rollback message,
+                -- which we will detect here and treat as a no-op.
+                if point' == point
+                    then ChainSyncClient $ pure $ clientRequestBlock point
+                    else result Nothing
+            }
 
-    -- | Note that we use peekTQueue when starting the
+    -- \| Note that we use peekTQueue when starting the
     -- request, and only remove the command from the queue after we have
     -- processed the response from the node.
     --
@@ -321,7 +325,8 @@ chainSyncFetchNextBlock queue =
     finalizeCmd :: Maybe block -> m ()
     finalizeCmd answer =
         join
-            $ atomically $ tryReadTQueue queue >>= \case
+            $ atomically
+            $ tryReadTQueue queue >>= \case
                 Just (FetchBlockCmd _ respond) -> pure $ respond answer
                 Nothing -> error "finalizeCmd: queue is not empty"
 
@@ -360,8 +365,8 @@ chainSyncFetchNextBlock queue =
 -- See also 'send' for invoking commands.
 
 -- | A little type-alias to ease signatures in 'chainSyncWithBlocks'
-type RequestNextStrategy m n block
-    = P.ClientPipelinedStIdle n block (Point block) (Tip block) m Void
+type RequestNextStrategy m n block =
+    P.ClientPipelinedStIdle n block (Point block) (Tip block) m Void
 
 -- | How to drive pipelining size from the block height
 data PipeliningStrategy block = PipeliningStrategy
@@ -369,39 +374,40 @@ data PipeliningStrategy block = PipeliningStrategy
     , pipeliningStrategyName :: Text
     }
 
-instance Show  (PipeliningStrategy block) where
-    show PipeliningStrategy{pipeliningStrategyName}
-        = T.unpack pipeliningStrategyName
+instance Show (PipeliningStrategy block) where
+    show PipeliningStrategy{pipeliningStrategyName} =
+        T.unpack pipeliningStrategyName
 
 thousandPipeliningStrategy :: PipeliningStrategy block
-thousandPipeliningStrategy = PipeliningStrategy {..}
-    where
-        getPipeliningSize _ = 1_000
-        pipeliningStrategyName = "Constant pipelining of 1000 blocks"
+thousandPipeliningStrategy = PipeliningStrategy{..}
+  where
+    getPipeliningSize _ = 1_000
+    pipeliningStrategyName = "Constant pipelining of 1000 blocks"
 
-tunedForMainnetPipeliningStrategy :: HasHeader block => PipeliningStrategy block
-tunedForMainnetPipeliningStrategy =  PipeliningStrategy {..}
-    where
-        getPipeliningSize (blockNo -> n)
-            | n <= 5_200_000 = 1_000
-            | n <= 6_100_000 = 200
-            | n <= 6_500_000 = 125
-            | otherwise      = 100
-        pipeliningStrategyName = "Variable pipelining suited for mainnet blockchain"
+tunedForMainnetPipeliningStrategy
+    :: HasHeader block => PipeliningStrategy block
+tunedForMainnetPipeliningStrategy = PipeliningStrategy{..}
+  where
+    getPipeliningSize (blockNo -> n)
+        | n <= 5_200_000 = 1_000
+        | n <= 6_100_000 = 200
+        | n <= 6_500_000 = 125
+        | otherwise = 100
+    pipeliningStrategyName = "Variable pipelining suited for mainnet blockchain"
 
 -- | Helper type for the different ways we handle rollbacks.
 --
 -- Helps remove some boilerplate.
 data LocalRollbackResult block
-    = Buffer [block]
-    -- ^ The rollback could be handled by filtering the buffer. (The `[block]`
-    -- corresponds to the new, filtered buffer.)
-    | FollowerExact
-    -- ^ `ChainFollower` was asked to rollback, and rolled back to the requested
-    -- point exactly.
-    | FollowerNeedToReNegotiate
-    -- ^ The `ChainFollower` was asked to rollback, but rolled back further than
-    -- requested. We must re-negotiate the intersection with the node.
+    = -- | The rollback could be handled by filtering the buffer. (The `[block]`
+      -- corresponds to the new, filtered buffer.)
+      Buffer [block]
+    | -- | `ChainFollower` was asked to rollback, and rolled back to the requested
+      -- point exactly.
+      FollowerExact
+    | -- | The `ChainFollower` was asked to rollback, but rolled back further than
+      -- requested. We must re-negotiate the intersection with the node.
+      FollowerNeedToReNegotiate
 
 -- | Client for the 'Chain Sync' mini-protocol.
 --
@@ -438,9 +444,9 @@ data LocalRollbackResult block
 --      *------*       Roll.{Backward,Forward}      │
 --      | Next |────────────────────────────────────┘
 --      *------*
---
 chainSyncWithBlocks
-    :: forall m block. (MonadThrow m, HasHeader block)
+    :: forall m block
+     . (MonadThrow m, HasHeader block)
     => Tracer m (ChainSyncLog block (Point block))
     -> PipeliningStrategy block
     -> ChainFollower m (Point block) (Tip block) (NonEmpty block)
@@ -455,7 +461,7 @@ chainSyncWithBlocks tr pipeliningStrategy chainFollower =
     tipDistance (BlockNo n) (Tip _ _ (BlockNo n')) =
         fromIntegral @Integer $ abs $ fromIntegral n - fromIntegral n'
 
-    -- | Keep only blocks from the list that are before or exactly at the given
+    -- \| Keep only blocks from the list that are before or exactly at the given
     -- point.
     rollbackBuffer :: Point block -> [block] -> [block]
     rollbackBuffer pt = filter (\b -> At (blockSlot b) <= pointSlot pt)
@@ -465,35 +471,37 @@ chainSyncWithBlocks tr pipeliningStrategy chainFollower =
     clientStNegotiateIntersection = do
         points <- readChainPoints chainFollower
         -- Cave: An empty list is interpreted as requesting the genesis point.
-        let points' = if null points
-                then [Point Origin]
-                else sortBy (flip compareSlot) points -- older points last
+        let points' =
+                if null points
+                    then [Point Origin]
+                    else sortBy (flip compareSlot) points -- older points last
         traceWith tr $ MsgChainFindIntersect points'
         pure $ P.SendMsgFindIntersect points' clientStIntersect
 
     -- Receive the result of the MsgFindIntersection request
     clientStIntersect
         :: P.ClientPipelinedStIntersect block (Point block) (Tip block) m Void
-    clientStIntersect = P.ClientPipelinedStIntersect
-        { P.recvMsgIntersectFound = \_point tip -> do
-            -- Here, the node tells us which  point  from the possible
-            -- intersections is the latest point on the chain.
-            -- However, we do not have to roll back to this point here;
-            -- when we send a MsgRequestNext message, the node will reply
-            -- with a MsgRollBackward message to this point first.
-            --
-            -- This behavior is not in the network specification yet, but see
-            -- https://input-output-rnd.slack.com/archives/CDA6LUXAQ/p1623322238039900
-            traceWith tr $ MsgChainTip (getTipPoint tip)
-            clientStIdle oneByOne
-        , P.recvMsgIntersectNotFound = \_tip -> do
-            -- No intersection was found.
-            -- As the read-pointer on the node could be unknown to us,
-            -- we now explicitly request the genesis point.
-            --
-            -- See also
-            -- https://input-output-rnd.slack.com/archives/CDA6LUXAQ/p1634644689103100
-            clientStNegotiateGenesis
+    clientStIntersect =
+        P.ClientPipelinedStIntersect
+            { P.recvMsgIntersectFound = \_point tip -> do
+                -- Here, the node tells us which  point  from the possible
+                -- intersections is the latest point on the chain.
+                -- However, we do not have to roll back to this point here;
+                -- when we send a MsgRequestNext message, the node will reply
+                -- with a MsgRollBackward message to this point first.
+                --
+                -- This behavior is not in the network specification yet, but see
+                -- https://input-output-rnd.slack.com/archives/CDA6LUXAQ/p1623322238039900
+                traceWith tr $ MsgChainTip (getTipPoint tip)
+                clientStIdle oneByOne
+            , P.recvMsgIntersectNotFound = \_tip -> do
+                -- No intersection was found.
+                -- As the read-pointer on the node could be unknown to us,
+                -- we now explicitly request the genesis point.
+                --
+                -- See also
+                -- https://input-output-rnd.slack.com/archives/CDA6LUXAQ/p1634644689103100
+                clientStNegotiateGenesis
             }
 
     -- Explicitly negotiate the genesis point
@@ -502,8 +510,9 @@ chainSyncWithBlocks tr pipeliningStrategy chainFollower =
     clientStNegotiateGenesis = do
         let genesis = [Point Origin]
         traceWith tr $ MsgChainFindIntersect genesis
-        pure $ P.SendMsgFindIntersect genesis $
-            clientStIntersect
+        pure
+            $ P.SendMsgFindIntersect genesis
+            $ clientStIntersect
                 { P.recvMsgIntersectNotFound = \_tip ->
                     throwIO ErrChainSyncNoIntersectGenesis
                 }
@@ -531,8 +540,9 @@ chainSyncWithBlocks tr pipeliningStrategy chainFollower =
         :: Int
         -> Nat n
         -> RequestNextStrategy m n block
-    pipeline goal (Succ n) | natToInt (Succ n) == goal =
-        P.CollectResponse Nothing $ collectResponses [] n
+    pipeline goal (Succ n)
+        | natToInt (Succ n) == goal =
+            P.CollectResponse Nothing $ collectResponses [] n
     pipeline goal n =
         P.SendMsgRequestNextPipelined (pure ()) $ pipeline goal (Succ n)
 
@@ -540,53 +550,54 @@ chainSyncWithBlocks tr pipeliningStrategy chainFollower =
         :: [block]
         -> Nat n
         -> P.ClientStNext n block (Point block) (Tip block) m Void
-    collectResponses blocks Zero = P.ClientStNext
-        { P.recvMsgRollForward = \block tip -> do
-            traceWith tr $ MsgChainTip (getTipPoint tip)
+    collectResponses blocks Zero =
+        P.ClientStNext
+            { P.recvMsgRollForward = \block tip -> do
+                traceWith tr $ MsgChainTip (getTipPoint tip)
 
-            let blocks' = NE.reverse (block :| blocks)
-            traceWith tr $ MsgChainRollForward blocks' (getTipPoint tip)
-            handleRollforward blocks' tip
-            let distance = tipDistance (blockNo block) tip
-            traceWith tr $ MsgTipDistance distance
-            let strategy = if distance <= 1
-                    then oneByOne
-                    else pipeline
-                        (fromIntegral
-                            . min distance
-                            . getPipeliningSize pipeliningStrategy
-                            $ block
-                        )
-                        Zero
-            clientStIdle strategy
-
-        , P.recvMsgRollBackward = \point tip -> do
-            traceWith tr $ MsgChainTip (getTipPoint tip)
-            r <- handleRollback blocks point tip
-            case r of
-                Buffer xs -> do
-                    case reverse xs of
-                        []          -> pure ()
-                        (b:blocks') -> handleRollforward (b :| blocks') tip
-                    clientStIdle oneByOne
-                FollowerExact ->
-                    clientStIdle oneByOne
-                FollowerNeedToReNegotiate ->
-                    clientStNegotiateIntersection
-        }
-
-    collectResponses blocks (Succ n) = P.ClientStNext
-        { P.recvMsgRollForward = \block _tip ->
-            pure $ P.CollectResponse Nothing $ collectResponses (block:blocks) n
-
-        , P.recvMsgRollBackward = \point tip -> do
-            traceWith tr $ MsgChainTip (getTipPoint tip)
-            r <- handleRollback blocks point tip
-            pure $ P.CollectResponse Nothing $ case r of
-                Buffer xs -> collectResponses xs n
-                FollowerExact -> collectResponses [] n
-                FollowerNeedToReNegotiate -> dropResponsesAndRenegotiate n
-        }
+                let blocks' = NE.reverse (block :| blocks)
+                traceWith tr $ MsgChainRollForward blocks' (getTipPoint tip)
+                handleRollforward blocks' tip
+                let distance = tipDistance (blockNo block) tip
+                traceWith tr $ MsgTipDistance distance
+                let strategy =
+                        if distance <= 1
+                            then oneByOne
+                            else
+                                pipeline
+                                    ( fromIntegral
+                                        . min distance
+                                        . getPipeliningSize pipeliningStrategy
+                                        $ block
+                                    )
+                                    Zero
+                clientStIdle strategy
+            , P.recvMsgRollBackward = \point tip -> do
+                traceWith tr $ MsgChainTip (getTipPoint tip)
+                r <- handleRollback blocks point tip
+                case r of
+                    Buffer xs -> do
+                        case reverse xs of
+                            [] -> pure ()
+                            (b : blocks') -> handleRollforward (b :| blocks') tip
+                        clientStIdle oneByOne
+                    FollowerExact ->
+                        clientStIdle oneByOne
+                    FollowerNeedToReNegotiate ->
+                        clientStNegotiateIntersection
+            }
+    collectResponses blocks (Succ n) =
+        P.ClientStNext
+            { P.recvMsgRollForward = \block _tip ->
+                pure $ P.CollectResponse Nothing $ collectResponses (block : blocks) n
+            , P.recvMsgRollBackward = \point tip -> do
+                traceWith tr $ MsgChainTip (getTipPoint tip)
+                r <- handleRollback blocks point tip
+                pure $ P.CollectResponse Nothing $ case r of
+                    Buffer xs -> collectResponses xs n
+                    FollowerExact -> collectResponses [] n
+                    FollowerNeedToReNegotiate -> dropResponsesAndRenegotiate n
+            }
 
     handleRollforward :: NonEmpty block -> Tip block -> m ()
     handleRollforward blocks tip = do
@@ -613,7 +624,7 @@ chainSyncWithBlocks tr pipeliningStrategy chainFollower =
             xs -> do
                 pure $ Buffer xs
 
-    -- | Discards the in-flight requests, and re-negotiates the intersection
+    -- \| Discards the in-flight requests, and re-negotiates the intersection
     -- afterwards.
     dropResponsesAndRenegotiate
         :: Nat n
@@ -644,9 +655,10 @@ compareSlot (Point (At b1)) (Point (At b2)) = comparing blockPointSlot b1 b2
 -- LocalStateQuery
 
 -- | Type of commands that are stored in a queue for local state queries.
-data LocalStateQueryCmd block m = forall a. SomeLSQ
-    (LSQ block m a)
-    (a -> m ())
+data LocalStateQueryCmd block m
+    = forall a. SomeLSQ
+        (LSQ block m a)
+        (a -> m ())
 
 -- | Client for the 'Local State Query' mini-protocol.
 --
@@ -675,14 +687,14 @@ data LocalStateQueryCmd block m = forall a. SomeLSQ
 --        └───────┤   Acquired    ├────────────▶│ Querying │
 --                │               │◀────────────┤          │
 --                └───────────────┘     Result  └──────────┘
---
 localStateQuery
-    :: forall m block . (MonadIO m, MonadSTM m)
+    :: forall m block
+     . (MonadIO m, MonadSTM m)
     => TQueue m (LocalStateQueryCmd block m)
-        -- ^ We use a 'TQueue' as a communication channel to drive queries from
-        -- outside of the network client to the client itself.
-        -- Requests are pushed to the queue which are then transformed into
-        -- messages to keep the state-machine moving.
+    -- ^ We use a 'TQueue' as a communication channel to drive queries from
+    -- outside of the network client to the client itself.
+    -- Requests are pushed to the queue which are then transformed into
+    -- messages to keep the state-machine moving.
     -> LocalStateQueryClient block (Point block) (Query block) m Void
 localStateQuery queue =
     LocalStateQueryClient clientStIdle
@@ -695,11 +707,12 @@ localStateQuery queue =
     clientStAcquiring
         :: LocalStateQueryCmd block m
         -> LSQ.ClientStAcquiring block (Point block) (Query block) m Void
-    clientStAcquiring qry = LSQ.ClientStAcquiring
-        { recvMsgAcquired = clientStAcquired qry
-        , recvMsgFailure = \_failure -> do
-            pure $ LSQ.SendMsgAcquire VolatileTip (clientStAcquiring qry)
-        }
+    clientStAcquiring qry =
+        LSQ.ClientStAcquiring
+            { recvMsgAcquired = clientStAcquired qry
+            , recvMsgFailure = \_failure -> do
+                pure $ LSQ.SendMsgAcquire VolatileTip (clientStAcquiring qry)
+            }
 
     clientStAcquired
         :: LocalStateQueryCmd block m
@@ -727,26 +740,29 @@ localStateQuery queue =
             finalizeCmd
             clientStIdle
       where
-          go
-              :: forall a. LSQ block m a
-              -> (a -> (LSQ.ClientStAcquired block (Point block) (Query block) m Void))
-              -> (LSQ.ClientStAcquired block (Point block) (Query block) m Void)
-          go (LSQPure a) cont = cont a
-          go (LSQry qry) cont = LSQ.SendMsgQuery (BlockQuery qry) $
-              -- We only need to support queries of the type `BlockQuery`.
-              LSQ.ClientStQuerying $ \res -> do
-                  pure $ cont res
-                  -- It would be nice to trace the time it takes to run the
-                  -- queries. We don't have a good opportunity to run IO after a
-                  -- point is acquired, but before the query is send, however.
-                  -- Heinrich: Actually, this can be done by adding a 'Tracer m'
-                  -- to the scope and using it here. However, I believe that we
-                  -- already have sufficiently good logging of execution times
-                  -- in Cardano.Wallet.Shelley.Network .
-          go (LSQBind ma f) cont = go ma $ \a -> do
-              go (f a) $ \b -> cont b
+        go
+            :: forall a
+             . LSQ block m a
+            -> (a -> (LSQ.ClientStAcquired block (Point block) (Query block) m Void))
+            -> (LSQ.ClientStAcquired block (Point block) (Query block) m Void)
+        go (LSQPure a) cont = cont a
+        go (LSQry qry) cont = LSQ.SendMsgQuery (BlockQuery qry)
+            $
+            -- We only need to support queries of the type `BlockQuery`.
+            LSQ.ClientStQuerying
+            $ \res -> do
+                pure $ cont res
+        -- It would be nice to trace the time it takes to run the
+        -- queries. We don't have a good opportunity to run IO after a
+        -- point is acquired, but before the query is send, however.
+        -- Heinrich: Actually, this can be done by adding a 'Tracer m'
+        -- to the scope and using it here. However, I believe that we
+        -- already have sufficiently good logging of execution times
+        -- in Cardano.Wallet.Shelley.Network .
+        go (LSQBind ma f) cont = go ma $ \a -> do
+            go (f a) $ \b -> cont b
 
-    -- | Note that we for LSQ and TxSubmission use peekTQueue when starting the
+    -- \| Note that we for LSQ and TxSubmission use peekTQueue when starting the
     -- request, and only remove the command from the queue after we have
     -- processed the response from the node.
     --
@@ -758,9 +774,11 @@ localStateQuery queue =
     awaitNextCmd = atomically $ peekTQueue queue
 
     finalizeCmd :: m ()
-    finalizeCmd = atomically $ tryReadTQueue queue >>= \case
-        Just _ -> return ()
-        Nothing -> error "finalizeCmd: queue is not empty"
+    finalizeCmd =
+        atomically
+            $ tryReadTQueue queue >>= \case
+                Just _ -> return ()
+                Nothing -> error "finalizeCmd: queue is not empty"
 
 -- | Monad for composing local state queries for the node /tip/.
 --
@@ -769,20 +787,20 @@ localStateQuery queue =
 data LSQ block (m :: Type -> Type) a where
     LSQPure :: a -> LSQ block m a
     LSQBind :: LSQ block m a -> (a -> LSQ block m b) -> LSQ block m b
-
     -- | A local state query.
-    LSQry :: SingI footprint => BlockQuery block footprint res -> LSQ block m res
+    LSQry
+        :: SingI footprint => BlockQuery block footprint res -> LSQ block m res
 
 instance Functor (LSQ block m) where
     fmap = liftM
 
 instance Applicative (LSQ block m) where
-    pure  = LSQPure
+    pure = LSQPure
     (<*>) = ap
 
 instance Monad (LSQ block m) where
     return = pure
-    (>>=)  = LSQBind
+    (>>=) = LSQBind
 
 --------------------------------------------------------------------------------
 --
@@ -812,24 +830,26 @@ data LocalTxSubmissionCmd tx err (m :: Type -> Type)
 --                                             |         |⇦ START
 --                                             *---------*
 localTxSubmission
-    :: forall m tx err. (MonadThrow m, MonadSTM m)
+    :: forall m tx err
+     . (MonadThrow m, MonadSTM m)
     => TQueue m (LocalTxSubmissionCmd tx err m)
-        -- ^ We use a 'TQueue' as a communication channel to drive queries from
-        -- outside of the network client to the client itself.
-        -- Requests are pushed to the queue which are then transformed into
-        -- messages to keep the state-machine moving.
+    -- ^ We use a 'TQueue' as a communication channel to drive queries from
+    -- outside of the network client to the client itself.
+    -- Requests are pushed to the queue which are then transformed into
+    -- messages to keep the state-machine moving.
     -> LocalTxSubmissionClient tx err m Void
 localTxSubmission queue = LocalTxSubmissionClient clientStIdle
   where
     clientStIdle :: m (LocalTxClientStIdle tx err m Void)
-    clientStIdle = atomically (peekTQueue queue) <&> \case
-        CmdSubmitTx tx respond ->
-            SendMsgSubmitTx tx $ \res -> do
-                respond res
-                -- Same note about peekTQueue from `localStateQuery` applies
-                -- here.
-                _processedCmd <- atomically (readTQueue queue)
-                clientStIdle
+    clientStIdle =
+        atomically (peekTQueue queue) <&> \case
+            CmdSubmitTx tx respond ->
+                SendMsgSubmitTx tx $ \res -> do
+                    respond res
+                    -- Same note about peekTQueue from `localStateQuery` applies
+                    -- here.
+                    _processedCmd <- atomically (readTQueue queue)
+                    clientStIdle
 
 {-------------------------------------------------------------------------------
     Helpers
@@ -844,7 +864,8 @@ localTxSubmission queue = LocalTxSubmissionClient clientStIdle
 -- the type @a@, so that the 'TQueue' has elements with a monomorphic type.
 -- However, the type signature of `send` allows us to retrieve this particular
 -- type @a@ for later use again.
-send :: MonadSTM m => TQueue m (cmd m) -> ((a -> m ()) -> cmd m) -> m a
+send
+    :: MonadSTM m => TQueue m (cmd m) -> ((a -> m ()) -> cmd m) -> m a
 send queue cmd = do
     tvar <- newEmptyTMVarIO
     atomically $ writeTQueue queue (cmd (atomically . putTMVar tvar))
@@ -854,10 +875,10 @@ send queue cmd = do
     Errors
 -------------------------------------------------------------------------------}
 data ErrChainSync
-    = ErrChainSyncNoIntersectGenesis
-    -- ^ The node does not give us genesis when we request it with a
-    -- 'MsgFindIntersect' message in the ChainSync protocol.
-    -- This should not happen.
+    = -- | The node does not give us genesis when we request it with a
+      -- 'MsgFindIntersect' message in the ChainSync protocol.
+      -- This should not happen.
+      ErrChainSyncNoIntersectGenesis
     deriving (Eq, Show)
 
 instance Exception ErrChainSync

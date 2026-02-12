@@ -13,10 +13,6 @@
 
 module Test.Integration.Scenario.API.Shelley.StakePools (spec) where
 
-import Prelude hiding
-    ( id
-    )
-
 import Cardano.Mnemonic.Extended
     ( someMnemonicToWords
     )
@@ -25,7 +21,13 @@ import Cardano.Pool.Metadata
     )
 import Cardano.Pool.Metadata.Types
     ( PoolMetadataGCStatus (NotApplicable)
-    , StakePoolMetadata (StakePoolMetadata, description, homepage, name, ticker)
+    , StakePoolMetadata
+        ( StakePoolMetadata
+        , description
+        , homepage
+        , name
+        , ticker
+        )
     )
 import Cardano.Pool.Types
     ( PoolId (PoolId)
@@ -224,6 +226,9 @@ import Test.Integration.Framework.DSL
 import Test.Integration.Framework.TestData
     ( errMsg403PoolAlreadyJoined
     )
+import Prelude hiding
+    ( id
+    )
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.ByteString as BS
@@ -235,7 +240,11 @@ import qualified Prelude
 spec :: forall n. HasSNetworkId n => SpecWith Context
 spec = describe "SHELLEY_STAKE_POOLS" $ do
     let listPools ctx stake =
-            request @[ApiT StakePool] ctx (Link.listStakePools stake) Default Empty
+            request @[ApiT StakePool]
+                ctx
+                (Link.listStakePools stake)
+                Default
+                Empty
                 & (fmap . fmap . fmap . fmap) getApiT
 
     it
@@ -271,19 +280,30 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                 Default
                 Empty
         let poolIdAbsent = PoolId $ BS.pack $ replicate 32 1
-        r <- joinStakePool @n ctx (SpecificPool poolIdAbsent) (w, fixturePassphrase)
+        r <-
+            joinStakePool @n
+                ctx
+                (SpecificPool poolIdAbsent)
+                (w, fixturePassphrase)
         expectResponseCode HTTP.status404 r
-        decodeErrorInfo r `shouldBe`
-            NoSuchWallet (ApiErrorNoSuchWallet (w ^. #id))
+        decodeErrorInfo r
+            `shouldBe` NoSuchWallet (ApiErrorNoSuchWallet (w ^. #id))
 
     it "STAKE_POOLS_JOIN_01 - Cannot join non-existent stakepool" $ \ctx -> runResourceT $ do
         w <- fixtureWallet ctx
         let poolIdAbsent = PoolId $ BS.pack $ replicate 32 1
-        r <- joinStakePool @n ctx (SpecificPool poolIdAbsent) (w, fixturePassphrase)
+        r <-
+            joinStakePool @n
+                ctx
+                (SpecificPool poolIdAbsent)
+                (w, fixturePassphrase)
         expectResponseCode HTTP.status404 r
-        verify r
-            [ expectErrorInfo $ flip shouldBe $ NoSuchPool $
-                ApiErrorNoSuchPool { poolId = poolIdAbsent }
+        verify
+            r
+            [ expectErrorInfo
+                $ flip shouldBe
+                $ NoSuchPool
+                $ ApiErrorNoSuchPool{poolId = poolIdAbsent}
             ]
 
     it
@@ -298,12 +318,13 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                         (Link.listStakePools arbitraryStake)
                         Empty
             r <- joinStakePool @n ctx (SpecificPool pool) (w, "Wrong Passphrase")
-            verify r
+            verify
+                r
                 [ expectResponseCode HTTP.status403
                 ]
-            decodeErrorInfo r `shouldBe`
-                WrongEncryptionPassphrase
-                (ApiErrorWrongEncryptionPassphrase (w ^. #id))
+            decodeErrorInfo r
+                `shouldBe` WrongEncryptionPassphrase
+                    (ApiErrorWrongEncryptionPassphrase (w ^. #id))
 
     it
         "STAKE_POOLS_JOIN_01rewards - \
@@ -315,7 +336,8 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             pool : _ <- map (view #id) <$> notRetiringPools ctx
 
             -- Join Pool
-            rJoin <- joinStakePool @n ctx (SpecificPool pool) (src, fixturePassphrase)
+            rJoin <-
+                joinStakePool @n ctx (SpecificPool pool) (src, fixturePassphrase)
             verify
                 rJoin
                 [ expectResponseCode HTTP.status202
@@ -474,37 +496,39 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                             (.> previousBalance)
                         ]
 
-            eventually "There's at least one outgoing transaction with a withdrawal" $ do
-                rWithdrawal <-
-                    request @(ApiTransaction n)
-                        ctx
-                        ( Link.getTransaction @'Shelley
-                            src
-                            (getFromResponse Prelude.id rTx)
-                        )
-                        Default
-                        Empty
-                verify
-                    rWithdrawal
-                    [ expectResponseCode HTTP.status200
-                    , expectField #withdrawals (`shouldSatisfy` (not . null))
-                    , expectField #amount (`shouldBe` txAmount)
-                    ]
-                rw2 <-
-                    request @[ApiTransaction n]
-                        ctx
-                        ( Link.listTransactions' @'Shelley
-                            src
-                            (Just 1)
-                            Nothing
-                            Nothing
-                            Nothing
-                            Nothing
-                            Nothing
-                        )
-                        Default
-                        Empty
-                verify rw2 [expectListSize 1]
+            eventually
+                "There's at least one outgoing transaction with a withdrawal"
+                $ do
+                    rWithdrawal <-
+                        request @(ApiTransaction n)
+                            ctx
+                            ( Link.getTransaction @'Shelley
+                                src
+                                (getFromResponse Prelude.id rTx)
+                            )
+                            Default
+                            Empty
+                    verify
+                        rWithdrawal
+                        [ expectResponseCode HTTP.status200
+                        , expectField #withdrawals (`shouldSatisfy` (not . null))
+                        , expectField #amount (`shouldBe` txAmount)
+                        ]
+                    rw2 <-
+                        request @[ApiTransaction n]
+                            ctx
+                            ( Link.listTransactions' @'Shelley
+                                src
+                                (Just 1)
+                                Nothing
+                                Nothing
+                                Nothing
+                                Nothing
+                                Nothing
+                            )
+                            Default
+                            Empty
+                    verify rw2 [expectListSize 1]
 
             eventually "There's one incoming transaction with correct amount" $ do
                 request @[ApiTransaction n]
@@ -588,7 +612,8 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                         (`shouldBe` InLedger)
                     ]
 
-    it "STAKE_POOLS_JOIN_02 - \
+    it
+        "STAKE_POOLS_JOIN_02 - \
         \Cannot join already the joined stake pool in Babbage"
         $ \ctx -> runResourceT $ do
             noConway ctx "re-joining the same pool outlawed before Conway"
@@ -600,12 +625,15 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
 
             let getSrcWallet =
                     let endpoint = Link.getWallet @'Shelley w
-                     in request @ApiWallet ctx endpoint Default Empty
+                    in  request @ApiWallet ctx endpoint Default Empty
             eventually "Wallet is delegating to pool and voting abstain" $ do
-                getSrcWallet >>= flip verify
-                    [ expectField #delegation
-                         (`shouldBe` delegating (ApiT pool) [])
-                    ]
+                getSrcWallet
+                    >>= flip
+                        verify
+                        [ expectField
+                            #delegation
+                            (`shouldBe` delegating (ApiT pool) [])
+                        ]
 
             -- joinStakePool would try once again joining pool and voting Abstain
             joinStakePool @n ctx (SpecificPool pool) (w, fixturePassphrase)
@@ -615,72 +643,95 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                     , expectErrorMessage (errMsg403PoolAlreadyJoined $ toText pool)
                     ]
 
-    it "STAKE_POOLS_JOIN_02 - \
+    it
+        "STAKE_POOLS_JOIN_02 - \
         \Can join already joined stake pool if no voting before in Conway"
         $ \ctx -> runResourceT $ do
-            noBabbage ctx "re-joining the same pool possible in Conway if no previous voting"
+            noBabbage
+                ctx
+                "re-joining the same pool possible in Conway if no previous voting"
 
             -- this is new tx workflow delegation only tx
             (w, pool) <- delegateToPool @n ctx
 
             let getSrcWallet =
                     let endpoint = Link.getWallet @'Shelley w
-                     in request @ApiWallet ctx endpoint Default Empty
+                    in  request @ApiWallet ctx endpoint Default Empty
             eventually "Wallet is delegating to pool and no voting" $ do
-                getSrcWallet >>= flip verify
-                    [ expectField #delegation
-                         (`shouldBe` delegating (ApiT pool) [])
-                    ]
+                getSrcWallet
+                    >>= flip
+                        verify
+                        [ expectField
+                            #delegation
+                            (`shouldBe` delegating (ApiT pool) [])
+                        ]
 
             waitForTxStatus ctx w InLedger . getResponse
                 =<< joinStakePool @n ctx (SpecificPool pool) (w, fixturePassphrase)
 
             eventually "Wallet is delegating to pool and voting abstain" $ do
-                getSrcWallet >>= flip verify
-                    [ expectField #delegation
-                         (`shouldBe` votingAndDelegating (ApiT pool) (ApiT Abstain) [])
-                    ]
+                getSrcWallet
+                    >>= flip
+                        verify
+                        [ expectField
+                            #delegation
+                            (`shouldBe` votingAndDelegating (ApiT pool) (ApiT Abstain) [])
+                        ]
 
             -- joinStakePool would try once again joining the same pool but fails
             r <- joinStakePool @n ctx (SpecificPool pool) (w, fixturePassphrase)
-            verify r
+            verify
+                r
                 [ expectResponseCode HTTP.status403
                 ]
             decodeErrorInfo r `shouldBe` PoolAlreadyJoined
 
-    it "STAKE_POOLS_JOIN_02a - \
+    it
+        "STAKE_POOLS_JOIN_02a - \
         \Can join the stake pool if voting was cast before in Conway"
         $ \ctx -> runResourceT $ do
-            noBabbage ctx "joining the pool possible in Conway if voting was previously cast"
+            noBabbage
+                ctx
+                "joining the pool possible in Conway if voting was previously cast"
 
             w <- fixtureWallet ctx
 
-            let voteNoConfidence = Json [json|{
+            let voteNoConfidence =
+                    Json
+                        [json|{
                     "vote": "no_confidence"
                 }|]
-            rTx1 <- request @(ApiConstructTransaction n) ctx
-                (Link.createUnsignedTransaction @'Shelley w) Default voteNoConfidence
-            verify rTx1
+            rTx1 <-
+                request @(ApiConstructTransaction n)
+                    ctx
+                    (Link.createUnsignedTransaction @'Shelley w)
+                    Default
+                    voteNoConfidence
+            verify
+                rTx1
                 [ expectResponseCode HTTP.status202
                 ]
             let ApiSerialisedTransaction apiTx1 _ = getFromResponse #transaction rTx1
-            signedTx1 <- signTx ctx w apiTx1 [ expectResponseCode HTTP.status202 ]
+            signedTx1 <- signTx ctx w apiTx1 [expectResponseCode HTTP.status202]
             submittedTx1 <- submitTxWithWid ctx w signedTx1
-            verify submittedTx1
+            verify
+                submittedTx1
                 [ expectSuccess
                 , expectResponseCode HTTP.status202
                 ]
             let voting = ApiT NoConfidence
             let getSrcWallet =
                     let endpoint = Link.getWallet @'Shelley w
-                     in request @ApiWallet ctx endpoint Default Empty
+                    in  request @ApiWallet ctx endpoint Default Empty
 
             waitNumberOfEpochBoundaries 2 ctx
 
             eventually "Wallet is voting abstain" $ do
-                getSrcWallet >>= flip verify
-                    [ expectField #delegation (`shouldBe` onlyVoting voting [])
-                    ]
+                getSrcWallet
+                    >>= flip
+                        verify
+                        [ expectField #delegation (`shouldBe` onlyVoting voting [])
+                        ]
 
             pool1 : pool2 : _ <- map (view #id) <$> notRetiringPools ctx
 
@@ -688,65 +739,86 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                 =<< joinStakePool @n ctx (SpecificPool pool1) (w, fixturePassphrase)
 
             eventually "Wallet is delegating to pool1 and voting" $ do
-                getSrcWallet >>= flip verify
-                    [ expectField #delegation
-                         (`shouldBe` votingAndDelegating (ApiT pool1) voting [])
-                    ]
+                getSrcWallet
+                    >>= flip
+                        verify
+                        [ expectField
+                            #delegation
+                            (`shouldBe` votingAndDelegating (ApiT pool1) voting [])
+                        ]
 
             -- joinStakePool would try once again joining pool and fail as we have already voted
             -- and we do not aim to change voting
             r1 <- joinStakePool @n ctx (SpecificPool pool1) (w, fixturePassphrase)
-            verify r1
+            verify
+                r1
                 [ expectResponseCode HTTP.status403
                 ]
             decodeErrorInfo r1 `shouldBe` PoolAlreadyJoined
 
             -- but we can join another pool and have initial voting
             r2 <- joinStakePool @n ctx (SpecificPool pool2) (w, fixturePassphrase)
-            verify r2
+            verify
+                r2
                 [ expectSuccess
                 , expectResponseCode HTTP.status202
                 ]
 
             eventually "Wallet is delegating to pool2 and voting" $ do
-                getSrcWallet >>= flip verify
-                    [ expectField #delegation
-                         (`shouldBe` votingAndDelegating (ApiT pool2) voting [])
-                    ]
+                getSrcWallet
+                    >>= flip
+                        verify
+                        [ expectField
+                            #delegation
+                            (`shouldBe` votingAndDelegating (ApiT pool2) voting [])
+                        ]
 
-    it "STAKE_POOLS_JOIN_02b - \
+    it
+        "STAKE_POOLS_JOIN_02b - \
         \Can join the stake pool if voting was cast before in Conway"
         $ \ctx -> runResourceT $ do
-            noBabbage ctx "joining the pool possible in Conway if voting was previously cast"
+            noBabbage
+                ctx
+                "joining the pool possible in Conway if voting was previously cast"
 
             w <- fixtureWallet ctx
 
-            let voteNoConfidence = Json [json|{
+            let voteNoConfidence =
+                    Json
+                        [json|{
                     "vote": "no_confidence"
                 }|]
-            rTx1 <- request @(ApiConstructTransaction n) ctx
-                (Link.createUnsignedTransaction @'Shelley w) Default voteNoConfidence
-            verify rTx1
+            rTx1 <-
+                request @(ApiConstructTransaction n)
+                    ctx
+                    (Link.createUnsignedTransaction @'Shelley w)
+                    Default
+                    voteNoConfidence
+            verify
+                rTx1
                 [ expectResponseCode HTTP.status202
                 ]
             let ApiSerialisedTransaction apiTx1 _ = getFromResponse #transaction rTx1
-            signedTx1 <- signTx ctx w apiTx1 [ expectResponseCode HTTP.status202 ]
+            signedTx1 <- signTx ctx w apiTx1 [expectResponseCode HTTP.status202]
             submittedTx1 <- submitTxWithWid ctx w signedTx1
-            verify submittedTx1
+            verify
+                submittedTx1
                 [ expectSuccess
                 , expectResponseCode HTTP.status202
                 ]
             let voting = ApiT NoConfidence
             let getSrcWallet =
                     let endpoint = Link.getWallet @'Shelley w
-                     in request @ApiWallet ctx endpoint Default Empty
+                    in  request @ApiWallet ctx endpoint Default Empty
 
             waitNumberOfEpochBoundaries 2 ctx
 
             eventually "Wallet is voting abstain" $ do
-                getSrcWallet >>= flip verify
-                    [ expectField #delegation (`shouldBe` onlyVoting voting [])
-                    ]
+                getSrcWallet
+                    >>= flip
+                        verify
+                        [ expectField #delegation (`shouldBe` onlyVoting voting [])
+                        ]
 
             pool1 : pool2 : _ <- map (view #id) <$> notRetiringPools ctx
 
@@ -754,31 +826,39 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                 =<< joinStakePool @n ctx (SpecificPool pool1) (w, fixturePassphrase)
 
             eventually "Wallet is delegating to pool1 and voting" $ do
-                getSrcWallet >>= flip verify
-                    [ expectField #delegation
-                         (`shouldBe` votingAndDelegating (ApiT pool1) voting [])
-                    ]
+                getSrcWallet
+                    >>= flip
+                        verify
+                        [ expectField
+                            #delegation
+                            (`shouldBe` votingAndDelegating (ApiT pool1) voting [])
+                        ]
 
             -- joinStakePool would try once again joining pool and fail as we have already voted
             -- and we do not aim to change voting
             r1 <- joinStakePool @n ctx (SpecificPool pool1) (w, fixturePassphrase)
-            verify r1
+            verify
+                r1
                 [ expectResponseCode HTTP.status403
                 ]
             decodeErrorInfo r1 `shouldBe` PoolAlreadyJoined
 
             -- but we can join another pool and have initial voting
             r2 <- joinStakePool @n ctx (SpecificPool pool2) (w, fixturePassphrase)
-            verify r2
+            verify
+                r2
                 [ expectSuccess
                 , expectResponseCode HTTP.status202
                 ]
 
             eventually "Wallet is delegating to pool2 and voting" $ do
-                getSrcWallet >>= flip verify
-                    [ expectField #delegation
-                         (`shouldBe` votingAndDelegating (ApiT pool2) voting [])
-                    ]
+                getSrcWallet
+                    >>= flip
+                        verify
+                        [ expectField
+                            #delegation
+                            (`shouldBe` votingAndDelegating (ApiT pool2) voting [])
+                        ]
 
     it "STAKE_POOLS_JOIN_03 - Cannot join a pool that has retired" $ \ctx -> runResourceT $ do
         waitForEpoch 3 ctx -- One pool retires at epoch 3
@@ -799,11 +879,18 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
         let retiredPoolId =
                 fromMaybe reportError $ listToMaybe $ Set.toList retiredPoolIds
         w <- fixtureWallet ctx
-        r <- joinStakePool @n ctx (SpecificPool retiredPoolId) (w, fixturePassphrase)
+        r <-
+            joinStakePool @n
+                ctx
+                (SpecificPool retiredPoolId)
+                (w, fixturePassphrase)
         expectResponseCode HTTP.status404 r
-        verify r
-            [ expectErrorInfo $ flip shouldBe $ NoSuchPool $
-                ApiErrorNoSuchPool { poolId = retiredPoolId }
+        verify
+            r
+            [ expectErrorInfo
+                $ flip shouldBe
+                $ NoSuchPool
+                $ ApiErrorNoSuchPool{poolId = retiredPoolId}
             ]
 
     it "STAKE_POOLS_JOIN_EMPTY - Empty wallet cannot join a pool" $ \ctx ->
@@ -811,7 +898,8 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             w <- emptyWallet ctx
             pool : _ <- map (view #id) <$> notRetiringPools ctx
             r <- joinStakePool @n ctx (SpecificPool pool) (w, fixturePassphrase)
-            verify r
+            verify
+                r
                 [ expectResponseCode HTTP.status403
                 , expectErrorInfo (`shouldBe` NoUtxosAvailable)
                 ]
@@ -825,12 +913,13 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
 
         let wrongPassphrase = "Incorrect Passphrase"
         r <- quitStakePool @n ctx (w, wrongPassphrase)
-        verify r
+        verify
+            r
             [ expectResponseCode HTTP.status403
             ]
-        decodeErrorInfo r `shouldBe`
-            WrongEncryptionPassphrase
-            (ApiErrorWrongEncryptionPassphrase (w ^. #id))
+        decodeErrorInfo r
+            `shouldBe` WrongEncryptionPassphrase
+                (ApiErrorWrongEncryptionPassphrase (w ^. #id))
 
     it
         "STAKE_POOL_NEXT_02/STAKE_POOLS_QUIT_01 - \
@@ -838,7 +927,8 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
         $ \ctx -> runResourceT $ do
             w <- fixtureWallet ctx
             rTx <- quitStakePool @n ctx (w, fixturePassphrase)
-            verify rTx
+            verify
+                rTx
                 [ expectResponseCode HTTP.status403
                 ]
             decodeErrorInfo rTx `shouldBe` NotDelegatingTo
@@ -894,9 +984,11 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
         -- Epoch A+2: stake is active, rewards start accumulating.
         waitNumberOfEpochBoundaries 2 ctx
 
-        let deleg pool = babbageOrConway ctx
-                     (delegating (ApiT pool) [])
-                     (votingAndDelegating (ApiT pool) (ApiT Abstain) [])
+        let deleg pool =
+                babbageOrConway
+                    ctx
+                    (delegating (ApiT pool) [])
+                    (votingAndDelegating (ApiT pool) (ApiT Abstain) [])
 
         request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty
             >>= flip
@@ -1105,11 +1197,15 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                         $ listToMaybe
                         $ Set.toList retiredPoolIds
             w <- fixtureWallet ctx
-            r <- liftIO $ joinStakePoolUnsigned @n @'Shelley ctx w (ApiT retiredPoolId)
+            r <-
+                liftIO $ joinStakePoolUnsigned @n @'Shelley ctx w (ApiT retiredPoolId)
             expectResponseCode HTTP.status404 r
-            verify r
-                [ expectErrorInfo $ flip shouldBe $ NoSuchPool $
-                    ApiErrorNoSuchPool { poolId = retiredPoolId }
+            verify
+                r
+                [ expectErrorInfo
+                    $ flip shouldBe
+                    $ NoSuchPool
+                    $ ApiErrorNoSuchPool{poolId = retiredPoolId}
                 ]
 
     describe "STAKE_POOLS_JOIN_UNSIGNED_04"
@@ -1129,9 +1225,12 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                         w
                         (ApiT non_existing_pool_id)
             expectResponseCode HTTP.status404 r
-            verify r
-                [ expectErrorInfo $ flip shouldBe $ NoSuchPool $
-                    ApiErrorNoSuchPool { poolId = non_existing_pool_id }
+            verify
+                r
+                [ expectErrorInfo
+                    $ flip shouldBe
+                    $ NoSuchPool
+                    $ ApiErrorNoSuchPool{poolId = non_existing_pool_id}
                 ]
 
     it
@@ -1152,9 +1251,11 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
 
             waitNumberOfEpochBoundaries 2 ctx
 
-            let deleg = babbageOrConway ctx
-                         (delegating (ApiT pool1) [])
-                         (votingAndDelegating (ApiT pool1) (ApiT Abstain) [])
+            let deleg =
+                    babbageOrConway
+                        ctx
+                        (delegating (ApiT pool1) [])
+                        (votingAndDelegating (ApiT pool1) (ApiT Abstain) [])
 
             request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty
                 >>= flip
@@ -1252,7 +1353,8 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                             (Link.listStakePools arbitraryStake)
                             Empty
                 rTx <- joinStakePool @n ctx (SpecificPool pool) (w, fixturePassphrase)
-                verify rTx
+                verify
+                    rTx
                     [ expectResponseCode HTTP.status403
                     ]
                 decodeErrorInfo rTx `shouldBe` CannotCoverFee
@@ -1307,9 +1409,11 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                 -- Epoch A+2: stake is active, rewards start accumulating.
                 waitNumberOfEpochBoundaries 2 ctx
 
-                let deleg = babbageOrConway ctx
-                             (delegating (ApiT pool) [])
-                             (votingAndDelegating (ApiT pool) (ApiT Abstain) [])
+                let deleg =
+                        babbageOrConway
+                            ctx
+                            (delegating (ApiT pool) [])
+                            (votingAndDelegating (ApiT pool) (ApiT Abstain) [])
 
                 request @ApiWallet
                     ctx
@@ -1399,9 +1503,11 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                 -- Epoch A+2: stake is active, rewards start accumulating.
                 waitNumberOfEpochBoundaries 2 ctx
 
-                let deleg = babbageOrConway ctx
-                             (delegating (ApiT pool) [])
-                             (votingAndDelegating (ApiT pool) (ApiT Abstain) [])
+                let deleg =
+                        babbageOrConway
+                            ctx
+                            (delegating (ApiT pool) [])
+                            (votingAndDelegating (ApiT pool) (ApiT Abstain) [])
 
                 request @ApiWallet
                     ctx
@@ -1567,10 +1673,15 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
         "STAKE_POOLS_LIST_06 - \
         \NonMyopicMemberRewards are 0 when stake is 0"
         $ \ctx -> runResourceT $ do
-            liftIO $ pendingWith "This assumption seems false, for some reasons..."
+            liftIO
+                $ pendingWith "This assumption seems false, for some reasons..."
             let stake = Just $ Coin 0
             r <-
-                request @[ApiT StakePool] ctx (Link.listStakePools stake) Default Empty
+                request @[ApiT StakePool]
+                    ctx
+                    (Link.listStakePools stake)
+                    Default
+                    Empty
                     & (fmap . fmap . fmap . fmap) getApiT
             expectResponseCode HTTP.status200 r
             verify
@@ -1662,7 +1773,8 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             (reverse epochs `zip` [1 ..]) `shouldSatisfy` all (uncurry (==))
 
     -- TODO: flaky timeout on CI, see #5108
-    xit "STAKE_POOLS_SMASH_01 - fetching metadata from SMASH works with delisted pools"
+    xit
+        "STAKE_POOLS_SMASH_01 - fetching metadata from SMASH works with delisted pools"
         $ \ctx -> runResourceT $ bracketSettings ctx $ do
             updateMetadataSource ctx (_smashUrl ctx)
             -- This can be slow; let's retry less frequently and with a longer
@@ -1713,7 +1825,8 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                             `shouldBe` []
                     ]
 
-    it "STAKE_POOLS_SMASH_HEALTH_01 - Can check SMASH health when configured"
+    it
+        "STAKE_POOLS_SMASH_HEALTH_01 - Can check SMASH health when configured"
         $ \ctx -> runResourceT $ bracketSettings ctx $ do
             updateMetadataSource ctx (_smashUrl ctx)
             r <-
@@ -1725,7 +1838,8 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             expectResponseCode HTTP.status200 r
             expectField #health (`shouldBe` Available) r
 
-    describe "STAKE_POOLS_SMASH_HEALTH_02 - Cannot check SMASH health when not configured"
+    describe
+        "STAKE_POOLS_SMASH_HEALTH_02 - Cannot check SMASH health when not configured"
         $ forM_ ["direct", "none"]
         $ \fetching -> it fetching
             $ \ctx -> runResourceT $ bracketSettings ctx $ do
@@ -1780,7 +1894,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                             (acc ^. #_stake) `shouldBe` balance
                             acc
                                 ^. (#_delegation . #active . #status)
-                                    `shouldBe` NotDelegating
+                                `shouldBe` NotDelegating
                         _ -> expectationFailure "wrong number of accounts in \"ours\""
                     )
                 , expectField (#_none . #_stake) (`shouldBe` ApiAmount 0)
@@ -1825,7 +1939,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                             (acc ^. #_stake) .> ApiAmount 0
                             acc
                                 ^. (#_delegation . #active . #status)
-                                    `shouldBe` NotDelegating
+                                `shouldBe` NotDelegating
                         _ -> expectationFailure "wrong number of accounts in \"ours\""
                     )
                 , expectField (#_none . #_stake) (.< balance)
@@ -1837,10 +1951,14 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
         otherWallet <- emptyWallet ctx
 
         -- We send funds to one of our addresses but with a modified stake key.
-        foreignAddr <- listAddresses @n ctx otherWallet >>= \case
-            (a:_) -> pure $ view #id a; [] -> error "expected addresses"
-        ourAddr <- listAddresses @n ctx w >>= \case
-            (a:_) -> pure $ view #id a; [] -> error "expected addresses"
+        foreignAddr <-
+            listAddresses @n ctx otherWallet >>= \case
+                (a : _) -> pure $ view #id a
+                [] -> error "expected addresses"
+        ourAddr <-
+            listAddresses @n ctx w >>= \case
+                (a : _) -> pure $ view #id a
+                [] -> error "expected addresses"
         let ourAddr' = replaceStakeKey ourAddr foreignAddr
         let payload =
                 [json|
@@ -1883,7 +2001,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                             (acc ^. #_stake) .> ApiAmount 0
                             acc
                                 ^. (#_delegation . #active . #status)
-                                    `shouldBe` NotDelegating
+                                `shouldBe` NotDelegating
                         _ -> expectationFailure "wrong number of accounts in \"ours\""
                     )
                 , expectField (#_none . #_stake) (.< balance)
@@ -1928,7 +2046,8 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             fromIntegral (unCoin c)
 
     costOfJoining :: Context -> Natural
-    costOfJoining ctx = if _mainEra ctx >= ApiConway
+    costOfJoining ctx =
+        if _mainEra ctx >= ApiConway
             then costOf (TxSize 491) ctx
             else costOf (TxSize 485) ctx
 

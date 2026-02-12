@@ -5,8 +5,6 @@
 
 module Cardano.Wallet.UI.Shelley.Handlers.Wallets where
 
-import Prelude
-
 import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey (..)
     )
@@ -16,11 +14,24 @@ import Cardano.Wallet.Address.Discovery.Sequential
 import Cardano.Wallet.Api
     ( ApiLayer
     )
+import Cardano.Wallet.Api.Types
+    ( ApiWallet
+    )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId (..)
     )
+import Cardano.Wallet.Primitive.Types
+    ( WalletId
+    )
 import Cardano.Wallet.UI.Common.Html.Html
     ( RawHtml (..)
+    )
+import Cardano.Wallet.UI.Common.Layer
+    ( SessionLayer (..)
+    , stateL
+    )
+import Control.Lens
+    ( view
     )
 import Control.Monad.Catch
     ( MonadCatch (..)
@@ -33,28 +44,15 @@ import Data.Aeson
     ( Value
     , decode
     )
+import Data.Time
+    ( UTCTime
+    )
 import Servant
     ( Handler
     , ServerError (..)
     , runHandler
     )
-
-import Cardano.Wallet.Api.Types
-    ( ApiWallet
-    )
-import Cardano.Wallet.Primitive.Types
-    ( WalletId
-    )
-import Cardano.Wallet.UI.Common.Layer
-    ( SessionLayer (..)
-    , stateL
-    )
-import Control.Lens
-    ( view
-    )
-import Data.Time
-    ( UTCTime
-    )
+import Prelude
 
 import qualified Cardano.Wallet.Api.Http.Shelley.Server as Server
 import qualified Data.Aeson.Encode.Pretty as Aeson

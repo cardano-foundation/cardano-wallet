@@ -7,7 +7,6 @@
 -- |
 -- Copyright: © 2018-2022 IOHK, 2023 Cardano Foundation
 -- License: Apache-2.0
-
 module Cardano.Wallet.Api.Types.MintBurn
     ( ApiAssetMintBurn (..)
     , ApiTokenAmountFingerprint (..)
@@ -17,9 +16,7 @@ module Cardano.Wallet.Api.Types.MintBurn
     , includePolicyKeyInfo
     , policyIx
     )
-    where
-
-import Prelude
+where
 
 import Cardano.Wallet.Address.Derivation
     ( Depth (..)
@@ -38,7 +35,8 @@ import Cardano.Wallet.Api.Types.Key
     ( ApiPolicyKey
     )
 import Cardano.Wallet.Api.Types.Primitive
-    ()
+    (
+    )
 import Cardano.Wallet.Primitive.Types.AssetName
     ( AssetName
     )
@@ -77,6 +75,7 @@ import GHC.Generics
 import Numeric.Natural
     ( Natural
     )
+import Prelude
 
 import qualified Cardano.Wallet.Primitive.Types.AssetName as W
 import qualified Cardano.Wallet.Primitive.Types.TokenFingerprint as W
@@ -91,8 +90,10 @@ data ApiTokenAmountFingerprint = ApiTokenAmountFingerprint
     , fingerprint :: ApiT W.TokenFingerprint
     }
     deriving (Eq, Generic, Show)
-    deriving (FromJSON, ToJSON) via DefaultRecord ApiTokenAmountFingerprint
-    deriving anyclass NFData
+    deriving
+        (FromJSON, ToJSON)
+        via DefaultRecord ApiTokenAmountFingerprint
+    deriving anyclass (NFData)
 
 data ApiTokens = ApiTokens
     { policyId :: ApiT W.TokenPolicyId
@@ -101,7 +102,7 @@ data ApiTokens = ApiTokens
     }
     deriving (Eq, Generic, Show)
     deriving (FromJSON, ToJSON) via DefaultRecord ApiTokens
-    deriving anyclass NFData
+    deriving anyclass (NFData)
 
 data ApiAssetMintBurn = ApiAssetMintBurn
     { tokens :: [ApiTokens]
@@ -110,31 +111,33 @@ data ApiAssetMintBurn = ApiAssetMintBurn
     }
     deriving (Eq, Generic, Show)
     deriving (FromJSON, ToJSON) via DefaultRecord ApiAssetMintBurn
-    deriving anyclass NFData
+    deriving anyclass (NFData)
 
 noApiAsset :: ApiAssetMintBurn
 noApiAsset = ApiAssetMintBurn [] Nothing Nothing
 
 toApiTokens :: TokenMapWithScripts -> [ApiTokens]
 toApiTokens (TokenMapWithScripts tokenMap scriptMap) =
-    map fromIdScriptAssets $
-    toIdScriptAssets scriptMap tokenMap
+    map fromIdScriptAssets
+        $ toIdScriptAssets scriptMap tokenMap
 
 includePolicyKeyInfo :: TokenMapWithScripts -> Maybe a -> Maybe a
 includePolicyKeyInfo (TokenMapWithScripts tokenMap _) xpubM =
-    if tokenMap == TokenMap.empty then
-        Nothing
-    else
-        xpubM
+    if tokenMap == TokenMap.empty
+        then
+            Nothing
+        else
+            xpubM
 
 fromIdScriptAssets
-    :: ( TokenPolicyId , AnyScript, NE.NonEmpty (AssetName, TokenQuantity) )
+    :: (TokenPolicyId, AnyScript, NE.NonEmpty (AssetName, TokenQuantity))
     -> ApiTokens
-fromIdScriptAssets (policy, script, tokens') = ApiTokens
-    { policyId = ApiT policy
-    , policyScript = ApiT script
-    , assets = NE.map (toTokenAmountFingerprint policy) tokens'
-    }
+fromIdScriptAssets (policy, script, tokens') =
+    ApiTokens
+        { policyId = ApiT policy
+        , policyScript = ApiT script
+        , assets = NE.map (toTokenAmountFingerprint policy) tokens'
+        }
 
 toTokenAmountFingerprint
     :: TokenPolicyId
@@ -158,11 +161,15 @@ toIdScriptAssets scriptmap tokenmap =
 
 askForScript :: TokenPolicyId -> Map TokenPolicyId b -> b
 askForScript policyId' scriptMap =
-        case Map.lookup policyId' scriptMap of
-            Just script -> script
-            Nothing -> error "askForScript: no minting/burning without either\
-                             \ native, plutus script or reference input"
+    case Map.lookup policyId' scriptMap of
+        Just script -> script
+        Nothing ->
+            error
+                "askForScript: no minting/burning without either\
+                \ native, plutus script or reference input"
 
 policyIx :: ApiT DerivationIndex
-policyIx = ApiT $ DerivationIndex $
-        getIndex (minBound :: Index 'Hardened 'PolicyK)
+policyIx =
+    ApiT
+        $ DerivationIndex
+        $ getIndex (minBound :: Index 'Hardened 'PolicyK)

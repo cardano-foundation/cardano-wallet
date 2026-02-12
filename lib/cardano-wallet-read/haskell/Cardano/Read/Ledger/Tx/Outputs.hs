@@ -1,12 +1,11 @@
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 
-{- |
-Copyright: © 2020-2022 IOHK
-License: Apache-2.0
-
-Raw era-dependent tx outputs data extraction from 'Tx'
--}
+-- |
+-- Copyright: © 2020-2022 IOHK
+-- License: Apache-2.0
+--
+-- Raw era-dependent tx outputs data extraction from 'Tx'
 module Cardano.Read.Ledger.Tx.Outputs
     ( -- * Output types
       OutputsType
@@ -17,9 +16,6 @@ module Cardano.Read.Ledger.Tx.Outputs
     )
 where
 
-import Prelude
-
-import qualified Cardano.Chain.UTxO as BY
 import Cardano.Ledger.Alonzo.TxOut
     ( AlonzoTxOut
     )
@@ -59,6 +55,9 @@ import Data.List.NonEmpty
 import Data.Sequence.Strict
     ( StrictSeq
     )
+import Prelude
+
+import Cardano.Chain.UTxO qualified as BY
 
 -- |
 -- Era-specific output collection type.

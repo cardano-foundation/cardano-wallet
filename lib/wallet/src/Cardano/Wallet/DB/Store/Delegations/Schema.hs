@@ -23,7 +23,6 @@
 -- More than 6K lines end-up being generated from the instructions below! As a
 -- result, we're going to ignore code-coverage on the following module and, no
 -- hand-written functions should be written in this module!
-
 module Cardano.Wallet.DB.Store.Delegations.Schema
     ( Delegations (..)
     , EntityField (..)
@@ -31,8 +30,6 @@ module Cardano.Wallet.DB.Store.Delegations.Schema
     , resetDelegationTable
     )
 where
-
-import Prelude
 
 import Cardano.Pool.Types
     ( PoolId
@@ -75,10 +72,12 @@ import Database.Persist.TH
 import GHC.Generics
     ( Generic (..)
     )
+import Prelude
 
 import qualified Cardano.Wallet.Primitive.Types as W
 
-mkPersist sqlSettings'
+mkPersist
+    sqlSettings'
     [persistLowerCase|
         Delegations                                     sql=delegations
             delegationSlot      SlotNo                  sql=slot

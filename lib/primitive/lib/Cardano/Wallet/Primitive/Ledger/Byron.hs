@@ -31,8 +31,6 @@ module Cardano.Wallet.Primitive.Ledger.Byron
     , protocolParametersFromPP
     ) where
 
-import Prelude
-
 import Cardano.Chain.Common
     ( BlockCount (..)
     , Lovelace
@@ -48,11 +46,11 @@ import Cardano.Chain.Genesis
 import Cardano.Chain.Slotting
     ( EpochSlots (..)
     )
-import Cardano.Chain.Update
-    ( ProtocolParameters (..)
-    )
 import Cardano.Chain.UTxO
     ( TxOut (..)
+    )
+import Cardano.Chain.Update
+    ( ProtocolParameters (..)
     )
 import Cardano.Crypto.ProtocolMagic
     ( ProtocolMagicId
@@ -97,6 +95,7 @@ import Ouroboros.Consensus.HardFork.History.Summary
 import Ouroboros.Network.Block
     ( SlotNo (..)
     )
+import Prelude
 
 import qualified Cardano.Chain.Update as Update
 import qualified Cardano.Crypto.Hashing as CC
@@ -327,7 +326,8 @@ fromNonAvvmBalances (GenesisNonAvvmBalances m) =
     fromByronTxOut . uncurry TxOut <$> Map.toList m
 
 -- | Convert genesis data into blockchain params and an initial set of UTxO
-fromGenesisData :: (GenesisData, GenesisHash) -> (W.NetworkParameters, [W.TxOut])
+fromGenesisData
+    :: (GenesisData, GenesisHash) -> (W.NetworkParameters, [W.TxOut])
 fromGenesisData (genesisData, genesisHash) =
     ( W.NetworkParameters
         { genesisParameters =

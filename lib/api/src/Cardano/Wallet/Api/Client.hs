@@ -13,7 +13,6 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
-
 {-# OPTIONS_GHC -Wno-orphans #-}
 
 -- |
@@ -23,29 +22,22 @@
 -- This module provides a half-typed Servant client for the cardano-wallet V2 API.
 --
 -- The functions in this module can be run with "Servant.Client.runClientM".
-
 module Cardano.Wallet.Api.Client
     ( -- * API Clients
       WalletClient (..)
     , walletClient
     , byronWalletClient
-
     , TransactionClient (..)
     , transactionClient
     , byronTransactionClient
-
     , AddressClient (..)
     , addressClient
     , byronAddressClient
-
     , StakePoolClient (..)
     , stakePoolClient
-
     , NetworkClient (..)
     , networkClient
     ) where
-
-import Prelude
 
 import Cardano.Wallet.Api
     ( Addresses
@@ -131,7 +123,8 @@ import Data.Generics.Internal.VL.Lens
     ( view
     )
 import Data.Generics.Labels
-    ()
+    (
+    )
 import Data.Proxy
     ( Proxy (..)
     )
@@ -150,15 +143,17 @@ import Servant.Client
 import UnliftIO.Exception
     ( throwString
     )
+import Prelude
 
 import qualified Data.Aeson as Aeson
 
 {-------------------------------------------------------------------------------
                               Server Interaction
 -------------------------------------------------------------------------------}
-type family  WalletPutPassphraseFormat wallet where
+type family WalletPutPassphraseFormat wallet where
     WalletPutPassphraseFormat ApiWallet = WalletPutPassphraseData
-    WalletPutPassphraseFormat ApiByronWallet = ByronWalletPutPassphraseData
+    WalletPutPassphraseFormat ApiByronWallet =
+        ByronWalletPutPassphraseData
 
 -- | This data type encapsulates the client functions for all endpoints of the
 -- cardano-wallet V2 API.
@@ -303,8 +298,8 @@ walletClient =
             :<|> _putWallet
             :<|> _putWalletPassphrase
             :<|> _getWalletUtxoSnapshot
-            :<|> _getWalletUtxoStatistics
-            = client (Proxy @("v2" :> Wallets))
+            :<|> _getWalletUtxoStatistics =
+                client (Proxy @("v2" :> Wallets))
     in
         WalletClient
             { deleteWallet = void . _deleteWallet
@@ -329,8 +324,8 @@ byronWalletClient =
             :<|> _putWalletByron
             :<|> _getWalletUtxoSnapshot
             :<|> _getWalletUtxoStatistics
-            :<|> _putWalletPassphrase
-            = client (Proxy @("v2" :> ByronWallets))
+            :<|> _putWalletPassphrase =
+                client (Proxy @("v2" :> ByronWallets))
     in
         WalletClient
             { deleteWallet = void . _deleteWallet
@@ -357,11 +352,11 @@ transactionClient =
             :<|> _postTransactionFee
             :<|> _balanceTransaction
             :<|> _decodeTransaction
-            :<|> _submitTransaction
-            = client (Proxy @("v2" :> (ShelleyTransactions Aeson.Value)))
+            :<|> _submitTransaction =
+                client (Proxy @("v2" :> (ShelleyTransactions Aeson.Value)))
 
-        _postExternalTransaction
-            = client (Proxy @("v2" :> Proxy_))
+        _postExternalTransaction =
+            client (Proxy @("v2" :> Proxy_))
     in
         TransactionClient
             { listTransactions = (`_listTransactions` Nothing)
@@ -390,26 +385,31 @@ byronTransactionClient =
             :<|> _getTransaction
             :<|> _deleteTransaction
             :<|> _postTransaction
-            :<|> _postTransactionFee
-            = client (Proxy @("v2" :> (ByronTransactions Aeson.Value)))
+            :<|> _postTransactionFee =
+                client (Proxy @("v2" :> (ByronTransactions Aeson.Value)))
 
-        _postExternalTransaction
-            = client (Proxy @("v2" :> Proxy_))
-
-    in TransactionClient
-        { listTransactions = \wid start end order limit addr _ ->
-            _listTransactions wid start end order limit addr
-        , postTransaction = _postTransaction
-        , postTransactionFee = _postTransactionFee
-        , postExternalTransaction = _postExternalTransaction . fromSerialisedTx
-        , deleteTransaction = _deleteTransaction
-        , getTransaction = \wid txid _  -> _getTransaction wid txid
-        , balanceTransaction = error "balance transaction endpoint not supported for byron"
-        , decodeTransaction = error "decode transaction endpoint not supported for byron"
-        , submitTransaction = error "submit transaction endpoint not supported for byron"
-        , signTransaction = error "sign transaction endpoint not supported for byron"
-        , constructTransaction = error "construct transaction endpoint not supported for byron"
-        }
+        _postExternalTransaction =
+            client (Proxy @("v2" :> Proxy_))
+    in
+        TransactionClient
+            { listTransactions = \wid start end order limit addr _ ->
+                _listTransactions wid start end order limit addr
+            , postTransaction = _postTransaction
+            , postTransactionFee = _postTransactionFee
+            , postExternalTransaction = _postExternalTransaction . fromSerialisedTx
+            , deleteTransaction = _deleteTransaction
+            , getTransaction = \wid txid _ -> _getTransaction wid txid
+            , balanceTransaction =
+                error "balance transaction endpoint not supported for byron"
+            , decodeTransaction =
+                error "decode transaction endpoint not supported for byron"
+            , submitTransaction =
+                error "submit transaction endpoint not supported for byron"
+            , signTransaction =
+                error "sign transaction endpoint not supported for byron"
+            , constructTransaction =
+                error "construct transaction endpoint not supported for byron"
+            }
 
 -- | Produces an 'AddressClient n' working against the /wallets API
 addressClient :: AddressClient
@@ -417,17 +417,17 @@ addressClient =
     let
         _listAddresses
             :<|> _inspectAddress
-            :<|> _postScriptAddress
-            = client (Proxy @("v2" :> Addresses Aeson.Value))
+            :<|> _postScriptAddress =
+                client (Proxy @("v2" :> Addresses Aeson.Value))
     in
         AddressClient
             { listAddresses = _listAddresses
             , inspectAddress =
                 fmap unApiAddressInspect
-                . _inspectAddress
-                . ApiAddressInspectData
+                    . _inspectAddress
+                    . ApiAddressInspectData
             , postRandomAddress = \_ _ -> throwString "feature unavailable."
-            , putRandomAddress  = \_ _ -> throwString "feature unavailable."
+            , putRandomAddress = \_ _ -> throwString "feature unavailable."
             , putRandomAddresses = \_ _ -> throwString "feature unavailable."
             }
 
@@ -436,21 +436,21 @@ byronAddressClient :: AddressClient
 byronAddressClient =
     let
         _ :<|> _inspectAddress
-          :<|> _postScriptAddress
-            = client (Proxy @("v2" :> Addresses Aeson.Value))
+            :<|> _postScriptAddress =
+                client (Proxy @("v2" :> Addresses Aeson.Value))
 
         _postRandomAddress
             :<|> _putRandomAddress
             :<|> _putRandomAddresses
-            :<|> _listAddresses
-            = client (Proxy @("v2" :> ByronAddresses Aeson.Value))
+            :<|> _listAddresses =
+                client (Proxy @("v2" :> ByronAddresses Aeson.Value))
     in
         AddressClient
             { listAddresses = _listAddresses
             , inspectAddress =
                 fmap unApiAddressInspect
-                . _inspectAddress
-                . ApiAddressInspectData
+                    . _inspectAddress
+                    . ApiAddressInspectData
             , postRandomAddress = _postRandomAddress
             , putRandomAddress = _putRandomAddress
             , putRandomAddresses = _putRandomAddresses
@@ -464,10 +464,9 @@ stakePoolClient =
             :<|> quitStakePool
             :<|> _
             :<|> _
-            :<|> _
-            = client (Proxy @("v2" :> StakePools Aeson.Value))
-    in
-        StakePoolClient
+            :<|> _ =
+                client (Proxy @("v2" :> StakePools Aeson.Value))
+    in  StakePoolClient
             { listPools
             , joinStakePool
             , quitStakePool
@@ -477,8 +476,8 @@ stakePoolClient =
 networkClient :: NetworkClient
 networkClient =
     let
-        _networkInformation :<|> _networkParameters :<|> _networkClock
-            = client (Proxy @("v2" :> Network))
+        _networkInformation :<|> _networkParameters :<|> _networkClock =
+            client (Proxy @("v2" :> Network))
     in
         NetworkClient
             { networkInformation = _networkInformation

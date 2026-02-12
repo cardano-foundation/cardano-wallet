@@ -16,41 +16,39 @@
 -- This module is meant to be imported qualified. For example:
 --
 -- >>> import qualified Cardano.Wallet.Primitive.Types.TokenMap as TM
---
 module Cardano.Wallet.Primitive.Types.TokenMap
-    (
-    -- * Type
+    ( -- * Type
       TokenMap
 
-    -- * Construction
+      -- * Construction
     , empty
     , singleton
     , fromFlatList
     , fromNestedList
     , fromNestedMap
 
-    -- * Deconstruction
+      -- * Deconstruction
     , toFlatList
     , toNestedList
     , toNestedMap
 
-    -- * Filtering
+      -- * Filtering
     , filter
 
-    -- * Arithmetic
+      -- * Arithmetic
     , add
     , subtract
     , difference
     , intersection
 
-    -- * Queries
+      -- * Queries
     , size
 
-    -- * Tests
+      -- * Tests
     , isEmpty
     , isNotEmpty
 
-    -- * Quantities
+      -- * Quantities
     , getQuantity
     , setQuantity
     , hasQuantity
@@ -58,33 +56,27 @@ module Cardano.Wallet.Primitive.Types.TokenMap
     , removeQuantity
     , maximumQuantity
 
-    -- * Partitioning
+      -- * Partitioning
     , equipartitionAssets
     , equipartitionQuantities
     , equipartitionQuantitiesWithUpperBound
 
-    -- * Ordering
+      -- * Ordering
     , Lexicographic (..)
 
-    -- * Serialization
+      -- * Serialization
     , Flat (..)
     , Nested (..)
 
-    -- * Queries
+      -- * Queries
     , getAssets
 
-    -- * Transformations
+      -- * Transformations
     , mapAssetIds
 
-    -- * Unsafe operations
+      -- * Unsafe operations
     , unsafeSubtract
-
     ) where
-
-import Prelude hiding
-    ( filter
-    , subtract
-    )
 
 import Algebra.PartialOrd
     ( PartialOrd (..)
@@ -180,6 +172,10 @@ import Quiet
 import Safe
     ( fromJustNote
     )
+import Prelude hiding
+    ( filter
+    , subtract
+    )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TokenQuantity
 import qualified Data.Foldable as F
@@ -210,7 +206,6 @@ import qualified Data.Set as Set
 -- As a consequence of this invariant, the token map data structure is
 -- always in its canonical form: we can perform an equality check without
 -- needing any extra canonicalization steps.
---
 newtype TokenMap = TokenMap
     { unTokenMap
         :: MonoidMap TokenPolicyId (MonoidMap AssetName TokenQuantity)
@@ -239,9 +234,10 @@ instance Hashable TokenMap where
 -- If some arbitrary ordering is needed (for example, so that token maps can
 -- be included in an ordered set), the recommended course of action is to
 -- define a newtype with its own dedicated 'Ord' instance.
---
-instance TypeError ('Text "Ord not supported for token maps")
-        => Ord TokenMap where
+instance
+    TypeError ('Text "Ord not supported for token maps")
+    => Ord TokenMap
+    where
     compare = error "Ord not supported for token maps"
 
 -- | Partial ordering for token maps.
@@ -272,12 +268,10 @@ instance TypeError ('Text "Ord not supported for token maps")
 --     >>> y = fromFlatList [(assetA, 2), (assetB, 1)]
 --
 -- In the above example, map 'x' is strictly less than map 'y'.
---
 instance PartialOrd TokenMap where
     leq = MonoidMap.isSubmapOf `on` unTokenMap
 
 -- | Defines a lexicographic ordering.
---
 newtype Lexicographic a = Lexicographic {unLexicographic :: a}
     deriving (Eq, Show)
 
@@ -290,17 +284,15 @@ instance Ord (Lexicographic TokenMap) where
 
 -- | When used with the 'Buildable' instance, provides a flat serialization
 -- style, where token quantities are paired with their asset identifiers.
---
-newtype Flat a = Flat { getFlat :: a }
+newtype Flat a = Flat {getFlat :: a}
     deriving stock (Eq, Generic, Ord)
-    deriving Show via (Quiet (Flat a))
+    deriving (Show) via (Quiet (Flat a))
 
 -- | When used with the 'Buildable' instance, provides a nested serialization
 -- style, where token quantities are grouped by policy identifier.
---
-newtype Nested a = Nested { getNested :: a }
+newtype Nested a = Nested {getNested :: a}
     deriving stock (Eq, Generic, Ord)
-    deriving Show via (Quiet (Nested a))
+    deriving (Show) via (Quiet (Nested a))
 
 --------------------------------------------------------------------------------
 -- Text serialization
@@ -311,32 +303,49 @@ instance Buildable (Flat TokenMap) where
       where
         buildTokenMap =
             buildList buildAssetQuantity . toFlatList
-        buildAssetQuantity (AssetId policyId assetName, quantity) = buildMap
-            [ ("policyId",
-                build policyId)
-            , ("assetName",
-                build assetName)
-            , ("quantity",
-                build quantity)
-            ]
+        buildAssetQuantity (AssetId policyId assetName, quantity) =
+            buildMap
+                [
+                    ( "policyId"
+                    , build policyId
+                    )
+                ,
+                    ( "assetName"
+                    , build assetName
+                    )
+                ,
+                    ( "quantity"
+                    , build quantity
+                    )
+                ]
 
 instance Buildable (Nested TokenMap) where
     build = buildTokenMap . unTokenMap . getNested
       where
         buildTokenMap =
             buildList buildPolicy . MonoidMap.toList
-        buildPolicy (policyId, assetMap) = buildMap
-            [ ("policyId",
-                build policyId)
-            , ("tokens",
-                buildList buildTokenQuantity (MonoidMap.toList assetMap))
-            ]
-        buildTokenQuantity (assetName, quantity) = buildMap
-            [ ("assetName",
-                build assetName)
-            , ("quantity",
-                build quantity)
-            ]
+        buildPolicy (policyId, assetMap) =
+            buildMap
+                [
+                    ( "policyId"
+                    , build policyId
+                    )
+                ,
+                    ( "tokens"
+                    , buildList buildTokenQuantity (MonoidMap.toList assetMap)
+                    )
+                ]
+        buildTokenQuantity (assetName, quantity) =
+            buildMap
+                [
+                    ( "assetName"
+                    , build assetName
+                    )
+                ,
+                    ( "quantity"
+                    , build quantity
+                    )
+                ]
 
 buildList :: Foldable f => (a -> Builder) -> f a -> Builder
 buildList = blockListF' "-"
@@ -349,7 +358,6 @@ buildMap = blockMapF . fmap (first $ id @String)
 --------------------------------------------------------------------------------
 
 -- | The empty token map.
---
 empty :: TokenMap
 empty = TokenMap mempty
 
@@ -357,7 +365,6 @@ empty = TokenMap mempty
 --
 -- If the specified token quantity is zero, then the resultant map will be
 -- equal to the 'empty' map.
---
 singleton :: AssetId -> TokenQuantity -> TokenMap
 singleton = setQuantity empty
 
@@ -365,7 +372,6 @@ singleton = setQuantity empty
 --
 -- If an asset name appears more than once in the list under the same policy,
 -- its associated quantities will be added together in the resultant map.
---
 fromFlatList :: [(AssetId, TokenQuantity)] -> TokenMap
 fromFlatList = F.foldl' acc empty
   where
@@ -375,18 +381,18 @@ fromFlatList = F.foldl' acc empty
 --
 -- If an asset name appears more than once in the list under the same policy,
 -- its associated quantities will be added together in the resultant map.
---
 fromNestedList
     :: [(TokenPolicyId, NonEmpty (AssetName, TokenQuantity))] -> TokenMap
-fromNestedList entries = fromFlatList
-    [ (AssetId policyId assetName, quantity)
-    | (policyId, tokenQuantities) <- entries
-    , (assetName, quantity) <- NE.toList tokenQuantities
-    ]
+fromNestedList entries =
+    fromFlatList
+        [ (AssetId policyId assetName, quantity)
+        | (policyId, tokenQuantities) <- entries
+        , (assetName, quantity) <- NE.toList tokenQuantities
+        ]
 
 -- | Creates a token map from a nested map.
---
-fromNestedMap :: Map TokenPolicyId (Map AssetName TokenQuantity) -> TokenMap
+fromNestedMap
+    :: Map TokenPolicyId (Map AssetName TokenQuantity) -> TokenMap
 fromNestedMap = TokenMap . MonoidMap.fromMap . fmap MonoidMap.fromMap
 
 --------------------------------------------------------------------------------
@@ -394,7 +400,6 @@ fromNestedMap = TokenMap . MonoidMap.fromMap . fmap MonoidMap.fromMap
 --------------------------------------------------------------------------------
 
 -- | Converts a token map to a flat list.
---
 toFlatList :: TokenMap -> [(AssetId, TokenQuantity)]
 toFlatList b =
     [ (AssetId policyId assetName, quantity)
@@ -403,15 +408,15 @@ toFlatList b =
     ]
 
 -- | Converts a token map to a nested list.
---
 toNestedList
     :: TokenMap -> [(TokenPolicyId, NonEmpty (AssetName, TokenQuantity))]
 toNestedList (TokenMap m) =
-    mapMaybe (traverse (NE.nonEmpty . MonoidMap.toList)) $ MonoidMap.toList m
+    mapMaybe (traverse (NE.nonEmpty . MonoidMap.toList))
+        $ MonoidMap.toList m
 
 -- | Converts a token map to a nested map.
---
-toNestedMap :: TokenMap -> Map TokenPolicyId (Map AssetName TokenQuantity)
+toNestedMap
+    :: TokenMap -> Map TokenPolicyId (Map AssetName TokenQuantity)
 toNestedMap (TokenMap m) = MonoidMap.toMap <$> MonoidMap.toMap m
 
 --------------------------------------------------------------------------------
@@ -426,7 +431,6 @@ filter f = fromFlatList . L.filter (f . fst) . toFlatList
 --------------------------------------------------------------------------------
 
 -- | Adds one token map to another.
---
 add :: TokenMap -> TokenMap -> TokenMap
 add = (<>)
 
@@ -434,7 +438,6 @@ add = (<>)
 --
 -- Returns 'Nothing' if the second map is not less than or equal to the first
 -- map when compared with the `leq` function.
---
 subtract :: TokenMap -> TokenMap -> Maybe TokenMap
 subtract = (</>)
 
@@ -455,7 +458,6 @@ subtract = (</>)
 -- >>> let oneToken = singleton aid (TokenQuantity 1)
 -- >>> (mempty `difference` oneToken) `add` oneToken
 -- oneToken
---
 difference :: TokenMap -> TokenMap -> TokenMap
 difference = (<\>)
 
@@ -469,7 +471,6 @@ difference = (<\>)
 -- >>> m2 = [          ("b", 3), ("c", 2), ("d", 1)]
 -- >>> intersection m1 m2
 --          [          ("b", 2), ("c", 2)          ]
---
 intersection :: TokenMap -> TokenMap -> TokenMap
 intersection = GCDMonoid.gcd
 
@@ -478,7 +479,6 @@ intersection = GCDMonoid.gcd
 --------------------------------------------------------------------------------
 
 -- | Returns the number of unique assets in a token map.
---
 size :: TokenMap -> Int
 size = Set.size . getAssets
 
@@ -487,12 +487,10 @@ size = Set.size . getAssets
 --------------------------------------------------------------------------------
 
 -- | Returns true if and only if the given map is empty.
---
 isEmpty :: TokenMap -> Bool
 isEmpty = MonoidNull.null
 
 -- | Returns true if and only if the given map is not empty.
---
 isNotEmpty :: TokenMap -> Bool
 isNotEmpty = not . MonoidNull.null
 
@@ -504,7 +502,6 @@ isNotEmpty = not . MonoidNull.null
 --
 -- If the given map does not have an entry for the specified asset, this
 -- function returns a value of zero.
---
 getQuantity :: TokenMap -> AssetId -> TokenQuantity
 getQuantity (TokenMap m) (AssetId policyId assetName) =
     MonoidMap.get assetName (MonoidMap.get policyId m)
@@ -513,14 +510,13 @@ getQuantity (TokenMap m) (AssetId policyId assetName) =
 --
 -- If the given quantity is zero, the resultant map will not have an entry for
 -- the given asset.
---
 setQuantity :: TokenMap -> AssetId -> TokenQuantity -> TokenMap
 setQuantity (TokenMap m) (AssetId policyId assetName) quantity =
-    TokenMap $ MonoidMap.adjust (MonoidMap.set assetName quantity) policyId m
+    TokenMap
+        $ MonoidMap.adjust (MonoidMap.set assetName quantity) policyId m
 
 -- | Returns true if and only if the given map has a non-zero quantity for the
 --   given asset.
---
 hasQuantity :: TokenMap -> AssetId -> Bool
 hasQuantity m = not . MonoidNull.null . getQuantity m
 
@@ -529,7 +525,6 @@ hasQuantity m = not . MonoidNull.null . getQuantity m
 --
 -- If the result of adjusting the quantity is equal to zero, the resultant map
 -- will not have an entry for the given asset.
---
 adjustQuantity
     :: TokenMap
     -> AssetId
@@ -541,12 +536,10 @@ adjustQuantity (TokenMap m) (AssetId policyId assetName) f =
 -- | Removes the quantity associated with the given asset.
 --
 -- This is equivalent to calling 'setQuantity' with a value of zero.
---
 removeQuantity :: TokenMap -> AssetId -> TokenMap
 removeQuantity m asset = setQuantity m asset TokenQuantity.zero
 
 -- | Get the largest quantity from this map.
---
 maximumQuantity :: TokenMap -> TokenQuantity
 maximumQuantity = F.foldl' (F.foldl' max) mempty . unTokenMap
 
@@ -561,7 +554,6 @@ maximumQuantity = F.foldl' (F.foldl' max) mempty . unTokenMap
 -- size will differ by no more than 1.
 --
 -- The quantities of each asset are unchanged.
---
 equipartitionAssets
     :: TokenMap
     -- ^ The token map to be partitioned.
@@ -578,11 +570,13 @@ equipartitionAssets m mapCount =
 
     -- How many asset quantities to include in each chunk.
     assetCounts :: NonEmpty Int
-    assetCounts = fromIntegral @Natural @Int <$>
-        equipartitionNatural (fromIntegral @Int @Natural assetCount) mapCount
+    assetCounts =
+        fromIntegral @Natural @Int
+            <$> equipartitionNatural (fromIntegral @Int @Natural assetCount) mapCount
 
     -- Generates a single chunk of asset quantities.
-    generateChunk :: (NonEmpty Int, [aq]) -> ([aq], Maybe (NonEmpty Int, [aq]))
+    generateChunk
+        :: (NonEmpty Int, [aq]) -> ([aq], Maybe (NonEmpty Int, [aq]))
     generateChunk (c :| mcs, aqs) = case NE.nonEmpty mcs of
         Just cs -> (prefix, Just (cs, suffix))
         Nothing -> (aqs, Nothing)
@@ -597,7 +591,6 @@ equipartitionAssets m mapCount =
 --
 -- The resultant list is sorted into ascending order when maps are compared
 -- with the 'leq' function.
---
 equipartitionQuantities
     :: TokenMap
     -- ^ The map to be partitioned.
@@ -612,9 +605,10 @@ equipartitionQuantities m count =
         :: NonEmpty TokenMap
         -> (AssetId, TokenQuantity)
         -> NonEmpty TokenMap
-    accumulate maps (asset, quantity) = NE.zipWith (<>) maps $
-        singleton asset <$>
-            TokenQuantity.equipartition quantity count
+    accumulate maps (asset, quantity) =
+        NE.zipWith (<>) maps
+            $ singleton asset
+                <$> TokenQuantity.equipartition quantity count
 
 -- | Partitions a token map into 'n' smaller maps, where the quantity of each
 --   token is equipartitioned across the resultant maps, with the goal that no
@@ -623,7 +617,6 @@ equipartitionQuantities m count =
 -- The value 'n' is computed automatically, and is the minimum value required
 -- to achieve the goal that no token quantity in any of the resulting maps
 -- exceeds the maximum allowable token quantity.
---
 equipartitionQuantitiesWithUpperBound
     :: TokenMap
     -> TokenQuantity
@@ -643,10 +636,12 @@ equipartitionQuantitiesWithUpperBound m (TokenQuantity maxQuantity)
     extraPartCount :: Int
     extraPartCount = floor $ pred currentMaxQuantity % maxQuantity
 
-    maxQuantityZeroError = error $ unwords
-        [ "equipartitionQuantitiesWithUpperBound:"
-        , "the maximum allowable token quantity cannot be zero."
-        ]
+    maxQuantityZeroError =
+        error
+            $ unwords
+                [ "equipartitionQuantitiesWithUpperBound:"
+                , "the maximum allowable token quantity cannot be zero."
+                ]
 
 --------------------------------------------------------------------------------
 -- Queries
@@ -672,6 +667,5 @@ mapAssetIds f m = fromFlatList $ first f <$> toFlatList m
 -- compared with the `leq` function.
 --
 -- Throws a run-time exception if the pre-condition is violated.
---
 unsafeSubtract :: TokenMap -> TokenMap -> TokenMap
 unsafeSubtract b1 b2 = fromJustNote "TokenMap.unsafeSubtract" $ b1 </> b2

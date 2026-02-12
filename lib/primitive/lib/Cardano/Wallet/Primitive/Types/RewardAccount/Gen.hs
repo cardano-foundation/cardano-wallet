@@ -2,9 +2,7 @@ module Cardano.Wallet.Primitive.Types.RewardAccount.Gen
     ( genRewardAccount
     , shrinkRewardAccount
     )
-    where
-
-import Prelude
+where
 
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
@@ -18,6 +16,7 @@ import Test.QuickCheck
     , elements
     , sized
     )
+import Prelude
 
 import qualified Data.ByteString.Char8 as B8
 
@@ -33,7 +32,7 @@ shrinkRewardAccount a
     | a == simplest = []
     | otherwise = [simplest]
   where
-    simplest = case addresses of (x:_) -> x; [] -> error "impossible"
+    simplest = case addresses of (x : _) -> x; [] -> error "impossible"
 
 addresses :: [RewardAccount]
 addresses = mkRewardAccount <$> ['0' ..]
@@ -43,6 +42,8 @@ addresses = mkRewardAccount <$> ['0' ..]
 --------------------------------------------------------------------------------
 
 mkRewardAccount :: Char -> RewardAccount
-mkRewardAccount c
-    = FromKeyHash . getHash
-    . mockHashRewardAccount $ "Reward" `B8.snoc` c
+mkRewardAccount c =
+    FromKeyHash
+        . getHash
+        . mockHashRewardAccount
+        $ "Reward" `B8.snoc` c

@@ -1,23 +1,19 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 
 -- |
 -- Copyright: © 2020-2022 IOHK
 -- License: Apache-2.0
---
-
 module Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Validity
     ( getValidity
     , afterShelleyValidityInterval
     , shelleyValidityInterval
     )
-    where
-
-import Prelude
+where
 
 import Cardano.Ledger.Api
     ( ValidityInterval (..)
@@ -38,11 +34,14 @@ import Data.Maybe.Strict
 import Data.Quantity
     ( Quantity (..)
     )
+import Prelude
 
 import qualified Ouroboros.Network.Block as O
 
-{-# INLINABLE getValidity #-}
-getValidity :: forall era. IsEra era => Validity era -> Maybe ValidityIntervalExplicit
+{-# INLINEABLE getValidity #-}
+getValidity
+    :: forall era
+     . IsEra era => Validity era -> Maybe ValidityIntervalExplicit
 getValidity = case theEra @era of
     Byron -> \_validity -> Nothing
     Shelley -> \(Validity ttl) -> Just $ shelleyValidityInterval ttl
@@ -55,7 +54,8 @@ getValidity = case theEra @era of
     afterShelleyValidity (Validity validity) =
         Just $ afterShelleyValidityInterval validity
 
-afterShelleyValidityInterval :: ValidityInterval -> ValidityIntervalExplicit
+afterShelleyValidityInterval
+    :: ValidityInterval -> ValidityIntervalExplicit
 afterShelleyValidityInterval (ValidityInterval from to) =
     case (from, to) of
         (SNothing, SJust (O.SlotNo s)) ->
@@ -68,5 +68,5 @@ afterShelleyValidityInterval (ValidityInterval from to) =
             ValidityIntervalExplicit (Quantity s1) (Quantity maxBound)
 
 shelleyValidityInterval :: O.SlotNo -> ValidityIntervalExplicit
-shelleyValidityInterval (O.SlotNo n)
-    = ValidityIntervalExplicit (Quantity 0) (Quantity n)
+shelleyValidityInterval (O.SlotNo n) =
+    ValidityIntervalExplicit (Quantity 0) (Quantity n)

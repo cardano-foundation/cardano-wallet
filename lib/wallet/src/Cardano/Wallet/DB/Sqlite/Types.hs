@@ -5,7 +5,6 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE ViewPatterns #-}
-
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- |
@@ -19,10 +18,7 @@
 --
 -- The ToJSON/FromJSON and Read instance orphans exist due to class constraints
 -- on Persistent functions.
-
 module Cardano.Wallet.DB.Sqlite.Types where
-
-import Prelude
 
 import Cardano.Address.Script
     ( Cosigner
@@ -227,6 +223,7 @@ import Web.HttpApiData
 import Web.PathPieces
     ( PathPiece (..)
     )
+import Prelude
 
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Data.Aeson as Aeson
@@ -239,7 +236,7 @@ import qualified Data.Text.Encoding as T
 
 -- | Settings for generating the Persistent types.
 sqlSettings' :: MkPersistSettings
-sqlSettings' = sqlSettings { mpsPrefixFields = False }
+sqlSettings' = sqlSettings{mpsPrefixFields = False}
 
 ----------------------------------------------------------------------------
 -- Direction
@@ -267,7 +264,8 @@ directionFromBool False = Outgoing
 instance PersistField FeePolicy where
     toPersistValue = toPersistValue . toText
     fromPersistValue pv = fromPersistValue pv >>= left (const err) . fromText
-        where err = "not a valid value: " <> T.pack (show pv)
+      where
+        err = "not a valid value: " <> T.pack (show pv)
 
 instance PersistFieldSql FeePolicy where
     sqlType _ = sqlType (Proxy @Text)
@@ -278,7 +276,8 @@ instance PersistFieldSql FeePolicy where
 instance PersistField Percentage where
     toPersistValue = toPersistValue . toText
     fromPersistValue pv = fromPersistValue pv >>= left (const err) . fromText
-        where err = "not a valid percentage: " <> T.pack (show pv)
+      where
+        err = "not a valid percentage: " <> T.pack (show pv)
 
 instance PersistFieldSql Percentage where
     sqlType _ = sqlType (Proxy @Rational)
@@ -317,7 +316,8 @@ instance PathPiece WalletId where
 
 -- | Wraps 'Hash "Tx"' because the persistent entity syntax doesn't seem to
 -- support parameterized types.
-newtype TxId = TxId { getTxId :: Hash "Tx" } deriving (Show, Eq, Ord, Generic)
+newtype TxId = TxId {getTxId :: Hash "Tx"}
+    deriving (Show, Eq, Ord, Generic)
 
 instance PersistField TxId where
     toPersistValue = toPersistValue . toText . getTxId
@@ -378,7 +378,7 @@ instance PersistFieldSql TokenQuantity where
 -- BlockId
 
 -- Wraps Hash "BlockHeader" because the persistent dsl doesn't like it raw.
-newtype BlockId = BlockId { getBlockId :: Hash "BlockHeader" }
+newtype BlockId = BlockId {getBlockId :: Hash "BlockHeader"}
     deriving (Show, Eq, Ord, Generic)
 
 -- | Magic value that denotes the hash of the parent of the genesis block
@@ -456,7 +456,8 @@ mkEpochNo :: Word32 -> Either Text EpochNo
 mkEpochNo n
     | isValidEpochNo c = Right c
     | otherwise = Left . T.pack $ "not a valid epoch number: " <> show n
-    where c = unsafeEpochNo n
+  where
+    c = unsafeEpochNo n
 
 persistEpochNo :: EpochNo -> PersistValue
 persistEpochNo = toPersistValue . fromIntegral @Word31 @Word32 . unEpochNo
@@ -488,15 +489,15 @@ instance PersistFieldSql TxStatus where
 
 instance PersistField TxMetadata where
     toPersistValue =
-        toPersistValue .
-        decodeUtf8 .
-        BL.toStrict .
-        Aeson.encode .
-        metadataToJson TxMetadataJsonDetailedSchema
+        toPersistValue
+            . decodeUtf8
+            . BL.toStrict
+            . Aeson.encode
+            . metadataToJson TxMetadataJsonDetailedSchema
     fromPersistValue =
-        metadataFromJsonWithFallback <=<
-        (left T.pack . Aeson.eitherDecode . BL.fromStrict . encodeUtf8) <=<
-        fromPersistValue
+        metadataFromJsonWithFallback
+            <=< (left T.pack . Aeson.eitherDecode . BL.fromStrict . encodeUtf8)
+            <=< fromPersistValue
       where
         -- FIXME
         -- Because of time constraints, we have had two consecutives releases
@@ -514,10 +515,11 @@ instance PersistField TxMetadata where
                 Right meta -> Right meta
                 Left e -> case metadataFromJson TxMetadataJsonNoSchema json of
                     Right meta -> Right meta
-                    Left{} -> Left $
-                        "fromPersistValue TxMetadata: "
-                        <> "Ill-formed JSON in database "
-                        <> T.pack (show e)
+                    Left{} ->
+                        Left
+                            $ "fromPersistValue TxMetadata: "
+                                <> "Ill-formed JSON in database "
+                                <> T.pack (show e)
 
 instance PersistFieldSql TxMetadata where
     sqlType _ = sqlType (Proxy @Text)
@@ -560,9 +562,10 @@ instance ToText ScriptHash where
         T.decodeUtf8 $ convertToBase Base16 sh
 
 instance FromText ScriptHash where
-    fromText = bimap textDecodingError ScriptHash
-        . convertFromBase Base16
-        . T.encodeUtf8
+    fromText =
+        bimap textDecodingError ScriptHash
+            . convertFromBase Base16
+            . T.encodeUtf8
       where
         textDecodingError = TextDecodingError . show
 
@@ -578,14 +581,14 @@ instance PersistFieldSql ScriptHash where
 
 instance PersistField (Script Cosigner) where
     toPersistValue =
-        toPersistValue .
-        decodeUtf8 .
-        BL.toStrict .
-        Aeson.encode .
-        toJSON
+        toPersistValue
+            . decodeUtf8
+            . BL.toStrict
+            . Aeson.encode
+            . toJSON
     fromPersistValue =
-        (left T.pack . Aeson.eitherDecode . BL.fromStrict . encodeUtf8) <=<
-        fromPersistValue
+        (left T.pack . Aeson.eitherDecode . BL.fromStrict . encodeUtf8)
+            <=< fromPersistValue
 
 instance PersistFieldSql (Script Cosigner) where
     sqlType _ = sqlType (Proxy @Text)
@@ -719,10 +722,11 @@ newtype HDPassphrase = HDPassphrase (Passphrase "addr-derivation-payload")
 instance PersistField HDPassphrase where
     toPersistValue (HDPassphrase (Passphrase pwd)) =
         toPersistValue (convertToBase @_ @ByteString Base16 pwd)
-    fromPersistValue = fromPersistValue >=>
-        fmap (HDPassphrase . Passphrase)
-        . left T.pack
-        . convertFromBase @ByteString Base16
+    fromPersistValue =
+        fromPersistValue
+            >=> fmap (HDPassphrase . Passphrase)
+                . left T.pack
+                . convertFromBase @ByteString Base16
 
 instance PersistFieldSql HDPassphrase where
     sqlType _ = sqlType (Proxy @ByteString)
@@ -775,15 +779,18 @@ instance PersistFieldSql AddressState where
 
 instance PersistField PoolMetadataSource where
     toPersistValue = toPersistValue . toText
+
     -- be more permissive than fromText here
-    fromPersistValue = fromPersistValue
-        >=> \case
-            "none" -> Right FetchNone
-            "direct" -> Right FetchDirect
-            uri -> fmap unsafeToPMS
-                . maybe (Left "Not an absolute URI") Right
-                . parseAbsoluteURI
-                $ uri
+    fromPersistValue =
+        fromPersistValue
+            >=> \case
+                "none" -> Right FetchNone
+                "direct" -> Right FetchDirect
+                uri ->
+                    fmap unsafeToPMS
+                        . maybe (Left "Not an absolute URI") Right
+                        . parseAbsoluteURI
+                        $ uri
 
 instance PersistFieldSql PoolMetadataSource where
     sqlType _ = sqlType (Proxy @Text)
@@ -809,12 +816,14 @@ instance PersistField TxScriptValidity where
     fromPersistValue = \case
         PersistBool True -> Right TxScriptValid
         PersistBool False -> Right TxScriptInvalid
-        x -> Left $ T.unwords
-            [ "Failed to parse Haskell type `TxScriptValidity`;"
-            , "expected null or boolean"
-            , "from database, but received:"
-            , T.pack (show x)
-            ]
+        x ->
+            Left
+                $ T.unwords
+                    [ "Failed to parse Haskell type `TxScriptValidity`;"
+                    , "expected null or boolean"
+                    , "from database, but received:"
+                    , T.pack (show x)
+                    ]
 
 instance PersistFieldSql TxScriptValidity where
     sqlType _ = sqlType (Proxy @(Maybe Bool))
@@ -823,16 +832,24 @@ instance PersistFieldSql TxScriptValidity where
 -- Other
 
 instance PersistField POSIXTime where
-    toPersistValue = PersistText
-        . T.pack
-        . formatTime defaultTimeLocale iso8601DateFormatHMS
-        . posixSecondsToUTCTime
+    toPersistValue =
+        PersistText
+            . T.pack
+            . formatTime defaultTimeLocale iso8601DateFormatHMS
+            . posixSecondsToUTCTime
     fromPersistValue (PersistText time) =
-        utcTimeToPOSIXSeconds <$>
-            reportFailure (parseTimeM True defaultTimeLocale
-                iso8601DateFormatHMS (T.unpack time)) & left T.pack
-    fromPersistValue _ = Left
-        "Could not parse POSIX time value"
+        utcTimeToPOSIXSeconds
+            <$> reportFailure
+                ( parseTimeM
+                    True
+                    defaultTimeLocale
+                    iso8601DateFormatHMS
+                    (T.unpack time)
+                )
+            & left T.pack
+    fromPersistValue _ =
+        Left
+            "Could not parse POSIX time value"
 
 instance PersistFieldSql POSIXTime where
     sqlType _ = sqlType (Proxy @Text)

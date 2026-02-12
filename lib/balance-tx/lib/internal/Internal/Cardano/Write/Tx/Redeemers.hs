@@ -9,6 +9,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
+
 {- HLINT ignore "Use <$>" -}
 
 -- |
@@ -21,8 +22,6 @@ module Internal.Cardano.Write.Tx.Redeemers
     , ErrAssignRedeemers (..)
     , Redeemer (..)
     ) where
-
-import Prelude
 
 import Cardano.Ledger.Api
     ( AsItem (..)
@@ -72,7 +71,8 @@ import Data.Generics.Internal.VL.Lens
     ( view
     )
 import Data.Generics.Labels
-    ()
+    (
+    )
 import Data.Map.Strict
     ( Map
     , (!)
@@ -102,6 +102,7 @@ import Internal.Cardano.Write.Tx.TimeTranslation
     , epochInfo
     , systemStartTime
     )
+import Prelude
 
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
@@ -117,20 +118,25 @@ import qualified Data.Set as Set
 import qualified Data.Text as T
 
 data ErrAssignRedeemers era
-    = ErrAssignRedeemersScriptFailure Redeemer (TransactionScriptFailure era)
-    | ErrAssignRedeemersTargetNotFound Redeemer
-    -- ^ The given redeemer target couldn't be located in the transaction.
-    | ErrAssignRedeemersInvalidData Redeemer String
-    -- ^ Redeemer's data isn't a valid Plutus' data.
+    = ErrAssignRedeemersScriptFailure
+        Redeemer
+        (TransactionScriptFailure era)
+    | -- | The given redeemer target couldn't be located in the transaction.
+      ErrAssignRedeemersTargetNotFound Redeemer
+    | -- | Redeemer's data isn't a valid Plutus' data.
+      ErrAssignRedeemersInvalidData Redeemer String
     deriving (Generic)
 
-deriving instance Eq (TransactionScriptFailure era)
+deriving instance
+    Eq (TransactionScriptFailure era)
     => Eq (ErrAssignRedeemers era)
-deriving instance Show (TransactionScriptFailure era)
+deriving instance
+    Show (TransactionScriptFailure era)
     => Show (ErrAssignRedeemers era)
 
 assignScriptRedeemers
-    :: forall era. IsRecentEra era
+    :: forall era
+     . IsRecentEra era
     => PParams era
     -> TimeTranslation
     -> UTxO era
@@ -150,14 +156,15 @@ assignScriptRedeemers pparams timeTranslation utxo redeemers tx = do
 
     systemStart = systemStartTime timeTranslation
 
-    -- | Assign redeemers with null execution units to the input transaction.
+    -- \| Assign redeemers with null execution units to the input transaction.
     --
     -- Redeemers are determined from the context given to the caller via the
     -- 'Redeemer' type which is mapped to an 'Alonzo.ScriptPurpose'.
     assignNullRedeemers
         :: Tx era
-        -> Either (ErrAssignRedeemers era)
-            ( Map (Alonzo.PlutusPurpose Alonzo.AsIx era)  Redeemer
+        -> Either
+            (ErrAssignRedeemers era)
+            ( Map (Alonzo.PlutusPurpose Alonzo.AsIx era) Redeemer
             , Tx era
             )
     assignNullRedeemers ledgerTx = do
@@ -171,9 +178,10 @@ assignScriptRedeemers pparams timeTranslation utxo redeemers tx = do
             )
       where
         parseRedeemer rd = do
-            let mPtr = Alonzo.redeemerPointer
-                     (view bodyTxL ledgerTx)
-                     (toScriptPurpose @era rd)
+            let mPtr =
+                    Alonzo.redeemerPointer
+                        (view bodyTxL ledgerTx)
+                        (toScriptPurpose @era rd)
             ptr <- case mPtr of
                 SNothing -> Left $ ErrAssignRedeemersTargetNotFound rd
                 SJust ptr -> pure ptr
@@ -184,43 +192,56 @@ assignScriptRedeemers pparams timeTranslation utxo redeemers tx = do
                 Right d -> pure (Alonzo.Data d)
             pure ((ptr, rd), (ptr, (rData, mempty)))
 
-    -- | Evaluate execution units of each script/redeemer in the transaction.
+    -- \| Evaluate execution units of each script/redeemer in the transaction.
     -- This may fail for each script.
     evaluateExecutionUnits
         :: Map (Alonzo.PlutusPurpose Alonzo.AsIx era) Redeemer
         -> Tx era
-        -> (Map (Alonzo.PlutusPurpose Alonzo.AsIx era)
-                (Either (ErrAssignRedeemers era) Alonzo.ExUnits))
+        -> ( Map
+                (Alonzo.PlutusPurpose Alonzo.AsIx era)
+                (Either (ErrAssignRedeemers era) Alonzo.ExUnits)
+           )
     evaluateExecutionUnits indexedRedeemers ledgerTx =
         Ledger.evalTxExUnits
-            pparams ledgerTx utxo epochInformation systemStart
-        & hoistScriptFailure indexedRedeemers
+            pparams
+            ledgerTx
+            utxo
+            epochInformation
+            systemStart
+            & hoistScriptFailure indexedRedeemers
 
     hoistScriptFailure
         :: Map (Alonzo.PlutusPurpose Alonzo.AsIx era) Redeemer
-        -> Map (Alonzo.PlutusPurpose Alonzo.AsIx era) (Either (TransactionScriptFailure era) a)
-        -> Map (Alonzo.PlutusPurpose Alonzo.AsIx era) (Either (ErrAssignRedeemers era) a)
+        -> Map
+            (Alonzo.PlutusPurpose Alonzo.AsIx era)
+            (Either (TransactionScriptFailure era) a)
+        -> Map
+            (Alonzo.PlutusPurpose Alonzo.AsIx era)
+            (Either (ErrAssignRedeemers era) a)
     hoistScriptFailure indexedRedeemers = Map.mapWithKey $ \ptr -> left $ \e ->
         ErrAssignRedeemersScriptFailure (indexedRedeemers ! ptr) e
 
-    -- | Change execution units for each redeemers in the transaction to what
+    -- \| Change execution units for each redeemers in the transaction to what
     -- they ought to be.
     assignExecutionUnits
-        :: Map (Alonzo.PlutusPurpose Alonzo.AsIx era)
-                (Either (ErrAssignRedeemers era) Alonzo.ExUnits)
+        :: Map
+            (Alonzo.PlutusPurpose Alonzo.AsIx era)
+            (Either (ErrAssignRedeemers era) Alonzo.ExUnits)
         -> Tx era
         -> Either (ErrAssignRedeemers era) (Tx era)
     assignExecutionUnits exUnits ledgerTx = do
         let Alonzo.Redeemers rdmrs = view (witsTxL . rdmrsTxWitsL) ledgerTx
 
-        rdmrs' <- Map.mergeA
-            Map.preserveMissing
-            Map.dropMissing
-            (Map.zipWithAMatched (const assignUnits))
-            rdmrs
-            exUnits
+        rdmrs' <-
+            Map.mergeA
+                Map.preserveMissing
+                Map.dropMissing
+                (Map.zipWithAMatched (const assignUnits))
+                rdmrs
+                exUnits
 
-        pure $ ledgerTx
+        pure
+            $ ledgerTx
             & (witsTxL . rdmrsTxWitsL) .~ (Alonzo.Redeemers rdmrs')
 
     assignUnits
@@ -229,17 +250,18 @@ assignScriptRedeemers pparams timeTranslation utxo redeemers tx = do
         -> Either err (dat, Alonzo.ExUnits)
     assignUnits (dats, _zero) = fmap (dats,)
 
-    -- | Finally, calculate and add the script integrity hash with the new
+    -- \| Finally, calculate and add the script integrity hash with the new
     -- final redeemers, if any.
     addScriptIntegrityHash
         :: Tx era
         -> Tx era
     addScriptIntegrityHash ledgerTx =
-        ledgerTx & (bodyTxL . scriptIntegrityHashTxBodyL) .~
-            Alonzo.hashScriptIntegrity
-                (Set.fromList $ Alonzo.getLanguageView pparams <$> langs)
-                (Alonzo.txrdmrs wits)
-                (Alonzo.txdats' wits)
+        ledgerTx
+            & (bodyTxL . scriptIntegrityHashTxBodyL)
+                .~ Alonzo.hashScriptIntegrity
+                    (Set.fromList $ Alonzo.getLanguageView pparams <$> langs)
+                    (Alonzo.txrdmrs wits)
+                    (Alonzo.txdats' wits)
       where
         wits = Alonzo.wits ledgerTx
         langs =
@@ -271,14 +293,14 @@ instance Buildable Redeemer where
 
 redeemerData :: Redeemer -> ByteString
 redeemerData = \case
-    RedeemerSpending  bytes _ -> bytes
-    RedeemerMinting   bytes _ -> bytes
+    RedeemerSpending bytes _ -> bytes
+    RedeemerMinting bytes _ -> bytes
     RedeemerRewarding bytes _ -> bytes
 
 toScriptPurpose
     :: IsRecentEra era
     => Redeemer
-    -> Alonzo.PlutusPurpose AsItem  era
+    -> Alonzo.PlutusPurpose AsItem era
 toScriptPurpose = \case
     RedeemerSpending _ txin ->
         mkSpendingPurpose $ AsItem txin
@@ -319,5 +341,5 @@ mkRewardingPurpose = case recentEra @era of
 --------------------------------------------------------------------------------
 
 -- | Effectfully modify the state of a state-monad transformer stack.
-modifyM  :: forall m s. (Monad m) => (s -> m s) -> StateT s m ()
+modifyM :: forall m s. (Monad m) => (s -> m s) -> StateT s m ()
 modifyM fn = get >>= lift . fn >>= put

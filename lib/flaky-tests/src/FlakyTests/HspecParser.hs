@@ -12,19 +12,18 @@ module FlakyTests.HspecParser
     )
 where
 
-import Prelude
-
 import Data.Char
     ( isDigit
     )
 import Data.Text
     ( Text
     )
-import qualified Data.Text as T
-
 import FlakyTests.Types
     ( TestFailure (..)
     )
+import Prelude
+
+import qualified Data.Text as T
 
 -- | Strip GHA timestamp prefixes of the form
 -- @2026-02-10T14:40:35.4702189Z @

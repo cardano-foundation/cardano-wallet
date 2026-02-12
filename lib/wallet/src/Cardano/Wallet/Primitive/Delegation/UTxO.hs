@@ -2,8 +2,6 @@ module Cardano.Wallet.Primitive.Delegation.UTxO
     ( stakeKeyCoinDistr
     ) where
 
-import Prelude
-
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..)
     )
@@ -22,6 +20,7 @@ import Cardano.Wallet.Primitive.Types.UTxO
 import Data.Map
     ( Map
     )
+import Prelude
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Data.Map as Map

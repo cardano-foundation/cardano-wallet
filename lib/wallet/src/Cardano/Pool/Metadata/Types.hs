@@ -2,7 +2,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE TypeApplications #-}
-
 {-# OPTIONS_GHC -Wno-orphans #-}
 
 module Cardano.Pool.Metadata.Types
@@ -13,8 +12,6 @@ module Cardano.Pool.Metadata.Types
     , UrlBuilder
     )
 where
-
-import Prelude
 
 import Cardano.Pool.Types
     ( PoolId
@@ -77,6 +74,7 @@ import Web.HttpApiData
 import Web.PathPieces
     ( PathPiece (..)
     )
+import Prelude
 
 import qualified Data.Text as T
 
@@ -86,7 +84,7 @@ data PoolMetadataGCStatus
     = NotApplicable
     | NotStarted
     | Restarting POSIXTime -- shows last GC before restart occurred
-    | HasRun POSIXTime     -- shows last GC
+    | HasRun POSIXTime -- shows last GC
     deriving (Eq, Show, Generic)
 
 instance PersistField StakePoolMetadataHash where
@@ -142,8 +140,8 @@ instance PathPiece StakePoolMetadataUrl where
     toPathPiece = toText
 
 -- | A type-alias to ease signatures
-type UrlBuilder
-    =  PoolId
+type UrlBuilder =
+    PoolId
     -> StakePoolMetadataUrl
     -> StakePoolMetadataHash
     -> Either HttpException URI
@@ -161,7 +159,8 @@ data StakePoolMetadata = StakePoolMetadata
     -- ^ Short description of the stake pool.
     , homepage :: Text
     -- ^ Absolute URL for the stake pool's homepage link.
-    } deriving (Eq, Ord, Show, Generic)
+    }
+    deriving (Eq, Ord, Show, Generic)
 
 instance FromJSON StakePoolMetadata where
     parseJSON = withObject "StakePoolMetadta" $ \obj -> do
@@ -176,4 +175,4 @@ instance FromJSON StakePoolMetadata where
         when ((T.length <$> description) > Just 255)
             $ fail "description exceeds max length of 255 characters"
         homepage <- obj .: "homepage"
-        pure StakePoolMetadata{ticker,name,description,homepage}
+        pure StakePoolMetadata{ticker, name, description, homepage}

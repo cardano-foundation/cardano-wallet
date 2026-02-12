@@ -2,10 +2,6 @@
 
 module Cardano.Wallet.UI.Shelley.Html.Pages.Wallets where
 
-import Prelude hiding
-    ( id
-    )
-
 import Cardano.Wallet.Api.Types
     ( ApiT (..)
     , ApiWallet (..)
@@ -72,6 +68,9 @@ import Lucid
     , id_
     , scope_
     )
+import Prelude hiding
+    ( id
+    )
 
 data Selected = Selected | NotSelected
 
@@ -123,7 +122,7 @@ walletElementH
     -> ListOf (AssocRow m)
 walletElementH selected ApiWallet{..} attrs =
     field attrs (selectedName selected $ toText $ getApiT name) $ do
-        record Nothing Full Striped  $ do
+        record Nothing Full Striped $ do
             simpleField "id" $ toTextHtml $ getApiT id
             simpleField "state" $ toHtml $ renderState state
             simpleField "balance" $ renderBalance balance

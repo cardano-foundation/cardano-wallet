@@ -29,8 +29,6 @@ module Data.X509.Extra
     , module Data.X509.Validation
     ) where
 
-import Prelude
-
 import Control.Exception
     ( bracketOnError
     )
@@ -100,6 +98,7 @@ import System.IO
     ( hClose
     , openBinaryTempFile
     )
+import Prelude
 
 import qualified Crypto.PubKey.RSA.Types as RSA
 import qualified Data.ByteString as BS

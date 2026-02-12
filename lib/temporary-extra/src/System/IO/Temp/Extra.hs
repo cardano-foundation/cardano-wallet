@@ -10,10 +10,6 @@ module System.IO.Temp.Extra
     , TempDirLog (..)
     ) where
 
-import qualified Data.Text as T
-
-import Prelude
-
 import Cardano.BM.Extra
     ( BracketLog
     , BracketLog' (BracketStart)
@@ -42,6 +38,9 @@ import UnliftIO
     , MonadUnliftIO
     , withTempDirectory
     )
+import Prelude
+
+import qualified Data.Text as T
 
 newtype SkipCleanup = SkipCleanup Bool
     deriving stock (Show, Eq)

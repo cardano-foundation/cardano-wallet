@@ -25,8 +25,6 @@ module Cardano.Wallet.Read.Block.Gen.Build
     )
 where
 
-import Prelude
-
 import Cardano.Ledger.Address
     ( serialiseAddr
     )
@@ -134,9 +132,10 @@ import Test.QuickCheck.Gen
 import Test.QuickCheck.Random
     ( mkQCGen
     )
+import Prelude
 
-import qualified Cardano.Wallet.Read.Hash as Hash
-import qualified Data.ByteString.Char8 as B8
+import Cardano.Wallet.Read.Hash qualified as Hash
+import Data.ByteString.Char8 qualified as B8
 
 -- | DSL for building a tx
 data TxBuild a where
@@ -219,7 +218,8 @@ mkChainM genAddress c =
 
 -- | Current block parameters together with the field lens to the current era
 -- from every EraFun
-data CurrentBlockParameters = forall era.
+data CurrentBlockParameters
+    = forall era.
       IsEra era =>
     CurrentBlockParameters
     { _currentBlockValue :: BlockParameters era
@@ -272,7 +272,8 @@ interpretChainF m genAddress blockNo ml = do
                 $ Just
                 $ CurrentBlockParameters
                 $ over txsL (newTx :) bp
-    produce :: CurrentBlockParameters -> WriterT (Endo [ConsensusBlock]) m ()
+    produce
+        :: CurrentBlockParameters -> WriterT (Endo [ConsensusBlock]) m ()
     produce (CurrentBlockParameters bp) =
         tell $ Endo $ (:) $ toConsensusBlock $ mkBlockEra bp
     newBlock
@@ -300,7 +301,8 @@ interpretChainF m genAddress blockNo ml = do
 mkTx :: Monad m => IsEra era => TxF m b -> m (Tx era)
 mkTx = fmap (mkTxEra . mkTxParameters) . go --  . go
   where
-    go :: Monad m => TxF m b -> m [Either (Index, TxId) (Address, Lovelace)]
+    go
+        :: Monad m => TxF m b -> m [Either (Index, TxId) (Address, Lovelace)]
     go m = do
         r <- viewT m
         case r of
@@ -309,7 +311,8 @@ mkTx = fmap (mkTxEra . mkTxParameters) . go --  . go
             Output addr val :>>= next -> (Right (addr, val) :) <$> go (next ())
 
 -- | Partition input and outputs into a 'TxParameters'
-mkTxParameters :: [Either (Index, TxId) (Address, Lovelace)] -> TxParameters
+mkTxParameters
+    :: [Either (Index, TxId) (Address, Lovelace)] -> TxParameters
 mkTxParameters xs =
     let
         (ins, outs) = partitionEithers xs
@@ -389,13 +392,14 @@ exampleChainF = do
 
 -- Generate an invalid (not an hash) txid from a char
 txid :: Char -> TxId
-txid = txIdFromHash . fromJust . Hash.hashFromBytes . B8.pack . replicate 32
+txid =
+    txIdFromHash . fromJust . Hash.hashFromBytes . B8.pack . replicate 32
 
 -- Generate a random invalid txid
 genTxId :: Gen TxId
 genTxId =
     txIdFromHash . fromJust . Hash.hashFromBytes . B8.pack
-    <$> replicateM 32 (choose ('a', 'z'))
+        <$> replicateM 32 (choose ('a', 'z'))
 
 -- an infinite list of example blocks computed out of repeating the 'exampleChainF'
 exampleBlocks :: [ConsensusBlock]

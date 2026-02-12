@@ -1,16 +1,13 @@
 {-# LANGUAGE FlexibleContexts #-}
-
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
 
-{- |
-Copyright: © 2024 Cardano Foundation
-License: Apache-2.0
-
-Execute SQL statements for typed database tables.
--}
+-- |
+-- Copyright: © 2024 Cardano Foundation
+-- License: Apache-2.0
+--
+-- Execute SQL statements for typed database tables.
 module Database.Table.SQLite.Simple.Exec
-    (
-    -- * SQL statements
+    ( -- * SQL statements
       createTable
     , selectAll
     , selectWhere
@@ -22,8 +19,6 @@ module Database.Table.SQLite.Simple.Exec
     , Update
     , (=.)
     ) where
-
-import Prelude
 
 import Data.Foldable
     ( for_
@@ -42,6 +37,7 @@ import Database.Table.SQLite.Simple.Monad
     ( SqlM
     , rawSqlite
     )
+import Prelude
 
 import qualified Data.Map.Strict as Map
 import qualified Database.SQLite.Simple as Sqlite
@@ -62,7 +58,7 @@ renderStmt stmt =
 
 toNamedParams :: Var.Bindings -> [Sqlite.NamedParam]
 toNamedParams bindings = do
-    (k,v) <- Map.toList bindings
+    (k, v) <- Map.toList bindings
     [Var.renderVarName k Sqlite.:= v]
 
 -- | Query that does not contain any variable bindings.
@@ -103,7 +99,8 @@ createTable = execute_ . Stmt.createTable
 selectAll :: IsTableSql t => proxy t -> SqlM [Row t]
 selectAll = query_ . Stmt.selectAll
 
-selectWhere :: IsTableSql t => Expr.Expr Bool -> proxy t -> SqlM [Row t]
+selectWhere
+    :: IsTableSql t => Expr.Expr Bool -> proxy t -> SqlM [Row t]
 selectWhere expr = queryNamed . Stmt.selectWhere expr
 
 insertOne :: IsTableSql t => Row t -> proxy t -> SqlM ()

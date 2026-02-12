@@ -8,8 +8,6 @@ module Cardano.Wallet.Primitive.Types.DecentralizationLevel
     )
 where
 
-import Prelude
-
 import Control.DeepSeq
     ( NFData
     )
@@ -22,6 +20,7 @@ import Fmt
 import GHC.Generics
     ( Generic
     )
+import Prelude
 
 import qualified Data.Percentage as Percentage
 

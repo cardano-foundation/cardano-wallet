@@ -4,7 +4,7 @@
 module Cardano.Wallet.Address.Keys.BoundedAddressLength
     ( maxLengthAddressFor
     )
-    where
+where
 
 import Cardano.Wallet.Address.Constants
     ( maxLengthAddressForByron

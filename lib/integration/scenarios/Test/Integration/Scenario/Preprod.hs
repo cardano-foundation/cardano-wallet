@@ -19,11 +19,6 @@
 
 module Test.Integration.Scenario.Preprod where
 
-import Prelude
-
-import qualified Cardano.Wallet.Api.Link as Link
-import qualified Network.HTTP.Types.Status as HTTP
-
 import Cardano.Wallet.Api.Types
     ( ApiT (..)
     , ApiTransaction
@@ -97,8 +92,12 @@ import Test.Integration.Framework.DSL
 import Test.Integration.Framework.Preprod
     ( fixturePreprodWallets
     )
+import Prelude
 
-spec :: forall n . HasSNetworkId n => SpecWith Context
+import qualified Cardano.Wallet.Api.Link as Link
+import qualified Network.HTTP.Types.Status as HTTP
+
+spec :: forall n. HasSNetworkId n => SpecWith Context
 spec = do
     describe "transactions" $ do
         it "simple transaction (TRANS_CREATE_01x)" $ \ctx -> do
@@ -170,23 +169,27 @@ spec = do
         describe "list" $ do
             let listPools :: Context -> Maybe Coin -> IO [StakePool]
                 listPools ctx stake = do
-                    r <- request @[ApiT StakePool] @IO ctx
-                        (Link.listStakePools stake) Default Empty
+                    r <-
+                        request @[ApiT StakePool] @IO
+                            ctx
+                            (Link.listStakePools stake)
+                            Default
+                            Empty
                     expectResponseCode HTTP.status200 r
                     return $ map getApiT $ getResponse r
             let expectOr True _ = pure ()
                 expectOr False msg = expectationFailure msg
             let arbitraryStake = Just $ Coin 1_000_000_000
             it "some have non-zero rewards, stake, producedBlocks, saturation" $ \ctx -> do
-                pools  <- listPools ctx arbitraryStake
-                let rewards
-                        = view (#metrics . #nonMyopicMemberRewards . #getQuantity)
-                let relativeStake
-                        = view (#metrics . #relativeStake . #getQuantity . #toRational)
-                let producedBlocks
-                        = view (#metrics . #producedBlocks . #getQuantity)
-                let saturation
-                        = view (#metrics . #saturation)
+                pools <- listPools ctx arbitraryStake
+                let rewards =
+                        view (#metrics . #nonMyopicMemberRewards . #getQuantity)
+                let relativeStake =
+                        view (#metrics . #relativeStake . #getQuantity . #toRational)
+                let producedBlocks =
+                        view (#metrics . #producedBlocks . #getQuantity)
+                let saturation =
+                        view (#metrics . #saturation)
                 counterexample (show pools) $ do
                     any (\p -> rewards p > 0) pools
                         `expectOr` "some pools should have non-zero rewards"
@@ -199,7 +202,7 @@ spec = do
 
             it "some have metadata" $ \ctx -> do
                 pendingWith "metadata fetching not configured; could be enabled"
-                pools  <- listPools ctx arbitraryStake
+                pools <- listPools ctx arbitraryStake
                 any (isJust . view #metadata) pools
                     `expectOr` "some pools should have metadata"
   where
@@ -230,7 +233,8 @@ spec = do
             }|]
 
     -- For preprod a slightly longer timeout of 5 min is useful
-    eventually = eventuallyUsingDelay
+    eventually =
+        eventuallyUsingDelay
             (10 * s)
             300 -- already in s
       where

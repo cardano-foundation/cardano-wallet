@@ -8,12 +8,9 @@
 -- License: Apache-2.0
 --
 -- Logging functionality for the Shelley wallet
---
 module Cardano.Wallet.Api.Http.Logging
-    ( ApiApplicationLog(..)
+    ( ApiApplicationLog (..)
     ) where
-
-import Prelude
 
 import Cardano.BM.Data.Tracer
     ( getSeverityAnnotation
@@ -39,6 +36,7 @@ import Network.URI
     ( URI
     , uriToString
     )
+import Prelude
 
 import qualified Data.Text as T
 
@@ -55,12 +53,13 @@ instance ToText ApiApplicationLog where
             "Wallet backend server starting. Using " <> toText conn <> "."
         MsgNetworkName network ->
             "Node is Haskell Node on " <> network <> "."
-        MsgFailedConnectSMASH uri -> T.unwords
-            [ "Failed connect to the given smash server\
-              \ or validate a healthy status."
-            , "SMASH uri was: "
-            , T.pack $ uriToString id uri ""
-            ]
+        MsgFailedConnectSMASH uri ->
+            T.unwords
+                [ "Failed connect to the given smash server\
+                  \ or validate a healthy status."
+                , "SMASH uri was: "
+                , T.pack $ uriToString id uri ""
+                ]
 
 instance HasPrivacyAnnotation ApiApplicationLog
 instance HasSeverityAnnotation ApiApplicationLog where

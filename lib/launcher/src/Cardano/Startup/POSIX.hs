@@ -10,8 +10,6 @@ module Cardano.Startup.POSIX
     , interruptProcess
     ) where
 
-import Prelude
-
 import Control.Monad
     ( void
     )
@@ -38,6 +36,7 @@ import System.Posix.Signals
 import System.Process
     ( Pid
     )
+import Prelude
 
 -- | Convert any SIGTERM received to SIGINT, for which the runtime system has
 -- handlers that will correctly clean up sub-processes.

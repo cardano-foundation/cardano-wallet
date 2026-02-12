@@ -22,24 +22,18 @@ module Internal.Cardano.Write.Eras
     ( Babbage
     , Conway
     , LatestLedgerEra
-
     , RecentEra (..)
     , IsRecentEra (..)
     , CardanoApiEra
     , MaybeInRecentEra (..)
     , RecentEraConstraints
-
     , AnyRecentEra (..)
     , allRecentEras
-
     , InAnyRecentEra (..)
     , toInAnyRecentEra
-
     , cardanoEraFromRecentEra
     , shelleyBasedEraFromRecentEra
     ) where
-
-import Prelude
 
 import Cardano.Ledger.Allegra.Scripts
     ( AllegraEraScript
@@ -72,7 +66,8 @@ import Data.Function
     ( on
     )
 import Data.Generics.Labels
-    ()
+    (
+    )
 import Data.Kind
     ( Type
     )
@@ -90,6 +85,7 @@ import Data.Type.Equality
 import Data.Typeable
     ( Typeable
     )
+import Prelude
 
 import qualified Cardano.Api as CardanoApi
 import qualified Cardano.Api.Shelley as CardanoApi
@@ -178,7 +174,9 @@ class
     , CardanoApi.ShelleyLedgerEra (CardanoApiEra era) ~ era
     , Typeable era
     , RecentEraConstraints era
-    ) => IsRecentEra era where
+    ) =>
+    IsRecentEra era
+    where
     recentEra :: RecentEra era
 
 -- | Convenient constraints. Constraints may be dropped as we move to new eras.
@@ -228,17 +226,19 @@ data MaybeInRecentEra (thing :: Type -> Type)
     | InRecentEraBabbage (thing Babbage)
     | InRecentEraConway (thing Conway)
 
-deriving instance (Eq (a Babbage), (Eq (a Conway)))
+deriving instance
+    (Eq (a Babbage), (Eq (a Conway)))
     => Eq (MaybeInRecentEra a)
-deriving instance (Show (a Babbage), (Show (a Conway)))
+deriving instance
+    (Show (a Babbage), (Show (a Conway)))
     => Show (MaybeInRecentEra a)
 
 -- | An existential type like 'AnyCardanoEra', but for 'RecentEra'.
 data AnyRecentEra where
     AnyRecentEra
         :: IsRecentEra era -- Provide class constraint
-        => RecentEra era   -- and explicit value.
-        -> AnyRecentEra    -- and that's it.
+        => RecentEra era -- and explicit value.
+        -> AnyRecentEra -- and that's it.
 
 instance Enum AnyRecentEra where
     -- NOTE: We're not starting at 0! 0 would be Byron, which is not a recent
@@ -246,10 +246,13 @@ instance Enum AnyRecentEra where
     fromEnum = fromEnum . toAnyCardanoEra
     toEnum n = fromMaybe err . fromAnyCardanoEra $ toEnum n
       where
-        err = error $ unwords
-            [ "AnyRecentEra.toEnum:", show n
-            , "doesn't correspond to a recent era."
-            ]
+        err =
+            error
+                $ unwords
+                    [ "AnyRecentEra.toEnum:"
+                    , show n
+                    , "doesn't correspond to a recent era."
+                    ]
 
 instance Bounded AnyRecentEra where
     minBound = AnyRecentEra RecentEraBabbage
@@ -266,7 +269,6 @@ instance Eq AnyRecentEra where
         isJust $ testEquality e1 e2
 
 -- | The complete set of recent eras.
---
 allRecentEras :: Set AnyRecentEra
 allRecentEras = Set.fromList [minBound .. maxBound]
 
@@ -274,8 +276,11 @@ data InAnyRecentEra thing
     = InConway (thing Conway)
     | InBabbage (thing Babbage)
 
-deriving instance (Show (thing Conway), (Show (thing Babbage))) => Show (InAnyRecentEra thing)
-deriving instance (Eq (thing Conway), (Eq (thing Babbage))) => Eq (InAnyRecentEra thing)
+deriving instance
+    (Show (thing Conway), (Show (thing Babbage)))
+    => Show (InAnyRecentEra thing)
+deriving instance
+    (Eq (thing Conway), (Eq (thing Babbage))) => Eq (InAnyRecentEra thing)
 
 toInAnyRecentEra
     :: forall era thing. IsRecentEra era => thing era -> InAnyRecentEra thing
@@ -286,8 +291,10 @@ toInAnyRecentEra thing = case recentEra @era of
 --------------------------------------------------------------------------------
 -- Cardano.Api compatibility
 --------------------------------------------------------------------------------
+
 -- | Type family for converting to "Cardano.Api" eras.
 type family CardanoApiEra era = cardanoApiEra | cardanoApiEra -> era
+
 type instance CardanoApiEra Babbage = CardanoApi.BabbageEra
 type instance CardanoApiEra Conway = CardanoApi.ConwayEra
 

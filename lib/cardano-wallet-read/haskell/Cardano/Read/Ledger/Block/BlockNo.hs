@@ -16,8 +16,6 @@ module Cardano.Read.Ledger.Block.BlockNo
     , prettyBlockNo
     ) where
 
-import Prelude
-
 import Cardano.Read.Ledger.Block.BHeader
     ( BHeader (..)
     )
@@ -38,12 +36,15 @@ import Ouroboros.Consensus.Shelley.Protocol.Abstract
     ( pHeaderBlock
     )
 import Ouroboros.Consensus.Shelley.Protocol.Praos
-    ()
+    (
+    )
 import Ouroboros.Consensus.Shelley.Protocol.TPraos
-    ()
+    (
+    )
+import Prelude
 
-import qualified Data.Text as T
-import qualified Ouroboros.Network.Block as O
+import Data.Text qualified as T
+import Ouroboros.Network.Block qualified as O
 
 {-# INLINEABLE getEraBlockNo #-}
 

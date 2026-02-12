@@ -31,8 +31,6 @@ module Cardano.Wallet.UI.Common.Html.Pages.Lib
     )
 where
 
-import Prelude
-
 import Cardano.Wallet.UI.Common.Html.Htmx
     ( hxExt_
     , hxGet_
@@ -82,6 +80,7 @@ import Servant
 import Text.Printf
     ( printf
     )
+import Prelude
 
 import qualified Data.Text as T
 

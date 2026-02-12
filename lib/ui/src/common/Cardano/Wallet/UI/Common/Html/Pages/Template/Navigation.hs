@@ -6,8 +6,6 @@ module Cardano.Wallet.UI.Common.Html.Pages.Template.Navigation
     )
 where
 
-import Prelude
-
 import Cardano.Wallet.UI.Common.Html.Lib
     ( linkText
     )
@@ -42,6 +40,7 @@ import Lucid
 import Servant
     ( Link
     )
+import Prelude
 
 -- | Wrap a content as link tab.
 navElem

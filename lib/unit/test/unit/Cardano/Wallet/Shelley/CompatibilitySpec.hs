@@ -7,14 +7,11 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
-
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Cardano.Wallet.Shelley.CompatibilitySpec
     ( spec
     ) where
-
-import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv
@@ -113,6 +110,7 @@ import Test.QuickCheck
     , vector
     , (===)
     )
+import Prelude
 
 import qualified Cardano.Ledger.Address as SL
 import qualified Cardano.Wallet.Address.Derivation as Address.Derivation
@@ -124,34 +122,36 @@ import qualified Data.Text.Encoding as T
 
 spec :: Spec
 spec = do
-
     describe "Shelley StakeAddress" $ do
         prop "roundtrip / Mainnet" $ \x ->
             (decodeStakeAddress SMainnet . encodeStakeAddress SMainnet) x
-            ===
-            Right x
+                === Right x
 
         prop "roundtrip / Testnet" $ \x -> withSNetworkId (NTestnet 0) $ \n ->
             (decodeStakeAddress n . encodeStakeAddress n) x === Right x
 
     describe "Shelley Addresses" $ do
         prop "(Mainnet) can be deserialised by shelley ledger spec" $ \k -> do
-            let Address addr
-                    = paymentAddress @ShelleyKey @'CredFromKeyK SMainnet k
+            let Address addr =
+                    paymentAddress @ShelleyKey @'CredFromKeyK SMainnet k
             case SL.decodeAddr addr of
                 Just _ -> property True
                 Nothing -> property False
 
         prop "Shelley addresses from bech32" $ \k ->
-            let addr@(Address bytes)
-                    = paymentAddress @ShelleyKey @'CredFromKeyK SMainnet k
+            let addr@(Address bytes) =
+                    paymentAddress @ShelleyKey @'CredFromKeyK SMainnet k
             in  decodeAddress SMainnet (bech32 bytes) === Right addr
                     & counterexample (show $ bech32 bytes)
 
         prop "Shelley addresses with delegation from bech32" $ \k1 k2 ->
-            let addr@(Address bytes)
-                    = delegationAddress
-                        @ShelleyKey @'CredFromKeyK SMainnet k1 k2
+            let addr@(Address bytes) =
+                    delegationAddress
+                        @ShelleyKey
+                        @'CredFromKeyK
+                        SMainnet
+                        k1
+                        k2
             in  decodeAddress SMainnet (bech32 bytes) === Right addr
                     & counterexample (show $ bech32 bytes)
 
@@ -165,8 +165,8 @@ spec = do
                             & counterexample (show $ bech32testnet raw)
 
         prop "Byron addresses from base58" $ \k ->
-            let addr@(Address bytes)
-                    = paymentAddress @ByronKey @'CredFromKeyK SMainnet k
+            let addr@(Address bytes) =
+                    paymentAddress @ByronKey @'CredFromKeyK SMainnet k
             in  decodeAddress SMainnet (base58 bytes) === Right addr
                     & counterexample (show $ base58 bytes)
 
@@ -175,58 +175,70 @@ spec = do
         -- depth with testing here because this is already tested on
         -- cardano-addresses.
         let matrix =
-                [ ( "Byron (1)"
-                  , "37btjrVyb4KEgoGCHJ7XFaJRLBRiVuvcrQWPpp4HeaxdTxhKwQjXHNKL43\
-                    \NhXaQNa862BmxSFXZFKqPqbxRc3kCUeTRMwjJevFeCKokBG7A7num5Wh"
-                  , isRight
-                  )
-                , ( "Byron (2)"
-                  , "DdzFFzCqrht5csm2GKhnVrjzKpVHHQFNXUDhAFDyLWVY5w8ZsJRP2uhwZ\
-                    \q2CEAVzDZXYXa4GvggqYEegQsdKAKikFfrrCoHheLH2Jskr"
-                  , isRight
-                  )
-                , ( "Icarus"
-                  , "Ae2tdPwUPEYz6ExfbWubiXPB6daUuhJxikMEb4eXRp5oKZBKZwrbJ2k7EZe"
-                  , isRight
-                  )
-                , ( "Shelley (base)"
-                  , "addr1vpu5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5eg0yu80w"
-                  , isRight
-                  )
-                , ( "Shelley (stake by value)"
-                  , "addr1qdu5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5ew\
-                    \vxwdrt70qlcpeeagscasafhffqsxy36t90ldv06wqrk2q5ggg4z"
-                  , isRight
-                  )
-                , ( "Shelley (stake by pointer)"
-                  , "addr1gw2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer5ph3wczvf2x4v58t"
-                  , isRight
-                  )
-                , ( "Shelley (reward by key)"
-                  , "stake1upshvetj09hxjcm9v9jxgunjv4ehxmr0d3hkcmmvdakx7mqcjv83c"
-                  , isRight
-                  )
-                , ( "Shelley (reward by script)"
-                  , "stake17pshvetj09hxjcm9v9jxgunjv4ehxmr0d3hkcmmvdakx7mq36s8xc"
-                  , isRight
-                  )
-                , ( "Shelley (testnet 1)"
-                  , "addr_test1qpwr8l57ceql23ylyprl6qgct239lxph8clwxy5w8r4qdz8ct9uut5a\
-                    \hmxqkgwy9ecn5carsv39frsgsq09u70wmqwhqjqcjqs"
-                  , isRight
-                  )
-                , ( "Shelley (testnet 2)"
-                  , "stake_test1uru9j7w96wmanqty8zzuuf6vw3cxgj53cygq8j708hds8tsntl0j7"
-                  , isRight
-                  )
-                , ( "Malformed (1)"
-                  , "💩"
-                  , isLeft
-                  )
-                , ( "Malformed (2)"
-                  , "79467c69a9ac66280174d09d62575ba955748b21dec3b483a9469a65"
-                  , isLeft
-                  )
+                [
+                    ( "Byron (1)"
+                    , "37btjrVyb4KEgoGCHJ7XFaJRLBRiVuvcrQWPpp4HeaxdTxhKwQjXHNKL43\
+                      \NhXaQNa862BmxSFXZFKqPqbxRc3kCUeTRMwjJevFeCKokBG7A7num5Wh"
+                    , isRight
+                    )
+                ,
+                    ( "Byron (2)"
+                    , "DdzFFzCqrht5csm2GKhnVrjzKpVHHQFNXUDhAFDyLWVY5w8ZsJRP2uhwZ\
+                      \q2CEAVzDZXYXa4GvggqYEegQsdKAKikFfrrCoHheLH2Jskr"
+                    , isRight
+                    )
+                ,
+                    ( "Icarus"
+                    , "Ae2tdPwUPEYz6ExfbWubiXPB6daUuhJxikMEb4eXRp5oKZBKZwrbJ2k7EZe"
+                    , isRight
+                    )
+                ,
+                    ( "Shelley (base)"
+                    , "addr1vpu5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5eg0yu80w"
+                    , isRight
+                    )
+                ,
+                    ( "Shelley (stake by value)"
+                    , "addr1qdu5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5ew\
+                      \vxwdrt70qlcpeeagscasafhffqsxy36t90ldv06wqrk2q5ggg4z"
+                    , isRight
+                    )
+                ,
+                    ( "Shelley (stake by pointer)"
+                    , "addr1gw2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer5ph3wczvf2x4v58t"
+                    , isRight
+                    )
+                ,
+                    ( "Shelley (reward by key)"
+                    , "stake1upshvetj09hxjcm9v9jxgunjv4ehxmr0d3hkcmmvdakx7mqcjv83c"
+                    , isRight
+                    )
+                ,
+                    ( "Shelley (reward by script)"
+                    , "stake17pshvetj09hxjcm9v9jxgunjv4ehxmr0d3hkcmmvdakx7mq36s8xc"
+                    , isRight
+                    )
+                ,
+                    ( "Shelley (testnet 1)"
+                    , "addr_test1qpwr8l57ceql23ylyprl6qgct239lxph8clwxy5w8r4qdz8ct9uut5a\
+                      \hmxqkgwy9ecn5carsv39frsgsq09u70wmqwhqjqcjqs"
+                    , isRight
+                    )
+                ,
+                    ( "Shelley (testnet 2)"
+                    , "stake_test1uru9j7w96wmanqty8zzuuf6vw3cxgj53cygq8j708hds8tsntl0j7"
+                    , isRight
+                    )
+                ,
+                    ( "Malformed (1)"
+                    , "💩"
+                    , isLeft
+                    )
+                ,
+                    ( "Malformed (2)"
+                    , "79467c69a9ac66280174d09d62575ba955748b21dec3b483a9469a65"
+                    , isLeft
+                    )
                 ]
 
         forM_ matrix $ \(title, addr, predicate) ->
@@ -251,21 +263,25 @@ instance Arbitrary (ByronKey 'CredFromKeyK XPrv) where
         mnemonic <- arbitrary
         acctIx <- arbitrary
         addrIx <- arbitrary
-        pure $ Byron.unsafeGenerateKeyFromSeed (acctIx, addrIx) mnemonic mempty
+        pure
+            $ Byron.unsafeGenerateKeyFromSeed (acctIx, addrIx) mnemonic mempty
 
 instance
     ( Enum (Address.Derivation.Index derivationType depth)
     , Bounded (Address.Derivation.Index derivationType depth)
-    ) =>
-    Arbitrary (Address.Derivation.Index derivationType depth) where
+    )
+    => Arbitrary (Address.Derivation.Index derivationType depth)
+    where
     arbitrary = toEnum <$> chooseInt (0, maxIndex)
       where
-        maxIndex = fromIntegral . getIndex $
-            maxBound @(Address.Derivation.Index derivationType depth)
+        maxIndex =
+            fromIntegral . getIndex
+                $ maxBound @(Address.Derivation.Index derivationType depth)
 
-instance (KeyFlavor k, Arbitrary (k 'CredFromKeyK XPrv)) =>
-    Arbitrary (k 'CredFromKeyK XPub)
-  where
+instance
+    (KeyFlavor k, Arbitrary (k 'CredFromKeyK XPrv))
+    => Arbitrary (k 'CredFromKeyK XPub)
+    where
     shrink _ = []
     arbitrary = publicKey (keyFlavor @k) <$> arbitrary
 
@@ -273,16 +289,16 @@ instance Arbitrary SomeMnemonic where
     arbitrary = SomeMnemonic <$> genMnemonic @12
 
 genMnemonic
-    :: forall mw ent csz.
-     ( ConsistentEntropy ent mw csz
-     , EntropySize mw ~ ent
-     )
+    :: forall mw ent csz
+     . ( ConsistentEntropy ent mw csz
+       , EntropySize mw ~ ent
+       )
     => Gen (Mnemonic mw)
 genMnemonic = do
-        let n = fromIntegral (natVal $ Proxy @(EntropySize mw)) `div` 8
-        bytes <- BS.pack <$> vector n
-        let ent = unsafeMkEntropy @(EntropySize mw) bytes
-        return $ entropyToMnemonic ent
+    let n = fromIntegral (natVal $ Proxy @(EntropySize mw)) `div` 8
+    bytes <- BS.pack <$> vector n
+    let ent = unsafeMkEntropy @(EntropySize mw) bytes
+    return $ entropyToMnemonic ent
 
 instance Show XPrv where
     show _ = "<xprv>"
@@ -294,13 +310,15 @@ instance Show XPrv where
 
 bech32 :: ByteString -> Text
 bech32 = Bech32.encodeLenient hrp . Bech32.dataPartFromBytes
-  where hrp = [humanReadablePart|addr|]
+  where
+    hrp = [humanReadablePart|addr|]
 
 -- Expected bech32 encoding for testnets
 -- https://github.com/cardano-foundation/CIPs/tree/master/CIP5
 bech32testnet :: ByteString -> Text
 bech32testnet = Bech32.encodeLenient hrp . Bech32.dataPartFromBytes
-  where hrp = [humanReadablePart|addr_test|]
+  where
+    hrp = [humanReadablePart|addr_test|]
 
 base58 :: ByteString -> Text
 base58 = T.decodeUtf8 . encodeBase58 bitcoinAlphabet

@@ -3,8 +3,6 @@ module Test.Utils.Startup
     , withNoBuffering
     ) where
 
-import Prelude
-
 import Control.Monad
     ( void
     )
@@ -23,6 +21,7 @@ import UnliftIO.IO
     , stderr
     , stdout
     )
+import Prelude
 
 withLineBuffering, withNoBuffering :: MonadUnliftIO m => m a -> m a
 withLineBuffering = withBuffering LineBuffering

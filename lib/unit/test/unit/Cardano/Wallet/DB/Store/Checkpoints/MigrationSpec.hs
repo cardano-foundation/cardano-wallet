@@ -3,8 +3,6 @@
 
 module Cardano.Wallet.DB.Store.Checkpoints.MigrationSpec where
 
-import Prelude
-
 import Cardano.DB.Sqlite
     ( SqliteContext (..)
     , noAutoMigrations
@@ -61,29 +59,30 @@ import Test.Hspec
     , describe
     , it
     )
+import Prelude
 
 spec :: Spec
 spec =
     describe "migratePrologue :: Migration _ 3 4" $ do
+        it "'migrate' db sequential table"
+            $ testCanLoadAfterMigration
+                (Proxy :: Proxy (SeqState 'Mainnet ShelleyKey))
+                "api-bench/she.1ceb45b37a94c7022837b5ca14045f11a5927c65.sqlite"
 
-        it "'migrate' db sequential table" $
-            testCanLoadAfterMigration
-            (Proxy :: Proxy (SeqState 'Mainnet ShelleyKey))
-            "api-bench/she.1ceb45b37a94c7022837b5ca14045f11a5927c65.sqlite"
+        it "'migrate' db shared table"
+            $ testCanLoadAfterMigration
+                (Proxy :: Proxy (SharedState 'Mainnet SharedKey))
+                "api-bench/sha.a1d5337305630db051fac6da5f8038abf4067068.sqlite"
 
-        it "'migrate' db shared table" $
-            testCanLoadAfterMigration
-            (Proxy :: Proxy (SharedState 'Mainnet SharedKey))
-            "api-bench/sha.a1d5337305630db051fac6da5f8038abf4067068.sqlite"
-
-        it "do not 'migrate' db byron table" $
-            testCanLoadAfterMigration
-            (Proxy :: Proxy (RndState 'Mainnet))
-            "api-bench/rnd.423b423718660431ebfe9c761cd72e64ee5065ac.sqlite"
+        it "do not 'migrate' db byron table"
+            $ testCanLoadAfterMigration
+                (Proxy :: Proxy (RndState 'Mainnet))
+                "api-bench/rnd.423b423718660431ebfe9c761cd72e64ee5065ac.sqlite"
 
 -- | Test that the 'Store' can load the database after migration.
 testCanLoadAfterMigration
-    :: forall s. PersistAddressBook s
+    :: forall s
+     . PersistAddressBook s
     => Proxy s -> FilePath -> IO ()
 testCanLoadAfterMigration _ dbName = do
     Just (_ :: Prologue s) <-
@@ -99,12 +98,13 @@ withCopiedAndMigrated file action =
             (newMigrationInterface nullTracer)
             path
             migratePrologue
-        Right a <- withSqliteContextFile
-            nullTracer
-            path
-            noManualMigration
-            noAutoMigrations
-            action
+        Right a <-
+            withSqliteContextFile
+                nullTracer
+                path
+                noManualMigration
+                noAutoMigrations
+                action
         pure a
 
 withCopiedFile :: FilePath -> (FilePath -> IO a) -> IO a

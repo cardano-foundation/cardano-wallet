@@ -5,11 +5,10 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
+
 module Cardano.Wallet.DB.Store.WalletState.StoreSpec
     ( spec
     ) where
-
-import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv
@@ -84,13 +83,14 @@ import Test.Store
     ( GenDelta
     , prop_StoreUpdate
     )
+import Prelude
 
 spec :: Spec
 spec = do
     around (withDBInMemory ForeignKeysEnabled) $ do
         describe "Update" $ do
-            it "mkStoreWallet" $
-                property . prop_StoreWallet (ShelleyWallet @'Mainnet)
+            it "mkStoreWallet"
+                $ property . prop_StoreWallet (ShelleyWallet @'Mainnet)
 
 {-------------------------------------------------------------------------------
     Properties
@@ -98,7 +98,8 @@ spec = do
 prop_StoreWallet
     :: forall s
      . ( PersistAddressBook s
-       , GenState s, Eq (KeyOf s 'RootK XPrv)
+       , GenState s
+       , Eq (KeyOf s 'RootK XPrv)
        )
     => WalletFlavorS s
     -> SqliteContext

@@ -1,6 +1,5 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
-
 {-# OPTIONS_GHC -Wno-orphans #-}
 
 module Cardano.Wallet.Primitive.Types.MetadataEncryption
@@ -9,16 +8,12 @@ module Cardano.Wallet.Primitive.Types.MetadataEncryption
     , cip83EncryptMethodKey
     , cip83EncryptPayloadKey
     , cip83EncryptPayloadValue
-
     , ErrMetadataDecryption (..)
     , fromMetadataEncrypted
-
     , ErrMetadataEncryption (..)
     , toMetadataEncrypted
     )
 where
-
-import Prelude
 
 import Cardano.Api
     ( TxMetadata (..)
@@ -67,6 +62,7 @@ import Data.Text
 import Data.Word
     ( Word64
     )
+import Prelude
 
 import qualified Cryptography.Cipher.AES256CBC as AES256CBC
 import qualified Cryptography.KDF.PBKDF2 as PBKDF2
@@ -85,12 +81,13 @@ import qualified Data.Text.Encoding as T
 -- Metadata encryption/decryption config use in accordance to
 -- CIP-83.
 metadataPBKDF2Config :: PBKDF2Config SHA256
-metadataPBKDF2Config = PBKDF2Config
-    { hash = SHA256
-    , iterations = 10000
-    , keyLength = 32
-    , ivLength = 16
-    }
+metadataPBKDF2Config =
+    PBKDF2Config
+        { hash = SHA256
+        , iterations = 10000
+        , keyLength = 32
+        , ivLength = 16
+        }
 
 -- A key that identifies transaction metadata, defined in CIP-20 and used by
 -- CIP-83.
@@ -106,8 +103,8 @@ cip83EncryptPayloadKey = "msg"
 cip83EncryptPayloadValue :: Text
 cip83EncryptPayloadValue = "basic"
 
-data ErrMetadataEncryption =
-      ErrIncorrectRawMetadata
+data ErrMetadataEncryption
+    = ErrIncorrectRawMetadata
     | ErrCannotEncryptMetadata CipherError
     deriving (Show, Eq)
 
@@ -136,24 +133,26 @@ toMetadataEncrypted pwd payload saltM =
     parseMessage = \case
         TxMetaMap kvs ->
             case mapMaybe getValue kvs of
-                [ ] -> Nothing
+                [] -> Nothing
                 vs -> Just vs
         _ ->
             Nothing
       where
-        isText (TxMetaText _ ) = True
+        isText (TxMetaText _) = True
         isText _ = False
 
         valueStructure (TxMetaList txts) =
             all isText txts
         valueStructure _ = False
 
-        getValue :: (TxMetadataValue, TxMetadataValue) -> Maybe TxMetadataValue
+        getValue
+            :: (TxMetadataValue, TxMetadataValue) -> Maybe TxMetadataValue
         getValue (TxMetaText k, v) =
-            if k == cip83EncryptPayloadKey && valueStructure v then
-                Just v
-            else
-                Nothing
+            if k == cip83EncryptPayloadKey && valueStructure v
+                then
+                    Just v
+                else
+                    Nothing
         getValue _ = Nothing
 
     validKeyAndMessage :: Word64 -> TxMetadataValue -> Bool
@@ -169,11 +168,12 @@ toMetadataEncrypted pwd payload saltM =
         TxMetadata themap = payload
         filteredMap = Map.filterWithKey validKeyAndMessage themap
 
-    encryptMessage :: TxMetadataValue -> Either ErrMetadataEncryption TxMetadataValue
+    encryptMessage
+        :: TxMetadataValue -> Either ErrMetadataEncryption TxMetadataValue
     encryptMessage = \case
         TxMetaMap pairs ->
-            TxMetaMap . reverse . L.nub . reverse . concat <$>
-            mapM encryptPairIfQualifies pairs
+            TxMetaMap . reverse . L.nub . reverse . concat
+                <$> mapM encryptPairIfQualifies pairs
         _ ->
             error "encryptMessage should have TxMetaMap value"
       where
@@ -187,32 +187,38 @@ toMetadataEncrypted pwd payload saltM =
                 Right [pair]
 
         encryptValue :: TxMetadataValue -> Either CipherError ByteString
-        encryptValue
-            = AES256CBC.encrypt WithPadding secretKey iv saltM
-            . BL.toStrict
-            . Aeson.encode
-            . metadataValueToJsonNoSchema
+        encryptValue =
+            AES256CBC.encrypt WithPadding secretKey iv saltM
+                . BL.toStrict
+                . Aeson.encode
+                . metadataValueToJsonNoSchema
 
         toPair :: ByteString -> [(TxMetadataValue, TxMetadataValue)]
         toPair encryptedMessage =
-            [ (TxMetaText cip83EncryptPayloadKey, TxMetaList (toChunks encryptedMessage))
-            , (TxMetaText cip83EncryptMethodKey, TxMetaText cip83EncryptPayloadValue)
+            [
+                ( TxMetaText cip83EncryptPayloadKey
+                , TxMetaList (toChunks encryptedMessage)
+                )
+            ,
+                ( TxMetaText cip83EncryptMethodKey
+                , TxMetaText cip83EncryptPayloadValue
+                )
             ]
 
         toChunks :: ByteString -> [TxMetadataValue]
-        toChunks
-            = fmap TxMetaText
-            . T.chunksOf 64
-            . T.decodeUtf8
-            . convertToBase Base64
+        toChunks =
+            fmap TxMetaText
+                . T.chunksOf 64
+                . T.decodeUtf8
+                . convertToBase Base64
 
     updateTxMetadata :: TxMetadataValue -> TxMetadata
     updateTxMetadata v = TxMetadata (Map.insert cip20MetadataKey v themap)
       where
         TxMetadata themap = payload
 
-data ErrMetadataDecryption =
-      ErrMissingMetadataKey
+data ErrMetadataDecryption
+    = ErrMissingMetadataKey
     | ErrMissingEncryptionMethod
     | ErrMissingValidEncryptionPayload
     | ErrCannotAesonDecodePayload Text
@@ -236,89 +242,104 @@ fromMetadataEncrypted
     -> TxMetadata
     -> Either ErrMetadataDecryption TxMetadata
 fromMetadataEncrypted pwd metadata =
-   composePayload metadata >>=
-   mapM decrypt >>=
-   adjust metadata
+    composePayload metadata
+        >>= mapM decrypt
+        >>= adjust metadata
   where
     checkPresenceOfMethod value =
         let presentPair (TxMetaText k, TxMetaText v) =
                 k == cip83EncryptMethodKey && v == cip83EncryptPayloadValue
             presentPair _ = False
-        in case value of
-            TxMetaMap list -> not (any presentPair list)
-            _ -> True
+        in  case value of
+                TxMetaMap list -> not (any presentPair list)
+                _ -> True
     getEncryptedPayload value =
         let presentPair (TxMetaText k, TxMetaList _) =
                 k == cip83EncryptPayloadKey
             presentPair _ = False
-        in case value of
-            TxMetaMap list -> snd <$> filter presentPair list
-            _ -> []
+        in  case value of
+                TxMetaMap list -> snd <$> filter presentPair list
+                _ -> []
     extractTxt (TxMetaText txt) = Just txt
     extractTxt _ = Nothing
-    extractPayload (TxMetaList chunks)=
+    extractPayload (TxMetaList chunks) =
         let extractedTxts = extractTxt <$> chunks
-        in if any isNothing extractedTxts then
-            T.empty
-        else
-            -- we are sure there is not Nothing in the extractedTxts
-            foldl T.append T.empty $ fromJust <$> extractedTxts
+        in  if any isNothing extractedTxts
+                then
+                    T.empty
+                else
+                    -- we are sure there is not Nothing in the extractedTxts
+                    foldl T.append T.empty $ fromJust <$> extractedTxts
     extractPayload _ = T.empty
     composePayload (TxMetadata themap) = do
         validValue <- case Map.lookup cip20MetadataKey themap of
             Nothing -> Left ErrMissingMetadataKey
             Just v -> pure v
-        when (checkPresenceOfMethod validValue) $
-            Left ErrMissingEncryptionMethod
+        when (checkPresenceOfMethod validValue)
+            $ Left ErrMissingEncryptionMethod
         let payloads = getEncryptedPayload validValue
-        if null payloads then
-            Left ErrMissingValidEncryptionPayload
-        else do
-            let extracted = extractPayload <$> payloads
-            when (T.empty `elem` extracted) $
+        if null payloads
+            then
                 Left ErrMissingValidEncryptionPayload
-            Right extracted
+            else do
+                let extracted = extractPayload <$> payloads
+                when (T.empty `elem` extracted)
+                    $ Left ErrMissingValidEncryptionPayload
+                Right extracted
 
     decodeFromJSON =
-        first (ErrCannotAesonDecodePayload . T.pack) .
-        Aeson.eitherDecode . BL.fromStrict
+        first (ErrCannotAesonDecodePayload . T.pack)
+            . Aeson.eitherDecode
+            . BL.fromStrict
     decrypt payload = case convertFromBase Base64 (T.encodeUtf8 payload) of
         Right payloadBS ->
             case AES256CBC.getSaltFromEncrypted payloadBS of
-                     Nothing -> Left ErrMissingSalt
-                     Just salt -> do
-                         let (secretKey, iv) =
-                                 PBKDF2.generateKey metadataPBKDF2Config pwd (Just salt)
-                         decrypted <- bimap ErrCannotDecryptPayload fst
-                             (AES256CBC.decrypt WithPadding secretKey iv payloadBS)
-                         decodeFromJSON decrypted
+                Nothing -> Left ErrMissingSalt
+                Just salt -> do
+                    let (secretKey, iv) =
+                            PBKDF2.generateKey metadataPBKDF2Config pwd (Just salt)
+                    decrypted <-
+                        bimap
+                            ErrCannotDecryptPayload
+                            fst
+                            (AES256CBC.decrypt WithPadding secretKey iv payloadBS)
+                    decodeFromJSON decrypted
         Left _ ->
             Left ErrEncryptedPayloadWrongBase
 
     adjust (TxMetadata metadata') decodedElems =
-        pure $ TxMetadata $
-        Map.adjust updateMetaMap cip20MetadataKey metadata'
+        pure
+            $ TxMetadata
+            $ Map.adjust updateMetaMap cip20MetadataKey metadata'
       where
         updateElem acc@(decryptedList, list) elem' = case elem' of
             (TxMetaText k, TxMetaText v) ->
-                if k == cip83EncryptMethodKey && v == cip83EncryptPayloadValue then
-                    -- omiting this element
-                    acc
-                else
-                    (decryptedList, list ++ [elem'])
+                if k == cip83EncryptMethodKey && v == cip83EncryptPayloadValue
+                    then
+                        -- omiting this element
+                        acc
+                    else
+                        (decryptedList, list ++ [elem'])
             (TxMetaText k, v) -> case decryptedList of
                 toAdd : rest ->
-                    if k == cip83EncryptPayloadKey then
-                        (rest, list ++ [(TxMetaText k, toAdd)] )
-                    else
-                        (decryptedList, list ++ [(TxMetaText k, v)] )
-                _ -> error "we have checked already in composePayload that there is enough elements in decrypedList"
-            _ -> error "we have checked already in composePayload that there is pair (TxMetaText, something)"
+                    if k == cip83EncryptPayloadKey
+                        then
+                            (rest, list ++ [(TxMetaText k, toAdd)])
+                        else
+                            (decryptedList, list ++ [(TxMetaText k, v)])
+                _ ->
+                    error
+                        "we have checked already in composePayload that there is enough elements in decrypedList"
+            _ ->
+                error
+                    "we have checked already in composePayload that there is pair (TxMetaText, something)"
 
         updateMetaMap v = case v of
             TxMetaMap list ->
-                TxMetaMap $ snd $ L.foldl updateElem (decodedElems,[]) list
-            _ -> error "we have checked already in composePayload that there is TxMetaMap"
+                TxMetaMap $ snd $ L.foldl updateElem (decodedElems, []) list
+            _ ->
+                error
+                    "we have checked already in composePayload that there is TxMetaMap"
 
 instance ToJSON TxMetadataValue where
     toJSON = metadataValueToJsonNoSchema

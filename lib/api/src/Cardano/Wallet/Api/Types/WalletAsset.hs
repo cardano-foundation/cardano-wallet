@@ -10,13 +10,10 @@
 -- License: Apache-2.0
 --
 -- Representation of the API specification `walletAsset` type.
---
 module Cardano.Wallet.Api.Types.WalletAsset
     ( ApiWalletAsset (..)
     )
-    where
-
-import Prelude
+where
 
 import Cardano.Wallet.Api.Lib.ApiT
     ( ApiT
@@ -25,7 +22,8 @@ import Cardano.Wallet.Api.Lib.Options
     ( DefaultRecord (..)
     )
 import Cardano.Wallet.Api.Types.Primitive
-    ()
+    (
+    )
 import Control.DeepSeq
     ( NFData (..)
     )
@@ -48,6 +46,7 @@ import GHC.Generics
 import Numeric.Natural
     ( Natural
     )
+import Prelude
 
 import qualified Cardano.Wallet.Primitive.Types.AssetName as W
 import qualified Cardano.Wallet.Primitive.Types.TokenPolicyId as W
@@ -59,4 +58,4 @@ data ApiWalletAsset = ApiWalletAsset
     }
     deriving (Data, Eq, Generic, Hashable, Ord, Show, Typeable)
     deriving (FromJSON, ToJSON) via DefaultRecord ApiWalletAsset
-    deriving anyclass NFData
+    deriving anyclass (NFData)

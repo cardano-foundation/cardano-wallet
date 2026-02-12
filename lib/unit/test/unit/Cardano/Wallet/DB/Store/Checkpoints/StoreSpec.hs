@@ -3,12 +3,11 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
+
 module Cardano.Wallet.DB.Store.Checkpoints.StoreSpec
     ( spec
     , genDeltaCheckpoints
     ) where
-
-import Prelude
 
 import Cardano.DB.Sqlite
     ( ForeignKeysSetting (..)
@@ -43,7 +42,8 @@ import Cardano.Wallet.Checkpoints
     , getLatest
     )
 import Cardano.Wallet.DB.Arbitrary
-    ()
+    (
+    )
 import Cardano.Wallet.DB.Fixtures
     ( initializeWalletTable
     , withDBInMemory
@@ -86,6 +86,7 @@ import Test.QuickCheck.Monadic
     , monitor
     , run
     )
+import Prelude
 
 import qualified Data.Map.Strict as Map
 
@@ -93,39 +94,43 @@ spec :: Spec
 spec = do
     around (withDBInMemory ForeignKeysEnabled) $ do
         describe "Writing and loading" $ do
-            it "loadPrologue . insertPrologue = id  for SeqState" $
-                property . prop_prologue_load_write @(SeqState 'Mainnet ShelleyKey) id
+            it "loadPrologue . insertPrologue = id  for SeqState"
+                $ property . prop_prologue_load_write @(SeqState 'Mainnet ShelleyKey) id
 
-            it "loadPrologue . insertPrologue = id  for RndState" $
-                property . prop_prologue_load_write @(RndState 'Mainnet) id
+            it "loadPrologue . insertPrologue = id  for RndState"
+                $ property . prop_prologue_load_write @(RndState 'Mainnet) id
 
-            it "loadPrologue . insertPrologue = id  for SharedState" $
-                property . prop_prologue_load_write @(SharedState 'Mainnet SharedKey)
-                    (\s -> s { ready = Pending })
+            it "loadPrologue . insertPrologue = id  for SharedState"
+                $ property
+                    . prop_prologue_load_write @(SharedState 'Mainnet SharedKey)
+                        (\s -> s{ready = Pending})
 
 {-------------------------------------------------------------------------------
     Properties
 -------------------------------------------------------------------------------}
+
 -- | Check that writing and loading the 'Prologue' works.
 prop_prologue_load_write
-    :: forall s.
-    ( PersistAddressBook s
-    , Buildable (Prologue s)
-    )
+    :: forall s
+     . ( PersistAddressBook s
+       , Buildable (Prologue s)
+       )
     => (s -> s) -> SqliteContext -> (WalletId, s) -> Property
 prop_prologue_load_write preprocess db (wid, s) =
     monadicIO $ run (toIO setup) >> prop
   where
     toIO = runQuery db
     setup = initializeWalletTable wid
-    prop = prop_loadAfterWrite toIO (insertPrologue wid) (loadPrologue wid) pro
+    prop =
+        prop_loadAfterWrite toIO (insertPrologue wid) (loadPrologue wid) pro
     pro = getPrologue $ preprocess s
-    -- FIXME during ADP-1043: See note at 'multisigPoolAbsent'
+
+-- FIXME during ADP-1043: See note at 'multisigPoolAbsent'
 
 -- | Checks that loading a value after writing it to a database table
 -- is successful.
 prop_loadAfterWrite
-    :: ( Monad m, Buildable (f a) , Eq (f a), Applicative f )
+    :: (Monad m, Buildable (f a), Eq (f a), Applicative f)
     => (forall b. m b -> IO b)
     -- ^ Function to embed the monad in 'IO'
     -> (a -> m ())
@@ -147,19 +152,23 @@ prop_loadAfterWrite toIO writeOp loadOp a = do
 -------------------------------------------------------------------------------}
 genDeltaCheckpoints
     :: (SlotNo -> Gen a) -> Checkpoints a -> Gen (DeltaCheckpoints a)
-genDeltaCheckpoints genCheckpoint cps = frequency
-    [ (8, genPutCheckpoint)
-    , (1, pure $ RollbackTo Origin)
-    , (1, RollbackTo . At . SlotNo <$> choose (0, slotLatest))
-    , (1, RollbackTo . At . SlotNo <$> choose (slotLatest+1, slotLatest+10))
-    , (2, RestrictTo <$> genFilteredSlots)
-    , (1, pure $ RestrictTo [])
-    ]
+genDeltaCheckpoints genCheckpoint cps =
+    frequency
+        [ (8, genPutCheckpoint)
+        , (1, pure $ RollbackTo Origin)
+        , (1, RollbackTo . At . SlotNo <$> choose (0, slotLatest))
+        ,
+            ( 1
+            , RollbackTo . At . SlotNo <$> choose (slotLatest + 1, slotLatest + 10)
+            )
+        , (2, RestrictTo <$> genFilteredSlots)
+        , (1, pure $ RestrictTo [])
+        ]
   where
     slotLatest = case fst $ getLatest cps of
         Origin -> 0
         At (SlotNo s) -> s
-    genSlotNo = SlotNo . (slotLatest +) <$> choose (1,10)
+    genSlotNo = SlotNo . (slotLatest +) <$> choose (1, 10)
 
     genPutCheckpoint = do
         slotNo <- genSlotNo
@@ -174,6 +183,7 @@ genDeltaCheckpoints genCheckpoint cps = frequency
 {-------------------------------------------------------------------------------
     QuickCheck utilities
 -------------------------------------------------------------------------------}
+
 -- | Like 'assert', but allow giving a label / title before running a assertion
 assertWith :: String -> Bool -> PropertyM IO ()
 assertWith lbl condition = do

@@ -2,10 +2,6 @@
 
 module Cardano.Wallet.UI.Shelley.Html.Pages.Wallet where
 
-import Prelude hiding
-    ( id
-    )
-
 import Cardano.Wallet.Address.Discovery.Sequential
     ( AddressPoolGap (..)
     )
@@ -76,6 +72,9 @@ import Lucid
     , id_
     , li_
     , ul_
+    )
+import Prelude hiding
+    ( id
     )
 
 import qualified Data.Percentage as Percentage

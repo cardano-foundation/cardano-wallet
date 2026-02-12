@@ -1,5 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -14,14 +15,12 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
-
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-{-# LANGUAGE DeriveAnyClass #-}
-{-# LANGUAGE StandaloneDeriving #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -34,13 +33,10 @@
 --
 -- >>> db <- newMemoryDBLayer :: IO TestDBSeq
 -- >>> quickCheck $ prop_sequential db
-
 module Cardano.Wallet.DB.LayerSpec
     ( spec
     , withinCopiedFile
     ) where
-
-import Prelude
 
 import Cardano.BM.Configuration.Static
     ( defaultConfigTesting
@@ -86,7 +82,8 @@ import Cardano.Wallet.Address.Derivation.Icarus
     ( IcarusKey
     )
 import Cardano.Wallet.Address.Derivation.Shared
-    ()
+    (
+    )
 import Cardano.Wallet.Address.Derivation.SharedKey
     ( SharedKey
     )
@@ -265,7 +262,8 @@ import Data.Generics.Internal.VL.Lens
     , (^.)
     )
 import Data.Generics.Labels
-    ()
+    (
+    )
 import Data.Kind
     ( Type
     )
@@ -398,6 +396,7 @@ import UnliftIO.Temporary
     ( withSystemTempDirectory
     , withSystemTempFile
     )
+import Prelude
 
 import qualified Cardano.Wallet.Checkpoints as Checkpoints
 import qualified Cardano.Wallet.DB.Sqlite.Schema as DB
@@ -444,14 +443,18 @@ stateMachineSpec _ = describe ("State machine test (" ++ showState @s ++ ")") $ 
   where
     boot wid params = do
         (cleanup, db) <-
-            newBootDBLayerInMemory (walletFlavor @s)
+            newBootDBLayerInMemory
+                (walletFlavor @s)
                 nullTracer
                 dummyTimeInterpreter
                 wid
                 params
         pure (cleanup, db)
 
-stateMachineSpecSeq, stateMachineSpecRnd, stateMachineSpecShared :: Spec
+stateMachineSpecSeq
+    , stateMachineSpecRnd
+    , stateMachineSpecShared
+        :: Spec
 stateMachineSpecSeq =
     stateMachineSpec (Proxy @TestState)
 stateMachineSpecRnd =
@@ -460,10 +463,12 @@ stateMachineSpecShared =
     stateMachineSpec (Proxy @(SharedState 'Mainnet SharedKey))
 
 instance PaymentAddress SharedKey 'CredFromScriptK where
-    paymentAddress _ = error
-        "does not make sense for SharedKey but want to use stateMachineSpec"
-    liftPaymentAddress _ = error
-        "does not make sense for SharedKey but want to use stateMachineSpec"
+    paymentAddress _ =
+        error
+            "does not make sense for SharedKey but want to use stateMachineSpec"
+    liftPaymentAddress _ =
+        error
+            "does not make sense for SharedKey but want to use stateMachineSpec"
 
 showState :: forall (s :: Type). Typeable s => String
 showState = show (typeOf @s undefined)
@@ -475,12 +480,14 @@ withBootDBLayer
     -> (DBLayer IO TestState -> m ())
     -> m ()
 withBootDBLayer wid params f = do
-    (kill, db) <- liftIO
-        $ newBootDBLayerInMemory ShelleyWallet
-            nullTracer
-            dummyTimeInterpreter
-            wid
-            params
+    (kill, db) <-
+        liftIO
+            $ newBootDBLayerInMemory
+                ShelleyWallet
+                nullTracer
+                dummyTimeInterpreter
+                wid
+                params
     f db
     liftIO kill
 
@@ -521,7 +528,8 @@ testMetadataUpdate DBLayer{atomically, walletState} meta =
     void
         $ atomically
         $ Delta.onDBVar walletState
-        $ Delta.update $ \_ ->
+        $ Delta.update
+        $ \_ ->
             [ WalletState.UpdateInfo
                 $ WalletInfo.UpdateWalletMetadata meta
             ]
@@ -533,7 +541,8 @@ withLoggingDB = around f . beforeWith clean
   where
     f act = do
         logVar <- newTVarIO []
-        withBootDBLayerInMemory (walletFlavor @TestState)
+        withBootDBLayerInMemory
+            (walletFlavor @TestState)
             (traceInTVarIO logVar)
             dummyTimeInterpreter
             testWid
@@ -547,9 +556,13 @@ getMsgDB :: WalletDBLog -> Maybe DBLog
 getMsgDB (MsgDB msg) = Just msg
 
 shouldHaveMsgQuery :: [DBLog] -> Text -> Expectation
-shouldHaveMsgQuery msgs str = unless (any match msgs) $
-    fail $ "Did not find DB query " ++
-        T.unpack str ++ " within " ++ show msgs
+shouldHaveMsgQuery msgs str =
+    unless (any match msgs)
+        $ fail
+        $ "Did not find DB query "
+            ++ T.unpack str
+            ++ " within "
+            ++ show msgs
   where
     match = maybe False (str `T.isInfixOf`) . getMsgQuery
 
@@ -570,7 +583,7 @@ findObserveDiffs = filter isObserveDiff
 type TestState = SeqState 'Mainnet ShelleyKey
 
 fileModeSpec :: Spec
-fileModeSpec =  do
+fileModeSpec = do
     describe "Check db opening/closing" $ do
         it "Opening and closing of db works" $ do
             replicateM_ 25 $ do
@@ -580,8 +593,13 @@ fileModeSpec =  do
     describe "DBFactory" $ do
         let ti = dummyTimeInterpreter
         let withDBFactory action = withSystemTempDirectory "DBFactory" $ \dir -> do
-                dbf <- newDBFactory ShelleyWallet
-                    nullTracer defaultFieldValues ti (Just dir)
+                dbf <-
+                    newDBFactory
+                        ShelleyWallet
+                        nullTracer
+                        defaultFieldValues
+                        ti
+                        (Just dir)
                 action dir dbf
 
         let whileFileOpened delay f action = do
@@ -652,302 +670,335 @@ fileModeSpec =  do
             $ withTestDBFile (\db -> writeSomething db >> bomb) tempFilesAbsent
             `shouldThrow` isUserError
 
-    before temporaryDBFile $
-        describe "Check db reading/writing from/to file and cleaning" $ do
+    before temporaryDBFile
+        $ describe "Check db reading/writing from/to file and cleaning"
+        $ do
+            it "create and list wallet works" $ \f -> do
+                withShelleyFileBootDBLayer f $ \_ -> pure ()
+                testReopening f getWalletId' testWid
 
-        it "create and list wallet works" $ \f -> do
-            withShelleyFileBootDBLayer f $ \_ -> pure ()
-            testReopening f getWalletId' testWid
+            it "create and get private key" $ \f -> do
+                (k, h) <- withShelleyFileBootDBLayer f attachPrivateKey
+                testReopening f readPrivateKey' (Just (k, h))
 
-        it "create and get private key" $ \f -> do
-            (k, h) <- withShelleyFileBootDBLayer f attachPrivateKey
-            testReopening f readPrivateKey' (Just (k, h))
+            it "put and read tx history (Ascending)" $ \f -> do
+                withShelleyFileBootDBLayer f $ \DBLayer{atomically, putTxHistory} ->
+                    atomically $ putTxHistory testTxs
+                testReopening
+                    f
+                    ( \db' ->
+                        readTransactions' db' Ascending Range.everything Nothing
+                    )
+                    testTxs -- expected after opening db
+            it "put and read tx history (Descending)" $ \f -> do
+                withShelleyFileBootDBLayer f $ \DBLayer{atomically, putTxHistory} ->
+                    atomically $ putTxHistory testTxs
+                testReopening
+                    f
+                    ( \db' ->
+                        readTransactions' db' Descending Range.everything Nothing
+                    )
+                    (reverse testTxs) -- expected after opening db
+            describe "Golden rollback scenarios" $ do
+                let dummyHash x =
+                        Hash
+                            $ x <> BS.pack (replicate (32 - (BS.length x)) 0)
+                let dummyAddr x =
+                        Address
+                            $ x <> BS.pack (replicate (32 - (BS.length x)) 0)
 
-        it "put and read tx history (Ascending)" $ \f -> do
-            withShelleyFileBootDBLayer f $ \DBLayer{atomically, putTxHistory} ->
-                atomically $ putTxHistory testTxs
-            testReopening
-                f
-                ( \db' ->
-                    readTransactions' db' Ascending Range.everything Nothing
-                )
-                testTxs -- expected after opening db
+                let mockApply DBLayer{..} h mockTxs = do
+                        cpA <- atomically readCheckpoint
+                        let slotA = view #slotNo $ currentTip cpA
+                        let Quantity bhA = view #blockHeight $ currentTip cpA
+                        let hashA = headerHash $ currentTip cpA
+                        let fakeBlock =
+                                Block
+                                    ( BlockHeader
+                                        { slotNo = slotA + 100
+                                        , -- Increment blockHeight by steps greater than k
+                                          -- Such that old checkpoints are always pruned.
+                                          blockHeight = Quantity $ bhA + 5_000
+                                        , headerHash = h
+                                        , parentHeaderHash = Just hashA
+                                        }
+                                    )
+                                    mockTxs
+                                    mempty
+                        let (FilteredBlock{transactions = txs}, (_, cpB)) =
+                                applyBlock fakeBlock cpA
+                            epochStability = Quantity 2_160
+                            deltaPruneCheckpoints =
+                                Checkpoints.pruneCheckpoints
+                                    (view $ #currentTip . #blockHeight)
+                                    epochStability
+                                    (currentTip cpB ^. #blockHeight)
+                        let putCheckpoint cp =
+                                Delta.onDBVar walletState
+                                    $ Delta.update
+                                    $ \_ ->
+                                        let (prologue, wcp) = WalletState.fromWallet cp
+                                            slot = WalletState.getSlot wcp
+                                        in  [ WalletState.UpdateCheckpoints
+                                                [Checkpoints.PutCheckpoint slot wcp]
+                                            , WalletState.ReplacePrologue prologue
+                                            ]
 
-        it "put and read tx history (Descending)" $ \f -> do
-            withShelleyFileBootDBLayer f $ \DBLayer{atomically, putTxHistory} ->
-                atomically $ putTxHistory testTxs
-            testReopening
-                f
-                ( \db' ->
-                    readTransactions' db' Descending Range.everything Nothing
-                )
-                (reverse testTxs) -- expected after opening db
+                        atomically $ do
+                            putCheckpoint cpB
+                            putTxHistory txs
+                            Delta.onDBVar walletState
+                                $ WalletState.updateCheckpoints
+                                $ Delta.update deltaPruneCheckpoints
 
-        describe "Golden rollback scenarios" $ do
-            let dummyHash x = Hash $
-                    x <> BS.pack (replicate (32 - (BS.length x)) 0)
-            let dummyAddr x = Address $
-                    x <> BS.pack (replicate (32 - (BS.length x)) 0)
+                it
+                    "Should spend collateral inputs and create spendable collateral \
+                    \outputs if validation fails"
+                    $ \f -> withShelleyFileBootDBLayer f $ \db -> do
+                        let ourAddrs =
+                                map (\(a, s, _) -> (a, s))
+                                    $ knownAddresses (getState testCp)
+                            (addr0, addr1) = case ourAddrs of
+                                ((a0, _) : (a1, _) : _) -> (a0, a1)
+                                _ -> error "expected at least 2 known addresses"
 
-            let mockApply DBLayer{..} h mockTxs = do
-                    cpA <- atomically readCheckpoint
-                    let slotA = view #slotNo $ currentTip cpA
-                    let Quantity bhA = view #blockHeight $ currentTip cpA
-                    let hashA = headerHash $ currentTip cpA
-                    let fakeBlock = Block
-                            (BlockHeader
-                            { slotNo = slotA + 100
-                            -- Increment blockHeight by steps greater than k
-                            -- Such that old checkpoints are always pruned.
-                            , blockHeight = Quantity $ bhA + 5_000
-                            , headerHash = h
-                            , parentHeaderHash = Just hashA
-                            })
-                            mockTxs
-                            mempty
-                    let (FilteredBlock{transactions=txs}, (_,cpB)) =
-                            applyBlock fakeBlock cpA
-                        epochStability = Quantity 2_160
-                        deltaPruneCheckpoints =
-                            Checkpoints.pruneCheckpoints
-                                (view $ #currentTip . #blockHeight)
-                                epochStability
-                                (currentTip cpB ^. #blockHeight)
-                    let putCheckpoint cp =
-                              Delta.onDBVar walletState
-                            $ Delta.update $ \_ ->
-                                let (prologue, wcp) = WalletState.fromWallet cp
-                                    slot = WalletState.getSlot wcp
-                                in  [ WalletState.UpdateCheckpoints
-                                        [ Checkpoints.PutCheckpoint slot wcp ]
-                                    , WalletState.ReplacePrologue prologue
+                        ------------------------------------------------------------
+                        -- Transaction 1
+                        --
+                        -- This transaction provides initial funding for the wallet.
+                        ------------------------------------------------------------
+
+                        mockApply
+                            db
+                            (dummyHash "block1")
+                            [ Tx
+                                { txId = dummyHash "tx1"
+                                , txCBOR = Nothing
+                                , fee = Nothing
+                                , resolvedInputs =
+                                    [
+                                        ( TxIn (dummyHash "faucet") 0
+                                        , Just
+                                            $ TxOut
+                                                (dummyAddr "faucetOut1")
+                                                (coinToBundle 4)
+                                        )
+                                    ,
+                                        ( TxIn (dummyHash "faucet") 1
+                                        , Just
+                                            $ TxOut
+                                                (dummyAddr "faucetOut2")
+                                                (coinToBundle 8)
+                                        )
                                     ]
-
-                    atomically $ do
-                        putCheckpoint cpB
-                        putTxHistory txs
-                        Delta.onDBVar walletState
-                            $ WalletState.updateCheckpoints
-                            $ Delta.update deltaPruneCheckpoints
-
-            it "Should spend collateral inputs and create spendable collateral \
-                \outputs if validation fails" $
-                \f -> withShelleyFileBootDBLayer f $ \db -> do
-
-                    let ourAddrs =
-                            map (\(a,s,_) -> (a,s)) $
-                            knownAddresses (getState testCp)
-                        (addr0, addr1) = case ourAddrs of
-                            ((a0,_):(a1,_):_) -> (a0, a1)
-                            _ -> error "expected at least 2 known addresses"
-
-                    ------------------------------------------------------------
-                    -- Transaction 1
-                    --
-                    -- This transaction provides initial funding for the wallet.
-                    ------------------------------------------------------------
-
-                    mockApply db (dummyHash "block1")
-                        [ Tx
-                            { txId = dummyHash "tx1"
-                            , txCBOR = Nothing
-                            , fee = Nothing
-                            , resolvedInputs =
-                                [ ( TxIn (dummyHash "faucet") 0
-                                  , Just $ TxOut
-                                        (dummyAddr "faucetOut1")
+                                , resolvedCollateralInputs = []
+                                , outputs =
+                                    [ TxOut
+                                        addr0
                                         (coinToBundle 4)
-                                  )
-                                , ( TxIn (dummyHash "faucet") 1
-                                  , Just $ TxOut
-                                        (dummyAddr "faucetOut2")
-                                        (coinToBundle 8)
-                                  )
-                                ]
-                            , resolvedCollateralInputs = []
-                            , outputs =
-                                [ TxOut
-                                    addr0
-                                    (coinToBundle 4)
-                                , TxOut
-                                    addr1
-                                    (coinToBundle 8)
-                                ]
-                            , collateralOutput = Nothing
-                            , withdrawals = mempty
-                            , metadata = Nothing
-                            , scriptValidity = Just TxScriptValid
-                            }
-                        ]
-                    getAvailableBalance db `shouldReturn` 12 -- == (4 + 8)
-
-                    ------------------------------------------------------------
-                    -- Transaction 2
-                    --
-                    -- This transaction has a script that fails validation.
-                    -- Therefore, we should forfeit value from the collateral
-                    -- inputs, but recover value from the collateral outputs.
-                    ------------------------------------------------------------
-
-                    mockApply db (dummyHash "block2")
-                        [ Tx
-                            { txId = dummyHash "tx2"
-                            , txCBOR = Nothing
-                            , fee = Nothing
-                            , resolvedInputs =
-                                [ ( TxIn (dummyHash "tx1") 0
-                                  , Just $ TxOut
-                                        (dummyAddr "faucetOut1")
-                                        (coinToBundle 4)
-                                  )
-                                ]
-                            , resolvedCollateralInputs =
-                                [(TxIn (dummyHash "tx1") 1, Nothing)]
-                            , outputs =
-                                [ TxOut
-                                    (dummyAddr "faucetAddr2") (coinToBundle 2)
-                                , TxOut
-                                    addr1 (coinToBundle 2)
-                                ]
-                            , collateralOutput =
-                                Just $ TxOut
-                                    addr1 (coinToBundle 7)
-                            , withdrawals = mempty
-                            , metadata = Nothing
-                            , scriptValidity = Just TxScriptInvalid
-                            }
-                        ]
-                    mockApply db (dummyHash "block2a") []
-                    getTxsInLedger db `shouldReturn`
-                        -- We:
-                        -- - forfeited 8 from collateral inputs;
-                        -- - recovered 7 from collateral ouputs.
-                        -- Therefore we lost a net collateral value of (8 - 7):
-                        [ (Outgoing, 1)
-                        -- We got 12 from the faucet
-                        , (Incoming, 12)
-                        ]
-                    getAvailableBalance db `shouldReturn` 11 -- = 12 - 1
-
-                    ------------------------------------------------------------
-                    -- Transaction 3
-                    --
-                    -- This transaction uses a collateral output created in the
-                    -- previous transaction to make a payment.
-                    ------------------------------------------------------------
-
-                    mockApply db (dummyHash "block3")
-                        [ Tx
-                            { txId = dummyHash "tx3"
-                            , txCBOR = Nothing
-                            , fee = Nothing
-                            , resolvedInputs =
-                                -- Here we refer to a collateral output from
-                                -- the previous transaction.
-                                --
-                                -- Note that we refer to the sole collateral
-                                -- output by using a special index value that
-                                -- is equal to the number of ordinary outputs
-                                -- in that transaction:
-                                --
-                                [ ( TxIn (dummyHash "tx2") 2
-                                  , Just $ TxOut
+                                    , TxOut
                                         addr1
-                                        (coinToBundle 7)
-                                  )
-                                ]
-                            , resolvedCollateralInputs =
-                                []
-                            , outputs =
-                                [ TxOut
-                                    (dummyAddr "faucetAddr2") (coinToBundle 8)
-                                ]
-                            , collateralOutput = Nothing
-                            , withdrawals = mempty
-                            , metadata = Nothing
-                            , scriptValidity = Just TxScriptValid
-                            }
-                        ]
-                    mockApply db (dummyHash "block3a") []
-                    getAvailableBalance db `shouldReturn` 4 -- = 11 - 7
-
-            it "(Regression test #1575) - TxMetas and checkpoints should \
-               \rollback to the same place" $ \f -> do
-              withShelleyFileBootDBLayer f $ \db@DBLayer{atomically, rollbackTo, readCheckpoint} -> do
-
-                let addrs =
-                        map (\(a,_,_) -> a) $
-                        knownAddresses (getState testCp)
-                    (ourAddr, ourAddr1) = case addrs of
-                        (a0:a1:_) -> (a0, a1)
-                        _ -> error "expected at least 2 known addresses"
-
-                let mockApplyBlock1 = mockApply db (dummyHash "block1")
-                        [ Tx
-                            { txId = dummyHash "tx1"
-                            , txCBOR = Nothing
-                            , fee = Nothing
-                            , resolvedInputs =
-                                [ ( TxIn (dummyHash "faucet") 0
-                                  , Just $ TxOut
-                                        (dummyAddr "out_for_in")
-                                        (coinToBundle 4)
-                                  )
-                                ]
-                            -- TODO: (ADP-957)
-                            , resolvedCollateralInputs = []
-                            , outputs =
-                                [TxOut ourAddr (coinToBundle 4)]
-                            , collateralOutput = Nothing
-                            , withdrawals = mempty
-                            , metadata = Nothing
-                            , scriptValidity = Nothing
-                            }
-                        ]
-
-                -- Slot 1 0
-                mockApplyBlock1
-                getAvailableBalance db `shouldReturn` 4
-
-                -- Slot 200
-                mockApply db (dummyHash "block2a")
-                    [ Tx
-                        { txId = dummyHash "tx2a"
-                        , txCBOR = Nothing
-                        , fee = Nothing
-                        , resolvedInputs =
-                            [ ( TxIn (dummyHash "tx1") 0
-                                , Just $ TxOut
-                                    (dummyAddr "out_for_in")
-                                    (coinToBundle 4)
-                                )
+                                        (coinToBundle 8)
+                                    ]
+                                , collateralOutput = Nothing
+                                , withdrawals = mempty
+                                , metadata = Nothing
+                                , scriptValidity = Just TxScriptValid
+                                }
                             ]
-                        -- TODO: (ADP-957)
-                        , resolvedCollateralInputs = []
-                        , outputs =
-                            [ TxOut (dummyAddr "faucetAddr2") (coinToBundle 2)
-                            , TxOut ourAddr1 (coinToBundle 2)
+                        getAvailableBalance db `shouldReturn` 12 -- == (4 + 8)
+
+                        ------------------------------------------------------------
+                        -- Transaction 2
+                        --
+                        -- This transaction has a script that fails validation.
+                        -- Therefore, we should forfeit value from the collateral
+                        -- inputs, but recover value from the collateral outputs.
+                        ------------------------------------------------------------
+
+                        mockApply
+                            db
+                            (dummyHash "block2")
+                            [ Tx
+                                { txId = dummyHash "tx2"
+                                , txCBOR = Nothing
+                                , fee = Nothing
+                                , resolvedInputs =
+                                    [
+                                        ( TxIn (dummyHash "tx1") 0
+                                        , Just
+                                            $ TxOut
+                                                (dummyAddr "faucetOut1")
+                                                (coinToBundle 4)
+                                        )
+                                    ]
+                                , resolvedCollateralInputs =
+                                    [(TxIn (dummyHash "tx1") 1, Nothing)]
+                                , outputs =
+                                    [ TxOut
+                                        (dummyAddr "faucetAddr2")
+                                        (coinToBundle 2)
+                                    , TxOut
+                                        addr1
+                                        (coinToBundle 2)
+                                    ]
+                                , collateralOutput =
+                                    Just
+                                        $ TxOut
+                                            addr1
+                                            (coinToBundle 7)
+                                , withdrawals = mempty
+                                , metadata = Nothing
+                                , scriptValidity = Just TxScriptInvalid
+                                }
                             ]
-                        , collateralOutput = Nothing
-                        , withdrawals = mempty
-                        , metadata = Nothing
-                        , scriptValidity = Nothing
-                        }
-                    ]
+                        mockApply db (dummyHash "block2a") []
+                        getTxsInLedger db
+                            `shouldReturn`
+                            -- We:
+                            -- - forfeited 8 from collateral inputs;
+                            -- - recovered 7 from collateral ouputs.
+                            -- Therefore we lost a net collateral value of (8 - 7):
+                            [ (Outgoing, 1)
+                            , -- We got 12 from the faucet
+                              (Incoming, 12)
+                            ]
+                        getAvailableBalance db `shouldReturn` 11 -- = 12 - 1
 
-                -- Slot 300
-                mockApply db (dummyHash "block3a") []
-                getAvailableBalance db `shouldReturn` 2
-                getTxsInLedger db `shouldReturn` [(Outgoing, 2), (Incoming, 4)]
+                        ------------------------------------------------------------
+                        -- Transaction 3
+                        --
+                        -- This transaction uses a collateral output created in the
+                        -- previous transaction to make a payment.
+                        ------------------------------------------------------------
 
-                atomically . void $ rollbackTo (At $ SlotNo 200)
-                cp <- atomically readCheckpoint
-                view #slotNo (currentTip cp) `shouldBe` (SlotNo 0)
+                        mockApply
+                            db
+                            (dummyHash "block3")
+                            [ Tx
+                                { txId = dummyHash "tx3"
+                                , txCBOR = Nothing
+                                , fee = Nothing
+                                , resolvedInputs =
+                                    -- Here we refer to a collateral output from
+                                    -- the previous transaction.
+                                    --
+                                    -- Note that we refer to the sole collateral
+                                    -- output by using a special index value that
+                                    -- is equal to the number of ordinary outputs
+                                    -- in that transaction:
+                                    --
+                                    [
+                                        ( TxIn (dummyHash "tx2") 2
+                                        , Just
+                                            $ TxOut
+                                                addr1
+                                                (coinToBundle 7)
+                                        )
+                                    ]
+                                , resolvedCollateralInputs =
+                                    []
+                                , outputs =
+                                    [ TxOut
+                                        (dummyAddr "faucetAddr2")
+                                        (coinToBundle 8)
+                                    ]
+                                , collateralOutput = Nothing
+                                , withdrawals = mempty
+                                , metadata = Nothing
+                                , scriptValidity = Just TxScriptValid
+                                }
+                            ]
+                        mockApply db (dummyHash "block3a") []
+                        getAvailableBalance db `shouldReturn` 4 -- = 11 - 7
+                it
+                    "(Regression test #1575) - TxMetas and checkpoints should \
+                    \rollback to the same place"
+                    $ \f -> do
+                        withShelleyFileBootDBLayer f $ \db@DBLayer{atomically, rollbackTo, readCheckpoint} -> do
+                            let addrs =
+                                    map (\(a, _, _) -> a)
+                                        $ knownAddresses (getState testCp)
+                                (ourAddr, ourAddr1) = case addrs of
+                                    (a0 : a1 : _) -> (a0, a1)
+                                    _ -> error "expected at least 2 known addresses"
 
-                getTxsInLedger db `shouldReturn` []
+                            let mockApplyBlock1 =
+                                    mockApply
+                                        db
+                                        (dummyHash "block1")
+                                        [ Tx
+                                            { txId = dummyHash "tx1"
+                                            , txCBOR = Nothing
+                                            , fee = Nothing
+                                            , resolvedInputs =
+                                                [
+                                                    ( TxIn (dummyHash "faucet") 0
+                                                    , Just
+                                                        $ TxOut
+                                                            (dummyAddr "out_for_in")
+                                                            (coinToBundle 4)
+                                                    )
+                                                ]
+                                            , -- TODO: (ADP-957)
+                                              resolvedCollateralInputs = []
+                                            , outputs =
+                                                [TxOut ourAddr (coinToBundle 4)]
+                                            , collateralOutput = Nothing
+                                            , withdrawals = mempty
+                                            , metadata = Nothing
+                                            , scriptValidity = Nothing
+                                            }
+                                        ]
+
+                            -- Slot 1 0
+                            mockApplyBlock1
+                            getAvailableBalance db `shouldReturn` 4
+
+                            -- Slot 200
+                            mockApply
+                                db
+                                (dummyHash "block2a")
+                                [ Tx
+                                    { txId = dummyHash "tx2a"
+                                    , txCBOR = Nothing
+                                    , fee = Nothing
+                                    , resolvedInputs =
+                                        [
+                                            ( TxIn (dummyHash "tx1") 0
+                                            , Just
+                                                $ TxOut
+                                                    (dummyAddr "out_for_in")
+                                                    (coinToBundle 4)
+                                            )
+                                        ]
+                                    , -- TODO: (ADP-957)
+                                      resolvedCollateralInputs = []
+                                    , outputs =
+                                        [ TxOut (dummyAddr "faucetAddr2") (coinToBundle 2)
+                                        , TxOut ourAddr1 (coinToBundle 2)
+                                        ]
+                                    , collateralOutput = Nothing
+                                    , withdrawals = mempty
+                                    , metadata = Nothing
+                                    , scriptValidity = Nothing
+                                    }
+                                ]
+
+                            -- Slot 300
+                            mockApply db (dummyHash "block3a") []
+                            getAvailableBalance db `shouldReturn` 2
+                            getTxsInLedger db `shouldReturn` [(Outgoing, 2), (Incoming, 4)]
+
+                            atomically . void $ rollbackTo (At $ SlotNo 200)
+                            cp <- atomically readCheckpoint
+                            view #slotNo (currentTip cp) `shouldBe` (SlotNo 0)
+
+                            getTxsInLedger db `shouldReturn` []
 
     describe "random operation chunks property" $ do
-        it "realize a random batch of operations upon one db open"
+        it
+            "realize a random batch of operations upon one db open"
             (property prop_randomOpChunks)
 
 -- This property checks that executing series of wallet operations in a single
@@ -959,7 +1010,7 @@ prop_randomOpChunks
     :: (Wallet TestState, WalletMetadata)
     -> [WalletMetadata]
     -> Property
-prop_randomOpChunks (cp,meta) ops =
+prop_randomOpChunks (cp, meta) ops =
     not (null ops) ==> monadicIO (liftIO prop)
   where
     prop = do
@@ -970,8 +1021,8 @@ prop_randomOpChunks (cp,meta) ops =
             runOps ops dbM
 
             opss <- cutRandomly ops
-            forM_ opss $
-                withShelleyFileLoadedDBLayer filepath . runOps
+            forM_ opss
+                $ withShelleyFileLoadedDBLayer filepath . runOps
             withShelleyFileLoadedDBLayer filepath $ \dbF ->
                 dbF `shouldBeConsistentWith` dbM
 
@@ -982,18 +1033,20 @@ prop_randomOpChunks (cp,meta) ops =
         -> WalletMetadata
         -> IO ()
     runOp DBLayer{..} meta' =
-          atomically
-        $ Delta.onDBVar walletState
-        $ Delta.update $ \_ ->
-            [ WalletState.UpdateInfo
-                $ WalletInfo.UpdateWalletMetadata meta'
-            ]
+        atomically
+            $ Delta.onDBVar walletState
+            $ Delta.update
+            $ \_ ->
+                [ WalletState.UpdateInfo
+                    $ WalletInfo.UpdateWalletMetadata meta'
+                ]
 
     cp0 = imposeGenesisState cp
     initialDBLayerParams = DBLayerParams cp0 RestorationPointAtGenesis meta mempty gp
 
     initializeDBFile filepath =
-        withBootDBLayerFromFile (walletFlavor @TestState)
+        withBootDBLayerFromFile
+            (walletFlavor @TestState)
             nullTracer
             dummyTimeInterpreter
             testWid
@@ -1035,7 +1088,8 @@ withTestDBFile action expectations = do
     withSystemTempFile "spec.db" $ \fp h -> do
         hClose h
         removeFile fp
-        withBootDBLayerFromFile ShelleyWallet
+        withBootDBLayerFromFile
+            ShelleyWallet
             (trMessageText trace)
             ti
             testWid
@@ -1051,13 +1105,14 @@ temporaryDBFile :: IO FilePath
 temporaryDBFile = emptySystemTempFile "cardano-wallet-SqliteFileMode"
 
 defaultFieldValues :: DefaultFieldValues
-defaultFieldValues = DefaultFieldValues
-    { defaultActiveSlotCoefficient = ActiveSlotCoefficient 1.0
-    , defaultDesiredNumberOfPool = 0
-    , defaultMinimumUTxOValue = Coin 1_000_000
-    , defaultHardforkEpoch = Nothing
-    , defaultKeyDeposit = Coin 2_000_000
-    }
+defaultFieldValues =
+    DefaultFieldValues
+        { defaultActiveSlotCoefficient = ActiveSlotCoefficient 1.0
+        , defaultDesiredNumberOfPool = 0
+        , defaultMinimumUTxOValue = Coin 1_000_000
+        , defaultHardforkEpoch = Nothing
+        , defaultKeyDeposit = Coin 2_000_000
+        }
 
 -- Note: Having helper with concrete key types reduces the need
 -- for type-application everywhere.
@@ -1068,7 +1123,8 @@ withShelleyInMemoryBootDBLayer
     -> (DBLayer IO s -> IO a)
     -> IO a
 withShelleyInMemoryBootDBLayer =
-    withBootDBLayerInMemory (walletFlavor @s)
+    withBootDBLayerInMemory
+        (walletFlavor @s)
         nullTracer
         dummyTimeInterpreter
         testWid
@@ -1078,7 +1134,8 @@ withShelleyFileBootDBLayer
     -> (DBLayer IO TestState -> IO a)
     -> IO a
 withShelleyFileBootDBLayer =
-    withBootDBLayerFromFile (walletFlavor @TestState)
+    withBootDBLayerFromFile
+        (walletFlavor @TestState)
         nullTracer -- fixme: capture logging
         dummyTimeInterpreter
         testWid
@@ -1094,7 +1151,8 @@ withShelleyFileLoadedDBLayer
     -> (DBLayer IO s -> IO a)
     -> IO a
 withShelleyFileLoadedDBLayer =
-    withLoadDBLayerFromFile (walletFlavor @s)
+    withLoadDBLayerFromFile
+        (walletFlavor @s)
         nullTracer
         dummyTimeInterpreter
         testWid
@@ -1144,11 +1202,11 @@ cutRandomly = iter []
   where
     iter acc rest
         | L.length rest <= 1 =
-            pure $ L.reverse (rest:acc)
+            pure $ L.reverse (rest : acc)
         | otherwise = do
             chunksNum <- randomRIO (1, L.length rest)
             let chunk = L.take chunksNum rest
-            iter (chunk:acc) (L.drop chunksNum rest)
+            iter (chunk : acc) (L.drop chunksNum rest)
 
 {-------------------------------------------------------------------------------
     Tests about initializing the DBLayer
@@ -1157,16 +1215,18 @@ cutRandomly = iter []
 initializeDBSpec :: Spec
 initializeDBSpec = do
     describe "withBootDBLayerInMemory" $ do
-        it "Database schema version is up to date"
+        it
+            "Database schema version is up to date"
             testSchemaVersionUpToDate
 
     describe "withLoadDBLayerFromFile" $ do
-        it "can read WalletId from historical database" $
-            testWalletId "walletId-v2020-10-07.sqlite"
+        it "can read WalletId from historical database"
+            $ testWalletId "walletId-v2020-10-07.sqlite"
 
 testSchemaVersionUpToDate :: IO ()
 testSchemaVersionUpToDate =
-    withBootDBLayerInMemory ShelleyWallet
+    withBootDBLayerInMemory
+        ShelleyWallet
         nullTracer
         dummyTimeInterpreter
         testWid
@@ -1188,61 +1248,72 @@ testWalletId dbName = do
 
 manualMigrationsSpec :: Spec
 manualMigrationsSpec = describe "Manual migrations" $ do
-    it "'migrate' db with no passphrase scheme set."
+    it
+        "'migrate' db with no passphrase scheme set."
         testMigrationPassphraseScheme1
-    it "not 'migrate' db with no passphrase scheme set."
+    it
+        "not 'migrate' db with no passphrase scheme set."
         testMigrationPassphraseScheme2
-    it "not 'migrate' db with no date."
+    it
+        "not 'migrate' db with no date."
         testMigrationPassphraseScheme3
-    it "not 'migrate' db with no passphrase scheme set and no date."
+    it
+        "not 'migrate' db with no passphrase scheme set and no date."
         testMigrationPassphraseScheme4
 
-    it "'migrate' db with no 'derivation_prefix' for seq state (Icarus)" $
-        testMigrationSeqStateDerivationPrefix @IcarusKey
+    it "'migrate' db with no 'derivation_prefix' for seq state (Icarus)"
+        $ testMigrationSeqStateDerivationPrefix @IcarusKey
             "icarusDerivationPrefix-v2020-10-07.sqlite"
             ( purposeBIP44
             , coinTypeAda
             , minBound
             )
 
-    it "'migrate' db with no 'derivation_prefix' for seq state (Shelley)" $
-        testMigrationSeqStateDerivationPrefix @ShelleyKey
+    it "'migrate' db with no 'derivation_prefix' for seq state (Shelley)"
+        $ testMigrationSeqStateDerivationPrefix @ShelleyKey
             "shelleyDerivationPrefix-v2020-10-07.sqlite"
             ( purposeCIP1852
             , coinTypeAda
             , minBound
             )
 
-    it "'migrate' db with old text serialization for 'Role'" $
-        testMigrationRole
+    it "'migrate' db with old text serialization for 'Role'"
+        $ testMigrationRole
             "shelleyRole-v2020-10-13.sqlite"
 
-    it "'migrate' db with partially applied checkpoint migration" $
-        testMigrationRole
+    it "'migrate' db with partially applied checkpoint migration"
+        $ testMigrationRole
             "shelleyRole-corrupted-v2020-10-13.sqlite"
 
-    it "'migrate' db with unused protocol parameters in checkpoints" $
-        testMigrationCleanupCheckpoints
+    it "'migrate' db with unused protocol parameters in checkpoints"
+        $ testMigrationCleanupCheckpoints
             "shelleyDerivationPrefix-v2020-10-07.sqlite"
-            (GenesisParameters
-                { getGenesisBlockHash = Hash $ unsafeFromHex
-                    "5f20df933584822601f9e3f8c024eb5eb252fe8cefb24d1317dc3d432e940ebb"
+            ( GenesisParameters
+                { getGenesisBlockHash =
+                    Hash
+                        $ unsafeFromHex
+                            "5f20df933584822601f9e3f8c024eb5eb252fe8cefb24d1317dc3d432e940ebb"
                 , getGenesisBlockDate =
                     StartTime $ posixSecondsToUTCTime 1_506_203_091
                 }
             )
-            (BlockHeader
+            ( BlockHeader
                 { slotNo = SlotNo 1_125_119
                 , blockHeight = Quantity 1_124_949
-                , headerHash = Hash $ unsafeFromHex
-                    "3b309f1ca388459f0ce2c4ccca20ea646b75e6fc1447be032a41d43f209ecb50"
-                , parentHeaderHash = Just $ Hash $ unsafeFromHex
-                    "e9414e08d8c5ca177dd0cb6a9e4bf868e1ea03389c31f5f7a6b099a3bcdfdedf"
+                , headerHash =
+                    Hash
+                        $ unsafeFromHex
+                            "3b309f1ca388459f0ce2c4ccca20ea646b75e6fc1447be032a41d43f209ecb50"
+                , parentHeaderHash =
+                    Just
+                        $ Hash
+                        $ unsafeFromHex
+                            "e9414e08d8c5ca177dd0cb6a9e4bf868e1ea03389c31f5f7a6b099a3bcdfdedf"
                 }
             )
 
-    it "'migrate' db to add fees to transactions" $
-        testMigrationTxMetaFee
+    it "'migrate' db to add fees to transactions"
+        $ testMigrationTxMetaFee
             "metaFee-v2020-11-26.sqlite"
             129 -- number of transactions
 
@@ -1256,91 +1327,102 @@ manualMigrationsSpec = describe "Manual migrations" $ do
             -- - 2000000 of key deposit
             -- -  174257 of fee
             --
-            [ ( Hash $ unsafeFromHex "00058d433a73574a64d0b4a3c37f1e460697fa8f1e3265a51e95eb9e9573b5ab"
-              , Coin 174_257
-              )
+            [
+                ( Hash
+                    $ unsafeFromHex
+                        "00058d433a73574a64d0b4a3c37f1e460697fa8f1e3265a51e95eb9e9573b5ab"
+                , Coin 174_257
+                )
+            , -- This one (chosen because of its very round fee) has:
+              --
+              -- - two inputs of 1000000 each
+              -- - one output of 1000000
+              --
+              -- which gives a delta (and fee) of 1000000
 
-            -- This one (chosen because of its very round fee) has:
-            --
-            -- - two inputs of 1000000 each
-            -- - one output of 1000000
-            --
-            -- which gives a delta (and fee) of 1000000
+                ( Hash
+                    $ unsafeFromHex
+                        "8f79e7f79ddeb7a7494121259832c0180c1b6bb746d8b2337cd1f4fb5b0d8216"
+                , Coin 1_000_000
+                )
+            , -- This one (chosen for its withdrawal) has:
+              --
+              -- - one input of 909199523
+              -- - one withdrawal of 863644
+              -- - two outputs of 1000000 and 908888778
+              --
+              -- which gives a delta (and fee) of 174389
 
-            , ( Hash $ unsafeFromHex "8f79e7f79ddeb7a7494121259832c0180c1b6bb746d8b2337cd1f4fb5b0d8216"
-              , Coin 1_000_000
-              )
+                ( Hash
+                    $ unsafeFromHex
+                        "eefa06dfa8ce91237117f9b4bdc4f6970c31de54906313b545dafb7ca6235171"
+                , Coin 174_389
+                )
+            , -- This one (chosen for its high fee) has:
+              --
+              -- - one input of 997825743
+              -- - two outputs of 1000000 and 995950742
+              --
+              -- which gives a delta (and fee) of 875001
 
-            -- This one (chosen for its withdrawal) has:
-            --
-            -- - one input of 909199523
-            -- - one withdrawal of 863644
-            -- - two outputs of 1000000 and 908888778
-            --
-            -- which gives a delta (and fee) of 174389
+                ( Hash
+                    $ unsafeFromHex
+                        "8943f9fa4b56b32cd44ab9c22d46693882f0bbca1bc3f0705124e75c2e40b9c2"
+                , Coin 875_001
+                )
+            , -- This one (chosen for having many inputs and many outputs) has:
+              --
+              -- - 10 inputs:
+              --     - 1654330
+              --     - 2111100
+              --     - 2234456
+              --     - 9543345
+              --     - 1826766
+              --     - 8871831
+              --     - 3823766
+              --     - 6887025
+              --     - 1958037
+              --     - 3575522
+              --
+              -- - 10 outputs:
+              --      - 4000000
+              --      - 7574304
+              --      - 9000000
+              --      - 1000000
+              --      - 1164635
+              --      - 6752132
+              --      - 1000000
+              --      - 8596880
+              --      - 2000000
+              --      - 1707865
+              --
+              -- - 1 withdrawal:
+              --      - 565251
+              --
+              -- which gives a delta (and fee) of 255613
 
-            , ( Hash $ unsafeFromHex "eefa06dfa8ce91237117f9b4bdc4f6970c31de54906313b545dafb7ca6235171"
-              , Coin 174_389
-              )
+                ( Hash
+                    $ unsafeFromHex
+                        "99907bf6ac73f6fe6fe25bd6b68bae6776425b9d15a7c46c7a49b85b8b03f291"
+                , Coin 255_613
+                )
+            , -- This one (chosen for its high ratio input:output) has:
+              --
+              -- - 1 input of 1000000000
+              -- - 33 relatively small outputs
+              -- - 1 withdrawal of 561120
+              --
+              -- which gives a delta (and fee) of 267537
 
-            -- This one (chosen for its high fee) has:
-            --
-            -- - one input of 997825743
-            -- - two outputs of 1000000 and 995950742
-            --
-            -- which gives a delta (and fee) of 875001
-            , ( Hash $ unsafeFromHex "8943f9fa4b56b32cd44ab9c22d46693882f0bbca1bc3f0705124e75c2e40b9c2"
-              , Coin 875_001
-              )
-
-            -- This one (chosen for having many inputs and many outputs) has:
-            --
-            -- - 10 inputs:
-            --     - 1654330
-            --     - 2111100
-            --     - 2234456
-            --     - 9543345
-            --     - 1826766
-            --     - 8871831
-            --     - 3823766
-            --     - 6887025
-            --     - 1958037
-            --     - 3575522
-            --
-            -- - 10 outputs:
-            --      - 4000000
-            --      - 7574304
-            --      - 9000000
-            --      - 1000000
-            --      - 1164635
-            --      - 6752132
-            --      - 1000000
-            --      - 8596880
-            --      - 2000000
-            --      - 1707865
-            --
-            -- - 1 withdrawal:
-            --      - 565251
-            --
-            -- which gives a delta (and fee) of 255613
-            , ( Hash $ unsafeFromHex "99907bf6ac73f6fe6fe25bd6b68bae6776425b9d15a7c46c7a49b85b8b03f291"
-              , Coin 255_613
-              )
-
-            -- This one (chosen for its high ratio input:output) has:
-            --
-            -- - 1 input of 1000000000
-            -- - 33 relatively small outputs
-            -- - 1 withdrawal of 561120
-            --
-            -- which gives a delta (and fee) of 267537
-            , ( Hash $ unsafeFromHex "15940a7c1df8696279282046ebdb1ee890d4e9ac3c5d7213f360921648b36666"
-              , Coin 267_537
-              )
+                ( Hash
+                    $ unsafeFromHex
+                        "15940a7c1df8696279282046ebdb1ee890d4e9ac3c5d7213f360921648b36666"
+                , Coin 267_537
+                )
             ]
 
-    it "'migrate' db submissions encoding" $
-        testMigrationSubmissionsEncoding
+    it "'migrate' db submissions encoding"
+        $ testMigrationSubmissionsEncoding
             (unsafeFromText "204a7abf61094464572e05ef21b107b93f069853")
             "before_submission-v2022-12-14.sqlite"
 
@@ -1349,24 +1431,25 @@ manualMigrationsSpec = describe "Manual migrations" $ do
 --
 -- Useful for testing the logs and results of migrations.
 withDBLayerFromCopiedFile
-    :: forall s a.
-        ( PersistAddressBook s
-        , WalletFlavor s
-        , s ~ SeqState 'Mainnet (KeyOf s)
-        )
+    :: forall s a
+     . ( PersistAddressBook s
+       , WalletFlavor s
+       , s ~ SeqState 'Mainnet (KeyOf s)
+       )
     => FilePath
-        -- ^ Filename of the @.sqlite@ file to load.
+    -- ^ Filename of the @.sqlite@ file to load.
     -> (DBLayer IO s -> IO a)
-        -- ^ Action to run.
+    -- ^ Action to run.
     -> IO ([WalletDBLog], a)
-        -- ^ (logs, result of the action)
+    -- ^ (logs, result of the action)
 withDBLayerFromCopiedFile dbName action =
     withinCopiedFile dbName $ \path tr ->
         withTestLoadDBLayerFromFile tr dummyTimeInterpreter path action
 
 withinCopiedFile
     :: FilePath
-    -> (FilePath -> Tracer IO msg -> IO a) -> IO ([msg], a)
+    -> (FilePath -> Tracer IO msg -> IO a)
+    -> IO ([msg], a)
 withinCopiedFile dbName action = do
     let orig = $(getTestData) </> dbName
     withSystemTempDirectory "migration-db" $ \dir -> do
@@ -1381,10 +1464,16 @@ testMigrationTxMetaFee
     -> IO ()
 testMigrationTxMetaFee dbName expectedLength caseByCase = do
     (logs, result) <- withDBLayerFromCopiedFile
-            @TestState dbName
+        @TestState
+        dbName
         $ \DBLayer{..} -> atomically $ do
             readTransactions
-                Nothing Descending Range.everything Nothing Nothing Nothing
+                Nothing
+                Descending
+                Range.everything
+                Nothing
+                Nothing
+                Nothing
 
     -- Check that we've indeed logged a needed migration for 'fee'
     length (filter isMsgManualMigration logs) `shouldBe` 1
@@ -1394,7 +1483,7 @@ testMigrationTxMetaFee dbName expectedLength caseByCase = do
 
     -- Verify that all incoming transactions have no fees set, and that all
     -- outgoing ones do.
-    forM_ result $ \TransactionInfo{txInfoFee,txInfoMeta} -> do
+    forM_ result $ \TransactionInfo{txInfoFee, txInfoMeta} -> do
         case txInfoMeta ^. #direction of
             Incoming -> txInfoFee `shouldSatisfy` isNothing
             Outgoing -> txInfoFee `shouldSatisfy` isJust
@@ -1409,15 +1498,15 @@ testMigrationTxMetaFee dbName expectedLength caseByCase = do
   where
     isMsgManualMigration = matchMsgManualMigration $ \field ->
         let fieldInDB = fieldDB $ persistFieldDef DB.TxMetaFee
-        in fieldName field == unFieldNameDB fieldInDB
+        in  fieldName field == unFieldNameDB fieldInDB
 
 matchMsgManualMigration :: (DBField -> Bool) -> WalletDBLog -> Bool
 matchMsgManualMigration p = \case
     MsgDB (MsgMigrationOld (MsgManualMigrationNeeded field _)) -> p field
     MsgDB
         ( MsgMigrationOld
-            (MsgExpectedMigration (MsgManualMigrationNeeded field _))
-        ) -> p field
+                (MsgExpectedMigration (MsgManualMigrationNeeded field _))
+            ) -> p field
     _ -> False
 
 testMigrationCleanupCheckpoints
@@ -1428,11 +1517,14 @@ testMigrationCleanupCheckpoints
 testMigrationCleanupCheckpoints dbName genesisParameters tip = do
     (logs, result) <- withDBLayerFromCopiedFile @TestState dbName
         $ \DBLayer{..} -> atomically $ do
-            (,) <$> readGenesisParameters
+            (,)
+                <$> readGenesisParameters
                 <*> readCheckpoint
 
-    length (filter (isMsgManualMigration fieldGenesisHash) logs) `shouldBe` 1
-    length (filter (isMsgManualMigration fieldGenesisStart) logs) `shouldBe` 1
+    length (filter (isMsgManualMigration fieldGenesisHash) logs)
+        `shouldBe` 1
+    length (filter (isMsgManualMigration fieldGenesisStart) logs)
+        `shouldBe` 1
 
     (fst result) `shouldBe` Just genesisParameters
     currentTip (snd result) `shouldBe` tip
@@ -1459,14 +1551,14 @@ testMigrationRole dbName = do
     isMsgManualMigration :: WalletDBLog -> Bool
     isMsgManualMigration = matchMsgManualMigration $ \field ->
         let fieldInDB = fieldDB $ persistFieldDef DB.SeqStateAddressRole
-        in fieldName field == unFieldNameDB fieldInDB
+        in  fieldName field == unFieldNameDB fieldInDB
 
 testMigrationSeqStateDerivationPrefix
-    :: forall k s.
-        ( s ~ SeqState 'Mainnet k
-        , PersistAddressBook s
-        , WalletFlavor s
-        )
+    :: forall k s
+     . ( s ~ SeqState 'Mainnet k
+       , PersistAddressBook s
+       , WalletFlavor s
+       )
     => String
     -> ( Index 'Hardened 'PurposeK
        , Index 'Hardened 'CoinTypeK
@@ -1483,7 +1575,7 @@ testMigrationSeqStateDerivationPrefix dbName prefix = do
   where
     isMsgManualMigration = matchMsgManualMigration $ \field ->
         let fieldInDB = fieldDB $ persistFieldDef DB.SeqStateDerivationPrefix
-        in fieldName field == unFieldNameDB fieldInDB
+        in  fieldName field == unFieldNameDB fieldInDB
 
 inspectMeta :: DBLayer m s -> m WalletMetadata
 inspectMeta DBLayer{..} = atomically (readWalletMeta walletState)
@@ -1493,46 +1585,53 @@ testMigrationPassphraseScheme1 = do
     -- The first wallet is stored in the database with only a
     -- 'passphraseLastUpdatedAt' field, but no 'passphraseScheme'. So,
     -- after the migration, both should now be `Just`.
-    (logs, a) <- withDBLayerFromCopiedFile @TestState
-        "passphraseScheme/she.17ca0ed41a372e483f2968aa386a4b6b0ca6b5ee.sqlite"
-        inspectMeta
+    (logs, a) <-
+        withDBLayerFromCopiedFile @TestState
+            "passphraseScheme/she.17ca0ed41a372e483f2968aa386a4b6b0ca6b5ee.sqlite"
+            inspectMeta
 
     -- Migration is visible from the logs
     let migrationMsg = filter isMsgManualMigrationPw logs
     length migrationMsg `shouldBe` 1
-    (passphraseScheme <$> passphraseInfo a) `shouldBe` Just EncryptWithPBKDF2
+    (passphraseScheme <$> passphraseInfo a)
+        `shouldBe` Just EncryptWithPBKDF2
 
 testMigrationPassphraseScheme2 :: IO ()
 testMigrationPassphraseScheme2 = do
     -- The second wallet was just fine and already has a passphrase
     -- scheme set to use PBKDF2. Nothing should have changed.
-    (logs, a) <- withDBLayerFromCopiedFile @TestState
-        "passphraseScheme/she.2e8353d2bb937445948669a1dcc69ec9628a558c.sqlite"
-        inspectMeta
+    (logs, a) <-
+        withDBLayerFromCopiedFile @TestState
+            "passphraseScheme/she.2e8353d2bb937445948669a1dcc69ec9628a558c.sqlite"
+            inspectMeta
 
     let migrationMsg = filter isMsgManualMigrationPw logs
     length migrationMsg `shouldBe` 1
-    (passphraseScheme <$> passphraseInfo a) `shouldBe` Just EncryptWithPBKDF2
+    (passphraseScheme <$> passphraseInfo a)
+        `shouldBe` Just EncryptWithPBKDF2
 
 testMigrationPassphraseScheme3 :: IO ()
 testMigrationPassphraseScheme3 = do
     -- The third wallet had a scheme too, but was using the legacy
     -- scheme. Nothing should have changed.
-    (logs, a) <- withDBLayerFromCopiedFile @TestState
-        "passphraseScheme/she.899abf7137aa8b3200d55d70474f6fdd2649fa2f.sqlite"
-        inspectMeta
+    (logs, a) <-
+        withDBLayerFromCopiedFile @TestState
+            "passphraseScheme/she.899abf7137aa8b3200d55d70474f6fdd2649fa2f.sqlite"
+            inspectMeta
 
     let migrationMsg = filter isMsgManualMigrationPw logs
     length migrationMsg `shouldBe` 1
-    (passphraseScheme <$> passphraseInfo a) `shouldBe` Just EncryptWithScrypt
+    (passphraseScheme <$> passphraseInfo a)
+        `shouldBe` Just EncryptWithScrypt
 
 testMigrationPassphraseScheme4 :: IO ()
 testMigrationPassphraseScheme4 = do
     -- The last wallet had no passphrase whatsoever (restored from
     -- account public key), so it should still have NO scheme.
-    (logs, a ) <- withDBLayerFromCopiedFile @TestState
-        "passphraseScheme/she.be92ab4ec9399449e53b94378e6cb6724691f8b3.sqlite"
-        inspectMeta
+    (logs, a) <-
+        withDBLayerFromCopiedFile @TestState
+            "passphraseScheme/she.be92ab4ec9399449e53b94378e6cb6724691f8b3.sqlite"
+            inspectMeta
 
     let migrationMsg = filter isMsgManualMigrationPw logs
     length migrationMsg `shouldBe` 1
@@ -1544,7 +1643,8 @@ isMsgManualMigrationPw = matchMsgManualMigration $ \field ->
     in  fieldName field == unFieldNameDB fieldInDB
 
 localTxSubmissionTableExists :: Text
-localTxSubmissionTableExists = [i|
+localTxSubmissionTableExists =
+    [i|
     SELECT EXISTS (
         SELECT
             name
@@ -1560,56 +1660,60 @@ testMigrationSubmissionsEncoding
     :: WalletId -> FilePath -> IO ()
 testMigrationSubmissionsEncoding wid dbName = do
     let performMigrations path =
-          withLoadDBLayerFromFile ShelleyWallet
-            nullTracer
-            dummyTimeInterpreter
-            wid
-            (Just defaultFieldValues)
-            path
-            $ \(_ :: DBLayer IO TestState) -> pure ()
+            withLoadDBLayerFromFile
+                ShelleyWallet
+                nullTracer
+                dummyTimeInterpreter
+                wid
+                (Just defaultFieldValues)
+                path
+                $ \(_ :: DBLayer IO TestState) -> pure ()
         testOnCopiedAndMigrated test = fmap snd
-            $ withinCopiedFile dbName $ \path _  -> do
+            $ withinCopiedFile dbName
+            $ \path _ -> do
                 performMigrations path
                 test path
     testOnCopiedAndMigrated testAllPresentTxIdsAreInLedger
     testOnCopiedAndMigrated allTransactionDataIsRepresentedInTxMeta
     testOnCopiedAndMigrated testLocalTxSubmissionIsMissing
+  where
+    testLocalTxSubmissionIsMissing path = do
+        [Single (count :: Int)] <-
+            Sqlite.runSqlite (T.pack path)
+                $ Sqlite.rawSql localTxSubmissionTableExists []
+        count `shouldBe` 0
+        pure ()
 
-    where
-
-        testLocalTxSubmissionIsMissing path = do
-            [Single (count :: Int)] <- Sqlite.runSqlite (T.pack path) $
-                    Sqlite.rawSql localTxSubmissionTableExists []
-            count `shouldBe` 0
-            pure ()
-
-        allTransactionDataIsRepresentedInTxMeta path = do
-            let idOf = unSingle @DB.TxId
-                selectIds t = fmap idOf
+    allTransactionDataIsRepresentedInTxMeta path = do
+        let idOf = unSingle @DB.TxId
+            selectIds t =
+                fmap idOf
                     <$> Sqlite.rawSql ("SELECT tx_id FROM " <> t) []
-                runQuery = Sqlite.runSqlite (T.pack path)
-                shouldBe' mtxs t   = do
-                    txs <- runQuery $ selectIds t
-                    liftIO $
-                        Set.fromList txs `shouldSatisfy`
-                            \x -> x `Set.isSubsetOf` (Set.fromList mtxs)
-            metaIds  <-  runQuery $ selectIds "tx_meta"
-            mapM_ (shouldBe' metaIds)
-                [ "tx_in"
-                , "tx_collateral"
-                , "tx_out"
-                , "tx_out_token"
-                , "tx_collateral_out"
-                , "tx_collateral_out_token"
-                , "tx_withdrawal"
-                , "c_b_o_r"
-                ]
+            runQuery = Sqlite.runSqlite (T.pack path)
+            shouldBe' mtxs t = do
+                txs <- runQuery $ selectIds t
+                liftIO
+                    $ Set.fromList txs
+                    `shouldSatisfy` \x -> x `Set.isSubsetOf` (Set.fromList mtxs)
+        metaIds <- runQuery $ selectIds "tx_meta"
+        mapM_
+            (shouldBe' metaIds)
+            [ "tx_in"
+            , "tx_collateral"
+            , "tx_out"
+            , "tx_out_token"
+            , "tx_collateral_out"
+            , "tx_collateral_out_token"
+            , "tx_withdrawal"
+            , "c_b_o_r"
+            ]
 
-        testAllPresentTxIdsAreInLedger path = do
-            metas <- Sqlite.runSqlite (T.pack path)
+    testAllPresentTxIdsAreInLedger path = do
+        metas <-
+            Sqlite.runSqlite (T.pack path)
                 $ Sqlite.rawSql "SELECT status FROM tx_meta" []
-            forM_ metas $ \(Single status) ->
-                status `shouldBe` ("in_ledger" :: Text)
+        forM_ metas $ \(Single status) ->
+            status `shouldBe` ("in_ledger" :: Text)
 
 {-------------------------------------------------------------------------------
                                    Test data
@@ -1622,81 +1726,92 @@ testCp :: Wallet TestState
 testCp = snd $ initWallet block0 initDummyState
   where
     initDummyState :: TestState
-    initDummyState = mkSeqStateFromRootXPrv
-        ShelleyKeyS (RootCredentials xprv mempty)
-        purposeCIP1852 defaultAddressPoolGap IncreasingChangeAddresses
+    initDummyState =
+        mkSeqStateFromRootXPrv
+            ShelleyKeyS
+            (RootCredentials xprv mempty)
+            purposeCIP1852
+            defaultAddressPoolGap
+            IncreasingChangeAddresses
       where
         mw = SomeMnemonic . unsafePerformIO . generate $ genMnemonic @15
         xprv = generateKeyFromSeed (mw, Nothing) mempty
 
 testMetadata :: WalletMetadata
-testMetadata = WalletMetadata
-    { name = WalletName "test wallet"
-    , creationTime = unsafePerformIO getCurrentTime
-    , passphraseInfo = Nothing
-    }
+testMetadata =
+    WalletMetadata
+        { name = WalletName "test wallet"
+        , creationTime = unsafePerformIO getCurrentTime
+        , passphraseInfo = Nothing
+        }
 
 testDBLayerParams :: DBLayerParams TestState
-testDBLayerParams
-    = DBLayerParams testCp RestorationPointAtGenesis testMetadata mempty gp
+testDBLayerParams =
+    DBLayerParams testCp RestorationPointAtGenesis testMetadata mempty gp
 
 testWid :: WalletId
 testWid = WalletId (hash ("test" :: ByteString))
 
 testTxs :: [(Tx, TxMeta)]
-testTxs = [ (tx1, meta1), (tx2, meta2) ]
+testTxs = [(tx1, meta1), (tx2, meta2)]
   where
-    tx1 = Tx
-        { txId = mockHash @String "tx2"
-        , txCBOR = Nothing
-        , fee = Nothing
-        , resolvedInputs =
-            [ ( TxIn (mockHash @String "tx1") 0
-              , Nothing
-              )
-            ]
-        , resolvedCollateralInputs = []
-        , outputs = [TxOut (Address "addr1") (coinToBundle 10)]
-        , collateralOutput = Nothing
-        , withdrawals = mempty
-        , metadata = Nothing
-        , scriptValidity = Nothing
-        }
-    meta1 = TxMeta
-        { status = InLedger
-        , direction = Incoming
-        , slotNo = SlotNo 140
-        , blockHeight = Quantity 0
-        , amount = Coin 1_337_144
-        , expiry = Nothing
-        }
-    tx2 = Tx
-        { txId = mockHash @String "tx3"
-        , txCBOR = Nothing
-        , fee = Nothing
-        , resolvedInputs =
-            [ ( TxIn (mockHash @String "tx2") 0
-              , headMay $ tx1 ^. #outputs
-              )
-            ]
-        , resolvedCollateralInputs = []
-        , outputs =
-            [ TxOut (Address "addr2") (coinToBundle 5)
-            , TxOut (Address "addr3") (coinToBundle 5)
-            ]
-        , collateralOutput = Nothing
-        , withdrawals = mempty
-        , metadata = Nothing
-        , scriptValidity = Nothing
-        }
-    meta2 = TxMeta
-        { status = InLedger
-        , direction = Incoming
-        , slotNo = SlotNo 150
-        , blockHeight = Quantity 0
-        , amount = Coin 10
-        , expiry = Nothing
-        }
+    tx1 =
+        Tx
+            { txId = mockHash @String "tx2"
+            , txCBOR = Nothing
+            , fee = Nothing
+            , resolvedInputs =
+                [
+                    ( TxIn (mockHash @String "tx1") 0
+                    , Nothing
+                    )
+                ]
+            , resolvedCollateralInputs = []
+            , outputs = [TxOut (Address "addr1") (coinToBundle 10)]
+            , collateralOutput = Nothing
+            , withdrawals = mempty
+            , metadata = Nothing
+            , scriptValidity = Nothing
+            }
+    meta1 =
+        TxMeta
+            { status = InLedger
+            , direction = Incoming
+            , slotNo = SlotNo 140
+            , blockHeight = Quantity 0
+            , amount = Coin 1_337_144
+            , expiry = Nothing
+            }
+    tx2 =
+        Tx
+            { txId = mockHash @String "tx3"
+            , txCBOR = Nothing
+            , fee = Nothing
+            , resolvedInputs =
+                [
+                    ( TxIn (mockHash @String "tx2") 0
+                    , headMay $ tx1 ^. #outputs
+                    )
+                ]
+            , resolvedCollateralInputs = []
+            , outputs =
+                [ TxOut (Address "addr2") (coinToBundle 5)
+                , TxOut (Address "addr3") (coinToBundle 5)
+                ]
+            , collateralOutput = Nothing
+            , withdrawals = mempty
+            , metadata = Nothing
+            , scriptValidity = Nothing
+            }
+    meta2 =
+        TxMeta
+            { status = InLedger
+            , direction = Incoming
+            , slotNo = SlotNo 150
+            , blockHeight = Quantity 0
+            , amount = Coin 10
+            , expiry = Nothing
+            }
 
 gp :: GenesisParameters
 gp = dummyGenesisParameters
@@ -1708,15 +1823,33 @@ gp = dummyGenesisParameters
 getAvailableBalance :: DBLayer IO s -> IO Natural
 getAvailableBalance DBLayer{..} = do
     cp <- atomically readCheckpoint
-    pend <- atomically $ fmap toTxHistory
-        <$> readTransactions Nothing Descending Range.everything
-                (Just Pending) Nothing Nothing
-    return $ fromIntegral $ unCoin $ TokenBundle.getCoin $
-        availableBalance (Set.fromList $ map fst pend) cp
+    pend <-
+        atomically
+            $ fmap toTxHistory
+                <$> readTransactions
+                    Nothing
+                    Descending
+                    Range.everything
+                    (Just Pending)
+                    Nothing
+                    Nothing
+    return
+        $ fromIntegral
+        $ unCoin
+        $ TokenBundle.getCoin
+        $ availableBalance (Set.fromList $ map fst pend) cp
 
 getTxsInLedger :: DBLayer IO s -> IO ([(Direction, Natural)])
-getTxsInLedger DBLayer {..} = do
-    pend <- atomically $ fmap toTxHistory
-        <$> readTransactions Nothing Descending Range.everything
-                (Just InLedger) Nothing Nothing
-    pure $ map (\(_, m) -> (direction m, fromIntegral $ unCoin $ amount m)) pend
+getTxsInLedger DBLayer{..} = do
+    pend <-
+        atomically
+            $ fmap toTxHistory
+                <$> readTransactions
+                    Nothing
+                    Descending
+                    Range.everything
+                    (Just InLedger)
+                    Nothing
+                    Nothing
+    pure
+        $ map (\(_, m) -> (direction m, fromIntegral $ unCoin $ amount m)) pend

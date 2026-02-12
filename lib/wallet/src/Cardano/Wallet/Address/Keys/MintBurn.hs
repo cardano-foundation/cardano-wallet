@@ -10,8 +10,6 @@ module Cardano.Wallet.Address.Keys.MintBurn
     , replaceCosigner
     ) where
 
-import Prelude
-
 import Cardano.Address.Derivation
     ( XPrv
     , XPub
@@ -70,6 +68,7 @@ import GHC.Natural
 import GHC.Stack
     ( HasCallStack
     )
+import Prelude
 
 import qualified Cardano.Address.KeyHash as CA
 import qualified Data.Map as Map
@@ -82,11 +81,11 @@ toTokenPolicyId
     -> Map Cosigner XPub
     -> TokenPolicyId
 toTokenPolicyId kf scriptTempl cosignerMap =
-      UnsafeTokenPolicyId
-    . Hash
-    . unScriptHash
-    . toScriptHash
-    $ replaceCosigner kf cosignerMap scriptTempl
+    UnsafeTokenPolicyId
+        . Hash
+        . unScriptHash
+        . toScriptHash
+        $ replaceCosigner kf cosignerMap scriptTempl
 
 toTokenMapAndScript
     :: forall key
@@ -132,16 +131,16 @@ replaceCosigner kf cosignerMap = \case
 -- | Derive the policy private key that should be used to create mint/burn
 -- scripts, as well as the key hash of the policy public key.
 derivePolicyKeyAndHash
-  :: AfterByron key
-  => KeyFlavorS key
-  -> Passphrase "encryption"
-  -- ^ Passphrase for wallet
-  -> key 'RootK XPrv
-  -- ^ Root private key to derive policy private key from
-  -> Index 'Hardened 'PolicyK
-  -- ^ Index of policy script
-  -> (key 'PolicyK XPrv, KeyHash)
-  -- ^ Policy private key
+    :: AfterByron key
+    => KeyFlavorS key
+    -> Passphrase "encryption"
+    -- ^ Passphrase for wallet
+    -> key 'RootK XPrv
+    -- ^ Root private key to derive policy private key from
+    -> Index 'Hardened 'PolicyK
+    -- ^ Index of policy script
+    -> (key 'PolicyK XPrv, KeyHash)
+    -- ^ Policy private key
 derivePolicyKeyAndHash kf pwd rootPrv policyIx = (policyK, vkeyHash)
   where
     policyK = liftRawKey kf policyPrv

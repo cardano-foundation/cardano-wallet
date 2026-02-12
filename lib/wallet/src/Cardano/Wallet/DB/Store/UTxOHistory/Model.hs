@@ -35,8 +35,6 @@ module Cardano.Wallet.DB.Store.UTxOHistory.Model
     )
 where
 
-import Prelude
-
 import Cardano.Slotting.Slot
     ( SlotNo
     , WithOrigin (..)
@@ -75,6 +73,7 @@ import Data.Map.Strict
 import Data.Set
     ( Set
     )
+import Prelude
 
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
@@ -107,19 +106,19 @@ empty utxo =
 
 -- | Returns the UTxO.
 getUTxO :: UTxOHistory -> UTxO
-getUTxO UTxOHistory {history, spentSlots} = history `excluding` fold spentSlots
+getUTxO UTxOHistory{history, spentSlots} = history `excluding` fold spentSlots
 
 -- | Returns the tip slot.
 getTip :: UTxOHistory -> Slot
-getTip UTxOHistory {tip} = tip
+getTip UTxOHistory{tip} = tip
 
 -- | Returns the finality slot.
 getFinality :: UTxOHistory -> Pruned
-getFinality UTxOHistory {finality} = finality
+getFinality UTxOHistory{finality} = finality
 
 -- | Returns the spent TxIns that can be rolled back.
 getSpent :: UTxOHistory -> Map TxIn SlotNo
-getSpent UTxOHistory {spentTxIns} = spentTxIns
+getSpent UTxOHistory{spentTxIns} = spentTxIns
 
 -- how to apply a DeltaUTxOHistory to a UTxOHistory
 instance Delta DeltaUTxOHistory where
@@ -129,7 +128,9 @@ instance Delta DeltaUTxOHistory where
     apply (Prune newFinality) = prune newFinality
 
 appendBlock :: SlotNo -> DeltaUTxO -> UTxOHistory -> UTxOHistory
-appendBlock newTip delta
+appendBlock
+    newTip
+    delta
     noop@UTxOHistory
         { history
         , spentSlots
@@ -138,79 +139,83 @@ appendBlock newTip delta
         , spentTxIns
         , finality
         , boot
-        }
-  = constrainingAppendBlock noop noop newTip $
-    UTxOHistory
-        { history = history <> received delta
-        , creationSlots =
-            insertNonEmpty (At newTip) receivedTxIns creationSlots
-        , creationTxIns =
-            insertNonEmptyReversedMap
-                (At newTip) receivedTxIns creationTxIns
-        , spentSlots =
-            insertNonEmpty newTip excludedTxIns spentSlots
-        , spentTxIns =
-            insertNonEmptyReversedMap newTip excludedTxIns spentTxIns
-        , tip = At newTip
-        , finality = finality
-        , boot = boot
-        }
-  where
-    receivedTxIns =
-        dom (received delta) `Set.difference` dom history
-    excludedTxIns =
-        (excluded delta `Set.intersection` dom history)
-        `Set.difference` fold spentSlots
-
-rollback :: Slot -> UTxOHistory -> UTxOHistory
-rollback newTip
-    noop@UTxOHistory
-        { history
-        , spentSlots
-        , creationSlots
-        , creationTxIns
-        , spentTxIns
-        , finality
-        , boot
-        }
-  = constrainingRollback noop noop newTip $ \case
-    Just newTip' ->
-        let
-            (leftCreationSlots, rolledCreatedSlots) =
-                Map.spanAntitone (<= newTip') creationSlots
-            rolledSpentTxIns = fold $ case newTip' of
-                Origin -> spentSlots
-                At slot'' ->
-                    Map.dropWhileAntitone
-                        (<= slot'')
-                        spentSlots
-            rolledCreatedTxIns = fold rolledCreatedSlots
-        in
-            UTxOHistory
-                { history = history `excluding` rolledCreatedTxIns
-                , spentSlots = case newTip' of
-                    Origin -> mempty
-                    At slot'' ->
-                        Map.takeWhileAntitone
-                            (<= slot'')
-                            spentSlots
-                , creationSlots = leftCreationSlots
+        } =
+        constrainingAppendBlock noop noop newTip
+            $ UTxOHistory
+                { history = history <> received delta
+                , creationSlots =
+                    insertNonEmpty (At newTip) receivedTxIns creationSlots
                 , creationTxIns =
-                    Map.withoutKeys
+                    insertNonEmptyReversedMap
+                        (At newTip)
+                        receivedTxIns
                         creationTxIns
-                        rolledCreatedTxIns
+                , spentSlots =
+                    insertNonEmpty newTip excludedTxIns spentSlots
                 , spentTxIns =
-                    Map.withoutKeys
-                        spentTxIns
-                        rolledSpentTxIns
-                , tip = newTip'
+                    insertNonEmptyReversedMap newTip excludedTxIns spentTxIns
+                , tip = At newTip
                 , finality = finality
                 , boot = boot
                 }
-    Nothing -> empty boot
+      where
+        receivedTxIns =
+            dom (received delta) `Set.difference` dom history
+        excludedTxIns =
+            (excluded delta `Set.intersection` dom history)
+                `Set.difference` fold spentSlots
+
+rollback :: Slot -> UTxOHistory -> UTxOHistory
+rollback
+    newTip
+    noop@UTxOHistory
+        { history
+        , spentSlots
+        , creationSlots
+        , creationTxIns
+        , spentTxIns
+        , finality
+        , boot
+        } =
+        constrainingRollback noop noop newTip $ \case
+            Just newTip' ->
+                let
+                    (leftCreationSlots, rolledCreatedSlots) =
+                        Map.spanAntitone (<= newTip') creationSlots
+                    rolledSpentTxIns = fold $ case newTip' of
+                        Origin -> spentSlots
+                        At slot'' ->
+                            Map.dropWhileAntitone
+                                (<= slot'')
+                                spentSlots
+                    rolledCreatedTxIns = fold rolledCreatedSlots
+                in
+                    UTxOHistory
+                        { history = history `excluding` rolledCreatedTxIns
+                        , spentSlots = case newTip' of
+                            Origin -> mempty
+                            At slot'' ->
+                                Map.takeWhileAntitone
+                                    (<= slot'')
+                                    spentSlots
+                        , creationSlots = leftCreationSlots
+                        , creationTxIns =
+                            Map.withoutKeys
+                                creationTxIns
+                                rolledCreatedTxIns
+                        , spentTxIns =
+                            Map.withoutKeys
+                                spentTxIns
+                                rolledSpentTxIns
+                        , tip = newTip'
+                        , finality = finality
+                        , boot = boot
+                        }
+            Nothing -> empty boot
 
 prune :: SlotNo -> UTxOHistory -> UTxOHistory
-prune newFinality
+prune
+    newFinality
     noop@UTxOHistory
         { history
         , spentSlots
@@ -219,33 +224,33 @@ prune newFinality
         , spentTxIns
         , tip
         , boot
-        }
-  = constrainingPrune noop noop newFinality $ \newFinality' ->
-    let
-        (prunedSpentSlots, leftSpentSlots) =
-            Map.spanAntitone
-                (<= newFinality')
-                spentSlots
-        prunedTxIns = fold prunedSpentSlots
-    in
-        UTxOHistory
-            { history = history `excluding` prunedTxIns
-            , creationSlots =
-                creationSlots `differenceReversedMap`
-                    (Map.restrictKeys creationTxIns prunedTxIns)
-            , creationTxIns =
-                Map.withoutKeys
-                    creationTxIns
-                    prunedTxIns
-            , spentSlots = leftSpentSlots
-            , spentTxIns =
-                Map.withoutKeys
-                    spentTxIns
-                    prunedTxIns
-            , tip = tip
-            , finality = PrunedUpTo newFinality'
-            , boot = boot
-            }
+        } =
+        constrainingPrune noop noop newFinality $ \newFinality' ->
+            let
+                (prunedSpentSlots, leftSpentSlots) =
+                    Map.spanAntitone
+                        (<= newFinality')
+                        spentSlots
+                prunedTxIns = fold prunedSpentSlots
+            in
+                UTxOHistory
+                    { history = history `excluding` prunedTxIns
+                    , creationSlots =
+                        creationSlots
+                            `differenceReversedMap` (Map.restrictKeys creationTxIns prunedTxIns)
+                    , creationTxIns =
+                        Map.withoutKeys
+                            creationTxIns
+                            prunedTxIns
+                    , spentSlots = leftSpentSlots
+                    , spentTxIns =
+                        Map.withoutKeys
+                            spentTxIns
+                            prunedTxIns
+                    , tip = tip
+                    , finality = PrunedUpTo newFinality'
+                    , boot = boot
+                    }
 
 -- | Helper to constraint the slot of an AppendBlock.
 constrainingAppendBlock :: a -> UTxOHistory -> SlotNo -> a -> a
@@ -254,7 +259,8 @@ constrainingAppendBlock noop UTxOHistory{tip} newTip f
     | otherwise = f
 
 -- | Helper to constraint the slot of a Rollback.
-constrainingRollback :: a -> UTxOHistory -> Slot -> (Maybe Slot -> a) -> a
+constrainingRollback
+    :: a -> UTxOHistory -> Slot -> (Maybe Slot -> a) -> a
 constrainingRollback noop UTxOHistory{finality, tip} newTip f
     | newTip >= tip = noop
     | otherwise = f $ case finality of
@@ -282,6 +288,7 @@ data Spent = Spent SlotNo | Unspent
 {-----------------------------------------------------------------------------
     Helper functions
 ------------------------------------------------------------------------------}
+
 -- | Insert a 'Set' into a 'Map' of 'Set' — but only if the 'Set' is nonempty.
 insertNonEmpty
     :: Ord key => key -> Set v -> Map key (Set v) -> Map key (Set v)
@@ -309,7 +316,7 @@ differenceReversedMap
 differenceReversedMap whole part =
     foldl' (flip delete) whole $ Map.assocs part
   where
-    delete (v,key) = Map.update deleteFromSet key
+    delete (v, key) = Map.update deleteFromSet key
       where
         deleteFromSet vs =
             let vs' = Set.delete v vs

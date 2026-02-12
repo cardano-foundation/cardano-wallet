@@ -8,6 +8,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -Wno-missing-local-signatures #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+
 {-# HLINT ignore "Use <$>" #-}
 
 module Cardano.Wallet.Launch.Cluster.ConfiguredPool
@@ -15,8 +16,6 @@ module Cardano.Wallet.Launch.Cluster.ConfiguredPool
     , configurePools
     )
 where
-
-import Prelude
 
 import Cardano.Api
     ( File (..)
@@ -134,7 +133,8 @@ import Data.Foldable
     ( traverse_
     )
 import Data.Generics.Labels
-    ()
+    (
+    )
 import Data.IntCast
     ( intCast
     )
@@ -172,6 +172,7 @@ import System.Path.Directory
 import Test.Utils.StaticServer
     ( withStaticServer
     )
+import Prelude
 
 import qualified Cardano.Ledger.Address as Ledger
 import qualified Cardano.Ledger.Hashes as Ledger
@@ -332,7 +333,7 @@ readFailVerificationKeyOrFile (FileOf op) =
         . fmap (either (error . show) id)
         . runExceptT
         $ readVerificationKeyOrFile
-                (VerificationKeyFilePath $ File $ toFilePath op)
+            (VerificationKeyFilePath $ File $ toFilePath op)
 
 stakePoolIdFromOperatorVerKey
     :: HasCallStack
@@ -459,7 +460,8 @@ configurePool metadataServer recipe = do
     -- Generate/assign keys
     (vrfPrv, vrfPub) <- genVrfKeyPair nodeRelativePath
     (kesPrv, kesPub) <- genKesKeyPair nodeRelativePath
-    (opPrv, opPub, opCount) <- writeOperatorKeyPair nodeRelativePath recipe
+    (opPrv, opPub, opCount) <-
+        writeOperatorKeyPair nodeRelativePath recipe
     opCert <- issueOpCert nodeRelativePath kesPub opPrv opCount
     let ownerPub = FileOf @"stake-pub" $ poolDir </> relFile "stake.pub"
     let ownerPrv = FileOf @"stake-prv" $ poolDir </> relFile "stake.prv"

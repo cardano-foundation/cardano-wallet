@@ -5,10 +5,6 @@ module System.Environment.Extended
     , envFromText
     ) where
 
-import System.Environment as Reexport
-
-import Prelude
-
 import Control.Monad
     ( mfilter
     )
@@ -19,10 +15,12 @@ import Data.Text.Class
     ( FromText (..)
     , TextDecodingError
     )
+import System.Environment as Reexport
 import UnliftIO
     ( MonadIO (liftIO)
     , MonadUnliftIO
     )
+import Prelude
 
 import qualified Data.Text as T
 

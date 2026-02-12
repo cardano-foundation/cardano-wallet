@@ -24,8 +24,6 @@ module Cardano.Wallet.Primitive.Slotting.Legacy
     , slotRangeFromTimeRange'
     ) where
 
-import Prelude
-
 import Cardano.Wallet.Primitive.Slotting
     ( StartTime (StartTime)
     )
@@ -71,6 +69,7 @@ import GHC.Generics
 import Numeric.Natural
     ( Natural
     )
+import Prelude
 
 {-------------------------------------------------------------------------------
                            Legacy slotting functions:
@@ -104,7 +103,8 @@ epochStartTime sps e = slotStartTime sps $ SlotId e 0
 
 -- | @slotDifference a b@ is how many slots @a@ is after @b@. The result is
 -- non-negative, and if @b > a@ then this function returns zero.
-slotDifference :: SlotParameters -> SlotId -> SlotId -> Quantity "slot" Natural
+slotDifference
+    :: SlotParameters -> SlotId -> SlotId -> Quantity "slot" Natural
 slotDifference (SlotParameters el _ _ _) a b
     | a' > b' = Quantity $ fromIntegral $ a' - b'
     | otherwise = Quantity 0
@@ -166,7 +166,8 @@ slotAt' (SlotParameters (EpochLength el) (SlotLength sl) (StartTime st) _) t
 
     slotNumber =
         SlotInEpoch
-            $ floor ((diff - fromIntegral (unEpochNo epochNumber) * epochLength) / sl)
+            $ floor
+                ((diff - fromIntegral (unEpochNo epochNumber) * epochLength) / sl)
 
 -- | Transforms the given inclusive time range into an inclusive slot range.
 --
@@ -215,4 +216,6 @@ fromFlatSlot el@(EpochLength epochLength) n
     e = n `div` fromIntegral epochLength
     s = n `mod` fromIntegral epochLength
     maxFlatSlot =
-        flatSlot el (SlotId (EpochNo maxBound) (SlotInEpoch $ epochLength - 1))
+        flatSlot
+            el
+            (SlotId (EpochNo maxBound) (SlotInEpoch $ epochLength - 1))

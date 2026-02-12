@@ -9,8 +9,6 @@ module Cardano.Wallet.Launch.Cluster.Http.Monitor.Server
     )
 where
 
-import Prelude
-
 import Cardano.Wallet.Launch.Cluster.Http.Monitor.API
     ( ApiT (..)
     , ControlAPI
@@ -45,6 +43,7 @@ import Servant
 import Servant.Server
     ( HasServer (..)
     )
+import Prelude
 
 isReady :: Phase -> Bool
 isReady (Cluster _) = True

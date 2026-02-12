@@ -20,10 +20,7 @@
 -- Auto-generated Sqlite & Persistent machinery via Template-Haskell. This has
 -- been moved into a separate file so that we can treat it slightly differently
 -- when computing code-coverage.
-
 module Cardano.Pool.DB.Sqlite.TH where
-
-import Prelude
 
 import Cardano.Pool.Metadata.Types
     ( StakePoolMetadataHash (..)
@@ -40,7 +37,8 @@ import Cardano.Wallet.DB.Sqlite.Types
     ( sqlSettings'
     )
 import Cardano.Wallet.Primitive.Types
-    ()
+    (
+    )
 import Data.Text
     ( Text
     )
@@ -67,6 +65,7 @@ import GHC.Generics
 import System.Random
     ( StdGen
     )
+import Prelude
 
 import qualified Cardano.Pool.Types as P
 import qualified Cardano.Wallet.DB.Sqlite.Types as W

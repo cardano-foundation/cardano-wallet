@@ -20,11 +20,10 @@ module Cardano.Wallet.Primitive.Types.Range
     )
 where
 
-import Prelude
-
 import Data.Maybe
     ( isJust
     )
+import Prelude
 
 -- | Represents a range of values.
 --
@@ -47,11 +46,11 @@ import Data.Maybe
 -- +---------------------------------+-------------+---------------------------+
 -- | @'Range' 'Nothing'  'Nothing' @ | @(−∞, ∞ )@  | @\\p -> True            @ |
 -- +---------------------------------+-------------+---------------------------+
---
 data Range a = Range
     { inclusiveLowerBound :: Maybe a
     , inclusiveUpperBound :: Maybe a
-    } deriving (Eq, Functor, Show)
+    }
+    deriving (Eq, Functor, Show)
 
 -- | Apply a function to the lower bound of a range.
 mapLowerBound :: (a -> a) -> Range a -> Range a
@@ -89,8 +88,8 @@ isBefore x (Range low _) =
 --   upper bound (if present) of the given range.
 isWithin :: Ord a => a -> Range a -> Bool
 isWithin x (Range low high) =
-    (maybe True (x >=) low) &&
-    (maybe True (x <=) high)
+    (maybe True (x >=) low)
+        && (maybe True (x <=) high)
 
 -- | Returns 'True' if (and only if) the given range has a lower bound.
 hasLowerBound :: Range a -> Bool
@@ -126,5 +125,5 @@ upperBound = maybe PositiveInfinity InclusiveBound . inclusiveUpperBound
 --   second given range.
 isSubrangeOf :: Ord a => Range a -> Range a -> Bool
 isSubrangeOf r1 r2 =
-    lowerBound r1 >= lowerBound r2 &&
-    upperBound r1 <= upperBound r2
+    lowerBound r1 >= lowerBound r2
+        && upperBound r1 <= upperBound r2

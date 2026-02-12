@@ -3,8 +3,6 @@
 
 module Test.Hspec.ExtraSpec (spec) where
 
-import Prelude
-
 import Control.Monad
     ( forM_
     , unless
@@ -123,6 +121,7 @@ import UnliftIO.MVar
     , tryReadMVar
     , tryTakeMVar
     )
+import Prelude
 
 import qualified Test.Hspec.Extra as Extra
 
@@ -135,11 +134,11 @@ spec = do
 itSpec :: Spec
 itSpec = describe "Extra.it" $ before_ (setEnv "TESTS_RETRY_FAILED" "y") $ do
     it "equals Hspec.it on success" $ do
-        let test = 1 `shouldBe` (1::Int)
+        let test = 1 `shouldBe` (1 :: Int)
         test `shouldMatchHSpecIt` test
 
     it "equals Hspec.it on failure" $ do
-        let test = (2+2) `shouldBe` (5::Int)
+        let test = (2 + 2) `shouldBe` (5 :: Int)
         test `shouldMatchHSpecIt` test
 
     describe "when first attempt fails due to flakiness" $ do
@@ -160,15 +159,14 @@ itSpec = describe "Extra.it" $ before_ (setEnv "TESTS_RETRY_FAILED" "y") $ do
                 outcomes <- newIORef [failure, noRetry]
                 (dynamically outcomes) `shouldMatchHSpecIt` failure
     it "can time out" $ do
-        let micro = (1000*1000 *)
+        let micro = (1000 * 1000 *)
         let timeout = do
                 threadDelay (micro 10)
                 expectationFailure "should have timed out"
         res <- runIt (Extra.itWithCustomTimeout 2) timeout
         res `shouldContain` "timed out in 2 seconds"
-
   where
-    -- | lhs `shouldMatchHSpecIt` rhs asserts that the output of running
+    -- \| lhs `shouldMatchHSpecIt` rhs asserts that the output of running
     -- (Extra.it "" lhs) and (Hspec.it "" rhs) are equal. Modulo random seed-
     -- and execution time-information.
     shouldMatchHSpecIt :: IO () -> IO () -> Expectation
@@ -178,32 +176,37 @@ itSpec = describe "Extra.it" $ before_ (setEnv "TESTS_RETRY_FAILED" "y") $ do
         lines extraRes `shouldBe` lines hspecRes
 
     runIt
-        :: (String -> ActionWith () -> SpecWith ()) -- ^ it version
-        -> IO () -- ^ test body
-        -> IO String -- ^ hspec output
-    runIt anyIt body = fmap stripTime
-        $ capture_
-        $ flip runSpec defaultConfig
-        $ beforeAll (return ())
-        $ anyIt "<test spec>" (const body)
+        :: (String -> ActionWith () -> SpecWith ())
+        -- \^ it version
+        -> IO ()
+        -- \^ test body
+        -> IO String
+    -- \^ hspec output
+    runIt anyIt body =
+        fmap stripTime
+            $ capture_
+            $ flip runSpec defaultConfig
+            $ beforeAll (return ())
+            $ anyIt "<test spec>" (const body)
       where
-        -- | Remove time and seed such that we can compare the captured stdout
+        -- \| Remove time and seed such that we can compare the captured stdout
         -- of two different hspec runs.
         stripTime :: String -> String
-        stripTime = unlines
+        stripTime =
+            unlines
                 . filter (not . ("Finished in" `isPrefixOf`))
                 . filter (not . ("Randomized" `isPrefixOf`))
                 . filter (not . ("retry:" `isPrefixOf`))
                 . filter (not . ("  To rerun use:" `isPrefixOf`))
                 . lines
 
-    -- | Returns an IO action that is different every time you run it!,
+    -- \| Returns an IO action that is different every time you run it!,
     -- according to the supplied IORef of outcomes.
     dynamically
         :: IORef [IO ()]
         -> IO ()
     dynamically outcomes = do
-        outcome:rest <- readIORef outcomes
+        outcome : rest <- readIORef outcomes
         writeIORef outcomes rest
         outcome
 
@@ -212,24 +215,28 @@ aroundAllSpec = sequential $ do
     let withMockResource :: MonadUnliftIO m => a -> (a -> m r) -> m r
         withMockResource a = bracket (pure a) (const $ pure ())
 
-        withMVarResource :: (Show a, Eq a, MonadUnliftIO m) => a -> (MVar a -> m r) -> m r
+        withMVarResource
+            :: (Show a, Eq a, MonadUnliftIO m) => a -> (MVar a -> m r) -> m r
         withMVarResource a = bracket (newMVar a) (takeMVarCheck a)
 
-        takeMVarCheck :: (Show a, Eq a, MonadUnliftIO m) => a -> MVar a -> m ()
+        takeMVarCheck
+            :: (Show a, Eq a, MonadUnliftIO m) => a -> MVar a -> m ()
         takeMVarCheck a var = tryTakeMVar var `shouldReturn` Just a
 
         resourceA = 1 :: Int
 
     describe "Extra.aroundAll" $ do
         describe "trivial" $ aroundAll (withMockResource resourceA) $ do
-            it "provides resource to first test"
+            it
+                "provides resource to first test"
                 (`shouldBe` resourceA)
-            it "provides resource to second test"
+            it
+                "provides resource to second test"
                 (`shouldBe` resourceA)
 
         describe "basic" $ aroundAll (withMVarResource resourceA) $ do
             it "provides resource to first test" $ \var ->
-               tryReadMVar @IO var `shouldReturn` Just resourceA
+                tryReadMVar @IO var `shouldReturn` Just resourceA
 
             it "provides resource to second test" $ \var ->
                 tryReadMVar @IO var `shouldReturn` Just resourceA
@@ -243,48 +250,63 @@ aroundAllSpec = sequential $ do
                 before `shouldBe` Nothing
                 tryReadMVar mvar `shouldReturn` Just ()
 
-        describe "prompt release" $
-            it "after the spec runs" $
-                tryReadMVar @IO mvar `shouldReturn` Nothing
+        describe "prompt release"
+            $ it "after the spec runs"
+            $ tryReadMVar @IO mvar
+            `shouldReturn` Nothing
 
         describe "exceptions" $ do
-            let trySpec = fmap (first show) . tryAny
-                    . silence . flip runSpec defaultConfig
+            let trySpec =
+                    fmap (first show)
+                        . tryAny
+                        . silence
+                        . flip runSpec defaultConfig
             let bombBefore = bracket (throwString "bomb1") (const $ pure ())
             let bombAfter = bracket (pure ()) (const $ throwString "bomb2")
 
             it "while allocating resource" $ do
-                a <- trySpec $ aroundAll bombBefore $
-                        it "should never happen" $ const $
-                            False `shouldBe` True
+                a <-
+                    trySpec
+                        $ aroundAll bombBefore
+                        $ it "should never happen"
+                        $ const
+                        $ False
+                        `shouldBe` True
                 a `shouldBe` Right (Summary 1 1)
 
             it "while releasing resource" $ do
-                b <- trySpec $ aroundAll bombAfter $
-                        it "spec" $ const $
-                            pure @IO ()
+                b <-
+                    trySpec
+                        $ aroundAll bombAfter
+                        $ it "spec"
+                        $ const
+                        $ pure @IO ()
                 b `shouldBe` Right (Summary 1 0)
 
 mainSpec :: Spec
 mainSpec = sequential $ describe "hspecMain" $ do
-  prop "correctly sets environment variables" prop_hspecMain
+    prop "correctly sets environment variables" prop_hspecMain
 
 prop_hspecMain
-  :: [((NiceString, NiceString), ArgStyle)]
-  -> NiceString
-  -> HspecArgs
-  -> HspecArgs
-  -> Bool
-  -> Property
+    :: [((NiceString, NiceString), ArgStyle)]
+    -> NiceString
+    -> HspecArgs
+    -> HspecArgs
+    -> Bool
+    -> Property
 prop_hspecMain vars (NiceString other) (HspecArgs argsBefore) (HspecArgs argsAfter) pass = monadicIO $ do
-    monitor $ counterexample ("args = "+|args|+"")
+    monitor $ counterexample ("args = " +| args |+ "")
     ((err, out), res) <- run $ captureBoth $ tryDeep doTest
-    monitor $ counterexample $ unlines
-        [ "res = "+||res||+""
-        , "error output:", err
-        , "other output:", out
-        , "success = "+||success||+""
-        ]
+    monitor
+        $ counterexample
+        $ unlines
+            [ "res = " +|| res ||+ ""
+            , "error output:"
+            , err
+            , "other output:"
+            , out
+            , "success = " +|| success ||+ ""
+            ]
     assert $ case res of
         Right () -> success
         Left exitCode -> case exitCode of
@@ -295,55 +317,67 @@ prop_hspecMain vars (NiceString other) (HspecArgs argsBefore) (HspecArgs argsAft
     doTest = withEnv [] $ withArgs args $ hspecMain exampleSpec
     success = pass || null env
     failure = not pass
-    argsError = any (\((n,_), _) -> null n || elem '=' n) env
+    argsError = any (\((n, _), _) -> null n || elem '=' n) env
 
     vars' = nubBy ((==) `on` (fst . fst)) vars
-    env = [ ((n, v), s)
-          | ((NiceString n, NiceString v), s) <- vars'
-          , n /= other ]
+    env =
+        [ ((n, v), s)
+        | ((NiceString n, NiceString v), s) <- vars'
+        , n /= other
+        ]
 
-    mainArgs = mconcat
-        [fmtArg "-e" "--env" (n <> "=" <> v) s | ((n, v), s) <- env]
+    mainArgs =
+        mconcat
+            [fmtArg "-e" "--env" (n <> "=" <> v) s | ((n, v), s) <- env]
     args = argsBefore ++ mainArgs ++ argsAfter
 
     exampleSpec :: Spec
     exampleSpec = describe "example spec" $ do
-            forM_ env $ \((n, v), _) -> it ("env "+|n|+" set") $
-                lookupEnv @IO n `shouldReturn`
-                    if null v then Nothing else Just v
-            unless (null other) $ it "env not set" $
-                lookupEnv @IO other `shouldReturn` Nothing
-            it "should we pass?" $
-                True `shouldBe` pass
+        forM_ env $ \((n, v), _) ->
+            it ("env " +| n |+ " set")
+                $ lookupEnv @IO n
+                `shouldReturn` if null v then Nothing else Just v
+        unless (null other)
+            $ it "env not set"
+            $ lookupEnv @IO other
+            `shouldReturn` Nothing
+        it "should we pass?"
+            $ True
+            `shouldBe` pass
 
 newtype NiceString = NiceString String deriving (Show, Eq)
 
 instance Arbitrary NiceString where
-    arbitrary = fmap NiceString $ listOf $ elements $ mconcat
-        [ ['0'..'9'], ['a'..'z'], ['A'..'Z'], "_." ]
+    arbitrary =
+        fmap NiceString
+            $ listOf
+            $ elements
+            $ mconcat
+                [['0' .. '9'], ['a' .. 'z'], ['A' .. 'Z'], "_."]
     shrink (NiceString s) = NiceString <$> shrink s
 
 data ArgStyle = Short | LongSpace | LongEqual deriving (Show, Eq, Ord)
 
 fmtArg :: String -> String -> String -> ArgStyle -> [String]
-fmtArg s _ v Short     = [s, v]
+fmtArg s _ v Short = [s, v]
 fmtArg _ l v LongSpace = [l, v]
 fmtArg _ l v LongEqual = [l ++ "=" ++ v]
 
 instance Arbitrary ArgStyle where
-  arbitrary = elements [Short, LongSpace, LongEqual]
+    arbitrary = elements [Short, LongSpace, LongEqual]
 
-newtype HspecArgs = HspecArgs { getHspecArgs :: [String] }
+newtype HspecArgs = HspecArgs {getHspecArgs :: [String]}
     deriving (Show, Eq)
 
 instance Arbitrary HspecArgs where
     arbitrary = HspecArgs . mconcat . nubArgs <$> listOf (oneof args)
       where
-        args = [ genArg (Just "-j") "--jobs" =<< num
-               , pure <$> genOpt "fail-fast"
-               , pure <$> genOpt "randomize"
-               , genArg Nothing "--seed" =<< num
-               ]
+        args =
+            [ genArg (Just "-j") "--jobs" =<< num
+            , pure <$> genOpt "fail-fast"
+            , pure <$> genOpt "randomize"
+            , genArg Nothing "--seed" =<< num
+            ]
         num = show @Int . getPositive <$> arbitrary
 
         nubArgs = nubBy ((==) `on` listToMaybe)
@@ -355,7 +389,7 @@ instance Arbitrary HspecArgs where
         genArg short long val = fmtArg short' long val <$> elements styles
           where
             short' = fromMaybe "" short
-            styles = maybe id (const (Short:)) short [LongSpace, LongEqual]
+            styles = maybe id (const (Short :)) short [LongSpace, LongEqual]
 
 -- | Capture both @(stderr, stdout)@ from an IO action.
 captureBoth :: IO a -> IO ((String, String), a)

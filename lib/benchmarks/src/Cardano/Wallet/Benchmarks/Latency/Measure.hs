@@ -5,18 +5,16 @@
 {-# LANGUAGE TypeFamilies #-}
 
 module Cardano.Wallet.Benchmarks.Latency.Measure
-  ( -- * Measuring traces
-    withLatencyLogging
-  , measureApiLogs
-  , LogCaptureFunc
+    ( -- * Measuring traces
+      withLatencyLogging
+    , measureApiLogs
+    , LogCaptureFunc
 
-    -- * Formatting results
-  , fmtResult
-  , fmtTitle
-  , meanAvg
-  ) where
-
-import Prelude
+      -- * Formatting results
+    , fmtResult
+    , fmtTitle
+    , meanAvg
+    ) where
 
 import Cardano.BM.Backend.Switchboard
     ( effectuate
@@ -81,6 +79,7 @@ import UnliftIO.STM
     , readTVarIO
     , writeTVar
     )
+import Prelude
 
 import qualified Cardano.BM.Configuration.Model as CM
 
@@ -96,9 +95,9 @@ fmtTitle title = fmt (indentF 4 title)
 
 fmtResult :: String -> [NominalDiffTime] -> IO ()
 fmtResult title ts =
-    let titleExt = title|+" - " :: String
+    let titleExt = title |+ " - " :: String
         titleF = padLeftF 30 ' ' titleExt
-    in fmtLn (titleF+|buildResult ts|+" ms")
+    in  fmtLn (titleF +| buildResult ts |+ " ms")
 
 isLogRequestStart :: ApiLog -> Bool
 isLogRequestStart = \case
@@ -110,7 +109,8 @@ isLogRequestFinish = \case
     ApiLog _ LogRequestFinish -> True
     _ -> False
 
-measureApiLogs :: Int -> LogCaptureFunc ApiLog () -> IO a -> IO [NominalDiffTime]
+measureApiLogs
+    :: Int -> LogCaptureFunc ApiLog () -> IO a -> IO [NominalDiffTime]
 measureApiLogs count = measureLatency count isLogRequestStart isLogRequestFinish
 
 -- | Measure how long an action takes based on trace points and taking an
@@ -118,10 +118,14 @@ measureApiLogs count = measureLatency count isLogRequestStart isLogRequestFinish
 measureLatency
     :: Show msg
     => Int
-    -> (msg -> Bool) -- ^ Predicate for start message
-    -> (msg -> Bool) -- ^ Predicate for end message
-    -> LogCaptureFunc msg () -- ^ Log capture function.
-    -> IO a -- ^ Action to run
+    -> (msg -> Bool)
+    -- ^ Predicate for start message
+    -> (msg -> Bool)
+    -- ^ Predicate for end message
+    -> LogCaptureFunc msg ()
+    -- ^ Log capture function.
+    -> IO a
+    -- ^ Action to run
     -> IO [NominalDiffTime]
 measureLatency count start finish capture action = do
     (logs, ()) <- capture $ replicateM_ count action
@@ -132,27 +136,34 @@ measureLatency count start finish capture action = do
 extractTimings
     :: forall a
      . Show a
-    => (a -> Bool) -- ^ Predicate for start message
-    -> (a -> Bool) -- ^ Predicate for end message
-    -> [LogObject a] -- ^ Log messages
+    => (a -> Bool)
+    -- ^ Predicate for start message
+    -> (a -> Bool)
+    -- ^ Predicate for end message
+    -> [LogObject a]
+    -- ^ Log messages
     -> [NominalDiffTime]
-extractTimings isStart isFinish msgs = map2 mkDiff $
-    if even (length filtered)
-        then filtered
-        else error "start trace without matching finish trace"
+extractTimings isStart isFinish msgs =
+    map2 mkDiff
+        $ if even (length filtered)
+            then filtered
+            else error "start trace without matching finish trace"
   where
-    map2 :: ((Bool, UTCTime, LOContent a)
-                -> (Bool, UTCTime, LOContent a)
-                -> NominalDiffTime)
+    map2
+        :: ( (Bool, UTCTime, LOContent a)
+             -> (Bool, UTCTime, LOContent a)
+             -> NominalDiffTime
+           )
         -> [(Bool, UTCTime, LOContent a)]
         -> [NominalDiffTime]
     map2 _ [] = []
     map2 f (a : b : xs) = (f a b : map2 f xs)
     map2 _ _ = error "start trace without matching finish trace"
 
-    mkDiff :: (Bool, UTCTime, LOContent a)
-           -> (Bool, UTCTime, LOContent a)
-           -> NominalDiffTime
+    mkDiff
+        :: (Bool, UTCTime, LOContent a)
+        -> (Bool, UTCTime, LOContent a)
+        -> NominalDiffTime
     mkDiff (False, start, _) (True, finish, _) = diffUTCTime finish start
     mkDiff (False, _time, logContent) _ =
         error $ "Missing finish trace for " <> show logContent
@@ -166,10 +177,12 @@ extractTimings isStart isFinish msgs = map2 mkDiff $
     filterMsg logObj = do
         let content = loContent logObj
         case content of
-            LogMessage msg | isStart msg ->
-                Just (False, getTimestamp logObj, content)
-            LogMessage msg | isFinish msg ->
-                Just (True, getTimestamp logObj, content)
+            LogMessage msg
+                | isStart msg ->
+                    Just (False, getTimestamp logObj, content)
+            LogMessage msg
+                | isFinish msg ->
+                    Just (True, getTimestamp logObj, content)
             _logMessage -> Nothing
 
     getTimestamp :: LogObject a -> UTCTime
@@ -196,7 +209,7 @@ withLatencyLogging setupTracers = do
 
 logCaptureFunc :: TVar [LogObject ApiLog] -> LogCaptureFunc ApiLog b
 logCaptureFunc tvar action = do
-  atomically $ writeTVar tvar []
-  res <- action
-  logs <- readTVarIO tvar
-  pure (reverse logs, res)
+    atomically $ writeTVar tvar []
+    res <- action
+    logs <- readTVarIO tvar
+    pure (reverse logs, res)

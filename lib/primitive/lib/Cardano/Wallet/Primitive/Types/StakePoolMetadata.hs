@@ -1,13 +1,12 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE TypeApplications #-}
+
 module Cardano.Wallet.Primitive.Types.StakePoolMetadata
     ( StakePoolMetadataHash (..)
     , StakePoolMetadataUrl (..)
     )
 where
-
-import Prelude
 
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (Hash, getHash)
@@ -32,6 +31,7 @@ import Fmt
 import GHC.Generics
     ( Generic
     )
+import Prelude
 
 -- | A newtype to wrap metadata hash.
 --

@@ -2,11 +2,10 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+
 module Cardano.Wallet.NetworkSpec
     ( spec
     ) where
-
-import Prelude
 
 import Cardano.Wallet.Gen
     ( genBlockHeader
@@ -40,6 +39,7 @@ import Test.QuickCheck
     , oneof
     , property
     )
+import Prelude
 
 import qualified Cardano.Wallet.Read as Read
 import qualified Data.List.NonEmpty as NE
@@ -50,30 +50,33 @@ spec = do
         testShow $ ErrPostTxValidationError mempty
 
     describe "updateStats" $ do
-        it "results in no unexpected thunks" $ property $
-          \(msg :: ChainSyncLog () Read.ChainPoint) -> do
-            -- This test is not /fully/ fool-proof. Adding lots of nested types to
-            -- LogState and logic in updateStats not covered by the generator
-            -- might cause us to miss a thunk.
-            --
-            -- But it does provide some sanity.
-            t <- getCurrentTime
-            let s0 = emptyStats t
-            let s = updateStats msg s0
-            wNoThunks [] s >>= \case
-                Nothing -> return ()
-                Just x -> expectationFailure $ show x
+        it "results in no unexpected thunks"
+            $ property
+            $ \(msg :: ChainSyncLog () Read.ChainPoint) -> do
+                -- This test is not /fully/ fool-proof. Adding lots of nested types to
+                -- LogState and logic in updateStats not covered by the generator
+                -- might cause us to miss a thunk.
+                --
+                -- But it does provide some sanity.
+                t <- getCurrentTime
+                let s0 = emptyStats t
+                let s = updateStats msg s0
+                wNoThunks [] s >>= \case
+                    Nothing -> return ()
+                    Just x -> expectationFailure $ show x
 
 instance Arbitrary block => Arbitrary (ChainSyncLog block Read.ChainPoint) where
-    arbitrary = oneof
-        [ MsgChainRollForward <$> genNonEmpty <*> genChainPoint
-        , MsgChainRollBackward <$> genChainPoint <*> arbitrary
-        , MsgChainTip <$> genChainPoint
-        , MsgLocalTip <$> genChainPoint
-        ]
+    arbitrary =
+        oneof
+            [ MsgChainRollForward <$> genNonEmpty <*> genChainPoint
+            , MsgChainRollBackward <$> genChainPoint <*> arbitrary
+            , MsgChainTip <$> genChainPoint
+            , MsgLocalTip <$> genChainPoint
+            ]
       where
         genNonEmpty = (NE.fromList . getNonEmpty) <$> arbitrary
-  -- Shrinking not that important here
+
+-- Shrinking not that important here
 
 instance Arbitrary BlockHeader where
     arbitrary = genBlockHeader =<< genSlotNo

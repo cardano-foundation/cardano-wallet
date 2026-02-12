@@ -4,8 +4,6 @@
 
 module Cardano.Wallet.Read.Tx.Gen where
 
-import Prelude
-
 import Cardano.Wallet.Read.Eras
     ( Era (..)
     , IsEra (..)
@@ -37,8 +35,9 @@ import Cardano.Wallet.Read.Tx.Gen.Shelley
 import Cardano.Wallet.Read.Tx.Gen.TxParameters
     ( TxParameters
     )
+import Prelude
 
-{-# INLINABLE mkTxEra #-}
+{-# INLINEABLE mkTxEra #-}
 mkTxEra :: forall era. IsEra era => TxParameters -> Tx era
 mkTxEra = case theEra @era of
     Byron -> g mkByronTx

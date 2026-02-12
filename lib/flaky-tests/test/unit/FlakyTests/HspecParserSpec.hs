@@ -1,19 +1,8 @@
 module FlakyTests.HspecParserSpec (spec) where
 
-import Prelude
-
-import qualified Data.ByteString as BS
 import Data.Text
     ( Text
     )
-import qualified Data.Text.Encoding as T
-import Test.Hspec
-    ( Spec
-    , describe
-    , it
-    , shouldBe
-    )
-
 import FlakyTests.HspecParser
     ( extractFailures
     , extractSummary
@@ -23,6 +12,16 @@ import FlakyTests.HspecParser
 import FlakyTests.Types
     ( TestFailure (..)
     )
+import Test.Hspec
+    ( Spec
+    , describe
+    , it
+    , shouldBe
+    )
+import Prelude
+
+import qualified Data.ByteString as BS
+import qualified Data.Text.Encoding as T
 
 readGolden :: IO Text
 readGolden = do

@@ -1,14 +1,13 @@
+{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeFamilies #-}
-
 -- ghc , at least 8.10.7 cannot figure out the constraint is necessary in
 -- liftRawKey, so we disable the warning.
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
-{-# LANGUAGE ConstraintKinds #-}
 
 -- | Interface over keys / address types
 module Cardano.Wallet.Address.Keys.WalletKey
@@ -22,8 +21,6 @@ module Cardano.Wallet.Address.Keys.WalletKey
     , AfterByron
     , afterByron
     ) where
-
-import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv
@@ -79,6 +76,7 @@ import Cryptography.Hash.Core
     , HashAlgorithm
     , hash
     )
+import Prelude
 
 -- | Re-encrypt a private key using a different passphrase.
 --
@@ -90,20 +88,20 @@ changePassphraseNew
     :: KeyFlavorS key
     -- ^ The type of key to serialize.
     -> (PassphraseScheme, Passphrase "user")
-        -- ^ Old passphrase.
+    -- ^ Old passphrase.
     -> (PassphraseScheme, Passphrase "user")
-        -- ^ New passphrase.
+    -- ^ New passphrase.
     -> key depth XPrv
     -- ^ Old private key.
     -> key depth XPrv
 changePassphraseNew = \case
     ByronKeyS -> \old new key ->
         let masterKey = changePassphraseXPrv old new $ key ^. byronKey
-        in ByronKey
-            { getKey = masterKey
-            , derivationPath = derivationPath key
-            , payloadPassphrase = hdPassphrase (toXPub masterKey)
-            }
+        in  ByronKey
+                { getKey = masterKey
+                , derivationPath = derivationPath key
+                , payloadPassphrase = hdPassphrase (toXPub masterKey)
+                }
     IcarusKeyS -> \old new -> over icarusKey $ changePassphraseXPrv old new
     ShelleyKeyS -> \old new -> over shelleyKey $ changePassphraseXPrv old new
     SharedKeyS -> \old new -> over sharedKey $ changePassphraseXPrv old new
@@ -117,7 +115,7 @@ publicKey
     -> key depth XPub
 publicKey = \case
     ByronKeyS -> over byronKey toXPub
-    IcarusKeyS ->  over icarusKey toXPub
+    IcarusKeyS -> over icarusKey toXPub
     ShelleyKeyS -> over shelleyKey toXPub
     SharedKeyS -> over sharedKey toXPub
 
@@ -133,7 +131,8 @@ digest k = hash . unXPub . getRawKey k
 
 -- | Get a short, human-readable string descriptor that uniquely identifies
 --   the specified key type.
-keyTypeDescriptor :: KeyFlavorS k
+keyTypeDescriptor
+    :: KeyFlavorS k
     -- ^ The type of key to serialize.
     -> String
 keyTypeDescriptor = \case
@@ -170,7 +169,8 @@ liftRawKey = \case
     ShelleyKeyS -> ShelleyKey
     SharedKeyS -> SharedKey
 
-afterByron :: KeyFlavorS k
+afterByron
+    :: KeyFlavorS k
     -> (AfterByron k => KeyFlavorS k -> x)
     -> Maybe x
 afterByron x h = case x of

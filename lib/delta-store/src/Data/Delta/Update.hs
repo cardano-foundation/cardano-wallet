@@ -1,35 +1,39 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
+
 -- |
 -- Copyright: © 2023 IOHK
 -- License: Apache-2.0
-module Data.Delta.Update (
-    -- * Synopsis
-    -- | 'Update' represents a computation which produces a delta and
-    -- a result.
-    --
-    -- Note: This module is preliminary.
+module Data.Delta.Update
+    ( -- * Synopsis
 
-    -- * Update
-    -- ** Type
+      -- | 'Update' represents a computation which produces a delta and
+      -- a result.
+      --
+      -- Note: This module is preliminary.
+
+      -- * Update
+
+      -- ** Type
       Update
-    -- ** View
+
+      -- ** View
     , runUpdate
     , applyUpdate
     , onDBVar
-    -- ** Combinators
+
+      -- ** Combinators
     , nop
     , update
     , updateWithResult
-    -- ** Helpers
+
+      -- ** Helpers
     , updateWithError
     , updateWithResultAndError
     , updateMany
     , updateField
     ) where
-
-import Prelude
 
 import Data.DBVar
     ( DBVar
@@ -38,17 +42,19 @@ import Data.DBVar
 import Data.Delta
     ( Delta (..)
     )
+import Prelude
 
 {-------------------------------------------------------------------------------
     Update
     Type, View
 -------------------------------------------------------------------------------}
+
 -- | A computation which inspects a value @a ~ Base da@
 -- and produces a delta @da@ and a result of type @r@.
 --
 -- Similar to the 'Control.Monad.Trans.State.State' computation,
 -- but involving 'Delta' types.
-newtype Update da r = Update { runUpdate_ :: Base da -> (Maybe da, r) }
+newtype Update da r = Update {runUpdate_ :: Base da -> (Maybe da, r)}
 
 -- | Run the 'Update' computation.
 runUpdate :: (a ~ Base da) => Update da r -> a -> (Maybe da, r)
@@ -57,7 +63,7 @@ runUpdate = runUpdate_
 -- | Semantics.
 applyUpdate
     :: (Delta da, a ~ Base da)
-    => Update da r -> a -> (a,r)
+    => Update da r -> a -> (a, r)
 applyUpdate (Update g) a =
     case g a of
         (da, r) -> (da `apply` a, r)
@@ -71,6 +77,7 @@ onDBVar dbvar = modifyDBMaybe dbvar . runUpdate
 {-------------------------------------------------------------------------------
     Combinators
 -------------------------------------------------------------------------------}
+
 -- | Map results.
 instance Functor (Update da) where
     fmap f (Update g) = Update $ \a ->
@@ -115,7 +122,7 @@ updateWithResultAndError
 updateWithResultAndError f = Update $ \a ->
     case f a of
         Left e -> (Nothing, Left e)
-        Right (da,r) -> (Just da, Right r)
+        Right (da, r) -> (Just da, Right r)
 
 -- | Lift an update for a single delta to a list of deltas.
 updateMany
@@ -126,30 +133,29 @@ updateMany (Update g) = Update $ \a ->
         (Nothing, r) -> (Nothing, r)
         (Just da, r) -> (Just [da], r)
 
-{- | Helper function for lifting the 'Update' from a
-record field to the record.
-
-Example:
-
-@
-data Pair a b = Pair a b
-first :: Pair a b -> a
-
-data DeltaPair da db
-    = UpdateFirst da
-    | UpdateSecond db
-
-updateField first UpdateFirst
-    :: (a -> Update da r)
-    -> (Pair a b -> Update (DeltaPair da db) r)
-@
--}
+-- | Helper function for lifting the 'Update' from a
+-- record field to the record.
+--
+-- Example:
+--
+-- @
+-- data Pair a b = Pair a b
+-- first :: Pair a b -> a
+--
+-- data DeltaPair da db
+--     = UpdateFirst da
+--     | UpdateSecond db
+--
+-- updateField first UpdateFirst
+--     :: (a -> Update da r)
+--     -> (Pair a b -> Update (DeltaPair da db) r)
+-- @
 updateField
     :: (a ~ Base da, b ~ Base db)
     => (b -> a)
-        -- ^ View field.
+    -- ^ View field.
     -> (da -> db)
-        -- ^ Lift delta to
+    -- ^ Lift delta to
     -> Update da r
     -> Update db r
 updateField view embed (Update g) =

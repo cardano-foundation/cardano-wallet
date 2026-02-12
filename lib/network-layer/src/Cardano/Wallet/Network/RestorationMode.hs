@@ -7,8 +7,6 @@ module Cardano.Wallet.Network.RestorationMode
     , getRestorationPoint
     ) where
 
-import Prelude
-
 import Cardano.Wallet.Network
     ( ErrFetchBlock
     , NetworkLayer (..)
@@ -26,6 +24,7 @@ import Cardano.Wallet.Primitive.Types.GenesisParameters
 import GHC.Generics
     ( Generic
     )
+import Prelude
 
 import qualified Cardano.Wallet.Read as Read
 

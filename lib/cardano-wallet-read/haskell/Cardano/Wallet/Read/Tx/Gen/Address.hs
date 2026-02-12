@@ -4,18 +4,17 @@ module Cardano.Wallet.Read.Tx.Gen.Address
     )
 where
 
-import Prelude
-
 import Cardano.Ledger.Api
     ( Addr
     )
 import Cardano.Wallet.Read.Tx.Gen.TxParameters
     ( Address (..)
     )
+import Prelude
 
-import qualified Cardano.Chain.Common as Byron
-import qualified Cardano.Ledger.Api.Tx.Address as Shelley
-import qualified Cardano.Ledger.Binary as Binary
+import Cardano.Chain.Common qualified as Byron
+import Cardano.Ledger.Api.Tx.Address qualified as Shelley
+import Cardano.Ledger.Binary qualified as Binary
 
 fromRight :: String -> Either a p -> p
 fromRight _ (Right x) = x

@@ -1,30 +1,27 @@
 -- |
 -- Copyright: © 2024 Cardano Foundation
 -- License: Apache-2.0
---
 module Cardano.Write.Eras
-    (
-    -- * Recent Eras
-    -- ** Names
+    ( -- * Recent Eras
+
+      -- ** Names
       Babbage
     , Conway
     , LatestLedgerEra
 
-    -- * 'RecentEra' type
+      -- * 'RecentEra' type
     , RecentEra (..)
     , IsRecentEra (..)
     , RecentEraConstraints
 
-    -- ** Wrappers
+      -- ** Wrappers
     , AnyRecentEra (..)
     , allRecentEras
-
     , InAnyRecentEra (..)
     , toInAnyRecentEra
-
     , MaybeInRecentEra (..)
 
-    -- ** Compatibility with "Cardano.Api"
+      -- ** Compatibility with "Cardano.Api"
     , CardanoApiEra
     , cardanoEraFromRecentEra
     , shelleyBasedEraFromRecentEra

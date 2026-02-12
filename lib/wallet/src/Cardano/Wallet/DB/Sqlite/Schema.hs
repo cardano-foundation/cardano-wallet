@@ -24,10 +24,7 @@
 -- More than 6K lines end-up being generated from the instructions below! As a
 -- result, we're going to ignore code-coverage on the following module and, no
 -- hand-written functions should be written in this module!
-
 module Cardano.Wallet.DB.Sqlite.Schema where
-
-import Prelude
 
 import Cardano.Address.Script
     ( Cosigner
@@ -81,6 +78,7 @@ import GHC.Generics
 import System.Random
     ( StdGen
     )
+import Prelude
 
 import qualified Cardano.Wallet.Address.Derivation as W
 import qualified Cardano.Wallet.Address.Discovery as W

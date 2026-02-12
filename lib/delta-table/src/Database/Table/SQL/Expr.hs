@@ -2,20 +2,18 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
 
-{- |
-Copyright: © 2024 Cardano Foundation
-License: Apache-2.0
-
-SQL expressions (for use in WHERE clauses)
--}
+-- |
+-- Copyright: © 2024 Cardano Foundation
+-- License: Apache-2.0
+--
+-- SQL expressions (for use in WHERE clauses)
 module Database.Table.SQL.Expr
-    (
-    -- * SQL expressions
-    -- ** Expressions
-    Expr
+    ( -- * SQL expressions
+
+      -- ** Expressions
+      Expr
     , true
     , false
     , not_
@@ -30,14 +28,12 @@ module Database.Table.SQL.Expr
     , (>.)
     , (>=.)
 
-    -- ** Internal
+      -- ** Internal
     , renderExpr
     , parens
     , text
     , var
     ) where
-
-import Prelude
 
 import Data.Text
     ( Text
@@ -47,6 +43,7 @@ import Database.Table.Schema
     , IsColumnName
     , getColumnName
     )
+import Prelude
 
 import qualified Database.SQLite.Simple as Sqlite
 import qualified Database.SQLite.Simple.ToField as Sqlite
@@ -62,8 +59,8 @@ type Identifier = Text
 data Expr a where
     Value :: Sqlite.SQLData -> Expr Identifier
     Zero :: Expr0 a -> Expr a
-    One  :: Op1 a b -> Expr a -> Expr b
-    Two  :: Op2 a b c -> Expr a -> Expr b -> Expr c
+    One :: Op1 a b -> Expr a -> Expr b
+    Two :: Op2 a b c -> Expr a -> Expr b -> Expr c
 
 data Expr0 a where
     TrueE :: Expr0 Bool
@@ -82,9 +79,9 @@ data Op2 a b c where
     Gt :: Op2 a a Bool
     Geq :: Op2 a a Bool
 
-infix  4  ==., /=., <., <=., >=., >.
-infixr 3  &&.
-infixr 2  ||.
+infix 4 ==., /=., <., <=., >=., >.
+infixr 3 &&.
+infixr 2 ||.
 
 -- | SQL @true@ literal.
 true :: Expr Bool
@@ -105,7 +102,7 @@ not_ = One Not
 -- | Combine multiple 'Expr' with '(&&.)'.
 and_ :: [Expr Bool] -> Expr Bool
 and_ [] = true
-and_ (x:xs) = foldr (&&.) x xs
+and_ (x : xs) = foldr (&&.) x xs
 
 -- | SQL @OR@, disjunction.
 (||.) :: Expr Bool -> Expr Bool -> Expr Bool
@@ -114,45 +111,53 @@ and_ (x:xs) = foldr (&&.) x xs
 -- | Combine multiple 'Expr' with '(||.)'.
 or_ :: [Expr Bool] -> Expr Bool
 or_ [] = false
-or_ (x:xs) = foldr (||.) x xs
+or_ (x : xs) = foldr (||.) x xs
 
 -- | Comparing a column against a given value.
 columnOpValue
-    :: forall n a c. (IsColumnName n, Sqlite.ToField a)
+    :: forall n a c
+     . (IsColumnName n, Sqlite.ToField a)
     => Op2 Identifier Identifier c -> Col n a -> a -> Expr c
 columnOpValue op2 col a =
-    Two op2
+    Two
+        op2
         (Zero . ColumnName $ getColumnName col)
         (Value $ Sqlite.toField a)
 
 -- | Test whether the value in a given column equals a given value.
 (==.)
-    :: forall n a. (IsColumnName n, Sqlite.ToField a)
+    :: forall n a
+     . (IsColumnName n, Sqlite.ToField a)
     => Col n a -> a -> Expr Bool
 (==.) = columnOpValue Eq
 
 (/=.)
-    :: forall n a. (IsColumnName n, Sqlite.ToField a)
+    :: forall n a
+     . (IsColumnName n, Sqlite.ToField a)
     => Col n a -> a -> Expr Bool
 (/=.) col a = not_ (col ==. a)
 
 (<.)
-    :: forall n a. (IsColumnName n, Sqlite.ToField a, Ord a)
+    :: forall n a
+     . (IsColumnName n, Sqlite.ToField a, Ord a)
     => Col n a -> a -> Expr Bool
 (<.) = columnOpValue Lt
 
 (<=.)
-    :: forall n a. (IsColumnName n, Sqlite.ToField a, Ord a)
+    :: forall n a
+     . (IsColumnName n, Sqlite.ToField a, Ord a)
     => Col n a -> a -> Expr Bool
 (<=.) = columnOpValue Leq
 
 (>.)
-    :: forall n a. (IsColumnName n, Sqlite.ToField a, Ord a)
+    :: forall n a
+     . (IsColumnName n, Sqlite.ToField a, Ord a)
     => Col n a -> a -> Expr Bool
 (>.) = columnOpValue Gt
 
 (>=.)
-    :: forall n a. (IsColumnName n, Sqlite.ToField a, Ord a)
+    :: forall n a
+     . (IsColumnName n, Sqlite.ToField a, Ord a)
     => Col n a -> a -> Expr Bool
 (>=.) = columnOpValue Geq
 
@@ -160,6 +165,7 @@ columnOpValue op2 col a =
     Expressions
     Rendering
 -------------------------------------------------------------------------------}
+
 -- | Render an expression as SQL source code.
 renderExpr :: Expr a -> Var.Lets Text
 renderExpr (Value value) =
@@ -168,11 +174,14 @@ renderExpr (Zero e) =
     text (render0 e)
 renderExpr (One op1 ea) =
     text (renderOp1 op1)
-        <> sp <> parens (renderExpr ea)
+        <> sp
+        <> parens (renderExpr ea)
 renderExpr (Two op2 ea eb) =
     parens (renderExpr ea)
-        <> sp <> text (renderOp2 op2)
-        <> sp <> parens (renderExpr eb)
+        <> sp
+        <> text (renderOp2 op2)
+        <> sp
+        <> parens (renderExpr eb)
 
 -- | A single whitespace character.
 sp :: Var.Lets Text

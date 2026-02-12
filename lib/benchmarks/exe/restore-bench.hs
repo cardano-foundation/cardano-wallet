@@ -40,8 +40,6 @@
 -- since it relies on lots of configuration most most easily retrieved with nix.
 module Main where
 
-import Prelude
-
 import Cardano.Address.Derivation
     ( XPrv
     )
@@ -368,6 +366,7 @@ import UnliftIO.Exception
     ( evaluate
     , throwString
     )
+import Prelude
 
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.Address.Derivation.Byron as Byron
@@ -404,14 +403,14 @@ readVmRssKb = do
         Left _ -> Nothing
         Right contents ->
             let ls = filter ("VmRSS:" `T.isPrefixOf`) (T.lines contents)
-            in case ls of
-                (line : _) ->
-                    case filter (not . T.null) (T.words line) of
-                        [_, kb, _] -> case reads (T.unpack kb) of
-                            [(v, "")] -> Just v
+            in  case ls of
+                    (line : _) ->
+                        case filter (not . T.null) (T.words line) of
+                            [_, kb, _] -> case reads (T.unpack kb) of
+                                [(v, "")] -> Just v
+                                _ -> Nothing
                             _ -> Nothing
-                        _ -> Nothing
-                _ -> Nothing
+                    _ -> Nothing
 
 -- | Run an IO action while sampling the process RSS every 10 seconds.
 -- Returns the peak RSS in kB alongside the action's result.
@@ -439,22 +438,23 @@ reportRtsStats = do
     when enabled $ do
         stats <- getRTSStats
         let toMb bytes =
-                showFFloat (Just 1)
+                showFFloat
+                    (Just 1)
                     (fromIntegral bytes / (1024 * 1024 :: Double))
                     " MB"
         sayErr "=== GHC RTS Memory Stats ==="
         sayErr
             $ "  Max live bytes: "
-            <> T.pack (toMb (max_live_bytes stats))
+                <> T.pack (toMb (max_live_bytes stats))
         sayErr
             $ "  Max heap size:  "
-            <> T.pack (toMb (max_mem_in_use_bytes stats))
+                <> T.pack (toMb (max_mem_in_use_bytes stats))
         sayErr
             $ "  GC copied bytes:"
-            <> T.pack (toMb (copied_bytes stats))
+                <> T.pack (toMb (copied_bytes stats))
         sayErr
             $ "  Major GCs:      "
-            <> T.pack (show (major_gcs stats))
+                <> T.pack (show (major_gcs stats))
 
 hoursToMicroseconds :: Int -> Int
 hoursToMicroseconds = (* 3_600) . (* 1_000_000)
@@ -467,31 +467,34 @@ main :: IO ()
 main = withUtf8 $ do
     r <- execBenchWithNode argsNetworkConfig
         $ \args tr cfg conn -> do
-            ((), peakRssKb) <- withRssMonitor
-                $ cardanoRestoreBench (argBenchName args)
-                    ( NodeSyncTimeout
-                        $ argNodeSyncTimeout args
-                        <&> hoursToMicroseconds
-                    )
-                    tr
-                    cfg
-                    conn
+            ((), peakRssKb) <-
+                withRssMonitor
+                    $ cardanoRestoreBench
+                        (argBenchName args)
+                        ( NodeSyncTimeout
+                            $ argNodeSyncTimeout args
+                            <&> hoursToMicroseconds
+                        )
+                        tr
+                        cfg
+                        conn
             sayErr ""
             sayErr "=== Wallet Memory Report ==="
             case peakRssKb of
                 Just kb ->
                     let mb =
-                            showFFloat (Just 1)
+                            showFFloat
+                                (Just 1)
                                 (fromIntegral kb / 1024 :: Double)
                                 ""
-                    in sayErr
-                        $ "  Wallet peak RSS: "
-                        <> T.pack mb
-                        <> " MB (self-reported from /proc/self/status)"
+                    in  sayErr
+                            $ "  Wallet peak RSS: "
+                                <> T.pack mb
+                                <> " MB (self-reported from /proc/self/status)"
                 Nothing ->
                     sayErr
                         $ "  Wallet peak RSS: unavailable"
-                        <> " (not running on Linux?)"
+                            <> " (not running on Linux?)"
             reportRtsStats
     exitWith r
 

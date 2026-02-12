@@ -1,22 +1,18 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 
-{- |
-Copyright: © 2022 IOHK
-License: Apache-2.0
-
-Implementation of a store for 'TxWalletsHistory'
-
--}
+-- |
+-- Copyright: © 2022 IOHK
+-- License: Apache-2.0
+--
+-- Implementation of a store for 'TxWalletsHistory'
 module Cardano.Wallet.DB.Store.Wallets.Store
     ( mkStoreTxWalletsHistory
-    , DeltaTxWalletsHistory(..)
+    , DeltaTxWalletsHistory (..)
     ) where
-
-import Prelude
 
 import Cardano.Wallet.DB.Store.Meta.Layer
     ( QueryTxMeta (..)
@@ -40,6 +36,7 @@ import Data.Store
 import Database.Persist.Sql
     ( SqlPersistT
     )
+import Prelude
 
 import qualified Cardano.Wallet.DB.Store.Meta.Model as TxMetaStore
 

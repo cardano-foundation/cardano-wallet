@@ -4,8 +4,6 @@ module Cardano.Wallet.Benchmarks.Charting
     )
 where
 
-import Prelude
-
 import Cardano.Wallet.Benchmarks.Collect
     ( Unit
     )
@@ -90,6 +88,7 @@ import System.FilePath
     ( (<.>)
     , (</>)
     )
+import Prelude
 
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Map as Map
@@ -134,7 +133,8 @@ grid ds is mr =
   where
     font = def{_font_size = 12}
 
-renderHarmonizedHistoryChartSVG :: FilePath -> HarmonizedHistory -> IO ()
+renderHarmonizedHistoryChartSVG
+    :: FilePath -> HarmonizedHistory -> IO ()
 renderHarmonizedHistoryChartSVG dir (HarmonizedHistory h' ds) = do
     let mkSVGPath :: Int -> FilePath
         mkSVGPath n = dir </> "benchmarks-history-" <> show n <.> ".svg"
@@ -153,7 +153,8 @@ renderHarmonizedHistoryChartSVG dir (HarmonizedHistory h' ds) = do
                 <> " with history of : "
                 <> renderIndexedSemantic is
 
-renderHarmonizedHistoryChartPng :: FilePath -> HarmonizedHistory -> IO ()
+renderHarmonizedHistoryChartPng
+    :: FilePath -> HarmonizedHistory -> IO ()
 renderHarmonizedHistoryChartPng dir (HarmonizedHistory h' ds) = do
     let height = 500
         width = 1500

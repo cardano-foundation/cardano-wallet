@@ -7,13 +7,10 @@
 -- License: Apache-2.0
 --
 -- Provides testing functions to check that type class instances obey laws.
---
 module Test.Utils.Laws
     ( testLaws
     , testLawsMany
     ) where
-
-import Prelude
 
 import Control.Monad
     ( forM_
@@ -34,6 +31,7 @@ import Test.Hspec
 import Test.QuickCheck.Classes
     ( Laws (..)
     )
+import Prelude
 
 -- | Constructs a test to check that the given type class instance obeys the
 --   given set of laws.
@@ -42,21 +40,24 @@ import Test.QuickCheck.Classes
 --
 -- >>> testLaws @Natural ordLaws
 -- >>> testLaws @(Map Int) functorLaws
---
 testLaws
-    :: forall a. Typeable a
+    :: forall a
+     . Typeable a
     => (Proxy a -> Laws)
     -> Spec
 testLaws getLaws =
-    parallel $ describe description $
-        forM_ (lawsProperties laws) $ uncurry it
+    parallel
+        $ describe description
+        $ forM_ (lawsProperties laws)
+        $ uncurry it
   where
-    description = mconcat
-        [ "Testing "
-        , lawsTypeclass laws
-        , " laws for type "
-        , show (typeRep $ Proxy @a)
-        ]
+    description =
+        mconcat
+            [ "Testing "
+            , lawsTypeclass laws
+            , " laws for type "
+            , show (typeRep $ Proxy @a)
+            ]
     laws = getLaws $ Proxy @a
 
 -- | Calls `testLaws` with multiple sets of laws.
@@ -65,9 +66,9 @@ testLaws getLaws =
 --
 -- >>> testLawsMany @Natural [eqLaws, ordLaws]
 -- >>> testLawsMany @(Map Int) [foldableLaws, functorLaws]
---
 testLawsMany
-    :: forall a. Typeable a
+    :: forall a
+     . Typeable a
     => [Proxy a -> Laws]
     -> Spec
 testLawsMany getLawsMany =

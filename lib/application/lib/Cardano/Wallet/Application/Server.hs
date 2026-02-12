@@ -7,11 +7,10 @@ module Cardano.Wallet.Application.Server
     , start
     , withListeningSocket
     , ListenError (..)
-    -- * Re-exported for convenience
+
+      -- * Re-exported for convenience
     , HostPreference
     ) where
-
-import Prelude
 
 import Cardano.Wallet.Api.Http.Shelley.Server
     ( IsServerError (..)
@@ -77,6 +76,7 @@ import System.IO.Error
     , isPermissionError
     , isUserError
     )
+import Prelude
 
 import qualified Data.Text as T
 import qualified Network.Wai.Handler.Warp as Warp
@@ -102,7 +102,12 @@ data Listen
       ListenOnRandomPort
     deriving (Show, Eq)
 
-runSocket :: Socket -> Warp.Settings -> Maybe TlsConfiguration -> Application -> IO ()
+runSocket
+    :: Socket
+    -> Warp.Settings
+    -> Maybe TlsConfiguration
+    -> Application
+    -> IO ()
 runSocket socket settings = \case
     Nothing -> Warp.runSettingsSocket settings socket
     Just tls -> Warp.runTLSSocket (requireClientAuth tls) settings socket
@@ -116,7 +121,8 @@ start
     -> Application
     -> IO ()
 start settings tr tlsConfig socket application = do
-    logSettings <- newApiLoggerSettings <&> obfuscateKeys (const sensitive)
+    logSettings <-
+        newApiLoggerSettings <&> obfuscateKeys (const sensitive)
     runSocket socket settings tlsConfig
         $ handleRawError (curry toServerError)
         $ withApiLogger
@@ -184,7 +190,8 @@ instance ToText ListenError where
                 <> "Cannot listen on the given port. "
                 <> "The operation is not permitted."
 
-ioToListenError :: HostPreference -> Listen -> IOException -> Maybe ListenError
+ioToListenError
+    :: HostPreference -> Listen -> IOException -> Maybe ListenError
 ioToListenError hostPreference portOpt e
     -- A socket is already listening on that address and port
     | isAlreadyInUseError e =

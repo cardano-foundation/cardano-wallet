@@ -17,8 +17,6 @@ module Cardano.Wallet.Primitive.Types.DRep
     )
 where
 
-import Prelude
-
 import Control.DeepSeq
     ( NFData
     )
@@ -46,13 +44,14 @@ import Fmt
 import GHC.Generics
     ( Generic
     )
+import Prelude
 
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Codec.Binary.Bech32.TH as Bech32
 import qualified Data.ByteString as BS
 
 -- | Raw key hash credential
-newtype DRepKeyHash = DRepKeyHash { getDRepKeyHash :: ByteString }
+newtype DRepKeyHash = DRepKeyHash {getDRepKeyHash :: ByteString}
     deriving (Generic, Eq, Ord, Show)
 
 -- | In accordance to CIP-0129 (https://github.com/cardano-foundation/CIPs/tree/master/CIP-0129)
@@ -64,7 +63,7 @@ fstByteDRepKeyHash = 0b00100010
 instance NFData DRepKeyHash
 
 -- | Raw script hash credential
-newtype DRepScriptHash = DRepScriptHash { getDRepScriptHash :: ByteString }
+newtype DRepScriptHash = DRepScriptHash {getDRepScriptHash :: ByteString}
     deriving (Generic, Eq, Ord, Show)
 
 -- | In accordance to CIP-0129 (https://github.com/cardano-foundation/CIPs/tree/master/CIP-0129)
@@ -75,10 +74,11 @@ fstByteDRepScriptHash = 0b00100011
 
 instance NFData DRepScriptHash
 
-data DRepID =
-    DRepFromKeyHash DRepKeyHash | DRepFromScriptHash DRepScriptHash
+data DRepID
+    = DRepFromKeyHash DRepKeyHash
+    | DRepFromScriptHash DRepScriptHash
     deriving (Eq, Generic, Show, Ord)
-    deriving anyclass NFData
+    deriving anyclass (NFData)
 
 -- | Encode 'DRepID' as Bech32 with "drep" human readable prefix.
 encodeDRepIDBech32 :: DRepID -> Text
@@ -102,36 +102,40 @@ decodeDRepIDBech32 t =
             Left textDecodingError
         Right (hrp', Just bytes)
             | hrp' == hrpDrep && BS.length bytes == 29 ->
-              let (fstByte, payload) = first BS.head $ BS.splitAt 1 bytes
-              in case fstByte of
-                  0b00100010 ->
-                      Right $ DRepFromKeyHash (DRepKeyHash payload)
-                  0b00100011 ->
-                      Right $ DRepFromScriptHash (DRepScriptHash payload)
-                  _ ->
-                      Left textFirstByteError
+                let (fstByte, payload) = first BS.head $ BS.splitAt 1 bytes
+                in  case fstByte of
+                        0b00100010 ->
+                            Right $ DRepFromKeyHash (DRepKeyHash payload)
+                        0b00100011 ->
+                            Right $ DRepFromScriptHash (DRepScriptHash payload)
+                        _ ->
+                            Left textFirstByteError
             | hrp' == hrpDrep && BS.length bytes == 28 ->
-                  Right $ DRepFromKeyHash (DRepKeyHash bytes)
+                Right $ DRepFromKeyHash (DRepKeyHash bytes)
             | hrp' == hrpDrepVKH && BS.length bytes == 28 ->
-                  Right $ DRepFromKeyHash (DRepKeyHash bytes)
+                Right $ DRepFromKeyHash (DRepKeyHash bytes)
             | hrp' == hrpDrepScript && BS.length bytes == 28 ->
-                  Right $ DRepFromScriptHash (DRepScriptHash bytes)
+                Right $ DRepFromScriptHash (DRepScriptHash bytes)
             | otherwise ->
-                  Left textDecodingError
+                Left textDecodingError
         _ ->
             Left textDecodingError
-      where
-        textDecodingError = TextDecodingError $ unwords
-            [ "Invalid DRep key/script hash: expecting a Bech32 encoded value"
-            , "with human readable part of 'drep', 'drep_vkh' or 'drep_script'."
-            ]
-        textFirstByteError = TextDecodingError $ unwords
-            [ "Invalid DRep credential: expecting a first byte '0b00100010' value for key hash or"
-            , "a first byte '0b00100011' value for script hash."
-            ]
-        hrpDrep = [Bech32.humanReadablePart|drep|]
-        hrpDrepVKH = [Bech32.humanReadablePart|drep_vkh|]
-        hrpDrepScript = [Bech32.humanReadablePart|drep_script|]
+  where
+    textDecodingError =
+        TextDecodingError
+            $ unwords
+                [ "Invalid DRep key/script hash: expecting a Bech32 encoded value"
+                , "with human readable part of 'drep', 'drep_vkh' or 'drep_script'."
+                ]
+    textFirstByteError =
+        TextDecodingError
+            $ unwords
+                [ "Invalid DRep credential: expecting a first byte '0b00100010' value for key hash or"
+                , "a first byte '0b00100011' value for script hash."
+                ]
+    hrpDrep = [Bech32.humanReadablePart|drep|]
+    hrpDrepVKH = [Bech32.humanReadablePart|drep_vkh|]
+    hrpDrepScript = [Bech32.humanReadablePart|drep_script|]
 
 -- | A decentralized representation ('DRep') will
 -- vote on behalf of the stake delegated to it.
@@ -140,7 +144,7 @@ data DRep
     | NoConfidence
     | FromDRepID DRepID
     deriving (Eq, Generic, Show, Ord)
-    deriving anyclass NFData
+    deriving anyclass (NFData)
 
 instance ToText DRep where
     toText Abstain = "abstain"

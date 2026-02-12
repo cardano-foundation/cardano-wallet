@@ -7,13 +7,10 @@
 -- License: Apache-2.0
 --
 -- This module provides the main 'Address' data type used by the wallet.
---
 module Cardano.Wallet.Primitive.Types.Address
     ( Address (..)
     , AddressState (..)
     ) where
-
-import Prelude
 
 import Control.DeepSeq
     ( NFData (..)
@@ -51,6 +48,7 @@ import GHC.Generics
 import Quiet
     ( Quiet (..)
     )
+import Prelude
 
 import qualified Data.Text.Encoding as T
 
@@ -99,7 +97,6 @@ import qualified Data.Text.Encoding as T
 -- makes it fairly clear that addresses are just an opaque string for the wallet
 -- layer and that the underlying encoding is rather agnostic to the underlying
 -- backend.
---
 newtype Address = Address
     { unAddress :: ByteString
     }
@@ -108,22 +105,25 @@ newtype Address = Address
     deriving (Read, Show) via (Quiet Address)
 
 instance Buildable Address where
-    build addr = mempty
-        <> prefixF 8 addrF
-        <> "..."
-        <> suffixF 8 addrF
+    build addr =
+        mempty
+            <> prefixF 8 addrF
+            <> "..."
+            <> suffixF 8 addrF
       where
         addrF = build (toText addr)
 
 instance ToText Address where
-    toText = T.decodeUtf8
-        . convertToBase Base16
-        . unAddress
+    toText =
+        T.decodeUtf8
+            . convertToBase Base16
+            . unAddress
 
 instance FromText Address where
-    fromText = bimap textDecodingError Address
-        . convertFromBase Base16
-        . T.encodeUtf8
+    fromText =
+        bimap textDecodingError Address
+            . convertFromBase Base16
+            . T.encodeUtf8
       where
         textDecodingError = TextDecodingError . show
 

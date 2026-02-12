@@ -10,8 +10,6 @@ module Cardano.Wallet.Api.Clients.Network
     )
 where
 
-import Prelude
-
 import Cardano.Wallet.Api
     ( GetBlocksLatestHeader
     , Network
@@ -35,6 +33,7 @@ import Servant.Client
     ( ClientM
     , client
     )
+import Prelude
 
 networkInformation
     :: ClientM ApiNetworkInformation

@@ -9,8 +9,6 @@ module Cardano.Wallet.UI.Shelley.Html.Pages.Page
     )
 where
 
-import Prelude
-
 import Cardano.Wallet.UI.Common.Html.Html
     ( RawHtml (..)
     )
@@ -70,6 +68,7 @@ import Lucid
     ( HtmlT
     , renderBS
     )
+import Prelude
 
 data Page
     = About

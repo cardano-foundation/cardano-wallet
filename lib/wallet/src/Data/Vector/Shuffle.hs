@@ -10,8 +10,6 @@ module Data.Vector.Shuffle
     , shuffleWith
     ) where
 
-import Prelude
-
 import Control.Monad
     ( forM_
     )
@@ -40,6 +38,7 @@ import System.Random
     , newStdGen
     , randomR
     )
+import Prelude
 
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
@@ -52,10 +51,10 @@ mkSeed :: Text -> Int
 mkSeed = toInt . quickHash . T.encodeUtf16LE
   where
     quickHash = BA.convert . hash @_ @MD5
-    toInt = snd . BS.foldl' exponentiation (0,0)
+    toInt = snd . BS.foldl' exponentiation (0, 0)
       where
         exponentiation :: (Int, Int) -> Word8 -> (Int, Int)
-        exponentiation (e, n) i = (e+1, n + fromIntegral i*2^e)
+        exponentiation (e, n) i = (e + 1, n + fromIntegral i * 2 ^ e)
 
 -- | Shuffles a list of elements.
 --
@@ -75,8 +74,9 @@ shuffleWith :: RandomGen g => g -> [a] -> IO [a]
 shuffleWith seed = modifyInPlace $ \v -> flip evalStateT seed $ do
     let (lo, hi) = (0, MV.length v - 1)
     forM_ [lo .. hi] $ \i -> do
-      j <- fromInteger <$> state (randomR (fromIntegral lo, fromIntegral hi))
-      lift $ swapElems v i j
+        j <-
+            fromInteger <$> state (randomR (fromIntegral lo, fromIntegral hi))
+        lift $ swapElems v i j
   where
     swapElems :: IOVector a -> Int -> Int -> IO ()
     swapElems v i j = do

@@ -9,9 +9,7 @@
 module Cardano.Wallet.DB.Store.WalletState.Store
     ( mkStoreWallet
     )
-    where
-
-import Prelude
+where
 
 import Cardano.Wallet.DB.Errors
     ( ErrBadFormat (..)
@@ -63,6 +61,7 @@ import Database.Persist.Sqlite
 import UnliftIO.Exception
     ( toException
     )
+import Prelude
 
 import qualified Cardano.Wallet.Primitive.Types as W
 

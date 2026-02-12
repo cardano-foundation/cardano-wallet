@@ -14,7 +14,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
-
 -- Technically,  instance Buildable Slot
 -- in an orphan instance, but `Slot` is a type synonym
 -- and the instance is more specific than a vanilla `WithOrigin` instance.
@@ -29,14 +28,11 @@
 --
 -- It doesn't contain any particular business-logic code, but defines a few
 -- primitive operations on Wallet core types as well.
-
 module Cardano.Wallet.Primitive.Types
-    (
-    -- * Block
-      Block(..)
-    , BlockHeader(..)
+    ( -- * Block
+      Block (..)
+    , BlockHeader (..)
     , isGenesisBlockHeader
-
     , ChainPoint (..)
     , compareSlot
     , chainPointFromBlockHeader
@@ -44,7 +40,7 @@ module Cardano.Wallet.Primitive.Types
     , WithOrigin (..)
     , toSlot
 
-    -- * Delegation and stake pools
+      -- * Delegation and stake pools
     , CertificatePublicationTime (..)
     , DelegationCertificate (..)
     , dlgCertAccount
@@ -58,11 +54,10 @@ module Cardano.Wallet.Primitive.Types
     , setPoolCertificatePoolId
     , getPoolRegistrationCertificate
     , getPoolRetirementCertificate
-
     , NonWalletCertificate (..)
     , Certificate (..)
 
-    -- * Network Parameters
+      -- * Network Parameters
     , NetworkParameters (..)
     , GenesisParameters (..)
     , SlottingParameters (..)
@@ -93,10 +88,10 @@ module Cardano.Wallet.Primitive.Types
     , ExecutionUnits (..)
     , ExecutionUnitPrices (..)
 
-    -- * Wallet Metadata
-    , WalletMetadata(..)
-    , WalletId(..)
-    , WalletName(..)
+      -- * Wallet Metadata
+    , WalletMetadata (..)
+    , WalletId (..)
+    , WalletName (..)
     , walletNameMinLength
     , walletNameMaxLength
     , WalletDelegation (..)
@@ -104,39 +99,36 @@ module Cardano.Wallet.Primitive.Types
     , WalletDelegationNext (..)
     , IsDelegatingTo (..)
 
-    -- * Stake Pools
+      -- * Stake Pools
     , StakeKeyCertificate (..)
 
-    -- * Querying
+      -- * Querying
     , SortOrder (..)
 
-    -- * Polymorphic
+      -- * Polymorphic
     , Signature (..)
 
-    -- * Settings
-    , Settings(..)
+      -- * Settings
+    , Settings (..)
     , SmashServer
     , unSmashServer
-    , PoolMetadataSource( .. )
+    , PoolMetadataSource (..)
     , defaultSettings
     , unsafeToPMS
-
     , TokenMetadataServer (..)
 
-    -- * InternalState
+      -- * InternalState
     , InternalState (..)
     , defaultInternalState
-
     ) where
-
-import Prelude
 
 import Cardano.Slotting.Slot
     ( SlotNo (..)
     , WithOrigin (..)
     )
 import Cardano.Wallet.Orphans
-    ()
+    (
+    )
 import Cardano.Wallet.Primitive.Passphrase.Types
     ( WalletPassphraseInfo (..)
     )
@@ -171,14 +163,14 @@ import Cardano.Wallet.Primitive.Types.Certificates
     , getPoolRetirementCertificate
     , setPoolCertificatePoolId
     )
+import Cardano.Wallet.Primitive.Types.DRep
+    ( DRep
+    )
 import Cardano.Wallet.Primitive.Types.DecentralizationLevel
     ( DecentralizationLevel (getDecentralizationLevel)
     , fromDecentralizationLevel
     , fromFederationPercentage
     , getFederationPercentage
-    )
-import Cardano.Wallet.Primitive.Types.DRep
-    ( DRep
     )
 import Cardano.Wallet.Primitive.Types.EpochNo
     ( EpochNo (..)
@@ -268,7 +260,8 @@ import Data.Data
     , Proxy (..)
     )
 import Data.Generics.Labels
-    ()
+    (
+    )
 import Data.Kind
     ( Type
     )
@@ -318,6 +311,7 @@ import Network.URI
     ( URI (..)
     , uriToString
     )
+import Prelude
 
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
@@ -340,7 +334,8 @@ data WalletMetadata = WalletMetadata
         :: !UTCTime
     , passphraseInfo
         :: !(Maybe WalletPassphraseInfo)
-    } deriving (Eq, Show, Generic)
+    }
+    deriving (Eq, Show, Generic)
 
 instance NFData WalletMetadata
 
@@ -348,15 +343,18 @@ formatUTCTime :: UTCTime -> Text
 formatUTCTime = T.pack . formatTime defaultTimeLocale "%Y-%m-%d %H:%M:%S %Z"
 
 instance Buildable WalletMetadata where
-    build (WalletMetadata wName wTime _ ) = mempty
-        <> build wName <> ", "
-        <> "created at " <> build (formatUTCTime wTime)
+    build (WalletMetadata wName wTime _) =
+        mempty
+            <> build wName
+            <> ", "
+            <> "created at "
+            <> build (formatUTCTime wTime)
 
 instance Buildable (WalletMetadata, WalletDelegation) where
-    build (meta, delegation) = build meta <> ", " <>  build delegation
+    build (meta, delegation) = build meta <> ", " <> build delegation
 
 -- | Length-restricted name of a wallet
-newtype WalletName = WalletName { getWalletName ::  Text }
+newtype WalletName = WalletName {getWalletName :: Text}
     deriving (Generic, Eq, Show)
 
 instance NFData WalletName
@@ -364,13 +362,17 @@ instance NFData WalletName
 instance FromText WalletName where
     fromText t
         | T.length t < walletNameMinLength =
-            Left $ TextDecodingError $
-                "name is too short: expected at least "
-                    <> show walletNameMinLength <> " character"
+            Left
+                $ TextDecodingError
+                $ "name is too short: expected at least "
+                    <> show walletNameMinLength
+                    <> " character"
         | T.length t > walletNameMaxLength =
-            Left $ TextDecodingError $
-                "name is too long: expected at most "
-                    <> show walletNameMaxLength <> " characters"
+            Left
+                $ TextDecodingError
+                $ "name is too long: expected at most "
+                    <> show walletNameMaxLength
+                    <> " characters"
         | otherwise =
             return $ WalletName t
 
@@ -388,16 +390,17 @@ walletNameMinLength = 1
 walletNameMaxLength :: Int
 walletNameMaxLength = 255
 
-newtype WalletId = WalletId { getWalletId :: Digest Blake2b_160 }
+newtype WalletId = WalletId {getWalletId :: Digest Blake2b_160}
     deriving (Data, Generic, Eq, Ord, Show)
 
 instance NFData WalletId
 
 instance FromText WalletId where
-    fromText txt = maybe
-        (Left $ TextDecodingError msg)
-        (Right . WalletId)
-        (decodeHex txt >>= digestFromByteString @_ @ByteString)
+    fromText txt =
+        maybe
+            (Left $ TextDecodingError msg)
+            (Right . WalletId)
+            (decodeHex txt >>= digestFromByteString @_ @ByteString)
       where
         msg = "wallet id should be a hex-encoded string of 40 characters"
         decodeHex =
@@ -429,7 +432,8 @@ instance Buildable WalletDelegationStatus where
 data WalletDelegationNext = WalletDelegationNext
     { changesAt :: !EpochNo
     , status :: !WalletDelegationStatus
-    } deriving (Eq, Generic, Show)
+    }
+    deriving (Eq, Generic, Show)
 instance NFData WalletDelegationNext
 
 instance Buildable WalletDelegationNext where
@@ -439,15 +443,17 @@ instance Buildable WalletDelegationNext where
 data WalletDelegation = WalletDelegation
     { active :: !WalletDelegationStatus
     , next :: ![WalletDelegationNext]
-    } deriving (Eq, Generic, Show)
+    }
+    deriving (Eq, Generic, Show)
 instance NFData WalletDelegation
 
 instance Buildable WalletDelegation where
     build (WalletDelegation act []) =
         "delegating to " <> build act
     build (WalletDelegation act xs) =
-        build (WalletDelegation act []) <> " → "
-        <> build (T.intercalate " → " $ pretty <$> xs)
+        build (WalletDelegation act [])
+            <> " → "
+            <> build (T.intercalate " → " $ pretty <$> xs)
 
 class IsDelegatingTo a where
     isDelegatingTo :: (PoolId -> Bool) -> a -> Bool
@@ -455,7 +461,7 @@ class IsDelegatingTo a where
 instance IsDelegatingTo WalletDelegationStatus where
     isDelegatingTo predicate = \case
         Delegating pid -> predicate pid
-        NotDelegating  -> False
+        NotDelegating -> False
         Voting _ -> False
         DelegatingVoting pid _ -> predicate pid
 
@@ -464,7 +470,7 @@ instance IsDelegatingTo WalletDelegationNext where
         isDelegatingTo predicate status
 
 instance IsDelegatingTo WalletDelegation where
-    isDelegatingTo predicate WalletDelegation{active,next} =
+    isDelegatingTo predicate WalletDelegation{active, next} =
         isDelegatingTo predicate active || any (isDelegatingTo predicate) next
 
 {-------------------------------------------------------------------------------
@@ -473,10 +479,10 @@ instance IsDelegatingTo WalletDelegation where
 
 -- | Represents a sort order, applicable to the results returned by a query.
 data SortOrder
-    = Ascending
-        -- ^ Sort in ascending order.
-    | Descending
-        -- ^ Sort in descending order.
+    = -- | Sort in ascending order.
+      Ascending
+    | -- | Sort in descending order.
+      Descending
     deriving (Bounded, Enum, Eq, Generic, Show)
 
 instance ToText SortOrder where
@@ -534,7 +540,7 @@ instance PersistFieldSql StakeKeyCertificate where
 
 -- | A newtype to wrap raw bytestring representing signed data, captured with a
 -- phantom type.
-newtype Signature (what :: Type) = Signature { getSignature :: ByteString }
+newtype Signature (what :: Type) = Signature {getSignature :: ByteString}
     deriving stock (Show, Eq, Generic)
     deriving newtype (ByteArrayAccess)
 
@@ -543,7 +549,7 @@ newtype Signature (what :: Type) = Signature { getSignature :: ByteString }
 -------------------------------------------------------------------------------}
 
 newtype TokenMetadataServer = TokenMetadataServer
-    { unTokenMetadataServer :: URI }
+    {unTokenMetadataServer :: URI}
     deriving (Show, Generic, Eq)
 
 instance ToText TokenMetadataServer where
@@ -555,7 +561,7 @@ instance FromText TokenMetadataServer where
 -- | A SMASH server is either an absolute http or https url.
 --
 -- Don't export SmashServer constructor, use @fromText@ instance instead.
-newtype SmashServer = SmashServer { unSmashServer :: URI }
+newtype SmashServer = SmashServer {unSmashServer :: URI}
     deriving (Show, Generic, Eq)
 
 instance ToText SmashServer where
@@ -592,28 +598,35 @@ unsafeToPMS = FetchSMASH . SmashServer
 -- @Settings@ here is neither of that. It's a real product type, that is supposed
 -- to be extended in the future.
 {- HLINT ignore Settings "Use newtype instead of data" -}
+
 -- | Wallet application settings. These are stored at runtime and
 -- potentially mutable.
-data Settings = Settings {
-    poolMetadataSource :: PoolMetadataSource
-} deriving (Show, Generic, Eq)
+data Settings = Settings
+    { poolMetadataSource :: PoolMetadataSource
+    }
+    deriving (Show, Generic, Eq)
 
 defaultSettings :: Settings
-defaultSettings = Settings {
-    poolMetadataSource = FetchNone
-}
+defaultSettings =
+    Settings
+        { poolMetadataSource = FetchNone
+        }
 
 -- | Various internal states of the pool DB
 --  that need to survive wallet restarts. These aren't
 --  exposed settings.
+
 {- HLINT ignore InternalState "Use newtype instead of data" -}
 data InternalState = InternalState
     { lastMetadataGC :: Maybe POSIXTime
-    } deriving (Generic, Show, Eq)
+    }
+    deriving (Generic, Show, Eq)
 
 defaultInternalState :: InternalState
-defaultInternalState = InternalState
-    { lastMetadataGC = Nothing }
+defaultInternalState =
+    InternalState
+        { lastMetadataGC = Nothing
+        }
 
 instance FromJSON PoolMetadataSource where
     parseJSON = parseJSON >=> either (fail . show . ShowFmt) pure . fromText

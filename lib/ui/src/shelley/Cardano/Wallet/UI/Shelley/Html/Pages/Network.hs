@@ -3,8 +3,6 @@
 
 module Cardano.Wallet.UI.Shelley.Html.Pages.Network where
 
-import Prelude
-
 import Cardano.Slotting.Slot
     ( SlotNo (..)
     )
@@ -52,6 +50,7 @@ import Lucid
 import Servant.Links
     ( Link
     )
+import Prelude
 
 import qualified Data.Percentage as Percentage
 
@@ -85,7 +84,7 @@ networkInfoH showTime ApiNetworkInformation{..} = record (Just 7) Full Striped $
 nextEpochH :: Maybe EpochInfo -> Html ()
 nextEpochH Nothing = p_ "Unknown"
 nextEpochH (Just EpochInfo{..}) = do
-    record (Just 5) Full Striped  $ do
+    record (Just 5) Full Striped $ do
         simpleField "Epoch Start" $ showHtml epochStartTime
         simpleField "Epoch Number" $ toHtml $ showThousandDots epochNumber'
   where
@@ -95,7 +94,8 @@ nextEpochH (Just EpochInfo{..}) = do
 syncProgressH :: SyncProgress -> Html ()
 syncProgressH Ready = "Ready"
 syncProgressH (Syncing (Quantity percentage)) =
-    "Syncing " <> toHtml (showPercentage $ Percentage.toRational percentage)
+    "Syncing "
+        <> toHtml (showPercentage $ Percentage.toRational percentage)
 syncProgressH (NotResponding) = "Not Responding"
 
 -- | Render a block reference as a record

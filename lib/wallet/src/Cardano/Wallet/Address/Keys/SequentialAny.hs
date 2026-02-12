@@ -10,13 +10,14 @@ module Cardano.Wallet.Address.Keys.SequentialAny
     )
 where
 
-import Prelude
-
 import Cardano.Wallet.Address.Derivation
     ( Depth (..)
     , DerivationType (..)
     , HardDerivation (..)
     , Index (..)
+    )
+import Cardano.Wallet.Address.Derivation.Byron
+    ( ByronKey (..)
     )
 import Cardano.Wallet.Address.Derivation.MintBurn
     ( derivePolicyPrivateKey
@@ -33,17 +34,6 @@ import Cardano.Wallet.Address.Discovery.Sequential
     , SupportsDiscovery
     , mkSeqStateFromAccountXPub
     )
-import Cardano.Wallet.Flavor
-    ( Excluding
-    , KeyFlavorS
-    )
-import GHC.TypeLits
-    ( Nat
-    )
-
-import Cardano.Wallet.Address.Derivation.Byron
-    ( ByronKey (..)
-    )
 import Cardano.Wallet.Address.Discovery.SequentialAny
     ( SeqAnyState (..)
     )
@@ -52,10 +42,18 @@ import Cardano.Wallet.Address.Keys.WalletKey
     , liftRawKey
     , publicKey
     )
+import Cardano.Wallet.Flavor
+    ( Excluding
+    , KeyFlavorS
+    )
 import Cardano.Wallet.Primitive.Types.Credentials
     ( ClearCredentials
     , RootCredentials (..)
     )
+import GHC.TypeLits
+    ( Nat
+    )
+import Prelude
 
 -- | Initialize the HD random address discovery state from a root key and RNG
 -- seed.
@@ -64,10 +62,10 @@ import Cardano.Wallet.Primitive.Types.Credentials
 -- recognize as ours. It is expressed in per-myriad, so "1" means 0.01%,
 -- "100" means 1% and 10000 means 100%.
 mkSeqAnyState
-    :: forall (p :: Nat) n k.
-        ( SupportsDiscovery n k
-        , Excluding '[SharedKey, ByronKey] k
-        )
+    :: forall (p :: Nat) n k
+     . ( SupportsDiscovery n k
+       , Excluding '[SharedKey, ByronKey] k
+       )
     => KeyFlavorS k
     -> ClearCredentials k
     -> Index 'Hardened 'PurposeK
@@ -75,16 +73,22 @@ mkSeqAnyState
     -> SeqAnyState n k p
 mkSeqAnyState kF credentials purpose poolGap =
     SeqAnyState
-        {innerState =
-         mkSeqStateFromRootXPrv kF credentials purpose poolGap IncreasingChangeAddresses}
+        { innerState =
+            mkSeqStateFromRootXPrv
+                kF
+                credentials
+                purpose
+                poolGap
+                IncreasingChangeAddresses
+        }
 
 -- | Construct a Sequential state for a wallet
 -- from root private key and password.
 mkSeqStateFromRootXPrv
-    :: forall n k.
-        ( SupportsDiscovery n k
-        , Excluding '[ByronKey, SharedKey] k
-        )
+    :: forall n k
+     . ( SupportsDiscovery n k
+       , Excluding '[ByronKey, SharedKey] k
+       )
     => KeyFlavorS k
     -> ClearCredentials k
     -> Index 'Hardened 'PurposeK
@@ -94,7 +98,7 @@ mkSeqStateFromRootXPrv
 mkSeqStateFromRootXPrv kF (RootCredentials rootXPrv pwd) =
     mkSeqStateFromAccountXPub
         (publicKey kF $ deriveAccountPrivateKey pwd rootXPrv minBound)
-            $ Just
-            $ publicKey kF
-            $ liftRawKey kF
-            $ derivePolicyPrivateKey pwd (getRawKey kF rootXPrv) minBound
+        $ Just
+        $ publicKey kF
+        $ liftRawKey kF
+        $ derivePolicyPrivateKey pwd (getRawKey kF rootXPrv) minBound

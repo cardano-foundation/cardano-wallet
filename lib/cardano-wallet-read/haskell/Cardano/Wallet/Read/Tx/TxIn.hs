@@ -6,8 +6,6 @@
 -- License: Apache-2.0
 --
 -- 'TxIn' — transaction input.
---
-
 module Cardano.Wallet.Read.Tx.TxIn
     ( TxIn
     , pattern TxIn
@@ -17,9 +15,7 @@ module Cardano.Wallet.Read.Tx.TxIn
     , pattern TxIx
     , word16FromTxIx
     )
-    where
-
-import Prelude
+where
 
 import Cardano.Wallet.Read.Tx.TxId
     ( TxId
@@ -27,9 +23,10 @@ import Cardano.Wallet.Read.Tx.TxId
 import Data.Word
     ( Word16
     )
+import Prelude
 
-import qualified Cardano.Ledger.BaseTypes as SH
-import qualified Cardano.Ledger.TxIn as SH
+import Cardano.Ledger.BaseTypes qualified as SH
+import Cardano.Ledger.TxIn qualified as SH
 
 {-----------------------------------------------------------------------------
     Types
@@ -46,7 +43,7 @@ type TxIn = SH.TxIn
 
 {-# COMPLETE TxIn #-}
 pattern TxIn :: TxId -> TxIx -> TxIn
-pattern TxIn{inputId,inputIx} = SH.TxIn inputId inputIx
+pattern TxIn{inputId, inputIx} = SH.TxIn inputId inputIx
 
 -- | Index of a transaction output.
 -- Equivalent to 'Word16'.
@@ -54,8 +51,9 @@ type TxIx = SH.TxIx
 
 {-# COMPLETE TxIx #-}
 pattern TxIx :: Word16 -> TxIx
-pattern TxIx{word16FromTxIx} <- (fromTxIx -> word16FromTxIx) where
-    TxIx w16 = SH.TxIx (fromIntegral w16)
+pattern TxIx{word16FromTxIx} <- (fromTxIx -> word16FromTxIx)
+    where
+        TxIx w16 = SH.TxIx (fromIntegral w16)
 
 fromTxIx :: TxIx -> Word16
 fromTxIx (SH.TxIx w16) = fromIntegral w16

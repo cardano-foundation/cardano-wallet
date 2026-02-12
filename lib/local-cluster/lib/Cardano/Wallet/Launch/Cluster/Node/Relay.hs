@@ -9,8 +9,6 @@ module Cardano.Wallet.Launch.Cluster.Node.Relay
     )
 where
 
-import Prelude
-
 import Cardano.Launcher.Node
     ( CardanoNodeConfig (..)
     , NodePort (..)
@@ -64,6 +62,7 @@ import System.Path
 import System.Path.Directory
     ( createDirectoryIfMissing
     )
+import Prelude
 
 -- | Launches a @cardano-node@ with the given configuration which will not forge
 -- blocks, but has every other cluster node as its peer. Any transactions
@@ -86,9 +85,14 @@ withRelayNode
 withRelayNode params (RelDirOf nodeSegment) onClusterStart = do
     let name = "node"
     DirOf nodeDirPath <- askNodeDir nodeSegment
-    let NodeParams genesisFiles hardForks (port, peers) logCfg _
-            socket
-            = params
+    let NodeParams
+            genesisFiles
+            hardForks
+            (port, peers)
+            logCfg
+            _
+            socket =
+                params
     bracketTracer' "withRelayNode" $ do
         liftIO $ createDirectoryIfMissing True nodeDirPath
         let logCfg' = setLoggingName name logCfg
@@ -116,11 +120,13 @@ withRelayNode params (RelDirOf nodeSegment) onClusterStart = do
                     , nodePort = Just (NodePort port)
                     , nodeLoggingHostname = Just name
                     , nodeExecutable = Nothing
-                    , nodeOutputFile = absFilePathOf
-                        <$> nodeParamsOutputFile params
+                    , nodeOutputFile =
+                        absFilePathOf
+                            <$> nodeParamsOutputFile params
                     , nodeSocketPathFile = fmap filePathOfOsNamedPipe socket
                     }
 
-        let onClusterStart' (JustK (socketPath)) = onClusterStart
-                $ RunningNode socketPath genesisData vd
+        let onClusterStart' (JustK (socketPath)) =
+                onClusterStart
+                    $ RunningNode socketPath genesisData vd
         withCardanoNodeProcess name cfg onClusterStart'

@@ -10,8 +10,6 @@ module Cardano.Wallet.Read.Tx.Gen.Babbage
     )
 where
 
-import Prelude
-
 import Cardano.Ledger.Alonzo
     ( AlonzoTxAuxData
     )
@@ -101,6 +99,7 @@ import Data.Sequence.Strict
 import Data.Set
     ( Set
     )
+import Prelude
 
 mkBabbageTx
     :: TxParameters

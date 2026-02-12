@@ -4,8 +4,6 @@
 -- |
 -- Copyright: © 2020-2022 IOHK
 -- License: Apache-2.0
---
-
 module Cardano.Wallet.Primitive.Ledger.Read.Tx.Sealed
     ( fromSealedTx
     ) where
@@ -33,7 +31,7 @@ import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Wallet.Primitive.Types.Tx.SealedTx as W
 
-fromSealedTx:: W.SealedTx -> EraValue Tx
+fromSealedTx :: W.SealedTx -> EraValue Tx
 fromSealedTx sealed =
     case unsafeCardanoTx sealed of
         InAnyCardanoEra _ce tx -> fromCardanoApiTx tx

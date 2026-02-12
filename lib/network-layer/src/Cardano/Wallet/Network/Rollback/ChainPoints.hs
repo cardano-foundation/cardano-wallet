@@ -2,11 +2,8 @@ module Cardano.Wallet.Network.Rollback.ChainPoints
     ( ChainPoints (..)
     , WithChainPoint (..)
     , chainPointDifference
-    ,
     )
 where
-
-import Prelude
 
 import Cardano.Wallet.Read
     ( ChainPoint (..)
@@ -15,6 +12,7 @@ import Cardano.Wallet.Read
 import Numeric.Natural
     ( Natural
     )
+import Prelude
 
 -- | Abstract data type representing a store for values at chain points.
 data ChainPoints value = ChainPoints

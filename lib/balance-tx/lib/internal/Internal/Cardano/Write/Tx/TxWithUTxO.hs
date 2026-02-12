@@ -8,7 +8,6 @@
 -- License: Apache-2.0
 --
 -- Provides the 'TxWithUTxO' data type.
---
 module Internal.Cardano.Write.Tx.TxWithUTxO
     ( type TxWithUTxO
     , pattern TxWithUTxO
@@ -16,9 +15,7 @@ module Internal.Cardano.Write.Tx.TxWithUTxO
     , constructFiltered
     , isValid
     )
-    where
-
-import Prelude
+where
 
 import Cardano.Ledger.Api
     ( AlonzoEraTxBody (collateralInputsTxBodyL)
@@ -50,6 +47,7 @@ import Internal.Cardano.Write.Tx
     , TxIn
     , UTxO (UTxO)
     )
+import Prelude
 
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
@@ -62,7 +60,6 @@ import qualified Data.Set.NonEmpty as NESet
 --
 -- The UTxO set may also contain additional UTxOs that are not referenced by
 -- the transaction.
---
 data TxWithUTxO era = UnsafeTxWithUTxO !(Tx era) !(UTxO era)
 
 deriving instance IsRecentEra era => Eq (TxWithUTxO era)
@@ -71,7 +68,8 @@ instance IsRecentEra era => Show (TxWithUTxO era) where
     show = fromMaybe "TxWithUTxO" . stripPrefix "Unsafe" . show
 
 {-# COMPLETE TxWithUTxO #-}
-pattern TxWithUTxO :: IsRecentEra era => Tx era -> UTxO era -> TxWithUTxO era
+pattern TxWithUTxO
+    :: IsRecentEra era => Tx era -> UTxO era -> TxWithUTxO era
 pattern TxWithUTxO tx utxo <- UnsafeTxWithUTxO tx utxo
 
 -- | Constructs a 'TxWithUTxO' object from an existing transaction and UTxO set.
@@ -81,7 +79,6 @@ pattern TxWithUTxO tx utxo <- UnsafeTxWithUTxO tx utxo
 --
 -- Otherwise, if the transaction has any unresolvable inputs, this function
 -- returns the non-empty set of those inputs.
---
 construct
     :: IsRecentEra era
     => Tx era
@@ -97,9 +94,9 @@ construct tx utxo =
 --
 -- A transaction input is unresolvable if (and only if) it does not resolve to
 -- a UTxO within the given UTxO set.
---
 constructFiltered
-    :: forall era. IsRecentEra era
+    :: forall era
+     . IsRecentEra era
     => Tx era
     -> UTxO era
     -> TxWithUTxO era
@@ -109,10 +106,10 @@ constructFiltered tx utxo@(UTxO utxoMap) = UnsafeTxWithUTxO txFiltered utxo
     txFiltered = over bodyTxL removeUnresolvableInputs tx
 
     removeUnresolvableInputs :: TxBody era -> TxBody era
-    removeUnresolvableInputs
-        = over           inputsTxBodyL f
-        . over collateralInputsTxBodyL f
-        . over  referenceInputsTxBodyL f
+    removeUnresolvableInputs =
+        over inputsTxBodyL f
+            . over collateralInputsTxBodyL f
+            . over referenceInputsTxBodyL f
       where
         f = Set.filter (`Map.member` utxoMap)
 
@@ -120,7 +117,6 @@ constructFiltered tx utxo@(UTxO utxoMap) = UnsafeTxWithUTxO txFiltered utxo
 --
 -- A 'TxWithUTxO' object is valid if (and only if) all inputs within the
 -- transaction resolve to a UTxO within the associated UTxO set.
---
 isValid :: IsRecentEra era => TxWithUTxO era -> Bool
 isValid = null . unresolvableInputs
 
@@ -130,13 +126,13 @@ isValid = null . unresolvableInputs
 -- to a UTxO within the associated UTxO set.
 --
 -- For a valid 'TxWithUTxO' object, this function will return 'Nothing'.
---
 unresolvableInputs
-    :: forall era. IsRecentEra era
+    :: forall era
+     . IsRecentEra era
     => TxWithUTxO era
     -> Maybe (NESet TxIn)
-unresolvableInputs (TxWithUTxO tx (UTxO utxo))
-    = NESet.nonEmptySet
-    . Set.filter (`Map.notMember` utxo)
-    . view (bodyTxL . allInputsTxBodyF)
-    $ tx
+unresolvableInputs (TxWithUTxO tx (UTxO utxo)) =
+    NESet.nonEmptySet
+        . Set.filter (`Map.notMember` utxo)
+        . view (bodyTxL . allInputsTxBodyF)
+        $ tx

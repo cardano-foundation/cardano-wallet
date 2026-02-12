@@ -1,15 +1,15 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+
 -- |
 -- Copyright: © 2024 Cardano Foundation
 -- License: Apache-2.0
 --
 -- Convert from "Cardano.Wallet.Read" to primitive types.
---
 module Cardano.Wallet.Primitive.Ledger.Read.PParams
     ( primitiveProtocolParameters
     )
-    where
+where
 
 import Cardano.Wallet.Primitive.Ledger.Byron
     ( protocolParametersFromPP
@@ -38,7 +38,8 @@ import qualified Cardano.Wallet.Read as Read
 
 -- | Compute wallet primitive 'W.ProtocolParameters' from ledger 'PParams'.
 primitiveProtocolParameters
-    :: forall era. Read.IsEra era
+    :: forall era
+     . Read.IsEra era
     => EraInfo Bound
     -> Read.PParams era
     -> W.ProtocolParameters

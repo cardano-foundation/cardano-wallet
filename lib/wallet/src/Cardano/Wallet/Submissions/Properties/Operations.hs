@@ -4,8 +4,6 @@ module Cardano.Wallet.Submissions.Properties.Operations
     ( properties
     ) where
 
-import Prelude
-
 import Cardano.Wallet.Submissions.Operations
     ( Operation (..)
     )
@@ -38,8 +36,11 @@ import Test.QuickCheck
     , property
     , (.&.)
     )
+import Prelude
 
-status' :: Ord (TxId tx) => TxId tx -> Submissions meta slot tx -> TxStatus slot tx
+status'
+    :: Ord (TxId tx)
+    => TxId tx -> Submissions meta slot tx -> TxStatus slot tx
 status' x = status x . transactions
 
 -- | As described in the specification:
@@ -50,26 +51,31 @@ status' x = status x . transactions
 properties
     :: (Ord (TxId tx), Ord slot, Show (TxId tx))
     => Step Operation () slot tx -> Property
-properties (Step _ xs' _)
-    = counterexample "submissions invariants" $ verify $ do
+properties (Step _ xs' _) =
+    counterexample "submissions invariants" $ verify $ do
         that "finality precedes tip"
-            $ property $ finality xs' <= tip xs'
+            $ property
+            $ finality xs' <= tip xs'
         that "transactions are observed partitioned between finality and tip"
             $ let
                 t = tip xs'
                 f = finality xs'
-                included w =  w > f .&. w <= t
-            in forAllIn (txIds xs') $ \x -> case status' x xs' of
-                InSubmission expiring _ ->
-                    (expiring > t)
-                    & counterexample "any in-submission transaction\
-                        \ should be after the tip"
-                InLedger _ acceptance _ ->
-                    included acceptance
-                    & counterexample "any in ledger transaction should be\
-                        \ included between finality and tip"
-                Expired expiring _ ->
-                    included expiring
-                    & counterexample "any expired transaction should be\
-                        \ included between finality and tip"
-                _ -> property True
+                included w = w > f .&. w <= t
+              in
+                forAllIn (txIds xs') $ \x -> case status' x xs' of
+                    InSubmission expiring _ ->
+                        (expiring > t)
+                            & counterexample
+                                "any in-submission transaction\
+                                \ should be after the tip"
+                    InLedger _ acceptance _ ->
+                        included acceptance
+                            & counterexample
+                                "any in ledger transaction should be\
+                                \ included between finality and tip"
+                    Expired expiring _ ->
+                        included expiring
+                            & counterexample
+                                "any expired transaction should be\
+                                \ included between finality and tip"
+                    _ -> property True

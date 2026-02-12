@@ -1,5 +1,4 @@
 {- HLINT ignore "Evaluate" -}
-
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE NamedFieldPuns #-}
@@ -17,11 +16,8 @@
 -- set.
 --
 -- See the documentation for 'performSelection' for more details.
---
 module Cardano.CoinSelection.Collateral
-    (
-    -- * Public API
-
+    ( -- * Public API
       performSelection
     , PerformSelection
     , SelectionConstraints (..)
@@ -32,30 +28,30 @@ module Cardano.CoinSelection.Collateral
     , SearchSpaceLimit (..)
     , searchSpaceLimitDefault
 
-    -- * Internal API
+      -- * Internal API
 
-    -- ** Selecting collateral by giving priority to smallest values first
+      -- ** Selecting collateral by giving priority to smallest values first
     , selectCollateralSmallest
 
-    -- ** Selecting collateral by giving priority to largest values first
+      -- ** Selecting collateral by giving priority to largest values first
     , selectCollateralLargest
 
-    -- ** Guarding search space size
+      -- ** Guarding search space size
     , SearchSpaceRequirement (..)
     , guardSearchSpaceSize
 
-    -- ** Generating submaps
+      -- ** Generating submaps
     , submaps
 
-    -- ** Generating subsequences
+      -- ** Generating subsequences
     , subsequencesOfSize
     , numberOfSubsequencesOfSize
 
-    -- ** Control flow
+      -- ** Control flow
     , firstRight
     , takeUntil
     )
-    where
+where
 
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin
@@ -89,7 +85,6 @@ import Data.Set
 import GHC.Generics
     ( Generic
     )
-
 import Prelude
 
 import qualified Data.Foldable as F
@@ -104,11 +99,10 @@ import qualified Numeric.SpecFunctions as MathFast
 --------------------------------------------------------------------------------
 
 -- | The type of all functions that perform selections.
---
 type PerformSelection u =
-    SelectionConstraints ->
-    SelectionParams u ->
-    Either (SelectionCollateralError u) (SelectionResult u)
+    SelectionConstraints
+    -> SelectionParams u
+    -> Either (SelectionCollateralError u) (SelectionResult u)
 
 -- | Specifies all constraints required for collateral selection.
 --
@@ -120,40 +114,37 @@ type PerformSelection u =
 --
 --    - place limits on the selection algorithm, enabling it to produce
 --      selections that are acceptable to the ledger.
---
 data SelectionConstraints = SelectionConstraints
     { maximumSelectionSize
         :: Int
-        -- ^ An upper bound on the number of unique coins that can be selected
-        -- as collateral.
+    -- ^ An upper bound on the number of unique coins that can be selected
+    -- as collateral.
     , searchSpaceLimit
         :: SearchSpaceLimit
-        -- ^ An upper bound on the search space size, to protect the wallet
-        -- against computations that use excessive amounts of time or space.
+    -- ^ An upper bound on the search space size, to protect the wallet
+    -- against computations that use excessive amounts of time or space.
     }
     deriving (Eq, Generic, Show)
 
 -- | Specifies all parameters that are specific to a given selection.
---
 data SelectionParams u = SelectionParams
     { coinsAvailable
         :: Map u Coin
-        -- ^ The set of all coins available for selection as collateral.
+    -- ^ The set of all coins available for selection as collateral.
     , minimumSelectionAmount
         :: Coin
-        -- ^ A lower bound on the sum of coins to be selected as collateral.
+    -- ^ A lower bound on the sum of coins to be selected as collateral.
     }
     deriving (Eq, Generic, Show)
 
 -- | Specifies an upper bound on the search space size.
---
 data SearchSpaceLimit
-    = SearchSpaceLimit Int
-    -- ^ Specifies an upper bound on the number of coin combinations that can
-    -- be considered in any single step.
-    | UnsafeNoSearchSpaceLimit
-    -- ^ Specifies that there is no search space limit. This should only be
-    -- used for testing purposes.
+    = -- | Specifies an upper bound on the number of coin combinations that can
+      -- be considered in any single step.
+      SearchSpaceLimit Int
+    | -- | Specifies that there is no search space limit. This should only be
+      -- used for testing purposes.
+      UnsafeNoSearchSpaceLimit
     deriving (Eq, Show)
 
 -- | The default search space limit.
@@ -161,32 +152,29 @@ data SearchSpaceLimit
 -- This constant is used by the test suite, so we can be reasonably confident
 -- that performing selections with this limit will not use inordinate amounts
 -- of time and space.
---
 searchSpaceLimitDefault :: SearchSpaceLimit
 searchSpaceLimitDefault = SearchSpaceLimit 1_000_000
 
 -- | Represents a successful selection of collateral.
---
 newtype SelectionResult u = SelectionResult
     { coinsSelected :: Map u Coin
-        -- ^ The coins that were selected for collateral.
+    -- ^ The coins that were selected for collateral.
     }
     deriving (Eq, Generic, Show)
 
 -- | A completely empty result, with no inputs selected.
---
 selectionResultEmpty :: SelectionResult u
-selectionResultEmpty = SelectionResult
-    { coinsSelected = Map.empty
-    }
+selectionResultEmpty =
+    SelectionResult
+        { coinsSelected = Map.empty
+        }
 
 -- | Represents an unsuccessful attempt to select collateral.
---
 data SelectionCollateralError u = SelectionCollateralError
     { largestCombinationAvailable :: Map u Coin
-        -- ^ The largest combination of coins available.
+    -- ^ The largest combination of coins available.
     , minimumSelectionAmount :: Coin
-        -- ^ A lower bound on the sum of coins to be selected as collateral.
+    -- ^ A lower bound on the sum of coins to be selected as collateral.
     }
     deriving (Eq, Generic, Show)
 
@@ -222,13 +210,14 @@ data SelectionCollateralError u = SelectionCollateralError
 --    >>> sum  largestCombinationAvailable < minimumSelectionAmount
 --    >>> size largestCombinationAvailable ≤ maximumSelectionSize
 --    >>>      largestCombinationAvailable ⊆ coinsAvailable
---
 performSelection :: forall u. Ord u => PerformSelection u
 performSelection constraints =
-    firstRight $ fmap ($ constraints)
-        [ selectCollateralSmallest
-        , selectCollateralLargest
-        ]
+    firstRight
+        $ fmap
+            ($ constraints)
+            [ selectCollateralSmallest
+            , selectCollateralLargest
+            ]
 
 --------------------------------------------------------------------------------
 -- Internal API
@@ -245,23 +234,24 @@ performSelection constraints =
 -- required search space is large, and if the 'searchSpaceLimit' parameter is
 -- set to a value that's smaller than the required search space size, then this
 -- function will return without computing a result.
---
 selectCollateralSmallest :: forall u. Ord u => PerformSelection u
 selectCollateralSmallest constraints params =
     case smallestValidCombination of
         Just coinsSelected ->
-            Right SelectionResult {coinsSelected}
+            Right SelectionResult{coinsSelected}
         Nothing ->
-            Left SelectionCollateralError
-                { largestCombinationAvailable = mempty
-                , minimumSelectionAmount
-                }
+            Left
+                SelectionCollateralError
+                    { largestCombinationAvailable = mempty
+                    , minimumSelectionAmount
+                    }
   where
     coinsToConsider :: [(u, Coin)]
-    coinsToConsider = coinsAvailable
-        & Map.toList
-        & L.sortOn snd
-        & takeUntil ((>= minimumSelectionAmount) . snd)
+    coinsToConsider =
+        coinsAvailable
+            & Map.toList
+            & L.sortOn snd
+            & takeUntil ((>= minimumSelectionAmount) . snd)
 
     numberOfCoinsToConsider :: Int
     numberOfCoinsToConsider = length coinsToConsider
@@ -272,27 +262,30 @@ selectCollateralSmallest constraints params =
       where
         validCombinations :: [Map u Coin]
         validCombinations =
-            mapMaybe smallestValidCombinationOfSize
-            [1 .. maximumSelectionSize]
+            mapMaybe
+                smallestValidCombinationOfSize
+                [1 .. maximumSelectionSize]
 
     smallestValidCombinationOfSize :: Int -> Maybe (Map u Coin)
     smallestValidCombinationOfSize size =
         guardSearchSpaceSize searchSpaceRequirement searchSpaceLimit result
       where
         result :: Maybe (Map u Coin)
-        result = coinsToConsider
-            & (`subsequencesOfSize` size)
-            & fmap (\ics -> (ics, F.foldMap snd ics))
-            & L.sortOn snd
-            & L.dropWhile ((< minimumSelectionAmount) . snd)
-            & listToMaybe
-            & fmap (Map.fromList . fst)
+        result =
+            coinsToConsider
+                & (`subsequencesOfSize` size)
+                & fmap (\ics -> (ics, F.foldMap snd ics))
+                & L.sortOn snd
+                & L.dropWhile ((< minimumSelectionAmount) . snd)
+                & listToMaybe
+                & fmap (Map.fromList . fst)
 
         searchSpaceRequirement :: SearchSpaceRequirement
-        searchSpaceRequirement = maybe
-            SearchSpaceRequirementUnknown
-            SearchSpaceRequirement
-            (numberOfCoinsToConsider `numberOfSubsequencesOfSize` size)
+        searchSpaceRequirement =
+            maybe
+                SearchSpaceRequirementUnknown
+                SearchSpaceRequirement
+                (numberOfCoinsToConsider `numberOfSubsequencesOfSize` size)
 
     SelectionConstraints
         { maximumSelectionSize
@@ -313,17 +306,17 @@ selectCollateralSmallest constraints params =
 -- available, by looking only at the very largest coins available.
 --
 -- This result can be computed very quickly, without using much search space.
---
 selectCollateralLargest :: forall u. Ord u => PerformSelection u
 selectCollateralLargest constraints params =
     case smallestValidSubmapOfLargestCombinationAvailable of
         Just coinsSelected ->
-            Right SelectionResult {coinsSelected}
+            Right SelectionResult{coinsSelected}
         Nothing ->
-            Left SelectionCollateralError
-                { largestCombinationAvailable
-                , minimumSelectionAmount
-                }
+            Left
+                SelectionCollateralError
+                    { largestCombinationAvailable
+                    , minimumSelectionAmount
+                    }
   where
     largestCombinationAvailable :: Map u Coin
     largestCombinationAvailable =
@@ -362,7 +355,6 @@ selectCollateralLargest constraints params =
 --
 -- For a map 'm' of size 'n', this function will generate all possible submaps,
 -- including the empty map and the original map 'm'.
---
 submaps :: forall a b. (Ord a, Ord b) => Map a b -> Set (Map a b)
 submaps m = Set.map (Map.restrictKeys m) (Set.powerSet (Map.keysSet m))
 
@@ -371,10 +363,10 @@ submaps m = Set.map (Map.restrictKeys m) (Set.powerSet (Map.keysSet m))
 --------------------------------------------------------------------------------
 
 data SearchSpaceRequirement
-    = SearchSpaceRequirement Int
-      -- ^ Indicates a known search space requirement.
-    | SearchSpaceRequirementUnknown
-      -- ^ Indicates that the search space requirement is unknown.
+    = -- | Indicates a known search space requirement.
+      SearchSpaceRequirement Int
+    | -- | Indicates that the search space requirement is unknown.
+      SearchSpaceRequirementUnknown
 
 guardSearchSpaceSize
     :: SearchSpaceRequirement
@@ -392,15 +384,15 @@ guardSearchSpaceSize requirement limit =
         -- has explicitly specified that there is no limit:
         SearchSpaceRequirementUnknown ->
             case limit of
-                SearchSpaceLimit _       -> const Nothing
+                SearchSpaceLimit _ -> const Nothing
                 UnsafeNoSearchSpaceLimit -> id
         -- When the search space requirement is known, only evaluate the
         -- computation if the requirement is not greater than the limit:
         SearchSpaceRequirement r ->
             case limit of
                 SearchSpaceLimit l | l < r -> const Nothing
-                SearchSpaceLimit _         -> id
-                UnsafeNoSearchSpaceLimit   -> id
+                SearchSpaceLimit _ -> id
+                UnsafeNoSearchSpaceLimit -> id
 
 --------------------------------------------------------------------------------
 -- Generating subsequences
@@ -413,7 +405,6 @@ guardSearchSpaceSize requirement limit =
 -- it.
 --
 -- Returns 'Nothing' if the result is larger than 'maxBound :: Int'.
---
 numberOfSubsequencesOfSize
     :: Int
     -- ^ Indicates the size of the sequence.
@@ -421,26 +412,28 @@ numberOfSubsequencesOfSize
     -- ^ Indicates the size of subsequences.
     -> Maybe Int
 numberOfSubsequencesOfSize n k
-    | k <  0 || n <   0      = Nothing
-    | k == 0 || k ==  n      = Just 1
+    | k < 0 || n < 0 = Nothing
+    | k == 0 || k == n = Just 1
     | k == 1 || k == (n - 1) = Just n
-    | resultOutOfBounds      = Nothing
-    | otherwise              = intCastMaybe resultExact
+    | resultOutOfBounds = Nothing
+    | otherwise = intCastMaybe resultExact
   where
     resultExact :: Integer
-    resultExact = MathExact.choose
-        (intCast @Int @Integer n)
-        (intCast @Int @Integer k)
+    resultExact =
+        MathExact.choose
+            (intCast @Int @Integer n)
+            (intCast @Int @Integer k)
 
     resultFast :: Integer
     resultFast = floor (MathFast.choose n k)
 
     resultOutOfBounds :: Bool
-    resultOutOfBounds = False
-        || resultFast  < 0
-        || resultFast  > intCast @Int @Integer (maxBound @Int)
-        || resultExact < 0
-        || resultExact > intCast @Int @Integer (maxBound @Int)
+    resultOutOfBounds =
+        False
+            || resultFast < 0
+            || resultFast > intCast @Int @Integer (maxBound @Int)
+            || resultExact < 0
+            || resultExact > intCast @Int @Integer (maxBound @Int)
 
 -- | Generates all subsequences of size 'k' from a particular sequence.
 --
@@ -455,7 +448,6 @@ numberOfSubsequencesOfSize n k
 --
 --    >>> length (xs `subsequencesOfSize` k) ==
 --    >>>     length xs `numberOfSubsequencesOfSize` k
---
 subsequencesOfSize
     :: [a]
     -- ^ The sequence from which to generate subsequences.
@@ -494,7 +486,6 @@ subsequencesOfSize xs k
 --
 -- If none of the given functions produces a 'Right' result, then this function
 -- returns the 'Left' result produced by the last function in the sequence.
---
 firstRight :: NonEmpty (a -> Either e r) -> (a -> Either e r)
 firstRight = sconcat
 
@@ -502,6 +493,5 @@ firstRight = sconcat
 --
 -- The returned list is a prefix of the original list, and includes the very
 -- first item that satisfies the predicate.
---
 takeUntil :: (a -> Bool) -> [a] -> [a]
 takeUntil p = foldr (\x ys -> x : if p x then [] else ys) []

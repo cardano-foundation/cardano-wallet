@@ -7,8 +7,6 @@
 -- This progam is originally from cardano-sl.
 module Main where
 
-import Prelude
-
 import Control.DeepSeq
     ( force
     )
@@ -34,6 +32,7 @@ import System.Exit
     , exitFailure
     , exitSuccess
     )
+import Prelude
 
 import qualified Data.ByteString.Char8 as B8
 

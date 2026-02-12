@@ -6,8 +6,6 @@ module Cardano.Wallet.Launch.Cluster.SinkAddress
     )
 where
 
-import Prelude
-
 import Cardano.Wallet.Launch.Cluster.CardanoCLI
     ( cli
     , cliLine
@@ -32,6 +30,7 @@ import System.Path
     ( relFile
     , (</>)
     )
+import Prelude
 
 genSinkAddress
     :: Maybe (FileOf "stake-pub")

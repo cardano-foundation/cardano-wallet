@@ -9,8 +9,6 @@ module Cardano.Wallet.Launch.Cluster.Node.GenNodeConfig
     )
 where
 
-import Prelude
-
 import Cardano.BM.Data.Output
     ( ScribeDefinition (..)
     , ScribeFormat (..)
@@ -70,13 +68,14 @@ import Data.Aeson.Key
     ( fromText
     )
 import Data.Aeson.Lens
-    ( _Array
-    , _String
-    , atKey
+    ( atKey
     , key
+    , _Array
+    , _String
     )
 import Data.Generics.Labels
-    ()
+    (
+    )
 import Data.Maybe
     ( catMaybes
     )
@@ -96,6 +95,7 @@ import System.Path
     , (<.>)
     , (</>)
     )
+import Prelude
 
 import qualified Data.Text as T
 import qualified Data.Yaml as Yaml

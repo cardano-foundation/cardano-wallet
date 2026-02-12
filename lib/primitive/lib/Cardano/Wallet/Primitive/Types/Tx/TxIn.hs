@@ -6,13 +6,10 @@
 -- License: Apache-2.0
 --
 -- This module defines the 'TxIn' type.
---
 module Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..)
     , TxId
     ) where
-
-import Prelude
 
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
@@ -30,6 +27,7 @@ import Fmt
 import GHC.Generics
     ( Generic
     )
+import Prelude
 
 -- | Unique reference to a transaction.
 -- In practice, this is the hash of the transaction body.
@@ -46,7 +44,8 @@ data TxIn = TxIn
 instance NFData TxIn
 
 instance Buildable TxIn where
-    build txin = mempty
-        <> ordinalF (inputIx txin + 1)
-        <> " "
-        <> build (inputId txin)
+    build txin =
+        mempty
+            <> ordinalF (inputIx txin + 1)
+            <> " "
+            <> build (inputId txin)

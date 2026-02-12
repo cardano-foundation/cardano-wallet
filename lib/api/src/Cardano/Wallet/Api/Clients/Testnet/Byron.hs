@@ -24,8 +24,6 @@ module Cardano.Wallet.Api.Clients.Testnet.Byron
     )
 where
 
-import Prelude
-
 import Cardano.Wallet.Api.Clients.Testnet.Id
     ( Testnet42
     )
@@ -62,13 +60,15 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx
     )
 import Data.Generics.Labels
-    ()
+    (
+    )
 import Servant
     ( NoContent
     )
 import Servant.Client
     ( ClientM
     )
+import Prelude
 
 import qualified Cardano.Wallet.Api.Clients.Byron as Byron
 

@@ -1,11 +1,10 @@
 {-# LANGUAGE UndecidableInstances #-}
 
-{- |
-Copyright: © 2024 Cardano Foundation
-License: Apache-2.0
-
-Era-indexed transaction output.
--}
+-- |
+-- Copyright: © 2024 Cardano Foundation
+-- License: Apache-2.0
+--
+-- Era-indexed transaction output.
 module Cardano.Read.Ledger.Tx.Output
     ( -- * Output type
       OutputType
@@ -25,9 +24,6 @@ module Cardano.Read.Ledger.Tx.Output
     )
 where
 
-import Prelude
-
-import qualified Cardano.Chain.UTxO as BY
 import Cardano.Ledger.Alonzo.TxOut
     ( AlonzoTxOut
     )
@@ -50,7 +46,6 @@ import Cardano.Ledger.Binary
     , decodeFullDecoder
     , shelleyProtVer
     )
-import qualified Cardano.Ledger.Binary.Encoding as Ledger
 import Cardano.Ledger.Core
     ( compactAddrTxOutL
     , valueTxOutL
@@ -81,10 +76,14 @@ import Cardano.Read.Ledger.Value
 import Control.Lens
     ( view
     )
-import qualified Data.ByteString.Lazy as BL
 import Data.Text
     ( Text
     )
+import Prelude
+
+import Cardano.Chain.UTxO qualified as BY
+import Cardano.Ledger.Binary.Encoding qualified as Ledger
+import Data.ByteString.Lazy qualified as BL
 
 {-----------------------------------------------------------------------------
     Output
@@ -154,10 +153,9 @@ value f (Output x) = Value (f x)
 
 {-# INLINEABLE upgradeToOutputBabbage #-}
 
-{- | Upgrade an 'Output' to the 'Babbage' era if possibile.
-
-Hardfork: Update this function to the new era.
--}
+-- | Upgrade an 'Output' to the 'Babbage' era if possibile.
+--
+-- Hardfork: Update this function to the new era.
 upgradeToOutputBabbage
     :: forall era
      . IsEra era
@@ -190,10 +188,9 @@ upgradeToOutputBabbage = case theEra :: Era era of
 
 {-# INLINEABLE upgradeToOutputConway #-}
 
-{- | Upgrade an 'Output' to the 'Conway' era.
-
-Hardfork: Update this function to the next era.
--}
+-- | Upgrade an 'Output' to the 'Conway' era.
+--
+-- Hardfork: Update this function to the next era.
 upgradeToOutputConway
     :: forall era. IsEra era => Output era -> Output Conway
 upgradeToOutputConway = case theEra :: Era era of
@@ -255,10 +252,9 @@ serializeOutput = case theEra :: Era era of
 
 {-# INLINEABLE deserializeOutput #-}
 
-{- | Deserialize an 'Output' from the binary format.
-
-prop> ∀ o.  deserializeOutput (serializeOutput o) == Just o
--}
+-- | Deserialize an 'Output' from the binary format.
+--
+-- prop> ∀ o.  deserializeOutput (serializeOutput o) == Just o
 deserializeOutput
     :: forall era
      . IsEra era

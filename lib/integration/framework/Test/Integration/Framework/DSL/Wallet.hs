@@ -24,8 +24,6 @@ module Test.Integration.Framework.DSL.Wallet
     , withRestorationMode
     ) where
 
-import Prelude
-
 import Cardano.Address.Derivation
     ( XPub
     , toXPub
@@ -110,9 +108,10 @@ import Test.Integration.Framework.DSL.TestM
     , TestM
     , check
     , over
-    , pattern Partial
     , request
+    , pattern Partial
     )
+import Prelude
 
 import qualified Cardano.Address.Style.Shelley as Address
 import qualified Cardano.Faucet.Mnemonics as Mnemonics
@@ -228,7 +227,7 @@ fundWallet amt = do
         faucetWalletId <- aFaucetWallet
         Partial addrs <- request $ C.listAddresses w Nothing
         over faucetWalletId $ do
-            let destination = case addrs of (a:_) -> a ^. #id; [] -> error "expected addresses"
+            let destination = case addrs of (a : _) -> a ^. #id; [] -> error "expected addresses"
                 addressAmount =
                     AddressAmount
                         { address = destination

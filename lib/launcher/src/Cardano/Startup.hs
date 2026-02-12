@@ -7,10 +7,8 @@
 --
 -- This module contains functions relating to startup and shutdown of the
 -- @cardano-wallet serve@ program.
-
 module Cardano.Startup
-    (
-    -- * Clean shutdown
+    ( -- * Clean shutdown
       withShutdownHandler
     , withShutdownHandler'
     , installSignalHandlers
@@ -18,15 +16,13 @@ module Cardano.Startup
     , killProcess
     , interruptProcess
 
-    -- * File permissions
+      -- * File permissions
     , setDefaultFilePermissions
     , restrictFileMode
 
-    -- * Logging
-    , ShutdownHandlerLog(..)
+      -- * Logging
+    , ShutdownHandlerLog (..)
     ) where
-
-import Prelude
 
 import Cardano.BM.Data.Severity
     ( Severity (..)
@@ -65,6 +61,7 @@ import UnliftIO.MVar
     , putMVar
     , takeMVar
     )
+import Prelude
 
 #ifdef WINDOWS
 import Cardano.Startup.Windows
@@ -92,11 +89,13 @@ import qualified Data.Text as T
 -- So, when running @cardano-wallet@ as a subprocess, the parent process should
 -- pass a pipe for 'stdin', then close the pipe when it wants @cardano-wallet@
 -- to shut down.
-withShutdownHandler :: Tracer IO ShutdownHandlerLog -> IO a -> IO (Maybe a)
+withShutdownHandler
+    :: Tracer IO ShutdownHandlerLog -> IO a -> IO (Maybe a)
 withShutdownHandler tr = withShutdownHandler' tr stdin
 
 -- | A variant of 'withShutdownHandler' where the handle to read can be chosen.
-withShutdownHandler' :: Tracer IO ShutdownHandlerLog -> Handle -> IO a -> IO (Maybe a)
+withShutdownHandler'
+    :: Tracer IO ShutdownHandlerLog -> Handle -> IO a -> IO (Maybe a)
 withShutdownHandler' tr h action = do
     enabled <- hIsOpen h
     traceWith tr $ MsgShutdownHandler enabled
@@ -108,14 +107,17 @@ withShutdownHandler' tr h action = do
     readerLoop = do
         handle (traceWith tr . MsgShutdownError) readerLoop'
         traceWith tr MsgShutdownEOF
-    readerLoop' = waitForInput >>= \case
-        "" -> pure () -- eof: stop loop
-        _ -> readerLoop' -- repeat
-    -- Wait indefinitely for input to be available.
-    -- Runs in separate thread so that it does not deadlock on Windows.
+    readerLoop' =
+        waitForInput >>= \case
+            "" -> pure () -- eof: stop loop
+            _ -> readerLoop' -- repeat
+            -- Wait indefinitely for input to be available.
+            -- Runs in separate thread so that it does not deadlock on Windows.
     waitForInput = do
         v <- newEmptyMVar :: IO (MVar (Either IOException BS.ByteString))
-        _ <- forkIO ((BS.hGet h 1000 >>= putMVar v . Right) `catch` (putMVar v . Left))
+        _ <-
+            forkIO
+                ((BS.hGet h 1000 >>= putMVar v . Right) `catch` (putMVar v . Left))
         takeMVar v >>= either throwIO pure
 
 data ShutdownHandlerLog
@@ -128,12 +130,13 @@ instance ToText ShutdownHandlerLog where
     toText = \case
         MsgShutdownHandler enabled ->
             "Cross-platform subprocess shutdown handler is "
-            <> if enabled then "enabled." else "disabled."
+                <> if enabled then "enabled." else "disabled."
         MsgShutdownEOF ->
             "Starting clean shutdown..."
         MsgShutdownError e ->
-            "Error waiting for shutdown: " <> T.pack (show e)
-            <> ". Shutting down..."
+            "Error waiting for shutdown: "
+                <> T.pack (show e)
+                <> ". Shutting down..."
 
 instance HasPrivacyAnnotation ShutdownHandlerLog
 instance HasSeverityAnnotation ShutdownHandlerLog where

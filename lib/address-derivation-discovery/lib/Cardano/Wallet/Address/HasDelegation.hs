@@ -10,8 +10,6 @@ module Cardano.Wallet.Address.HasDelegation
     ( HasDelegation (..)
     ) where
 
-import Prelude
-
 import Cardano.Wallet.Address.Derivation.Icarus
     ( IcarusKey
     )
@@ -30,6 +28,7 @@ import Cardano.Wallet.Address.Discovery.Sequential
 import Cardano.Wallet.Address.Discovery.Shared
     ( SharedState
     )
+import Prelude
 
 -- | Discriminate whether an address state supports delegation.
 class HasDelegation s where

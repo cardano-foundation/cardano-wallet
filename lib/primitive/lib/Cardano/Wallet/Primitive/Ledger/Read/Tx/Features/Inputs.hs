@@ -9,9 +9,7 @@ module Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Inputs
     , fromShelleyTxIns
     , fromShelleyTxIn
     )
-    where
-
-import Prelude
+where
 
 import Cardano.Read.Ledger.Tx.Hash
     ( fromShelleyTxId
@@ -30,6 +28,7 @@ import Cardano.Wallet.Read.Eras
 import Data.Foldable
     ( toList
     )
+import Prelude
 
 import qualified Cardano.Chain.UTxO as BY
 import qualified Cardano.Crypto.Hashing as CC
@@ -39,7 +38,7 @@ import qualified Cardano.Ledger.TxIn as SL
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W
 
-{-# INLINABLE getInputs #-}
+{-# INLINEABLE getInputs #-}
 getInputs :: forall era. IsEra era => Inputs era -> [W.TxIn]
 getInputs = case theEra @era of
     Byron -> \(Inputs ins) -> fromByronTxIn <$> toList ins
@@ -53,16 +52,18 @@ getInputs = case theEra @era of
 fromShelleyTxIns :: Foldable t => t SH.TxIn -> [W.TxIn]
 fromShelleyTxIns ins = fromShelleyTxIn <$> toList ins
 
-mkShelleyTxInputsIns :: (Foldable t, InputsType era ~ t SH.TxIn)
-    => Inputs era -- ^
-  -> [W.TxIn]
+mkShelleyTxInputsIns
+    :: (Foldable t, InputsType era ~ t SH.TxIn)
+    => Inputs era
+    -> [W.TxIn]
 mkShelleyTxInputsIns (Inputs ins) = fromShelleyTxIns ins
 
 fromByronTxIn :: BY.TxIn -> W.TxIn
-fromByronTxIn (BY.TxInUtxo id_ ix) = W.TxIn
-    { inputId = W.Hash $ CC.hashToBytes id_
-    , inputIx = fromIntegral ix
-    }
+fromByronTxIn (BY.TxInUtxo id_ ix) =
+    W.TxIn
+        { inputId = W.Hash $ CC.hashToBytes id_
+        , inputIx = fromIntegral ix
+        }
 
 fromShelleyTxIn
     :: SL.TxIn

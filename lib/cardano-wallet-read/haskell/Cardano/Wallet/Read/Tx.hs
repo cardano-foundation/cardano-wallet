@@ -1,14 +1,13 @@
 {-# LANGUAGE PatternSynonyms #-}
-{- |
-Copyright: © 2022 IOHK, 2024 Cardano Foundation
-License: Apache-2.0
 
-The 'Tx' type represents transactions as they are read from the mainnet ledger.
-It is compatible with the era-specific index types from @cardano-ledger@.
--}
+-- |
+-- Copyright: © 2022 IOHK, 2024 Cardano Foundation
+-- License: Apache-2.0
+--
+-- The 'Tx' type represents transactions as they are read from the mainnet ledger.
+-- It is compatible with the era-specific index types from @cardano-ledger@.
 module Cardano.Wallet.Read.Tx
-    (
-    -- * Tx
+    ( -- * Tx
       TxT
     , Tx (..)
     , getInputs
@@ -20,21 +19,20 @@ module Cardano.Wallet.Read.Tx
     , invalidHereafter
     , getValidityInterval
 
-    -- * TxId
+      -- * TxId
     , TxId
     , getTxId
     , EraIndependentTxBody
     , txIdFromHash
     , hashFromTxId
 
-    -- * TxIn
+      -- * TxIn
     , TxIx
     , pattern TxIx
-
     , TxIn
     , pattern TxIn
 
-    -- * TxOut
+      -- * TxOut
     , TxOut
     , getCompactAddr
     , getValue

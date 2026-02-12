@@ -13,8 +13,6 @@
 
 module Test.Integration.Framework.Setup where
 
-import Prelude
-
 import Cardano.Address
     ( NetworkTag (..)
     )
@@ -225,6 +223,7 @@ import UnliftIO.MVar
     , takeMVar
     , withMVar
     )
+import Prelude
 
 import qualified Cardano.Pool.DB as Pool
 import qualified Cardano.Pool.DB.Layer as Pool
@@ -447,11 +446,11 @@ setupContext
             prometheusUrl <-
                 let packPort (h, p) =
                         T.pack h <> ":" <> toText @(Port "Prometheus") p
-                 in maybe "none" packPort <$> getPrometheusURL
+                in  maybe "none" packPort <$> getPrometheusURL
             ekgUrl <-
                 let packPort (h, p) =
                         T.pack h <> ":" <> toText @(Port "EKG") p
-                 in maybe "none" packPort <$> getEKGURL
+                in  maybe "none" packPort <$> getEKGURL
             traceWith tr $ MsgBaseUrl baseUrl ekgUrl prometheusUrl smashUrl
             manager <- httpManager
             mintSeaHorseAssetsLock <- newMVar ()

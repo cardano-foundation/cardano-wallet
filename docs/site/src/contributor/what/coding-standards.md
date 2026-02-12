@@ -23,7 +23,7 @@ Each proposal should start with a section justifying the standard with rational 
         - [Exception 1: URLs in comments](#exception-1-urls-in-comments)
     - [Use only a single blank line between top-level definitions](#use-only-a-single-blank-line-between-top-level-definitions)
     - [Avoid Variable-Length Indentation](#avoid-variable-length-indentation)
-    - [Stylish-Haskell is used to format grouped imports \& language pragmas](#stylish-haskell-is-used-to-format-grouped-imports--language-pragmas)
+    - [Fourmolu is used to format code](#fourmolu-is-used-to-format-code)
   - [Haskell Practices](#haskell-practices)
     - [Favor `newtype` and tagged type over type-aliases](#favor-newtype-and-tagged-type-over-type-aliases)
     - [Language extensions are specified on top of each module](#language-extensions-are-specified-on-top-of-each-module)
@@ -322,91 +322,16 @@ data MyRecord = MyRecord
 </details>
 
 
-### Stylish-Haskell is used to format grouped imports & language pragmas
+### Fourmolu is used to format code
 
-Contributors' editors should pick up and enforce the rules defined by the `.stylish-haskell.yaml`
-configuration file at the root of the project. Also, in order to maximize readability, imports
-should be grouped into three groups, separated by a blank newline.
+The project uses [Fourmolu](https://github.com/fourmolu/fourmolu) for code formatting,
+configured via the `fourmolu.yaml` file at the root of the project. Fourmolu handles
+all formatting including imports, language pragmas, and whitespace cleanup.
 
-- Prelude import
-- Explicit imports
-- Qualified imports
+Imports are automatically grouped by `import-grouping: by-qualified`:
 
-> **Why**
->
-> It is rather annoying and time-consuming to align import lines or statement
-> as we code and it's much simpler to leave that to our editor. Yet, we do want
-> to enforce some common formatting such that everyone gets to be aligned (pun
-> intended).
->
-> We can use Stylish-Haskell with various set of rules, yet, the same arguments
-> from 'Avoid Variable-Length Indentation' applies when it comes to automatic
-> formatting. Imports are a real pain with git and Haskell when they are vertically
-> aligned based on the imported module's name.
-
-<details>
-    <summary>See examples</summary>
-
-```hs
--- GOOD
-import Prelude
-
-import Cardano.Wallet.Binary
-    ( txId )
-import Data.Set
-    ( Set )
-import Data.Traversable
-    ( for )
-
-import qualified Data.Map as Map
-import qualified Data.Set as Set
-
--- BAD
-import Cardano.Wallet.Binary
-    ( txId )
-import Data.Set
-    ( Set )
-import Prelude
-import Data.Traversable
-    ( for )
-
-import qualified Data.Map as Map
-import qualified Data.Set as Set
-
--- BAD
-import Prelude
-
-import Cardano.Wallet.Binary
-    ( txId )
-import qualified Data.Set as Set
-import Data.Set
-    ( Set )
-import qualified Data.Map as Map
-import Data.Traversable
-    ( for )
-```
-</details>
-
-Here below is a proposal for the initial set of rules:
-
-```yaml
-columns: 80 # Should match .editorconfig
-steps:
-  - imports:
-      align: none
-      empty_list_align: inherit
-      list_align: new_line
-      list_padding: 4
-      long_list_align: new_line_multiline
-      pad_module_names: false
-      separate_lists: true
-      space_surround: true
-
-  - language_pragmas:
-      align: false
-      remove_redundant: true
-      style: vertical
-```
+1. Unqualified imports
+2. Qualified imports
 
 <details>
   <summary>See example</summary>

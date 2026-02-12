@@ -2,14 +2,12 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-
 {-# OPTIONS_GHC -fno-warn-redundant-constraints #-}
 
 module Cardano.Wallet.Address.States.IsOwned
     ( isOwned
     )
-    where
-import Prelude
+where
 
 import Cardano.Crypto.Wallet
     ( XPrv
@@ -18,7 +16,8 @@ import Cardano.Wallet.Address.Derivation
     ( Depth (..)
     )
 import Cardano.Wallet.Address.Derivation.Shared
-    ()
+    (
+    )
 import Cardano.Wallet.Address.States.Families
     ( CredFromOf
     , KeyOf
@@ -39,6 +38,7 @@ import Cardano.Wallet.Primitive.Passphrase.Types
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..)
     )
+import Prelude
 
 import qualified Cardano.Wallet.Address.Discovery.Random as Rnd
 import qualified Cardano.Wallet.Address.Discovery.Sequential as Seq

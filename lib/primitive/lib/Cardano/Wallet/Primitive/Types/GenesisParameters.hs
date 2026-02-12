@@ -6,8 +6,6 @@ module Cardano.Wallet.Primitive.Types.GenesisParameters
     )
 where
 
-import Prelude
-
 import Cardano.Wallet.Primitive.Slotting
     ( StartTime (StartTime)
     )
@@ -28,6 +26,7 @@ import Fmt
 import GHC.Generics
     ( Generic
     )
+import Prelude
 
 import qualified Data.Text.Encoding as T
 

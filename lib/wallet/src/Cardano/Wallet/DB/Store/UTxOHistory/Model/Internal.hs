@@ -9,8 +9,6 @@ module Cardano.Wallet.DB.Store.UTxOHistory.Model.Internal
     )
 where
 
-import Prelude
-
 import Cardano.Wallet.Primitive.Types
     ( Slot
     , SlotNo
@@ -27,6 +25,7 @@ import Data.Map.Strict
 import Data.Set
     ( Set
     )
+import Prelude
 
 -- | The finality of the UTxO history.
 data Pruned = PrunedUpTo SlotNo | NotPruned

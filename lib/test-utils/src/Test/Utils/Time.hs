@@ -5,15 +5,12 @@
 -- License: Apache-2.0
 --
 -- Provides utility functions relating to testing with times and dates.
-
 module Test.Utils.Time
     ( UniformTime
     , genUniformTime
     , genUniformTimeWithinRange
     , getUniformTime
     ) where
-
-import Prelude
 
 import Data.Time
     ( Day (ModifiedJulianDay)
@@ -29,11 +26,11 @@ import Test.QuickCheck
     , choose
     , oneof
     )
+import Prelude
 
 -- | A wrapper for 'UTCTime' whose 'Arbitrary' instance spans a uniform range
 --   of dates and a mixture of time precisions.
---
-newtype UniformTime = UniformTime { getUniformTime :: UTCTime }
+newtype UniformTime = UniformTime {getUniformTime :: UTCTime}
     deriving (Eq, Ord, Show)
 
 instance Arbitrary UniformTime where
@@ -44,7 +41,6 @@ instance Arbitrary UniformTime where
 --
 -- Dates will be generated in a range that's bounded by 'defaultLowerBound' and
 -- 'defaultUpperBound'.
-
 genUniformTime :: Gen UTCTime
 genUniformTime = genUniformTimeWithinRange defaultLowerBound defaultUpperBound
 
@@ -53,33 +49,36 @@ genUniformTime = genUniformTimeWithinRange defaultLowerBound defaultUpperBound
 --
 -- Dates will be generated in a range that's bounded by the given minimum and
 -- maximum Julian day arguments.
---
 genUniformTimeWithinRange :: Day -> Day -> Gen UTCTime
 genUniformTimeWithinRange lowerBound upperBound
-    | lowerBound > upperBound = error $
-        "genUniformTimeWithinRange: invalid bounds: "
-            <> show (lowerBound, upperBound)
-    | otherwise = oneof
-        [ genWith
-            hoursToNominalDiffTime
-            hoursInOneDay
-        , genWith
-            secondsToNominalDiffTime
-            secondsInOneDay
-        , genWith
-            picosecondsToNominalDiffTime
-            picosecondsInOneDay
-        ]
+    | lowerBound > upperBound =
+        error
+            $ "genUniformTimeWithinRange: invalid bounds: "
+                <> show (lowerBound, upperBound)
+    | otherwise =
+        oneof
+            [ genWith
+                hoursToNominalDiffTime
+                hoursInOneDay
+            , genWith
+                secondsToNominalDiffTime
+                secondsInOneDay
+            , genWith
+                picosecondsToNominalDiffTime
+                picosecondsInOneDay
+            ]
   where
     genWith :: (Integer -> NominalDiffTime) -> Integer -> Gen UTCTime
     genWith unitsToNominalDiffTime unitsInOneDay = do
-        numberOfDays <- ModifiedJulianDay
-            <$> choose
-                ( toModifiedJulianDay lowerBound
-                , toModifiedJulianDay upperBound
-                )
-        timeSinceMidnight <- unitsToNominalDiffTime
-            <$> choose (0, unitsInOneDay)
+        numberOfDays <-
+            ModifiedJulianDay
+                <$> choose
+                    ( toModifiedJulianDay lowerBound
+                    , toModifiedJulianDay upperBound
+                    )
+        timeSinceMidnight <-
+            unitsToNominalDiffTime
+                <$> choose (0, unitsInOneDay)
         pure $ addUTCTime timeSinceMidnight (UTCTime numberOfDays 0)
 
 defaultLowerBound :: Day

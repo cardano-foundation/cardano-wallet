@@ -3,8 +3,8 @@
 # https://github.com/digital-asset/ghc-lib/pull/571
 #
 # NOTE: This overlay only affects the top-level pkgs.haskellPackages.
-# Dev shell tools that depend on ghc-lib-parser (fourmolu, hlint,
-# stylish-haskell) are sourced from pkgs.haskellPackages in
+# Dev shell tools that depend on ghc-lib-parser (fourmolu, hlint)
+# are sourced from pkgs.haskellPackages in
 # nix/haskell.nix rather than from buildPackages.buildPackages,
 # because overlays don't propagate through buildPackages chains.
 final: prev: {

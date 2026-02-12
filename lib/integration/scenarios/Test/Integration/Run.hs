@@ -4,15 +4,13 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
-{-# OPTIONS_GHC -Wno-unused-imports #-}
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
+{-# OPTIONS_GHC -Wno-unused-imports #-}
 
 module Test.Integration.Run
     ( main
     )
 where
-
-import Prelude
 
 import Cardano.Wallet.Launch.Cluster
     ( FileOf (..)
@@ -61,6 +59,7 @@ import Test.Integration.Framework.Setup
 import UnliftIO.STM
     ( newTVarIO
     )
+import Prelude
 
 import qualified Cardano.Wallet.Launch.Cluster as Cluster
 import qualified Test.Integration.Scenario.API.Blocks as Blocks
@@ -99,8 +98,9 @@ main = withTestsSetup $ \testDir (tr, tracers) -> do
     localClusterEra <- Cluster.clusterEraFromEnv
     let testnetMagic = Cluster.TestnetMagic (natVal (Proxy @netId))
     testDataDir <- do
-        dir <- fromMaybe "."
-            <$> lookupEnv "CARDANO_WALLET_TEST_DATA"
+        dir <-
+            fromMaybe "."
+                <$> lookupEnv "CARDANO_WALLET_TEST_DATA"
         DirOf <$> absolutize (absRel dir)
     let testingCtx = TestingCtx{..}
     hspecMain $ do

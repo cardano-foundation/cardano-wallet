@@ -2,18 +2,15 @@
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-{- |
-Copyright: © 2024 IOHK
-License: Apache-2.0
-
-Script validity of a transaction.
--}
+-- |
+-- Copyright: © 2024 IOHK
+-- License: Apache-2.0
+--
+-- Script validity of a transaction.
 module Cardano.Wallet.Read.Tx.ScriptValidity
     ( IsValid (IsValidC)
     , getScriptValidity
     ) where
-
-import Prelude
 
 import Cardano.Ledger.Alonzo.Tx
     ( IsValid (IsValid)
@@ -30,12 +27,13 @@ import Cardano.Wallet.Read.Eras
 import Cardano.Wallet.Read.Tx.Tx
     ( Tx (..)
     )
+import Prelude
 
 {-# COMPLETE IsValidC #-}
 pattern IsValidC :: Bool -> IsValid
 pattern IsValidC x = IsValid x
 
-{-# INLINABLE getScriptValidity #-}
+{-# INLINEABLE getScriptValidity #-}
 getScriptValidity :: forall era. IsEra era => Tx era -> IsValid
 getScriptValidity = case theEra :: Era era of
     Byron -> onScriptValidity trueValid
@@ -52,7 +50,8 @@ getScriptValidity = case theEra :: Era era of
 onScriptValidity
     :: IsEra era
     => (ScriptValidityType era -> t)
-    -> Tx era -> t
+    -> Tx era
+    -> t
 onScriptValidity f x =
     case getEraScriptValidity x of
         ScriptValidity v -> f v

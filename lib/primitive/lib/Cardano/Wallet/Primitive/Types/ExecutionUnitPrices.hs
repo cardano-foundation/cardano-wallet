@@ -6,8 +6,6 @@ module Cardano.Wallet.Primitive.Types.ExecutionUnitPrices
     )
 where
 
-import Prelude
-
 import Control.DeepSeq
     ( NFData
     )
@@ -29,6 +27,7 @@ import Fmt
 import GHC.Generics
     ( Generic
     )
+import Prelude
 
 data ExecutionUnitPrices = ExecutionUnitPrices
     { pricePerStep :: Rational

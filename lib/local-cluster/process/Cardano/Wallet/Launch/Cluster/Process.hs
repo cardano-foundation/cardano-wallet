@@ -17,8 +17,6 @@ module Cardano.Wallet.Launch.Cluster.Process
     , waitForRunningNode
     ) where
 
-import Prelude
-
 import Cardano.BM.ToTextTracer
     ( ToTextTracer (..)
     , logHandleFromFilePath
@@ -91,6 +89,7 @@ import System.IO.Extra
 import System.Path
     ( absFile
     )
+import Prelude
 
 data EnvVars = EnvVars
     { clusterConfigsPath :: String

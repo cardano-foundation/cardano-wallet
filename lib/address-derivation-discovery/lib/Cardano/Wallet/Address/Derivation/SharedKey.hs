@@ -17,19 +17,15 @@
 -- License: Apache-2.0
 --
 -- Definition of 'Shared' Keys.
-
 module Cardano.Wallet.Address.Derivation.SharedKey
     ( -- * Types
-      SharedKey(..)
+      SharedKey (..)
     , sharedKey
-
     , purposeCIP1854
     , constructAddressFromIx
     , toNetworkTag
     , replaceCosignersWithVerKeys
     ) where
-
-import Prelude
 
 import Cardano.Address.KeyHash
     ( KeyHash
@@ -80,6 +76,7 @@ import GHC.Generics
 import GHC.Stack
     ( HasCallStack
     )
+import Prelude
 
 import qualified Cardano.Address as CA
 import qualified Cardano.Address.Derivation as CA
@@ -105,11 +102,12 @@ purposeCIP1854 = toEnum 0x8000073E
 -- let accountPubKey = SharedKey 'AccountK XPub
 -- let addressPubKey = SharedKey 'CredFromScriptK XPub
 -- @
-newtype SharedKey (depth :: Depth) key =
-    SharedKey { getKey :: key }
+newtype SharedKey (depth :: Depth) key
+    = SharedKey {getKey :: key}
     deriving stock (Generic, Show, Eq)
 
-sharedKey :: Iso (SharedKey depth key) (SharedKey depth1 key') key key'
+sharedKey
+    :: Iso (SharedKey depth key) (SharedKey depth1 key') key key'
 sharedKey = iso getKey SharedKey
 
 instance NFData key => NFData (SharedKey depth key)
@@ -127,13 +125,16 @@ constructAddressFromIx role pTemplate dTemplate ix =
         paymentCredential = PaymentFromScriptHash . toScriptHash
         tag = toNetworkTag @n
         createBaseAddress pScript' dScript' =
-            CA.unAddress $
-            delegationAddress tag
-            (paymentCredential pScript') (delegationCredential dScript')
+            CA.unAddress
+                $ delegationAddress
+                    tag
+                    (paymentCredential pScript')
+                    (delegationCredential dScript')
         createEnterpriseAddress pScript' =
-            CA.unAddress $
-            paymentAddress tag
-            (paymentCredential pScript')
+            CA.unAddress
+                $ paymentAddress
+                    tag
+                    (paymentCredential pScript')
         role' = case role of
             UtxoExternal -> CA.UTxOExternal
             UtxoInternal -> CA.UTxOInternal
@@ -143,11 +144,11 @@ constructAddressFromIx role pTemplate dTemplate ix =
             replaceCosignersWithVerKeys role' pTemplate ix
         dScript s =
             replaceCosignersWithVerKeys CA.Stake s minBound
-    in Address $ case dTemplate of
-        Just dTemplate' ->
-            createBaseAddress pScript (dScript dTemplate')
-        Nothing ->
-            createEnterpriseAddress pScript
+    in  Address $ case dTemplate of
+            Just dTemplate' ->
+                createBaseAddress pScript (dScript dTemplate')
+            Nothing ->
+                createEnterpriseAddress pScript
 
 -- | NOTE: The roles 'DRep', 'CCCold', 'CCHot' are not supported.
 replaceCosignersWithVerKeys
@@ -161,14 +162,14 @@ replaceCosignersWithVerKeys role' (ScriptTemplate xpubs scriptTemplate) ix =
     replaceCosigner :: Script Cosigner -> Script KeyHash
     replaceCosigner = \case
         RequireSignatureOf c -> RequireSignatureOf $ toKeyHash c
-        RequireAllOf xs      -> RequireAllOf (map replaceCosigner xs)
-        RequireAnyOf xs      -> RequireAnyOf (map replaceCosigner xs)
-        RequireSomeOf m xs   -> RequireSomeOf m (map replaceCosigner xs)
-        ActiveFromSlot s     -> ActiveFromSlot s
-        ActiveUntilSlot s    -> ActiveUntilSlot s
+        RequireAllOf xs -> RequireAllOf (map replaceCosigner xs)
+        RequireAnyOf xs -> RequireAnyOf (map replaceCosigner xs)
+        RequireSomeOf m xs -> RequireSomeOf m (map replaceCosigner xs)
+        ActiveFromSlot s -> ActiveFromSlot s
+        ActiveUntilSlot s -> ActiveUntilSlot s
 
-    convertIndex ::
-        Index 'Soft 'CredFromScriptK -> CA.Index 'CA.Soft 'CA.PaymentK
+    convertIndex
+        :: Index 'Soft 'CredFromScriptK -> CA.Index 'CA.Soft 'CA.PaymentK
     convertIndex = fromJust . CA.indexFromWord32 . fromIntegral . fromEnum
 
     toKeyHash :: HasCallStack => Cosigner -> KeyHash
@@ -176,8 +177,8 @@ replaceCosignersWithVerKeys role' (ScriptTemplate xpubs scriptTemplate) ix =
         case Map.lookup c xpubs of
             Nothing -> error "Impossible: cosigner without accXPpub."
             Just accXPub ->
-                hashKey walletRole $
-                    deriveMultisigPublicKey (liftXPub accXPub) (convertIndex ix)
+                hashKey walletRole
+                    $ deriveMultisigPublicKey (liftXPub accXPub) (convertIndex ix)
 
     walletRole = case role' of
         CA.UTxOExternal -> CA.Payment
@@ -195,10 +196,12 @@ replaceCosignersWithVerKeys role' (ScriptTemplate xpubs scriptTemplate) ix =
         CA.CCHot -> unsupportedRole
 
     unsupportedRole :: forall a. HasCallStack => a
-    unsupportedRole = error $ mconcat
-        [ "replaceCosignersWithVerKeys: unsupported role "
-        , show role'
-        ]
+    unsupportedRole =
+        error
+            $ mconcat
+                [ "replaceCosignersWithVerKeys: unsupported role "
+                , show role'
+                ]
 
 -- | Convert 'NetworkDiscriminant type parameter to
 -- 'Cardano.Address.NetworkTag'.

@@ -7,8 +7,6 @@ module Buildkite.LimitsLock
     , newLimitsLock
     ) where
 
-import Prelude
-
 import Control.Concurrent
     ( threadDelay
     )
@@ -30,6 +28,7 @@ import Control.Tracer
 import Data.Functor
     ( ($>)
     )
+import Prelude
 
 -- | Set the limit of requests to a resource. This specific interface is dictated
 -- by buildkite's API, but it could be generalized to any rate limiting system.

@@ -36,6 +36,7 @@ type instance CredFromOf (TestState s n key kt) = kt
 
 -- | A type family to get the key type from a state.
 type family KeyOf (s :: Type) :: (Depth -> Type -> Type)
+
 type instance KeyOf (SeqState n k) = k
 type instance KeyOf (RndState n) = ByronKey
 type instance KeyOf (SharedState n k) = k

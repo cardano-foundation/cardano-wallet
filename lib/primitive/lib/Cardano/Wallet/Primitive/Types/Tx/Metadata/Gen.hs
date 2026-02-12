@@ -13,9 +13,7 @@ module Cardano.Wallet.Primitive.Types.Tx.Metadata.Gen
     , genSimpleTxMetadata
     , shrinkTxMetadata
     )
-    where
-
-import Prelude
+where
 
 import Cardano.Api
     ( TxMetadata (..)
@@ -55,6 +53,7 @@ import Test.QuickCheck
     , vector
     , vectorOf
     )
+import Prelude
 
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
@@ -68,21 +67,25 @@ sizedMetadataValue :: Int -> Gen Aeson.Value
 sizedMetadataValue 0 =
     oneof
         [ toJSON <$> arbitrary @Int
-        , toJSON . ("0x"<>) . base16 <$> genByteString
+        , toJSON . ("0x" <>) . base16 <$> genByteString
         , toJSON <$> genTxMetaText
         ]
 sizedMetadataValue n =
     oneof
         [ sizedMetadataValue 0
         , oneof
-            [ toJSON . HM.fromList <$> resize n
-                (listOf $ (,)
-                    <$> genTxMetaText
-                    <*> sizedMetadataValue (n-1)
-                )
-            , toJSON <$> resize n
-                (listOf $ sizedMetadataValue (n-1)
-                )
+            [ toJSON . HM.fromList
+                <$> resize
+                    n
+                    ( listOf
+                        $ (,)
+                            <$> genTxMetaText
+                            <*> sizedMetadataValue (n - 1)
+                    )
+            , toJSON
+                <$> resize
+                    n
+                    (listOf $ sizedMetadataValue (n - 1))
             ]
         ]
 
@@ -94,8 +97,8 @@ genByteString = B8.pack <$> (choose (0, 64) >>= vector)
 
 shrinkByteString :: BS.ByteString -> [BS.ByteString]
 shrinkByteString bs
-    | n <= 1    = []
-    | otherwise = [ BS.take (n `div` 2) bs, BS.drop (n `div` 2) bs ]
+    | n <= 1 = []
+    | otherwise = [BS.take (n `div` 2) bs, BS.drop (n `div` 2) bs]
   where
     n = BS.length bs
 
@@ -109,17 +112,18 @@ genTxMetaText =
     -- The UT8-encoded length of a metadata text value must not be greater
     -- than 64 bytes:
     hasValidEncodedLength :: Text -> Bool
-    hasValidEncodedLength t = (&&)
-        (encodedLength >   0)
-        (encodedLength <= 64)
+    hasValidEncodedLength t =
+        (&&)
+            (encodedLength > 0)
+            (encodedLength <= 64)
       where
         encodedLength :: Int
         encodedLength = BS.length $ T.encodeUtf8 t
 
 shrinkTxMetaText :: Text -> [Text]
-shrinkTxMetaText
-    = filter (not . T.null)
-    . shrinkMap (T.pack . getUnicodeString) (UnicodeString . T.unpack)
+shrinkTxMetaText =
+    filter (not . T.null)
+        . shrinkMap (T.pack . getUnicodeString) (UnicodeString . T.unpack)
 
 -- | Generates a 'TxMetadata' with arbitrary levels of nesting.
 genNestedTxMetadata :: Gen TxMetadata
@@ -134,19 +138,22 @@ genNestedTxMetadata = do
 
 -- | Generates a 'TxMetadata' containing only simple values, without nesting.
 genSimpleTxMetadata :: Gen TxMetadata
-genSimpleTxMetadata = TxMetadata <$>
-    (Map.singleton <$> arbitrary <*> genSimpleTxMetadataValue)
+genSimpleTxMetadata =
+    TxMetadata
+        <$> (Map.singleton <$> arbitrary <*> genSimpleTxMetadataValue)
 
 genSimpleTxMetadataValue :: Gen TxMetadataValue
-genSimpleTxMetadataValue = oneof
-    [ TxMetaNumber . fromIntegral <$> arbitrary @Int
-    , TxMetaBytes <$> genByteString
-    , TxMetaText <$> genTxMetaText
-    ]
+genSimpleTxMetadataValue =
+    oneof
+        [ TxMetaNumber . fromIntegral <$> arbitrary @Int
+        , TxMetaBytes <$> genByteString
+        , TxMetaText <$> genTxMetaText
+        ]
 
 shrinkTxMetadata :: TxMetadata -> [TxMetadata]
-shrinkTxMetadata (TxMetadata m) = TxMetadata . Map.fromList
-    <$> shrinkList shrinkTxMetadataEntry (Map.toList m)
+shrinkTxMetadata (TxMetadata m) =
+    TxMetadata . Map.fromList
+        <$> shrinkList shrinkTxMetadataEntry (Map.toList m)
   where
     shrinkTxMetadataEntry (k, v) = (k,) <$> shrinkTxMetadataValue v
 
@@ -154,11 +161,12 @@ shrinkTxMetadataValue :: TxMetadataValue -> [TxMetadataValue]
 shrinkTxMetadataValue (TxMetaMap xs) =
     TxMetaMap . sortOn fst . nubOrdOn fst <$> shrinkList shrinkPair xs
   where
-    shrinkPair (k,v) =
-        ((k,) <$> shrinkTxMetadataValue v) ++
-        ((,v) <$> shrinkTxMetadataValue k)
+    shrinkPair (k, v) =
+        ((k,) <$> shrinkTxMetadataValue v)
+            ++ ((,v) <$> shrinkTxMetadataValue k)
 shrinkTxMetadataValue (TxMetaList xs) =
-    TxMetaList <$> filter (not . null) (shrinkList shrinkTxMetadataValue xs)
+    TxMetaList
+        <$> filter (not . null) (shrinkList shrinkTxMetadataValue xs)
 shrinkTxMetadataValue (TxMetaNumber i) = TxMetaNumber <$> shrink i
 shrinkTxMetadataValue (TxMetaBytes b) = TxMetaBytes <$> shrinkByteString b
 shrinkTxMetadataValue (TxMetaText s) = TxMetaText <$> shrinkTxMetaText s

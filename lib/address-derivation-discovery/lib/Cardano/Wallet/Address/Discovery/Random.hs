@@ -20,10 +20,8 @@
 --
 -- An implementation of address discovery for the random address
 -- scheme as used by the legacy Cardano wallets.
-
 module Cardano.Wallet.Address.Discovery.Random
-    (
-    -- ** State
+    ( -- ** State
       RndState (..)
     , RndStateLike
     , mkRndState
@@ -31,10 +29,10 @@ module Cardano.Wallet.Address.Discovery.Random
     , toDerivationIndexes
     , isOwned
 
-    -- ** Low-level API
+      -- ** Low-level API
     , importAddress
     , addressToPath
-    , ErrImportAddress(..)
+    , ErrImportAddress (..)
     , addPendingAddress
     , deriveRndStateAddress
     , deriveCredFromKeyKeyFromPath
@@ -43,9 +41,7 @@ module Cardano.Wallet.Address.Discovery.Random
     , defaultAccountIndex
     , withRNG
     , addDiscoveredAddress
-
     ) where
-import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv
@@ -123,6 +119,7 @@ import System.Random
     , mkStdGen
     , randomR
     )
+import Prelude
 
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map as Map
@@ -179,52 +176,60 @@ data RndState (network :: NetworkDiscriminant) = RndState
     -- discovered they are removed from this set and added to 'addresses'.
     , gen :: StdGen
     -- ^ The state of the RNG.
-    } deriving (Generic, Eq)
+    }
+    deriving (Generic, Eq)
 
 instance NFData (RndState network) where
     rnf (RndState !_ !_ !_ !_ g) = seq (show g) ()
 
 -- | There's no instance of 'Show' for 'XPrv'
 instance Show (RndState network) where
-    show (RndState _key ix addrs pending g) = unwords
-        [ "RndState <xprv>", p ix, p addrs, p pending, p g ]
+    show (RndState _key ix addrs pending g) =
+        unwords
+            ["RndState <xprv>", p ix, p addrs, p pending, p g]
       where
         p x = "(" ++ show x ++ ")"
 
 instance Buildable (RndState network) where
-    build (RndState _ ix addrs pending g) = "RndState:\n"
-        <> indentF 4 ("Account ix:       " <> build ix)
-        <> indentF 4 ("Random Generator: " <> build (show g))
-        <> indentF 4 ("Known addresses:  " <> blockMapF' tupleF tupleF addrs)
-        <> indentF 4 ("Change addresses: " <> blockMapF' tupleF build pending)
+    build (RndState _ ix addrs pending g) =
+        "RndState:\n"
+            <> indentF 4 ("Account ix:       " <> build ix)
+            <> indentF 4 ("Random Generator: " <> build (show g))
+            <> indentF 4 ("Known addresses:  " <> blockMapF' tupleF tupleF addrs)
+            <> indentF 4 ("Change addresses: " <> blockMapF' tupleF build pending)
 
 -- | Shortcut type alias for HD random address derivation path.
-type DerivationPath = (Index 'WholeDomain 'AccountK, Index 'WholeDomain 'CredFromKeyK)
+type DerivationPath =
+    (Index 'WholeDomain 'AccountK, Index 'WholeDomain 'CredFromKeyK)
 
 instance RndStateLike (RndState n) where
     importAddress addr s = do
         case addressToPath addr (hdPassphrase s) of
             Nothing ->
                 Left (ErrAddrDoesNotBelong addr)
-            Just path | Map.member path (discoveredAddresses s) ->
-                Right s
-            Just path | Map.member path (pendingAddresses s) ->
-                Right s
+            Just path
+                | Map.member path (discoveredAddresses s) ->
+                    Right s
+            Just path
+                | Map.member path (pendingAddresses s) ->
+                    Right s
             Just path ->
                 Right (addPendingAddress addr path s)
 
-    addPendingAddress addr path st = st
-        { pendingAddresses = Map.insert path addr (pendingAddresses st)
-        }
+    addPendingAddress addr path st =
+        st
+            { pendingAddresses = Map.insert path addr (pendingAddresses st)
+            }
 
     unavailablePaths st =
-        Map.keysSet (discoveredAddresses st) <> Map.keysSet (pendingAddresses st)
+        Map.keysSet (discoveredAddresses st)
+            <> Map.keysSet (pendingAddresses st)
 
     defaultAccountIndex =
         accountIndex
 
     withRNG s action =
-        let (result, gen') = action (gen s) in (result, s { gen = gen' })
+        let (result, gen') = action (gen s) in (result, s{gen = gen'})
 
 -- An address is considered to belong to the 'RndState' wallet if it can be
 -- decoded as a Byron HD random address, and where the wallet key can be used
@@ -260,10 +265,12 @@ addDiscoveredAddress
     -> DerivationPath
     -> RndState n
     -> RndState n
-addDiscoveredAddress addr status path st = st
-    { discoveredAddresses = Map.insert path (addr, status) (discoveredAddresses st)
-    , pendingAddresses = Map.delete path (pendingAddresses st)
-    }
+addDiscoveredAddress addr status path st =
+    st
+        { discoveredAddresses =
+            Map.insert path (addr, status) (discoveredAddresses st)
+        , pendingAddresses = Map.delete path (pendingAddresses st)
+        }
 
 addressToPath
     :: Address
@@ -274,37 +281,45 @@ addressToPath (Address addr) pwd = do
     join $ deserialiseCbor (decodeAddressDerivationPath pwd) payload
 
 toDerivationIndexes :: DerivationPath -> NonEmpty DerivationIndex
-toDerivationIndexes (acctIx, addrIx) = NE.fromList
-    [ DerivationIndex $ getIndex acctIx
-    , DerivationIndex $ getIndex addrIx
-    ]
+toDerivationIndexes (acctIx, addrIx) =
+    NE.fromList
+        [ DerivationIndex $ getIndex acctIx
+        , DerivationIndex $ getIndex addrIx
+        ]
 
 -- | Initialize the HD random address discovery state from a root key and RNG
 -- seed.
 mkRndState :: ByronKey 'RootK XPrv -> Int -> RndState n
-mkRndState key seed = RndState
-    { hdPassphrase = payloadPassphrase key
-    , accountIndex = minBound
-    , discoveredAddresses = mempty
-    , pendingAddresses = mempty
-    , gen = mkStdGen seed
-    }
+mkRndState key seed =
+    RndState
+        { hdPassphrase = payloadPassphrase key
+        , accountIndex = minBound
+        , discoveredAddresses = mempty
+        , pendingAddresses = mempty
+        , gen = mkStdGen seed
+        }
 
 newtype ErrImportAddress
     = ErrAddrDoesNotBelong Address
     deriving (Generic, Eq, Show)
 
 instance HasSNetworkId n => GenChange (RndState n) where
-    type ArgGenChange (RndState n) = (ByronKey 'RootK XPrv, Passphrase "encryption")
+    type
+        ArgGenChange (RndState n) =
+            (ByronKey 'RootK XPrv, Passphrase "encryption")
     genChange (rootXPrv, pwd) st = (address, st')
       where
         address = deriveRndStateAddress @n rootXPrv pwd path
-        (path, gen') = findUnusedPath (gen st) (accountIndex st)
-            (unavailablePaths st)
-        st' = st
-            { pendingAddresses = Map.insert path address (pendingAddresses st)
-            , gen = gen'
-            }
+        (path, gen') =
+            findUnusedPath
+                (gen st)
+                (accountIndex st)
+                (unavailablePaths st)
+        st' =
+            st
+                { pendingAddresses = Map.insert path address (pendingAddresses st)
+                , gen = gen'
+                }
 
 -- | Randomly generates an address derivation path for a given account. If the
 -- path is already in the "blacklist", it will try generating another.
@@ -324,7 +339,8 @@ findUnusedPath g accIx used
     (addrIx, gen') = randomIndex g
 
 randomIndex
-    :: forall ix g. (RandomGen g, ix ~ Index 'Hardened 'CredFromKeyK)
+    :: forall ix g
+     . (RandomGen g, ix ~ Index 'Hardened 'CredFromKeyK)
     => g
     -> (ix, g)
 randomIndex g = (Index ix, g')
@@ -345,7 +361,8 @@ deriveCredFromKeyKeyFromPath rootXPrv passphrase (accIx, addrIx) = addrXPrv
 
 -- | Use the key material in 'RndState' to derive a change address.
 deriveRndStateAddress
-    :: forall n. HasSNetworkId n
+    :: forall n
+     . HasSNetworkId n
     => ByronKey 'RootK XPrv
     -> Passphrase "encryption"
     -> DerivationPath
@@ -364,12 +381,15 @@ instance CompareDiscovery (RndState n) where
     compareDiscovery _ _ _ = EQ
 
 instance KnownAddresses (RndState n) where
-    knownAddresses s = mconcat
-        [ toListWithPath (\path (addr, state) -> (addr, state, path))
-            (discoveredAddresses s)
-        , toListWithPath (\path addr -> (addr, Unused, path))
-            (pendingAddresses s)
-        ]
+    knownAddresses s =
+        mconcat
+            [ toListWithPath
+                (\path (addr, state) -> (addr, state, path))
+                (discoveredAddresses s)
+            , toListWithPath
+                (\path addr -> (addr, Unused, path))
+                (pendingAddresses s)
+            ]
       where
         toListWithPath
             :: (NonEmpty DerivationIndex -> v -> result)

@@ -17,14 +17,11 @@
 -- Representation of values with an associated (free) unit of measure. Useful to
 -- disambiguate primitive types like 'Int' or 'String' which can be in different
 -- bases depending on the context.
-
 module Data.Quantity
     ( Quantity (..)
     , fromCoin
     )
-    where
-
-import Prelude
+where
 
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (Coin)
@@ -82,6 +79,7 @@ import Numeric.Natural
 import Quiet
     ( Quiet (..)
     )
+import Prelude
 
 import qualified Data.Text as T
 
@@ -108,10 +106,10 @@ import qualified Data.Text as T
 --
 -- >>> Aeson.encode $ Quantity @"lovelace" 14
 -- {"unit":"lovelace","quantity":14}
-newtype Quantity (unit :: Symbol) a = Quantity { getQuantity :: a }
+newtype Quantity (unit :: Symbol) a = Quantity {getQuantity :: a}
     deriving stock (Data, Generic, Eq, Ord)
     deriving newtype (Bounded, Enum, Hashable)
-    deriving Show via (Quiet (Quantity unit a))
+    deriving (Show) via (Quiet (Quantity unit a))
 
 instance NoThunks a => NoThunks (Quantity unit a)
 
@@ -121,10 +119,11 @@ instance Functor (Quantity any) where
 instance NFData a => NFData (Quantity unit a)
 
 instance (KnownSymbol unit, ToJSON a) => ToJSON (Quantity unit a) where
-    toJSON (Quantity a) = object
-        [ "unit"     .= symbolVal (Proxy :: Proxy unit)
-        , "quantity" .= toJSON a
-        ]
+    toJSON (Quantity a) =
+        object
+            [ "unit" .= symbolVal (Proxy :: Proxy unit)
+            , "quantity" .= toJSON a
+            ]
 
 instance (KnownSymbol unit, FromJSON a) => FromJSON (Quantity unit a) where
     parseJSON = withObject "Quantity" $ \o -> do
@@ -134,10 +133,14 @@ instance (KnownSymbol unit, FromJSON a) => FromJSON (Quantity unit a) where
         verifyUnit :: Proxy (unit :: Symbol) -> Value -> Parser ()
         verifyUnit proxy = \case
             String u' | u' == T.pack u -> pure ()
-            _ -> fail $
-                "failed to parse quantified value. Expected value in '" <> u
-                <> "' (e.g. { \"unit\": \"" <> u <> "\", \"quantity\": ... })"
-                <> " but got something else."
+            _ ->
+                fail
+                    $ "failed to parse quantified value. Expected value in '"
+                        <> u
+                        <> "' (e.g. { \"unit\": \""
+                        <> u
+                        <> "\", \"quantity\": ... })"
+                        <> " but got something else."
           where
             u = symbolVal proxy
 
@@ -154,7 +157,6 @@ instance (KnownSymbol unit, Buildable a) => Buildable (Quantity unit a) where
         u = symbolVal (Proxy :: Proxy unit)
 
 -- | Constructs a 'Quantity` from a 'Coin'.
---
 fromCoin
     :: (Integral i, IsIntSubType Natural i ~ 'True)
     => Coin

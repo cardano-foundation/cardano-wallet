@@ -4,9 +4,6 @@ module Database.Persist.PersistValue.Extended
     , fromPersistValueRead
     ) where
 
-import Database.Persist.PersistValue
-import Prelude
-
 import Control.Monad
     ( (>=>)
     )
@@ -23,16 +20,20 @@ import Data.Text.Class.Extended
 import Database.Persist
     ( fromPersistValue
     )
+import Database.Persist.PersistValue
 import Text.Read
     ( readMaybe
     )
+import Prelude
 
 import qualified Data.Text as T
 
 -- | 'fromPersistValue' defined in terms of 'fromText'
-fromPersistValueFromText :: FromText a => PersistValue -> Either Text a
+fromPersistValueFromText
+    :: FromText a => PersistValue -> Either Text a
 fromPersistValueFromText = fromPersistValue >=> fromTextWithErr
-    where fromTextWithErr = first ("not a valid value: " <>) . fromText'
+  where
+    fromTextWithErr = first ("not a valid value: " <>) . fromText'
 
 -- | 'fromPersistValue' defined in terms of the 'Read' class
 fromPersistValueRead :: Read a => PersistValue -> Either Text a

@@ -1,13 +1,12 @@
 module Main where
 
-import Prelude
-
 import Main.Utf8
     ( withUtf8
     )
 import Test.Hspec.Extra
     ( hspecMain
     )
+import Prelude
 
 import qualified Network.Wai.Middleware.LoggingSpec as LoggingSpec
 

@@ -15,8 +15,6 @@ module Cardano.Wallet.Launch.Cluster.ClusterM
     )
 where
 
-import Prelude
-
 import Cardano.BM.Extra
     ( bracketTracer
     )
@@ -49,6 +47,7 @@ import System.Path
 import UnliftIO
     ( MonadUnliftIO
     )
+import Prelude
 
 newtype ClusterM a = ClusterM
     {unClusterM :: ReaderT Config IO a}
