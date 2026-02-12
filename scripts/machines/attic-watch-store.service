@@ -1,0 +1,13 @@
+[Unit]
+Description=Attic watch-store for adrestia cache
+After=network-online.target nix-daemon.service
+Wants=network-online.target
+
+[Service]
+ExecStart=/nix/var/nix/profiles/default/bin/attic watch-store adrestia
+Restart=on-failure
+RestartSec=30
+Environment=ATTIC_CONFIG_DIR=/root/.config/attic
+
+[Install]
+WantedBy=multi-user.target
