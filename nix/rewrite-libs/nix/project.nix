@@ -18,7 +18,6 @@
       pkgs.haskellPackages.fourmolu
       pkgs.haskellPackages.ghcid
       pkgs.haskellPackages.hlint
-      pkgs.haskellPackages.stylish-haskell
     ];
     shellHook = ''
       echo "Entering shell for rewrite-libs development"

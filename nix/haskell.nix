@@ -167,12 +167,12 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: set-git-rev: rewrite-l
           haskellPackages.weeder
           mithrilPkgs.mithril-client-cli
         ]) ++ [
-          # These tools depend on ghc-lib-parser which needs patching.
+          # fourmolu from nixpkgs-recent (>= 0.17) for import-grouping support.
+          nixpkgs-recent.haskellPackages.fourmolu
+          # hlint depends on ghc-lib-parser which needs patching.
           # Pull from top-level pkgs where the ghc-lib-parser overlay applies,
           # rather than buildPackages.buildPackages where it doesn't propagate.
-          pkgs.haskellPackages.fourmolu
           pkgs.haskellPackages.hlint
-          pkgs.haskellPackages.stylish-haskell
         ];
         shellHook = "export LOCAL_CLUSTER_CONFIGS=${localClusterConfigs}";
       };
