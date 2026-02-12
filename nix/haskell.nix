@@ -299,30 +299,6 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: set-git-rev: rewrite-l
             '';
             # haskell.nix patch for streaming-commons is already applied in 0.2.3.1
             packages.streaming-commons.patches = lib.mkForce [];
-            # fgl's {-# ANN #-} pragmas trigger TH evaluation via iserv-proxy
-            # which crashes during Windows cross-compilation
-            packages.fgl.postPatch = ''
-              sed -i '/ANN.*HLint/d' Data/Graph/Inductive/Monad.hs
-              sed -i '/ANN.*HLint/d' Data/Graph/Inductive/Query/Dominators.hs
-            '';
-            # cardano-addresses' System.Git.TH uses a TH splice that embeds
-            # a string literal, triggering a GHC 9.10 ByteCode.Asm panic
-            # (mallocStrings:spliceLit) during cross-compilation.
-            # Replace the TH splice with a plain string.
-            packages.cardano-addresses.postPatch = ''
-              cat > lib/System/Git/TH.hs << 'PATCH'
-{-# OPTIONS_HADDOCK hide #-}
-module System.Git.TH (gitRevParseHEAD) where
-import Prelude
-import Language.Haskell.TH (Exp (..), Lit (..), Q)
-gitRevParseHEAD :: Q Exp
-gitRevParseHEAD = pure (LitE (StringL "cross-compiled"))
-PATCH
-            '';
-            # iserv-proxy (used for TH during cross-compilation) does not
-            # support parallel module compilation — the protocol is strictly
-            # synchronous.  Force -j1 globally for Windows builds.
-            ghcOptions = [ "-j1" ];
           })
 
           # Build fixes for library dependencies
