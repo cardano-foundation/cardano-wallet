@@ -51,9 +51,6 @@ import Data.Aeson
     , parseJSON
     , (.:)
     )
-import Data.Typeable
-    ( Typeable
-    )
 import GHC.Generics
     ( Generic
     )
@@ -174,7 +171,7 @@ newtype AddressIndex = AddressIndex { addressIndexToNatural :: Natural }
     deriving stock (Show, Generic)
 
 newtype Mnemonic = Mnemonic { toSomeMnemonic :: SomeMnemonic }
-    deriving stock (Show, Generic, Typeable)
+    deriving stock (Show, Generic)
 
 instance ToJSON Mnemonic where
     toJSON = toJSON . someMnemonicToSentence . toSomeMnemonic

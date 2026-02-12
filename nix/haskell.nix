@@ -99,7 +99,7 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: set-git-rev: rewrite-l
 
     in {
       name = "cardano-wallet";
-      compiler-nix-name = "ghc9101";
+      compiler-nix-name = "ghc9122";
 
       src = haskellLib.cleanSourceWith {
         name = "cardano-wallet-src";
@@ -191,6 +191,10 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: set-git-rev: rewrite-l
               # Enable Haskell Program Coverage for all local libraries
               # and test suites.
               doCoverage = coverage;
+
+              # GHC 9.12: suppress 'deriving Typeable' warning (all types
+              # auto-derive Typeable, making explicit deriving redundant).
+              ghcOptions = [ "-Wno-deriving-typeable" ];
             });
           }
 
