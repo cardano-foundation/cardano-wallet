@@ -27,3 +27,24 @@ attic push adrestia benchmarks
 # Linux release artifacts
 nix build --log-format raw-with-logs .#ci.artifacts.linux64.release -o linux-release
 attic push adrestia linux-release
+
+# Windows cross-compiled release and test bundles
+nix build --log-format raw-with-logs \
+  .#ci.artifacts.win64.release \
+  .#ci.artifacts.win64.tests.wallet-unit \
+  .#ci.artifacts.win64.tests.wallet-primitive \
+  .#ci.artifacts.win64.tests.wallet-secrets \
+  .#ci.artifacts.win64.tests.wallet-network-layer \
+  .#ci.artifacts.win64.tests.wallet-test-utils \
+  .#ci.artifacts.win64.tests.wallet-launcher \
+  .#ci.artifacts.win64.tests.cardano-numeric \
+  .#ci.artifacts.win64.tests.cardano-balance-tx \
+  .#ci.artifacts.win64.tests.wallet-blackbox-benchmarks \
+  .#ci.artifacts.win64.tests.delta-chain \
+  .#ci.artifacts.win64.tests.delta-store \
+  .#ci.artifacts.win64.tests.delta-table \
+  .#ci.artifacts.win64.tests.delta-types \
+  .#ci.artifacts.win64.tests.std-gen-seed \
+  .#ci.artifacts.win64.tests.wai-middleware-logging \
+  -o win-cross
+attic push adrestia win-cross
