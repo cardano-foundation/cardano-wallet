@@ -163,12 +163,13 @@
               buildModules,
               config,
               lib,
+              options,
               ...
             }:
             {
               packages =
                 { }
-                // pkgs.lib.optionalAttrs (pkgs.stdenv.hostPlatform.isDarwin && !pkgs.stdenv.cc.nativeLibc) {
+                // pkgs.lib.optionalAttrs (pkgs.stdenv.hostPlatform.isDarwin && !pkgs.stdenv.cc.nativeLibc && options.packages ? crypton-x509-system) {
                   # Workaround for broken nixpkgs darwin.security_tool in
                   # Mojave. This mirrors the workaround in nixpkgs
                   # haskellPackages.
