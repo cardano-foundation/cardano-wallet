@@ -461,8 +461,8 @@ instance Arbitrary WalletId where
 
 instance Arbitrary WalletMetadata where
     shrink _ = []
-    arbitrary =  WalletMetadata
-        <$> (WalletName <$> elements ["bulbazaur", "charmander", "squirtle"])
+    arbitrary =  (WalletMetadata . WalletName
+        <$> elements ["bulbazaur", "charmander", "squirtle"])
         <*> genUniformTime
         <*> oneof
             [ pure Nothing

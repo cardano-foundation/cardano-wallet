@@ -1542,8 +1542,8 @@ instance Arbitrary Tx where
     shrink = shrinkTx
 
 instance Arbitrary TxIn where
-    arbitrary = TxIn
-        <$> (Hash . B8.pack <$> vector 32)
+    arbitrary = TxIn . Hash . B8.pack
+        <$> vector 32
         <*> scale (`mod` 3) arbitrary
 
 instance Arbitrary TxOut where
