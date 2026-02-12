@@ -4488,7 +4488,7 @@ for <code>cardano-wallet</code>. This will contain:</p>
 <li><code>cabal-install</code> and a GHC configured with a package database containing all Haskell package dependencies;</li>
 <li>system library dependencies;</li>
 <li>a Hoogle index and <code>hoogle</code> command for searching documentation;</li>
-<li>development tools such as <code>haskell-language-server</code>, <code>hlint</code>, <code>stylish-haskell</code>, and <code>weeder</code>;</li>
+<li>development tools such as <code>haskell-language-server</code>, <code>hlint</code>, <code>fourmolu</code>, and <code>weeder</code>;</li>
 <li>the <code>sqlite3</code> command;</li>
 <li>the Shelley node backend <code>cardano-node</code> and <code>cardano-cli</code>; and</li>
 <li>other Adrestia utility programs such as <code>cardano-address</code> and <code>bech32</code></li>
@@ -4654,7 +4654,7 @@ EOF
 </li>
 <li><a href="contributor/what/coding-standards.html#use-only-a-single-blank-line-between-top-level-definitions">Use only a single blank line between top-level definitions</a></li>
 <li><a href="contributor/what/coding-standards.html#avoid-variable-length-indentation">Avoid Variable-Length Indentation</a></li>
-<li><a href="contributor/what/coding-standards.html#stylish-haskell-is-used-to-format-grouped-imports--language-pragmas">Stylish-Haskell is used to format grouped imports &amp; language pragmas</a></li>
+<li><a href="contributor/what/coding-standards.html#fourmolu-is-used-to-format-code">Fourmolu is used to format code</a></li>
 </ul>
 </li>
 <li><a href="contributor/what/coding-standards.html#haskell-practices">Haskell Practices</a>
@@ -4918,84 +4918,15 @@ data MyRecord = MyRecord
     }
 </code></pre>
 </details>
-<h3 id="stylish-haskell-is-used-to-format-grouped-imports--language-pragmas"><a class="header" href="#stylish-haskell-is-used-to-format-grouped-imports--language-pragmas">Stylish-Haskell is used to format grouped imports &amp; language pragmas</a></h3>
-<p>Contributors' editors should pick up and enforce the rules defined by the <code>.stylish-haskell.yaml</code>
-configuration file at the root of the project. Also, in order to maximize readability, imports
-should be grouped into three groups, separated by a blank newline.</p>
-<ul>
-<li>Prelude import</li>
-<li>Explicit imports</li>
+<h3 id="fourmolu-is-used-to-format-code"><a class="header" href="#fourmolu-is-used-to-format-code">Fourmolu is used to format code</a></h3>
+<p>The project uses <a href="https://github.com/fourmolu/fourmolu">Fourmolu</a> for code formatting,
+configured via the <code>fourmolu.yaml</code> file at the root of the project. Fourmolu handles
+all formatting including imports, language pragmas, and whitespace cleanup.</p>
+<p>Imports are automatically grouped by <code>import-grouping: by-qualified</code>:</p>
+<ol>
+<li>Unqualified imports</li>
 <li>Qualified imports</li>
-</ul>
-<blockquote>
-<p><strong>Why</strong></p>
-<p>It is rather annoying and time-consuming to align import lines or statement
-as we code and it's much simpler to leave that to our editor. Yet, we do want
-to enforce some common formatting such that everyone gets to be aligned (pun
-intended).</p>
-<p>We can use Stylish-Haskell with various set of rules, yet, the same arguments
-from 'Avoid Variable-Length Indentation' applies when it comes to automatic
-formatting. Imports are a real pain with git and Haskell when they are vertically
-aligned based on the imported module's name.</p>
-</blockquote>
-<details>
-    <summary>See examples</summary>
-<pre><code class="language-hs">-- GOOD
-import Prelude
-
-import Cardano.Wallet.Binary
-    ( txId )
-import Data.Set
-    ( Set )
-import Data.Traversable
-    ( for )
-
-import qualified Data.Map as Map
-import qualified Data.Set as Set
-
--- BAD
-import Cardano.Wallet.Binary
-    ( txId )
-import Data.Set
-    ( Set )
-import Prelude
-import Data.Traversable
-    ( for )
-
-import qualified Data.Map as Map
-import qualified Data.Set as Set
-
--- BAD
-import Prelude
-
-import Cardano.Wallet.Binary
-    ( txId )
-import qualified Data.Set as Set
-import Data.Set
-    ( Set )
-import qualified Data.Map as Map
-import Data.Traversable
-    ( for )
-</code></pre>
-</details>
-<p>Here below is a proposal for the initial set of rules:</p>
-<pre><code class="language-yaml">columns: 80 # Should match .editorconfig
-steps:
-  - imports:
-      align: none
-      empty_list_align: inherit
-      list_align: new_line
-      list_padding: 4
-      long_list_align: new_line_multiline
-      pad_module_names: false
-      separate_lists: true
-      space_surround: true
-
-  - language_pragmas:
-      align: false
-      remove_redundant: true
-      style: vertical
-</code></pre>
+</ol>
 <details>
   <summary>See example</summary>
 <pre><code class="language-hs">{-# LANGUAGE BangPatterns #-}
