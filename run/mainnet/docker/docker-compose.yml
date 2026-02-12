@@ -2,6 +2,7 @@ name: mainnet
 services:
   cardano-node:
     image: cardanofoundation/cardano-wallet:${WALLET_TAG}
+    working_dir: /data
     environment:
       CARDANO_NODE_SOCKET_PATH: /ipc/${NODE_SOCKET_NAME}
     volumes:
