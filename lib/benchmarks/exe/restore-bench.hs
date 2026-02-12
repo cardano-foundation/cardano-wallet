@@ -22,8 +22,6 @@
 {-# OPTIONS_GHC -Wno-unused-local-binds #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-{-# HLINT ignore "Avoid NonEmpty.unzip" #-}
-
 {- HLINT ignore "Redundant pure" -}
 
 -- | Benchmark measuring how long restoration takes for different wallets.
@@ -274,9 +272,6 @@ import Data.Functor
     )
 import Data.Functor.Contravariant
     ( contramap
-    )
-import Data.List
-    ( foldl'
     )
 import Data.Percentage
     ( Percentage
@@ -898,10 +893,12 @@ bench_baseline_restoration
                                 $ writeTVar
                                     chainPointT
                                     [Read.chainPointFromChainTip nodeTip]
-                            let (ntxs, hss) =
-                                    NE.unzip
-                                        $ numberOfTransactionsInBlock <$> blocks
-                                (heights, slots) = NE.unzip hss
+                            let pairs =
+                                    numberOfTransactionsInBlock <$> blocks
+                                ntxs = fst <$> pairs
+                                hss = snd <$> pairs
+                                heights = fst <$> hss
+                                slots = snd <$> hss
                                 tip = NE.last heights
                             traceWith progressTrace $ Just tip
                             seq (sum ntxs)

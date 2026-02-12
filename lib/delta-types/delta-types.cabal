@@ -21,7 +21,7 @@ maintainer:      hal@cardanofoundation.org
 copyright:       2021-2023 IOHK, 2024-2025 Cardano Foundation
 category:        Data Structures
 build-type:      Simple
-tested-with:     GHC ==9.6.6
+tested-with:     GHC ==9.10.1
 extra-doc-files:
   CHANGELOG.md
   README.md

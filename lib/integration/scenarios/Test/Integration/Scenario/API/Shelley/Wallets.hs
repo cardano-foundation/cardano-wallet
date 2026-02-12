@@ -638,7 +638,7 @@ spec = describe "SHELLEY_WALLETS" $ do
         --send funds to one change address wallet
         let minUTxOValue' = minUTxOValue (_mainEra ctx)
         addrs1 <- listAddresses @n ctx wOneChangeAddr
-        let destOneChange = (head addrs1) ^. #id
+        let destOneChange = case addrs1 of (a:_) -> a ^. #id; [] -> error "expected addresses"
         let payloadTx amt destination = Json [json|{
                 "payments": [{
                     "address": #{destination},
@@ -676,7 +676,7 @@ spec = describe "SHELLEY_WALLETS" $ do
             >>= verifyAddrs (initialTotal1+1) (initialUsed1+1)
 
         addrs2 <- listAddresses @n ctx wFixture
-        let destFixture = (head addrs2) ^. #id
+        let destFixture = case addrs2 of (a:_) -> a ^. #id; [] -> error "expected addresses"
         forM_ [1,1,1,1,1] $ \num -> realizeTx wOneChangeAddr (num * minUTxOValue') destFixture
 
         -- the fixture wallet has still 20 unused external addresses, 10 used external addresses,

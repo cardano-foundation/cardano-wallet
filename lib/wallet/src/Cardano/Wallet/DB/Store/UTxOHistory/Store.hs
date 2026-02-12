@@ -64,8 +64,7 @@ import Data.ByteString
     )
 import Data.Either.Extra
 import Data.Foldable
-    ( foldl'
-    , forM_
+    ( forM_
     )
 import Data.Maybe
     ( maybeToList

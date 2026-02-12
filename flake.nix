@@ -219,6 +219,7 @@
               # Our own utils (cardanoWalletLib)
               (import ./nix/overlays/common-lib.nix)
               (import ./nix/overlays/basement.nix)
+              (import ./nix/overlays/ghc-lib-parser.nix)
               fix-crypton-x509
               overlay
             ];

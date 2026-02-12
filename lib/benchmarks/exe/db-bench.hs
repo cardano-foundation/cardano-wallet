@@ -264,9 +264,6 @@ import Data.Functor
 import Data.Functor.Identity
     ( Identity (..)
     )
-import Data.List
-    ( foldl'
-    )
 import Data.Maybe
     ( fromMaybe
     )
@@ -611,8 +608,8 @@ bgroupWriteTxHistory tr = bgroup "TxHistory (Write)"
             $ benchPutTxHistory n i o a r
       where
         lbl = n|+" w/ "+|i|+"i + "+|o|+"o ["+|inf|+".."+|sup|+"]"
-        inf = head r
-        sup = last r
+        inf = case r of (x:_) -> x; [] -> error "benchmark range cannot be empty"
+        sup = case reverse r of (x:_) -> x; [] -> error "benchmark range cannot be empty"
 
 bgroupReadTxHistory :: Tracer IO WalletDBLog -> Benchmark
 bgroupReadTxHistory tr = bgroup "TxHistory (Read)"
@@ -639,7 +636,9 @@ bgroupReadTxHistory tr = bgroup "TxHistory (Read)"
             $ benchReadTxHistory o s st Nothing
       where
         lbl = unwords [show n, show a, range, ord, mstatus, search]
-        range = let inf = head r in let sup = last r in "["+|inf|+".."+|sup|+"]"
+        range = case (r, reverse r) of
+            ((inf:_), (sup:_)) -> "["+|inf|+".."+|sup|+"]"
+            _ -> error "benchmark range cannot be empty"
         ord = case o of Descending -> "DESC"; Ascending -> "ASC"
         mstatus = maybe "-" pretty st
         search = case s of

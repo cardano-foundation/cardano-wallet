@@ -51,11 +51,11 @@ spec = do
         it "parses benchmark CSV into indexed results"
             $ case parseResults sampleCsv of
                 Left e -> fail e
-                Right rs -> do
+                Right rs@((ix0, r0) : _) -> do
                     length rs `shouldBe` 2
-                    let (ix0, r0) = head rs
                     index ix0 `shouldBe` 0
                     resultValue r0 `shouldBe` 3.5
+                Right [] -> fail "expected non-empty results"
 
         it "rejects malformed CSV" $ do
             let bad = "not,a,valid,csv\nfoo"

@@ -205,7 +205,10 @@ emptyPendingIxs = PendingIxs mempty
 -- | Construct a 'PendingIxs' from a list, ensuring that it is a set of indexes
 -- in descending order.
 pendingIxsFromList :: [Index 'Soft k] -> PendingIxs k
-pendingIxsFromList = PendingIxs . reverse . map head . L.group . L.sort
+pendingIxsFromList = PendingIxs . reverse . map groupHead . L.group . L.sort
+  where
+    groupHead (x:_) = x
+    groupHead [] = error "impossible: L.group returns non-empty lists"
 
 -- | Get the next change index; If every available indexes have already been
 -- taken, we'll rotate the pending set and re-use already provided indexes.

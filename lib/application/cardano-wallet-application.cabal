@@ -44,7 +44,7 @@ executable cardano-wallet
   import:           language, opts-exe
   main-is:          cardano-wallet.hs
   hs-source-dirs:   app/shelley
-  build-depends:    base ^>=4.18.2.0
+  build-depends:    base >=4.18.2.0 && <4.21
   default-language: Haskell2010
   build-depends:
     , base

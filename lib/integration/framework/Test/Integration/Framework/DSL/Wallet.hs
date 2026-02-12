@@ -228,7 +228,7 @@ fundWallet amt = do
         faucetWalletId <- aFaucetWallet
         Partial addrs <- request $ C.listAddresses w Nothing
         over faucetWalletId $ do
-            let destination = head addrs ^. #id
+            let destination = case addrs of (a:_) -> a ^. #id; [] -> error "expected addresses"
                 addressAmount =
                     AddressAmount
                         { address = destination

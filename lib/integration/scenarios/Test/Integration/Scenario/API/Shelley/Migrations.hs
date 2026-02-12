@@ -424,7 +424,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                     ( (.> 0)
                         . view #toNatural
                         . view #amount
-                        . head
+                        . firstWithdrawal
                         . view #withdrawals
                         . NE.head
                     )
@@ -1057,14 +1057,18 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             let addrShelley = (addrs !! 1) ^. #id
 
             -- Create an Icarus address:
-            addrIcarus <-
-                encodeAddress (sNetworkId @n) . head . icarusAddresses @n
-                    <$> Mnemonics.generateSome Mnemonics.M15
+            addrIcarus <- do
+                icarusAddrs <- icarusAddresses @n <$> Mnemonics.generateSome Mnemonics.M15
+                case icarusAddrs of
+                    (a:_) -> pure $ encodeAddress (sNetworkId @n) a
+                    [] -> error "icarusAddresses returned empty list"
 
             -- Create a Byron address:
-            addrByron <-
-                encodeAddress (sNetworkId @n) . head . randomAddresses @n
-                    <$> Mnemonics.generateSome Mnemonics.M12
+            addrByron <- do
+                byronAddrs <- randomAddresses @n <$> Mnemonics.generateSome Mnemonics.M12
+                case byronAddrs of
+                    (a:_) -> pure $ encodeAddress (sNetworkId @n) a
+                    [] -> error "randomAddresses returned empty list"
 
             -- Create a source wallet:
             sourceWallet <- emptyWallet ctx
@@ -1673,3 +1677,7 @@ apiPlanTotalInputCount p =
 apiPlanTotalOutputCount :: ApiWalletMigrationPlan n -> Int
 apiPlanTotalOutputCount p =
     F.sum (length . view #outputs <$> view #selections p)
+
+firstWithdrawal :: [a] -> a
+firstWithdrawal (x:_) = x
+firstWithdrawal [] = error "expected at least one withdrawal"

@@ -647,10 +647,12 @@ spec_balanceTx era = describe "balanceTx" $ do
                     & ppCoinsPerUTxOByteL .~ testParameter_coinsPerUTxOByte
                 RecentEraConway -> def
                      & ppCoinsPerUTxOByteL .~ testParameter_coinsPerUTxOByte
-        Write.isBelowMinimumCoinForTxOut pp (head outs)
-            `shouldBe` False
-
-        head outs `shouldBe` out'
+        case outs of
+            (firstOut:_) -> do
+                Write.isBelowMinimumCoinForTxOut pp firstOut
+                    `shouldBe` False
+                firstOut `shouldBe` out'
+            [] -> expectationFailure "Expected non-empty outputs"
 
     describe "effect of txMaxSize on coin selection" $ do
 
@@ -1163,8 +1165,9 @@ spec_updateTx _era = describe "updateTx" $ do
         it "returns `Left err` with noTxUpdate" $ do
             -- Could be argued that it should instead return `Right tx`.
             let tx :: Tx era
-                tx = deserializeTx
-                    $ snd $ head signedTxs
+                tx = case signedTxs of
+                    ((_, bs):_) -> deserializeTx bs
+                    [] -> error "signedTxs unexpectedly empty"
             let res = updateTx
                     tx
                     noTxUpdate
@@ -2442,7 +2445,7 @@ shrinkScriptData
     -> [CardanoApi.TxBodyScriptData era]
 shrinkScriptData CardanoApi.TxBodyNoScriptData = []
 shrinkScriptData (CardanoApi.TxBodyScriptData era
-    (Alonzo.TxDats dats) (Alonzo.Redeemers redeemers)) = tail
+    (Alonzo.TxDats dats) (Alonzo.Redeemers redeemers)) = case
         [ CardanoApi.TxBodyScriptData era
             (Alonzo.TxDats dats')
             (Alonzo.Redeemers redeemers')
@@ -2450,7 +2453,9 @@ shrinkScriptData (CardanoApi.TxBodyScriptData era
             (Map.fromList <$> shrinkList (const []) (Map.toList dats))
         , redeemers' <- redeemers :
             (Map.fromList <$> shrinkList (const []) (Map.toList redeemers))
-        ]
+        ] of
+            (_:rest) -> rest
+            [] -> error "shrinkScriptData: unexpected empty shrink list"
 
 shrinkSeq :: Foldable t => (a -> [a]) -> t a -> [StrictSeq.StrictSeq a]
 shrinkSeq shrinkElem =
@@ -2483,7 +2488,7 @@ shrinkTxBodyBabbage
     -> [CardanoApi.TxBody CardanoApi.BabbageEra]
 shrinkTxBodyBabbage
     (CardanoApi.ShelleyTxBody e bod scripts scriptData aux val) =
-    tail
+    case
         [ CardanoApi.ShelleyTxBody e bod' scripts' scriptData' aux' val'
         | bod' <- prependOriginal shrinkLedgerTxBody bod
         , aux' <- aux : filter (/= aux) [Nothing]
@@ -2494,12 +2499,14 @@ shrinkTxBodyBabbage
                 CardanoApi.AlonzoEraOnwardsBabbage
                 CardanoApi.ScriptValid
             ]
-        ]
+        ] of
+            (_:rest) -> rest
+            [] -> error "shrinkTxBodyBabbage: unexpected empty shrink list"
   where
     shrinkLedgerTxBody
         :: Ledger.TxBody Babbage
         -> [Ledger.TxBody Babbage]
-    shrinkLedgerTxBody body = tail
+    shrinkLedgerTxBody body = case
         [ body
             & withdrawalsTxBodyL .~ wdrls'
             & outputsTxBodyL .~ outs'
@@ -2531,13 +2538,17 @@ shrinkTxBodyBabbage
             (body ^. vldtTxBodyL)
         , adHash' <- prependOriginal shrinkStrictMaybe
             (body ^. scriptIntegrityHashTxBodyL)
-        ]
+        ] of
+            (_:rest) -> rest
+            [] -> error "shrinkLedgerTxBody: unexpected empty shrink list"
 
-    shrinkValidity (ValidityInterval a b) = tail
+    shrinkValidity (ValidityInterval a b) = case
         [ ValidityInterval a' b'
         | a' <- prependOriginal shrinkStrictMaybe a
         , b' <- prependOriginal shrinkStrictMaybe b
-        ]
+        ] of
+            (_:rest) -> rest
+            [] -> error "shrinkValidity: unexpected empty shrink list"
 
     shrinkValue :: (Eq a, Monoid a) => a -> [a]
     shrinkValue v = filter (/= v) [mempty]

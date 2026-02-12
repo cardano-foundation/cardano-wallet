@@ -190,13 +190,19 @@ httpApiPortParser = do
         unless (p `elem` validPorts)
             $ fail
             $ "Invalid port number. Must be inside: "
-                ++ show (head validPorts)
+                ++ show minPort
                 ++ ".."
-                ++ show (last validPorts)
+                ++ show maxPort
         pure p
 
+minPort :: PortNumber
+minPort = 1024
+
+maxPort :: PortNumber
+maxPort = 65535
+
 validPorts :: [PortNumber]
-validPorts = [1024 .. 65535]
+validPorts = [minPort .. maxPort]
 
 nodeToClientSocketParser
     :: Absolutizer

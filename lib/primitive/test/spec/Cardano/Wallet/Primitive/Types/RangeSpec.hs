@@ -223,7 +223,11 @@ instance (Arbitrary a, Ord a) => Arbitrary (NonSingletonRange a) where
     arbitrary = do
         -- Iterate through the infinite list of arbitrary ranges and return
         -- the first range that is not a singleton range:
-        head . mapMaybe (makeNonSingletonRangeValid . NonSingletonRange)
+        firstValid
+            . mapMaybe (makeNonSingletonRangeValid . NonSingletonRange)
             <$> infiniteList
+      where
+        firstValid (x:_) = x
+        firstValid [] = error "no valid NonSingletonRange found"
     shrink (NonSingletonRange r) = mapMaybe
         (makeNonSingletonRangeValid . NonSingletonRange) (shrink r)

@@ -511,14 +511,18 @@ spec = describe "BYRON_MIGRATIONS" $ do
                 let addrShelley = (addrs !! 1) ^. #id
 
                 -- Create an Icarus address:
-                addrIcarus <-
-                    encodeAddress (sNetworkId @n) . head . icarusAddresses @n
-                        <$> Mnemonics.generateSome Mnemonics.M15
+                addrIcarus <- do
+                    icarusAddrs <- icarusAddresses @n <$> Mnemonics.generateSome Mnemonics.M15
+                    case icarusAddrs of
+                        (a:_) -> pure $ encodeAddress (sNetworkId @n) a
+                        [] -> error "icarusAddresses returned empty list"
 
                 -- Create a Byron address:
-                addrByron <-
-                    encodeAddress (sNetworkId @n) . head . randomAddresses @n
-                        <$> Mnemonics.generateSome Mnemonics.M12
+                addrByron <- do
+                    byronAddrs <- randomAddresses @n <$> Mnemonics.generateSome Mnemonics.M12
+                    case byronAddrs of
+                        (a:_) -> pure $ encodeAddress (sNetworkId @n) a
+                        [] -> error "randomAddresses returned empty list"
 
                 -- Create a source wallet:
                 sourceWallet <- destWallet ctx
