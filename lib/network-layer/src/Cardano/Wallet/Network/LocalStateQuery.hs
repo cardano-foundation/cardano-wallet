@@ -3,7 +3,6 @@
 -- License: Apache-2.0
 --
 -- Root of module hierarchy about local state queries.
---
 module Cardano.Wallet.Network.LocalStateQuery
     ( currentEra
     , module Cardano.Wallet.Network.LocalStateQuery.PParams

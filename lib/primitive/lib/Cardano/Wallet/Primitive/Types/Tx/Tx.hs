@@ -13,34 +13,29 @@
 -- License: Apache-2.0
 --
 -- This module provides the main transaction data types used by the wallet.
---
 module Cardano.Wallet.Primitive.Types.Tx.Tx
-    (
-    -- * Types
+    ( -- * Types
       Tx (..)
     , TxMetadata (..)
     , TxMetadataValue (..)
-    , TxScriptValidity(..)
+    , TxScriptValidity (..)
     , ScriptWitnessIndex (..)
 
-    -- * Functions
+      -- * Functions
     , inputs
     , collateralInputs
     , txIns
     , txMetadataIsNull
     , txScriptInvalid
 
-    -- * Queries
+      -- * Queries
     , txAssetIds
 
-    -- * Transformations
+      -- * Transformations
     , txMapAssetIds
     , txMapTxIds
     , txRemoveAssetId
-
     ) where
-
-import Prelude
 
 import Cardano.Api
     ( ScriptWitnessIndex (..)
@@ -48,7 +43,8 @@ import Cardano.Api
     , TxMetadataValue (..)
     )
 import Cardano.Wallet.Orphans
-    ()
+    (
+    )
 import Cardano.Wallet.Primitive.Types.AssetId
     ( AssetId
     )
@@ -82,7 +78,8 @@ import Data.Generics.Internal.VL.Lens
     , view
     )
 import Data.Generics.Labels
-    ()
+    (
+    )
 import Data.Map.Strict
     ( Map
     )
@@ -98,6 +95,7 @@ import Fmt
 import GHC.Generics
     ( Generic
     )
+import Prelude
 
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
 import qualified Data.Foldable as F
@@ -112,83 +110,88 @@ import qualified Data.Set as Set
 data Tx = Tx
     { txId
         :: TxId
-        -- ^ Hash of the transaction body (i.e. without witnesses).
-
+    -- ^ Hash of the transaction body (i.e. without witnesses).
     , txCBOR
         :: Maybe TxCBOR
-        -- ^ Serialized version of the transaction as received from the Node.
+    -- ^ Serialized version of the transaction as received from the Node.
     , fee
         :: !(Maybe Coin)
-        -- ^ Explicit fee for that transaction, if available. Fee are available
-        -- explicitly in Shelley, but not in Byron although in Byron they can
-        -- easily be re-computed from the delta between outputs and inputs.
-
+    -- ^ Explicit fee for that transaction, if available. Fee are available
+    -- explicitly in Shelley, but not in Byron although in Byron they can
+    -- easily be re-computed from the delta between outputs and inputs.
     , resolvedInputs
         :: ![(TxIn, Maybe TxOut)]
-        -- ^ NOTE: Order of inputs matters in the transaction representation.
-        -- The transaction id is computed from the binary representation of a
-        -- tx, for which inputs are serialized in a specific order.
-
+    -- ^ NOTE: Order of inputs matters in the transaction representation.
+    -- The transaction id is computed from the binary representation of a
+    -- tx, for which inputs are serialized in a specific order.
     , resolvedCollateralInputs
         :: ![(TxIn, Maybe TxOut)]
-        -- ^ NOTE: The order of collateral inputs matters in the transaction
-        -- representation.  The transaction id is computed from the binary
-        -- representation of a tx, for which collateral inputs are serialized
-        -- in a specific order.
-
+    -- ^ NOTE: The order of collateral inputs matters in the transaction
+    -- representation.  The transaction id is computed from the binary
+    -- representation of a tx, for which collateral inputs are serialized
+    -- in a specific order.
     , outputs
         :: ![TxOut]
-        -- ^ NOTE: Order of outputs matters in the transaction representations.
-        -- Outputs are used as inputs for next transactions which refer to them
-        -- using their indexes. It matters also for serialization.
-
+    -- ^ NOTE: Order of outputs matters in the transaction representations.
+    -- Outputs are used as inputs for next transactions which refer to them
+    -- using their indexes. It matters also for serialization.
     , collateralOutput :: !(Maybe TxOut)
-        -- ^ An output that is only created if a transaction script fails.
-
+    -- ^ An output that is only created if a transaction script fails.
     , withdrawals
         :: !(Map RewardAccount Coin)
-        -- ^ Withdrawals (of funds from a registered reward account) embedded in
-        -- a transaction. The order does not matter.
-
+    -- ^ Withdrawals (of funds from a registered reward account) embedded in
+    -- a transaction. The order does not matter.
     , metadata
         :: !(Maybe TxMetadata)
-        -- ^ Semi-structured application-specific extension data stored in the
-        -- transaction on chain.
-        --
-        -- This is not to be confused with 'TxMeta', which is information about
-        -- a transaction derived from the ledger.
-        --
-        -- See Appendix E of
-        -- <https://hydra.iohk.io/job/Cardano/cardano-ledger-specs/delegationDesignSpec/latest/download-by-type/doc-pdf/delegation_design_spec Shelley Ledger: Delegation/Incentives Design Spec>.
-
+    -- ^ Semi-structured application-specific extension data stored in the
+    -- transaction on chain.
+    --
+    -- This is not to be confused with 'TxMeta', which is information about
+    -- a transaction derived from the ledger.
+    --
+    -- See Appendix E of
+    -- <https://hydra.iohk.io/job/Cardano/cardano-ledger-specs/delegationDesignSpec/latest/download-by-type/doc-pdf/delegation_design_spec Shelley Ledger: Delegation/Incentives Design Spec>.
     , scriptValidity
         :: !(Maybe TxScriptValidity)
-        -- ^ Tag indicating whether non-native scripts in this transaction
-        -- passed validation. This is added by the block creator when
-        -- constructing the block. May be 'Nothing' for pre-Alonzo and pending
-        -- transactions.
-    } deriving (Show, Generic, Ord, Eq)
+    -- ^ Tag indicating whether non-native scripts in this transaction
+    -- passed validation. This is added by the block creator when
+    -- constructing the block. May be 'Nothing' for pre-Alonzo and pending
+    -- transactions.
+    }
+    deriving (Show, Generic, Ord, Eq)
 
 instance NFData Tx
 
 instance Buildable Tx where
-    build t = mconcat
-        [ build (view #txId t)
-        , build ("\n" :: String)
-        , blockListF' "inputs"
-            build (fst <$> view #resolvedInputs t)
-        , blockListF' "collateral inputs"
-            build (fst <$> view #resolvedCollateralInputs t)
-        , blockListF' "outputs"
-            build (view #outputs t)
-        , blockListF' "collateral outputs"
-            build (view #collateralOutput t)
-        , blockListF' "withdrawals"
-            tupleF (Map.toList $ view #withdrawals t)
-        , nameF "metadata"
-            (maybe "" build $ view #metadata t)
-        , nameF "scriptValidity" (build $ view #scriptValidity t)
-        ]
+    build t =
+        mconcat
+            [ build (view #txId t)
+            , build ("\n" :: String)
+            , blockListF'
+                "inputs"
+                build
+                (fst <$> view #resolvedInputs t)
+            , blockListF'
+                "collateral inputs"
+                build
+                (fst <$> view #resolvedCollateralInputs t)
+            , blockListF'
+                "outputs"
+                build
+                (view #outputs t)
+            , blockListF'
+                "collateral outputs"
+                build
+                (view #collateralOutput t)
+            , blockListF'
+                "withdrawals"
+                tupleF
+                (Map.toList $ view #withdrawals t)
+            , nameF
+                "metadata"
+                (maybe "" build $ view #metadata t)
+            , nameF "scriptValidity" (build $ view #scriptValidity t)
+            ]
 
 instance Buildable TxScriptValidity where
     build TxScriptValid = "valid"
@@ -207,13 +210,12 @@ collateralInputs = map fst . resolvedCollateralInputs
 --   script.
 --
 -- Pre-Alonzo era, scripts were not supported.
---
 data TxScriptValidity
-    = TxScriptValid
-    -- ^ The transaction is not marked as having an invalid script.
-    | TxScriptInvalid
-    -- ^ The transaction is marked as having an invalid script.
-  deriving (Generic, Show, Eq, Ord)
+    = -- | The transaction is not marked as having an invalid script.
+      TxScriptValid
+    | -- | The transaction is marked as having an invalid script.
+      TxScriptInvalid
+    deriving (Generic, Show, Eq, Ord)
 
 instance NFData TxScriptValidity
 
@@ -222,23 +224,23 @@ instance NFData TxScriptValidity
 --------------------------------------------------------------------------------
 
 txAssetIds :: Tx -> Set AssetId
-txAssetIds tx = F.fold
-    [ F.foldMap TxOut.assetIds (view #outputs tx)
-    , F.foldMap TxOut.assetIds (view #collateralOutput tx)
-    ]
+txAssetIds tx =
+    F.fold
+        [ F.foldMap TxOut.assetIds (view #outputs tx)
+        , F.foldMap TxOut.assetIds (view #collateralOutput tx)
+        ]
 
 -- | Returns 'True' if (and only if) the given transaction is marked as having
 --   an invalid script.
 --
 -- This function does not actually verify the validity of scripts; it merely
 -- checks for the presence or absence of the 'TxScriptInvalid' marker.
---
 txScriptInvalid :: Tx -> Bool
-txScriptInvalid Tx {scriptValidity} = case scriptValidity of
-  Just TxScriptInvalid -> True
-  Just TxScriptValid -> False
-  -- Script validation always passes in eras that don't support scripts
-  Nothing -> False
+txScriptInvalid Tx{scriptValidity} = case scriptValidity of
+    Just TxScriptInvalid -> True
+    Just TxScriptValid -> False
+    -- Script validation always passes in eras that don't support scripts
+    Nothing -> False
 
 -- | Test whether the given metadata map is empty.
 txMetadataIsNull :: TxMetadata -> Bool
@@ -249,24 +251,34 @@ txMetadataIsNull (TxMetadata md) = Map.null md
 --------------------------------------------------------------------------------
 
 txMapAssetIds :: (AssetId -> AssetId) -> Tx -> Tx
-txMapAssetIds f tx = tx
-    & over #outputs
-        (fmap (TxOut.mapAssetIds f))
-    & over #collateralOutput
-        (fmap (TxOut.mapAssetIds f))
+txMapAssetIds f tx =
+    tx
+        & over
+            #outputs
+            (fmap (TxOut.mapAssetIds f))
+        & over
+            #collateralOutput
+            (fmap (TxOut.mapAssetIds f))
 
 txMapTxIds :: (TxId -> TxId) -> Tx -> Tx
-txMapTxIds f tx = tx
-    & over #txId
-        f
-    & over #resolvedInputs
-        (fmap (first (over #inputId f)))
-    & over #resolvedCollateralInputs
-        (fmap (first (over #inputId f)))
+txMapTxIds f tx =
+    tx
+        & over
+            #txId
+            f
+        & over
+            #resolvedInputs
+            (fmap (first (over #inputId f)))
+        & over
+            #resolvedCollateralInputs
+            (fmap (first (over #inputId f)))
 
 txRemoveAssetId :: Tx -> AssetId -> Tx
-txRemoveAssetId tx asset = tx
-    & over #outputs
-        (fmap (`TxOut.removeAssetId` asset))
-    & over #collateralOutput
-        (fmap (`TxOut.removeAssetId` asset))
+txRemoveAssetId tx asset =
+    tx
+        & over
+            #outputs
+            (fmap (`TxOut.removeAssetId` asset))
+        & over
+            #collateralOutput
+            (fmap (`TxOut.removeAssetId` asset))

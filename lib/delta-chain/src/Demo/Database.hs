@@ -1,12 +1,3 @@
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE QuasiQuotes #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE TypeOperators #-}
-
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
@@ -14,16 +5,21 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
-
-{-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# OPTIONS_GHC -fno-warn-missing-methods #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Demo.Database where
-
-import Prelude
 
 import Conduit
     ( ResourceT
@@ -55,6 +51,8 @@ import Data.Chain
     , Edge (..)
     , chainIntoTable
     )
+import Data.DBVar
+import Data.Delta
 import Data.Function
     ( on
     )
@@ -66,6 +64,7 @@ import Data.Generics.Internal.VL
 import Data.Proxy
     ( Proxy (..)
     )
+import Data.Store
 import Data.Table
     ( DeltaDB (..)
     , Pile (..)
@@ -104,16 +103,13 @@ import GHC.Generics
 import Say
     ( sayShow
     )
+import Prelude
 
 import qualified Control.Monad.Catch as ResourceT
 import qualified Control.Monad.STM as STM
 import qualified Data.Chain as Chain
 import qualified Database.Persist.Sqlite as Persist
 import qualified Database.Schema as Sql
-
-import Data.DBVar
-import Data.Delta
-import Data.Store
 
 {-------------------------------------------------------------------------------
     (Mock) address type
@@ -123,24 +119,28 @@ type Node = Word32
 
 data AddressInPool = AddressInPool
     { address :: Address
-    , index   :: Word32
-    } deriving (Eq, Ord, Show)
+    , index :: Word32
+    }
+    deriving (Eq, Ord, Show)
 
 -- | Construnct an 'Embedding' of delta encodings from an isomorphism.
 embedIso :: Iso' a b -> Embedding [DeltaDB Int a] [DeltaDB Int b]
-embedIso i = withIso i $ \ab ba -> mkEmbedding Embedding'
-    { load = Right . fmap ba
-    , write = fmap ab
-    , update = \_ _ -> fmap (fmap ab)
-    }
+embedIso i = withIso i $ \ab ba ->
+    mkEmbedding
+        Embedding'
+            { load = Right . fmap ba
+            , write = fmap ab
+            , update = \_ _ -> fmap (fmap ab)
+            }
 
-type StoreAddress = UpdateStore SqlPersistM (DeltaChain Node [AddressInPool])
+type StoreAddress =
+    UpdateStore SqlPersistM (DeltaChain Node [AddressInPool])
 
 {-------------------------------------------------------------------------------
     Store using Persistent entities
 -------------------------------------------------------------------------------}
 share
-    [ mkPersist (sqlSettings { mpsPrefixFields = False })
+    [ mkPersist (sqlSettings{mpsPrefixFields = False})
     , mkMigrate "migrateAll"
     ]
     [persistLowerCase|
@@ -156,23 +156,26 @@ SeqStateAddress
 instance Show SeqStateAddress where
     show x =
         show (seqStateAddressTo x)
-        <> " <--" <> show (seqStateAddressAddress x)
-        <> "-- " <> show (seqStateAddressFrom x)
+            <> " <--"
+            <> show (seqStateAddressAddress x)
+            <> "-- "
+            <> show (seqStateAddressFrom x)
 
 addressDBIso :: Iso' (Edge Node AddressInPool) SeqStateAddress
 addressDBIso = iso ab ba
   where
-    ab Edge{from,to,via=AddressInPool{address,index}} =
+    ab Edge{from, to, via = AddressInPool{address, index}} =
         SeqStateAddress from to 0 address index
     ba (SeqStateAddress from to _ address index) =
-        Edge{from,to,via=AddressInPool{address,index}}
+        Edge{from, to, via = AddressInPool{address, index}}
 
 addressChainIntoTable
     :: Embedding
         (DeltaChain Node [AddressInPool])
         [DeltaDB Int SeqStateAddress]
 addressChainIntoTable =
-    embedIso addressDBIso `o` (tableIntoDatabase `o` chainIntoTable Pile getPile)
+    embedIso addressDBIso
+        `o` (tableIntoDatabase `o` chainIntoTable Pile getPile)
 
 newStoreAddress :: SqlPersistM StoreAddress
 newStoreAddress = embedStore addressChainIntoTable =<< newEntityStore
@@ -188,80 +191,80 @@ newStoreAddress = embedStore addressChainIntoTable =<< newEntityStore
 instance MonadSTM (NoLoggingT (ResourceT IO)) where
     type STM (NoLoggingT (ResourceT IO)) = WrapSTM
     type TVar (NoLoggingT (ResourceT IO)) = TVar IO
-    newTVar        = WrapSTM .  newTVar
-    readTVar       = WrapSTM .  readTVar
-    writeTVar      = WrapSTM .: writeTVar
-    retry          = WrapSTM    retry
-    orElse         = WrapSTM .: on orElse unWrapSTM
+    newTVar = WrapSTM . newTVar
+    readTVar = WrapSTM . readTVar
+    writeTVar = WrapSTM .: writeTVar
+    retry = WrapSTM retry
+    orElse = WrapSTM .: on orElse unWrapSTM
 
-    modifyTVar     = WrapSTM .: modifyTVar
-    modifyTVar'    = WrapSTM .: modifyTVar'
-    stateTVar      = WrapSTM .: stateTVar
-    swapTVar       = WrapSTM .: swapTVar
-    check          = WrapSTM  . check
+    modifyTVar = WrapSTM .: modifyTVar
+    modifyTVar' = WrapSTM .: modifyTVar'
+    stateTVar = WrapSTM .: stateTVar
+    swapTVar = WrapSTM .: swapTVar
+    check = WrapSTM . check
 
     type TMVar (NoLoggingT (ResourceT IO)) = TMVar IO
-    newTMVar       = WrapSTM .  newTMVar
-    newEmptyTMVar  = WrapSTM    newEmptyTMVar
-    takeTMVar      = WrapSTM .  takeTMVar
-    tryTakeTMVar   = WrapSTM .  tryTakeTMVar
-    putTMVar       = WrapSTM .: putTMVar
-    tryPutTMVar    = WrapSTM .: tryPutTMVar
-    readTMVar      = WrapSTM .  readTMVar
-    tryReadTMVar   = WrapSTM .  tryReadTMVar
-    swapTMVar      = WrapSTM .: swapTMVar
-    isEmptyTMVar   = WrapSTM .  isEmptyTMVar
+    newTMVar = WrapSTM . newTMVar
+    newEmptyTMVar = WrapSTM newEmptyTMVar
+    takeTMVar = WrapSTM . takeTMVar
+    tryTakeTMVar = WrapSTM . tryTakeTMVar
+    putTMVar = WrapSTM .: putTMVar
+    tryPutTMVar = WrapSTM .: tryPutTMVar
+    readTMVar = WrapSTM . readTMVar
+    tryReadTMVar = WrapSTM . tryReadTMVar
+    swapTMVar = WrapSTM .: swapTMVar
+    isEmptyTMVar = WrapSTM . isEmptyTMVar
 
     type TQueue (NoLoggingT (ResourceT IO)) = TQueue IO
-    newTQueue      = WrapSTM newTQueue
-    readTQueue     = WrapSTM .  readTQueue
-    tryReadTQueue  = WrapSTM .  tryReadTQueue
-    peekTQueue     = WrapSTM .  peekTQueue
-    tryPeekTQueue  = WrapSTM .  tryPeekTQueue
-    flushTQueue    = WrapSTM .  flushTQueue
-    writeTQueue v  = WrapSTM .  writeTQueue v
-    isEmptyTQueue  = WrapSTM .  isEmptyTQueue
-    unGetTQueue    = WrapSTM .: unGetTQueue
+    newTQueue = WrapSTM newTQueue
+    readTQueue = WrapSTM . readTQueue
+    tryReadTQueue = WrapSTM . tryReadTQueue
+    peekTQueue = WrapSTM . peekTQueue
+    tryPeekTQueue = WrapSTM . tryPeekTQueue
+    flushTQueue = WrapSTM . flushTQueue
+    writeTQueue v = WrapSTM . writeTQueue v
+    isEmptyTQueue = WrapSTM . isEmptyTQueue
+    unGetTQueue = WrapSTM .: unGetTQueue
 
     type TBQueue (NoLoggingT (ResourceT IO)) = TBQueue IO
-    newTBQueue     = WrapSTM .  newTBQueue
-    readTBQueue    = WrapSTM .  readTBQueue
-    tryReadTBQueue = WrapSTM .  tryReadTBQueue
-    peekTBQueue    = WrapSTM .  peekTBQueue
-    tryPeekTBQueue = WrapSTM .  tryPeekTBQueue
-    flushTBQueue   = WrapSTM .  flushTBQueue
-    writeTBQueue   = WrapSTM .: writeTBQueue
-    lengthTBQueue  = WrapSTM .  lengthTBQueue
-    isEmptyTBQueue = WrapSTM .  isEmptyTBQueue
-    isFullTBQueue  = WrapSTM .  isFullTBQueue
-    unGetTBQueue   = WrapSTM .: unGetTBQueue
+    newTBQueue = WrapSTM . newTBQueue
+    readTBQueue = WrapSTM . readTBQueue
+    tryReadTBQueue = WrapSTM . tryReadTBQueue
+    peekTBQueue = WrapSTM . peekTBQueue
+    tryPeekTBQueue = WrapSTM . tryPeekTBQueue
+    flushTBQueue = WrapSTM . flushTBQueue
+    writeTBQueue = WrapSTM .: writeTBQueue
+    lengthTBQueue = WrapSTM . lengthTBQueue
+    isEmptyTBQueue = WrapSTM . isEmptyTBQueue
+    isFullTBQueue = WrapSTM . isFullTBQueue
+    unGetTBQueue = WrapSTM .: unGetTBQueue
 
     type TArray (NoLoggingT (ResourceT IO)) = TArray IO
 
     type TSem (NoLoggingT (ResourceT IO)) = TSem IO
-    newTSem        = WrapSTM .  newTSem
-    waitTSem       = WrapSTM .  waitTSem
-    signalTSem     = WrapSTM .  signalTSem
-    signalTSemN    = WrapSTM .: signalTSemN
+    newTSem = WrapSTM . newTSem
+    waitTSem = WrapSTM . waitTSem
+    signalTSem = WrapSTM . signalTSem
+    signalTSemN = WrapSTM .: signalTSemN
 
     type TChan (NoLoggingT (ResourceT IO)) = TChan IO
-    newTChan          = WrapSTM    newTChan
-    newBroadcastTChan = WrapSTM    newBroadcastTChan
-    dupTChan          = WrapSTM .  dupTChan
-    cloneTChan        = WrapSTM .  cloneTChan
-    readTChan         = WrapSTM .  readTChan
-    tryReadTChan      = WrapSTM .  tryReadTChan
-    peekTChan         = WrapSTM .  peekTChan
-    tryPeekTChan      = WrapSTM .  tryPeekTChan
-    writeTChan        = WrapSTM .: writeTChan
-    unGetTChan        = WrapSTM .: unGetTChan
-    isEmptyTChan      = WrapSTM .  isEmptyTChan
+    newTChan = WrapSTM newTChan
+    newBroadcastTChan = WrapSTM newBroadcastTChan
+    dupTChan = WrapSTM . dupTChan
+    cloneTChan = WrapSTM . cloneTChan
+    readTChan = WrapSTM . readTChan
+    tryReadTChan = WrapSTM . tryReadTChan
+    peekTChan = WrapSTM . peekTChan
+    tryPeekTChan = WrapSTM . tryPeekTChan
+    writeTChan = WrapSTM .: writeTChan
+    unGetTChan = WrapSTM .: unGetTChan
+    isEmptyTChan = WrapSTM . isEmptyTChan
 
 (.:) :: (c -> d) -> (a -> b -> c) -> (a -> b -> d)
 (f .: g) x y = f (g x y)
 
 -- | Helper type for the above instance.
-newtype WrapSTM a = WrapSTM { unWrapSTM :: STM.STM a }
+newtype WrapSTM a = WrapSTM {unWrapSTM :: STM.STM a}
     deriving (Applicative, Functor, Monad)
 
 deriving instance MonadPlus WrapSTM
@@ -289,24 +292,29 @@ instance MonadMask (NoLoggingT (ResourceT IO)) where
 
 newStoreAddressSql :: SqlPersistM StoreAddress
 newStoreAddressSql = do
-    Sql.runSql $ Sql.createTable (Proxy :: Proxy (AddressRow :. Col "id" Primary))
+    Sql.runSql
+        $ Sql.createTable (Proxy :: Proxy (AddressRow :. Col "id" Primary))
     embedStore embed =<< newSqlStore
   where
-    embed = embedIso addressSqlIso
-        `o` (tableIntoDatabase `o` chainIntoTable Pile getPile)
+    embed =
+        embedIso addressSqlIso
+            `o` (tableIntoDatabase `o` chainIntoTable Pile getPile)
 
 addressSqlIso :: Iso' (Edge Node AddressInPool) AddressRow
 addressSqlIso = iso ab ba
   where
-    ab Edge{from,to,via=AddressInPool{address,index}} =
+    ab Edge{from, to, via = AddressInPool{address, index}} =
         Table :. Col from :. Col to :. Col 0 :. Col address :. Col index
     ba (Table :. Col from :. Col to :. Col _ :. Col address :. Col index) =
-        Edge{from,to,via=AddressInPool{address,index}}
+        Edge{from, to, via = AddressInPool{address, index}}
 
-type AddressRow = Table "addresses"
-    :. Col "from" Node :. Col "to" Node
-    :. Col "wallet_id" Word32
-    :. Col "address" Address :. Col "address_ix" Word32
+type AddressRow =
+    Table "addresses"
+        :. Col "from" Node
+        :. Col "to" Node
+        :. Col "wallet_id" Word32
+        :. Col "address" Address
+        :. Col "address_ix" Word32
 
 {-------------------------------------------------------------------------------
     Database connection
@@ -316,8 +324,9 @@ main = Persist.runSqlite ":memory:" $ do
     Persist.runMigration migrateAll
 
     store <- newStoreAddressSql
-    db    <- initDBVar store
-        $ Chain.fromEdge Edge{from=0,to=1,via=[AddressInPool "a" 31]}
+    db <-
+        initDBVar store
+            $ Chain.fromEdge Edge{from = 0, to = 1, via = [AddressInPool "a" 31]}
 
     updateDBVar db $ Chain.AppendTip 2 [AddressInPool "b" 32]
     updateDBVar db $ Chain.AppendTip 3 [AddressInPool "c" 33]

@@ -11,8 +11,6 @@ module Control.Monitoring.Monitor
     )
 where
 
-import Prelude
-
 import Control.Monad
     ( when
     )
@@ -38,6 +36,7 @@ import Data.Profunctor
     , dimap
     , rmap
     )
+import Prelude
 
 import qualified Control.Monitoring.Tracing as Tracing
 
@@ -62,7 +61,8 @@ data Monitor m a b = Monitor
     }
 
 -- | Natural transformation of monitors
-hoistMonitor :: (forall x. m x -> n x) -> Monitor m a b -> Monitor n a b
+hoistMonitor
+    :: (forall x. m x -> n x) -> Monitor m a b -> Monitor n a b
 hoistMonitor nat Monitor{..} =
     Monitor
         { trace = nat . trace

@@ -10,11 +10,10 @@ module Cardano.Startup.Windows
     , interruptProcess
     ) where
 
-import Prelude
-
 import System.Process
     ( Pid
     )
+import Prelude
 
 -- | Stub function for windows.
 installSignalHandlers :: IO () -> IO ()

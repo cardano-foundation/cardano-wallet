@@ -1,14 +1,14 @@
 {-# LANGUAGE GADTs #-}
+
 -- |
 -- Copyright: © 2024 Cardano Foundation
 -- License: Apache-2.0
 --
 -- Convert from Cardano.Api to Cardano.Wallet.Read.
---
 module Cardano.Wallet.Primitive.Ledger.Read.Eras
     ( fromAnyCardanoEra
     )
-    where
+where
 
 import Cardano.Api
     ( AnyCardanoEra (..)

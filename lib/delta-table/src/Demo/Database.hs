@@ -2,16 +2,12 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeOperators #-}
 
-{- |
-Copyright: © 2024 Cardano Foundation
-License: Apache-2.0
-
-Demonstration for 'Table' type.
-
--}
+-- |
+-- Copyright: © 2024 Cardano Foundation
+-- License: Apache-2.0
+--
+-- Demonstration for 'Table' type.
 module Demo.Database where
-
-import Prelude
 
 import Control.Exception
     ( SomeException
@@ -32,6 +28,7 @@ import Database.Table
     , Table
     , (:.)
     )
+import Prelude
 
 import qualified Database.Table.SQLite.Simple as Sql
 
@@ -83,7 +80,9 @@ testExceptions = do
             ( do
                 Sql.deleteWhere (colBirthYear Sql.>. 1800) tablePerson
                 error "oops"
-            ) conn `catch` (\(_ :: SomeException) -> pure ())
+            )
+            conn
+            `catch` (\(_ :: SomeException) -> pure ())
         putStrLn "After"
         printTablePerson conn
   where

@@ -2,8 +2,6 @@
 
 module Cardano.Wallet.Launch.Cluster.Env where
 
-import Prelude
-
 import Cardano.Wallet.Launch.Cluster.ClusterEra
     ( ClusterEra (..)
     )
@@ -26,6 +24,7 @@ import System.Path
     , relDir
     , (</>)
     )
+import Prelude
 
 -- | Defaults to the latest era.
 clusterEraFromEnv :: IO ClusterEra

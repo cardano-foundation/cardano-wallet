@@ -17,8 +17,6 @@ module Cardano.Wallet.Launch.Cluster.Node.GenesisFiles
     )
 where
 
-import Prelude
-
 import Cardano.Address
     ( Address (..)
     )
@@ -99,7 +97,8 @@ import Data.Functor.Const
     ( Const (..)
     )
 import Data.Generics.Labels
-    ()
+    (
+    )
 import Data.HKD
     ( FFoldable (ffoldMap)
     , FFunctor (..)
@@ -128,6 +127,7 @@ import System.Path
     ( relFile
     , (</>)
     )
+import Prelude
 
 import qualified Cardano.Ledger.Api.Tx.Address as Ledger
 import qualified Cardano.Ledger.Core as Ledger
@@ -168,7 +168,8 @@ readGenesis = ftraverse readGenesisFile
     readGenesisFile (FileOf fp) = Const <$> decodeFileThrow (toFilePath fp)
 
 -- | Apply template modifications to genesis values
-applyTemplateMods :: GenesisTemplateMods -> GenesisValue -> GenesisValue
+applyTemplateMods
+    :: GenesisTemplateMods -> GenesisValue -> GenesisValue
 applyTemplateMods = fzipWith (\(Const f) (Const v) -> Const $ f v)
 
 -- | Write genesis values to disk
@@ -203,7 +204,8 @@ produceGenesis
 produceGenesis templateDir configsDir mods = do
     let templates = mkGenesisFiles templateDir
     let configs = mkGenesisFiles configsDir
-    readGenesis templates >>= writeGenesis configs . applyTemplateMods mods
+    readGenesis templates
+        >>= writeGenesis configs . applyTemplateMods mods
     pure configs
 
 generateGenesis

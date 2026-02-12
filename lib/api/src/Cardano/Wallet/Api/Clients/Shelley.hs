@@ -7,8 +7,6 @@
 module Cardano.Wallet.Api.Clients.Shelley
 where
 
-import Prelude
-
 import Cardano.Wallet.Api
     ( Assets
     , BalanceTransaction
@@ -32,7 +30,6 @@ import Cardano.Wallet.Api
     , SubmitTransaction
     , Wallets
     )
-
 import Cardano.Wallet.Api.Types
     ( AnyAddress
     , ApiAddressData
@@ -98,7 +95,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx
     )
 import Data.Generics.Labels
-    ()
+    (
+    )
 import Data.List.NonEmpty
     ( NonEmpty
     )
@@ -114,6 +112,7 @@ import Servant.Client
     ( ClientM
     , client
     )
+import Prelude
 
 deleteWallet
     :: ApiT WalletId -> ClientM NoContent
@@ -284,7 +283,10 @@ quitStakePool = client (Proxy @("v2" :> QuitStakePool network))
 getAssets
     :: ApiT WalletId -> ClientM [ApiAsset]
 getAsset
-    :: ApiT WalletId -> ApiT TokenPolicyId -> ApiT AssetName -> ClientM ApiAsset
+    :: ApiT WalletId
+    -> ApiT TokenPolicyId
+    -> ApiT AssetName
+    -> ClientM ApiAsset
 getAsset'
     :: ApiT WalletId -> ApiT TokenPolicyId -> ClientM ApiAsset
 getAssets :<|> getAsset :<|> getAsset' =

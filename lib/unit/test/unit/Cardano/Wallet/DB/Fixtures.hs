@@ -26,8 +26,6 @@ module Cardano.Wallet.DB.Fixtures
     , queryLaw
     ) where
 
-import Prelude
-
 import Cardano.DB.Sqlite
     ( ForeignKeysSetting
     , SqliteContext
@@ -108,16 +106,19 @@ import Test.QuickCheck.Monadic
 import UnliftIO.Exception
     ( bracket
     )
+import Prelude
 
 import qualified Cardano.Wallet.DB.Sqlite.Schema as TH
 
 {-------------------------------------------------------------------------------
     DB setup
 -------------------------------------------------------------------------------}
+
 -- | For the purpose of testing 'Store',
 -- create a database in memory.
 -- All tables from the current schema will be created.
-withDBInMemory :: ForeignKeysSetting -> (SqliteContext -> IO a) -> IO a
+withDBInMemory
+    :: ForeignKeysSetting -> (SqliteContext -> IO a) -> IO a
 withDBInMemory disableFK action =
     bracket (newDBInMemory disableFK) fst (action . snd)
 
@@ -134,8 +135,8 @@ newDBInMemory =
 -- the relevant tables from the current schema.
 withDBFromFile :: FilePath -> (SqliteContext -> IO a) -> IO a
 withDBFromFile dbFile action =
-    either (error . show) id <$>
-        withSqliteContextFile
+    either (error . show) id
+        <$> withSqliteContextFile
             nullTracer
             dbFile
             noManualMigration
@@ -151,15 +152,17 @@ initializeWalletTable wid = do
 
 -- | Insert a wallet table in order to satisfy  FOREIGN PRIMARY constraints
 insertWalletTable :: WalletId -> SqlPersistT IO ()
-insertWalletTable wid = insert_ $ Wallet
-    { walId = wid
-    , walName = "Stores"
-    , walCreationTime = dummyUTCTime
-    , walPassphraseLastUpdatedAt = Nothing
-    , walPassphraseScheme = Nothing
-    , walGenesisHash = BlockId dummyHash
-    , walGenesisStart = dummyUTCTime
-    }
+insertWalletTable wid =
+    insert_
+        $ Wallet
+            { walId = wid
+            , walName = "Stores"
+            , walCreationTime = dummyUTCTime
+            , walPassphraseLastUpdatedAt = Nothing
+            , walPassphraseScheme = Nothing
+            , walGenesisHash = BlockId dummyHash
+            , walGenesisStart = dummyUTCTime
+            }
 
 {-------------------------------------------------------------------------------
     Arbitrary
@@ -168,12 +171,15 @@ dummyUTCTime :: UTCTime
 dummyUTCTime = posixSecondsToUTCTime 1506203091
 
 dummyHash :: Hash "BlockHeader"
-dummyHash = Hash $ unsafeFromHex
-    "5f20df933584822601f9e3f8c024eb5eb252fe8cefb24d1317dc3d432e940ebb"
+dummyHash =
+    Hash
+        $ unsafeFromHex
+            "5f20df933584822601f9e3f8c024eb5eb252fe8cefb24d1317dc3d432e940ebb"
 
 {-------------------------------------------------------------------------------
     QuickCheck utilities
 -------------------------------------------------------------------------------}
+
 -- | Like 'assert', but allow giving a label / title before running a assertion
 assertWith :: String -> Bool -> PropertyM IO ()
 assertWith lbl condition = do
@@ -192,7 +198,9 @@ logScale :: Gen a -> Gen a
 logScale = logScale' $ exp 1
 
 -- | 'cover', lifted with 'fmap'.
-coverM :: (Functor f, Testable prop) => Double -> Bool -> String -> f prop -> f Property
+coverM
+    :: (Functor f, Testable prop)
+    => Double -> Bool -> String -> f prop -> f Property
 coverM n c t = fmap $ cover n c t
 
 -- | Like 'frequency' but use only one generator with different filters.
@@ -242,11 +250,13 @@ unsafeLoadS s = fromRight (error "store law is broken") <$> loadS s
 
 -- | A simpler interface for 'updateS' in tests, using 'unsafeLoadS'.
 -- Natural for use with 'foldM'.
-unsafeUpdateS :: Applicative m => Store m qa da -> Base da -> da -> m (Base da)
+unsafeUpdateS
+    :: Applicative m => Store m qa da -> Base da -> da -> m (Base da)
 unsafeUpdateS store ba da = updateS store (Just ba) da *> unsafeLoadS store
 
 -- | Property that a pure query returns the same result as the store one.
-queryLaw :: (Monad m, Eq b, Query qa)
+queryLaw
+    :: (Monad m, Eq b, Query qa)
     => Store m qa da
     -- ^ the store to test
     -> World qa

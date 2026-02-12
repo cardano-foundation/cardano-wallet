@@ -21,8 +21,6 @@ module Test.Integration.Scenario.API.Shelley.Transactions
     ( spec
     ) where
 
-import Prelude
-
 import Cardano.Mnemonic
     ( SomeMnemonic (..)
     , entropyToMnemonic
@@ -60,8 +58,12 @@ import Cardano.Wallet.Api.Types.Error
     , ApiErrorNoSuchTransaction (..)
     , ApiErrorNoSuchWallet (ApiErrorNoSuchWallet)
     , ApiErrorStartTimeLaterThanEndTime (..)
-    , ApiErrorTransactionAlreadyInLedger (ApiErrorTransactionAlreadyInLedger)
-    , ApiErrorTxOutputLovelaceInsufficient (ApiErrorTxOutputLovelaceInsufficient)
+    , ApiErrorTransactionAlreadyInLedger
+        ( ApiErrorTransactionAlreadyInLedger
+        )
+    , ApiErrorTxOutputLovelaceInsufficient
+        ( ApiErrorTxOutputLovelaceInsufficient
+        )
     , ApiErrorWrongEncryptionPassphrase (ApiErrorWrongEncryptionPassphrase)
     )
 import Cardano.Wallet.Api.Types.SchemaMetadata
@@ -228,6 +230,7 @@ import Test.Integration.Framework.TestData
     , steveToken
     , txMetadata_ADP_1005
     )
+import Prelude
 
 import qualified Cardano.Address as CA
 import qualified Cardano.Wallet.Api.Link as Link
@@ -295,13 +298,13 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 let UtxoTooSmall e = decodeErrorInfo response
                 e
                     ^. #txOutputIndex
-                        `shouldBe` 0
+                    `shouldBe` 0
                 e
                     ^. #txOutputLovelaceSpecified
-                        `shouldBe` lovelaceRequested
+                    `shouldBe` lovelaceRequested
                 e
                     ^. #txOutputLovelaceRequiredMinimum
-                        `shouldSatisfy` (> lovelaceRequested)
+                    `shouldSatisfy` (> lovelaceRequested)
                 pure e
 
             -- Attempt #2:
@@ -489,8 +492,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                     -- constant:
                     --
                     minCoins
-                        `shouldSatisfy` all
-                            (>= (ApiAmount $ minUTxOValue (_mainEra ctx)))
+                    `shouldSatisfy` all
+                        (>= (ApiAmount $ minUTxOValue (_mainEra ctx)))
                 , expectField #inputs $ \inputs' -> do
                     inputs' `shouldSatisfy` all (isJust . source)
                 , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
@@ -764,7 +767,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 (Link.createTransactionOld @'Shelley wSrc)
                 Default
                 payload
-        verify r
+        verify
+            r
             [ expectResponseCode HTTP.status403
             ]
         decodeErrorInfo r `shouldBe` CannotCoverFee
@@ -810,12 +814,13 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 (Link.createTransactionOld @'Shelley wSrc)
                 Default
                 payload
-        verify r
+        verify
+            r
             [ expectResponseCode HTTP.status403
             ]
-        decodeErrorInfo r `shouldBe`
-            WrongEncryptionPassphrase
-            (ApiErrorWrongEncryptionPassphrase (wSrc ^. #id))
+        decodeErrorInfo r
+            `shouldBe` WrongEncryptionPassphrase
+                (ApiErrorWrongEncryptionPassphrase (wSrc ^. #id))
 
     it "TRANS_CREATE_07 - Deleted wallet" $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx
@@ -847,8 +852,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 Default
                 payload
         expectResponseCode HTTP.status404 r
-        decodeErrorInfo r `shouldBe`
-            NoSuchWallet (ApiErrorNoSuchWallet (w ^. #id))
+        decodeErrorInfo r
+            `shouldBe` NoSuchWallet (ApiErrorNoSuchWallet (w ^. #id))
 
     describe "TRANS_CREATE_08 - Bad payload" $ do
         let matrix =
@@ -928,7 +933,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                     payloadFee
             let [ApiAmount minCoin] = getFromResponse #minimumCoins rFee
 
-            payload <- mkTxPayloadMA @n destination minCoin [val] fixturePassphrase
+            payload <-
+                mkTxPayloadMA @n destination minCoin [val] fixturePassphrase
             rtx <-
                 request @(ApiTransaction n)
                     ctx
@@ -992,10 +998,11 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                     (Link.createTransactionOld @'Shelley wSrc)
                     Default
                     payload
-            verify rtx
+            verify
+                rtx
                 [ expectResponseCode HTTP.status403
                 , expectErrorInfo $ flip shouldSatisfy $ \case
-                    UtxoTooSmall ApiErrorTxOutputLovelaceInsufficient {} ->
+                    UtxoTooSmall ApiErrorTxOutputLovelaceInsufficient{} ->
                         True
                     _anythingElse ->
                         False
@@ -1074,8 +1081,10 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                         (take 2 srcAddrs)
                 return (wSrc, nAssetsPerAddr)
             wDest <- emptyWallet ctx
-            destAddr <- listAddresses @n ctx wDest >>= \case
-                (a:_) -> pure $ view #id a; [] -> error "expected addresses"
+            destAddr <-
+                listAddresses @n ctx wDest >>= \case
+                    (a : _) -> pure $ view #id a
+                    [] -> error "expected addresses"
             waitForTxImmutability ctx
 
             -- 2. Try spending from each wallet, and record the response.
@@ -1317,7 +1326,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 , expectField #expiresAt (`shouldSatisfy` isJust)
                 ]
 
-    describe "TRANSMETA_CREATE_01 - Including metadata within transactions"
+    describe
+        "TRANSMETA_CREATE_01 - Including metadata within transactions"
         $ mapM_
             spec_createTransactionWithMetadata
             [ CreateTransactionWithMetadataTest
@@ -1711,8 +1721,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 Default
                 payload
         expectResponseCode HTTP.status404 r
-        decodeErrorInfo r `shouldBe`
-            NoSuchWallet (ApiErrorNoSuchWallet (w ^. #id))
+        decodeErrorInfo r
+            `shouldBe` NoSuchWallet (ApiErrorNoSuchWallet (w ^. #id))
 
     it "TRANS_LIST_01 - Can list Incoming and Outgoing transactions"
         $ \ctx -> runResourceT $ do
@@ -1796,7 +1806,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
     --  19 | empty    | empty    | empty      |    1      |  2nd one      |
     --  20 | empty    | empty    | ascending  |    1      |  1st one      |
     -- +---+----------+----------+------------+-----------+---------------+
-    it "TRANS_LIST_02,03x - Can limit/order results with start, end and order"
+    it
+        "TRANS_LIST_02,03x - Can limit/order results with start, end and order"
         $ \ctx -> runResourceT $ do
             let minUTxOValue' = minUTxOValue (_mainEra ctx)
             let a1 = ApiAmount minUTxOValue'
@@ -2153,8 +2164,9 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                         Nothing
             r <- request @([ApiTransaction n]) ctx link Default Empty
             expectResponseCode HTTP.status400 r
-            decodeErrorInfo r `shouldBe` StartTimeLaterThanEndTime
-                (ApiErrorStartTimeLaterThanEndTime startTime' endTime')
+            decodeErrorInfo r
+                `shouldBe` StartTimeLaterThanEndTime
+                    (ApiErrorStartTimeLaterThanEndTime startTime' endTime')
 
     it "TRANS_LIST_03 - Minimum withdrawal shouldn't be 0"
         $ \ctx -> runResourceT $ do
@@ -2206,8 +2218,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 Default
                 Empty
         expectResponseCode HTTP.status404 r
-        decodeErrorInfo r `shouldBe`
-            NoSuchWallet (ApiErrorNoSuchWallet (w ^. #id))
+        decodeErrorInfo r
+            `shouldBe` NoSuchWallet (ApiErrorNoSuchWallet (w ^. #id))
 
     it
         "TRANS_LIST_RANGE_01 - \
@@ -2385,8 +2397,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         let link = Link.getTransaction @'Shelley w (ApiTxId txid)
         r <- request @(ApiTransaction n) ctx link Default Empty
         expectResponseCode HTTP.status404 r
-        decodeErrorInfo r `shouldBe`
-            NoSuchWallet (ApiErrorNoSuchWallet (w ^. #id))
+        decodeErrorInfo r
+            `shouldBe` NoSuchWallet (ApiErrorNoSuchWallet (w ^. #id))
 
     it "TRANS_GET_03 - Using wrong transaction id" $ \ctx -> runResourceT $ do
         (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
@@ -2413,8 +2425,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                     (ApiTxId $ ApiT txid)
         r <- request @(ApiTransaction n) ctx link Default Empty
         expectResponseCode HTTP.status404 r
-        decodeErrorInfo r `shouldBe`
-            NoSuchTransaction (ApiErrorNoSuchTransaction (ApiT txid))
+        decodeErrorInfo r
+            `shouldBe` NoSuchTransaction (ApiErrorNoSuchTransaction (ApiT txid))
 
     it "TRANS_GET_04 - Sumbitted transactions result in pending state"
         $ \ctx -> runResourceT $ do
@@ -2558,9 +2570,9 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             let ep = Link.deleteTransaction @'Shelley wSrc (ApiTxId txid)
             rDel <- request @ApiTxId ctx ep Default Empty
             expectResponseCode HTTP.status403 rDel
-            decodeErrorInfo rDel `shouldBe`
-                TransactionAlreadyInLedger
-                (ApiErrorTransactionAlreadyInLedger txid)
+            decodeErrorInfo rDel
+                `shouldBe` TransactionAlreadyInLedger
+                    (ApiErrorTransactionAlreadyInLedger txid)
 
     describe "TRANS_DELETE_03 - checking no transaction id error for " $ do
         txDeleteNotExistsingTxIdTest emptyWallet "wallets"
@@ -2642,7 +2654,9 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 }],
                 "passphrase": #{fixturePassphrase}
             }|]
-            (_, ApiFee (ApiAmount estimatedFeeMin) (ApiAmount estimatedFeeMax) _ _) <-
+            ( _
+                , ApiFee (ApiAmount estimatedFeeMin) (ApiAmount estimatedFeeMax) _ _
+                ) <-
                 unsafeRequest
                     ctx
                     (Link.getTransactionFeeOld @'Shelley wSelf)
@@ -2748,7 +2762,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                         (`shouldBe` InLedger)
                     ]
 
-    it "SHELLEY_TX_REDEEM_03 - Can't redeem rewards from other if none left"
+    it
+        "SHELLEY_TX_REDEEM_03 - Can't redeem rewards from other if none left"
         $ \ctx -> runResourceT $ do
             (wOther, SomeMnemonic mw) <- rewardWallet ctx
             wSelf <- fixtureWallet ctx
@@ -2869,7 +2884,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         $ \ctx -> runResourceT $ do
             (wSelf, addrs) <- fixtureIcarusWalletAddrs @n ctx
             addr <- case addrs of
-                (a:_) -> pure $ encodeAddress (sNetworkId @n) a
+                (a : _) -> pure $ encodeAddress (sNetworkId @n) a
                 [] -> error "expected addresses"
 
             let payload =
@@ -2898,7 +2913,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 ]
             decodeErrorInfo rTx `shouldBe` InvalidWalletType
 
-    it "SHELLEY_TX_REDEEM_06a - Can't redeem rewards if utxo = 0 from other"
+    it
+        "SHELLEY_TX_REDEEM_06a - Can't redeem rewards if utxo = 0 from other"
         $ \ctx -> runResourceT $ do
             (_, SomeMnemonic mw) <- rewardWallet ctx
             wSelf <- emptyWallet ctx
@@ -2928,7 +2944,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             verify rTx [expectResponseCode HTTP.status403]
             decodeErrorInfo rTx `shouldBe` NoUtxosAvailable
 
-    it "SHELLEY_TX_REDEEM_06b - Can't redeem rewards if utxo = 0 from self"
+    it
+        "SHELLEY_TX_REDEEM_06b - Can't redeem rewards if utxo = 0 from self"
         $ \ctx -> runResourceT $ do
             liftIO $ pendingWith "Migration endpoints temporarily disabled"
             (wRewards, SomeMnemonic mw) <- rewardWallet ctx
@@ -3227,8 +3244,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                         <> txid
             ra <- request @ApiTxId ctx ("DELETE", endpoint) Default Empty
             expectResponseCode HTTP.status404 ra
-            decodeErrorInfo ra `shouldBe`
-                NoSuchTransaction (ApiErrorNoSuchTransaction (ApiT txid'))
+            decodeErrorInfo ra
+                `shouldBe` NoSuchTransaction (ApiErrorNoSuchTransaction (ApiT txid'))
 
     txDeleteFromDifferentWalletTest
         :: (HasType (ApiT WalletId) wal)
@@ -3260,8 +3277,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                         <> txid
             ra <- request @ApiTxId ctx ("DELETE", endpoint) Default Empty
             expectResponseCode HTTP.status404 ra
-            decodeErrorInfo ra `shouldBe`
-                NoSuchTransaction (ApiErrorNoSuchTransaction txidApiT)
+            decodeErrorInfo ra
+                `shouldBe` NoSuchTransaction (ApiErrorNoSuchTransaction txidApiT)
 
     verifyWalletBalance
         :: MonadUnliftIO m

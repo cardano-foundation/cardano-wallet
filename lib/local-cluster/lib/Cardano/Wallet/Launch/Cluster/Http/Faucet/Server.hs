@@ -9,8 +9,6 @@ module Cardano.Wallet.Launch.Cluster.Http.Faucet.Server
     )
 where
 
-import Prelude
-
 import Cardano.Launcher.Node
     ( CardanoNodeConn
     )
@@ -57,6 +55,7 @@ import UnliftIO
     , readTVarIO
     , writeTVar
     )
+import Prelude
 
 import qualified Cardano.Address as Address
 

@@ -8,8 +8,6 @@ module Cardano.Wallet.Api.Types.RestorationMode
     ( ApiRestorationMode
     ) where
 
-import Prelude
-
 import Cardano.Wallet.Api.Lib.ApiT
     ( ApiT (..)
     )
@@ -30,6 +28,7 @@ import Data.Aeson
 import Data.Aeson.Types
     ( Parser
     )
+import Prelude
 
 import qualified Cardano.Wallet.Read as Read
 import qualified Cardano.Wallet.Read.Hash as Hash

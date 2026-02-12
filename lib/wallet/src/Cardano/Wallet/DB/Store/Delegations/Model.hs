@@ -7,8 +7,6 @@ module Cardano.Wallet.DB.Store.Delegations.Model
     , DeltaDelegations
     ) where
 
-import Prelude
-
 import Cardano.Pool.Types
     ( PoolId
     )
@@ -26,6 +24,7 @@ import Cardano.Wallet.Primitive.Types.DRep
 import Fmt
     ( Buildable (..)
     )
+import Prelude
 
 -- | Wallet delegation history
 type Delegations = History SlotNo DRep PoolId
@@ -36,8 +35,12 @@ type DeltaDelegations = Operation SlotNo DRep PoolId
 
 instance Buildable DeltaDelegations where
     build = \case
-            ApplyTransition Deregister slot -> "Deregister " <> build slot
-            ApplyTransition (VoteAndDelegate vote pool) slot ->
-                    "Delegate " <> build pool
-                        <> " and vote "<> build vote <> " " <> build slot
-            Rollback slot -> "Rollback " <> build slot
+        ApplyTransition Deregister slot -> "Deregister " <> build slot
+        ApplyTransition (VoteAndDelegate vote pool) slot ->
+            "Delegate "
+                <> build pool
+                <> " and vote "
+                <> build vote
+                <> " "
+                <> build slot
+        Rollback slot -> "Rollback " <> build slot

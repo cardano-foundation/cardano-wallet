@@ -16,14 +16,11 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
-
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Cardano.WalletSpec
     ( spec
     ) where
-
-import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv
@@ -399,6 +396,7 @@ import UnliftIO.Concurrent
     , takeMVar
     , threadDelay
     )
+import Prelude
 
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet as W
@@ -427,51 +425,67 @@ import qualified Data.Text as T
 
 spec :: Spec
 spec = describe "Cardano.WalletSpec" $ do
-    describe "Pointless mockEventSource to cover 'Show' instances for errors" $ do
-        let wid = WalletId (hash @ByteString "arbitrary")
-        it (show $ ErrWithRootKeyWrongPassphrase wid ErrWrongPassphrase) True
+    describe
+        "Pointless mockEventSource to cover 'Show' instances for errors"
+        $ do
+            let wid = WalletId (hash @ByteString "arbitrary")
+            it (show $ ErrWithRootKeyWrongPassphrase wid ErrWrongPassphrase) True
 
     describe "WalletLayer works as expected" $ do
-        it "Two wallets with same mnemonic have a same public id"
+        it
+            "Two wallets with same mnemonic have a same public id"
             (property walletIdDeterministic)
-        it "Two wallets with different mnemonic have a different public id"
+        it
+            "Two wallets with different mnemonic have a different public id"
             (property walletIdInjective)
-        it "Wallet has name corresponding to its last update"
+        it
+            "Wallet has name corresponding to its last update"
             (property walletUpdateName)
-        it "Can change passphrase of the last private key attached, if any"
+        it
+            "Can change passphrase of the last private key attached, if any"
             (property walletUpdatePassphrase)
-        it "Can't change passphrase with a wrong old passphrase"
+        it
+            "Can't change passphrase with a wrong old passphrase"
             (property walletUpdatePassphraseWrong)
-        it "Can't change passphrase if wallet doesn't exist"
+        it
+            "Can't change passphrase if wallet doesn't exist"
             (property walletUpdatePassphraseNoRootKey)
-        it "Passphrase info is up-to-date after wallet passphrase update"
+        it
+            "Passphrase info is up-to-date after wallet passphrase update"
             (property walletUpdatePassphraseDate)
         -- fixme: [ADP-1132] Rework property for new transactions code.
-        xit "Root key is re-encrypted with new passphrase"
+        xit
+            "Root key is re-encrypted with new passphrase"
             (withMaxSuccess 10 $ property walletKeyIsReencrypted)
-        it "Wallet can list transactions with sorting"
+        it
+            "Wallet can list transactions with sorting"
             (property walletListTransactionsSorted)
-        it "Wallet can list transactions wih a limited number of results"
+        it
+            "Wallet can list transactions wih a limited number of results"
             (property walletListTransactionsWithLimit)
-        it "Wallet won't list unrelated assets used in related transactions"
+        it
+            "Wallet won't list unrelated assets used in related transactions"
             (property walletListsOnlyRelatedAssets)
 
-    describe "Tx fee estimation spread" $
-        it "Estimated fee spreads are sound"
+    describe "Tx fee estimation spread"
+        $ it
+            "Estimated fee spreads are sound"
             (property prop_calculateFeePercentiles)
 
     describe "LocalTxSubmission" $ do
-        it "LocalTxSubmission pool retries pending transactions"
+        it
+            "LocalTxSubmission pool retries pending transactions"
             (property prop_localTxSubmission)
-        it "LocalTxSubmission updates are limited in frequency"
+        it
+            "LocalTxSubmission updates are limited in frequency"
             (property prop_throttle)
 
     describe "Migration" $ do
         describe "migrationPlanToSelectionWithdrawals" $ do
-            it "Target addresses are cycled correctly." $
-                property prop_migrationPlanToSelectionWithdrawals_addresses
-            it "Inputs and outputs are preserved in the correct order." $
-                property prop_migrationPlanToSelectionWithdrawals_io
+            it "Target addresses are cycled correctly."
+                $ property prop_migrationPlanToSelectionWithdrawals_addresses
+            it "Inputs and outputs are preserved in the correct order."
+                $ property prop_migrationPlanToSelectionWithdrawals_io
 
 {-------------------------------------------------------------------------------
                                     Properties
@@ -481,12 +495,16 @@ walletIdDeterministic
     :: (WalletId, WalletName, DummyState)
     -> Property
 walletIdDeterministic newWallet = monadicIO $ do
-    WalletLayerFixture _ _ widsA <- run $ setupFixture dummyStateF newWallet
-    WalletLayerFixture _ _ widsB <- run $ setupFixture dummyStateF newWallet
+    WalletLayerFixture _ _ widsA <-
+        run $ setupFixture dummyStateF newWallet
+    WalletLayerFixture _ _ widsB <-
+        run $ setupFixture dummyStateF newWallet
     assert (widsA == widsB)
 
 walletIdInjective
-    :: ((WalletId, WalletName, DummyState), (WalletId, WalletName, DummyState))
+    :: ( (WalletId, WalletName, DummyState)
+       , (WalletId, WalletName, DummyState)
+       )
     -> Property
 walletIdInjective (walletA, walletB) = monadicIO $ do
     WalletLayerFixture _ _ widsA <- run $ setupFixture dummyStateF walletA
@@ -500,7 +518,7 @@ walletUpdateName
 walletUpdateName wallet wName = monadicIO $ do
     wName' <- run $ do
         WalletLayerFixture _ wl _ <- setupFixture dummyStateF wallet
-        W.updateWallet wl (\x -> x { name = wName })
+        W.updateWallet wl (\x -> x{name = wName})
         (name . (\(_, (b, _), _) -> b)) <$> W.readWallet wl
     assert (wName == wName')
 
@@ -516,15 +534,26 @@ walletUpdatePassphrase wallet new mxprv = monadicIO $ do
         Just (xprv, pwd) -> prop_withPrivateKey wl wid (xprv, pwd)
   where
     prop_withoutPrivateKey wl wid = do
-        attempt <- run $ runExceptT
-            $ W.updateWalletPassphraseWithOldPassphrase dummyStateF wl wid (new, new)
+        attempt <-
+            run
+                $ runExceptT
+                $ W.updateWalletPassphraseWithOldPassphrase
+                    dummyStateF
+                    wl
+                    wid
+                    (new, new)
         let err = ErrUpdatePassphraseWithRootKey $ ErrWithRootKeyNoRootKey wid
         assert (attempt == Left err)
     prop_withPrivateKey wl wid (xprv, pwd) = do
         run $ W.attachPrivateKeyFromPwd wl (xprv, pwd)
-        attempt <- run $ runExceptT
-            $ W.updateWalletPassphraseWithOldPassphrase dummyStateF
-                wl wid (coerce pwd, new)
+        attempt <-
+            run
+                $ runExceptT
+                $ W.updateWalletPassphraseWithOldPassphrase
+                    dummyStateF
+                    wl
+                    wid
+                    (coerce pwd, new)
         assert (attempt == Right ())
 
 walletUpdatePassphraseWrong
@@ -533,17 +562,23 @@ walletUpdatePassphraseWrong
     -> (Passphrase "user", Passphrase "user")
     -> Property
 walletUpdatePassphraseWrong wallet (xprv, pwd) (old, new) =
-    pwd /= coerce old ==> monadicIO $ do
-        WalletLayerFixture _ wl wid <- run $ setupFixture dummyStateF wallet
-        attempt <- run $ do
-            W.attachPrivateKeyFromPwd wl (xprv, pwd)
-            runExceptT
-                $ W.updateWalletPassphraseWithOldPassphrase
-                    dummyStateF wl wid (old, new)
-        let err = ErrUpdatePassphraseWithRootKey
-                $ ErrWithRootKeyWrongPassphrase wid
-                ErrWrongPassphrase
-        assert (attempt == Left err)
+    pwd /= coerce old ==>
+        monadicIO $ do
+            WalletLayerFixture _ wl wid <- run $ setupFixture dummyStateF wallet
+            attempt <- run $ do
+                W.attachPrivateKeyFromPwd wl (xprv, pwd)
+                runExceptT
+                    $ W.updateWalletPassphraseWithOldPassphrase
+                        dummyStateF
+                        wl
+                        wid
+                        (old, new)
+            let err =
+                    ErrUpdatePassphraseWithRootKey
+                        $ ErrWithRootKeyWrongPassphrase
+                            wid
+                            ErrWrongPassphrase
+            assert (attempt == Left err)
 
 walletUpdatePassphraseNoRootKey
     :: (WalletId, WalletName, DummyState)
@@ -551,23 +586,31 @@ walletUpdatePassphraseNoRootKey
     -> (Passphrase "user", Passphrase "user")
     -> Property
 walletUpdatePassphraseNoRootKey wallet@(wid', _, _) wid (old, new) =
-    wid /= wid' ==> monadicIO $ do
-        WalletLayerFixture _ wl _ <- run $ setupFixture dummyStateF wallet
-        attempt <- run $ runExceptT
-            $ W.updateWalletPassphraseWithOldPassphrase
-                dummyStateF wl wid (old, new)
-        let err = ErrUpdatePassphraseWithRootKey $ ErrWithRootKeyNoRootKey wid
-        assert (attempt == Left err)
+    wid /= wid' ==>
+        monadicIO $ do
+            WalletLayerFixture _ wl _ <- run $ setupFixture dummyStateF wallet
+            attempt <-
+                run
+                    $ runExceptT
+                    $ W.updateWalletPassphraseWithOldPassphrase
+                        dummyStateF
+                        wl
+                        wid
+                        (old, new)
+            let err = ErrUpdatePassphraseWithRootKey $ ErrWithRootKeyNoRootKey wid
+            assert (attempt == Left err)
 
 walletUpdatePassphraseDate
     :: (WalletId, WalletName, DummyState)
     -> (ShelleyKey 'RootK XPrv, Passphrase "user")
     -> Property
 walletUpdatePassphraseDate wallet (xprv, pwd) = monadicIO $ liftIO $ do
-    WalletLayerFixture _ wl wid  <- liftIO $ setupFixture dummyStateF wallet
+    WalletLayerFixture _ wl wid <-
+        liftIO $ setupFixture dummyStateF wallet
     let infoShouldSatisfy predicate = do
-            info <- (passphraseInfo . (\(_, (b, _), _) -> b))
-                <$> W.readWallet wl
+            info <-
+                (passphraseInfo . (\(_, (b, _), _) -> b))
+                    <$> W.readWallet wl
             info `shouldSatisfy` predicate
             return info
 
@@ -577,7 +620,10 @@ walletUpdatePassphraseDate wallet (xprv, pwd) = monadicIO $ liftIO $ do
     pause
     unsafeRunExceptT
         $ W.updateWalletPassphraseWithOldPassphrase
-            dummyStateF wl wid (coerce pwd, coerce pwd)
+            dummyStateF
+            wl
+            wid
+            (coerce pwd, coerce pwd)
     void $ infoShouldSatisfy (\info' -> isJust info' && info' > info)
   where
     pause = threadDelay 500
@@ -596,21 +642,30 @@ walletListTransactionsSorted
     -> Property
 walletListTransactionsSorted wallet@(_, _, _) _order (_mstart, _mend) =
     forAll (logScale' 1.5 arbitrary) $ \history ->
-    monadicIO $ liftIO $ do
-        WalletLayerFixture DBLayer{..} wl _ <- setupFixture dummyStateF wallet
-        atomically $ putTxHistory history
-        txs <- unsafeRunExceptT $
-            W.listTransactions wl Nothing Nothing Nothing
-                Descending Nothing Nothing
-        length txs `shouldBe` L.length history
-        -- With the 'Down'-wrapper, the sort is descending.
-        txs `shouldBe` L.sortOn (Down . slotNo . txInfoMeta) txs
-        -- Check transaction time calculation
-        let times = Map.fromList [(txInfoId i, txInfoTime i) | i <- txs]
-        let expTimes = Map.fromList
-                [ (tx ^. #txId, slotNoTime (meta ^. #slotNo))
-                | (tx, meta) <- history ]
-        times `shouldBe` expTimes
+        monadicIO $ liftIO $ do
+            WalletLayerFixture DBLayer{..} wl _ <- setupFixture dummyStateF wallet
+            atomically $ putTxHistory history
+            txs <-
+                unsafeRunExceptT
+                    $ W.listTransactions
+                        wl
+                        Nothing
+                        Nothing
+                        Nothing
+                        Descending
+                        Nothing
+                        Nothing
+            length txs `shouldBe` L.length history
+            -- With the 'Down'-wrapper, the sort is descending.
+            txs `shouldBe` L.sortOn (Down . slotNo . txInfoMeta) txs
+            -- Check transaction time calculation
+            let times = Map.fromList [(txInfoId i, txInfoTime i) | i <- txs]
+            let expTimes =
+                    Map.fromList
+                        [ (tx ^. #txId, slotNoTime (meta ^. #slotNo))
+                        | (tx, meta) <- history
+                        ]
+            times `shouldBe` expTimes
 
 genLimit :: (Random a, Integral a) => a -> Gen a
 genLimit n =
@@ -625,59 +680,69 @@ walletListTransactionsWithLimit
     -> Property
 walletListTransactionsWithLimit wallet@(_, _, _) =
     forAll (logScale' 1.5 arbitrary) $ \history ->
-    forAll (genLimit $ length history) $ \limit ->
-    -- collect (length history) $
-    cover 50 (limit < length history) "limit is limiting full query" $
-    let history'
-            = nubBy ((==) `on` \(_,meta) -> meta ^. #slotNo)
-            $ nubBy ((==) `on` \(tx,_) -> tx ^. #txId) history
-        test :: Ord (f UTCTime)
-            => Maybe UTCTime
-            -> Maybe UTCTime
-            -> SortOrder
-            -> (UTCTime -> f UTCTime)
-            -> (UTCTime -> Bool)
-            -> PropertyM IO ()
-        limitNatural = fromIntegral limit
-        test start stop order dir cut = liftIO @(PropertyM IO) $ do
-            WalletLayerFixture DBLayer{..} wl _ <- setupFixture dummyStateF wallet
-            atomically $ putTxHistory history'
-            txs <- unsafeRunExceptT $
-                W.listTransactions wl Nothing start stop order
-                    (Just limitNatural) Nothing
-            let times = [(txInfoId i, txInfoTime i) | i <- txs]
-            shouldBe times $ take limit $ sortOn (dir . snd) $ do
-                (tx, meta) <- history'
-                let slot = slotNoTime (meta ^. #slotNo)
-                guard $ cut slot
-                pure  (tx ^. #txId, slot )
-        pointInRange xs f = slotNoTime
-                    $ SlotNo
-                    $ f $ unSlotNo (NE.last (NE.fromList xs)) - unSlotNo (NE.head (NE.fromList xs))
+        forAll (genLimit $ length history) $ \limit ->
+            -- collect (length history) $
+            cover 50 (limit < length history) "limit is limiting full query"
+                $ let history' =
+                        nubBy ((==) `on` \(_, meta) -> meta ^. #slotNo)
+                            $ nubBy ((==) `on` \(tx, _) -> tx ^. #txId) history
+                      test
+                        :: Ord (f UTCTime)
+                        => Maybe UTCTime
+                        -> Maybe UTCTime
+                        -> SortOrder
+                        -> (UTCTime -> f UTCTime)
+                        -> (UTCTime -> Bool)
+                        -> PropertyM IO ()
+                      limitNatural = fromIntegral limit
+                      test start stop order dir cut = liftIO @(PropertyM IO) $ do
+                        WalletLayerFixture DBLayer{..} wl _ <- setupFixture dummyStateF wallet
+                        atomically $ putTxHistory history'
+                        txs <-
+                            unsafeRunExceptT
+                                $ W.listTransactions
+                                    wl
+                                    Nothing
+                                    start
+                                    stop
+                                    order
+                                    (Just limitNatural)
+                                    Nothing
+                        let times = [(txInfoId i, txInfoTime i) | i <- txs]
+                        shouldBe times $ take limit $ sortOn (dir . snd) $ do
+                            (tx, meta) <- history'
+                            let slot = slotNoTime (meta ^. #slotNo)
+                            guard $ cut slot
+                            pure (tx ^. #txId, slot)
+                      pointInRange xs f =
+                        slotNoTime
+                            $ SlotNo
+                            $ f
+                            $ unSlotNo (NE.last (NE.fromList xs))
+                                - unSlotNo (NE.head (NE.fromList xs))
+                  in  monadicIO $ do
+                        test Nothing Nothing Descending Down $ const True
+                        test Nothing Nothing Ascending Identity $ const True
+                        case sort [meta ^. #slotNo | (_, meta) <- history'] of
+                            [] -> pure ()
+                            xs -> do
+                                let h = pointInRange xs (`div` 2)
 
-    in
-    monadicIO $ do
-        test Nothing Nothing Descending Down $ const True
-        test Nothing Nothing Ascending Identity $ const True
-        case sort [ meta ^. #slotNo | (_, meta) <- history' ] of
-            [] -> pure ()
-            xs -> do
-                let h = pointInRange xs (`div` 2)
+                                test (Just h) Nothing Descending Down (>= h)
+                                test (Just h) Nothing Ascending Identity (>= h)
+                                test Nothing (Just h) Descending Down (<= h)
+                                test Nothing (Just h) Ascending Identity (<= h)
 
-                test (Just h) Nothing Descending Down (>= h)
-                test (Just h) Nothing Ascending Identity (>= h)
-                test Nothing (Just h) Descending Down (<= h)
-                test Nothing (Just h) Ascending Identity (<= h)
+                                let l = pointInRange xs (`div` 3)
+                                let r = pointInRange xs ((`div` 3) . (* 2))
 
-                let l = pointInRange xs  (`div` 3)
-                let r = pointInRange xs  ((`div` 3) . (*2))
+                                test (Just l) (Just r) Descending Down
+                                    $ \slot -> slot >= l && slot <= r
+                                test (Just l) (Just r) Ascending Identity
+                                    $ \slot -> slot >= l && slot <= r
 
-                test (Just l) (Just r) Descending Down
-                    $ \slot -> slot >= l && slot <= r
-                test (Just l) (Just r) Ascending Identity
-                    $ \slot -> slot >= l && slot <= r
-
-type DummyStateWithAddresses = TestState [Address] 'Mainnet ShelleyKey 'CredFromKeyK
+type DummyStateWithAddresses =
+    TestState [Address] 'Mainnet ShelleyKey 'CredFromKeyK
 
 dummyStateWithAddressesF :: WalletFlavorS DummyStateWithAddresses
 dummyStateWithAddressesF = TestStateS defaultTestFeatures
@@ -698,10 +763,11 @@ instance Sqlite.AddressBookIso DummyStateWithAddresses where
     addressIso = iso from to
       where
         from x = (DummyWithAddressPrologue, DummyWithAddressDiscoveries x)
-        to (_,DummyWithAddressDiscoveries x) = x
+        to (_, DummyWithAddressDiscoveries x) = x
 
 -- instance Eq
-instance Eq (Sqlite.Prologue DummyStateWithAddresses) where _ == _ = True
+instance Eq (Sqlite.Prologue DummyStateWithAddresses) where
+    _ == _ = True
 instance Eq (Sqlite.Discoveries DummyStateWithAddresses) where
     DummyWithAddressDiscoveries a == DummyWithAddressDiscoveries b = a == b
 
@@ -714,45 +780,49 @@ instance Sqlite.PersistAddressBook DummyStateWithAddresses where
 walletListsOnlyRelatedAssets :: Hash "Tx" -> TxMeta -> Property
 walletListsOnlyRelatedAssets txId txMeta =
     forAll genOuts $ \(out1, out2, wallet) -> monadicIO $ do
-        WalletLayerFixture DBLayer{..} wl _ <- liftIO
-            $ setupFixture dummyStateWithAddressesF wallet
+        WalletLayerFixture DBLayer{..} wl _ <-
+            liftIO
+                $ setupFixture dummyStateWithAddressesF wallet
         let listHistoricalAssets hry = do
                 liftIO . atomically $ putTxHistory hry
                 liftIO $ W.listAssets wl
-        let tx = Tx
-                { txId
-                , txCBOR = Nothing
-                , fee = Nothing
-                , resolvedInputs = mempty
-                , resolvedCollateralInputs = mempty
-                , outputs = [out1, out2]
-                , collateralOutput = Nothing
-                , metadata = mempty
-                , withdrawals = mempty
-                , scriptValidity = Nothing
-                }
-        assets <- listHistoricalAssets [ (tx, txMeta) ]
+        let tx =
+                Tx
+                    { txId
+                    , txCBOR = Nothing
+                    , fee = Nothing
+                    , resolvedInputs = mempty
+                    , resolvedCollateralInputs = mempty
+                    , outputs = [out1, out2]
+                    , collateralOutput = Nothing
+                    , metadata = mempty
+                    , withdrawals = mempty
+                    , scriptValidity = Nothing
+                    }
+        assets <- listHistoricalAssets [(tx, txMeta)]
         monitor $ report out1 "Output with related address"
         monitor $ report out2 "Output with unrelated address"
         monitor $ report assets "Discovered assets"
         assert $ assets == getAssets (out1 ^. #tokens)
   where
-    genOuts ::
-        Gen (TxOut, TxOut, (WalletId, WalletName, DummyStateWithAddresses))
+    genOuts
+        :: Gen (TxOut, TxOut, (WalletId, WalletName, DummyStateWithAddresses))
     genOuts = do
         relatedAddress <- genAddress
         unrelatedAddress <- genAddress `suchThat` (/= relatedAddress)
         coin <- genCoinPositive
-        let bundle aid = TokenBundle coin . TokenMap.singleton aid <$>
-                genTokenQuantityPositive
+        let bundle aid =
+                TokenBundle coin . TokenMap.singleton aid
+                    <$> genTokenQuantityPositive
         tokenBundle1 <- genAssetIdLargeRange >>= bundle
         tokenBundle2 <- genAssetIdLargeRange >>= bundle
         wId <- arbitrary
         wName <- arbitrary
-        pure ( TxOut { tokens = tokenBundle1, address = relatedAddress }
-             , TxOut { tokens = tokenBundle2, address = unrelatedAddress }
-             , (wId, wName, TestState [relatedAddress])
-             )
+        pure
+            ( TxOut{tokens = tokenBundle1, address = relatedAddress}
+            , TxOut{tokens = tokenBundle2, address = unrelatedAddress}
+            , (wId, wName, TestState [relatedAddress])
+            )
 
 {-------------------------------------------------------------------------------
                         Properties of tx fee estimation
@@ -769,57 +839,59 @@ prop_calculateFeePercentiles
 prop_calculateFeePercentiles
     (Write.AnyRecentEra (_era :: Write.RecentEra era))
     (NonEmpty coins) =
-    case evalState (runExceptT $ W.calculateFeePercentiles estimateFee) 0 of
-        Left (err :: ErrBalanceTx era) ->
-            label "errors: all" $ err === (genericError :: ErrBalanceTx era)
-
-        Right percentiles@(W.Percentile minFee, W.Percentile maxFee) ->
-            label ("errors: " <> if any isNothing coins then "some" else "none") $
-            counterexample (show percentiles) $ conjoin
-                [ property $ W.feeToCoin maxFee <= maximum (catMaybes coins)
-                , property $ minFee <= maxFee
-                , proportionBelow (W.feeToCoin minFee) coins
-                    `closeTo` (1/10 :: Double)
-                ]
-  where
-    genericError :: ErrBalanceTx era
-    genericError
-        = ErrBalanceTxAssetsInsufficient
-        $ ErrBalanceTxAssetsInsufficientError
-            mempty
-            mempty
-            mempty
-
-    estimateFee :: ExceptT (ErrBalanceTx era) (State Int) W.Fee
-    estimateFee = do
-        i <- lift get
-        lift $ put $ (i + 1) `mod` length coins
-        case (coins !! i) of
-            Nothing -> except $ Left genericError
-            Just c  -> except $ Right $ W.Fee c
-
-    proportionBelow :: Coin -> [Maybe Coin] -> Double
-    proportionBelow minFee xs =
-        fromIntegral (countBelow minFee xs) / fromIntegral (count isJust xs)
+        case evalState (runExceptT $ W.calculateFeePercentiles estimateFee) 0 of
+            Left (err :: ErrBalanceTx era) ->
+                label "errors: all" $ err === (genericError :: ErrBalanceTx era)
+            Right percentiles@(W.Percentile minFee, W.Percentile maxFee) ->
+                label ("errors: " <> if any isNothing coins then "some" else "none")
+                    $ counterexample (show percentiles)
+                    $ conjoin
+                        [ property $ W.feeToCoin maxFee <= maximum (catMaybes coins)
+                        , property $ minFee <= maxFee
+                        , proportionBelow (W.feeToCoin minFee) coins
+                            `closeTo` (1 / 10 :: Double)
+                        ]
       where
-        count :: (a -> Bool) -> [a] -> Int
-        count p = length . filter p
+        genericError :: ErrBalanceTx era
+        genericError =
+            ErrBalanceTxAssetsInsufficient
+                $ ErrBalanceTxAssetsInsufficientError
+                    mempty
+                    mempty
+                    mempty
 
-        -- Find the number of results below the "minimum" estimate.
-        countBelow :: Coin -> [Maybe Coin] -> Int
-        countBelow sup =
-            count ((< sup) . fromMaybe txOutMaxCoin)
+        estimateFee :: ExceptT (ErrBalanceTx era) (State Int) W.Fee
+        estimateFee = do
+            i <- lift get
+            lift $ put $ (i + 1) `mod` length coins
+            case (coins !! i) of
+                Nothing -> except $ Left genericError
+                Just c -> except $ Right $ W.Fee c
 
-    -- Two fractions are close to each other if they are within 20% either way.
-    closeTo a b =
-        counterexample (show a <> " & " <> show b <> " are not close enough") $
-        property $ abs (a - b) < (1/5)
+        proportionBelow :: Coin -> [Maybe Coin] -> Double
+        proportionBelow minFee xs =
+            fromIntegral (countBelow minFee xs) / fromIntegral (count isJust xs)
+          where
+            count :: (a -> Bool) -> [a] -> Int
+            count p = length . filter p
+
+            -- Find the number of results below the "minimum" estimate.
+            countBelow :: Coin -> [Maybe Coin] -> Int
+            countBelow sup =
+                count ((< sup) . fromMaybe txOutMaxCoin)
+
+        -- Two fractions are close to each other if they are within 20% either way.
+        closeTo a b =
+            counterexample (show a <> " & " <> show b <> " are not close enough")
+                $ property
+                $ abs (a - b) < (1 / 5)
 
 instance Arbitrary Write.AnyRecentEra where
-    arbitrary = elements
-        [ Write.AnyRecentEra Write.RecentEraBabbage
-        , Write.AnyRecentEra Write.RecentEraConway
-        ]
+    arbitrary =
+        elements
+            [ Write.AnyRecentEra Write.RecentEraBabbage
+            , Write.AnyRecentEra Write.RecentEraConway
+            ]
 
 {-------------------------------------------------------------------------------
                                LocalTxSubmission
@@ -830,51 +902,56 @@ data TxRetryTest = TxRetryTest
     , postSealedTxResults :: [(SealedTx, Bool)]
     , testSlottingParameters :: SlottingParameters
     , retryTestWallet :: (WalletId, WalletName, DummyState)
-    } deriving (Generic, Show, Eq)
+    }
+    deriving (Generic, Show, Eq)
 
 numSlots :: TxRetryTest -> Word64
 numSlots = const 100
-newtype GenSubmissions = GenSubmissions { genSubmissions :: [BuiltTx] }
+newtype GenSubmissions = GenSubmissions {genSubmissions :: [BuiltTx]}
     deriving (Generic, Show, Eq)
 
 instance Arbitrary GenSubmissions where
     arbitrary = GenSubmissions <$> logScale' 2.7 (listOf1 genBuiltTx)
       where
-        mkTx txId = Tx
-            { txId
-            , txCBOR = Nothing
-            , fee = Nothing
-            , resolvedInputs = []
-            , resolvedCollateralInputs = []
-            , outputs = []
-            , collateralOutput = Nothing
-            , withdrawals = mempty
-            , metadata = Nothing
-            , scriptValidity = Nothing
-            }
+        mkTx txId =
+            Tx
+                { txId
+                , txCBOR = Nothing
+                , fee = Nothing
+                , resolvedInputs = []
+                , resolvedCollateralInputs = []
+                , outputs = []
+                , collateralOutput = Nothing
+                , withdrawals = mempty
+                , metadata = Nothing
+                , scriptValidity = Nothing
+                }
         genBuiltTx = do
             sl <- genSmallSlot
             let bh = Quantity $ fromIntegral $ unSlotNo sl
             expry <- oneof [fmap (Just . (+ sl)) genSmallSlot, pure Nothing]
             i <- arbitrary
-            pure $ BuiltTx
-                (mkTx i)
-                (TxMeta Pending Outgoing sl bh (Coin 0) expry)
-                (fakeSealedTx (i, []))
+            pure
+                $ BuiltTx
+                    (mkTx i)
+                    (TxMeta Pending Outgoing sl bh (Coin 0) expry)
+                    (fakeSealedTx (i, []))
         genSmallSlot =
-            SlotNo . fromIntegral <$> sized (\n -> choose (1, 1+ 4 * n))
+            SlotNo . fromIntegral <$> sized (\n -> choose (1, 1 + 4 * n))
 
 instance Arbitrary TxRetryTest where
     arbitrary = do
         GenSubmissions metas <- arbitrary
-        let results = fmap (, True) (builtSealedTx <$> metas)
+        let results = fmap (,True) (builtSealedTx <$> metas)
         TxRetryTest metas results <$> arbitrary <*> arbitrary
 
 instance Arbitrary SlottingParameters where
     arbitrary = mk <$> choose (0.5, 1)
       where
-        mk f = dummySlottingParameters
-            { getActiveSlotCoefficient = ActiveSlotCoefficient f }
+        mk f =
+            dummySlottingParameters
+                { getActiveSlotCoefficient = ActiveSlotCoefficient f
+                }
 
 -- | 'WalletLayer' context.
 type TxRetryTestCtx = WalletLayer TxRetryTestM DummyState
@@ -884,19 +961,22 @@ data TxRetryTestState = TxRetryTestState
     { testCase :: TxRetryTest
     , timeStep :: DiffTime
     , timeVar :: MVar Time
-    } deriving (Generic)
+    }
+    deriving (Generic)
 
 -- | Collected info from test execution.
 data TxRetryTestResult a = TxRetryTestResult
     { resLogs :: [W.WalletWorkerLog]
     , resAction :: a
     , resSubmittedTxs :: [SealedTx]
-    } deriving (Generic, Show, Eq)
+    }
+    deriving (Generic, Show, Eq)
 
 -- | The test runs in this monad so that time can be mocked out.
 newtype TxRetryTestM a = TxRetryTestM
     { unTxRetryTestM :: ReaderT TxRetryTestState IO a
-    } deriving (Functor, Applicative, Monad, MonadIO, MonadFail)
+    }
+    deriving (Functor, Applicative, Monad, MonadIO, MonadFail)
 
 instance MonadUnliftIO TxRetryTestM where
     withRunInIO = wrappedWithRunInIO TxRetryTestM unTxRetryTestM
@@ -911,13 +991,17 @@ instance MonadUnliftIO TxRetryTestM where
 instance MonadMonotonicTime TxRetryTestM
 instance MonadMonotonicTimeNSec TxRetryTestM where
     getMonotonicTimeNSec = do
-        TxRetryTestState {timeVar, timeStep} <- TxRetryTestM ask
-        modifyMVar timeVar $ \t -> let t' = timeStep + coerce t
-            in pure (coerce t' , timeToNanoTime $ coerce t')
+        TxRetryTestState{timeVar, timeStep} <- TxRetryTestM ask
+        modifyMVar timeVar $ \t ->
+            let t' = timeStep + coerce t
+            in  pure (coerce t', timeToNanoTime $ coerce t')
 
 timeToNanoTime :: Time -> Word64
-timeToNanoTime = fromIntegral . (`div` 1_000)
-    . diffTimeToPicoseconds . coerce
+timeToNanoTime =
+    fromIntegral
+        . (`div` 1_000)
+        . diffTimeToPicoseconds
+        . coerce
 
 instance MonadTime TxRetryTestM where
     getCurrentTime = liftIO getCurrentTime
@@ -926,50 +1010,61 @@ prop_localTxSubmission :: TxRetryTest -> Property
 prop_localTxSubmission tc = monadicIO $ do
     st <- TxRetryTestState tc 2 <$> newMVar (Time 0)
     assert $ not $ null $ retryTestPool tc
-    res <- run $ runTest st
+    res <- run
+        $ runTest st
         $ \ctx@(WalletLayer tr _ nl _ db) -> do
-        unsafeRunExceptT
-            $ forM_ (retryTestPool tc) $ submitTx tr db nl
-        res0 <- W.readLocalTxSubmissionPending ctx
-        -- Run test
-        let cfg = LocalTxSubmissionConfig (timeStep st) 10
-        W.runLocalTxSubmissionPool cfg ctx
+            unsafeRunExceptT
+                $ forM_ (retryTestPool tc)
+                $ submitTx tr db nl
+            res0 <- W.readLocalTxSubmissionPending ctx
+            -- Run test
+            let cfg = LocalTxSubmissionConfig (timeStep st) 10
+            W.runLocalTxSubmissionPool cfg ctx
 
-        -- Gather state
-        res1 <- W.readLocalTxSubmissionPending ctx
-        pure (res0, res1)
+            -- Gather state
+            res1 <- W.readLocalTxSubmissionPending ctx
+            pure (res0, res1)
 
     let (resStart, resEnd) = resAction res
-    monitor $ counterexample $ unlines $
-        [ "posted txs = " ++ show (resSubmittedTxs res)
-        , "final pool state = " ++ show resEnd
-        , "logs:"
-        ] ++ map (T.unpack . toText) (resLogs res)
+    monitor
+        $ counterexample
+        $ unlines
+        $ [ "posted txs = " ++ show (resSubmittedTxs res)
+          , "final pool state = " ++ show resEnd
+          , "logs:"
+          ]
+            ++ map (T.unpack . toText) (resLogs res)
     -- props:
     --  1. pending transactions in pool are retried
     let requested x = x `elem` (builtSealedTx <$> retryTestPool tc)
     assert' "all txs in submissions pool were required"
-        $ all requested $ resSubmittedTxs res
+        $ all requested
+        $ resSubmittedTxs res
 
-    let inPool BuiltTx{builtTx} = (Just . DB.TxId $ builtTx ^. #txId)  `elem`
-            fmap (fmap fst . Sbms.getTx . view Smbs.txStatus) resEnd
+    let inPool BuiltTx{builtTx} =
+            (Just . DB.TxId $ builtTx ^. #txId)
+                `elem` fmap (fmap fst . Sbms.getTx . view Smbs.txStatus) resEnd
 
     assert' "all required txs are in submissions pool"
-        $ all inPool $ retryTestPool tc
+        $ all inPool
+        $ retryTestPool tc
 
     assert' "start submissions pool is not empty"
-        $ not $ null resStart
+        $ not
+        $ null resStart
 
     assert' "end submissions pool has all txs of start pool"
         $ resStart `eqByTxIds` resEnd
   where
     assert' :: String -> Bool -> PropertyM IO ()
-    assert' _msg True  = return ()
+    assert' _msg True = return ()
     assert' msg False = fail msg
     eqByTxIds
         :: [TxSubmissionsStatus]
-        -> [TxSubmissionsStatus] -> Bool
-    eqByTxIds = (==) `on` (sort . fmap (fmap fst . Sbms.getTx . view Smbs.txStatus))
+        -> [TxSubmissionsStatus]
+        -> Bool
+    eqByTxIds =
+        (==) `on` (sort . fmap (fmap fst . Sbms.getTx . view Smbs.txStatus))
     runTest
         :: TxRetryTestState
         -> (TxRetryTestCtx -> TxRetryTestM a)
@@ -980,34 +1075,38 @@ prop_localTxSubmission tc = monadicIO $ do
             flip runReaderT st $ unTxRetryTestM $ do
                 WalletLayerFixture db _wl _wid <-
                     setupFixture dummyStateF $ retryTestWallet tc
-                let ctx = WalletLayer
-                        (natTracer liftIO tr)
-                        undefined
-                        (mockNetwork submittedVar)
-                        undefined
-                        db
+                let ctx =
+                        WalletLayer
+                            (natTracer liftIO tr)
+                            undefined
+                            (mockNetwork submittedVar)
+                            undefined
+                            db
                 testAction ctx
         TxRetryTestResult msgs res <$> readMVar submittedVar
 
-    mockNetwork :: MVar [SealedTx] -> NetworkLayer TxRetryTestM Read.ConsensusBlock
-    mockNetwork var = dummyNetworkLayer
-        { currentSlottingParameters = pure (testSlottingParameters tc)
-        , postSealedTx = \tx -> ExceptT $ do
+    mockNetwork
+        :: MVar [SealedTx] -> NetworkLayer TxRetryTestM Read.ConsensusBlock
+    mockNetwork var =
+        dummyNetworkLayer
+            { currentSlottingParameters = pure (testSlottingParameters tc)
+            , postSealedTx = \tx -> ExceptT $ do
                 stash var tx
                 pure $ case lookup tx (postSealedTxResults tc) of
                     Just True -> Right ()
                     Just False -> Left (W.ErrPostTxValidationError "intended")
                     Nothing -> Left (W.ErrPostTxValidationError "unexpected")
-        , watchNodeTip = mockNodeTip (numSlots tc) 0
-        }
+            , watchNodeTip = mockNodeTip (numSlots tc) 0
+            }
 
     mockNodeTip end slot callback
         | slot < end = do
-            let tip = Read.BlockTip
-                    { slotNo = Read.SlotNo $ fromIntegral slot
-                    , headerHash = mockHash
-                    , blockNo = Read.BlockNo $ fromIntegral slot
-                    }
+            let tip =
+                    Read.BlockTip
+                        { slotNo = Read.SlotNo $ fromIntegral slot
+                        , headerHash = mockHash
+                        , blockNo = Read.BlockNo $ fromIntegral slot
+                        }
             void $ callback tip
             mockNodeTip end (slot + 1) callback
         | otherwise = pure ()
@@ -1016,7 +1115,7 @@ prop_localTxSubmission tc = monadicIO $ do
     mockHash = Read.mockRawHeaderHash 0
 
     stash :: MVar [a] -> a -> TxRetryTestM ()
-    stash var x = modifyMVar_ var (\xs -> pure (x:xs))
+    stash var x = modifyMVar_ var (\xs -> pure (x : xs))
 
 {-------------------------------------------------------------------------------
                             'throttle' Util Function
@@ -1024,37 +1123,42 @@ prop_localTxSubmission tc = monadicIO $ do
 
 data ThrottleTest = ThrottleTest
     { interval :: DiffTime
-        -- ^ Interval parameter provided to 'throttle'
+    -- ^ Interval parameter provided to 'throttle'
     , diffTimes :: [DiffTime]
-        -- ^ Times when throttled function is called.
-    } deriving (Generic, Show, Eq)
+    -- ^ Times when throttled function is called.
+    }
+    deriving (Generic, Show, Eq)
 
 instance Arbitrary ThrottleTest where
     arbitrary = ThrottleTest <$> genInterval <*> listOf1 genDiffTime
       where
         genInterval = genDiffTime `suchThat` (> 0)
         -- need to discard picoseconds to match `Time` precision (nanoseconds)
-        genDiffTime
-            = picosecondsToDiffTime
-            . (* 1_000)
-            . (`div` 1_000)
-            . diffTimeToPicoseconds
-            . abs
-            <$> arbitrarySizedFractional
+        genDiffTime =
+            picosecondsToDiffTime
+                . (* 1_000)
+                . (`div` 1_000)
+                . diffTimeToPicoseconds
+                . abs
+                <$> arbitrarySizedFractional
     shrink (ThrottleTest i dts) =
         [ ThrottleTest (fromRational i') (map fromRational dts')
         | (i', dts') <- shrink (toRational i, map toRational dts)
-        , i' > 0, not (null dts') ]
+        , i' > 0
+        , not (null dts')
+        ]
 
 data ThrottleTestState = ThrottleTestState
     { remainingDiffTimes :: [DiffTime]
     , now :: Time
     , actions :: [(Time, Int)]
-    } deriving (Generic, Show, Eq)
+    }
+    deriving (Generic, Show, Eq)
 
 newtype ThrottleTestT m a = ThrottleTestT
     { unThrottleTestT :: MaybeT (StateT ThrottleTestState m) a
-    } deriving (Functor, Applicative, Monad, MonadIO)
+    }
+    deriving (Functor, Applicative, Monad, MonadIO)
 
 runThrottleTest
     :: MonadIO m
@@ -1069,10 +1173,12 @@ initState :: ThrottleTest -> ThrottleTestState
 initState (ThrottleTest _ dts) = ThrottleTestState dts (Time 0) []
 
 recordTime :: Monad m => (Time, Int) -> ThrottleTestT m ()
-recordTime x = ThrottleTestT $ lift $ state $
-    \(ThrottleTestState ts now xs) -> ((), ThrottleTestState ts now (x:xs))
+recordTime x = ThrottleTestT
+    $ lift
+    $ state
+    $ \(ThrottleTestState ts now xs) -> ((), ThrottleTestState ts now (x : xs))
 
-instance MonadMonotonicTime m => MonadMonotonicTime (ThrottleTestT m) where
+instance MonadMonotonicTime m => MonadMonotonicTime (ThrottleTestT m)
 
 instance MonadMonotonicTimeNSec m => MonadMonotonicTimeNSec (ThrottleTestT m) where
     getMonotonicTimeNSec = ThrottleTestT $ MaybeT $ state mockTime
@@ -1080,27 +1186,30 @@ instance MonadMonotonicTimeNSec m => MonadMonotonicTimeNSec (ThrottleTestT m) wh
         mockTime :: ThrottleTestState -> (Maybe Word64, ThrottleTestState)
         mockTime (ThrottleTestState later now as) = case later of
             [] -> (Nothing, ThrottleTestState later now as)
-            (t:ts) ->
+            (t : ts) ->
                 let now' = addTime t now
                 in  ( Just $ timeToNanoTime now'
                     , ThrottleTestState ts now' as
                     )
 
 instance MonadUnliftIO m => MonadUnliftIO (StateT ThrottleTestState m) where
-  withRunInIO inner = StateT $ \tts -> do
-      -- smuggle the test state in an mvar
-      var <- newEmptyMVar
-      withRunInIO $ \io -> do
-          a <- inner $ \action -> do
-              (a, tts') <- io $ runStateT action tts
-              putMVar var tts'
-              pure a
-          tts' <- takeMVar var
-          pure (a, tts')
+    withRunInIO inner = StateT $ \tts -> do
+        -- smuggle the test state in an mvar
+        var <- newEmptyMVar
+        withRunInIO $ \io -> do
+            a <- inner $ \action -> do
+                (a, tts') <- io $ runStateT action tts
+                putMVar var tts'
+                pure a
+            tts' <- takeMVar var
+            pure (a, tts')
 
 instance MonadUnliftIO m => MonadUnliftIO (ThrottleTestT m) where
-    withRunInIO inner = ThrottleTestT $ MaybeT $ fmap Just $
-        withRunInIO $ \io -> inner $ \(ThrottleTestT action) ->
+    withRunInIO inner = ThrottleTestT
+        $ MaybeT
+        $ fmap Just
+        $ withRunInIO
+        $ \io -> inner $ \(ThrottleTestT action) ->
             io (runMaybeT action) >>= maybe (error "bad test") pure
 
 -- | 'throttle' ensures than the action runs when called to, at most once per
@@ -1111,26 +1220,28 @@ prop_throttle tc@(ThrottleTest interval diffTimes) = monadicIO $ do
     -- check test case
     monitor coverageTests
     -- info for debugging failed mockEventSource
-    monitor $ counterexample $ unlines
-        [ ("res      = " ++ show res)
-        , ("st       = " ++ show st)
-        , ("accTimes = " ++ show accTimes)
-        , ("actions  = " ++ show (actions st))
-        , ("expected = " ++ show expected)
-        , ("timeDeltas= " ++ show (timeDeltas (map fst (actions st))))
-        , ("interval = " ++ show interval)
-        , ("diffTimes= " ++ show diffTimes)
-        ]
+    monitor
+        $ counterexample
+        $ unlines
+            [ ("res      = " ++ show res)
+            , ("st       = " ++ show st)
+            , ("accTimes = " ++ show accTimes)
+            , ("actions  = " ++ show (actions st))
+            , ("expected = " ++ show expected)
+            , ("timeDeltas= " ++ show (timeDeltas (map fst (actions st))))
+            , ("interval = " ++ show interval)
+            , ("diffTimes= " ++ show diffTimes)
+            ]
 
     -- sanity-check test runner
     assertNamed "consumed test data" (null $ remainingDiffTimes st)
     assertNamed "expected final time" (now st == finalTime)
     assertNamed "runner success" (isJust res)
     -- properties
-    assertNamed "action runs whenever interval has passed" $
-        length diffTimes <= 1 || actions st == expected
-    assertNamed "action runs at most once per interval" $
-        all (>= interval) (timeDeltas (map fst (actions st)))
+    assertNamed "action runs whenever interval has passed"
+        $ length diffTimes <= 1 || actions st == expected
+    assertNamed "action runs at most once per interval"
+        $ all (>= interval) (timeDeltas (map fst (actions st)))
   where
     testAction :: ThrottleTestT IO ()
     testAction = do
@@ -1138,17 +1249,20 @@ prop_throttle tc@(ThrottleTest interval diffTimes) = monadicIO $ do
         mockEventSource rateLimited 0
 
     mockEventSource cb n
-         | n < length diffTimes = cb n >> mockEventSource cb (n + 1)
-         | otherwise = pure ()
+        | n < length diffTimes = cb n >> mockEventSource cb (n + 1)
+        | otherwise = pure ()
 
     finalTime = addTime (sum diffTimes) (Time 0)
     accTimes = drop 1 $ L.scanl' (flip addTime) (Time 0) diffTimes
 
-    expected = reverse $ snd $ L.foldl' model (Time (negate interval), []) $
-        zip accTimes [0..]
+    expected =
+        reverse
+            $ snd
+            $ L.foldl' model (Time (negate interval), [])
+            $ zip accTimes [0 ..]
 
     model (prev, xs) (now, i)
-        | diffTime now prev >= interval = (now, (now, i):xs)
+        | diffTime now prev >= interval = (now, (now, i) : xs)
         | otherwise = (prev, xs)
 
     timeDeltas xs = zipWith diffTime (drop 1 xs) xs
@@ -1157,11 +1271,12 @@ prop_throttle tc@(ThrottleTest interval diffTimes) = monadicIO $ do
         monitor $ counterexample $ lbl ++ ": " ++ show prop
         assert prop
 
-    coverageTests = checkCoverage
-        . cover 1 (interval < 1) "sub-second interval"
-        . cover 25 (interval >= 1) "super-second interval"
-        . cover 25 (length diffTimes >= 10) "long mockEventSource"
-        . cover 25 (testRatio >= 0.5 && testRatio <= 1.5) "reasonable interval"
+    coverageTests =
+        checkCoverage
+            . cover 1 (interval < 1) "sub-second interval"
+            . cover 25 (interval >= 1) "super-second interval"
+            . cover 25 (length diffTimes >= 10) "long mockEventSource"
+            . cover 25 (testRatio >= 0.5 && testRatio <= 1.5) "reasonable interval"
       where
         avgDiffTime = sum diffTimes / fromIntegral (length diffTimes)
         testRatio = avgDiffTime / interval
@@ -1173,9 +1288,10 @@ prop_throttle tc@(ThrottleTest interval diffTimes) = monadicIO $ do
 genMigrationTargetAddresses :: Gen (NonEmpty Address)
 genMigrationTargetAddresses = do
     addressCount <- choose (1, 8)
-    pure $ (:|)
-        (mkAddress 'A')
-        (mkAddress <$> take (addressCount - 1) ['B' ..])
+    pure
+        $ (:|)
+            (mkAddress 'A')
+            (mkAddress <$> take (addressCount - 1) ['B' ..])
   where
     mkAddress :: Char -> Address
     mkAddress c = Address $ B8.singleton c
@@ -1188,8 +1304,8 @@ genMigrationUTxO mockTxConstraints = do
     genUTxOEntry :: Gen (TxIn, TxOut)
     genUTxOEntry =
         (,)
-        <$> genTxInLargeRange
-        <*> (TxOut <$> genAddress <*> genTokenBundleMixed mockTxConstraints)
+            <$> genTxInLargeRange
+            <*> (TxOut <$> genAddress <*> genTokenBundleMixed mockTxConstraints)
 
 -- Tests that user-specified target addresses are assigned to generated outputs
 -- in the correct cyclical order.
@@ -1199,9 +1315,11 @@ prop_migrationPlanToSelectionWithdrawals_addresses
     -> Property
 prop_migrationPlanToSelectionWithdrawals_addresses (Blind mockTxConstraints) =
     forAllBlind genMigrationTargetAddresses $ \targetAddresses ->
-    forAllBlind (genMigrationUTxO mockTxConstraints) $ \utxo ->
-    prop_migrationPlanToSelectionWithdrawals_addresses_inner
-        mockTxConstraints utxo targetAddresses
+        forAllBlind (genMigrationUTxO mockTxConstraints) $ \utxo ->
+            prop_migrationPlanToSelectionWithdrawals_addresses_inner
+                mockTxConstraints
+                utxo
+                targetAddresses
 
 prop_migrationPlanToSelectionWithdrawals_addresses_inner
     :: MockTxConstraints
@@ -1209,53 +1327,75 @@ prop_migrationPlanToSelectionWithdrawals_addresses_inner
     -> NonEmpty Address
     -> Property
 prop_migrationPlanToSelectionWithdrawals_addresses_inner
-    mockTxConstraints utxo targetAddresses =
+    mockTxConstraints
+    utxo
+    targetAddresses =
         case maybeSelectionWithdrawals of
             Nothing ->
                 -- If this case matches, it means the plan is empty:
                 length (view #selections plan) === 0
             Just selectionWithdrawals ->
                 test (fst <$> selectionWithdrawals)
-  where
-    test :: NonEmpty SelectionWithoutChange -> Property
-    test selections = makeCoverage $ makeReports $
-        cycledTargetAddressesActual ==
-        cycledTargetAddressesExpected
       where
-        cycledTargetAddressesActual = view #address <$>
-            (view #outputs =<< NE.toList selections)
-        cycledTargetAddressesExpected = NE.take
-            (length cycledTargetAddressesActual)
-            (NE.cycle targetAddresses)
-        totalOutputCount = F.sum (length . view #outputs <$> selections)
-        makeCoverage
-            = cover 4 (totalOutputCount > length targetAddresses)
-                "total output count > target address count"
-            . cover 4 (totalOutputCount < length targetAddresses)
-                "total output count < target address count"
-            . cover 1 (totalOutputCount == length targetAddresses)
-                "total output count = target address count"
-            . cover 4 (length selections == 1)
-                "number of selections = 1"
-            . cover 4 (length selections == 2)
-                "number of selections = 2"
-            . cover 4 (length selections > 2)
-                "number of selections > 2"
-        makeReports
-            = report mockTxConstraints
-                "mockTxConstraints"
-            . report (NE.toList targetAddresses)
-                "targetAddresses"
-            . report cycledTargetAddressesExpected
-                "cycledTargetAddressesExpected"
-            . report cycledTargetAddressesActual
-                "cycledTargetAddressesActual"
+        test :: NonEmpty SelectionWithoutChange -> Property
+        test selections =
+            makeCoverage
+                $ makeReports
+                $ cycledTargetAddressesActual
+                    == cycledTargetAddressesExpected
+          where
+            cycledTargetAddressesActual =
+                view #address
+                    <$> (view #outputs =<< NE.toList selections)
+            cycledTargetAddressesExpected =
+                NE.take
+                    (length cycledTargetAddressesActual)
+                    (NE.cycle targetAddresses)
+            totalOutputCount = F.sum (length . view #outputs <$> selections)
+            makeCoverage =
+                cover
+                    4
+                    (totalOutputCount > length targetAddresses)
+                    "total output count > target address count"
+                    . cover
+                        4
+                        (totalOutputCount < length targetAddresses)
+                        "total output count < target address count"
+                    . cover
+                        1
+                        (totalOutputCount == length targetAddresses)
+                        "total output count = target address count"
+                    . cover
+                        4
+                        (length selections == 1)
+                        "number of selections = 1"
+                    . cover
+                        4
+                        (length selections == 2)
+                        "number of selections = 2"
+                    . cover
+                        4
+                        (length selections > 2)
+                        "number of selections > 2"
+            makeReports =
+                report
+                    mockTxConstraints
+                    "mockTxConstraints"
+                    . report
+                        (NE.toList targetAddresses)
+                        "targetAddresses"
+                    . report
+                        cycledTargetAddressesExpected
+                        "cycledTargetAddressesExpected"
+                    . report
+                        cycledTargetAddressesActual
+                        "cycledTargetAddressesActual"
 
-    constraints = unMockTxConstraints mockTxConstraints
-    maybeSelectionWithdrawals =
-        migrationPlanToSelectionWithdrawals plan NoWithdrawal targetAddresses
-    plan = Migration.createPlan constraints utxo reward
-    reward = Migration.RewardWithdrawal (Coin 0)
+        constraints = unMockTxConstraints mockTxConstraints
+        maybeSelectionWithdrawals =
+            migrationPlanToSelectionWithdrawals plan NoWithdrawal targetAddresses
+        plan = Migration.createPlan constraints utxo reward
+        reward = Migration.RewardWithdrawal (Coin 0)
 
 -- Tests that inputs and outputs are preserved in the correct order.
 --
@@ -1264,9 +1404,11 @@ prop_migrationPlanToSelectionWithdrawals_io
     -> Property
 prop_migrationPlanToSelectionWithdrawals_io (Blind mockTxConstraints) =
     forAllBlind genMigrationTargetAddresses $ \targetAddresses ->
-    forAllBlind (genMigrationUTxO mockTxConstraints) $ \utxo ->
-    prop_migrationPlanToSelectionWithdrawals_io_inner
-        mockTxConstraints utxo targetAddresses
+        forAllBlind (genMigrationUTxO mockTxConstraints) $ \utxo ->
+            prop_migrationPlanToSelectionWithdrawals_io_inner
+                mockTxConstraints
+                utxo
+                targetAddresses
 
 prop_migrationPlanToSelectionWithdrawals_io_inner
     :: MockTxConstraints
@@ -1274,56 +1416,72 @@ prop_migrationPlanToSelectionWithdrawals_io_inner
     -> NonEmpty Address
     -> Property
 prop_migrationPlanToSelectionWithdrawals_io_inner
-    mockTxConstraints utxo targetAddresses =
+    mockTxConstraints
+    utxo
+    targetAddresses =
         case maybeSelectionWithdrawals of
             Nothing ->
                 -- If this case matches, it means the plan is empty:
                 length (view #selections plan) === 0
             Just selectionWithdrawals ->
                 test (fst <$> selectionWithdrawals)
-  where
-    test :: NonEmpty SelectionWithoutChange -> Property
-    test selections = makeCoverage $ makeReports $ conjoin
-        [ inputsActual == inputsExpected
-        , outputsActual == outputsExpected
-        ]
       where
-        inputsActual :: [[(TxIn, TxOut)]]
-        inputsActual =
-            NE.toList (NE.toList . view #inputs <$> selections)
-        inputsExpected :: [[(TxIn, TxOut)]]
-        inputsExpected =
-            NE.toList . view #inputIds <$> view #selections plan
+        test :: NonEmpty SelectionWithoutChange -> Property
+        test selections =
+            makeCoverage
+                $ makeReports
+                $ conjoin
+                    [ inputsActual == inputsExpected
+                    , outputsActual == outputsExpected
+                    ]
+          where
+            inputsActual :: [[(TxIn, TxOut)]]
+            inputsActual =
+                NE.toList (NE.toList . view #inputs <$> selections)
+            inputsExpected :: [[(TxIn, TxOut)]]
+            inputsExpected =
+                NE.toList . view #inputIds <$> view #selections plan
 
-        outputsActual :: [[TokenBundle]]
-        outputsActual = NE.toList
-            (fmap (view #tokens) . view #outputs <$> selections)
-        outputsExpected :: [[TokenBundle]]
-        outputsExpected =
-            NE.toList . view #outputs <$> view #selections plan
+            outputsActual :: [[TokenBundle]]
+            outputsActual =
+                NE.toList
+                    (fmap (view #tokens) . view #outputs <$> selections)
+            outputsExpected :: [[TokenBundle]]
+            outputsExpected =
+                NE.toList . view #outputs <$> view #selections plan
 
-        makeCoverage
-            = cover 4 (length selections == 1)
-                "number of selections = 1"
-            . cover 4 (length selections == 2)
-                "number of selections = 2"
-            . cover 4 (length selections > 2)
-                "number of selections > 2"
-        makeReports
-            = report inputsActual
-                "inputsActual"
-            . report inputsExpected
-                "inputsExpected"
-            . report outputsActual
-                "outputsActual"
-            . report outputsExpected
-                "outputsExpected"
+            makeCoverage =
+                cover
+                    4
+                    (length selections == 1)
+                    "number of selections = 1"
+                    . cover
+                        4
+                        (length selections == 2)
+                        "number of selections = 2"
+                    . cover
+                        4
+                        (length selections > 2)
+                        "number of selections > 2"
+            makeReports =
+                report
+                    inputsActual
+                    "inputsActual"
+                    . report
+                        inputsExpected
+                        "inputsExpected"
+                    . report
+                        outputsActual
+                        "outputsActual"
+                    . report
+                        outputsExpected
+                        "outputsExpected"
 
-    constraints = unMockTxConstraints mockTxConstraints
-    maybeSelectionWithdrawals =
-        migrationPlanToSelectionWithdrawals plan NoWithdrawal targetAddresses
-    plan = Migration.createPlan constraints utxo reward
-    reward = Migration.RewardWithdrawal (Coin 0)
+        constraints = unMockTxConstraints mockTxConstraints
+        maybeSelectionWithdrawals =
+            migrationPlanToSelectionWithdrawals plan NoWithdrawal targetAddresses
+        plan = Migration.createPlan constraints utxo reward
+        reward = Migration.RewardWithdrawal (Coin 0)
 
 {-------------------------------------------------------------------------------
                       Tests machinery, Arbitrary instances
@@ -1333,9 +1491,10 @@ instance Arbitrary UTxO where
     shrink (UTxO utxo) = UTxO <$> shrink utxo
     arbitrary = do
         n <- choose (1, 100)
-        utxo <- zip
-            <$> vector n
-            <*> vector n
+        utxo <-
+            zip
+                <$> vector n
+                <*> vector n
         return $ UTxO $ Map.fromList utxo
 
 data WalletLayerFixture s m = WalletLayerFixture
@@ -1356,16 +1515,19 @@ setupFixture
     => WalletFlavorS s
     -> (WalletId, WalletName, s)
     -> m (WalletLayerFixture s m)
-setupFixture wF (wid,wname,wstate) = do
-    let initialState  = InitialState wstate block0 RestorationPointAtGenesis
-    params <- liftIO
-        $ W.createWallet dummyNetworkParameters wid wname initialState
-    (_kill, db) <- liftIO
-        $ newBootDBLayerInMemory wF
-            nullTracer
-            dummyTimeInterpreter
-            wid
-            params
+setupFixture wF (wid, wname, wstate) = do
+    let initialState = InitialState wstate block0 RestorationPointAtGenesis
+    params <-
+        liftIO
+            $ W.createWallet dummyNetworkParameters wid wname initialState
+    (_kill, db) <-
+        liftIO
+            $ newBootDBLayerInMemory
+                wF
+                nullTracer
+                dummyTimeInterpreter
+                wid
+                params
     let db' = hoistDBLayer liftIO db
         wl =
             WalletLayer
@@ -1382,7 +1544,8 @@ slotNoTime = posixSecondsToUTCTime . fromIntegral . unSlotNo
 
 -- | A dummy transaction layer to see the effect of a root private key. It
 -- implements a fake signer that still produces sort of witnesses
-dummyTransactionLayer :: TransactionLayer ShelleyKey 'CredFromKeyK SealedTx
+dummyTransactionLayer
+    :: TransactionLayer ShelleyKey 'CredFromKeyK SealedTx
 dummyTransactionLayer =
     TransactionLayer
         { addVkWitnesses =
@@ -1418,17 +1581,18 @@ fakeSealedTx (tx, wit) = mockSealedTx $ B8.pack repr
     repr = show (tx, wit)
 
 mockNetworkLayer :: Monad m => NetworkLayer m block
-mockNetworkLayer = dummyNetworkLayer
-    { currentNodeTip =
-        pure dummyTip
-    , currentNodeEra =
-        pure (AnyCardanoEra AllegraEra)
-    , currentProtocolParameters =
-        pure (protocolParameters dummyNetworkParameters)
-    , timeInterpreter = dummyTimeInterpreter
-    , syncProgress =
-        error "dummyNetworkLayer: syncProgress not implemented"
-    }
+mockNetworkLayer =
+    dummyNetworkLayer
+        { currentNodeTip =
+            pure dummyTip
+        , currentNodeEra =
+            pure (AnyCardanoEra AllegraEra)
+        , currentProtocolParameters =
+            pure (protocolParameters dummyNetworkParameters)
+        , timeInterpreter = dummyTimeInterpreter
+        , syncProgress =
+            error "dummyNetworkLayer: syncProgress not implemented"
+        }
   where
     dummyTip = Read.BlockTip (Read.SlotNo 0) dummyHash (Read.BlockNo 0)
     dummyHash = fromJust $ Hash.hashFromBytes $ B8.replicate 32 'a'
@@ -1447,8 +1611,8 @@ dummyStateF =
             { isOwnedTest = \(TestState m) (rootK, pwd) addr -> do
                 ix <- Map.lookup addr m
                 let accXPrv = deriveAccountPrivateKey pwd rootK minBound
-                    addrXPrv
-                        = deriveAddressPrivateKey pwd accXPrv UtxoExternal ix
+                    addrXPrv =
+                        deriveAddressPrivateKey pwd accXPrv UtxoExternal ix
                 return (addrXPrv, pwd)
             }
 
@@ -1458,7 +1622,7 @@ instance Sqlite.AddressBookIso DummyState where
     addressIso = iso from to
       where
         from x = (DummyPrologue, DummyDiscoveries x)
-        to (_,DummyDiscoveries x) = x
+        to (_, DummyDiscoveries x) = x
 
 instance Eq (Sqlite.Prologue DummyState) where _ == _ = True
 instance Eq (Sqlite.Discoveries DummyState) where
@@ -1499,10 +1663,11 @@ instance Arbitrary WalletId where
 
 instance Arbitrary WalletName where
     shrink _ = []
-    arbitrary = elements
-        [ WalletName "My Wallet"
-        , WalletName mempty
-        ]
+    arbitrary =
+        elements
+            [ WalletName "My Wallet"
+            , WalletName mempty
+            ]
 
 instance Arbitrary (Passphrase purpose) where
     shrink _ = []
@@ -1512,8 +1677,7 @@ instance Arbitrary (Passphrase purpose) where
 instance Arbitrary SomeMnemonic where
     arbitrary = SomeMnemonic <$> genMnemonic @12
 
-instance {-# OVERLAPS #-} Arbitrary (ShelleyKey 'RootK XPrv, Passphrase "user")
-  where
+instance {-# OVERLAPS #-} Arbitrary (ShelleyKey 'RootK XPrv, Passphrase "user") where
     shrink _ = []
     arbitrary = do
         pwd <- arbitrary
@@ -1542,20 +1706,23 @@ instance Arbitrary Tx where
     shrink = shrinkTx
 
 instance Arbitrary TxIn where
-    arbitrary = TxIn . Hash . B8.pack
-        <$> vector 32
-        <*> scale (`mod` 3) arbitrary
+    arbitrary =
+        TxIn . Hash . B8.pack
+            <$> vector 32
+            <*> scale (`mod` 3) arbitrary
 
 instance Arbitrary TxOut where
-    arbitrary = TxOut (Address "address") . TokenBundle.fromCoin
-        <$> genCoinPositive
+    arbitrary =
+        TxOut (Address "address") . TokenBundle.fromCoin
+            <$> genCoinPositive
 
 instance Arbitrary TxMeta where
     shrink _ = []
-    arbitrary = TxMeta
-        <$> elements [Pending, InLedger, Expired]
-        <*> elements [Incoming, Outgoing]
-        <*> genSlotNo
-        <*> fmap Quantity arbitrary
-        <*> arbitrary
-        <*> liftArbitrary genSlotNo
+    arbitrary =
+        TxMeta
+            <$> elements [Pending, InLedger, Expired]
+            <*> elements [Incoming, Outgoing]
+            <*> genSlotNo
+            <*> fmap Quantity arbitrary
+            <*> arbitrary
+            <*> liftArbitrary genSlotNo

@@ -5,11 +5,13 @@
 
 module Cardano.Wallet.Submissions.Properties.Common
     ( Step (..)
-    , deltaState, oldState, newState
-    , that, verify, forAllIn
+    , deltaState
+    , oldState
+    , newState
+    , that
+    , verify
+    , forAllIn
     ) where
-
-import Prelude
 
 import Cardano.Wallet.Submissions.Submissions
     ( Submissions
@@ -37,6 +39,7 @@ import Test.QuickCheck
     , conjoin
     , counterexample
     )
+import Prelude
 
 forAllIn
     :: Show a
@@ -44,7 +47,8 @@ forAllIn
     -> (a -> Property)
     -> Property
 forAllIn db f = conjoin $ fmap g (toList db)
-    where g i = counterexample (show i) $ f i
+  where
+    g i = counterexample (show i) $ f i
 
 type Prop t a = Writer [t] a
 

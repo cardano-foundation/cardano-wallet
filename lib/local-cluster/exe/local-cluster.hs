@@ -2,8 +2,6 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 
-import Prelude
-
 import Cardano.BM.ToTextTracer
     ( ToTextTracer (..)
     , withToTextTracer
@@ -108,6 +106,7 @@ import Text.Pretty.Simple
 import UnliftIO.Concurrent
     ( threadDelay
     )
+import Prelude
 
 import qualified Cardano.Node.Cli.Launcher as NC
 import qualified Cardano.Wallet.Cli.Launcher as WC
@@ -255,9 +254,10 @@ main = withUtf8 $ do
         -- Add a tracer for the cluster logs
         ToTextTracer tracer <- case clusterLogs of
             Nothing -> pure $ ToTextTracer nullTracer
-            Just path -> withToTextTracer
-                (Right . toFilePath . absFileOf $ path)
-                minSeverity
+            Just path ->
+                withToTextTracer
+                    (Right . toFilePath . absFileOf $ path)
+                    minSeverity
 
         let debug :: MonadIO m => Text -> m ()
             debug = liftIO . traceWith tracer

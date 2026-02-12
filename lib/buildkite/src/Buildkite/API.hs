@@ -42,8 +42,6 @@ module Buildkite.API
     )
 where
 
-import Prelude
-
 import Buildkite.LimitsLock
     ( LimitsLock (..)
     , newLimitsLock
@@ -76,6 +74,11 @@ import GHC.Generics
 import GHC.Stack
     ( HasCallStack
     )
+import Network.HTTP.Types
+    ( Status
+    , status400
+    , status410
+    )
 import Servant.API
     ( Capture
     , Get
@@ -99,13 +102,9 @@ import Servant.Client
 import Text.Regex.TDFA
     ( (=~)
     )
+import Prelude
 
 import qualified Data.Text as T
-import Network.HTTP.Types
-    ( Status
-    , status400
-    , status410
-    )
 
 newtype Time = Time
     { time :: UTCTime

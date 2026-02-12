@@ -11,8 +11,6 @@ module Cardano.Wallet.Launch.Cluster.Http.Client
     )
 where
 
-import Prelude
-
 import Cardano.Wallet.Launch.Cluster.Http.Faucet.Client
     ( MsgFaucetClient
     , RunFaucetQ
@@ -65,6 +63,7 @@ import UnliftIO
     ( MonadUnliftIO
     , throwIO
     )
+import Prelude
 
 data MsgClient
     = MsgClientStart

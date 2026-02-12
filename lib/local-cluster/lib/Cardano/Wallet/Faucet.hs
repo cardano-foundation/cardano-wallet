@@ -11,7 +11,6 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
-
 {-# OPTIONS_GHC -Wno-unticked-promoted-constructors #-}
 
 module Cardano.Wallet.Faucet
@@ -38,23 +37,7 @@ module Cardano.Wallet.Faucet
     , seaHorseTestAssets
     , runFaucetM
     , massiveWalletFunds
-
     ) where
-
-import Prelude hiding
-    ( appendFile
-    )
-
-import qualified Cardano.Address as CA
-import qualified Cardano.Address.Style.Icarus as Icarus
-import qualified Cardano.Faucet.Addresses as Addresses
-import qualified Cardano.Faucet.Mnemonics as Mnemonics
-import qualified Cardano.Faucet.Types as Faucet
-import qualified Cardano.Wallet.Primitive.Types.AssetName as AssetName
-import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
-import qualified Data.ByteString.Char8 as B8
-import qualified Data.List.NonEmpty as NE
-import qualified Data.Text as T
 
 import Cardano.Address
     ( Address
@@ -140,6 +123,20 @@ import UnliftIO.MVar
     ( MVar
     , modifyMVar
     )
+import Prelude hiding
+    ( appendFile
+    )
+
+import qualified Cardano.Address as CA
+import qualified Cardano.Address.Style.Icarus as Icarus
+import qualified Cardano.Faucet.Addresses as Addresses
+import qualified Cardano.Faucet.Mnemonics as Mnemonics
+import qualified Cardano.Faucet.Types as Faucet
+import qualified Cardano.Wallet.Primitive.Types.AssetName as AssetName
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
+import qualified Data.ByteString.Char8 as B8
+import qualified Data.List.NonEmpty as NE
+import qualified Data.Text as T
 
 --------------------------------------------------------------------------------
 data MnemonicRange = MnemonicRange
@@ -177,8 +174,8 @@ data Faucet = Faucet
     }
 
 newtype FaucetM a = FaucetM
-   { unFaucetM :: ClientM a
-   }
+    { unFaucetM :: ClientM a
+    }
     deriving newtype (Functor, Applicative, Monad)
 
 runFaucetM :: ClientEnv -> FaucetM a -> IO a
@@ -208,8 +205,9 @@ initFaucet clientEnv = do
                         executeClientM clientEnv
                             $ fetchMnemonicByIndex len index
                     pure (range', mnemonic)
-                Nothing -> throwIO
-                    $ userError "Faucet: no more mnemonics available"
+                Nothing ->
+                    throwIO
+                        $ userError "Faucet: no more mnemonics available"
 
     let fixedMnemonic :: MnemonicRange -> MnemonicLength -> IO SomeMnemonic
         fixedMnemonic index len = do
@@ -245,7 +243,7 @@ anyFunds
     -> CA.NetworkTag
     -> FaucetM [Address]
     -- ^ Resulting list of addresses and coins
-anyFunds mnemonicRange mlength style start end networkTag= FaucetM $ do
+anyFunds mnemonicRange mlength style start end networkTag = FaucetM $ do
     let run' index = do
             ias <-
                 fetchMnemonicAddresses
@@ -317,20 +315,23 @@ preregKeyWallet tag = do
 rewardWalletMnemonicRange :: MnemonicRange
 rewardWalletMnemonicRange =
     MnemonicRange 0 25
-    -- As few as possible; the cardano-wallet integration tests need to call
-    -- postWallet for each one at the beginning of the tests.
+
+-- As few as possible; the cardano-wallet integration tests need to call
+-- postWallet for each one at the beginning of the tests.
 
 rewardWalletMnemonics :: FaucetM [SomeMnemonic]
-rewardWalletMnemonics = FaucetM $
-    fmap (Faucet.toSomeMnemonic . unIndexedMnemonic)
-        <$> fetchMnemonicRange
-            M24
-            (from rewardWalletMnemonicRange)
-            (to rewardWalletMnemonicRange)
+rewardWalletMnemonics =
+    FaucetM
+        $ fmap (Faucet.toSomeMnemonic . unIndexedMnemonic)
+            <$> fetchMnemonicRange
+                M24
+                (from rewardWalletMnemonicRange)
+                (to rewardWalletMnemonicRange)
 
 rewardWalletFunds :: CA.NetworkTag -> FaucetM [(Address, Coin)]
 rewardWalletFunds tag = do
-    as <- anyFunds rewardWalletMnemonicRange M24 AddressStyleShelley 0 0 tag
+    as <-
+        anyFunds rewardWalletMnemonicRange M24 AddressStyleShelley 0 0 tag
     pure $ as <&> (,defaultAmount)
 
 adaToCoin :: Natural -> Coin
@@ -419,10 +420,13 @@ maryAllegraMnemonicRange = nextRange 200 rewardWalletMnemonicRange
 --
 -- Beside the assets, there is a list of @(signing key, verification key hash)@,
 -- so that they can be minted by the faucet.
-
-maryAllegraFunds :: Coin -> CA.NetworkTag -> FaucetM [(Address, (TokenBundle, [(String, String)]))]
-maryAllegraFunds tips tag  = do
-    as <- anyFunds maryAllegraMnemonicRange M24 AddressStyleShelley 0 2 tag
+maryAllegraFunds
+    :: Coin
+    -> CA.NetworkTag
+    -> FaucetM [(Address, (TokenBundle, [(String, String)]))]
+maryAllegraFunds tips tag = do
+    as <-
+        anyFunds maryAllegraMnemonicRange M24 AddressStyleShelley 0 2 tag
     pure $ zip as $ cycle maryTokenBundles
   where
     maryTokenBundles :: [(TokenBundle, [(String, String)])]
@@ -556,7 +560,9 @@ hwLedgerFunds networkTag = do
   where
     deriveLedgerAddresses :: SomeMnemonic -> [Address]
     deriveLedgerAddresses mnemonic =
-        Icarus.paymentAddress (CA.RequiresNetworkTag, networkTag) . fmap toXPub . addrXPrv
+        Icarus.paymentAddress (CA.RequiresNetworkTag, networkTag)
+            . fmap toXPub
+            . addrXPrv
             <$> paymentKeyIxs
       where
         rootXPrv = Icarus.unsafeGenerateKeyFromHardwareLedger mnemonic
@@ -575,5 +581,6 @@ massiveWalletFunds
     -> CA.NetworkTag
     -> FaucetM [(Address, Coin)]
 massiveWalletFunds coins topAddress tag = do
-    as <- anyFunds massiveWalletRange M15 AddressStyleShelley 1 topAddress tag
+    as <-
+        anyFunds massiveWalletRange M15 AddressStyleShelley 1 topAddress tag
     pure $ zip as (replicate 10_000 coins)

@@ -12,8 +12,6 @@ module Cardano.Wallet.Primitive.Types.AssetName
     , maxLength
     ) where
 
-import Prelude
-
 import Control.DeepSeq
     ( NFData
     )
@@ -55,38 +53,40 @@ import GHC.Generics
 import Quiet
     ( Quiet (..)
     )
+import Prelude
 
 import qualified Data.ByteString as BS
 import qualified Data.Text.Encoding as T
 
 -- | Asset names, defined by the monetary policy script.
-newtype AssetName =
-    -- | Construct an 'AssetName' without any validation.
-    UnsafeAssetName { unAssetName :: ByteString }
+newtype AssetName
+    = -- | Construct an 'AssetName' without any validation.
+      UnsafeAssetName {unAssetName :: ByteString}
     deriving stock (Data, Eq, Ord, Generic)
     deriving (Read, Show) via (Quiet AssetName)
-    deriving anyclass Hashable
+    deriving anyclass (Hashable)
 
 -- | Construct an 'AssetName', validating that the length does not exceed
 --   'maxLength'.
---
 fromByteString :: ByteString -> Either String AssetName
 fromByteString bs
     | BS.length bs <= maxLength = Right $ UnsafeAssetName bs
-    | otherwise = Left $ "AssetName length " ++ show (BS.length bs)
-        ++ " exceeds maximum of " ++ show maxLength
+    | otherwise =
+        Left
+            $ "AssetName length "
+                ++ show (BS.length bs)
+                ++ " exceeds maximum of "
+                ++ show maxLength
 
 -- | The empty asset name.
 --
 -- Asset names may be empty, where a monetary policy script only mints a single
 -- asset, or where one asset should be considered as the "default" token for the
 -- policy.
---
 empty :: AssetName
 empty = UnsafeAssetName ""
 
 -- | The maximum length of a valid asset name.
---
 maxLength :: Int
 maxLength = 32
 
@@ -105,7 +105,8 @@ instance ToText AssetName where
     toText = T.decodeLatin1 . convertToBase Base16 . unAssetName
 
 instance FromText AssetName where
-    fromText = first TextDecodingError
-        . either (Left . ("AssetName is not hex-encoded: " ++)) fromByteString
-        . convertFromBase Base16
-        . T.encodeUtf8
+    fromText =
+        first TextDecodingError
+            . either (Left . ("AssetName is not hex-encoded: " ++)) fromByteString
+            . convertFromBase Base16
+            . T.encodeUtf8

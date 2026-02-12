@@ -8,13 +8,11 @@
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE StrictData #-}
-
 {-# OPTIONS_GHC -Wno-orphans #-}
 
 -- |
 -- Copyright: © 2018-2022 IOHK, 2023 Cardano Foundation
 -- License: Apache-2.0
-
 module Cardano.Wallet.Api.Types.Key
     ( ApiAccountKey (..)
     , ApiAccountKeyShared (..)
@@ -26,9 +24,7 @@ module Cardano.Wallet.Api.Types.Key
     , computeKeyPayload
     , parseBech32
     )
-    where
-
-import Prelude
+where
 
 import Cardano.Address.Derivation
     ( XPub
@@ -89,6 +85,7 @@ import Servant.API
 import Web.Internal.HttpApiData
     ( ToHttpApiData (..)
     )
+import Prelude
 
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Data.Aeson.Types as Aeson
@@ -102,8 +99,8 @@ parseBech32
 parseBech32 err =
     either (const $ fail errBech32) parseDataPart . Bech32.decodeLenient
   where
-      errBech32 =
-          T.unpack err <>". Expected a bech32-encoded key."
+    errBech32 =
+        T.unpack err <> ". Expected a bech32-encoded key."
 
 parseDataPart
     :: (Bech32.HumanReadablePart, Bech32.DataPart)
@@ -111,22 +108,23 @@ parseDataPart
 parseDataPart =
     maybe (fail errDataPart) pure . traverse dataPartToBytes
   where
-      errDataPart =
-          "Couldn't decode data-part to valid UTF-8 bytes."
+    errDataPart =
+        "Couldn't decode data-part to valid UTF-8 bytes."
 
 parsePubVer :: MonadFail f => ByteString -> f ByteString
 parsePubVer bytes
     | BS.length bytes == 32 =
-          pure bytes
+        pure bytes
     | otherwise =
-          fail "Not a valid Ed25519 public key. Must be 32 bytes, without chain code"
+        fail
+            "Not a valid Ed25519 public key. Must be 32 bytes, without chain code"
 
 parsePubVerHash :: MonadFail f => ByteString -> f ByteString
 parsePubVerHash bytes
     | BS.length bytes == 28 =
-          pure bytes
+        pure bytes
     | otherwise =
-          fail "Not a valid hash of Ed25519 public key. Must be 28 bytes."
+        fail "Not a valid hash of Ed25519 public key. Must be 28 bytes."
 
 parsePubErr :: IsString p => KeyFormat -> p
 parsePubErr = \case
@@ -138,15 +136,16 @@ parsePubErr = \case
 parsePub :: MonadFail f => ByteString -> KeyFormat -> f ByteString
 parsePub bytes extd
     | BS.length bytes == bytesExpectedLength =
-          pure bytes
+        pure bytes
     | otherwise =
-          fail $ parsePubErr extd
+        fail $ parsePubErr extd
   where
     bytesExpectedLength = case extd of
         Extended -> 64
         NonExtended -> 32
 
-computeKeyPayload :: Maybe Bool -> XPub -> (ByteString, VerificationKeyHashing)
+computeKeyPayload
+    :: Maybe Bool -> XPub -> (ByteString, VerificationKeyHashing)
 computeKeyPayload hashed' k = case hashing of
     WithoutHashing -> (xpubPublicKey k, WithoutHashing)
     WithHashing -> (blake2b224 $ xpubPublicKey k, WithHashing)
@@ -159,14 +158,14 @@ computeKeyPayload hashed' k = case hashing of
 
 data VerificationKeyHashing = WithHashing | WithoutHashing
     deriving (Eq, Generic, Show)
-    deriving anyclass NFData
+    deriving anyclass (NFData)
 
 data ApiPolicyKey = ApiPolicyKey
     { getApiPolicyKey :: ByteString
     , hashed :: VerificationKeyHashing
     }
     deriving (Eq, Generic, Show)
-    deriving anyclass NFData
+    deriving anyclass (NFData)
 
 instance ToJSON ApiPolicyKey where
     toJSON (ApiPolicyKey pub hashed') =
@@ -178,7 +177,8 @@ instance ToJSON ApiPolicyKey where
 
 instance FromJSON ApiPolicyKey where
     parseJSON value = do
-        (hrp, bytes) <- parseJSON value >>= (parseBech32 "Malformed policy key")
+        (hrp, bytes) <-
+            parseJSON value >>= (parseBech32 "Malformed policy key")
         hashing <- parseHashing hrp
         payload <- case hashing of
             WithoutHashing -> parsePubVer bytes
@@ -201,7 +201,7 @@ data ApiVerificationKeyShared = ApiVerificationKeyShared
     , hashed :: VerificationKeyHashing
     }
     deriving (Eq, Generic, Show)
-    deriving anyclass NFData
+    deriving anyclass (NFData)
 
 instance ToJSON ApiVerificationKeyShared where
     toJSON (ApiVerificationKeyShared (pub, role_) hashed') =
@@ -220,18 +220,27 @@ instance ToJSON ApiVerificationKeyShared where
 
 instance FromJSON ApiVerificationKeyShared where
     parseJSON value = do
-        (hrp, bytes) <- parseJSON value >>= (parseBech32 "Malformed verification key")
+        (hrp, bytes) <-
+            parseJSON value >>= (parseBech32 "Malformed verification key")
         (role, hashing) <- parseRoleHashing hrp
         payload <- case hashing of
             WithoutHashing -> parsePubVer bytes
             WithHashing -> parsePubVerHash bytes
-        pure $ ApiVerificationKeyShared (payload,role) hashing
+        pure $ ApiVerificationKeyShared (payload, role) hashing
       where
         parseRoleHashing = \case
-            hrp | hrp == [humanReadablePart|addr_shared_vk|] -> pure (UtxoExternal, WithoutHashing)
-            hrp | hrp == [humanReadablePart|stake_shared_vk|] -> pure (MutableAccount, WithoutHashing)
-            hrp | hrp == [humanReadablePart|addr_shared_vkh|] -> pure (UtxoExternal, WithHashing)
-            hrp | hrp == [humanReadablePart|stake_shared_vkh|] -> pure (MutableAccount, WithHashing)
+            hrp
+                | hrp == [humanReadablePart|addr_shared_vk|] ->
+                    pure (UtxoExternal, WithoutHashing)
+            hrp
+                | hrp == [humanReadablePart|stake_shared_vk|] ->
+                    pure (MutableAccount, WithoutHashing)
+            hrp
+                | hrp == [humanReadablePart|addr_shared_vkh|] ->
+                    pure (UtxoExternal, WithHashing)
+            hrp
+                | hrp == [humanReadablePart|stake_shared_vkh|] ->
+                    pure (MutableAccount, WithHashing)
             _ -> fail errRole
           where
             errRole =
@@ -246,7 +255,7 @@ data ApiAccountKey = ApiAccountKey
     , purpose :: Index 'Hardened 'PurposeK
     }
     deriving (Eq, Generic, Show)
-    deriving anyclass NFData
+    deriving anyclass (NFData)
 
 instance ToJSON ApiAccountKey where
     toJSON (ApiAccountKey pub extd purpose') =
@@ -254,36 +263,46 @@ instance ToJSON ApiAccountKey where
       where
         hrp p
             | p == purposeCIP1854 = case extd of
-                  Extended -> [humanReadablePart|acct_shared_xvk|]
-                  NonExtended -> [humanReadablePart|acct_shared_vk|]
+                Extended -> [humanReadablePart|acct_shared_xvk|]
+                NonExtended -> [humanReadablePart|acct_shared_vk|]
             | otherwise = case extd of
-                  Extended -> [humanReadablePart|acct_xvk|]
-                  NonExtended -> [humanReadablePart|acct_vk|]
+                Extended -> [humanReadablePart|acct_xvk|]
+                NonExtended -> [humanReadablePart|acct_vk|]
 
 instance FromJSON ApiAccountKey where
     parseJSON value = do
-        (hrp, bytes) <- parseJSON value >>= (parseBech32 "Malformed extended/normal account public key")
+        (hrp, bytes) <-
+            parseJSON value
+                >>= (parseBech32 "Malformed extended/normal account public key")
         (extended', purpose') <- parseHrp hrp
         pub <- parsePub bytes extended'
         pure $ ApiAccountKey pub extended' purpose'
       where
         parseHrp = \case
-            hrp | hrp == [humanReadablePart|acct_xvk|] -> pure (Extended, purposeCIP1852)
-            hrp | hrp == [humanReadablePart|acct_vk|] -> pure (NonExtended, purposeCIP1852)
-            hrp | hrp == [humanReadablePart|acct_shared_xvk|] -> pure (Extended, purposeCIP1854)
-            hrp | hrp == [humanReadablePart|acct_shared_vk|] -> pure (NonExtended, purposeCIP1854)
+            hrp
+                | hrp == [humanReadablePart|acct_xvk|] ->
+                    pure (Extended, purposeCIP1852)
+            hrp
+                | hrp == [humanReadablePart|acct_vk|] ->
+                    pure (NonExtended, purposeCIP1852)
+            hrp
+                | hrp == [humanReadablePart|acct_shared_xvk|] ->
+                    pure (Extended, purposeCIP1854)
+            hrp
+                | hrp == [humanReadablePart|acct_shared_vk|] ->
+                    pure (NonExtended, purposeCIP1854)
             _ -> fail errHrp
           where
-              errHrp =
-                  "Unrecognized human-readable part. Expected one of:\
-                  \ \"acct_xvk\", \"acct_vk\", \"acct_shared_xvk\" or \"acct_shared_vk\"."
+            errHrp =
+                "Unrecognized human-readable part. Expected one of:\
+                \ \"acct_xvk\", \"acct_vk\", \"acct_shared_xvk\" or \"acct_shared_vk\"."
 
 -- KeyFormat
 
 data KeyFormat = Extended | NonExtended
     deriving (Eq, Generic, Show)
     deriving (FromJSON, ToJSON) via DefaultSum KeyFormat
-    deriving anyclass NFData
+    deriving anyclass (NFData)
 
 instance ToText KeyFormat where
     toText Extended = "extended"
@@ -296,10 +315,14 @@ instance FromText KeyFormat where
     fromText txt = case txt of
         "extended" -> Right Extended
         "non_extended" -> Right NonExtended
-        _ -> Left $ TextDecodingError $ unwords
-            [ "I couldn't parse the given key format."
-            , "I am expecting one of the words 'extended' or"
-            , "'non_extended'."]
+        _ ->
+            Left
+                $ TextDecodingError
+                $ unwords
+                    [ "I couldn't parse the given key format."
+                    , "I am expecting one of the words 'extended' or"
+                    , "'non_extended'."
+                    ]
 
 -- ApiAccountKeyShared
 
@@ -309,7 +332,7 @@ data ApiAccountKeyShared = ApiAccountKeyShared
     , purpose :: Index 'Hardened 'PurposeK
     }
     deriving (Eq, Generic, Show)
-    deriving anyclass NFData
+    deriving anyclass (NFData)
 
 instance ToJSON ApiAccountKeyShared where
     toJSON (ApiAccountKeyShared pub extd _) =
@@ -321,7 +344,9 @@ instance ToJSON ApiAccountKeyShared where
 
 instance FromJSON ApiAccountKeyShared where
     parseJSON value = do
-        (hrp, bytes) <- parseJSON value >>= (parseBech32 "Malformed extended/normal account public key")
+        (hrp, bytes) <-
+            parseJSON value
+                >>= (parseBech32 "Malformed extended/normal account public key")
         extended' <- parseHrp hrp
         pub <- parsePub bytes extended'
         pure $ ApiAccountKeyShared pub extended' purposeCIP1854
@@ -331,9 +356,9 @@ instance FromJSON ApiAccountKeyShared where
             hrp | hrp == [humanReadablePart|acct_shared_vk|] -> pure NonExtended
             _ -> fail errHrp
           where
-              errHrp =
-                  "Unrecognized human-readable part. Expected one of:\
-                  \ \"acct_shared_xvk\" or \"acct_shared_vk\"."
+            errHrp =
+                "Unrecognized human-readable part. Expected one of:\
+                \ \"acct_shared_xvk\" or \"acct_shared_vk\"."
 
 -- ApiVerificationKetShelley
 
@@ -342,7 +367,7 @@ data ApiVerificationKeyShelley = ApiVerificationKeyShelley
     , hashed :: VerificationKeyHashing
     }
     deriving (Eq, Generic, Show)
-    deriving anyclass NFData
+    deriving anyclass (NFData)
 
 instance ToJSON ApiVerificationKeyShelley where
     toJSON (ApiVerificationKeyShelley (pub, role_) hashed') =
@@ -361,18 +386,27 @@ instance ToJSON ApiVerificationKeyShelley where
 
 instance FromJSON ApiVerificationKeyShelley where
     parseJSON value = do
-        (hrp, bytes) <- parseJSON value >>= (parseBech32 "Malformed verification key")
+        (hrp, bytes) <-
+            parseJSON value >>= (parseBech32 "Malformed verification key")
         (role, hashing) <- parseRoleHashing hrp
         payload <- case hashing of
             WithoutHashing -> parsePubVer bytes
             WithHashing -> parsePubVerHash bytes
-        pure $ ApiVerificationKeyShelley (payload,role) hashing
+        pure $ ApiVerificationKeyShelley (payload, role) hashing
       where
         parseRoleHashing = \case
-            hrp | hrp == [humanReadablePart|addr_vk|] -> pure (UtxoExternal, WithoutHashing)
-            hrp | hrp == [humanReadablePart|stake_vk|] -> pure (MutableAccount, WithoutHashing)
-            hrp | hrp == [humanReadablePart|addr_vkh|] -> pure (UtxoExternal, WithHashing)
-            hrp | hrp == [humanReadablePart|stake_vkh|] -> pure (MutableAccount, WithHashing)
+            hrp
+                | hrp == [humanReadablePart|addr_vk|] ->
+                    pure (UtxoExternal, WithoutHashing)
+            hrp
+                | hrp == [humanReadablePart|stake_vk|] ->
+                    pure (MutableAccount, WithoutHashing)
+            hrp
+                | hrp == [humanReadablePart|addr_vkh|] ->
+                    pure (UtxoExternal, WithHashing)
+            hrp
+                | hrp == [humanReadablePart|stake_vkh|] ->
+                    pure (MutableAccount, WithHashing)
             _ -> fail errRole
           where
             errRole =

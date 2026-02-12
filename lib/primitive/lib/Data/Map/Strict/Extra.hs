@@ -2,13 +2,10 @@
 -- Copyright: © 2023 Cardano Foundation
 --
 -- Extra functions for the strict 'Map' type.
---
 module Data.Map.Strict.Extra
     ( conflicts
     , conflictsWith
     ) where
-
-import Prelude
 
 import Data.Map.Merge.Strict
     ( dropMissing
@@ -18,11 +15,11 @@ import Data.Map.Merge.Strict
 import Data.Map.Strict
     ( Map
     )
+import Prelude
 
 -- | Generates the map of all conflicts between a pair of maps.
 --
 -- Equivalent to 'conflictsWith' '/='.
---
 conflicts :: (Ord k, Eq v) => Map k v -> Map k v -> Map k (v, v)
 conflicts = conflictsWith (/=)
 
@@ -46,7 +43,6 @@ conflicts = conflictsWith (/=)
 -- >>> conflictsWith (/=) m1 m2
 -- fromList [("C", (1, 2))]
 -- @
---
 conflictsWith
     :: Ord k
     => (v1 -> v2 -> Bool)
@@ -54,7 +50,10 @@ conflictsWith
     -> Map k v2
     -> Map k (v1, v2)
 conflictsWith inConflictWith =
-    merge dropMissing dropMissing (zipWithMaybeMatched (const maybeConflict))
+    merge
+        dropMissing
+        dropMissing
+        (zipWithMaybeMatched (const maybeConflict))
   where
     maybeConflict v1 v2
         | v1 `inConflictWith` v2 = Just (v1, v2)

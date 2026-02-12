@@ -1,7 +1,5 @@
 {-# LANGUAGE DataKinds #-}
 
-import Prelude
-
 import Cardano.BM.ToTextTracer
     ( ToTextTracer (..)
     , withToTextTracer
@@ -42,6 +40,7 @@ import Data.Time.Clock.POSIX
 import System.IO
     ( stdout
     )
+import Prelude
 
 import qualified Cardano.Wallet.Primitive.Ledger.Read.Block as New
 import qualified Cardano.Wallet.Primitive.Types as W
@@ -65,7 +64,8 @@ main = evalContT $ do
 new :: GenesisParameters -> ConsensusBlock -> W.Block
 new gp = fst . New.fromCardanoBlock (getGenesisBlockHash gp)
 
-run :: (GenesisParameters -> ConsensusBlock -> W.Block) -> Int -> [W.Block]
+run
+    :: (GenesisParameters -> ConsensusBlock -> W.Block) -> Int -> [W.Block]
 run f n = f dummyGenesisParameters <$> take n exampleBlocks
 
 dummyGenesisParameters :: GenesisParameters

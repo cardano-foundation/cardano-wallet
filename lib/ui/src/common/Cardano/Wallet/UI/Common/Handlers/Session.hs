@@ -1,7 +1,5 @@
 module Cardano.Wallet.UI.Common.Handlers.Session where
 
-import Prelude
-
 import Cardano.Wallet.UI.Common.Layer
     ( SessionLayer (..)
     , UILayer (..)
@@ -18,6 +16,7 @@ import Control.Monad.Trans
 import Servant
     ( Handler
     )
+import Prelude
 
 withSessionLayerRead
     :: UILayer s

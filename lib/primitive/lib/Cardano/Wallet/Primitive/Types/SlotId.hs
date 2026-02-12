@@ -8,8 +8,6 @@ module Cardano.Wallet.Primitive.Types.SlotId
     )
 where
 
-import Prelude
-
 import Cardano.Wallet.Primitive.Types.EpochNo
     ( EpochNo (EpochNo)
     )
@@ -28,14 +26,16 @@ import Fmt
 import GHC.Generics
     ( Generic
     )
+import Prelude
 
 -- | A slot identifier is the combination of an epoch and slot.
 data SlotId = SlotId
-  { epochNumber :: !EpochNo
-  , slotNumber :: !SlotInEpoch
-  } deriving stock (Show, Read, Eq, Ord, Generic)
+    { epochNumber :: !EpochNo
+    , slotNumber :: !SlotInEpoch
+    }
+    deriving stock (Show, Read, Eq, Ord, Generic)
 
-newtype SlotInEpoch = SlotInEpoch { unSlotInEpoch :: Word32 }
+newtype SlotInEpoch = SlotInEpoch {unSlotInEpoch :: Word32}
     deriving stock (Show, Read, Eq, Ord, Generic)
     deriving newtype (Num, Buildable, NFData, Enum)
 

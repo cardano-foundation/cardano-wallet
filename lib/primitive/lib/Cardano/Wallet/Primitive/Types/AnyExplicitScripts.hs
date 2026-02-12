@@ -9,8 +9,6 @@ module Cardano.Wallet.Primitive.Types.AnyExplicitScripts
     )
 where
 
-import Prelude
-
 import Cardano.Address.KeyHash
     ( KeyHash (KeyHash)
     , KeyRole
@@ -28,6 +26,7 @@ import Control.DeepSeq
 import GHC.Generics
     ( Generic
     )
+import Prelude
 
 data AnyExplicitScript
     = NativeExplicitScript !(Script KeyHash) !ScriptReference

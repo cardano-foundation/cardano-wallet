@@ -2,17 +2,15 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
 module Cardano.Wallet.UI.Common.API where
-
-import Prelude
 
 import Cardano.Wallet.UI.Common.Html.Html
     ( HTML
@@ -32,6 +30,7 @@ import Servant
     , (:<|>) (..)
     , (:>)
     )
+import Prelude
 
 import qualified Data.ByteString.Lazy as BL
 

@@ -9,8 +9,6 @@ module Cardano.Wallet.UI.Common.Handlers.Lib
     )
 where
 
-import Prelude
-
 import Control.Monad.Catch
     ( MonadCatch (..)
     , SomeException (..)
@@ -25,6 +23,7 @@ import Servant
     , err400
     , throwError
     )
+import Prelude
 
 import qualified Data.Aeson.Encode.Pretty as Aeson
 import qualified Data.ByteString.Lazy.Char8 as BL
@@ -43,7 +42,7 @@ alertOnServerError
     -> (b -> html)
     -> Either ServerError b
     -> html
-alertOnServerError alert render =  \case
+alertOnServerError alert render = \case
     Left ServerError{..} ->
         case decode errBody of
             Nothing -> alert errBody
@@ -51,6 +50,7 @@ alertOnServerError alert render =  \case
     Right ws -> render ws
 
 -- | Catch exceptions and render them as HTML using the provided function.
-catching :: MonadCatch m => (BL.ByteString -> html) -> m html -> m html
+catching
+    :: MonadCatch m => (BL.ByteString -> html) -> m html -> m html
 catching alert f = catch f
     $ \(SomeException e) -> pure . alert . BL.pack . show $ e

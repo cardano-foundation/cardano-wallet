@@ -54,8 +54,6 @@ module Cardano.DB.Sqlite
     , ReadDBHandle
     ) where
 
-import Prelude
-
 import Cardano.BM.Data.Severity
     ( Severity (..)
     )
@@ -193,6 +191,7 @@ import UnliftIO.MVar
     , withMVar
     , withMVarMasked
     )
+import Prelude
 
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Text as T
@@ -554,7 +553,9 @@ instance ToText DBLog where
             MsgRetry
                 | n <= 10 ->
                     "Retrying db query because db was busy "
-                        <> "for the " +| ordinalF n |+ " time."
+                        <> "for the "
+                        +| ordinalF n
+                        |+ " time."
                 | n == 11 ->
                     "No more logs until it finishes..."
                 | otherwise -> ""

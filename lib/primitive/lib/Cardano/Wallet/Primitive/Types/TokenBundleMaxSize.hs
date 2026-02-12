@@ -6,8 +6,6 @@ module Cardano.Wallet.Primitive.Types.TokenBundleMaxSize
     )
 where
 
-import Prelude
-
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TxSize (..)
     )
@@ -24,6 +22,7 @@ import Test.QuickCheck
     ( Arbitrary (..)
     , oneof
     )
+import Prelude
 
 -- | The maximum size of a serialized `TokenBundle` (`_maxValSize` in the Alonzo
 -- ledger)

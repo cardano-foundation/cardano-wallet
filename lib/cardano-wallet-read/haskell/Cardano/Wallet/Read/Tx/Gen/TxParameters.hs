@@ -7,8 +7,6 @@ module Cardano.Wallet.Read.Tx.Gen.TxParameters
     )
 where
 
-import Prelude
-
 import Cardano.Wallet.Read.Tx.TxId
     ( TxId
     , txIdFromHash
@@ -25,9 +23,10 @@ import Data.Maybe
 import Numeric.Natural
     ( Natural
     )
+import Prelude
 
-import qualified Cardano.Wallet.Read.Hash as Hash
-import qualified Data.ByteString.Char8 as B8
+import Cardano.Wallet.Read.Hash qualified as Hash
+import Data.ByteString.Char8 qualified as B8
 
 newtype Lovelace = Lovelace Integer
     deriving (Eq, Show)
@@ -56,4 +55,5 @@ exampleTxParameters =
         }
 
 txIdx :: Char -> TxId
-txIdx = txIdFromHash . fromJust . Hash.hashFromBytes . B8.pack . replicate 32
+txIdx =
+    txIdFromHash . fromJust . Hash.hashFromBytes . B8.pack . replicate 32

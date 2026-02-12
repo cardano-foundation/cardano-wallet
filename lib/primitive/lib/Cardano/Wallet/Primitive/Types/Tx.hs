@@ -13,10 +13,8 @@
 -- License: Apache-2.0
 --
 -- This module re-exports all transaction types.
---
 module Cardano.Wallet.Primitive.Types.Tx
-    (
-    -- * Types
+    ( -- * Types
       Tx (..)
     , TxId
     , TxChange (..)
@@ -24,10 +22,10 @@ module Cardano.Wallet.Primitive.Types.Tx
     , TxMetadataValue (..)
     , UnsignedTx (..)
     , LocalTxSubmissionStatus (..)
-    , TxScriptValidity(..)
+    , TxScriptValidity (..)
     , ScriptWitnessIndex (..)
 
-    -- * Serialisation
+      -- * Serialisation
     , SealedTx (serialisedTx)
     , cardanoTxIdeallyNoLaterThan
     , cardanoTxInExactEra
@@ -43,31 +41,28 @@ module Cardano.Wallet.Primitive.Types.Tx
     , persistSealedTx
     , unPersistSealedTx
 
-    -- ** Unit testing helpers
+      -- ** Unit testing helpers
     , mockSealedTx
     , withinEra
 
-    -- * Functions
+      -- * Functions
     , inputs
     , collateralInputs
     , txIns
     , txMetadataIsNull
     , txScriptInvalid
 
-    -- * Queries
+      -- * Queries
     , txAssetIds
 
-    -- * Transformations
+      -- * Transformations
     , txMapAssetIds
     , txMapTxIds
     , txRemoveAssetId
 
-    -- * Conversions (Unsafe)
+      -- * Conversions (Unsafe)
     , unsafeCoinToTxOutCoinValue
-
     ) where
-
-import Prelude
 
 import Cardano.Slotting.Slot
     ( SlotNo (..)
@@ -131,41 +126,39 @@ import GHC.Generics
 import GHC.Stack
     ( HasCallStack
     )
+import Prelude
 
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 
 -- | An unsigned transaction.
 --
 -- See 'Tx' for a signed transaction.
---
 data UnsignedTx input output change withdrawal = UnsignedTx
     { unsignedCollateral
         :: [input]
-        -- Inputs used for collateral.
+    , -- Inputs used for collateral.
 
-    , unsignedInputs
+      unsignedInputs
         :: [input]
-        -- ^ Inputs are *necessarily* non-empty because Cardano requires at least
-        -- one UTxO input per transaction to prevent replayable transactions.
-        -- (each UTxO being unique, including at least one UTxO in the
-        -- transaction body makes it seemingly unique).
-        --
-        -- *However* when used to represent the inputs known by the wallet, in
-        -- contrast to all inputs, it can be empty.
-
+    -- ^ Inputs are *necessarily* non-empty because Cardano requires at least
+    -- one UTxO input per transaction to prevent replayable transactions.
+    -- (each UTxO being unique, including at least one UTxO in the
+    -- transaction body makes it seemingly unique).
+    --
+    -- *However* when used to represent the inputs known by the wallet, in
+    -- contrast to all inputs, it can be empty.
     , unsignedOutputs
         :: [output]
-        -- Unlike inputs, it is perfectly reasonable to have empty outputs. The
-        -- main scenario where this might occur is when constructing a
-        -- delegation for the sake of submitting a certificate. This type of
-        -- transaction does not typically include any target output and,
-        -- depending on which input(s) get selected to fuel the transaction, it
-        -- may or may not include a change output should its value be less than
-        -- the minimal UTxO value set by the network.
+    , -- Unlike inputs, it is perfectly reasonable to have empty outputs. The
+      -- main scenario where this might occur is when constructing a
+      -- delegation for the sake of submitting a certificate. This type of
+      -- transaction does not typically include any target output and,
+      -- depending on which input(s) get selected to fuel the transaction, it
+      -- may or may not include a change output should its value be less than
+      -- the minimal UTxO value set by the network.
 
-    , unsignedChange
+      unsignedChange
         :: [change]
-
     , unsignedWithdrawals
         :: [withdrawal]
     }
@@ -178,14 +171,16 @@ data LocalTxSubmissionStatus tx = LocalTxSubmissionStatus
     , submittedTx :: tx
     , latestSubmission :: SlotNo
     -- ^ Time of most recent resubmission attempt.
-    } deriving stock (Generic, Show, Eq, Functor)
+    }
+    deriving stock (Generic, Show, Eq, Functor)
 
 data TxChange derivationPath = TxChange
     { address :: Address
     , amount :: Coin
     , assets :: TokenMap
     , derivationPath :: derivationPath
-    } deriving (Show, Generic, Eq)
+    }
+    deriving (Show, Generic, Eq)
 
 {-------------------------------------------------------------------------------
                           Conversions (Unsafe)
@@ -201,20 +196,21 @@ data TxChange derivationPath = TxChange
 --   - not greater than 'txOutMaxCoin'
 --
 -- This function throws a run-time error if the pre-condition is violated.
---
 unsafeCoinToTxOutCoinValue :: HasCallStack => Coin -> Word64
 unsafeCoinToTxOutCoinValue c
     | c < txOutMinCoin =
-        error $ unwords
-            [ "unsafeCoinToTxOutCoinValue: coin value"
-            , show c
-            , "too small for transaction output"
-            ]
+        error
+            $ unwords
+                [ "unsafeCoinToTxOutCoinValue: coin value"
+                , show c
+                , "too small for transaction output"
+                ]
     | c > txOutMaxCoin =
-          error $ unwords
-            [ "unsafeCoinToTxOutCoinValue: coin value"
-            , show c
-            , "too large for transaction output"
-            ]
+        error
+            $ unwords
+                [ "unsafeCoinToTxOutCoinValue: coin value"
+                , show c
+                , "too large for transaction output"
+                ]
     | otherwise =
         Coin.unsafeToWord64 c

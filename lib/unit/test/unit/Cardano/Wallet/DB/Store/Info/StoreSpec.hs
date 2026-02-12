@@ -1,13 +1,12 @@
 module Cardano.Wallet.DB.Store.Info.StoreSpec (spec) where
 
-import Prelude
-
 import Cardano.DB.Sqlite
     ( ForeignKeysSetting (..)
     , runQuery
     )
 import Cardano.Wallet.DB.Arbitrary
-    ()
+    (
+    )
 import Cardano.Wallet.DB.Fixtures
     ( WalletProperty
     , logScale
@@ -35,6 +34,7 @@ import Test.QuickCheck
 import Test.Store
     ( prop_StoreUpdate
     )
+import Prelude
 
 spec :: Spec
 spec = do

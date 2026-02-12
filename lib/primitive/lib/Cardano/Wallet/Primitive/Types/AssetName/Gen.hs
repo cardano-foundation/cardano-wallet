@@ -1,19 +1,15 @@
 module Cardano.Wallet.Primitive.Types.AssetName.Gen
-    (
-    -- * Generators and shrinkers
+    ( -- * Generators and shrinkers
       genAssetName
     , genAssetNameLargeRange
     , shrinkAssetName
 
-    -- * Test values
+      -- * Test values
     , testAssetNames
 
-    -- * Creation of test values
+      -- * Creation of test values
     , mkAssetName
-
     ) where
-
-import Prelude
 
 import Cardano.Wallet.Primitive.Types.AssetName
     ( AssetName (..)
@@ -24,6 +20,7 @@ import Test.QuickCheck
     , sized
     , vector
     )
+import Prelude
 
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
@@ -40,7 +37,7 @@ shrinkAssetName i
     | i == simplest = []
     | otherwise = [simplest]
   where
-    simplest = case testAssetNames of (x:_) -> x; [] -> error "impossible"
+    simplest = case testAssetNames of (x : _) -> x; [] -> error "impossible"
 
 --------------------------------------------------------------------------------
 -- Asset names chosen from a large range (to minimize the risk of collisions)

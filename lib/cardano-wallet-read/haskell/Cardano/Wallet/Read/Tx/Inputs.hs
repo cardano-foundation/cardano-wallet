@@ -5,14 +5,10 @@
 -- |
 -- Copyright: © 2020-2024 IOHK
 -- License: Apache-2.0
---
-
 module Cardano.Wallet.Read.Tx.Inputs
     ( getInputs
     )
-    where
-
-import Prelude
+where
 
 import Cardano.Wallet.Read.Eras
     ( Byron
@@ -37,15 +33,17 @@ import Data.List.NonEmpty
 import Data.Set
     ( Set
     )
+import Prelude
 
-import qualified Cardano.Chain.UTxO as BY
-import qualified Cardano.Read.Ledger.Tx.Inputs as L
-import qualified Cardano.Read.Ledger.Tx.TxId as L
-import qualified Data.Set as Set
+import Cardano.Chain.UTxO qualified as BY
+import Cardano.Read.Ledger.Tx.Inputs qualified as L
+import Cardano.Read.Ledger.Tx.TxId qualified as L
+import Data.Set qualified as Set
 
-{-# INLINABLE getInputs #-}
+{-# INLINEABLE getInputs #-}
+
 -- | Extract the inputs from a transaction in any era.
-getInputs :: forall era . IsEra era => Tx era -> Set TxIn
+getInputs :: forall era. IsEra era => Tx era -> Set TxIn
 getInputs = case theEra :: Era era of
     Byron -> byronInputs . L.getEraInputs
     Shelley -> unInputs . L.getEraInputs
@@ -57,7 +55,7 @@ getInputs = case theEra :: Era era of
 
 {-# INLINE byronInputs #-}
 byronInputs :: L.Inputs Byron -> Set TxIn
-byronInputs (L.Inputs x)= Set.fromList . map fromByronTxIn $ toList x
+byronInputs (L.Inputs x) = Set.fromList . map fromByronTxIn $ toList x
 
 unInputs :: L.Inputs era -> L.InputsType era
 unInputs (L.Inputs x) = x

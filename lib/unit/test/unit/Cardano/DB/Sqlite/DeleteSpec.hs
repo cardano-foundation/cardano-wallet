@@ -3,10 +3,7 @@
 -- |
 -- Copyright: © 2018-2020 IOHK
 -- License: Apache-2.0
-
 module Cardano.DB.Sqlite.DeleteSpec (spec) where
-
-import Prelude
 
 import Cardano.DB.Sqlite.Delete
     ( newRefCount
@@ -39,6 +36,7 @@ import UnliftIO.MVar
     , newEmptyMVar
     , putMVar
     )
+import Prelude
 
 spec :: Spec
 spec = describe "RefCount" $ do
@@ -61,19 +59,20 @@ spec = describe "RefCount" $ do
                 n `shouldBe` 0
                 isEmptyMVar closed
 
-        concurrently conn (threadDelay 50_000 >> rm) `shouldReturn` ((), False)
+        concurrently conn (threadDelay 50_000 >> rm)
+            `shouldReturn` ((), False)
 
     it "waitForFree uses correct id" $ do
         ref <- newRefCount
-        withRef ref testId $
-            waitForFree' nullTracer testPol ref otherId $
-                flip shouldBe 0
+        withRef ref testId
+            $ waitForFree' nullTracer testPol ref otherId
+            $ flip shouldBe 0
 
     it "waitForFree times out" $ do
         ref <- newRefCount
-        withRef ref testId $
-            waitForFree' nullTracer quickPol ref testId $
-                flip shouldBe 1
+        withRef ref testId
+            $ waitForFree' nullTracer quickPol ref testId
+            $ flip shouldBe 1
 
 testPol :: RetryPolicy
 testPol = constantDelay 50_000 <> limitRetries 20

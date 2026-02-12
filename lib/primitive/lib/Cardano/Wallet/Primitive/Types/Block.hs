@@ -3,7 +3,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RecordWildCards #-}
-
 {-# OPTIONS_GHC -Wno-orphans #-}
 
 module Cardano.Wallet.Primitive.Types.Block
@@ -18,10 +17,7 @@ module Cardano.Wallet.Primitive.Types.Block
     , fromWalletChainPoint
     , toSlot
     )
-
 where
-
-import Prelude
 
 import Cardano.Slotting.Slot
     ( SlotNo (..)
@@ -69,6 +65,7 @@ import GHC.Generics
 import NoThunks.Class
     ( NoThunks
     )
+import Prelude
 
 import qualified Cardano.Wallet.Read as Read
 import qualified Cardano.Wallet.Read.Hash as Hash
@@ -81,14 +78,16 @@ data Block = Block
         :: ![Tx]
     , delegations
         :: ![DelegationCertificate]
-    } deriving (Show, Eq, Ord, Generic)
+    }
+    deriving (Show, Eq, Ord, Generic)
 
 instance NFData Block
 
 instance Buildable (Block) where
-    build (Block h txs _) = mempty
-        <> build h
-        <> if null txs then " ∅" else "\n" <> indentF 4 (blockListF txs)
+    build (Block h txs _) =
+        mempty
+            <> build h
+            <> if null txs then " ∅" else "\n" <> indentF 4 (blockListF txs)
 
 data BlockHeader = BlockHeader
     { slotNo
@@ -99,7 +98,8 @@ data BlockHeader = BlockHeader
         :: !(Hash "BlockHeader")
     , parentHeaderHash
         :: !(Maybe (Hash "BlockHeader"))
-    } deriving (Show, Eq, Ord, Generic)
+    }
+    deriving (Show, Eq, Ord, Generic)
 
 -- | Check whether a block with a given 'BlockHeader' is the genesis block.
 isGenesisBlockHeader :: BlockHeader -> Bool
@@ -110,18 +110,19 @@ instance NFData BlockHeader
 instance Buildable BlockHeader where
     build BlockHeader{..} =
         previous
-        <> "["
-        <> current
-        <> "-"
-        <> build slotNo
-        <> "#" <> (build . show . getQuantity) blockHeight
-        <> "]"
+            <> "["
+            <> current
+            <> "-"
+            <> build slotNo
+            <> "#"
+            <> (build . show . getQuantity) blockHeight
+            <> "]"
       where
         toHex = T.decodeUtf8 . convertToBase Base16
         current = prefixF 8 $ build $ toHex $ getHash headerHash
         previous = case parentHeaderHash of
             Nothing -> ""
-            Just h  -> prefixF 8 (build $ toHex $ getHash h) <> "<-"
+            Just h -> prefixF 8 (build $ toHex $ getHash h) <> "<-"
 
 -- | A point on the blockchain
 -- is either the genesis block, or a block with a hash that was
@@ -148,7 +149,7 @@ compareSlot pt1 pt2 = compare (toSlot pt1) (toSlot pt2)
 chainPointFromBlockHeader :: BlockHeader -> ChainPoint
 chainPointFromBlockHeader header@(BlockHeader sl _ hash _)
     | isGenesisBlockHeader header = ChainPointAtGenesis
-    | otherwise                   = ChainPoint sl hash
+    | otherwise = ChainPoint sl hash
 
 toWalletChainPoint :: Read.ChainPoint -> ChainPoint
 toWalletChainPoint Read.GenesisPoint = ChainPointAtGenesis
@@ -172,7 +173,7 @@ instance NFData ChainPoint
 instance NoThunks ChainPoint
 
 instance Buildable ChainPoint where
-    build ChainPointAtGenesis    = "[point genesis]"
+    build ChainPointAtGenesis = "[point genesis]"
     build (ChainPoint slot hash) =
         "[point " <> hashF <> " at slot " <> pretty slot <> "]"
       where
@@ -198,5 +199,5 @@ toSlot ChainPointAtGenesis = Origin
 toSlot (ChainPoint slot _) = At slot
 
 instance Buildable Slot where
-    build Origin    = "[genesis]"
+    build Origin = "[genesis]"
     build (At slot) = "[at slot " <> pretty slot <> "]"

@@ -7,8 +7,6 @@ module Cardano.Wallet.Launch.Cluster.Node.NodeParams
     )
 where
 
-import Prelude
-
 import Cardano.BM.Tracing
     ( Severity
     )
@@ -31,6 +29,7 @@ import Cardano.Wallet.Launch.Cluster.Logging
 import Cardano.Wallet.Launch.Cluster.Node.GenesisFiles
     ( GenesisFiles
     )
+import Prelude
 
 -- | Configuration parameters which update the @node.config@ test data file.
 data NodeParams d = NodeParams

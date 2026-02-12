@@ -1,6 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 
 -- |
 -- Module      : Cardano.Read.Ledger.Tx.Hash
@@ -20,8 +20,6 @@ module Cardano.Read.Ledger.Tx.Hash
     )
 where
 
-import Prelude
-
 import Cardano.Chain.UTxO
     ( ATxAux
     , taTx
@@ -29,14 +27,10 @@ import Cardano.Chain.UTxO
 import Cardano.Crypto
     ( serializeCborHash
     )
-import qualified Cardano.Crypto as CryptoC
-import qualified Cardano.Crypto.Hash as Crypto
 import Cardano.Ledger.Core
     ( bodyTxL
     , txIdTxBody
     )
-import qualified Cardano.Ledger.Core as SL.Core
-import qualified Cardano.Ledger.Hashes as SafeHash
 import Cardano.Ledger.TxIn
     ( TxId (..)
     )
@@ -53,6 +47,12 @@ import Cardano.Read.Ledger.Tx.Tx
 import Control.Lens
     ( (^.)
     )
+import Prelude
+
+import Cardano.Crypto qualified as CryptoC
+import Cardano.Crypto.Hash qualified as Crypto
+import Cardano.Ledger.Core qualified as SL.Core
+import Cardano.Ledger.Hashes qualified as SafeHash
 
 {-# INLINE getEraTxHash #-}
 

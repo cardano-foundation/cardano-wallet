@@ -13,7 +13,6 @@
 --    Apache-2.0
 --
 -- This module provides API types and functions relating to eras.
---
 module Cardano.Wallet.Api.Types.Era
     ( ApiEra (..)
     , fromAnyCardanoEra
@@ -21,7 +20,7 @@ module Cardano.Wallet.Api.Types.Era
     , toAnyCardanoEra
     , allRecentEras
     )
-    where
+where
 
 import Cardano.Api
     ( AnyCardanoEra (AnyCardanoEra)
@@ -60,12 +59,12 @@ import Data.Set
 import GHC.Generics
     ( Generic
     )
+import Text.Show
+    ( Show
+    )
 import Prelude
     ( Bounded
     , Enum
-    )
-import Text.Show
-    ( Show
     )
 
 import qualified Cardano.Wallet.Read as Read
@@ -82,15 +81,21 @@ data ApiEra
     | ApiBabbage
     | ApiConway
     deriving (Data, Show, Eq, Generic, Enum, Ord, Bounded)
-    deriving anyclass NFData
+    deriving anyclass (NFData)
 
 instance FromJSON ApiEra where
-    parseJSON = genericParseJSON $ Aeson.defaultOptions
-        { constructorTagModifier = drop 4 . camelTo2 '_' }
+    parseJSON =
+        genericParseJSON
+            $ Aeson.defaultOptions
+                { constructorTagModifier = drop 4 . camelTo2 '_'
+                }
 
 instance ToJSON ApiEra where
-    toJSON = genericToJSON $ Aeson.defaultOptions
-        { constructorTagModifier = drop 4 . camelTo2 '_' }
+    toJSON =
+        genericToJSON
+            $ Aeson.defaultOptions
+                { constructorTagModifier = drop 4 . camelTo2 '_'
+                }
 
 fromReadEra :: Read.EraValue Read.Era -> ApiEra
 fromReadEra (Read.EraValue era) = case era of
@@ -123,7 +128,6 @@ toAnyCardanoEra = \case
     ApiConway -> AnyCardanoEra ConwayEra
 
 -- | The complete set of recent eras.
---
 allRecentEras :: Set ApiEra
 allRecentEras =
     Set.map fromAnyRecentEra Write.allRecentEras

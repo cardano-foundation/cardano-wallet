@@ -1,9 +1,8 @@
-{- |
-Copyright: © 2024 Cardano Foundation
-License: Apache-2.0
-
-Abstract and specific Hash functionality.
--}
+-- |
+-- Copyright: © 2024 Cardano Foundation
+-- License: Apache-2.0
+--
+-- Abstract and specific Hash functionality.
 module Cardano.Read.Ledger.Hash
     ( -- * Core operations
       H.Hash
@@ -35,4 +34,5 @@ import Cardano.Crypto.Hash.Blake2b
     ( Blake2b_224
     , Blake2b_256
     )
-import qualified Cardano.Crypto.Hash.Class as H
+
+import Cardano.Crypto.Hash.Class qualified as H

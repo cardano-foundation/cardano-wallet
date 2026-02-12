@@ -27,8 +27,6 @@ module Cardano.Launcher.Node
     , mkWindowsPipeName
     ) where
 
-import Prelude
-
 import Cardano.Launcher
     ( IfToSendSigINT (..)
     , LauncherLog
@@ -66,17 +64,18 @@ import System.FilePath
     ( isValid
     , takeFileName
     )
-import System.Info
-    ( os
-    )
 import System.IO
     ( IOMode (..)
     , withFile
+    )
+import System.Info
+    ( os
     )
 import UnliftIO.Process
     ( CreateProcess (..)
     , proc
     )
+import Prelude
 
 import qualified Data.Text as T
 

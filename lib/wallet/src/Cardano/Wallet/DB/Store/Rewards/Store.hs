@@ -1,18 +1,16 @@
 {-# LANGUAGE GADTs #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 
 -- |
 -- Copyright: © 2022–2023 IOHK
 -- License: Apache-2.0
 --
 -- Rewards-history store and migration from old db tables.
-module Cardano.Wallet.DB.Store.Rewards.Store (
-    mkStoreRewards,
-) where
-
-import Prelude
+module Cardano.Wallet.DB.Store.Rewards.Store
+    ( mkStoreRewards
+    ) where
 
 import Cardano.Wallet.DB.Sqlite.Schema
     ( DelegationReward (..)
@@ -35,11 +33,13 @@ import Database.Persist.Sql
     , insert_
     , selectList
     )
+import Prelude
 
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 
-mkStoreRewards :: W.WalletId -> UpdateStore (SqlPersistT IO) (Replace W.Coin)
+mkStoreRewards
+    :: W.WalletId -> UpdateStore (SqlPersistT IO) (Replace W.Coin)
 mkStoreRewards wid = mkSimpleStore loadS' (writeS' wid)
 
 writeS' :: W.WalletId -> W.Coin -> SqlPersistT IO ()

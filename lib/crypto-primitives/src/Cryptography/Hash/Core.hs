@@ -8,13 +8,10 @@ module Cryptography.Hash.Core
     , SHA512 (..)
     , SHA3_256 (..)
     , hash
-
     , HMAC
     , hmac
-
     , Digest
     , digestFromByteString
-
     ) where
 
 import Crypto.Hash

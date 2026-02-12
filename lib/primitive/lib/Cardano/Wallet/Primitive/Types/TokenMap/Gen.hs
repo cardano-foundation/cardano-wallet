@@ -6,8 +6,6 @@ module Cardano.Wallet.Primitive.Types.TokenMap.Gen
     , genTokenMapPartitionNonNull
     ) where
 
-import Prelude
-
 import Cardano.Wallet.Primitive.Types.AssetId.Gen
     ( genAssetId
     , shrinkAssetId
@@ -45,6 +43,7 @@ import Test.QuickCheck
 import Test.QuickCheck.Extra
     ( shrinkInterleaved
     )
+import Prelude
 
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.Foldable as F
@@ -60,9 +59,10 @@ genTokenMap = sized $ \size -> do
     assetCount <- choose (0, size)
     TokenMap.fromFlatList <$> replicateM assetCount genAssetQuantity
   where
-    genAssetQuantity = (,)
-        <$> genAssetId
-        <*> genTokenQuantity
+    genAssetQuantity =
+        (,)
+            <$> genAssetId
+            <*> genTokenQuantity
 
 --------------------------------------------------------------------------------
 -- Token maps with assets and quantities chosen from small ranges
@@ -70,26 +70,29 @@ genTokenMap = sized $ \size -> do
 
 genTokenMapSmallRange :: Gen TokenMap
 genTokenMapSmallRange = do
-    assetCount <- oneof
-        [ pure 0
-        , pure 1
-        , choose (2, 16)
-        ]
+    assetCount <-
+        oneof
+            [ pure 0
+            , pure 1
+            , choose (2, 16)
+            ]
     TokenMap.fromFlatList <$> replicateM assetCount genAssetQuantity
   where
-    genAssetQuantity = (,)
-        <$> genAssetId
-        <*> genTokenQuantity
+    genAssetQuantity =
+        (,)
+            <$> genAssetId
+            <*> genTokenQuantity
 
 shrinkTokenMap :: TokenMap -> [TokenMap]
-shrinkTokenMap
-    = fmap TokenMap.fromFlatList
-    . shrinkList shrinkAssetQuantity
-    . TokenMap.toFlatList
+shrinkTokenMap =
+    fmap TokenMap.fromFlatList
+        . shrinkList shrinkAssetQuantity
+        . TokenMap.toFlatList
   where
-    shrinkAssetQuantity (a, q) = shrinkInterleaved
-        (a, shrinkAssetId)
-        (q, shrinkTokenQuantity)
+    shrinkAssetQuantity (a, q) =
+        shrinkInterleaved
+            (a, shrinkAssetId)
+            (q, shrinkTokenQuantity)
 
 --------------------------------------------------------------------------------
 -- Partitioning token maps
@@ -101,14 +104,13 @@ shrinkTokenMap
 --
 -- prop> forAll (genTokenMapPartition m i) $ (== m      ) . fold
 -- prop> forAll (genTokenMapPartition m i) $ (== max 1 i) . length
---
 genTokenMapPartition :: TokenMap -> Int -> Gen (NonEmpty TokenMap)
 genTokenMapPartition m i
     | TokenMap.isEmpty m =
         pure $ NE.fromList $ replicate (max 1 i) mempty
     | otherwise =
-        fmap TokenMap.fromFlatList . transposeNE <$>
-        traverse partitionAQ (TokenMap.toFlatList m)
+        fmap TokenMap.fromFlatList . transposeNE
+            <$> traverse partitionAQ (TokenMap.toFlatList m)
   where
     partitionAQ :: (a, TokenQuantity) -> Gen (NonEmpty (a, TokenQuantity))
     partitionAQ = fmap sequenceA . traverse (`genTokenQuantityPartition` i)
@@ -119,7 +121,6 @@ genTokenMapPartition m i
         note = "genTokenMapPartition.transposeNE: unexpected empty list"
 
 -- | Like 'genTokenMapPartition', but with empty values removed from the result.
---
 genTokenMapPartitionNonNull :: TokenMap -> Int -> Gen [TokenMap]
 genTokenMapPartitionNonNull m i =
     filter (/= mempty) . F.toList <$> genTokenMapPartition m i

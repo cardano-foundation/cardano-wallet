@@ -4,8 +4,6 @@ module Cardano.Wallet.Primitive.Types.StakePoolSummary
     ( StakePoolsSummary (..)
     ) where
 
-import Prelude
-
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
@@ -24,6 +22,7 @@ import Fmt
     , mapF
     , pretty
     )
+import Prelude
 
 import qualified Data.Map as Map
 

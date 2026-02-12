@@ -1,17 +1,15 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 
 -- |
 -- Copyright: © 2020 IOHK
 -- License: Apache-2.0
---
-
 module Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Mint
     ( mint
     , maryMint
@@ -20,9 +18,7 @@ module Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Mint
     , conwayMint
     , fromLedgerScriptHash
     )
-    where
-
-import Prelude
+where
 
 import Cardano.Address.KeyHash
     ( KeyRole (..)
@@ -114,6 +110,7 @@ import Data.Maybe
 import Data.Set
     ( Set
     )
+import Prelude
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Shelley as Cardano
@@ -124,7 +121,7 @@ import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.Map.Strict as Map
 
-{-# INLINABLE mint #-}
+{-# INLINEABLE mint #-}
 mint
     :: forall era
      . IsEra era
@@ -164,7 +161,7 @@ babbageMint
     -> (TokenMapWithScripts, TokenMapWithScripts)
 babbageMint refInps val wits =
     let (map1, map2) = yesMints (fromBabbageScriptMap . txscripts') val wits
-     in ( useReferenceScriptIfNeeded refInps map1
+    in  ( useReferenceScriptIfNeeded refInps map1
         , useReferenceScriptIfNeeded refInps map2
         )
 
@@ -175,7 +172,7 @@ conwayMint
     -> (TokenMapWithScripts, TokenMapWithScripts)
 conwayMint refInps val wits =
     let (map1, map2) = yesMints (fromConwayScriptMap . txscripts') val wits
-     in ( useReferenceScriptIfNeeded refInps map1
+    in  ( useReferenceScriptIfNeeded refInps map1
         , useReferenceScriptIfNeeded refInps map2
         )
 
@@ -208,95 +205,112 @@ useReferenceScriptIfNeeded refInps (TokenMapWithScripts tokenMap tokenScripts) =
             Nothing -> AnyScriptReference (toScriptHash s) refInps'
         replaceScript policy = (policy, findTokenPolicy policy)
         tokenScripts' = Map.fromList $ map replaceScript allTokenPolicyIds
-    in TokenMapWithScripts tokenMap tokenScripts'
+    in  TokenMapWithScripts tokenMap tokenScripts'
 
 fromLedgerMintValue :: MultiAsset -> (TokenMap, TokenMap)
 fromLedgerMintValue (MultiAsset ledgerTokens) = (assetsToMint, assetsToBurn)
   where
-    assetsToMint = ledgerTokens
-        & Map.map (Map.filter (> 0))
-        & Map.mapKeys toWalletTokenPolicyId
-        & Map.map mapInner
-        & TokenMap.fromNestedMap
+    assetsToMint =
+        ledgerTokens
+            & Map.map (Map.filter (> 0))
+            & Map.mapKeys toWalletTokenPolicyId
+            & Map.map mapInner
+            & TokenMap.fromNestedMap
 
-    assetsToBurn = ledgerTokens
-        & Map.map (Map.mapMaybe (\n -> if n > 0 then Nothing else Just (-n)))
-        & Map.mapKeys toWalletTokenPolicyId
-        & Map.map mapInner
-        & TokenMap.fromNestedMap
+    assetsToBurn =
+        ledgerTokens
+            & Map.map (Map.mapMaybe (\n -> if n > 0 then Nothing else Just (-n)))
+            & Map.mapKeys toWalletTokenPolicyId
+            & Map.map mapInner
+            & TokenMap.fromNestedMap
 
-    mapInner inner = inner
-        & Map.mapKeys toWalletAssetName
-        & Map.map toWalletTokenQuantity
+    mapInner inner =
+        inner
+            & Map.mapKeys toWalletAssetName
+            & Map.map toWalletTokenQuantity
 
 fromMaryScriptMap
     :: Map SL.ScriptHash (Core.Script MaryEra)
     -> Map TokenPolicyId AnyScript
 fromMaryScriptMap =
-    Map.map (flip NativeScript ViaSpending . toWalletScript (const Policy)) .
-    Map.mapKeys (toWalletTokenPolicyId . SL.PolicyID)
+    Map.map
+        (flip NativeScript ViaSpending . toWalletScript (const Policy))
+        . Map.mapKeys (toWalletTokenPolicyId . SL.PolicyID)
 
 getScriptMap
     :: Map TokenPolicyId AnyScript -> TokenMap -> Map TokenPolicyId AnyScript
 getScriptMap scriptMap =
     Map.fromList
-    . mapMaybe (\(policy, _) -> (policy,) <$> Map.lookup policy scriptMap)
-    . toNestedList
+        . mapMaybe (\(policy, _) -> (policy,) <$> Map.lookup policy scriptMap)
+        . toNestedList
 
 fromAlonzoScriptMap
     :: Map SL.ScriptHash (Core.Script AlonzoEra)
     -> Map TokenPolicyId AnyScript
 fromAlonzoScriptMap =
-    Map.map toAnyScript .
-    Map.mapKeys (toWalletTokenPolicyId . SL.PolicyID)
-    where
+    Map.map toAnyScript
+        . Map.mapKeys (toWalletTokenPolicyId . SL.PolicyID)
+  where
     toAnyScript (Alonzo.TimelockScript script) =
         NativeScript (toWalletScript (const Policy) script) ViaSpending
     toAnyScript s@(Alonzo.PlutusScript script) =
-        PlutusScript (PlutusScriptInfo (toPlutusScriptInfo @AlonzoEra script)
-                      (hashAlonzoScript s)) ViaSpending
-    hashAlonzoScript = fromLedgerScriptHash .
-        Core.hashScript @(Cardano.ShelleyLedgerEra Cardano.AlonzoEra)
+        PlutusScript
+            ( PlutusScriptInfo
+                (toPlutusScriptInfo @AlonzoEra script)
+                (hashAlonzoScript s)
+            )
+            ViaSpending
+    hashAlonzoScript =
+        fromLedgerScriptHash
+            . Core.hashScript @(Cardano.ShelleyLedgerEra Cardano.AlonzoEra)
 
-fromLedgerScriptToAnyScriptBabbage :: Core.Script BabbageEra -> AnyScript
+fromLedgerScriptToAnyScriptBabbage
+    :: Core.Script BabbageEra -> AnyScript
 fromLedgerScriptToAnyScriptBabbage = toAnyScript
   where
     toAnyScript (Alonzo.TimelockScript script) =
         NativeScript (toWalletScript (const Policy) script) ViaSpending
     toAnyScript s@(Alonzo.PlutusScript script) =
         PlutusScript
-            (PlutusScriptInfo (toPlutusScriptInfo @BabbageEra script)
-                (hashBabbageScript s))
+            ( PlutusScriptInfo
+                (toPlutusScriptInfo @BabbageEra script)
+                (hashBabbageScript s)
+            )
             ViaSpending
-    hashBabbageScript = fromLedgerScriptHash .
-        Core.hashScript @(Cardano.ShelleyLedgerEra Cardano.BabbageEra)
+    hashBabbageScript =
+        fromLedgerScriptHash
+            . Core.hashScript @(Cardano.ShelleyLedgerEra Cardano.BabbageEra)
 
-fromLedgerScriptToAnyScriptConway :: Core.Script ConwayEra -> AnyScript
+fromLedgerScriptToAnyScriptConway
+    :: Core.Script ConwayEra -> AnyScript
 fromLedgerScriptToAnyScriptConway = toAnyScript
   where
     toAnyScript (Alonzo.TimelockScript script) =
         NativeScript (toWalletScript (const Policy) script) ViaSpending
     toAnyScript s@(Alonzo.PlutusScript script) =
         PlutusScript
-            (PlutusScriptInfo (toPlutusScriptInfo @ConwayEra script)
-                (hashConwayScript s))
+            ( PlutusScriptInfo
+                (toPlutusScriptInfo @ConwayEra script)
+                (hashConwayScript s)
+            )
             ViaSpending
-    hashConwayScript = fromLedgerScriptHash .
-        Core.hashScript @(Cardano.ShelleyLedgerEra Cardano.ConwayEra)
+    hashConwayScript =
+        fromLedgerScriptHash
+            . Core.hashScript @(Cardano.ShelleyLedgerEra Cardano.ConwayEra)
 
 fromBabbageScriptMap
     :: Map SL.ScriptHash (Core.Script BabbageEra)
     -> Map TokenPolicyId AnyScript
 fromBabbageScriptMap =
-    Map.map fromLedgerScriptToAnyScriptBabbage .
-    Map.mapKeys (toWalletTokenPolicyId . SL.PolicyID)
+    Map.map fromLedgerScriptToAnyScriptBabbage
+        . Map.mapKeys (toWalletTokenPolicyId . SL.PolicyID)
 
 fromConwayScriptMap
     :: Map SL.ScriptHash (Core.Script ConwayEra)
     -> Map TokenPolicyId AnyScript
 fromConwayScriptMap =
-    Map.map fromLedgerScriptToAnyScriptConway .
-    Map.mapKeys (toWalletTokenPolicyId . SL.PolicyID)
+    Map.map fromLedgerScriptToAnyScriptConway
+        . Map.mapKeys (toWalletTokenPolicyId . SL.PolicyID)
 
 fromLedgerScriptHash :: SL.ScriptHash -> ScriptHash
 fromLedgerScriptHash (SL.ScriptHash h) = ScriptHash (hashToBytes h)

@@ -1,15 +1,13 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 
 -- |
 -- Copyright: © 2020 IOHK
 -- License: Apache-2.0
---
-
 module Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Metadata
     ( getMetadata
     , fromShelleyMetadata
@@ -19,9 +17,7 @@ module Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Metadata
     , fromBabbageMetadata
     , fromConwayMetadata
     )
-    where
-
-import Prelude
+where
 
 import Cardano.Ledger.Allegra
     ( AllegraEra
@@ -67,13 +63,15 @@ import Data.Map
 import Data.Word
     ( Word64
     )
+import Prelude
 
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Api.Shelley as CardanoAPI
 import qualified Cardano.Wallet.Primitive.Types.Tx.Tx as W
 
-{-# INLINABLE getMetadata #-}
-getMetadata :: forall era . IsEra era => Metadata era -> Maybe W.TxMetadata
+{-# INLINEABLE getMetadata #-}
+getMetadata
+    :: forall era. IsEra era => Metadata era -> Maybe W.TxMetadata
 getMetadata = case theEra @era of
     Byron -> noMetadatas
     Shelley -> yesMetadata fromShelleyMetadata

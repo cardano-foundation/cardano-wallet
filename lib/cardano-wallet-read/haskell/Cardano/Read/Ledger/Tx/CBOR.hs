@@ -1,9 +1,8 @@
-{- |
-Copyright: © 2020-2022 IOHK, 2024 Cardano Foundation
-License: Apache-2.0
-
-Binary serialization of transactions.
--}
+-- |
+-- Copyright: © 2020-2022 IOHK, 2024 Cardano Foundation
+-- License: Apache-2.0
+--
+-- Binary serialization of transactions.
 module Cardano.Read.Ledger.Tx.CBOR
     ( -- * Serialization
       serializeTx
@@ -12,8 +11,6 @@ module Cardano.Read.Ledger.Tx.CBOR
     , deserializeTx
     )
 where
-
-import Prelude
 
 import Cardano.Ledger.Api
     ( eraProtVerLow
@@ -26,7 +23,6 @@ import Cardano.Ledger.Binary
     , decodeFull
     , decodeFullAnnotator
     )
-import qualified Cardano.Ledger.Binary.Encoding as Ledger
 import Cardano.Read.Ledger.Eras
     ( Era (..)
     , IsEra (..)
@@ -35,7 +31,10 @@ import Cardano.Read.Ledger.Tx.Tx
     ( Tx (..)
     , TxT
     )
-import qualified Data.ByteString.Lazy as BL
+import Prelude
+
+import Cardano.Ledger.Binary.Encoding qualified as Ledger
+import Data.ByteString.Lazy qualified as BL
 
 {-# INLINEABLE serializeTx #-}
 

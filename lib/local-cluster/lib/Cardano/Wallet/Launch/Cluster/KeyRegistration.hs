@@ -8,8 +8,6 @@ module Cardano.Wallet.Launch.Cluster.KeyRegistration
     )
 where
 
-import Prelude
-
 import Cardano.Wallet.Launch.Cluster.CardanoCLI
     ( cli
     )
@@ -44,7 +42,8 @@ import Control.Monad.Reader
     , MonadReader (..)
     )
 import Data.Generics.Labels
-    ()
+    (
+    )
 import Data.Tagged
     ( Tagged (..)
     , untag
@@ -53,6 +52,7 @@ import System.Path
     ( relFile
     , (</>)
     )
+import Prelude
 
 import qualified Data.Aeson as Aeson
 

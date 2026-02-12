@@ -6,12 +6,9 @@
 --
 -- Template Haskell function for getting the git revision from the local
 -- repo. This is a separate module due to the GHC stage restriction.
-
 module Cardano.Wallet.Application.Version.TH
     ( gitRevFromGit
     ) where
-
-import Prelude
 
 import Fmt
     ( fmt
@@ -42,6 +39,7 @@ import UnliftIO.Exception
 import UnliftIO.Process
     ( readProcessWithExitCode
     )
+import Prelude
 
 -- | Git revision found by running @git rev-parse@. If @git@ could not be
 -- executed, then this will be an empty string.
@@ -49,12 +47,13 @@ gitRevFromGit :: Q Exp
 gitRevFromGit = LitE . StringL <$> runIO runGitRevParse
   where
     runGitRevParse :: IO String
-    runGitRevParse = run "git" ["rev-parse", "--verify", "HEAD"] >>= \case
-        Right output -> pure output
-        Left errorMessage -> do
-            -- This message will appear in the build logs
-            hPutStrLn stderr $ "WARNING (gitRevFromGit): " ++ errorMessage
-            pure ""
+    runGitRevParse =
+        run "git" ["rev-parse", "--verify", "HEAD"] >>= \case
+            Right output -> pure output
+            Left errorMessage -> do
+                -- This message will appear in the build logs
+                hPutStrLn stderr $ "WARNING (gitRevFromGit): " ++ errorMessage
+                pure ""
 
     run :: FilePath -> [String] -> IO (Either String String)
     run cmd args = handleProcess $ readProcessWithExitCode cmd args ""
@@ -63,11 +62,19 @@ gitRevFromGit = LitE . StringL <$> runIO runGitRevParse
 
         handleExitCode = \case
             (ExitSuccess, output, _) -> Right output
-            (ExitFailure code, _, err) -> Left $ fmt $
-                cmd'|+" exited with status "+|code|+": "+|err|+""
+            (ExitFailure code, _, err) ->
+                Left
+                    $ fmt
+                    $ cmd'
+                    |+ " exited with status "
+                    +| code
+                    |+ ": "
+                    +| err
+                    |+ ""
 
-        cmd' = unwords (cmd:args)
+        cmd' = unwords (cmd : args)
 
-        errMsg e = if isDoesNotExistError e
-            then fmt ("Could not find "+|cmd|+": "+||e||+"")
-            else show e
+        errMsg e =
+            if isDoesNotExistError e
+                then fmt ("Could not find " +| cmd |+ ": " +|| e ||+ "")
+                else show e

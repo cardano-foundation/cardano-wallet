@@ -2,8 +2,6 @@ module Cardano.Wallet.Network.PortsSpec
     ( spec
     ) where
 
-import Prelude
-
 import Cardano.Wallet.Network.Ports
     ( getRandomPort
     , isPortOpen
@@ -24,6 +22,7 @@ import Test.Hspec
     , it
     , shouldReturn
     )
+import Prelude
 
 spec :: Spec
 spec = describe "Cardano.Wallet.Network.Ports" $ do
@@ -35,6 +34,5 @@ spec = describe "Cardano.Wallet.Network.Ports" $ do
         let app _req respond = respond $ responseLBS status200 [] ""
         withApplication (pure app) $ \port ->
             isPortOpen (localhost (fromIntegral port)) `shouldReturn` True
-
   where
-    localhost = simpleSockAddr (127,0,0,1)
+    localhost = simpleSockAddr (127, 0, 0, 1)

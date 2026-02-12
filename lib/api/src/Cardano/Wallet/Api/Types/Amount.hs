@@ -10,7 +10,6 @@
 --
 -- Haskell implementation of the API `amount` type, which represents a natural
 -- quantity of lovelace.
---
 module Cardano.Wallet.Api.Types.Amount
     ( ApiAmount (..)
     , fromCoin
@@ -19,11 +18,7 @@ module Cardano.Wallet.Api.Types.Amount
     , toCoin
     , toInteger
     )
-    where
-
-import Prelude hiding
-    ( toInteger
-    )
+where
 
 import Control.DeepSeq
     ( NFData
@@ -59,6 +54,9 @@ import GHC.Generics
     )
 import Numeric.Natural
     ( Natural
+    )
+import Prelude hiding
+    ( toInteger
     )
 
 import qualified Cardano.Wallet.Primitive.Types.Coin as W

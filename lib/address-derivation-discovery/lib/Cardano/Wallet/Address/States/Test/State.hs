@@ -4,8 +4,6 @@
 
 module Cardano.Wallet.Address.States.Test.State where
 
-import Prelude
-
 import Cardano.Wallet.Address.Derivation
     ( Depth
     )
@@ -18,6 +16,7 @@ import Data.Kind
 import GHC.Generics
     ( Generic
     )
+import Prelude
 
 newtype
     TestState

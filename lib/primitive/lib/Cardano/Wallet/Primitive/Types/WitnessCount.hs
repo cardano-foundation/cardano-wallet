@@ -11,8 +11,6 @@ module Cardano.Wallet.Primitive.Types.WitnessCount
     )
 where
 
-import Prelude
-
 import Cardano.Address.KeyHash
     ( KeyHash (KeyHash)
     , KeyRole (..)
@@ -32,6 +30,7 @@ import Data.Word
 import GHC.Generics
     ( Generic
     )
+import Prelude
 
 data WitnessCount = WitnessCount
     { verificationKey :: Word8
@@ -56,25 +55,27 @@ emptyWitnessCount =
 -- and as minting/burning and delegation support comes will be extended in additional
 -- data attached in SharedWalletCtx to differentiate that.
 -- WitnessCount is needed only during or after signing, in other phases it is not used.
-data WitnessCountCtx =
-      ShelleyWalletCtx KeyHash -- Policy
+data WitnessCountCtx
+    = ShelleyWalletCtx KeyHash -- Policy
     | SharedWalletCtx [KeyHash] -- Delegation key hashes of all cosigners
     | AnyWitnessCountCtx
     deriving (Eq, Generic, Show)
-    deriving anyclass NFData
+    deriving anyclass (NFData)
 
 toKeyRole :: WitnessCountCtx -> Hash "VerificationKey" -> KeyRole
 toKeyRole witCtx (Hash key) = case witCtx of
     ShelleyWalletCtx (KeyHash _ mypolicykey) ->
-        if key == mypolicykey then
-            Policy
-        else
-            Unknown
+        if key == mypolicykey
+            then
+                Policy
+            else
+                Unknown
     SharedWalletCtx stakingKeyHashes ->
         let toStakeKey (KeyHash _ k) = k
             isStakeKey = elem key (map toStakeKey stakingKeyHashes)
-        in if isStakeKey then
-               Delegation
-           else
-               Payment
+        in  if isStakeKey
+                then
+                    Delegation
+                else
+                    Payment
     AnyWitnessCountCtx -> Unknown

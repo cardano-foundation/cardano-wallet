@@ -5,8 +5,9 @@
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE NamedFieldPuns #-}
-{-# OPTIONS_GHC -fno-specialise #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# OPTIONS_GHC -fno-specialise #-}
+
 {-# HLINT ignore "Use newtype instead of data" #-}
 
 -- |
@@ -14,15 +15,13 @@
 -- License: Apache-2.0
 --
 -- API error types.
---
 module Cardano.Wallet.Api.Types.Error
-    (
-    -- * General API error types
+    ( -- * General API error types
       ApiError (..)
     , ApiErrorInfo (..)
     , ApiErrorMessage (..)
 
-    -- * Specific API error types
+      -- * Specific API error types
     , ApiErrorSharedWalletNoSuchCosigner (..)
     , ApiErrorTxOutputLovelaceInsufficient (..)
     , ApiErrorBalanceTxUnderestimatedFee (..)
@@ -40,9 +39,7 @@ module Cardano.Wallet.Api.Types.Error
     , ApiErrorUnsupportedEra (..)
     , ApiErrorWrongEncryptionPassphrase (..)
     )
-    where
-
-import Prelude
+where
 
 import Cardano.Wallet.Api.Lib.Options
     ( DefaultRecord (..)
@@ -123,18 +120,19 @@ import GHC.Generics
 import Numeric.Natural
     ( Natural
     )
+import Prelude
 
 data ApiError = ApiError
     { info :: !ApiErrorInfo
     , message :: !ApiErrorMessage
     }
     deriving (Eq, Generic, Show)
-    deriving anyclass NFData
+    deriving anyclass (NFData)
 
 instance ToJSON ApiError where
-    toJSON ApiError {info, message}
-        = fromMaybe (error "ToJSON ApiError: Unexpected encoding")
-        $ toJSON info `objectUnion` toJSON message
+    toJSON ApiError{info, message} =
+        fromMaybe (error "ToJSON ApiError: Unexpected encoding")
+            $ toJSON info `objectUnion` toJSON message
 
 instance FromJSON ApiError where
     parseJSON o = ApiError <$> parseJSON o <*> parseJSON o
@@ -142,7 +140,7 @@ instance FromJSON ApiError where
 newtype ApiErrorMessage = ApiErrorMessage {message :: Text}
     deriving (Eq, Generic, Show)
     deriving (FromJSON, ToJSON) via DefaultRecord ApiErrorMessage
-    deriving anyclass NFData
+    deriving anyclass (NFData)
 
 data ApiErrorInfo
     = AddressAlreadyExists
@@ -261,9 +259,8 @@ data ApiErrorInfo
     | TranslationByronTxOutInContext
     | BalanceTxInlinePlutusV3ScriptNotSupportedInBabbage
     | UnsupportedEra !ApiErrorUnsupportedEra
-
     deriving (Eq, Generic, Show, Data, Typeable)
-    deriving anyclass NFData
+    deriving anyclass (NFData)
 
 instance FromJSON ApiErrorInfo where
     parseJSON = genericParseJSON apiErrorInfoOptions
@@ -272,12 +269,14 @@ instance ToJSON ApiErrorInfo where
     toJSON = genericToJSON apiErrorInfoOptions
 
 apiErrorInfoOptions :: Options
-apiErrorInfoOptions = defaultSumTypeOptions
-    { sumEncoding = TaggedObject
-        { tagFieldName = "code"
-        , contentsFieldName = "info"
+apiErrorInfoOptions =
+    defaultSumTypeOptions
+        { sumEncoding =
+            TaggedObject
+                { tagFieldName = "code"
+                , contentsFieldName = "info"
+                }
         }
-    }
 
 data ApiErrorUnsupportedEra = ApiErrorUnsupportedEra
     { unsupportedEra :: !ApiEra
@@ -287,7 +286,7 @@ data ApiErrorUnsupportedEra = ApiErrorUnsupportedEra
     }
     deriving (Data, Eq, Generic, Show, Typeable)
     deriving (FromJSON, ToJSON) via DefaultRecord ApiErrorUnsupportedEra
-    deriving anyclass NFData
+    deriving anyclass (NFData)
 
 data ApiErrorSharedWalletNoSuchCosigner = ApiErrorSharedWalletNoSuchCosigner
     { cosignerIndex
@@ -296,9 +295,10 @@ data ApiErrorSharedWalletNoSuchCosigner = ApiErrorSharedWalletNoSuchCosigner
         :: !ApiCredentialType
     }
     deriving (Data, Eq, Generic, Show, Typeable)
-    deriving (FromJSON, ToJSON)
+    deriving
+        (FromJSON, ToJSON)
         via DefaultRecord ApiErrorSharedWalletNoSuchCosigner
-    deriving anyclass NFData
+    deriving anyclass (NFData)
 
 data ApiErrorTxOutputLovelaceInsufficient = ApiErrorTxOutputLovelaceInsufficient
     { txOutputIndex
@@ -309,39 +309,42 @@ data ApiErrorTxOutputLovelaceInsufficient = ApiErrorTxOutputLovelaceInsufficient
         :: !ApiAmount
     }
     deriving (Data, Eq, Generic, Show, Typeable)
-    deriving (FromJSON, ToJSON)
+    deriving
+        (FromJSON, ToJSON)
         via DefaultRecord ApiErrorTxOutputLovelaceInsufficient
-    deriving anyclass NFData
+    deriving anyclass (NFData)
 
-data ApiErrorOutputTokenQuantityExceedsLimit =
-    ApiErrorOutputTokenQuantityExceedsLimit
-        { address
-            :: !Text
-        , policyId
-            :: !(ApiT TokenPolicyId)
-        , assetName
-            :: !(ApiT AssetName)
-        , quantity
-            :: !TokenQuantity
-        , maxQuantity
-            :: !TokenQuantity
-        }
+data ApiErrorOutputTokenQuantityExceedsLimit
+    = ApiErrorOutputTokenQuantityExceedsLimit
+    { address
+        :: !Text
+    , policyId
+        :: !(ApiT TokenPolicyId)
+    , assetName
+        :: !(ApiT AssetName)
+    , quantity
+        :: !TokenQuantity
+    , maxQuantity
+        :: !TokenQuantity
+    }
     deriving (Data, Eq, Generic, Show, Typeable)
-    deriving (FromJSON, ToJSON)
+    deriving
+        (FromJSON, ToJSON)
         via DefaultRecord ApiErrorOutputTokenQuantityExceedsLimit
-    deriving anyclass NFData
+    deriving anyclass (NFData)
 
-data ApiErrorOutputTokenBundleSizeExceedsLimit =
-    ApiErrorOutputTokenBundleSizeExceedsLimit
-        { address
-            :: !Text
-        , bundleSize
-            :: !Natural
-        }
+data ApiErrorOutputTokenBundleSizeExceedsLimit
+    = ApiErrorOutputTokenBundleSizeExceedsLimit
+    { address
+        :: !Text
+    , bundleSize
+        :: !Natural
+    }
     deriving (Data, Eq, Generic, Show, Typeable)
-    deriving (FromJSON, ToJSON)
+    deriving
+        (FromJSON, ToJSON)
         via DefaultRecord ApiErrorOutputTokenBundleSizeExceedsLimit
-    deriving anyclass NFData
+    deriving anyclass (NFData)
 
 data ApiErrorBalanceTxUnderestimatedFee = ApiErrorBalanceTxUnderestimatedFee
     { underestimation :: !ApiAmount
@@ -351,87 +354,96 @@ data ApiErrorBalanceTxUnderestimatedFee = ApiErrorBalanceTxUnderestimatedFee
     , candidateTxReadable :: Text
     }
     deriving (Data, Eq, Generic, Show, Typeable)
-    deriving (FromJSON, ToJSON)
+    deriving
+        (FromJSON, ToJSON)
         via DefaultRecord ApiErrorBalanceTxUnderestimatedFee
-    deriving anyclass NFData
+    deriving anyclass (NFData)
 
 data ApiErrorNodeNotYetInRecentEra = ApiErrorNodeNotYetInRecentEra
     { nodeEra :: ApiEra
     , supportedRecentEras :: Set ApiEra
     }
     deriving (Data, Eq, Generic, Show, Typeable)
-    deriving (FromJSON, ToJSON)
+    deriving
+        (FromJSON, ToJSON)
         via DefaultRecord ApiErrorNodeNotYetInRecentEra
-    deriving anyclass NFData
+    deriving anyclass (NFData)
 
-data ApiErrorMissingWitnessesInTransaction =
-    ApiErrorMissingWitnessesInTransaction
-        { expectedNumberOfKeyWits :: !Natural
-        , detectedNumberOfKeyWits :: !Natural
-        }
+data ApiErrorMissingWitnessesInTransaction
+    = ApiErrorMissingWitnessesInTransaction
+    { expectedNumberOfKeyWits :: !Natural
+    , detectedNumberOfKeyWits :: !Natural
+    }
     deriving (Data, Eq, Generic, Show, Typeable)
-    deriving (FromJSON, ToJSON)
+    deriving
+        (FromJSON, ToJSON)
         via DefaultRecord ApiErrorMissingWitnessesInTransaction
-    deriving anyclass NFData
+    deriving anyclass (NFData)
 
 data ApiErrorNotEnoughMoney = ApiErrorNotEnoughMoney
     { shortfall :: !ApiErrorNotEnoughMoneyShortfall
     }
     deriving (Data, Eq, Generic, Show, Typeable)
     deriving (FromJSON, ToJSON) via DefaultRecord ApiErrorNotEnoughMoney
-    deriving anyclass NFData
+    deriving anyclass (NFData)
 
 data ApiErrorNotEnoughMoneyShortfall = ApiErrorNotEnoughMoneyShortfall
     { ada :: !ApiAmount
     , assets :: !ApiWalletAssets
     }
     deriving (Data, Eq, Generic, Show, Typeable)
-    deriving (FromJSON, ToJSON) via
-        DefaultRecord ApiErrorNotEnoughMoneyShortfall
-    deriving anyclass NFData
+    deriving
+        (FromJSON, ToJSON)
+        via DefaultRecord ApiErrorNotEnoughMoneyShortfall
+    deriving anyclass (NFData)
 
 data ApiErrorNoSuchPool = ApiErrorNoSuchPool
     { poolId :: !PoolId
     }
     deriving (Data, Eq, Generic, Show, Typeable)
     deriving (FromJSON, ToJSON) via DefaultRecord ApiErrorNoSuchPool
-    deriving anyclass NFData
+    deriving anyclass (NFData)
 
 data ApiErrorNoSuchWallet = ApiErrorNoSuchWallet
     { walletId :: !(ApiT WalletId)
     }
     deriving (Data, Eq, Generic, Show, Typeable)
     deriving (FromJSON, ToJSON) via DefaultRecord ApiErrorNoSuchWallet
-    deriving anyclass NFData
+    deriving anyclass (NFData)
 
 data ApiErrorNoSuchTransaction = ApiErrorNoSuchTransaction
     { transactionId :: !(ApiT (Hash "Tx"))
     }
     deriving (Data, Eq, Generic, Show, Typeable)
-    deriving (FromJSON, ToJSON) via DefaultRecord ApiErrorNoSuchTransaction
-    deriving anyclass NFData
+    deriving
+        (FromJSON, ToJSON)
+        via DefaultRecord ApiErrorNoSuchTransaction
+    deriving anyclass (NFData)
 
 data ApiErrorTransactionAlreadyInLedger = ApiErrorTransactionAlreadyInLedger
     { transactionId :: !(ApiT (Hash "Tx"))
     }
     deriving (Data, Eq, Generic, Show, Typeable)
-    deriving (FromJSON, ToJSON)
+    deriving
+        (FromJSON, ToJSON)
         via DefaultRecord ApiErrorTransactionAlreadyInLedger
-    deriving anyclass NFData
+    deriving anyclass (NFData)
 
 data ApiErrorStartTimeLaterThanEndTime = ApiErrorStartTimeLaterThanEndTime
     { startTime :: UTCTime
     , endTime :: UTCTime
     }
     deriving (Data, Eq, Generic, Show, Typeable)
-    deriving (FromJSON, ToJSON)
+    deriving
+        (FromJSON, ToJSON)
         via DefaultRecord ApiErrorStartTimeLaterThanEndTime
-    deriving anyclass NFData
+    deriving anyclass (NFData)
 
 data ApiErrorWrongEncryptionPassphrase = ApiErrorWrongEncryptionPassphrase
     { walletId :: !(ApiT WalletId)
     }
     deriving (Data, Eq, Generic, Show, Typeable)
-    deriving (FromJSON, ToJSON)
+    deriving
+        (FromJSON, ToJSON)
         via DefaultRecord ApiErrorWrongEncryptionPassphrase
-    deriving anyclass NFData
+    deriving anyclass (NFData)

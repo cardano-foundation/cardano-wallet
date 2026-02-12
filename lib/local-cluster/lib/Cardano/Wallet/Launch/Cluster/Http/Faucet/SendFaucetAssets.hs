@@ -15,8 +15,6 @@ module Cardano.Wallet.Launch.Cluster.Http.Faucet.SendFaucetAssets
     )
 where
 
-import Prelude
-
 import Cardano.Wallet.Address.Encoding
     ( decodeAddress
     , encodeAddress
@@ -86,6 +84,7 @@ import Test.QuickCheck
     , Gen
     , listOf
     )
+import Prelude
 
 import qualified Cardano.Address as Addr
 
@@ -250,7 +249,8 @@ genSendFaucetAssets = do
         STestnet _ -> TestnetTag
     pure $ WithNetwork SendFaucetAssets{batchSize, assets}
 
-genAsset :: NetworkTag -> Gen (Address, (TokenBundle, [(String, String)]))
+genAsset
+    :: NetworkTag -> Gen (Address, (TokenBundle, [(String, String)]))
 genAsset tag = do
     addr <- Address . Addr.unAddress <$> genAddress [tag]
     bundle <- genTokenBundleSmallRange

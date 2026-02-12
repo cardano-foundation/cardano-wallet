@@ -7,15 +7,11 @@
 -- |
 -- Copyright: © 2020-2022 IOHK
 -- License: Apache-2.0
---
-
 module Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Withdrawals
     ( getWithdrawals
     , fromLedgerWithdrawals
     )
-    where
-
-import Prelude
+where
 
 import Cardano.Read.Ledger.Tx.Withdrawals
     ( Withdrawals (..)
@@ -33,6 +29,7 @@ import Cardano.Wallet.Read.Eras
 import Data.Map.Strict
     ( Map
     )
+import Prelude
 
 import qualified Cardano.Ledger.Api as Ledger
 import qualified Cardano.Ledger.Coin as Ledger
@@ -41,8 +38,10 @@ import qualified Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Certificates a
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Data.Map as Map
 
-{-# INLINABLE getWithdrawals #-}
-getWithdrawals :: forall era. IsEra era => Withdrawals era -> Maybe (Map RewardAccount Coin)
+{-# INLINEABLE getWithdrawals #-}
+getWithdrawals
+    :: forall era
+     . IsEra era => Withdrawals era -> Maybe (Map RewardAccount Coin)
 getWithdrawals = case theEra @era of
     Byron -> \_withdrawals -> Nothing
     Shelley -> eraFromWithdrawals
@@ -51,14 +50,14 @@ getWithdrawals = case theEra @era of
     Alonzo -> eraFromWithdrawals
     Babbage -> eraFromWithdrawals
     Conway -> eraFromWithdrawals
-
   where
     eraFromWithdrawals (Withdrawals withdrawals) =
         Just $ fromLedgerWithdrawals withdrawals
 
 fromLedgerWithdrawals
     :: Map Ledger.RewardAccount Ledger.Coin -> Map RewardAccount W.Coin
-fromLedgerWithdrawals withdrawals = Map.fromList
-    [ (Certificates.fromStakeCredential cred, Ledger.toWalletCoin coin)
-    | (Ledger.RewardAccount _network cred, coin) <- Map.toList withdrawals
-    ]
+fromLedgerWithdrawals withdrawals =
+    Map.fromList
+        [ (Certificates.fromStakeCredential cred, Ledger.toWalletCoin coin)
+        | (Ledger.RewardAccount _network cred, coin) <- Map.toList withdrawals
+        ]

@@ -7,16 +7,11 @@
 -- |
 -- Copyright: © 2020-2022 IOHK
 -- License: Apache-2.0
---
-
 module Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Integrity
     ( integrity
     , txIntegrity
     )
-
- where
-
-import Prelude
+where
 
 import Cardano.Ledger.Alonzo.Tx
     ( ScriptIntegrityHash
@@ -41,11 +36,14 @@ import Data.Maybe.Strict
     ( StrictMaybe
     , strictMaybeToMaybe
     )
+import Prelude
 
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 
-{-# INLINABLE integrity #-}
-integrity :: forall era . IsEra era
+{-# INLINEABLE integrity #-}
+integrity
+    :: forall era
+     . IsEra era
     => Integrity era -> Maybe (W.Hash "ScriptIntegrity")
 integrity = case theEra @era of
     Byron -> noIntegrity
@@ -66,7 +64,8 @@ getIntegrity = strictMaybeToMaybe . fmap (W.Hash . originalBytes)
 
 -- Era functions extract from Tx to primitive W.Hash.
 -- Useful to cache this composition here, to be exported in case of reuse.
-txIntegrityEraFun :: IsEra era => Tx era -> Maybe (W.Hash "ScriptIntegrity")
+txIntegrityEraFun
+    :: IsEra era => Tx era -> Maybe (W.Hash "ScriptIntegrity")
 txIntegrityEraFun = integrity . getEraIntegrity
 
 -- | Extract from Tx in any era to primitive W.Hash.

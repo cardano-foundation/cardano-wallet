@@ -10,13 +10,15 @@ module Cardano.Wallet.UI.Common.Handlers.SSE
     )
 where
 
-import Prelude
-
 import Control.Monad.Fix
     ( fix
     )
 import Data.Typeable
     ( Typeable
+    )
+import Lucid
+    ( Html
+    , renderBS
     )
 import Servant
     ( Accept (contentType)
@@ -38,11 +40,7 @@ import UnliftIO
 import UnliftIO.STM
     ( atomically
     )
-
-import Lucid
-    ( Html
-    , renderBS
-    )
+import Prelude
 
 import qualified Data.ByteString.Lazy as BL
 import qualified Network.HTTP.Media as M

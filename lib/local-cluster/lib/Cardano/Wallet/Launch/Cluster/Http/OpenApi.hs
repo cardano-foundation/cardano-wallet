@@ -6,8 +6,14 @@ module Cardano.Wallet.Launch.Cluster.Http.OpenApi
     , definitions
     ) where
 
-import Prelude
-
+import Cardano.Wallet.Launch.Cluster.Http.Faucet.OpenApi
+    ( faucetDefinitions
+    , faucetPaths
+    )
+import Cardano.Wallet.Launch.Cluster.Http.Monitor.OpenApi
+    ( monitoringDefinitions
+    , monitoringPaths
+    )
 import Control.Lens
     ( (&)
     , (.~)
@@ -32,15 +38,8 @@ import Data.OpenApi
     , Schema
     , URL (..)
     )
+import Prelude
 
-import Cardano.Wallet.Launch.Cluster.Http.Faucet.OpenApi
-    ( faucetDefinitions
-    , faucetPaths
-    )
-import Cardano.Wallet.Launch.Cluster.Http.Monitor.OpenApi
-    ( monitoringDefinitions
-    , monitoringPaths
-    )
 import qualified Data.ByteString.Lazy.Char8 as BL
 
 generateOpenapi3 :: BL.ByteString

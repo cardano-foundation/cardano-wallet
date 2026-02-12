@@ -7,12 +7,9 @@
 -- License: Apache-2.0
 --
 -- Unit tests for 'withShutdownHandler' using pipes within a single process.
-
 module Cardano.StartupSpec
     ( spec
     ) where
-
-import Prelude
 
 import Cardano.Startup
     ( ShutdownHandlerLog (..)
@@ -74,6 +71,7 @@ import UnliftIO.Exception
 import UnliftIO.Process
     ( createPipe
     )
+import Prelude
 
 #if defined(WINDOWS)
 import UnliftIO.Concurrent
@@ -191,7 +189,8 @@ spec = describe "withShutdownHandler" $ do
 
 withPipe :: ((Handle, Handle) -> IO a) -> IO a
 withPipe = bracket createPipe closePipe
-    where closePipe (a, b) = hClose b >> hClose a
+  where
+    closePipe (a, b) = hClose b >> hClose a
 
 captureLogging' :: (Tracer IO msg -> IO a) -> IO [msg]
 captureLogging' = fmap fst . captureLogging

@@ -2,9 +2,7 @@ module Cryptography.Padding.PKCS7
     ( pad
     , unpad
     )
-    where
-
-import Prelude
+where
 
 import Data.ByteString
     ( ByteString
@@ -12,6 +10,7 @@ import Data.ByteString
 import Data.Semigroup.Cancellative
     ( RightReductive (stripSuffix)
     )
+import Prelude
 
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
@@ -42,7 +41,6 @@ import qualified Data.ByteString.Char8 as B8
 --
 -- See:
 -- https://datatracker.ietf.org/doc/html/rfc5652#section-6.3.
---
 pad :: ByteString -> ByteString
 pad payload =
     BS.append payload padding
@@ -57,7 +55,6 @@ pad payload =
 --
 -- Returns 'Nothing' if the given byte string does not have a valid PKCS#7
 -- padding suffix.
---
 unpad :: ByteString -> Maybe ByteString
 unpad paddedPayload =
     stripPadding =<< BS.unsnoc paddedPayload

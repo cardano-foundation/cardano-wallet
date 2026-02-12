@@ -8,8 +8,6 @@ module Cardano.Wallet.Read.Tx.Gen.Conway
     )
 where
 
-import Prelude
-
 import Cardano.Ledger.Alonzo
     ( AlonzoTxAuxData
     )
@@ -111,6 +109,7 @@ import Data.Sequence.Strict
 import Data.Set
     ( Set
     )
+import Prelude
 
 mkConwayTx
     :: TxParameters

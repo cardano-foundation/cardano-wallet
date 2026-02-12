@@ -1,12 +1,11 @@
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 
-{- |
-Copyright: © 2020-2022 IOHK
-License: Apache-2.0
-
-Raw collateral inputs data extraction from 'Tx'
--}
+-- |
+-- Copyright: © 2020-2022 IOHK
+-- License: Apache-2.0
+--
+-- Raw collateral inputs data extraction from 'Tx'
 module Cardano.Read.Ledger.Tx.CollateralInputs
     ( -- * Collateral input type
       CollateralInputsType
@@ -16,8 +15,6 @@ module Cardano.Read.Ledger.Tx.CollateralInputs
     , getEraCollateralInputs
     )
 where
-
-import Prelude
 
 import Cardano.Ledger.Api
     ( collateralInputsTxBodyL
@@ -51,6 +48,7 @@ import Control.Lens
 import Data.Set
     ( Set
     )
+import Prelude
 
 -- |
 -- Era-specific collateral inputs type.

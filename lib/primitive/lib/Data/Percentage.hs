@@ -9,7 +9,6 @@
 -- |
 -- Copyright: © 2018-2023 IOHK, 2023 Cardano Foundation
 -- License: Apache-2.0
---
 module Data.Percentage
     ( Percentage
     , PercentageError (..)
@@ -19,11 +18,6 @@ module Data.Percentage
     , toRational
     , complement
     ) where
-
-import Prelude hiding
-    ( fromRational
-    , toRational
-    )
 
 import Control.Arrow
     ( left
@@ -64,15 +58,19 @@ import NoThunks.Class
 import Quiet
     ( Quiet (..)
     )
+import Prelude hiding
+    ( fromRational
+    , toRational
+    )
 
 import qualified Data.Text as T
 import qualified Prelude
 
 -- | Opaque Haskell type to represent values between 0 and 100 (incl).
 newtype Percentage = Percentage
-    { toRational :: Rational }
+    {toRational :: Rational}
     deriving stock (Generic, Eq, Ord)
-    deriving Show via Quiet Percentage
+    deriving (Show) via Quiet Percentage
 
 instance NoThunks Percentage
 
@@ -84,16 +82,16 @@ instance Buildable Percentage where
 instance ToJSON Percentage where
     toJSON =
         toJSON
-        . rationalToToScientific numberOfFractionalDigits
-        . (* 100)
-        . toRational
+            . rationalToToScientific numberOfFractionalDigits
+            . (* 100)
+            . toRational
 
 instance FromJSON Percentage where
     parseJSON = withScientific "Percentage [0,100]" $ \s ->
         either (fail . show) return
-        . fromRational
-        . Prelude.toRational
-        $ s / 100
+            . fromRational
+            . Prelude.toRational
+            $ s / 100
 
 instance Bounded Percentage where
     minBound = Percentage 0
@@ -102,15 +100,16 @@ instance Bounded Percentage where
 instance ToText Percentage where
     toText =
         (<> "%")
-        . T.pack
-        . showS
-        . rationalToToScientific numberOfFractionalDigits
-        . (* 100)
-        . toRational
+            . T.pack
+            . showS
+            . rationalToToScientific numberOfFractionalDigits
+            . (* 100)
+            . toRational
       where
-        showS = formatScientific
-            Fixed
-            (Just numberOfFractionalDigits)
+        showS =
+            formatScientific
+                Fixed
+                (Just numberOfFractionalDigits)
 
 instance FromText Percentage where
     fromText txt = do
@@ -118,8 +117,9 @@ instance FromText Percentage where
         unless (u == "%") $ Left err
         left (const err) . fromRational $ p / 100
       where
-        err = TextDecodingError
-            "expected a value between 0 and 100 with a '%' suffix (e.g. '14%')"
+        err =
+            TextDecodingError
+                "expected a value between 0 and 100 with a '%' suffix (e.g. '14%')"
 
 -- | Safe constructor for 'Percentage'
 --
@@ -148,7 +148,7 @@ fromRationalClipped = Percentage . min 1 . max 0
 --
 -- Example: The 'complement' of 0.7 is 0.3.
 complement :: Percentage -> Percentage
-complement (Percentage p) = Percentage (1-p)
+complement (Percentage p) = Percentage (1 - p)
 
 -- | Desired number of digits after the decimal point for presenting the
 -- @Percentage@ type.

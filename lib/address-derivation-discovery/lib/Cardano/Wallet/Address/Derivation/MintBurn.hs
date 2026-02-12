@@ -20,18 +20,16 @@
 --
 -- Where purpose' and coin_type' are fixed, and each new policy_ix' represents a
 -- different policy key.
-
 module Cardano.Wallet.Address.Derivation.MintBurn
     ( -- * Constants
       purposeCIP1855
+
       -- * Helpers
     , derivePolicyPrivateKey
     , policyDerivationPath
     , scriptSlotIntervals
     , withinSlotInterval
     ) where
-
-import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv
@@ -77,6 +75,7 @@ import Data.Word
 import Numeric.Natural
     ( Natural
     )
+import Prelude
 
 import qualified Data.Interval as I
 import qualified Data.List as L
@@ -105,20 +104,24 @@ derivePolicyPrivateKey
     -- ^ Policy private key
 derivePolicyPrivateKey (Passphrase pwd) rootXPrv (Index policyIx) =
     let
-        purposeXPrv = -- lvl1 derivation; hardened derivation of purpose'
+        purposeXPrv =
+            -- lvl1 derivation; hardened derivation of purpose'
             deriveXPrv DerivationScheme2 pwd rootXPrv (getIndex purposeCIP1855)
-        coinTypeXPrv = -- lvl2 derivation; hardened derivation of coin_type'
+        coinTypeXPrv =
+            -- lvl2 derivation; hardened derivation of coin_type'
             deriveXPrv DerivationScheme2 pwd purposeXPrv (getIndex coinTypeAda)
-     -- lvl3 derivation; hardened derivation of policy' index
-    in deriveXPrv DerivationScheme2 pwd coinTypeXPrv policyIx
+    in
+        -- lvl3 derivation; hardened derivation of policy' index
+        deriveXPrv DerivationScheme2 pwd coinTypeXPrv policyIx
 
 policyDerivationPath
     :: NonEmpty DerivationIndex
-policyDerivationPath =  NE.fromList
-    [ DerivationIndex $ getIndex purposeCIP1855
-    , DerivationIndex $ getIndex coinTypeAda
-    , DerivationIndex $ getIndex policyIx
-    ]
+policyDerivationPath =
+    NE.fromList
+        [ DerivationIndex $ getIndex purposeCIP1855
+        , DerivationIndex $ getIndex coinTypeAda
+        , DerivationIndex $ getIndex policyIx
+        ]
   where
     policyIx :: Index 'Hardened 'PolicyK
     policyIx = minBound
@@ -131,10 +134,9 @@ scriptSlotIntervals = \case
         [allSlots]
     RequireAllOf xs ->
         let (timelocks, rest) = L.partition isTimelockOrSig xs
-        in
-        trimAllSlots
-            $ I.intersections (concatMap scriptSlotIntervals timelocks)
-            : concatMap scriptSlotIntervals rest
+        in  trimAllSlots
+                $ I.intersections (concatMap scriptSlotIntervals timelocks)
+                    : concatMap scriptSlotIntervals rest
     RequireAnyOf xs ->
         trimAllSlots $ concatMap scriptSlotIntervals xs
     RequireSomeOf _ xs ->
@@ -156,10 +158,9 @@ scriptSlotIntervals = \case
 
     trimAllSlots interval =
         let notAllSlots = filter (/= allSlots) interval
-        in
-        if L.null notAllSlots
-        then interval
-        else notAllSlots
+        in  if L.null notAllSlots
+                then interval
+                else notAllSlots
 
 -- tx validity interval must be a subset of a interval from script's timelock
 -- tx validity interval is defined by specifying (from,to) slot interval

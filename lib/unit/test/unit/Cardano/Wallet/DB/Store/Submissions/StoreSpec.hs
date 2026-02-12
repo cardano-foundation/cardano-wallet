@@ -2,19 +2,17 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
-
 {-# OPTIONS_GHC -Wno-orphans #-}
 
-module Cardano.Wallet.DB.Store.Submissions.StoreSpec ( spec ) where
-
-import Prelude
+module Cardano.Wallet.DB.Store.Submissions.StoreSpec (spec) where
 
 import Cardano.DB.Sqlite
     ( ForeignKeysSetting (..)
     , runQuery
     )
 import Cardano.Wallet.DB.Arbitrary
-    ()
+    (
+    )
 import Cardano.Wallet.DB.Fixtures
     ( WalletProperty
     , initializeWalletTable
@@ -69,6 +67,7 @@ import Test.QuickCheck
 import Test.Store
     ( prop_StoreUpdate
     )
+import Prelude
 
 import qualified Data.ByteString as BS
 

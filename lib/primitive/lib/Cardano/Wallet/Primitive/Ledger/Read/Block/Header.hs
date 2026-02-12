@@ -12,8 +12,6 @@ module Cardano.Wallet.Primitive.Ledger.Read.Block.Header
     )
 where
 
-import Prelude
-
 import Cardano.Crypto.Hash.Class
     ( hashToBytes
     )
@@ -58,6 +56,7 @@ import Ouroboros.Consensus.Byron.Ledger.Block
 import Ouroboros.Consensus.Shelley.Protocol.Abstract
     ( ShelleyHash (..)
     )
+import Prelude
 
 import qualified Cardano.Crypto.Hashing as CC
 import qualified Cardano.Protocol.TPraos.BHeader as SL
@@ -71,7 +70,7 @@ fromByronHash = W.Hash . CC.hashToBytes . unByronHash
 -- | Get a wallet primitive block header from a ledger block
 getBlockHeader :: W.Hash "Genesis" -> ConsensusBlock -> W.BlockHeader
 getBlockHeader gp =
-        applyEraFun (primitiveBlockHeader gp)
+    applyEraFun (primitiveBlockHeader gp)
         . fromConsensusBlock
 
 -- | Compute a wallet primitive block header from a ledger
@@ -94,7 +93,8 @@ fromSlotNo :: SlotNo -> O.SlotNo
 fromSlotNo (SlotNo s) = O.SlotNo $ fromIntegral s
 
 {-# INLINEABLE primitiveHash #-}
-primitiveHash :: forall era. IsEra era => HeaderHash era -> W.Hash "BlockHeader"
+primitiveHash
+    :: forall era. IsEra era => HeaderHash era -> W.Hash "BlockHeader"
 primitiveHash = case theEra @era of
     Byron -> \(HeaderHash h) -> fromByronHash h
     Shelley -> mkHashShelley
@@ -110,22 +110,21 @@ primitiveHash = case theEra @era of
         -> W.Hash "BlockHeader"
     mkHashShelley (HeaderHash (ShelleyHash h)) = W.Hash . hashToBytes $ h
 
-{-# INLINABLE primitivePrevHash #-}
+{-# INLINEABLE primitivePrevHash #-}
 primitivePrevHash
     :: forall era
-    . IsEra era
+     . IsEra era
     => W.Hash "Genesis"
     -> PrevHeaderHash era
     -> W.Hash "BlockHeader"
 primitivePrevHash gp = case theEra @era of
-        Byron -> \(PrevHeaderHash h) -> fromChainHash h
-        Shelley -> mkPrevHashShelley
-        Allegra -> mkPrevHashShelley
-        Mary -> mkPrevHashShelley
-        Alonzo -> mkPrevHashShelley
-        Babbage -> mkPrevHashShelley
-        Conway -> mkPrevHashShelley
-
+    Byron -> \(PrevHeaderHash h) -> fromChainHash h
+    Shelley -> mkPrevHashShelley
+    Allegra -> mkPrevHashShelley
+    Mary -> mkPrevHashShelley
+    Alonzo -> mkPrevHashShelley
+    Babbage -> mkPrevHashShelley
+    Conway -> mkPrevHashShelley
   where
     mkPrevHashShelley
         :: (SL.PrevHash ~ PrevHeaderHashT era)

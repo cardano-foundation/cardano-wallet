@@ -12,8 +12,6 @@
 
 module Main where
 
-import Prelude
-
 import Cardano.Address.Style.Shelley
     ( shelleyTestnet
     )
@@ -192,7 +190,8 @@ import Data.Generics.Internal.VL.Lens
     , (^.)
     )
 import Data.Generics.Labels
-    ()
+    (
+    )
 import Data.Generics.Wrapped
     ( _Unwrapped
     )
@@ -228,9 +227,6 @@ import System.Environment.Extended
 import System.IO
     ( stdout
     )
-import "extra" System.IO.Extra
-    ( withTempFile
-    )
 import System.IO.Temp.Extra
     ( SkipCleanup (..)
     , withSystemTempDir
@@ -260,6 +256,10 @@ import UnliftIO.MVar
     , putMVar
     , takeMVar
     )
+import "extra" System.IO.Extra
+    ( withTempFile
+    )
+import Prelude
 
 import qualified Cardano.Wallet.Api.Clients.Network as CN
 import qualified Cardano.Wallet.Api.Clients.Testnet.Id as C
@@ -303,7 +303,6 @@ main = withUtf8 $ evalContT $ do
 
 walletApiBench :: Reporter IO -> SomeMnemonic -> BenchM ()
 walletApiBench reporter massiveMnemonic = do
-
     let runScenarioR semSeg scen = do
             let sem = mkSemantic [T.pack semSeg]
             runScenario (addSemantic reporter sem) scen
@@ -409,7 +408,8 @@ nFixtureWalletWithUTxOs n utxoNumber = do
     utxoStatisticsFromCoins (fromIntegral <$> utxoExp) `shouldBe` rStat
     pure (wal1, wal2, walMA, maWalletToMigrate)
 
-massiveFixtureWallet :: SomeMnemonic -> BenchM (ApiWallet, ApiWallet, ApiWallet, ApiWallet)
+massiveFixtureWallet
+    :: SomeMnemonic -> BenchM (ApiWallet, ApiWallet, ApiWallet, ApiWallet)
 massiveFixtureWallet massiveMnemonic = do
     (_, wal2, walMA, maWalletToMigrate) <- nFixtureWallet 2
 
@@ -468,7 +468,8 @@ repeatPostTx wDest amtToSend batchSize amtExp = do
 iterations :: Int
 iterations = 10
 
-scene :: Reporter IO -> String -> BenchM (Either ClientError a) -> BenchM ()
+scene
+    :: Reporter IO -> String -> BenchM (Either ClientError a) -> BenchM ()
 scene reporter title scenario = do
     ts <- measureApiLogs iterations scenario
     let avg = meanAvg ts
@@ -484,7 +485,8 @@ sceneOfClientM :: Reporter IO -> String -> ClientM a -> BenchM ()
 sceneOfClientM reporter title action =
     scene reporter title $ requestWithError action
 
-listAllTransactions :: ApiT WalletId -> ClientM [ApiTransaction C.Testnet42]
+listAllTransactions
+    :: ApiT WalletId -> ClientM [ApiTransaction C.Testnet42]
 listAllTransactions walId =
     C.listTransactions
         walId
@@ -507,7 +509,7 @@ runScenario reporter scenario = lift . runResourceT $ do
     let sceneOfClientMR :: String -> ClientM a -> BenchM ()
         sceneOfClientMR = do sceneOfClientM reporter
 
-        -- | Decrease likelihood of failing with `no_utxos_available`
+        -- \| Decrease likelihood of failing with `no_utxos_available`
         -- by calling this short delay after creating txs.
         waitForChange :: BenchM ()
         waitForChange = liftIO $ threadDelay 5_000_000
@@ -520,7 +522,8 @@ runScenario reporter scenario = lift . runResourceT $ do
         amt = minUTxOValue era
     sceneOfClientMR "listWallets" C.listWallets
     sceneOfClientMR "getWallet" $ C.getWallet wal1Id
-    sceneOfClientMR "getUTxOsStatistics" $ C.getWalletUtxoStatistics wal1Id
+    sceneOfClientMR "getUTxOsStatistics"
+        $ C.getWalletUtxoStatistics wal1Id
     sceneOfClientMR "listAddresses" $ C.listAddresses wal1Id Nothing
     sceneOfClientMR "listTransactions" $ listAllTransactions wal1Id
 
@@ -544,7 +547,8 @@ runScenario reporter scenario = lift . runResourceT $ do
                 , metadata = Nothing
                 , timeToLive = Nothing
                 }
-    sceneOfClientMR "postTransactionFee" $ C.postTransactionFee wal1Id payload
+    sceneOfClientMR "postTransactionFee"
+        $ C.postTransactionFee wal1Id payload
     waitForChange
 
     let payloadTx =
@@ -600,7 +604,9 @@ runScenario reporter scenario = lift . runResourceT $ do
         $ sceneOfClientMR "postTransactionMA"
         $ C.postTransaction walMAId payloadMA
 
-    sceneOfClientMR "listStakePools" $ C.listPools $ ApiT <$> arbitraryStake
+    sceneOfClientMR "listStakePools"
+        $ C.listPools
+        $ ApiT <$> arbitraryStake
 
     sceneOfClientMR "getNetworkInfo" CN.networkInformation
 
@@ -611,7 +617,8 @@ runScenario reporter scenario = lift . runResourceT $ do
             bimap unsafeFromText unsafeFromText
                 $ fst
                 $ pickAnAsset assetsSrc
-    sceneOfClientMR "getAsset" $ C.getAsset walMAId (ApiT polId) (ApiT assName)
+    sceneOfClientMR "getAsset"
+        $ C.getAsset walMAId (ApiT polId) (ApiT assName)
 
     let addresses = replicate 5 destination
         migrationPlanPayload =
@@ -641,7 +648,8 @@ arbitraryStake = Just $ ada 10_000
   where
     ada = Coin . (1_000_000 *)
 
-measureApiLogs :: Exception e => Int -> BenchM (Either e a) -> BenchM [NominalDiffTime]
+measureApiLogs
+    :: Exception e => Int -> BenchM (Either e a) -> BenchM [NominalDiffTime]
 measureApiLogs count action = do
     BenchCtx _ctx capture <- ask
     run <- toIO $ do
@@ -655,10 +663,12 @@ runWarmUpScenario :: BenchM ()
 runWarmUpScenario = do
     -- this one is to have comparable results from first to last measurement
     -- in runScenario
-    t <- measureApiLogs iterations $ requestWithError CN.networkInformation
+    t <-
+        measureApiLogs iterations $ requestWithError CN.networkInformation
     fmtResult "getNetworkInfo     " t
 
-withShelleyServer :: Tracers IO -> (SomeMnemonic -> Context -> IO ()) -> IO ()
+withShelleyServer
+    :: Tracers IO -> (SomeMnemonic -> Context -> IO ()) -> IO ()
 withShelleyServer tracers action = withFaucet $ \faucetClientEnv -> do
     faucetFunds <- Faucet.runFaucetM faucetClientEnv mkFaucetFunds
 
@@ -738,8 +748,10 @@ withShelleyServer tracers action = withFaucet $ \faucetClientEnv -> do
                             , cfgNodeOutputFile = Nothing
                             , cfgRelayNodePath = mkRelDirOf "relay"
                             , cfgClusterLogFile = Nothing
-                            , cfgNodeToClientSocket = UnixPipe
-                                $ FileOf $ absFile socket
+                            , cfgNodeToClientSocket =
+                                UnixPipe
+                                    $ FileOf
+                                    $ absFile socket
                             }
                 withCluster
                     clusterConfig

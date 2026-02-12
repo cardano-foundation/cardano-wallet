@@ -4,8 +4,6 @@ module Cardano.Wallet.Primitive.Types.CoinSpec
     ( spec
     ) where
 
-import Prelude
-
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
@@ -42,6 +40,7 @@ import Test.QuickCheck.Extra
     ( genNonEmpty
     , shrinkNonEmpty
     )
+import Prelude
 
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Data.Foldable as F
@@ -49,38 +48,40 @@ import qualified Test.QuickCheck as QC
 
 spec :: Spec
 spec = describe "Cardano.Wallet.Primitive.Types.CoinSpec" $ do
-
     describe "Partitioning" $ do
-
-        it "prop_partitionDefault_fold" $
-            prop_partitionDefault_fold & property
-        it "prop_partitionDefault_length" $
-            prop_partitionDefault_length & property
-        it "prop_partitionDefault_zeroWeightSum" $
-            prop_partitionDefault_zeroWeightSum & property
+        it "prop_partitionDefault_fold"
+            $ prop_partitionDefault_fold
+            & property
+        it "prop_partitionDefault_length"
+            $ prop_partitionDefault_length
+            & property
+        it "prop_partitionDefault_zeroWeightSum"
+            $ prop_partitionDefault_zeroWeightSum
+            & property
 
     describe "Generators and shrinkers" $ do
-
         describe "Coins that can be zero" $ do
-            it "genCoin_coverage" $
-                property prop_genCoin_coverage
-            it "shrinkCoin" $
-                property prop_shrinkCoin
+            it "genCoin_coverage"
+                $ property prop_genCoin_coverage
+            it "shrinkCoin"
+                $ property prop_shrinkCoin
 
         describe "Coins that are strictly positive" $ do
-            it "genCoinPositive" $
-                property prop_genCoinPositive
-            it "shrinkCoinPositive" $
-                property prop_shrinkCoinPositive
+            it "genCoinPositive"
+                $ property prop_genCoinPositive
+            it "shrinkCoinPositive"
+                $ property prop_shrinkCoinPositive
 
     describe "Generating partitions" $ do
-
-        it "prop_genCoinPartition_fold" $
-            prop_genCoinPartition_fold & property
-        it "prop_genCoinPartition_length" $
-            prop_genCoinPartition_length & property
-        it "prop_genCoinPartition_nonPositive" $
-            prop_genCoinPartition_nonPositive & property
+        it "prop_genCoinPartition_fold"
+            $ prop_genCoinPartition_fold
+            & property
+        it "prop_genCoinPartition_length"
+            $ prop_genCoinPartition_length
+            & property
+        it "prop_genCoinPartition_nonPositive"
+            $ prop_genCoinPartition_nonPositive
+            & property
 
 --------------------------------------------------------------------------------
 -- Partitioning
@@ -106,21 +107,22 @@ prop_genCoin_coverage :: Coin -> Coin -> Property
 prop_genCoin_coverage a b =
     checkCoverageCoin a b True
 
-checkCoverageCoin :: Testable prop => Coin -> Coin -> (prop -> Property)
-checkCoverageCoin a b
-    = checkCoverage
-    . cover  1 (a == Coin 0 && b == Coin 0) "a == 0 && b == 0"
-    . cover  2 (a == Coin 0 && b /= Coin 0) "a == 0 && b /= 0"
-    . cover  2 (a /= Coin 0 && b == Coin 0) "a /= 0 && b == 0"
-    . cover 10 (a /= Coin 0 && b /= Coin 0) "a /= 0 && b /= 0"
-    . cover 10 (a <  b) "a < b"
-    . cover  2 (a == b) "a = b"
-    . cover 10 (a >  b) "a > b"
+checkCoverageCoin
+    :: Testable prop => Coin -> Coin -> (prop -> Property)
+checkCoverageCoin a b =
+    checkCoverage
+        . cover 1 (a == Coin 0 && b == Coin 0) "a == 0 && b == 0"
+        . cover 2 (a == Coin 0 && b /= Coin 0) "a == 0 && b /= 0"
+        . cover 2 (a /= Coin 0 && b == Coin 0) "a /= 0 && b == 0"
+        . cover 10 (a /= Coin 0 && b /= Coin 0) "a /= 0 && b /= 0"
+        . cover 10 (a < b) "a < b"
+        . cover 2 (a == b) "a = b"
+        . cover 10 (a > b) "a > b"
 
 prop_shrinkCoin :: Property
 prop_shrinkCoin = forAll genCoin $ \c ->
-    let shrunken = shrinkCoin c in
-    all (< c) shrunken
+    let shrunken = shrinkCoin c
+    in  all (< c) shrunken
 
 --------------------------------------------------------------------------------
 -- Coins that are strictly positive
@@ -131,11 +133,12 @@ prop_genCoinPositive = forAll genCoinPositive isValidCoinPositive
 
 prop_shrinkCoinPositive :: Property
 prop_shrinkCoinPositive = forAll genCoinPositive $ \c ->
-    let shrunken = shrinkCoinPositive c in
-    conjoin $ ($ shrunken) <$>
-        [ all (< c)
-        , all isValidCoinPositive
-        ]
+    let shrunken = shrinkCoinPositive c
+    in  conjoin
+            $ ($ shrunken)
+                <$> [ all (< c)
+                    , all isValidCoinPositive
+                    ]
 
 isValidCoinPositive :: Coin -> Bool
 isValidCoinPositive c = c > Coin 0

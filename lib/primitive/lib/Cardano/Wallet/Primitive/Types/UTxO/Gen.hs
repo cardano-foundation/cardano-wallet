@@ -6,8 +6,6 @@ module Cardano.Wallet.Primitive.Types.UTxO.Gen
     , shrinkUTxO
     ) where
 
-import Prelude
-
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn
     )
@@ -39,6 +37,7 @@ import Test.QuickCheck.Extra
     ( selectMapEntries
     , shrinkInterleaved
     )
+import Prelude
 
 import qualified Data.Map.Strict as Map
 
@@ -52,20 +51,22 @@ genUTxO = sized $ \size -> do
     UTxO . Map.fromList <$> replicateM entryCount genEntry
 
 shrinkUTxO :: UTxO -> [UTxO]
-shrinkUTxO
-    = take 16
-    . fmap (UTxO . Map.fromList)
-    . shrinkList shrinkEntry
-    . Map.toList
-    . unUTxO
+shrinkUTxO =
+    take 16
+        . fmap (UTxO . Map.fromList)
+        . shrinkList shrinkEntry
+        . Map.toList
+        . unUTxO
 
 genEntry :: Gen (TxIn, TxOut)
 genEntry = (,) <$> genTxIn <*> genTxOut
 
 shrinkEntry :: (TxIn, TxOut) -> [(TxIn, TxOut)]
-shrinkEntry (i, o) = uncurry (,) <$> shrinkInterleaved
-    (i, shrinkTxIn)
-    (o, shrinkTxOut)
+shrinkEntry (i, o) =
+    uncurry (,)
+        <$> shrinkInterleaved
+            (i, shrinkTxIn)
+            (o, shrinkTxOut)
 
 --------------------------------------------------------------------------------
 -- Large UTxO sets
@@ -81,11 +82,12 @@ genUTxOLargeN entryCount = do
     UTxO . Map.fromList <$> replicateM entryCount genEntryLargeRange
 
 genEntryLargeRange :: Gen (TxIn, TxOut)
-genEntryLargeRange = (,)
-    <$> genTxInLargeRange
-    -- Note that we don't need to choose outputs from a large range, as inputs
-    -- are already chosen from a large range:
-    <*> genTxOut
+genEntryLargeRange =
+    (,)
+        <$> genTxInLargeRange
+        -- Note that we don't need to choose outputs from a large range, as inputs
+        -- are already chosen from a large range:
+        <*> genTxOut
 
 --------------------------------------------------------------------------------
 -- Selecting random UTxO entries
@@ -95,6 +97,5 @@ genEntryLargeRange = (,)
 --
 -- Returns the selected entries and the remaining UTxO set with the entries
 -- removed.
---
 selectUTxOEntries :: UTxO -> Int -> Gen ([(TxIn, TxOut)], UTxO)
 selectUTxOEntries = (fmap (fmap UTxO) .) . selectMapEntries . unUTxO

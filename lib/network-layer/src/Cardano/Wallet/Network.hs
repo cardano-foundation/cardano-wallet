@@ -26,8 +26,6 @@ module Cardano.Wallet.Network
     , updateStats
     ) where
 
-import Prelude
-
 import Cardano.Api
     ( AnyCardanoEra
     )
@@ -99,6 +97,7 @@ import Data.Text.Class
 import GHC.Generics
     ( Generic
     )
+import Prelude
 
 import qualified Cardano.Wallet.Read as Read
 import qualified Data.Text as T
@@ -153,7 +152,8 @@ data NetworkLayer m block = NetworkLayer
         -> ExceptT ErrPostTx m ()
     -- ^ Broadcast a transaction to the chain producer (legacy types)
     , postTx
-        :: forall era. Read.IsEra era
+        :: forall era
+         . Read.IsEra era
         => Read.Tx era
         -> ExceptT ErrPostTx m ()
     -- ^ Broadcast a transaction to the chain producer

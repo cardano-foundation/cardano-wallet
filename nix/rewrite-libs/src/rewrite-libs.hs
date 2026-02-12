@@ -14,8 +14,6 @@
 -- This program is originally from the Daedalus installer generator.
 module Main where
 
-import Prelude
-
 import Control.Applicative
     ( many
     )
@@ -25,7 +23,6 @@ import Data.Maybe
 import Data.Text
     ( Text
     )
-import qualified Data.Text as T
 import Data.Void
     ( Void
     )
@@ -58,6 +55,9 @@ import Turtle
     ( procStrict
     , procs
     )
+import Prelude
+
+import Data.Text qualified as T
 
 -- Rewrite libs paths and bundle them
 main :: IO ()

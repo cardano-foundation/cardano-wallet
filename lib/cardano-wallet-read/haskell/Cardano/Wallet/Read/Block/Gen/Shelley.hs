@@ -20,8 +20,6 @@ module Cardano.Wallet.Read.Block.Gen.Shelley
     )
 where
 
-import Prelude
-
 import Cardano.Crypto.DSIGN
     ( DSIGNAlgorithm (..)
     , Ed25519DSIGN
@@ -99,19 +97,20 @@ import Ouroboros.Consensus.Protocol.Praos.Header
 import Ouroboros.Consensus.Protocol.TPraos
     ( TPraos
     )
+import Prelude
 
-import qualified Cardano.Crypto.DSIGN as Crypto
-import qualified Cardano.Crypto.Hash as Crypto
-import qualified Cardano.Crypto.KES as Crypto
-import qualified Cardano.Ledger.Api as L
-import qualified Cardano.Ledger.Block as L
-import qualified Cardano.Ledger.Core as L
-import qualified Cardano.Ledger.Slot as L
-import qualified Data.ByteString.Char8 as B8
-import qualified Data.ByteString.Short as BS
-import qualified Data.Sequence.Strict as Seq
-import qualified Ouroboros.Consensus.Shelley.Ledger as O
-import qualified Ouroboros.Consensus.Shelley.Protocol.Abstract as O
+import Cardano.Crypto.DSIGN qualified as Crypto
+import Cardano.Crypto.Hash qualified as Crypto
+import Cardano.Crypto.KES qualified as Crypto
+import Cardano.Ledger.Api qualified as L
+import Cardano.Ledger.Block qualified as L
+import Cardano.Ledger.Core qualified as L
+import Cardano.Ledger.Slot qualified as L
+import Data.ByteString.Char8 qualified as B8
+import Data.ByteString.Short qualified as BS
+import Data.Sequence.Strict qualified as Seq
+import Ouroboros.Consensus.Shelley.Ledger qualified as O
+import Ouroboros.Consensus.Shelley.Protocol.Abstract qualified as O
 
 type family HeaderEra era where
     HeaderEra L.ShelleyEra = BHeader StandardCrypto
@@ -223,7 +222,8 @@ oCertamente =
 
 oCertSignable :: OCertSignable StandardCrypto
 oCertSignable =
-    OCertSignable (unsoundPureDeriveVerKeyKES unsoundPureKeyKES) 42 $ KESPeriod 42
+    OCertSignable (unsoundPureDeriveVerKeyKES unsoundPureKeyKES) 42
+        $ KESPeriod 42
 
 unsoundPureKeyKES :: UnsoundPureSignKeyKES KES
 unsoundPureKeyKES = unsoundPureGenKeyKES seedKeyKES

@@ -10,8 +10,6 @@ module Cardano.Wallet.Address.Keys.PersistPrivateKey
     , unsafeDeserializeXPrv
     ) where
 
-import Prelude
-
 import Cardano.Address.Derivation
     ( XPrv
     )
@@ -49,6 +47,7 @@ import Control.Monad
 import Data.ByteString
     ( ByteString
     )
+import Prelude
 
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Address.Derivation.Icarus as Icarus

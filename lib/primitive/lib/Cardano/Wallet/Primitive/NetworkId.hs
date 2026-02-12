@@ -24,9 +24,7 @@ module Cardano.Wallet.Primitive.NetworkId
     , withSNetworkId
     , networkIdVal
     )
-  where
-
-import Prelude
+where
 
 import Data.Proxy
     ( Proxy (..)
@@ -50,6 +48,7 @@ import GHC.TypeNats
     , natVal
     , someNatVal
     )
+import Prelude
 
 import qualified Cardano.Api as Cardano
 import qualified Data.Text as T
@@ -68,7 +67,6 @@ import qualified Data.Text as T
 --              and, that requires _explicit_ network discrimination in
 --              addresses. Genesis file needs to be passed explicitly when
 --              starting the application.
---
 data NetworkDiscriminant = Mainnet | Testnet Nat
     deriving (Typeable)
 
@@ -93,7 +91,8 @@ deriving instance Eq (SNat n)
 fromSNat :: SNat n -> Natural
 fromSNat p@(SNat _) = natVal p
 
-withSNat :: Natural -> (forall (n :: Nat). KnownNat n => SNat n -> a) -> a
+withSNat
+    :: Natural -> (forall (n :: Nat). KnownNat n => SNat n -> a) -> a
 withSNat nat f = case someNatVal nat of
     SomeNat proxy -> f (SNat proxy)
 
@@ -125,8 +124,8 @@ instance KnownNat i => HasSNetworkId ('Testnet i) where
 
 networkDiscriminantVal :: SNetworkId n -> Text
 networkDiscriminantVal SMainnet = "mainnet"
-networkDiscriminantVal (STestnet pm)
-    = "testnet (" <> T.pack (show $ fromSNat pm) <> ")"
+networkDiscriminantVal (STestnet pm) =
+    "testnet (" <> T.pack (show $ fromSNat pm) <> ")"
 
 networkDiscriminantBits :: SNetworkId n -> Word8
 networkDiscriminantBits SMainnet = 0b00000001
@@ -136,9 +135,9 @@ networkDiscriminantBits (STestnet _) = 0b00000000
 networkIdVal :: SNetworkId n -> Cardano.NetworkId
 networkIdVal SMainnet = Cardano.Mainnet
 networkIdVal (STestnet snat) = Cardano.Testnet networkMagic
-      where
-        networkMagic =
-            Cardano.NetworkMagic . fromIntegral $ fromSNat snat
+  where
+    networkMagic =
+        Cardano.NetworkMagic . fromIntegral $ fromSNat snat
 
 {-----------------------------------------------------------------------------
    conversions
@@ -159,4 +158,4 @@ withSNetworkId
        )
     -> a
 withSNetworkId NMainnet f = f SMainnet
-withSNetworkId (NTestnet i) f = withSNat i $  f . STestnet
+withSNetworkId (NTestnet i) f = withSNat i $ f . STestnet

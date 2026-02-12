@@ -1,11 +1,10 @@
 {-# LANGUAGE UndecidableInstances #-}
 
-{- |
-Copyright: © 2024 Cardano Foundation
-License: Apache-2.0
-
-Era-indexed address types.
--}
+-- |
+-- Copyright: © 2024 Cardano Foundation
+-- License: Apache-2.0
+--
+-- Era-indexed address types.
 module Cardano.Read.Ledger.Address
     ( -- * Compact address type
       CompactAddrType
@@ -16,10 +15,6 @@ module Cardano.Read.Ledger.Address
     )
 where
 
-import Prelude
-
-import qualified Cardano.Chain.Common as BY
-import qualified Cardano.Ledger.Address as SH
 import Cardano.Read.Ledger.Eras
     ( Allegra
     , Alonzo
@@ -29,6 +24,10 @@ import Cardano.Read.Ledger.Eras
     , Mary
     , Shelley
     )
+import Prelude
+
+import Cardano.Chain.Common qualified as BY
+import Cardano.Ledger.Address qualified as SH
 
 {-----------------------------------------------------------------------------
     Compact address

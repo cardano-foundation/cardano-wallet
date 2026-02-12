@@ -12,11 +12,10 @@ module Control.Monitoring.Concurrent
     )
 where
 
-import Prelude
-
 import Control.Concurrent.Class.MonadSTM
     ( MonadSTM (..)
     )
+import Prelude
 
 -- | A thread-safe register that can be read, be blocked on changing
 data Register m a b = Register

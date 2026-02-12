@@ -12,13 +12,6 @@ module Cardano.Faucet
     , serveAddresses
     ) where
 
-import Prelude
-
-import qualified Cardano.Faucet.Addresses as Addresses
-import qualified Cardano.Faucet.Mnemonics as Mnemonic
-import qualified Data.List.NonEmpty as NE
-import qualified Data.Map.Lazy as Map
-
 import Cardano.Address
     ( NetworkTag
     )
@@ -66,6 +59,12 @@ import Data.List.NonEmpty
 import Servant
     ( err404
     )
+import Prelude
+
+import qualified Cardano.Faucet.Addresses as Addresses
+import qualified Cardano.Faucet.Mnemonics as Mnemonic
+import qualified Data.List.NonEmpty as NE
+import qualified Data.Map.Lazy as Map
 
 --------------------------------------------------------------------------------
 
@@ -81,7 +80,8 @@ genIndexedMnemonics len =
         <$> genIndexedMnemonic len minBound
         <*> traverse (genIndexedMnemonic len) [succ minBound .. maxBound]
 
-genIndexedMnemonic :: MnemonicLength -> MnemonicIndex -> IO IndexedMnemonic
+genIndexedMnemonic
+    :: MnemonicLength -> MnemonicIndex -> IO IndexedMnemonic
 genIndexedMnemonic len index =
     IndexedMnemonic index . Mnemonic <$> Mnemonic.generateSome len
 

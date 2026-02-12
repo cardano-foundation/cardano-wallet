@@ -14,8 +14,6 @@ module Cardano.DB.Sqlite.ForeignKeys
     , withForeignKeysDisabled
     ) where
 
-import Prelude
-
 import Control.Monad
     ( when
     )
@@ -32,6 +30,7 @@ import GHC.Generics
 import UnliftIO.Exception
     ( bracket_
     )
+import Prelude
 
 import qualified Database.Persist.Sql as Persist
 import qualified Database.Sqlite as Sqlite

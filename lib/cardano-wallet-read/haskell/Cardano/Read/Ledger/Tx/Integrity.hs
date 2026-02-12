@@ -1,12 +1,11 @@
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 
-{- |
-Copyright: © 2020-2022 IOHK
-License: Apache-2.0
-
-Raw script integrity data extraction from 'Tx'
--}
+-- |
+-- Copyright: © 2020-2022 IOHK
+-- License: Apache-2.0
+--
+-- Raw script integrity data extraction from 'Tx'
 module Cardano.Read.Ledger.Tx.Integrity
     ( -- * Integrity type
       IntegrityType
@@ -16,8 +15,6 @@ module Cardano.Read.Ledger.Tx.Integrity
     , getEraIntegrity
     )
 where
-
-import Prelude
 
 import Cardano.Ledger.Alonzo.Tx
     ( ScriptIntegrityHash
@@ -51,6 +48,7 @@ import Control.Lens
 import Data.Maybe.Strict
     ( StrictMaybe
     )
+import Prelude
 
 -- |
 -- Era-specific script integrity hash type.

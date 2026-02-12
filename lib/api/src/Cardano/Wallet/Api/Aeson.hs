@@ -5,9 +5,7 @@ module Cardano.Wallet.Api.Aeson
     , toTextJSON
     , fromTextJSON
     )
-    where
-
-import Prelude
+where
 
 import Cardano.Wallet.Util
     ( ShowFmt (..)
@@ -24,6 +22,7 @@ import Data.Text.Class
     ( FromText (..)
     , ToText (toText)
     )
+import Prelude
 
 import qualified Data.Aeson.Types as Aeson
 
@@ -34,4 +33,4 @@ toTextJSON :: ToText a => a -> Value
 toTextJSON = toJSON . toText
 
 fromTextJSON :: FromText a => String -> Value -> Aeson.Parser a
-fromTextJSON n = withText n (eitherToParser . first ShowFmt  . fromText)
+fromTextJSON n = withText n (eitherToParser . first ShowFmt . fromText)

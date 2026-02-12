@@ -2,12 +2,11 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-{- |
-Copyright: © 2024 Cardano Foundation
-License: Apache-2.0
-
-'Addr' — Addresses on the Cardano Blockchain
--}
+-- |
+-- Copyright: © 2024 Cardano Foundation
+-- License: Apache-2.0
+--
+-- 'Addr' — Addresses on the Cardano Blockchain
 module Cardano.Wallet.Read.Address
     ( -- * Compact Addr
       CompactAddr
@@ -15,11 +14,9 @@ module Cardano.Wallet.Read.Address
     , fromShortByteString
     , isBootstrapCompactAddr
 
-    -- * Internal
+      -- * Internal
     , fromEraCompactAddr
     ) where
-
-import Prelude
 
 import Cardano.Read.Ledger.Address
     ( translateCompactAddrShelleyFromByron
@@ -31,10 +28,11 @@ import Cardano.Read.Ledger.Eras
 import Control.Monad.Trans.State.Strict
     ( evalStateT
     )
+import Prelude
 
-import qualified Cardano.Ledger.Address as SH
-import qualified Cardano.Read.Ledger.Address as L
-import qualified Data.ByteString.Short as SBS
+import Cardano.Ledger.Address qualified as SH
+import Cardano.Read.Ledger.Address qualified as L
+import Data.ByteString.Short qualified as SBS
 
 {-----------------------------------------------------------------------------
     CompactAddr
@@ -56,7 +54,8 @@ isBootstrapCompactAddr = SH.isBootstrapCompactAddr
 
 {-# INLINEABLE fromEraCompactAddr #-}
 fromEraCompactAddr
-    :: forall era. IsEra era
+    :: forall era
+     . IsEra era
     => L.CompactAddr era -> CompactAddr
 fromEraCompactAddr = case theEra :: Era era of
     Byron -> onAddress translateCompactAddrShelleyFromByron

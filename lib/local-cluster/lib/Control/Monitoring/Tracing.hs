@@ -28,8 +28,6 @@ module Control.Monitoring.Tracing
     )
 where
 
-import Prelude
-
 import Data.Profunctor
     ( Profunctor (..)
     , dimap
@@ -37,15 +35,16 @@ import Data.Profunctor
 import GHC.Generics
     ( Generic
     )
+import Prelude
 
 -- | The state of the tracing at the type level and single type value level
 data MonitorState
-    = Wait
-    -- ^ Allowing a single trace before going into `Step`
-    | Step
-    -- ^ Wating for a step before going into `Wait`
-    | Run
-    -- ^ Tracing freely
+    = -- | Allowing a single trace before going into `Step`
+      Wait
+    | -- | Wating for a step before going into `Wait`
+      Step
+    | -- | Tracing freely
+      Run
     deriving stock (Show, Eq, Generic)
 
 -- | Tracing state along with its observation
@@ -143,7 +142,7 @@ tracingState (AnyTracing WaitS _) = Wait
 tracingState (AnyTracing StepS _) = Step
 tracingState (AnyTracing RunS _) = Run
 
-withTracingState :: (forall w . StateS w -> b) -> MonitorState -> b
+withTracingState :: (forall w. StateS w -> b) -> MonitorState -> b
 withTracingState f Wait = f WaitS
 withTracingState f Step = f StepS
 withTracingState f Run = f RunS

@@ -5,8 +5,6 @@ module Cardano.Read.Ledger.OutputSpec
     ( spec
     ) where
 
-import Prelude
-
 import Cardano.Ledger.Address
     ( Addr (Addr)
     )
@@ -58,17 +56,17 @@ import Test.QuickCheck
     ( (.&&.)
     , (=/=)
     )
+import Prelude
 
 spec :: Spec
 spec =
     -- Test that TxOut upgrade preserves pointer address differences
     -- (Previously, some invalid pointers would be normalized/equalized)
-    it "Conway preserves distinct pointer addresses" $
-        (outputPtr1 =/= outputPtr2)
-        .&&.
-        (upgradeToOutputConway outputPtr1
-            =/= upgradeToOutputConway outputPtr2
-        )
+    it "Conway preserves distinct pointer addresses"
+        $ (outputPtr1 =/= outputPtr2)
+        .&&. ( upgradeToOutputConway outputPtr1
+                =/= upgradeToOutputConway outputPtr2
+             )
 
 {-----------------------------------------------------------------------------
     Pointer addresses
@@ -109,6 +107,6 @@ paymentCred =
 mkPaymentCred :: ByteString -> PaymentCredential
 mkPaymentCred =
     KeyHashObj
-    . KeyHash
-    . fromMaybe (error "paymentCred: invalid hex length")
-    . hashFromBytesAsHex
+        . KeyHash
+        . fromMaybe (error "paymentCred: invalid hex length")
+        . hashFromBytesAsHex

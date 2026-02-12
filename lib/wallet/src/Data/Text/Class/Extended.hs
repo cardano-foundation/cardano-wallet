@@ -3,15 +3,14 @@ module Data.Text.Class.Extended
     , fromText'
     ) where
 
-import Data.Text.Class
-import Prelude
-
 import Data.Bifunctor
     ( first
     )
 import Data.Text
     ( Text
     )
+import Data.Text.Class
+import Prelude
 
 import qualified Data.Text as T
 

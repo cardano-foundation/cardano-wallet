@@ -13,6 +13,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
+
 {- HLINT ignore "Use <$>" -}
 {- HLINT ignore "Use camelCase" -}
 
@@ -28,26 +29,25 @@ module Internal.Cardano.Write.Tx.SizeEstimation
     , estimateTxCost
     , TxSkeleton (..)
 
-     -- ** TxWitnessTag
+      -- ** TxWitnessTag
     , TxWitnessTag (..)
     , assumedTxWitnessTag
 
-     -- * Needed for estimateSignedTxSize and the wallet
+      -- * Needed for estimateSignedTxSize and the wallet
     , sizeOf_BootstrapWitnesses
 
-     -- * Needed for the wallet
+      -- * Needed for the wallet
     , sizeOf_VKeyWitnesses
     , sizeOf_Withdrawals
     )
-    where
-
-import Prelude
+where
 
 import Cardano.Address.Script
     ( Script (..)
     )
 import Data.Generics.Labels
-    ()
+    (
+    )
 import Data.Set
     ( Set
     )
@@ -66,6 +66,7 @@ import Internal.Cardano.Write.UTxOAssumptions
 import Numeric.Natural
     ( Natural
     )
+import Prelude
 
 import qualified Cardano.Address.Script as CA
 import qualified Cardano.Wallet.Primitive.Types.Address as W
@@ -101,7 +102,6 @@ import qualified Data.Foldable as F
 --
 -- The data included in 'TxSkeleton' is a subset of the data included in the
 -- union of 'SelectionSkeleton' and 'TransactionCtx'.
---
 data TxSkeleton = TxSkeleton
     { txWitnessTag :: !TxWitnessTag
     , txInputCount :: !Int
@@ -129,7 +129,6 @@ estimateTxCost (FeePerByte feePerByte) skeleton =
 -- https://github.com/IntersectMBO/cardano-ledger/blob/master/eras/shelley/test-suite/cddl-files/shelley.cddl
 -- https://github.com/IntersectMBO/cardano-ledger/blob/master/eras/shelley-ma/test-suite/cddl-files/shelley-ma.cddl
 -- https://github.com/IntersectMBO/cardano-ledger/blob/master/eras/alonzo/test-suite/cddl-files/alonzo.cddl
---
 estimateTxSize
     :: TxSkeleton
     -> W.TxSize
@@ -145,25 +144,26 @@ estimateTxSize skeleton =
         } = skeleton
 
     numberOf_Inputs :: Natural
-    numberOf_Inputs
-        = fromIntegral txInputCount
+    numberOf_Inputs =
+        fromIntegral txInputCount
 
-    numberOf_ScriptVkeyWitnessesForPayment
-        = maybe 0 estimateMaxWitnessRequiredPerInput txPaymentTemplate
+    numberOf_ScriptVkeyWitnessesForPayment =
+        maybe 0 estimateMaxWitnessRequiredPerInput txPaymentTemplate
 
-    numberOf_VkeyWitnesses
-        = case txWitnessTag of
+    numberOf_VkeyWitnesses =
+        case txWitnessTag of
             TxWitnessByronUTxO -> 0
             TxWitnessShelleyUTxO ->
                 -- there cannot be missing payment script if there is
                 -- delegation script the latter is optional
-                if numberOf_ScriptVkeyWitnessesForPayment == 0 then
-                    numberOf_Inputs
-                else
-                    (numberOf_Inputs * numberOf_ScriptVkeyWitnessesForPayment)
+                if numberOf_ScriptVkeyWitnessesForPayment == 0
+                    then
+                        numberOf_Inputs
+                    else
+                        (numberOf_Inputs * numberOf_ScriptVkeyWitnessesForPayment)
 
-    numberOf_BootstrapWitnesses
-        = case txWitnessTag of
+    numberOf_BootstrapWitnesses =
+        case txWitnessTag of
             TxWitnessByronUTxO -> numberOf_Inputs
             TxWitnessShelleyUTxO -> 0
 
@@ -172,10 +172,10 @@ estimateTxSize skeleton =
     --   , transaction_witness_set
     --   , transaction_metadata / null
     --   ]
-    sizeOf_Transaction
-        = sizeOf_SmallArray
-        + sizeOf_TransactionBody
-        + sizeOf_WitnessSet
+    sizeOf_Transaction =
+        sizeOf_SmallArray
+            + sizeOf_TransactionBody
+            + sizeOf_WitnessSet
 
     -- transaction_body =
     --   { 0 : set<transaction_input>
@@ -189,15 +189,15 @@ estimateTxSize skeleton =
     --   , ? 8 : uint ; validity interval start
     --   , ? 9 : mint
     --   }
-    sizeOf_TransactionBody
-        = sizeOf_SmallMap
-        + sizeOf_Inputs
-        + sizeOf_Outputs
-        + sizeOf_Fee
-        + sizeOf_Ttl
-        + sizeOf_Update
-        + sizeOf_ValidityIntervalStart
-        + sizeOf_HistoricalPadding
+    sizeOf_TransactionBody =
+        sizeOf_SmallMap
+            + sizeOf_Inputs
+            + sizeOf_Outputs
+            + sizeOf_Fee
+            + sizeOf_Ttl
+            + sizeOf_Update
+            + sizeOf_ValidityIntervalStart
+            + sizeOf_HistoricalPadding
       where
         -- Preserved out of caution during refactoring. We should be able to
         -- drop this, but we may as well wait until we have completely
@@ -214,44 +214,44 @@ estimateTxSize skeleton =
             sizeOf_NoMetadata = 1
 
         -- 0 => set<transaction_input>
-        sizeOf_Inputs
-            = sizeOf_SmallUInt
-            + sizeOf_Array
-            + sizeOf_Input * W.TxSize numberOf_Inputs
+        sizeOf_Inputs =
+            sizeOf_SmallUInt
+                + sizeOf_Array
+                + sizeOf_Input * W.TxSize numberOf_Inputs
 
         -- 1 => [* transaction_output]
-        sizeOf_Outputs
-            = sizeOf_SmallUInt
-            + sizeOf_Array
-            + F.sum (sizeOf_Output <$> txOutputs)
-            + F.sum (sizeOf_ChangeOutput <$> txChange)
+        sizeOf_Outputs =
+            sizeOf_SmallUInt
+                + sizeOf_Array
+                + F.sum (sizeOf_Output <$> txOutputs)
+                + F.sum (sizeOf_ChangeOutput <$> txChange)
 
         -- 2 => fee
-        sizeOf_Fee
-            = sizeOf_SmallUInt
-            + sizeOf_UInt
+        sizeOf_Fee =
+            sizeOf_SmallUInt
+                + sizeOf_UInt
 
         -- 3 => ttl
-        sizeOf_Ttl
-            = sizeOf_SmallUInt
-            + sizeOf_UInt
+        sizeOf_Ttl =
+            sizeOf_SmallUInt
+                + sizeOf_UInt
 
         -- ?6 => update
-        sizeOf_Update
-            = 0 -- Assuming no updates is running through cardano-wallet
+        sizeOf_Update =
+            0 -- Assuming no updates is running through cardano-wallet
 
         -- ?8 => uint ; validity interval start
-        sizeOf_ValidityIntervalStart
-            = sizeOf_UInt
+        sizeOf_ValidityIntervalStart =
+            sizeOf_UInt
 
     -- transaction_input =
     --   [ transaction_id : $hash32
     --   , index : uint
     --   ]
-    sizeOf_Input
-        = sizeOf_SmallArray
-        + sizeOf_Hash32
-        + sizeOf_UInt
+    sizeOf_Input =
+        sizeOf_SmallArray
+            + sizeOf_Hash32
+            + sizeOf_UInt
 
     -- post_alonzo_transaction_output =
     --   { 0 : address
@@ -261,21 +261,21 @@ estimateTxSize skeleton =
     --   }
     -- value =
     --   coin / [coin,multiasset<uint>]
-    sizeOf_PostAlonzoTransactionOutput W.TxOut {address, tokens}
-        = sizeOf_SmallMap
-        + sizeOf_SmallUInt
-        + sizeOf_Address address
-        + sizeOf_SmallUInt
-        + sizeOf_SmallArray
-        + sizeOf_Coin (W.TokenBundle.getCoin tokens)
-        + sumVia sizeOf_NativeAsset (W.TokenBundle.getAssets tokens)
+    sizeOf_PostAlonzoTransactionOutput W.TxOut{address, tokens} =
+        sizeOf_SmallMap
+            + sizeOf_SmallUInt
+            + sizeOf_Address address
+            + sizeOf_SmallUInt
+            + sizeOf_SmallArray
+            + sizeOf_Coin (W.TokenBundle.getCoin tokens)
+            + sumVia sizeOf_NativeAsset (W.TokenBundle.getAssets tokens)
 
-    sizeOf_Output
-        = sizeOf_PostAlonzoTransactionOutput
+    sizeOf_Output =
+        sizeOf_PostAlonzoTransactionOutput
 
     sizeOf_ChangeOutput :: Set W.AssetId -> W.TxSize
-    sizeOf_ChangeOutput
-        = sizeOf_PostAlonzoChangeOutput
+    sizeOf_ChangeOutput =
+        sizeOf_PostAlonzoChangeOutput
 
     -- post_alonzo_transaction_output =
     --   { 0 : address
@@ -286,18 +286,18 @@ estimateTxSize skeleton =
     -- value =
     --   coin / [coin,multiasset<uint>]
     sizeOf_PostAlonzoChangeOutput :: Set W.AssetId -> W.TxSize
-    sizeOf_PostAlonzoChangeOutput xs
-        = sizeOf_SmallMap
-        + sizeOf_SmallUInt
-        + sizeOf_ChangeAddress
-        + sizeOf_SmallMap
-        + sizeOf_SmallUInt
-        + sizeOf_LargeUInt
-        + sumVia sizeOf_NativeAsset xs
+    sizeOf_PostAlonzoChangeOutput xs =
+        sizeOf_SmallMap
+            + sizeOf_SmallUInt
+            + sizeOf_ChangeAddress
+            + sizeOf_SmallMap
+            + sizeOf_SmallUInt
+            + sizeOf_LargeUInt
+            + sumVia sizeOf_NativeAsset xs
 
     -- We carry addresses already serialized, so it's a matter of measuring.
-    sizeOf_Address addr
-        = 2 + fromIntegral (BS.length (W.unAddress addr))
+    sizeOf_Address addr =
+        2 + fromIntegral (BS.length (W.unAddress addr))
 
     -- For change address, we consider the worst-case scenario based on the
     -- given wallet scheme. Byron addresses are larger.
@@ -305,8 +305,8 @@ estimateTxSize skeleton =
     -- NOTE: we could do slightly better if we wanted to for Byron addresses and
     -- discriminate based on the network as well since testnet addresses are
     -- larger than mainnet ones. But meh.
-    sizeOf_ChangeAddress
-        = case txWitnessTag of
+    sizeOf_ChangeAddress =
+        case txWitnessTag of
             TxWitnessByronUTxO -> 85
             TxWitnessShelleyUTxO -> 59
 
@@ -314,92 +314,95 @@ estimateTxSize skeleton =
     -- We consider "native asset" to just be the "multiasset<uint>" part of the
     -- above, hence why we don't also include the size of the coin. Where this
     -- is used, the size of the coin and array are are added too.
-    sizeOf_NativeAsset W.AssetId {assetName}
-        = sizeOf_MultiAsset sizeOf_LargeUInt assetName
+    sizeOf_NativeAsset W.AssetId{assetName} =
+        sizeOf_MultiAsset sizeOf_LargeUInt assetName
 
     -- multiasset<a> = { * policy_id => { * asset_name => a } }
     -- policy_id = scripthash
     -- asset_name = bytes .size (0..32)
-    sizeOf_MultiAsset sizeOf_a name
-      = sizeOf_SmallMap -- NOTE: Assuming < 23 policies per output
-      + sizeOf_Hash28
-      + sizeOf_SmallMap -- NOTE: Assuming < 23 assets per policy
-      + sizeOf_AssetName name
-      + sizeOf_a
+    sizeOf_MultiAsset sizeOf_a name =
+        sizeOf_SmallMap -- NOTE: Assuming < 23 policies per output
+            + sizeOf_Hash28
+            + sizeOf_SmallMap -- NOTE: Assuming < 23 assets per policy
+            + sizeOf_AssetName name
+            + sizeOf_a
 
     -- asset_name = bytes .size (0..32)
-    sizeOf_AssetName name
-        = 2 + fromIntegral (BS.length $ W.unAssetName name)
+    sizeOf_AssetName name =
+        2 + fromIntegral (BS.length $ W.unAssetName name)
 
     -- Coins can really vary so it's very punishing to always assign them the
     -- upper bound. They will typically be between 3 and 9 bytes (only 6 bytes
     -- difference, but on 20+ outputs, one starts feeling it).
     --
     -- So, for outputs, since we have the values, we can compute it accurately.
-    sizeOf_Coin
-        = W.TxSize
-        . fromIntegral
-        . BS.length
-        . CBOR.toStrictByteString
-        . CBOR.encodeWord64
-        . W.Coin.unsafeToWord64
+    sizeOf_Coin =
+        W.TxSize
+            . fromIntegral
+            . BS.length
+            . CBOR.toStrictByteString
+            . CBOR.encodeWord64
+            . W.Coin.unsafeToWord64
 
-    determinePaymentTemplateSize scriptCosigner
-        = sizeOf_Array
-        + sizeOf_SmallUInt
-        + W.TxSize numberOf_Inputs * (sizeOf_NativeScript scriptCosigner)
+    determinePaymentTemplateSize scriptCosigner =
+        sizeOf_Array
+            + sizeOf_SmallUInt
+            + W.TxSize numberOf_Inputs * (sizeOf_NativeScript scriptCosigner)
 
     -- transaction_witness_set =
     --   { ?0 => [* vkeywitness ]
     --   , ?1 => [* native_script ]
     --   , ?2 => [* bootstrap_witness ]
     --   }
-    sizeOf_WitnessSet
-        = sizeOf_SmallMap
-        + sizeOf_VKeyWitnesses numberOf_VkeyWitnesses
-        + maybe 0 determinePaymentTemplateSize txPaymentTemplate
-        -- FIXME: Payment template needs to be multiplied with number of inputs
-        + sizeOf_BootstrapWitnesses numberOf_BootstrapWitnesses
+    sizeOf_WitnessSet =
+        sizeOf_SmallMap
+            + sizeOf_VKeyWitnesses numberOf_VkeyWitnesses
+            + maybe 0 determinePaymentTemplateSize txPaymentTemplate
+            -- FIXME: Payment template needs to be multiplied with number of inputs
+            + sizeOf_BootstrapWitnesses numberOf_BootstrapWitnesses
 
 -- ?5 => withdrawals
 sizeOf_Withdrawals :: Natural -> W.TxSize
-sizeOf_Withdrawals n
-    = (if n > 0
+sizeOf_Withdrawals n =
+    ( if n > 0
         then sizeOf_SmallUInt + sizeOf_SmallMap
-        else 0)
-    + sizeOf_Withdrawal * (W.TxSize n)
-
+        else 0
+    )
+        + sizeOf_Withdrawal * (W.TxSize n)
   where
     -- withdrawals =
     --   { * reward_account => coin }
-    sizeOf_Withdrawal
-        = sizeOf_Hash28
-        + sizeOf_LargeUInt
+    sizeOf_Withdrawal =
+        sizeOf_Hash28
+            + sizeOf_LargeUInt
 
 -- ?0 => [* vkeywitness ]
 sizeOf_VKeyWitnesses :: Natural -> W.TxSize
-sizeOf_VKeyWitnesses n
-    = (if n > 0
-        then sizeOf_Array + sizeOf_SmallUInt else 0)
-    + sizeOf_VKeyWitness * (W.TxSize n)
+sizeOf_VKeyWitnesses n =
+    ( if n > 0
+        then sizeOf_Array + sizeOf_SmallUInt
+        else 0
+    )
+        + sizeOf_VKeyWitness * (W.TxSize n)
 
 -- ?2 => [* bootstrap_witness ]
 sizeOf_BootstrapWitnesses :: Natural -> W.TxSize
-sizeOf_BootstrapWitnesses n
-    = (if n > 0
+sizeOf_BootstrapWitnesses n =
+    ( if n > 0
         then sizeOf_Array + sizeOf_SmallUInt
-        else 0)
-    + sizeOf_BootstrapWitness * (W.TxSize n)
+        else 0
+    )
+        + sizeOf_BootstrapWitness * (W.TxSize n)
 
 -- vkeywitness =
 --  [ $vkey
 --  , $signature
 --  ]
 sizeOf_VKeyWitness :: W.TxSize
-sizeOf_VKeyWitness
-    = sizeOf_SmallArray
-    + sizeOf_VKey
-    + sizeOf_Signature
+sizeOf_VKeyWitness =
+    sizeOf_SmallArray
+        + sizeOf_VKey
+        + sizeOf_Signature
 
 -- bootstrap_witness =
 --  [ public_key : $vkey
@@ -408,14 +411,14 @@ sizeOf_VKeyWitness
 --  , attributes : bytes
 --  ]
 sizeOf_BootstrapWitness :: W.TxSize
-sizeOf_BootstrapWitness
-    = sizeOf_SmallArray
-    + sizeOf_VKey
-    + sizeOf_Signature
-    + sizeOf_ChainCode
-    + sizeOf_Attributes
+sizeOf_BootstrapWitness =
+    sizeOf_SmallArray
+        + sizeOf_VKey
+        + sizeOf_Signature
+        + sizeOf_ChainCode
+        + sizeOf_Attributes
   where
-    sizeOf_ChainCode  = 34
+    sizeOf_ChainCode = 34
     sizeOf_Attributes = 45 -- NOTE: could be smaller by ~34 for Icarus
 
 -- native_script =
@@ -515,4 +518,4 @@ assumedTxWitnessTag :: UTxOAssumptions -> TxWitnessTag
 assumedTxWitnessTag = \case
     AllKeyPaymentCredentials -> TxWitnessShelleyUTxO
     AllByronKeyPaymentCredentials -> TxWitnessByronUTxO
-    AllScriptPaymentCredentialsFrom {} -> TxWitnessShelleyUTxO
+    AllScriptPaymentCredentialsFrom{} -> TxWitnessShelleyUTxO

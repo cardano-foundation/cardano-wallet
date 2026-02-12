@@ -6,8 +6,6 @@ module Cardano.Wallet.DB.Store.Delegations.Migrations.V3.Migration
     ( migrateDelegations
     ) where
 
-import Prelude
-
 import Cardano.DB.Sqlite
     ( ReadDBHandle
     , dbBackend
@@ -67,6 +65,7 @@ import Database.Persist.Sql
     , rawExecute
     , selectList
     )
+import Prelude
 
 import qualified Data.Map as Map
 import qualified Data.Map.Merge.Strict as Map
@@ -141,8 +140,8 @@ migration = do
         ColumnPresent -> withReaderT dbBackend $ do
             old <- readOldEncoding
             write old
-            rawExecute "DROP TABLE stake_key_certificate"  []
-            rawExecute "DROP TABLE delegation_certificate"  []
+            rawExecute "DROP TABLE stake_key_certificate" []
+            rawExecute "DROP TABLE delegation_certificate" []
 
 migrateDelegations :: Migration (ReadDBHandle IO) 2 3
 migrateDelegations = mkMigration migration

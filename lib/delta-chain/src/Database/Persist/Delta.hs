@@ -6,33 +6,46 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 
-module Database.Persist.Delta (
-    -- * Synopsis
-    -- | Manipulating SQL database tables using delta encodings
-    -- via the "persistent" package.
+module Database.Persist.Delta
+    ( -- * Synopsis
 
-    -- * Store
-    newEntityStore, newSqlStore
+      -- | Manipulating SQL database tables using delta encodings
+      -- via the "persistent" package.
+
+      -- * Store
+      newEntityStore
+    , newSqlStore
     ) where
 
-import Prelude hiding
-    ( all
+-- FIXME: Replace with IOSim stuff later.
+import Conduit
+    ( ResourceT
     )
-
 import Control.Monad
     ( forM_
     , void
     , when
     )
+import Control.Monad.Class.MonadThrow
+    ( MonadThrow
+    )
 import Control.Monad.IO.Class
     ( MonadIO
     , liftIO
+    )
+import Control.Monad.Logger
+    ( NoLoggingT (..)
     )
 import Data.Bifunctor
     ( first
     )
 import Data.Delta
     ( Delta (..)
+    )
+import Data.IORef
+    ( newIORef
+    , readIORef
+    , writeIORef
     )
 import Data.Proxy
     ( Proxy (..)
@@ -69,20 +82,8 @@ import Say
     ( say
     , sayShow
     )
--- FIXME: Replace with IOSim stuff later.
-import Conduit
-    ( ResourceT
-    )
-import Control.Monad.Class.MonadThrow
-    ( MonadThrow
-    )
-import Control.Monad.Logger
-    ( NoLoggingT (..)
-    )
-import Data.IORef
-    ( newIORef
-    , readIORef
-    , writeIORef
+import Prelude hiding
+    ( all
     )
 
 import qualified Data.Table as Table
@@ -92,27 +93,31 @@ import qualified Database.Schema as Sql
 {-------------------------------------------------------------------------------
     Database operations
 -------------------------------------------------------------------------------}
+
 -- | Helper abstraction for a Database backend
 data Database m key row = Database
-    { selectAll   :: m [(key, row)]
-    , deleteAll   :: m ()
+    { selectAll :: m [(key, row)]
+    , deleteAll :: m ()
     , repsertMany :: [(key, row)] -> m ()
-    , deleteOne   :: key -> m ()
-    , updateOne   :: (key, row) -> m ()
+    , deleteOne :: key -> m ()
+    , updateOne :: (key, row) -> m ()
     }
 
 -- | Database table for 'Entity'.
 persistDB
-    :: forall row. ( PersistRecordBackend row SqlBackend
-    , ToBackendKey SqlBackend row )
+    :: forall row
+     . ( PersistRecordBackend row SqlBackend
+       , ToBackendKey SqlBackend row
+       )
     => Database SqlPersistM Int row
-persistDB = Database
-    { selectAll = map toPair <$> Persist.selectList all []
-    , deleteAll = Persist.deleteWhere all
-    , repsertMany = Persist.repsertMany . map (first toKey)
-    , deleteOne = Persist.delete . toKey
-    , updateOne = \(key,val) -> Persist.replace (toKey key) val
-    }
+persistDB =
+    Database
+        { selectAll = map toPair <$> Persist.selectList all []
+        , deleteAll = Persist.deleteWhere all
+        , repsertMany = Persist.repsertMany . map (first toKey)
+        , deleteOne = Persist.delete . toKey
+        , updateOne = \(key, val) -> Persist.replace (toKey key) val
+        }
   where
     all = [] :: [Filter row]
 
@@ -124,24 +129,27 @@ persistDB = Database
 
 -- | SQL database backend
 sqlDB
-    :: forall row. (IsRow row, IsRow (row :. Col "id" Primary))
+    :: forall row
+     . (IsRow row, IsRow (row :. Col "id" Primary))
     => Database SqlPersistM Int row
-sqlDB = Database
-    { selectAll = map toPair <$> Sql.callSql Sql.selectAll
-    , deleteAll = Sql.runSql $ Sql.deleteAll proxy
-    , repsertMany = \zs -> forM_ zs $
-        Sql.runSql . Sql.repsertOne . fromPair
-    , deleteOne = Sql.runSql . Sql.deleteOne proxy . Col . Primary
-    , updateOne = Sql.runSql . Sql.updateOne . fromPair
-    }
+sqlDB =
+    Database
+        { selectAll = map toPair <$> Sql.callSql Sql.selectAll
+        , deleteAll = Sql.runSql $ Sql.deleteAll proxy
+        , repsertMany = \zs ->
+            forM_ zs
+                $ Sql.runSql . Sql.repsertOne . fromPair
+        , deleteOne = Sql.runSql . Sql.deleteOne proxy . Col . Primary
+        , updateOne = Sql.runSql . Sql.updateOne . fromPair
+        }
   where
     proxy = Proxy :: Proxy row
 
-    fromPair :: (Int,row) -> (row :. Col "id" Primary)
-    fromPair (key,row) = row :. (Col (Primary key) :: Col "id" Primary)
+    fromPair :: (Int, row) -> (row :. Col "id" Primary)
+    fromPair (key, row) = row :. (Col (Primary key) :: Col "id" Primary)
 
-    toPair :: (row :. Col "id" Primary) -> (Int,row)
-    toPair (row :. Col (Primary key)) = (key,row)
+    toPair :: (row :. Col "id" Primary) -> (Int, row)
+    toPair (row :. Col (Primary key)) = (key, row)
 
 {-------------------------------------------------------------------------------
     Database operations
@@ -151,7 +159,6 @@ sqlDB = Database
 --
 -- The unique IDs will be stored in a column "id" at the end of
 -- each row in the database table.
-
 newSqlStore
     :: ( MonadIO m
        , IsRow row
@@ -167,16 +174,20 @@ newSqlStore = newDatabaseStore sqlDB
 -- FIXME: This function should also do \"migrations\", i.e.
 -- create the database table in the first place.
 newEntityStore
-    :: forall row m.
-    ( PersistRecordBackend row SqlBackend
-    , ToBackendKey SqlBackend row, Show row
-    , MonadIO m, MonadThrow (NoLoggingT (ResourceT IO)))
+    :: forall row m
+     . ( PersistRecordBackend row SqlBackend
+       , ToBackendKey SqlBackend row
+       , Show row
+       , MonadIO m
+       , MonadThrow (NoLoggingT (ResourceT IO))
+       )
     => m (UpdateStore SqlPersistM [DeltaDB Int row])
 newEntityStore = newDatabaseStore persistDB
 
 -- | Helper function to create a 'UpdateStore' using a 'Database' backend.
 newDatabaseStore
-    :: forall m n row. (MonadIO m, MonadIO n, Show row, MonadThrow m)
+    :: forall m n row
+     . (MonadIO m, MonadIO n, Show row, MonadThrow m)
     => Database m Int row
     -> n (UpdateStore m [DeltaDB Int row])
 newDatabaseStore db = do
@@ -190,26 +201,27 @@ newDatabaseStore db = do
             table <- Table.fromRows <$> selectAll db
             -- but use our own unique ID supply
             liftIO (readIORef ref) >>= \case
-                Just supply  -> pure $ Right table{uids = supply}
-                Nothing      -> do
+                Just supply -> pure $ Right table{uids = supply}
+                Nothing -> do
                     rememberSupply table
                     pure $ Right table
         write table = void $ do
             deleteAll db -- delete any old data in the table first
             repsertMany db $ getPile $ Table.toRows table
             rememberSupply table
-        update = updateLoad load
-                (\err -> debug $ do
-                    say "Error in updateLoadEither"
-                    sayShow err
-                )
-                $ \table ds -> do
-                    debug $ do
-                        say "\n** updateS table deltas"
-                        sayShow table
-                        sayShow ds
-                    mapM_ (update1 table) ds
-                    rememberSupply (apply ds table) -- need to use updated supply
+        update = updateLoad
+            load
+            ( \err -> debug $ do
+                say "Error in updateLoadEither"
+                sayShow err
+            )
+            $ \table ds -> do
+                debug $ do
+                    say "\n** updateS table deltas"
+                    sayShow table
+                    sayShow ds
+                mapM_ (update1 table) ds
+                rememberSupply (apply ds table) -- need to use updated supply
     pure $ mkUpdateStore load write update
   where
     debug = when False

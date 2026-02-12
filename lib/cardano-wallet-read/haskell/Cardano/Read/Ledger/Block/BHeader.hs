@@ -1,11 +1,10 @@
 {-# LANGUAGE UndecidableInstances #-}
 
-{- |
-Copyright: © 2024 Cardano Foundation
-License: Apache-2.0
-
-Era-indexed block header type and extraction.
--}
+-- |
+-- Copyright: © 2024 Cardano Foundation
+-- License: Apache-2.0
+--
+-- Era-indexed block header type and extraction.
 module Cardano.Read.Ledger.Block.BHeader
     ( -- * Block header type
       BHeader (..)
@@ -15,15 +14,12 @@ module Cardano.Read.Ledger.Block.BHeader
     , getEraBHeader
     ) where
 
-import Prelude
-
 import Cardano.Ledger.Block
     ( bheader
     )
 import Cardano.Protocol.Crypto
     ( StandardCrypto
     )
-import qualified Cardano.Protocol.TPraos.BHeader as TPraos
 import Cardano.Read.Ledger.Block.Block
     ( Block (..)
     )
@@ -44,15 +40,20 @@ import GHC.Generics
 import Ouroboros.Consensus.Block.Abstract
     ( getHeader
     )
-import qualified Ouroboros.Consensus.Byron.Ledger.Block as Byron
 import Ouroboros.Consensus.Protocol.Praos.Header
     ( Header
     )
-import qualified Ouroboros.Consensus.Shelley.Ledger.Block as O
 import Ouroboros.Consensus.Shelley.Protocol.Praos
-    ()
+    (
+    )
 import Ouroboros.Consensus.Shelley.Protocol.TPraos
-    ()
+    (
+    )
+import Prelude
+
+import Cardano.Protocol.TPraos.BHeader qualified as TPraos
+import Ouroboros.Consensus.Byron.Ledger.Block qualified as Byron
+import Ouroboros.Consensus.Shelley.Ledger.Block qualified as O
 
 -- | Family of era-specific block header types.
 type family BHeaderT era where

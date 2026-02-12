@@ -2,9 +2,7 @@
 {-# LANGUAGE OverloadedLabels #-}
 
 module Cardano.Wallet.Balance.MigrationSpec
-    where
-
-import Prelude
+where
 
 import Cardano.Wallet.Balance.Migration
     ( RewardWithdrawal (..)
@@ -46,7 +44,8 @@ import Data.Generics.Internal.VL.Lens
     ( view
     )
 import Data.Generics.Labels
-    ()
+    (
+    )
 import Test.Hspec
     ( Spec
     , describe
@@ -63,6 +62,7 @@ import Test.QuickCheck
 import Test.QuickCheck.Extra
     ( verify
     )
+import Prelude
 
 import qualified Cardano.Wallet.Balance.Migration.Planning as Planning
 import qualified Data.List.NonEmpty as NE
@@ -70,12 +70,11 @@ import qualified Data.Map.Strict as Map
 
 spec :: Spec
 spec =
-    describe "Cardano.Wallet.Balance.MigrationSpec" $
-
-        describe "Creating migration plans (with concrete wallet types)" $ do
-
-            it "prop_createPlan_equivalent" $
-                property prop_createPlan_equivalent
+    describe "Cardano.Wallet.Balance.MigrationSpec"
+        $ describe "Creating migration plans (with concrete wallet types)"
+        $ do
+            it "prop_createPlan_equivalent"
+                $ property prop_createPlan_equivalent
 
 --------------------------------------------------------------------------------
 -- Creating migration plans (with concrete wallet types)
@@ -97,8 +96,8 @@ spec =
 prop_createPlan_equivalent :: Blind MockTxConstraints -> Property
 prop_createPlan_equivalent (Blind mockConstraints) =
     forAllBlind genUTxO $ \utxo ->
-    forAllBlind genRewardWithdrawal $ \reward ->
-    prop_createPlan_equivalent_inner mockConstraints utxo reward
+        forAllBlind genRewardWithdrawal $ \reward ->
+            prop_createPlan_equivalent_inner mockConstraints utxo reward
   where
     genUTxO :: Gen UTxO
     genUTxO = do
@@ -112,31 +111,33 @@ prop_createPlan_equivalent (Blind mockConstraints) =
             genTxIn = genTxInLargeRange
 
             genTxOut :: Gen TxOut
-            genTxOut = TxOut
-                <$> genAddress
-                <*> genTokenBundleMixed mockConstraints
+            genTxOut =
+                TxOut
+                    <$> genAddress
+                    <*> genTokenBundleMixed mockConstraints
 
 prop_createPlan_equivalent_inner
     :: MockTxConstraints
     -> UTxO
     -> RewardWithdrawal
     -> Property
-prop_createPlan_equivalent_inner mockConstraints utxo reward = testAll
-    $ verify
-        (totalFeeConcrete == totalFeeAbstract)
-        "totalFeeConcrete == totalFeeAbstract"
-    . verify
-        (selectionsConcrete == selectionsAbstract)
-        "selectionsConcrete == selectionsAbstract"
-    . verify
-        (unselectedConcrete == unselectedAbstract)
-        "unselectedConcrete == unselectedAbstract"
-    . verify
-        (utxoEmpty == utxoIntersect utxoSelected utxoNotSelected)
-        "utxoEmpty == utxoIntersect utxoSelected utxoNotSelected"
-    . verify
-        (utxo == utxoUnion utxoSelected utxoNotSelected)
-        "utxo == utxoUnion utxoSelected utxoNotSelected"
+prop_createPlan_equivalent_inner mockConstraints utxo reward =
+    testAll
+        $ verify
+            (totalFeeConcrete == totalFeeAbstract)
+            "totalFeeConcrete == totalFeeAbstract"
+            . verify
+                (selectionsConcrete == selectionsAbstract)
+                "selectionsConcrete == selectionsAbstract"
+            . verify
+                (unselectedConcrete == unselectedAbstract)
+                "unselectedConcrete == unselectedAbstract"
+            . verify
+                (utxoEmpty == utxoIntersect utxoSelected utxoNotSelected)
+                "utxoEmpty == utxoIntersect utxoSelected utxoNotSelected"
+            . verify
+                (utxo == utxoUnion utxoSelected utxoNotSelected)
+                "utxo == utxoUnion utxoSelected utxoNotSelected"
   where
     totalFeeConcrete = view #totalFee planConcrete
     totalFeeAbstract = view #totalFee planAbstract
@@ -145,12 +146,16 @@ prop_createPlan_equivalent_inner mockConstraints utxo reward = testAll
     selectionsAbstract = view #selections planAbstract
 
     unselectedConcrete = view #unselected planConcrete
-    unselectedAbstract = view #unselected planAbstract
-        & uncategorizeUTxO
+    unselectedAbstract =
+        view #unselected planAbstract
+            & uncategorizeUTxO
 
     planConcrete = createPlan constraints utxo reward
-    planAbstract = Planning.createPlan
-        constraints (categorizeUTxO constraints utxo) reward
+    planAbstract =
+        Planning.createPlan
+            constraints
+            (categorizeUTxO constraints utxo)
+            reward
 
     constraints = unMockTxConstraints mockConstraints
 
@@ -164,13 +169,15 @@ prop_createPlan_equivalent_inner mockConstraints utxo reward = testAll
     utxoUnion (UTxO u1) (UTxO u2) = UTxO $ Map.union u1 u2
 
     utxoSelected :: UTxO
-    utxoSelected = planConcrete
-        & view #selections
-        & fmap (NE.toList . view #inputIds)
-        & mconcat
-        & Map.fromList
-        & UTxO
+    utxoSelected =
+        planConcrete
+            & view #selections
+            & fmap (NE.toList . view #inputIds)
+            & mconcat
+            & Map.fromList
+            & UTxO
 
     utxoNotSelected :: UTxO
-    utxoNotSelected = planConcrete
-        & view #unselected
+    utxoNotSelected =
+        planConcrete
+            & view #unselected

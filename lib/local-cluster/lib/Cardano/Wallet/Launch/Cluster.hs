@@ -45,7 +45,7 @@ module Cardano.Wallet.Launch.Cluster
       -- * Logging
     , ClusterLog (..)
 
-    -- * Monad
+      -- * Monad
     , ClusterM
     , runClusterM
     ) where
@@ -110,4 +110,5 @@ import Cardano.Wallet.Launch.Cluster.SMASH
     ( withSMASH
     )
 import Data.Generics.Labels
-    ()
+    (
+    )

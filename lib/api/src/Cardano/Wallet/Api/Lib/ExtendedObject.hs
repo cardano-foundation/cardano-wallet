@@ -3,14 +3,11 @@
 -- |
 -- Copyright: © 2018-2022 IOHK, 2023 Cardano Foundation
 -- License: Apache-2.0
-
 module Cardano.Wallet.Api.Lib.ExtendedObject
     ( parseExtendedAesonObject
     , extendAesonObject
     )
-    where
-
-import Prelude
+where
 
 import Cardano.Wallet.Api.Lib.Options
     ( defaultRecordTypeOptions
@@ -29,6 +26,7 @@ import Data.Text
 import GHC.Generics
     ( Generic (..)
     )
+import Prelude
 
 import qualified Data.Aeson.Key as Aeson
 import qualified Data.Aeson.KeyMap as Aeson
@@ -36,7 +34,8 @@ import qualified Data.Aeson.Types as Aeson
 
 parseExtendedAesonObject
     :: ( Generic a
-       , Aeson.GFromJSON Aeson.Zero (Rep a) )
+       , Aeson.GFromJSON Aeson.Zero (Rep a)
+       )
     => String
     -> Text
     -> Value
@@ -48,7 +47,8 @@ parseExtendedAesonObject txt fieldtoremove = withObject txt $ \o -> do
 
 extendAesonObject
     :: ( Generic a
-       , Aeson.GToJSON' Value Aeson.Zero (Rep a))
+       , Aeson.GToJSON' Value Aeson.Zero (Rep a)
+       )
     => [Aeson.Pair]
     -> a
     -> Value

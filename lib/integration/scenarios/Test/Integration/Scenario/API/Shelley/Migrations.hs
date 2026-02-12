@@ -14,8 +14,6 @@ module Test.Integration.Scenario.API.Shelley.Migrations
     ( spec
     ) where
 
-import Prelude
-
 import Cardano.Mnemonic.Extended
     ( someMnemonicToWords
     )
@@ -140,6 +138,7 @@ import Test.Integration.Framework.TestData
 import Text.Pretty.Simple
     ( pShowNoColor
     )
+import Prelude
 
 import qualified Cardano.Address as CA
 import qualified Cardano.Faucet.Mnemonics as Mnemonics
@@ -247,11 +246,12 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                             ep
                             Default
                             (Json [json|{addresses: #{targetAddressIds}}|])
-                    verify result
+                    verify
+                        result
                         [ expectResponseCode HTTP.status404
                         ]
-                    decodeErrorInfo result `shouldBe`
-                        NoSuchWallet
+                    decodeErrorInfo result
+                        `shouldBe` NoSuchWallet
                             (ApiErrorNoSuchWallet (sourceWallet ^. #id))
 
     Hspec.it
@@ -796,14 +796,18 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
 
             let transactions :: IO String
                 transactions = do
-                    (_ , txs) <- unsafeRequest @[ApiTransaction n] ctx
-                        (Link.listTransactions @'Shelley sourceWallet) Empty
+                    (_, txs) <-
+                        unsafeRequest @[ApiTransaction n]
+                            ctx
+                            (Link.listTransactions @'Shelley sourceWallet)
+                            Empty
 
-                    pure $
-                        "Source wallet balance is not correct. "
-                        <> "Transactions in the wallet are: "
-                        <> show (length txs) <> "\n"
-                        <> TL.unpack (pShowNoColor txs)
+                    pure
+                        $ "Source wallet balance is not correct. "
+                            <> "Transactions in the wallet are: "
+                            <> show (length txs)
+                            <> "\n"
+                            <> TL.unpack (pShowNoColor txs)
 
             sourceBalance <- eventuallyReport transactions $ do
                 response <-
@@ -1043,9 +1047,9 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                 response
                 [ expectResponseCode HTTP.status403
                 ]
-            decodeErrorInfo response `shouldBe`
-                WrongEncryptionPassphrase
-                (ApiErrorWrongEncryptionPassphrase (sourceWallet ^. #id))
+            decodeErrorInfo response
+                `shouldBe` WrongEncryptionPassphrase
+                    (ApiErrorWrongEncryptionPassphrase (sourceWallet ^. #id))
 
     it
         "SHELLEY_MIGRATE_06 - \
@@ -1058,16 +1062,18 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
 
             -- Create an Icarus address:
             addrIcarus <- do
-                icarusAddrs <- icarusAddresses @n <$> Mnemonics.generateSome Mnemonics.M15
+                icarusAddrs <-
+                    icarusAddresses @n <$> Mnemonics.generateSome Mnemonics.M15
                 case icarusAddrs of
-                    (a:_) -> pure $ encodeAddress (sNetworkId @n) a
+                    (a : _) -> pure $ encodeAddress (sNetworkId @n) a
                     [] -> error "icarusAddresses returned empty list"
 
             -- Create a Byron address:
             addrByron <- do
-                byronAddrs <- randomAddresses @n <$> Mnemonics.generateSome Mnemonics.M12
+                byronAddrs <-
+                    randomAddresses @n <$> Mnemonics.generateSome Mnemonics.M12
                 case byronAddrs of
-                    (a:_) -> pure $ encodeAddress (sNetworkId @n) a
+                    (a : _) -> pure $ encodeAddress (sNetworkId @n) a
                     [] -> error "randomAddresses returned empty list"
 
             -- Create a source wallet:
@@ -1262,15 +1268,15 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
         "SHELLEY_MIGRATE_09 - \
         \Can migrate a wallet that has rewards."
         $ \ctx -> runResourceT @IO $ do
-
             -- Create a source wallet with rewards:
             (sourceWallet, _sourceWalletMnemonic) <- rewardWallet ctx
 
-            let utxoBalance = sourceWallet
-                    ^. (#balance . #available . #toNatural)
-            let rewardBalance0 = sourceWallet ^. -- may increase during test
-                    (#balance . #reward . #toNatural)
-
+            let utxoBalance =
+                    sourceWallet
+                        ^. (#balance . #available . #toNatural)
+            let rewardBalance0 =
+                    sourceWallet
+                        ^. (#balance . #reward . #toNatural) -- may increase during test
             utxoBalance .> 99_000_000_000
             liftIO $ rewardBalance0 .> 0
 
@@ -1679,5 +1685,5 @@ apiPlanTotalOutputCount p =
     F.sum (length . view #outputs <$> view #selections p)
 
 firstWithdrawal :: [a] -> a
-firstWithdrawal (x:_) = x
+firstWithdrawal (x : _) = x
 firstWithdrawal [] = error "expected at least one withdrawal"

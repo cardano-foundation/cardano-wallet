@@ -9,8 +9,6 @@ module Cardano.Wallet.Primitive.SlottingSpec
     ( spec
     ) where
 
-import Prelude
-
 import Cardano.BM.Data.Severity
     ( Severity (..)
     )
@@ -137,6 +135,7 @@ import Test.Utils.Trace
 import UnliftIO.Exception
     ( try
     )
+import Prelude
 
 import qualified Cardano.Slotting.Slot as Cardano
 import qualified Ouroboros.Consensus.HardFork.History.EraParams as HF
@@ -148,19 +147,25 @@ spec = do
     describe "slotting" $ do
         describe "runQuery NEW mkSingleEraInterpreter == OLD . fromFlatSlot" $ do
             it "epochOf and epochNumber"
-                $  property $ legacySlottingTest (\_ s -> epochNumber s) epochOf
+                $ property
+                $ legacySlottingTest (\_ s -> epochNumber s) epochOf
 
             it "slotToUTCTime and slotStartTime"
-                $ property $ legacySlottingTest slotStartTime slotToUTCTime
+                $ property
+                $ legacySlottingTest slotStartTime slotToUTCTime
 
             it "slotRangeFromTimeRange and slotRangeFromTimeRange'"
-                $ withMaxSuccess 10000 $ property $ \t0 sp timeRange -> do
+                $ withMaxSuccess 10000
+                $ property
+                $ \t0 sp timeRange -> do
                     -- NOTE: The old implementation breaks for large times /
                     -- slotNos. After only generating SlotLengths of 1s or
                     -- bigger, it should hopefully always work.
-                    let res = runIdentity $ interpretQuery
-                            (mkSingleEraInterpreter t0 sp)
-                            (slotRangeFromTimeRange timeRange)
+                    let res =
+                            runIdentity
+                                $ interpretQuery
+                                    (mkSingleEraInterpreter t0 sp)
+                                    (slotRangeFromTimeRange timeRange)
 
                     let legacy = slotRangeFromTimeRange' (slotParams t0 sp) timeRange
 
@@ -169,42 +174,53 @@ spec = do
                     res' === legacy
 
             it "(firstSlotInEpoch e) vs (SlotId e 0) "
-                $ withMaxSuccess 10000 $ property $ \t0 sp e -> do
-                    let res = runIdentity $ interpretQuery
-                            (mkSingleEraInterpreter t0 sp)
-                            (firstSlotInEpoch e)
+                $ withMaxSuccess 10000
+                $ property
+                $ \t0 sp e -> do
+                    let res =
+                            runIdentity
+                                $ interpretQuery
+                                    (mkSingleEraInterpreter t0 sp)
+                                    (firstSlotInEpoch e)
                     let legacy = SlotNo $ flatSlot (sp ^. #getEpochLength) $ SlotId e 0
 
                     res === legacy
 
-            it "Can interpret queries for multiple eras at once (regression for ADP-626)" $ do
-                let tr = nullTracer
-                startTime <- StartTime <$> getCurrentTime
-                let ti = mkTimeInterpreter tr startTime (pure forkInterpreter)
-                runExceptT (interpretQuery ti (epochOf 1))
-                    `shouldReturn` Right (EpochNo 0)
+            it
+                "Can interpret queries for multiple eras at once (regression for ADP-626)"
+                $ do
+                    let tr = nullTracer
+                    startTime <- StartTime <$> getCurrentTime
+                    let ti = mkTimeInterpreter tr startTime (pure forkInterpreter)
+                    runExceptT (interpretQuery ti (epochOf 1))
+                        `shouldReturn` Right (EpochNo 0)
 
-                runExceptT (interpretQuery ti (epochOf 1 >> epochOf 19))
-                    `shouldReturn` Right (EpochNo 0)
+                    runExceptT (interpretQuery ti (epochOf 1 >> epochOf 19))
+                        `shouldReturn` Right (EpochNo 0)
 
-                runExceptT (interpretQuery ti (epochOf 20))
-                    `shouldReturn` Right (EpochNo 1)
+                    runExceptT (interpretQuery ti (epochOf 20))
+                        `shouldReturn` Right (EpochNo 1)
 
-                runExceptT (interpretQuery ti (epochOf 20 >> epochOf 39))
-                    `shouldReturn` Right (EpochNo 1)
+                    runExceptT (interpretQuery ti (epochOf 20 >> epochOf 39))
+                        `shouldReturn` Right (EpochNo 1)
 
-                runExceptT (interpretQuery ti (epochOf 1 >> epochOf 20))
-                    `shouldReturn` Right (EpochNo 1)
+                    runExceptT (interpretQuery ti (epochOf 1 >> epochOf 20))
+                        `shouldReturn` Right (EpochNo 1)
 
-                runExceptT (interpretQuery ti (epochOf 1 >> epochOf 21))
-                    `shouldReturn` Right (EpochNo 1)
+                    runExceptT (interpretQuery ti (epochOf 1 >> epochOf 21))
+                        `shouldReturn` Right (EpochNo 1)
 
-        it "endTimeOfEpoch e == (slotToUTCTime =<< firstSlotInEpoch (e + 1)) \
-           \ (always true using mkSingleEraInterpreter)"
-            $ withMaxSuccess 10000 $ property $ \t0 sp e -> do
+        it
+            "endTimeOfEpoch e == (slotToUTCTime =<< firstSlotInEpoch (e + 1)) \
+            \ (always true using mkSingleEraInterpreter)"
+            $ withMaxSuccess 10000
+            $ property
+            $ \t0 sp e -> do
                 let run :: Qry a -> a
-                    run = runIdentity . interpretQuery
-                        (mkSingleEraInterpreter t0 sp)
+                    run =
+                        runIdentity
+                            . interpretQuery
+                                (mkSingleEraInterpreter t0 sp)
 
                     endTimeOfEpoch :: EpochNo -> Qry UTCTime
                     endTimeOfEpoch = fmap snd . timeOfEpoch
@@ -213,7 +229,6 @@ spec = do
                     === run (slotToUTCTime =<< firstSlotInEpoch (e + 1))
 
         describe "TimeInterpreter conversions beyond the safe zone" $ do
-
             startTime <- runIO $ StartTime <$> getCurrentTime
             let failingQry = slotToUTCTime (SlotNo 100000)
 
@@ -230,9 +245,10 @@ spec = do
 
             it "(neverFails \"because\" ti) logs failures as Error" $ do
                 (logs, res) <- captureLogging $ \tr -> do
-                    let ti = neverFails "because" $
-                            mkTimeInterpreter tr startTime $
-                            pure forkInterpreter
+                    let ti =
+                            neverFails "because"
+                                $ mkTimeInterpreter tr startTime
+                                $ pure forkInterpreter
                     try @IO @PastHorizonException $ interpretQuery ti failingQry
 
                 res `shouldSatisfy` isLeft
@@ -243,9 +259,10 @@ spec = do
 
             it "(unsafeExtendSafeZone ti) doesn't fail nor log" $ do
                 (logs, res) <- captureLogging $ \tr -> do
-                    let ti = unsafeExtendSafeZone $
-                            mkTimeInterpreter tr startTime $
-                            pure forkInterpreter
+                    let ti =
+                            unsafeExtendSafeZone
+                                $ mkTimeInterpreter tr startTime
+                                $ pure forkInterpreter
                     try @IO @PastHorizonException $ interpretQuery ti failingQry
 
                 res `shouldSatisfy` isRight
@@ -253,9 +270,10 @@ spec = do
 
             it "(expectAndThrowFailures ti) fails and logs as Notice" $ do
                 (logs, res) <- captureLogging $ \tr -> do
-                    let ti = expectAndThrowFailures $
-                            mkTimeInterpreter tr startTime $
-                            pure forkInterpreter
+                    let ti =
+                            expectAndThrowFailures
+                                $ mkTimeInterpreter tr startTime
+                                $ pure forkInterpreter
                     try @IO @PastHorizonException $ interpretQuery ti failingQry
 
                 res `shouldSatisfy` isLeft
@@ -267,20 +285,26 @@ spec = do
     forkInterpreter =
         let
             t0 = HF.initBound
-            t1 = HF.Bound
+            t1 =
+                HF.Bound
                     (RelativeTime 20)
                     (SlotNo 20)
                     (Cardano.EpochNo 1)
-            t2 = HF.Bound
+            t2 =
+                HF.Bound
                     (RelativeTime 40)
                     (SlotNo 40)
                     (Cardano.EpochNo 2)
 
-            era1Params = HF.defaultEraParams (SecurityParam (unsafeNonZero 2)) (mkSlotLength 1)
-            summary = HF.summaryWithExactly $ exactlyTwo
-                (HF.EraSummary t0 (HF.EraEnd t1) era1Params)
-                (HF.EraSummary t1 (HF.EraEnd t2) era1Params)
-        in HF.mkInterpreter summary
+            era1Params =
+                HF.defaultEraParams (SecurityParam (unsafeNonZero 2)) (mkSlotLength 1)
+            summary =
+                HF.summaryWithExactly
+                    $ exactlyTwo
+                        (HF.EraSummary t0 (HF.EraEnd t1) era1Params)
+                        (HF.EraSummary t1 (HF.EraEnd t2) era1Params)
+        in
+            HF.mkInterpreter summary
 
 legacySlottingTest
     :: (Eq a, Show a)
@@ -291,12 +315,16 @@ legacySlottingTest
     -> SlotNo
     -> Property
 legacySlottingTest legacyImpl newImpl t0 sp slotNo = withMaxSuccess 10000 $ do
-    let res = runIdentity $ interpretQuery
-            (mkSingleEraInterpreter t0 sp)
-            (newImpl slotNo)
-    let legacy = legacyImpl (slotParams t0 sp) $ fromFlatSlot
-            (sp ^. #getEpochLength)
-            (unSlotNo slotNo)
+    let res =
+            runIdentity
+                $ interpretQuery
+                    (mkSingleEraInterpreter t0 sp)
+                    (newImpl slotNo)
+    let legacy =
+            legacyImpl (slotParams t0 sp)
+                $ fromFlatSlot
+                    (sp ^. #getEpochLength)
+                    (unSlotNo slotNo)
     res === legacy
 
 {-------------------------------------------------------------------------------
@@ -318,7 +346,7 @@ instance Arbitrary SlottingParameters where
     shrink = genericShrink
 
 instance Arbitrary SlotLength where
-    arbitrary = SlotLength . fromRational . toRational <$> choose (1,10::Double)
+    arbitrary = SlotLength . fromRational . toRational <$> choose (1, 10 :: Double)
     shrink _ = []
 
 instance Arbitrary (Hash "Genesis") where
@@ -330,7 +358,7 @@ instance Arbitrary StartTime where
     shrink _ = []
 
 instance Arbitrary EpochLength where
-    arbitrary = EpochLength <$> choose (2,100000)
+    arbitrary = EpochLength <$> choose (2, 100000)
     shrink _ = []
 
 instance Arbitrary ActiveSlotCoefficient where
@@ -338,7 +366,7 @@ instance Arbitrary ActiveSlotCoefficient where
     shrink = shrinkActiveSlotCoefficient
 
 instance Arbitrary (Quantity "block" Word32) where
-    arbitrary = Quantity <$> choose (1,100000)
+    arbitrary = Quantity <$> choose (1, 100000)
     shrink (Quantity x) = map Quantity $ shrink x
 
 instance (Arbitrary a, Ord a) => Arbitrary (Range a) where

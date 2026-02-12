@@ -2,9 +2,9 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
-{-# LANGUAGE RankNTypes #-}
 
 -- |
 -- Copyright: © 2022–2023 IOHK
@@ -15,8 +15,6 @@ module Cardano.Wallet.DB.Store.PrivateKey.StoreSpec
     ( spec
     )
 where
-
-import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv
@@ -29,7 +27,8 @@ import Cardano.Wallet.Address.Derivation
     ( Depth (RootK)
     )
 import Cardano.Wallet.DB.Arbitrary
-    ()
+    (
+    )
 import Cardano.Wallet.DB.Fixtures
     ( WalletProperty
     , logScale
@@ -67,6 +66,7 @@ import Test.QuickCheck
 import Test.Store
     ( prop_StoreUpdate
     )
+import Prelude
 
 spec :: Spec
 spec =
@@ -88,7 +88,8 @@ prop_StorePrivateKeyLaws kF db wid = do
         genPrivateKey
         (logScale . genDelta)
 
-genPrivateKey :: Arbitrary (k 'RootK XPrv) => Gen (Maybe (HashedCredentials k))
+genPrivateKey
+    :: Arbitrary (k 'RootK XPrv) => Gen (Maybe (HashedCredentials k))
 genPrivateKey = fmap Just $ RootCredentials <$> arbitrary <*> arbitrary
 
 instance Buildable (DeltaPrivateKey k) where

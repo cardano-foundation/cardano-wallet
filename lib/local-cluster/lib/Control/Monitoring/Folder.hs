@@ -9,8 +9,6 @@ module Control.Monitoring.Folder
     )
 where
 
-import Prelude
-
 import Control.Comonad
     ( Comonad (extract)
     )
@@ -25,12 +23,14 @@ import Control.Monitoring.Tracing
 import Data.Machine
     ( Moore (..)
     )
+import Prelude
 
 consume :: Fold a b -> a -> Fold a b
 consume (Fold f s e) a = Fold f (f s a) e
 
 -- | Create a machine from a `Fold` in a given initial state
-mkTracingFromFold :: forall w a b. Fold a b -> StateS w -> Tracing w a b
+mkTracingFromFold
+    :: forall w a b. Fold a b -> StateS w -> Tracing w a b
 mkTracingFromFold = go
   where
     go :: Fold a b -> StateS w' -> Tracing w' a b
@@ -64,5 +64,6 @@ foldToMoore :: Fold a b -> Moore a b
 foldToMoore f = Moore (extract f) $ foldToMoore . consume f
 
 -- | Create a tracing from a `Moore` machine in a given initial state
-mkTracingFromMoore :: forall w a b. Moore a b -> StateS w -> Tracing w a b
+mkTracingFromMoore
+    :: forall w a b. Moore a b -> StateS w -> Tracing w a b
 mkTracingFromMoore = mkTracingFromFold . mooreToFold

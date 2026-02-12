@@ -6,7 +6,6 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE NoFieldSelectors #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE Rank2Types #-}
@@ -14,12 +13,12 @@
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE NoFieldSelectors #-}
 
 {- HLINT ignore "Use ||" -}
 
 module Internal.Cardano.Write.Tx.Balance
-    (
-    -- * Balancing transactions
+    ( -- * Balancing transactions
       balanceTx
     , ErrBalanceTx (..)
     , ErrBalanceTxAssetsInsufficientError (..)
@@ -30,43 +29,40 @@ module Internal.Cardano.Write.Tx.Balance
     , ErrBalanceTxUnableToCreateChangeError (..)
     , ErrAssignRedeemers (..)
 
-    -- * Change addresses
+      -- * Change addresses
     , ChangeAddressGen (..)
     , assignChangeAddresses
 
-    -- * Partial transactions
+      -- * Partial transactions
     , PartialTx (..)
     , Redeemer (..)
 
-    -- ** Deposit lookup
+      -- ** Deposit lookup
     , StakeKeyDepositLookup (..)
     , lookupStakeKeyDeposit
 
-    -- * UTxO assumptions
+      -- * UTxO assumptions
     , UTxOAssumptions (..)
 
-    -- * UTxO indices
+      -- * UTxO indices
     , UTxOIndex
     , constructUTxOIndex
 
-    -- * Utilities
+      -- * Utilities
     , fromWalletUTxO
     , toWalletUTxO
     , splitSignedValue
     , mergeSignedValue
     , stakeCredentialsWithRefunds
 
-    -- ** updateTx
+      -- ** updateTx
     , TxUpdate (..)
     , noTxUpdate
     , updateTx
     , TxFeeUpdate (..)
     , ErrUpdateTx (..)
-
     )
-    where
-
-import Prelude
+where
 
 import Cardano.CoinSelection.Size
     ( TokenBundleSizeAssessment (..)
@@ -149,7 +145,8 @@ import Data.Generics.Internal.VL.Lens
     , (^.)
     )
 import Data.Generics.Labels
-    ()
+    (
+    )
 import Data.Group
     ( Group (invert)
     )
@@ -267,6 +264,7 @@ import Numeric.Natural
 import Text.Pretty.Simple
     ( pShow
     )
+import Prelude
 
 import qualified Cardano.Address.KeyHash as CA
 import qualified Cardano.Address.Script as CA
@@ -319,21 +317,22 @@ import qualified Data.Set.NonEmpty as NESet
 import qualified Internal.Cardano.Write.Tx.Balance.CoinSelection as CoinSelection
 
 -- | Indicates a failure to select a sufficient amount of collateral.
---
-data ErrBalanceTxInsufficientCollateralError era =
-    ErrBalanceTxInsufficientCollateralError
+data ErrBalanceTxInsufficientCollateralError era
+    = ErrBalanceTxInsufficientCollateralError
     { largestCombinationAvailable :: UTxO era
-        -- ^ The largest available combination of pure ada UTxOs.
+    -- ^ The largest available combination of pure ada UTxOs.
     , minimumCollateralAmount :: Coin
-        -- ^ The minimum quantity of ada necessary for collateral.
+    -- ^ The minimum quantity of ada necessary for collateral.
     }
-    deriving Generic
+    deriving (Generic)
 
-deriving instance IsRecentEra era =>
-    Eq (ErrBalanceTxInsufficientCollateralError era)
+deriving instance
+    IsRecentEra era
+    => Eq (ErrBalanceTxInsufficientCollateralError era)
 
-deriving instance IsRecentEra era =>
-    Show (ErrBalanceTxInsufficientCollateralError era)
+deriving instance
+    IsRecentEra era
+    => Show (ErrBalanceTxInsufficientCollateralError era)
 
 -- | Indicates that there was not enough ada available to create change outputs.
 --
@@ -341,20 +340,19 @@ deriving instance IsRecentEra era =>
 --
 --  - the minimum ada quantity required for that change output; and
 --  - the marginal fee for including that output in the transaction.
---
-data ErrBalanceTxUnableToCreateChangeError =
-    ErrBalanceTxUnableToCreateChangeError
+data ErrBalanceTxUnableToCreateChangeError
+    = ErrBalanceTxUnableToCreateChangeError
     { requiredCost :: !Coin
-        -- ^ An estimate of the minimal fee required for this transaction to
-        -- be considered valid.
-        --
-        -- TODO: ADP-2547
-        -- Investigate whether this field is really appropriate and necessary,
-        -- and if not, remove it.
+    -- ^ An estimate of the minimal fee required for this transaction to
+    -- be considered valid.
+    --
+    -- TODO: ADP-2547
+    -- Investigate whether this field is really appropriate and necessary,
+    -- and if not, remove it.
     , shortfall :: !Coin
-        -- ^ The total additional quantity of ada required to pay for the
-        -- minimum ada quantities of all change outputs as well as the
-        -- marginal fee for including these outputs in the transaction.
+    -- ^ The total additional quantity of ada required to pay for the
+    -- minimum ada quantities of all change outputs as well as the
+    -- marginal fee for including these outputs in the transaction.
     }
     deriving (Eq, Generic, Show)
 
@@ -365,14 +363,13 @@ data ErrBalanceTxUnableToCreateChangeError =
 --
 -- The 'shortfall' field indicates the minimum extra quantity of each asset
 -- that would be necessary to balance the transaction.
---
 data ErrBalanceTxAssetsInsufficientError = ErrBalanceTxAssetsInsufficientError
     { available :: Value
-        -- ^ The total sum of all assets available.
+    -- ^ The total sum of all assets available.
     , required :: Value
-        -- ^ The total sum of all assets required.
+    -- ^ The total sum of all assets required.
     , shortfall :: Value
-        -- ^ The total shortfall between available and required assets.
+    -- ^ The total shortfall between available and required assets.
     }
     deriving (Eq, Generic, Show)
 
@@ -380,16 +377,19 @@ data ErrBalanceTxInternalError era
     = ErrUnderestimatedFee Coin (Tx era) KeyWitnessCounts
     | ErrFailedBalancing Value
 
-deriving instance IsRecentEra era => Eq (ErrBalanceTxInternalError era)
-deriving instance IsRecentEra era => Show (ErrBalanceTxInternalError era)
+deriving instance
+    IsRecentEra era => Eq (ErrBalanceTxInternalError era)
+deriving instance
+    IsRecentEra era => Show (ErrBalanceTxInternalError era)
 
 -- | Errors that can occur when balancing transactions.
 data ErrBalanceTx era
     = ErrBalanceTxAssetsInsufficient ErrBalanceTxAssetsInsufficientError
-    | ErrBalanceTxMaxSizeLimitExceeded { size :: W.TxSize, maxSize :: W.TxSize }
-    | ErrBalanceTxExistingKeyWitnesses Int
-    -- ^ Indicates that a transaction could not be balanced because a given
-    -- number of existing key witnesses would be rendered invalid.
+    | ErrBalanceTxMaxSizeLimitExceeded
+        {size :: W.TxSize, maxSize :: W.TxSize}
+    | -- | Indicates that a transaction could not be balanced because a given
+      -- number of existing key witnesses would be rendered invalid.
+      ErrBalanceTxExistingKeyWitnesses Int
     | ErrBalanceTxExistingCollateral
     | ErrBalanceTxExistingTotalCollateral
     | ErrBalanceTxExistingReturnCollateral
@@ -403,12 +403,12 @@ data ErrBalanceTx era
     | ErrBalanceTxUnresolvedRefunds (NESet StakeCredential)
     | ErrBalanceTxOutputError ErrBalanceTxOutputError
     | ErrBalanceTxUnableToCreateChange ErrBalanceTxUnableToCreateChangeError
-    | ErrBalanceTxUnableToCreateInput
-    -- ^ Returned when __both__ of the following conditions are true:
-    --   - the given partial transaction has no existing inputs; and
-    --   - the given UTxO index is empty.
-    -- A transaction must have at least one input in order to be valid.
-    deriving Generic
+    | -- | Returned when __both__ of the following conditions are true:
+      --   - the given partial transaction has no existing inputs; and
+      --   - the given UTxO index is empty.
+      -- A transaction must have at least one input in order to be valid.
+      ErrBalanceTxUnableToCreateInput
+    deriving (Generic)
 
 deriving instance IsRecentEra era => Eq (ErrBalanceTx era)
 deriving instance IsRecentEra era => Show (ErrBalanceTx era)
@@ -435,31 +435,32 @@ data PartialTx era = PartialTx
     -- ^ Deposit lookup. Must contain values for all stake credentials
     -- deregistered in the transaction.
     , timelockKeyWitnessCounts :: TimelockKeyWitnessCounts
-      -- ^ Specifying the intended number of timelock script key witnesses may
-      -- save space and fees when constructing a transaction.
-      --
-      -- Timelock scripts without entries in this map will have their key
-      -- witness counts estimated according to
-      -- 'estimateMaxWitnessRequiredPerInput'.
+    -- ^ Specifying the intended number of timelock script key witnesses may
+    -- save space and fees when constructing a transaction.
+    --
+    -- Timelock scripts without entries in this map will have their key
+    -- witness counts estimated according to
+    -- 'estimateMaxWitnessRequiredPerInput'.
     }
-    deriving Generic
+    deriving (Generic)
 
 deriving instance IsRecentEra era => Eq (PartialTx era)
 deriving instance IsRecentEra era => Show (PartialTx era)
 
-instance IsRecentEra era => Buildable (PartialTx era)
-  where
-    build PartialTx {tx, extraUTxO, redeemers, timelockKeyWitnessCounts}
-        = nameF "PartialTx" $ mconcat
-            [ nameF "extraUTxO"
-                (blockListF' "-" inF (Map.toList (unUTxO extraUTxO)))
-            , nameF "redeemers" (pretty redeemers)
-            , nameF "tx" (txF tx)
-            , nameF "intended timelock key witness counts"
-                $ blockListF' "-" (build . show)
-                $ Map.toList
-                $ getTimelockKeyWitnessCounts timelockKeyWitnessCounts
-            ]
+instance IsRecentEra era => Buildable (PartialTx era) where
+    build PartialTx{tx, extraUTxO, redeemers, timelockKeyWitnessCounts} =
+        nameF "PartialTx"
+            $ mconcat
+                [ nameF
+                    "extraUTxO"
+                    (blockListF' "-" inF (Map.toList (unUTxO extraUTxO)))
+                , nameF "redeemers" (pretty redeemers)
+                , nameF "tx" (txF tx)
+                , nameF "intended timelock key witness counts"
+                    $ blockListF' "-" (build . show)
+                    $ Map.toList
+                    $ getTimelockKeyWitnessCounts timelockKeyWitnessCounts
+                ]
       where
         inF = build . show
 
@@ -477,20 +478,20 @@ instance IsRecentEra era => Buildable (PartialTx era)
 -- 'StakeKeyDepositAssumeCurrent'.
 data StakeKeyDepositLookup
     = StakeKeyDepositMap (Map StakeCredential Coin)
-    | StakeKeyDepositAssumeCurrent
-    -- ^ Provided for compatibility with cardano-wallet. May be removed in the
-    -- future.
+    | -- | Provided for compatibility with cardano-wallet. May be removed in the
+      -- future.
+      StakeKeyDepositAssumeCurrent
     deriving (Eq, Show, Generic)
 
 instance Semigroup StakeKeyDepositLookup where
-    StakeKeyDepositMap m1 <> StakeKeyDepositMap m2
-        = StakeKeyDepositMap (m1 <> m2)
-    StakeKeyDepositMap m <> StakeKeyDepositAssumeCurrent
-        = StakeKeyDepositMap m
-    StakeKeyDepositAssumeCurrent <> StakeKeyDepositMap m
-        = StakeKeyDepositMap m
-    StakeKeyDepositAssumeCurrent <> StakeKeyDepositAssumeCurrent
-        = StakeKeyDepositAssumeCurrent
+    StakeKeyDepositMap m1 <> StakeKeyDepositMap m2 =
+        StakeKeyDepositMap (m1 <> m2)
+    StakeKeyDepositMap m <> StakeKeyDepositAssumeCurrent =
+        StakeKeyDepositMap m
+    StakeKeyDepositAssumeCurrent <> StakeKeyDepositMap m =
+        StakeKeyDepositMap m
+    StakeKeyDepositAssumeCurrent <> StakeKeyDepositAssumeCurrent =
+        StakeKeyDepositAssumeCurrent
 
 lookupStakeKeyDeposit
     :: IsRecentEra era
@@ -498,10 +499,10 @@ lookupStakeKeyDeposit
     -> PParams era
     -> StakeCredential
     -> Maybe Coin
-lookupStakeKeyDeposit (StakeKeyDepositMap m) _pp
-    = flip Map.lookup m
-lookupStakeKeyDeposit (StakeKeyDepositAssumeCurrent) pp
-    = const $ Just $ pp ^. ppKeyDepositL
+lookupStakeKeyDeposit (StakeKeyDepositMap m) _pp =
+    flip Map.lookup m
+lookupStakeKeyDeposit (StakeKeyDepositAssumeCurrent) pp =
+    const $ Just $ pp ^. ppKeyDepositL
 
 data UTxOIndex era = UTxOIndex
     { availableUTxO :: !(UTxO era)
@@ -515,13 +516,14 @@ constructUTxOIndex
     => UTxO era
     -> UTxOIndex era
 constructUTxOIndex availableUTxO =
-    UTxOIndex {availableUTxO, availableUTxOIndex}
+    UTxOIndex{availableUTxO, availableUTxOIndex}
   where
     availableUTxOIndex =
         UTxOIndex.fromMap $ toInternalUTxOMap $ toWalletUTxO availableUTxO
 
 fromWalletUTxO
-    :: forall era. IsRecentEra era
+    :: forall era
+     . IsRecentEra era
     => W.UTxO
     -> UTxO era
 fromWalletUTxO = case recentEra :: RecentEra era of
@@ -529,7 +531,8 @@ fromWalletUTxO = case recentEra :: RecentEra era of
     RecentEraConway -> Convert.toLedgerUTxOConway
 
 toWalletUTxO
-    :: forall era. IsRecentEra era
+    :: forall era
+     . IsRecentEra era
     => UTxO era
     -> W.UTxO
 toWalletUTxO = case recentEra :: RecentEra era of
@@ -537,10 +540,10 @@ toWalletUTxO = case recentEra :: RecentEra era of
     RecentEraConway -> Convert.toWalletUTxOConway
 
 balanceTx
-    :: forall era m changeState.
-        ( MonadRandom m
-        , IsRecentEra era
-        )
+    :: forall era m changeState
+     . ( MonadRandom m
+       , IsRecentEra era
+       )
     => PParams era
     -- Protocol parameters. Can be retrieved via Local State Query to a
     -- local node.
@@ -569,7 +572,7 @@ balanceTx
     pp
     timeTranslation
     utxoAssumptions
-    UTxOIndex {availableUTxO, availableUTxOIndex}
+    UTxOIndex{availableUTxO, availableUTxOIndex}
     genChange
     changeState
     PartialTx
@@ -578,170 +581,171 @@ balanceTx
         , redeemers
         , timelockKeyWitnessCounts
         , stakeKeyDeposits
-        }
-    = do
-    guardExistingCollateral
-    guardExistingReturnCollateral
-    guardExistingTotalCollateral
-    guardRefundsResolvable
+        } =
+        do
+            guardExistingCollateral
+            guardExistingReturnCollateral
+            guardExistingTotalCollateral
+            guardRefundsResolvable
 
-    guardUTxOConsistency
-    preselectedUTxOIndex <- indexPreselectedUTxO
-    let utxoSelection =
-            UTxOSelection.fromIndexPair
-                (availableUTxOIndex, preselectedUTxOIndex)
-    when (UTxOSelection.availableSize utxoSelection == 0) $
-        throwE ErrBalanceTxUnableToCreateInput
+            guardUTxOConsistency
+            preselectedUTxOIndex <- indexPreselectedUTxO
+            let utxoSelection =
+                    UTxOSelection.fromIndexPair
+                        (availableUTxOIndex, preselectedUTxOIndex)
+            when (UTxOSelection.availableSize utxoSelection == 0)
+                $ throwE ErrBalanceTxUnableToCreateInput
 
-    let adjustedPartialTx = assignMinimalAdaQuantitiesToOutputsWithoutAda pp tx
-        balanceWith strategy =
-            balanceTxInner
-                pp
-                timeTranslation
-                utxoAssumptions
-                utxoReference
-                utxoSelection
-                genChange
-                changeState
-                strategy
-                redeemers
-                timelockKeyWitnessCounts
-                stakeKeyDeposits
-                adjustedPartialTx
-    balanceWith SelectionStrategyOptimal
-        `catchE` \e ->
-            if minimalStrategyIsWorthTrying e
-            then balanceWith SelectionStrategyMinimal
-            else throwE e
-  where
-    -- Creates an index of all UTxOs that are already spent as inputs of the
-    -- partial transaction.
-    --
-    -- This function will fail if any of the inputs refers to a UTxO that
-    -- cannot be found in the UTxO reference set.
-    --
-    indexPreselectedUTxO
-        :: ExceptT (ErrBalanceTx era) m (UTxOIndex.UTxOIndex WalletUTxO)
-    indexPreselectedUTxO
-        | Just unresolvedTxIns <- maybeUnresolvedTxIns =
-            throwE (ErrBalanceTxUnresolvedInputs unresolvedTxIns)
-        | otherwise = pure $
-            UTxOIndex.fromSequence (convertUTxO <$> Map.toList selectedUTxO)
+            let adjustedPartialTx = assignMinimalAdaQuantitiesToOutputsWithoutAda pp tx
+                balanceWith strategy =
+                    balanceTxInner
+                        pp
+                        timeTranslation
+                        utxoAssumptions
+                        utxoReference
+                        utxoSelection
+                        genChange
+                        changeState
+                        strategy
+                        redeemers
+                        timelockKeyWitnessCounts
+                        stakeKeyDeposits
+                        adjustedPartialTx
+            balanceWith SelectionStrategyOptimal
+                `catchE` \e ->
+                    if minimalStrategyIsWorthTrying e
+                        then balanceWith SelectionStrategyMinimal
+                        else throwE e
       where
-        convertUTxO :: (TxIn, TxOut era) -> (WalletUTxO, W.TokenBundle)
-        convertUTxO (i, o) = (WalletUTxO (Convert.toWallet i) addr, bundle)
+        -- Creates an index of all UTxOs that are already spent as inputs of the
+        -- partial transaction.
+        --
+        -- This function will fail if any of the inputs refers to a UTxO that
+        -- cannot be found in the UTxO reference set.
+        --
+        indexPreselectedUTxO
+            :: ExceptT (ErrBalanceTx era) m (UTxOIndex.UTxOIndex WalletUTxO)
+        indexPreselectedUTxO
+            | Just unresolvedTxIns <- maybeUnresolvedTxIns =
+                throwE (ErrBalanceTxUnresolvedInputs unresolvedTxIns)
+            | otherwise =
+                pure
+                    $ UTxOIndex.fromSequence (convertUTxO <$> Map.toList selectedUTxO)
           where
-            W.TxOut addr bundle = toWalletTxOut o
-        maybeUnresolvedTxIns :: Maybe (NESet TxIn)
-        maybeUnresolvedTxIns =
-            NESet.nonEmptySet $ txIns <\> Map.keysSet selectedUTxO
-        selectedUTxO :: Map TxIn (TxOut era)
-        selectedUTxO = Map.restrictKeys (unUTxO utxoReference) txIns
-        txIns :: Set TxIn
-        txIns = tx ^. bodyTxL . inputsTxBodyL
+            convertUTxO :: (TxIn, TxOut era) -> (WalletUTxO, W.TokenBundle)
+            convertUTxO (i, o) = (WalletUTxO (Convert.toWallet i) addr, bundle)
+              where
+                W.TxOut addr bundle = toWalletTxOut o
+            maybeUnresolvedTxIns :: Maybe (NESet TxIn)
+            maybeUnresolvedTxIns =
+                NESet.nonEmptySet $ txIns <\> Map.keysSet selectedUTxO
+            selectedUTxO :: Map TxIn (TxOut era)
+            selectedUTxO = Map.restrictKeys (unUTxO utxoReference) txIns
+            txIns :: Set TxIn
+            txIns = tx ^. bodyTxL . inputsTxBodyL
 
-    -- The set of all UTxOs that may be referenced by a balanced transaction.
-    --
-    -- Note that when constructing this set, we give precedence to UTxOs
-    -- provided as part of the 'PartialTx' object. This relies on the
-    -- left-biased nature of the 'Semigroup' 'mappend' operation on UTxO sets.
-    --
-    utxoReference :: UTxO era
-    utxoReference = mconcat [extraUTxO, availableUTxO]
+        -- The set of all UTxOs that may be referenced by a balanced transaction.
+        --
+        -- Note that when constructing this set, we give precedence to UTxOs
+        -- provided as part of the 'PartialTx' object. This relies on the
+        -- left-biased nature of the 'Semigroup' 'mappend' operation on UTxO sets.
+        --
+        utxoReference :: UTxO era
+        utxoReference = mconcat [extraUTxO, availableUTxO]
 
-    guardExistingCollateral :: ExceptT (ErrBalanceTx era) m ()
-    guardExistingCollateral = do
-        -- Coin selection does not support pre-defining collateral. In Sep 2021
-        -- consensus was that we /could/ allow for it with just a day's work or
-        -- so, but that the need for it was unclear enough that it was not in
-        -- any way a priority.
-        let collIns = tx ^. bodyTxL . collateralInputsTxBodyL
-        unless (null collIns) $
-            throwE ErrBalanceTxExistingCollateral
+        guardExistingCollateral :: ExceptT (ErrBalanceTx era) m ()
+        guardExistingCollateral = do
+            -- Coin selection does not support pre-defining collateral. In Sep 2021
+            -- consensus was that we /could/ allow for it with just a day's work or
+            -- so, but that the need for it was unclear enough that it was not in
+            -- any way a priority.
+            let collIns = tx ^. bodyTxL . collateralInputsTxBodyL
+            unless (null collIns)
+                $ throwE ErrBalanceTxExistingCollateral
 
-    guardExistingReturnCollateral :: ExceptT (ErrBalanceTx era) m ()
-    guardExistingReturnCollateral = do
-        let collRet = tx ^. bodyTxL . collateralReturnTxBodyL
-        case collRet of
-            SNothing -> return ()
-            SJust _ -> throwE ErrBalanceTxExistingReturnCollateral
+        guardExistingReturnCollateral :: ExceptT (ErrBalanceTx era) m ()
+        guardExistingReturnCollateral = do
+            let collRet = tx ^. bodyTxL . collateralReturnTxBodyL
+            case collRet of
+                SNothing -> return ()
+                SJust _ -> throwE ErrBalanceTxExistingReturnCollateral
 
-    guardExistingTotalCollateral :: ExceptT (ErrBalanceTx era) m ()
-    guardExistingTotalCollateral = do
-        let totColl = tx ^. bodyTxL . totalCollateralTxBodyL
-        case totColl of
-            SNothing -> return ()
-            SJust _ -> throwE ErrBalanceTxExistingTotalCollateral
+        guardExistingTotalCollateral :: ExceptT (ErrBalanceTx era) m ()
+        guardExistingTotalCollateral = do
+            let totColl = tx ^. bodyTxL . totalCollateralTxBodyL
+            case totColl of
+                SNothing -> return ()
+                SJust _ -> throwE ErrBalanceTxExistingTotalCollateral
 
-    -- | Ensures that the given UTxO sets are consistent with one another.
-    --
-    -- They are not consistent iff an input can be looked up in both UTxO sets
-    -- with different @Address@, or @TokenBundle@ values.
-    --
-    guardUTxOConsistency :: ExceptT (ErrBalanceTx era) m ()
-    guardUTxOConsistency =
-        case NE.nonEmpty (F.toList (conflicts extraUTxO availableUTxO)) of
-            Just cs -> throwE $ ErrBalanceTxInputResolutionConflicts cs
-            Nothing -> return ()
-      where
-        conflicts :: UTxO era -> UTxO era -> Map TxIn (TxOut era, TxOut era)
-        conflicts = Map.conflictsWith ((/=) `on` toWalletTxOut) `on` unUTxO
+        -- \| Ensures that the given UTxO sets are consistent with one another.
+        --
+        -- They are not consistent iff an input can be looked up in both UTxO sets
+        -- with different @Address@, or @TokenBundle@ values.
+        guardUTxOConsistency :: ExceptT (ErrBalanceTx era) m ()
+        guardUTxOConsistency =
+            case NE.nonEmpty (F.toList (conflicts extraUTxO availableUTxO)) of
+                Just cs -> throwE $ ErrBalanceTxInputResolutionConflicts cs
+                Nothing -> return ()
+          where
+            conflicts :: UTxO era -> UTxO era -> Map TxIn (TxOut era, TxOut era)
+            conflicts = Map.conflictsWith ((/=) `on` toWalletTxOut) `on` unUTxO
 
-    guardRefundsResolvable :: ExceptT (ErrBalanceTx era) m ()
-    guardRefundsResolvable = case stakeKeyDeposits of
-        StakeKeyDepositAssumeCurrent -> pure ()
-        StakeKeyDepositMap deposits -> do
-            let refunds = stakeCredentialsWithRefunds tx
-            let unresolvedRefunds = refunds <\> Set.fromList (Map.keys deposits)
-            maybe
-                (pure ())
-                (throwE . ErrBalanceTxUnresolvedRefunds)
-                (NESet.nonEmptySet unresolvedRefunds)
+        guardRefundsResolvable :: ExceptT (ErrBalanceTx era) m ()
+        guardRefundsResolvable = case stakeKeyDeposits of
+            StakeKeyDepositAssumeCurrent -> pure ()
+            StakeKeyDepositMap deposits -> do
+                let refunds = stakeCredentialsWithRefunds tx
+                let unresolvedRefunds = refunds <\> Set.fromList (Map.keys deposits)
+                maybe
+                    (pure ())
+                    (throwE . ErrBalanceTxUnresolvedRefunds)
+                    (NESet.nonEmptySet unresolvedRefunds)
 
-    -- Determines whether or not the minimal selection strategy is worth trying.
-    -- This depends upon the way in which the optimal selection strategy failed.
-    minimalStrategyIsWorthTrying :: ErrBalanceTx era -> Bool
-    minimalStrategyIsWorthTrying e = or
-        [ maxSizeLimitExceeded
-        , unableToConstructChange
-        , selectionCollateralError
-        ]
-      where
-        -- The size of a transaction can be reduced by selecting fewer inputs,
-        -- or by generating less change. Since the minimal selection strategy
-        -- selects as few inputs and generates as little change as possible,
-        -- using this strategy might allow us to generate a transaction within
-        -- the size limit.
-        maxSizeLimitExceeded = case e of
-            ErrBalanceTxMaxSizeLimitExceeded{} ->
-                True
-            _someOtherError ->
-                False
+        -- Determines whether or not the minimal selection strategy is worth trying.
+        -- This depends upon the way in which the optimal selection strategy failed.
+        minimalStrategyIsWorthTrying :: ErrBalanceTx era -> Bool
+        minimalStrategyIsWorthTrying e =
+            or
+                [ maxSizeLimitExceeded
+                , unableToConstructChange
+                , selectionCollateralError
+                ]
+          where
+            -- The size of a transaction can be reduced by selecting fewer inputs,
+            -- or by generating less change. Since the minimal selection strategy
+            -- selects as few inputs and generates as little change as possible,
+            -- using this strategy might allow us to generate a transaction within
+            -- the size limit.
+            maxSizeLimitExceeded = case e of
+                ErrBalanceTxMaxSizeLimitExceeded{} ->
+                    True
+                _someOtherError ->
+                    False
 
-        -- In situations where the available supply of ada is constrained, or
-        -- where all available ada is bundled up with other tokens, this can
-        -- prevent us from generating change. In this case, trying again with
-        -- the minimal selection strategy might allow us to select fewer
-        -- inputs, generate less change, lower the amount of ada required to
-        -- pay for the change, and therefore increase the chance that we can
-        -- generate change successfully.
-        unableToConstructChange = case e of
-            ErrBalanceTxUnableToCreateChange {} ->
-                True
-            _someOtherError ->
-                False
+            -- In situations where the available supply of ada is constrained, or
+            -- where all available ada is bundled up with other tokens, this can
+            -- prevent us from generating change. In this case, trying again with
+            -- the minimal selection strategy might allow us to select fewer
+            -- inputs, generate less change, lower the amount of ada required to
+            -- pay for the change, and therefore increase the chance that we can
+            -- generate change successfully.
+            unableToConstructChange = case e of
+                ErrBalanceTxUnableToCreateChange{} ->
+                    True
+                _someOtherError ->
+                    False
 
-        -- The minimum required amount of collateral depends on the transaction
-        -- fee, which in turn depends on the space occupied by ordinary inputs
-        -- and generated change. If we select fewer inputs and generate less
-        -- change, we can lower the transaction fee, lower the minimum required
-        -- amount of collateral, and increase the chance of being able to
-        -- satisfy the minimum.
-        selectionCollateralError = case e of
-            ErrBalanceTxInsufficientCollateral {} ->
-                True
-            _someOtherError ->
-                False
+            -- The minimum required amount of collateral depends on the transaction
+            -- fee, which in turn depends on the space occupied by ordinary inputs
+            -- and generated change. If we select fewer inputs and generate less
+            -- change, we can lower the transaction fee, lower the minimum required
+            -- amount of collateral, and increase the chance of being able to
+            -- satisfy the minimum.
+            selectionCollateralError = case e of
+                ErrBalanceTxInsufficientCollateral{} ->
+                    True
+                _someOtherError ->
+                    False
 
 -- | Assigns minimal ada quantities to outputs without ada.
 --
@@ -750,14 +754,14 @@ balanceTx
 --
 -- Minimal ada quantities are computed with the 'computeMinimumCoinForTxOut'
 -- function.
---
 assignMinimalAdaQuantitiesToOutputsWithoutAda
-    :: forall era. IsRecentEra era
+    :: forall era
+     . IsRecentEra era
     => PParams era
     -> Tx era
     -> Tx era
 assignMinimalAdaQuantitiesToOutputsWithoutAda pp =
-        over (bodyTxL . outputsTxBodyL) (fmap modifyTxOut)
+    over (bodyTxL . outputsTxBodyL) (fmap modifyTxOut)
   where
     modifyTxOut
         :: TxOut era
@@ -767,10 +771,10 @@ assignMinimalAdaQuantitiesToOutputsWithoutAda pp =
 
 -- | Internal helper to 'balanceTx'
 balanceTxInner
-    :: forall era m changeState.
-        ( MonadRandom m
-        , IsRecentEra era
-        )
+    :: forall era m changeState
+     . ( MonadRandom m
+       , IsRecentEra era
+       )
     => PParams era
     -> TimeTranslation
     -> UTxOAssumptions
@@ -799,177 +803,187 @@ balanceTxInner
     redeemers
     timelockKeyWitnessCounts
     keyDeposits
-    partialTx
-    = do
-    (balance0, minfee0, _) <- balanceAfterSettingMinFee partialTx
+    partialTx =
+        do
+            (balance0, minfee0, _) <- balanceAfterSettingMinFee partialTx
 
-    -- NOTE: It is not possible to know the script execution cost in
-    -- advance because it actually depends on the final transaction. Inputs
-    -- selected as part of the fee balancing might have an influence on the
-    -- execution cost.
-    -- However, they are bounded so it is possible to balance the
-    -- transaction considering only the maximum cost, and only after, try to
-    -- adjust the change and ExUnits of each redeemer to something more
-    -- sensible than the max execution cost.
-    (selectAssetsResult, changeState')
-        <- selectAssets
-            pp
-            utxoAssumptions
-            (F.toList $ partialTx ^. bodyTxL . outputsTxBodyL)
-            redeemers
-            utxoSelection
-            balance0
-            (Convert.toWalletCoin minfee0)
-            genChange
-            selectionStrategy
-            changeState
-    let SelectAssetsResult
-            { extraInputs
-            , extraCollateral
-            , extraOutputs
-            , extraInputScripts
-            }
-            = selectAssetsResult
+            -- NOTE: It is not possible to know the script execution cost in
+            -- advance because it actually depends on the final transaction. Inputs
+            -- selected as part of the fee balancing might have an influence on the
+            -- execution cost.
+            -- However, they are bounded so it is possible to balance the
+            -- transaction considering only the maximum cost, and only after, try to
+            -- adjust the change and ExUnits of each redeemer to something more
+            -- sensible than the max execution cost.
+            (selectAssetsResult, changeState') <-
+                selectAssets
+                    pp
+                    utxoAssumptions
+                    (F.toList $ partialTx ^. bodyTxL . outputsTxBodyL)
+                    redeemers
+                    utxoSelection
+                    balance0
+                    (Convert.toWalletCoin minfee0)
+                    genChange
+                    selectionStrategy
+                    changeState
+            let SelectAssetsResult
+                    { extraInputs
+                    , extraCollateral
+                    , extraOutputs
+                    , extraInputScripts
+                    } =
+                        selectAssetsResult
 
-    -- NOTE:
-    -- Once the coin selection is done, we need to
-    --
-    -- (a) Add selected inputs, collateral and change outputs to the transaction
-    -- (b) Assign correct execution units to every redeemer
-    -- (c) Correctly reference redeemed entities with redeemer pointers
-    -- (d) Adjust fees and change output(s) to the new fees.
-    -- (e) If added inputs are native script originated coresponding scripts
-    --     need to be added as witnesses
-    --
-    -- There's a strong assumption that modifying the fee value AND increasing
-    -- the coin values of change outputs does not modify transaction fees; or
-    -- more exactly, does not modify the execution units of scripts. This is in
-    -- principle a fair assumption because script validators ought to be
-    -- unaware of change outputs. If their execution costs increase when change
-    -- output values increase, then it becomes impossible to guarantee that fee
-    -- balancing will ever converge towards a fixed point. A script validator
-    -- doing such a thing is considered bonkers and this is not a behavior we
-    -- ought to support.
+            -- NOTE:
+            -- Once the coin selection is done, we need to
+            --
+            -- (a) Add selected inputs, collateral and change outputs to the transaction
+            -- (b) Assign correct execution units to every redeemer
+            -- (c) Correctly reference redeemed entities with redeemer pointers
+            -- (d) Adjust fees and change output(s) to the new fees.
+            -- (e) If added inputs are native script originated coresponding scripts
+            --     need to be added as witnesses
+            --
+            -- There's a strong assumption that modifying the fee value AND increasing
+            -- the coin values of change outputs does not modify transaction fees; or
+            -- more exactly, does not modify the execution units of scripts. This is in
+            -- principle a fair assumption because script validators ought to be
+            -- unaware of change outputs. If their execution costs increase when change
+            -- output values increase, then it becomes impossible to guarantee that fee
+            -- balancing will ever converge towards a fixed point. A script validator
+            -- doing such a thing is considered bonkers and this is not a behavior we
+            -- ought to support.
 
-    candidateTx <- assembleTransaction $ TxUpdate
-        { extraInputs
-        , extraCollateral
-        , extraOutputs
-        , extraInputScripts
-        , feeUpdate = UseNewTxFee $ Convert.toWalletCoin minfee0
-        }
+            candidateTx <-
+                assembleTransaction
+                    $ TxUpdate
+                        { extraInputs
+                        , extraCollateral
+                        , extraOutputs
+                        , extraInputScripts
+                        , feeUpdate = UseNewTxFee $ Convert.toWalletCoin minfee0
+                        }
 
-    (balance, candidateMinFee, witCount) <-
-        balanceAfterSettingMinFee candidateTx
-    surplus <- case Val.coin balance of
-        (Coin c)
-            | c >= 0 ->
-                pure $ W.Coin.unsafeFromIntegral c
-            | otherwise ->
-                throwE
-                $ ErrBalanceTxInternalError
-                $ ErrUnderestimatedFee
-                    (Coin (-c))
-                    candidateTx
-                    witCount
+            (balance, candidateMinFee, witCount) <-
+                balanceAfterSettingMinFee candidateTx
+            surplus <- case Val.coin balance of
+                (Coin c)
+                    | c >= 0 ->
+                        pure $ W.Coin.unsafeFromIntegral c
+                    | otherwise ->
+                        throwE
+                            $ ErrBalanceTxInternalError
+                            $ ErrUnderestimatedFee
+                                (Coin (-c))
+                                candidateTx
+                                witCount
 
-    let feeAndChange = TxFeeAndChange
-            (Convert.toWalletCoin candidateMinFee)
-            (extraOutputs)
-        feePerByte = getFeePerByte pp
+            let feeAndChange =
+                    TxFeeAndChange
+                        (Convert.toWalletCoin candidateMinFee)
+                        (extraOutputs)
+                feePerByte = getFeePerByte pp
 
-    -- @distributeSurplus@ should never fail becase we have provided enough
-    -- padding in @selectAssets@.
-    TxFeeAndChange updatedFee updatedChange <- withExceptT
-        (\(ErrMoreSurplusNeeded c) ->
-            ErrBalanceTxInternalError
-                $ ErrUnderestimatedFee
-                    (Convert.toLedgerCoin c)
-                    candidateTx
-                    witCount
-        )
-        (ExceptT . pure $
-            distributeSurplus feePerByte surplus feeAndChange)
+            -- @distributeSurplus@ should never fail becase we have provided enough
+            -- padding in @selectAssets@.
+            TxFeeAndChange updatedFee updatedChange <-
+                withExceptT
+                    ( \(ErrMoreSurplusNeeded c) ->
+                        ErrBalanceTxInternalError
+                            $ ErrUnderestimatedFee
+                                (Convert.toLedgerCoin c)
+                                candidateTx
+                                witCount
+                    )
+                    ( ExceptT . pure
+                        $ distributeSurplus feePerByte surplus feeAndChange
+                    )
 
-    fmap ((, changeState')) . guardTxSize witCount
-        =<< guardTxBalanced
-        =<< assembleTransaction
-        TxUpdate
-            { extraInputs
-            , extraCollateral
-            , extraOutputs = updatedChange
-            , extraInputScripts
-            , feeUpdate = UseNewTxFee updatedFee
-            }
-  where
-    guardTxSize
-        :: KeyWitnessCounts
-        -> Tx era
-        -> ExceptT (ErrBalanceTx era) m (Tx era)
-    guardTxSize witCount tx = do
-        let maxSize = W.TxSize $ intCast (pp ^. ppMaxTxSizeL)
-        let size = estimateSignedTxSize pp witCount tx
-        when (size > maxSize) $
-            throwE ErrBalanceTxMaxSizeLimitExceeded{size, maxSize}
-        pure tx
+            fmap ((,changeState')) . guardTxSize witCount
+                =<< guardTxBalanced
+                =<< assembleTransaction
+                    TxUpdate
+                        { extraInputs
+                        , extraCollateral
+                        , extraOutputs = updatedChange
+                        , extraInputScripts
+                        , feeUpdate = UseNewTxFee updatedFee
+                        }
+      where
+        guardTxSize
+            :: KeyWitnessCounts
+            -> Tx era
+            -> ExceptT (ErrBalanceTx era) m (Tx era)
+        guardTxSize witCount tx = do
+            let maxSize = W.TxSize $ intCast (pp ^. ppMaxTxSizeL)
+            let size = estimateSignedTxSize pp witCount tx
+            when (size > maxSize)
+                $ throwE ErrBalanceTxMaxSizeLimitExceeded{size, maxSize}
+            pure tx
 
-    guardTxBalanced
-        :: Tx era
-        -> ExceptT (ErrBalanceTx era) m (Tx era)
-    guardTxBalanced tx = do
-        let bal = txBalance tx
-        if bal == mempty
-            then pure tx
-            else throwE
-                $ ErrBalanceTxInternalError
-                $ ErrFailedBalancing bal
+        guardTxBalanced
+            :: Tx era
+            -> ExceptT (ErrBalanceTx era) m (Tx era)
+        guardTxBalanced tx = do
+            let bal = txBalance tx
+            if bal == mempty
+                then pure tx
+                else
+                    throwE
+                        $ ErrBalanceTxInternalError
+                        $ ErrFailedBalancing bal
 
-    txBalance :: Tx era -> Value
-    txBalance
-        = evaluateTransactionBalance
-            pp
-            (lookupStakeKeyDeposit keyDeposits pp)
-            utxoReference
-        . view bodyTxL
+        txBalance :: Tx era -> Value
+        txBalance =
+            evaluateTransactionBalance
+                pp
+                (lookupStakeKeyDeposit keyDeposits pp)
+                utxoReference
+                . view bodyTxL
 
-    balanceAfterSettingMinFee
-        :: Tx era
-        -> ExceptT (ErrBalanceTx era) m (Value, Coin, KeyWitnessCounts)
-    balanceAfterSettingMinFee tx = ExceptT . pure $ do
-        let witCount =
-                estimateKeyWitnessCounts
-                    utxoReference
-                    tx
-                    timelockKeyWitnessCounts
-            minfee = Convert.toWalletCoin
-                $ estimateSignedTxMinFee pp utxoReference tx witCount
-            update = TxUpdate
-                { extraInputs = mempty
-                , extraCollateral = mempty
-                , extraOutputs = []
-                , extraInputScripts = []
-                , feeUpdate = UseNewTxFee minfee
-                }
-        tx' <- left updateTxErrorToBalanceTxError $ updateTx tx update
-        let balance = txBalance tx'
-            minfee' = Convert.toLedgerCoin minfee
-        return (balance, minfee', witCount)
+        balanceAfterSettingMinFee
+            :: Tx era
+            -> ExceptT (ErrBalanceTx era) m (Value, Coin, KeyWitnessCounts)
+        balanceAfterSettingMinFee tx = ExceptT . pure $ do
+            let witCount =
+                    estimateKeyWitnessCounts
+                        utxoReference
+                        tx
+                        timelockKeyWitnessCounts
+                minfee =
+                    Convert.toWalletCoin
+                        $ estimateSignedTxMinFee pp utxoReference tx witCount
+                update =
+                    TxUpdate
+                        { extraInputs = mempty
+                        , extraCollateral = mempty
+                        , extraOutputs = []
+                        , extraInputScripts = []
+                        , feeUpdate = UseNewTxFee minfee
+                        }
+            tx' <- left updateTxErrorToBalanceTxError $ updateTx tx update
+            let balance = txBalance tx'
+                minfee' = Convert.toLedgerCoin minfee
+            return (balance, minfee', witCount)
 
-    assembleTransaction
-        :: TxUpdate
-        -> ExceptT (ErrBalanceTx era) m (Tx era)
-    assembleTransaction update = ExceptT . pure $ do
-        tx' <- left updateTxErrorToBalanceTxError
-            $ updateTx partialTx update
-        left ErrBalanceTxAssignRedeemers $
-            assignScriptRedeemers pp timeTranslation utxoReference redeemers tx'
+        assembleTransaction
+            :: TxUpdate
+            -> ExceptT (ErrBalanceTx era) m (Tx era)
+        assembleTransaction update = ExceptT . pure $ do
+            tx' <-
+                left updateTxErrorToBalanceTxError
+                    $ updateTx partialTx update
+            left ErrBalanceTxAssignRedeemers
+                $ assignScriptRedeemers pp timeTranslation utxoReference redeemers tx'
 
 data SelectAssetsResult = SelectAssetsResult
     { extraInputs :: Set W.TxIn
     , extraCollateral :: Set W.TxIn
     , extraOutputs :: [W.TxOut]
     , extraInputScripts :: [CA.Script CA.KeyHash]
-    } deriving (Eq, Show)
+    }
+    deriving (Eq, Show)
 
 -- | Select assets to cover the specified balance and fee.
 --
@@ -978,10 +992,10 @@ data SelectAssetsResult = SelectAssetsResult
 -- transaction. For this, and other reasons, the selection may include too
 -- much ada.
 selectAssets
-    :: forall era m changeState.
-        ( MonadRandom m
-        , IsRecentEra era
-        )
+    :: forall era m changeState
+     . ( MonadRandom m
+       , IsRecentEra era
+       )
     => PParams era
     -> UTxOAssumptions
     -> [TxOut era]
@@ -997,174 +1011,193 @@ selectAssets
     -> SelectionStrategy
     -> changeState
     -> ExceptT (ErrBalanceTx era) m (SelectAssetsResult, changeState)
-selectAssets pp utxoAssumptions outs' redeemers
-    utxoSelection balance fee0 changeGen selectionStrategy changeState = do
+selectAssets
+    pp
+    utxoAssumptions
+    outs'
+    redeemers
+    utxoSelection
+    balance
+    fee0
+    changeGen
+    selectionStrategy
+    changeState = do
         except validateTxOutputs'
         transformSelection <$> performSelection'
-  where
-    outs = map toWalletTxOut outs'
-
-    validateTxOutputs'
-        :: Either (ErrBalanceTx era) ()
-    validateTxOutputs'
-        = left ErrBalanceTxOutputError
-        $ validateTxOutputs selectionConstraints
-            (outs <&> \out -> (view #address out, view #tokens out))
-
-    performSelection'
-        :: ExceptT (ErrBalanceTx era) m CoinSelection.Selection
-    performSelection'
-        = withExceptT coinSelectionErrorToBalanceTxError
-        $ performSelection selectionConstraints selectionParams
-
-    selectionConstraints = SelectionConstraints
-        { tokenBundleSizeAssessor =
-            mkTokenBundleSizeAssessor pp
-        , computeMinimumAdaQuantity = \addr tokens -> Convert.toWallet $
-            computeMinimumCoinForTxOut
-                pp
-                (mkLedgerTxOut addr (W.TokenBundle W.txOutMaxCoin tokens))
-        , isBelowMinimumAdaQuantity = \addr bundle ->
-            isBelowMinimumCoinForTxOut pp (mkLedgerTxOut addr bundle)
-        , computeMinimumCost = \skeleton -> mconcat
-            [ feePadding
-            , fee0
-            , txPlutusScriptExecutionCost
-            , estimateTxCost feePerByte $ TxSkeleton
-                { txWitnessTag = assumedTxWitnessTag utxoAssumptions
-                , txInputCount = view #skeletonInputCount skeleton
-                , txOutputs = view #skeletonOutputs skeleton
-                , txChange = view #skeletonChange skeleton
-                , txPaymentTemplate = view #template <$>
-                    assumedInputScriptTemplate utxoAssumptions
-                }
-            ] <\> boringFee
-        , maximumCollateralInputCount =
-            unsafeIntCast @Natural @Int $ pp ^. ppMaxCollateralInputsL
-    , minimumCollateralPercentage =
-        pp ^. ppCollateralPercentageL
-    , maximumLengthChangeAddress =
-        Convert.toWalletAddress changeGen.maxLengthChangeAddress
-    }
-
-    selectionParams = SelectionParams
-        -- The following fields are essentially adjusting the coin selection
-        -- algorithm's notion of balance by @balance0 - sum inputs + sum
-        -- outputs + fee0@ where @balance0@ is the balance of the
-        -- partial tx.
-        { extraValueIn =
-            balancePositive <> valueOfOutputs <> W.TokenBundle.fromCoin fee0
-        , extraValueOut =
-            balanceNegative <> valueOfInputs
-        -- NOTE: It is important that coin selection has the correct
-        -- notion of fees, because it will be used to tell how much
-        -- collateral is needed.
-        , collateralRequirement
-        , outputsToCover = outs
-        , utxoAvailableForCollateral = UTxOSelection.availableMap utxoSelection
-        , utxoAvailableForInputs = utxoSelection
-        , selectionStrategy = selectionStrategy
-        }
       where
-        (balanceNegative, balancePositive) = splitSignedValue balance
-        valueOfOutputs = F.foldMap' (view #tokens) outs
-        valueOfInputs = UTxOSelection.selectedBalance utxoSelection
+        outs = map toWalletTxOut outs'
 
-    mkLedgerTxOut
-        :: forall e. IsRecentEra e
-        => W.Address
-        -> W.TokenBundle
-        -> TxOut e
-    mkLedgerTxOut address bundle =
-        case recentEra :: RecentEra e of
-            RecentEraBabbage -> Convert.toBabbageTxOut txOut
-            RecentEraConway -> Convert.toConwayTxOut txOut
-      where
-        txOut = W.TxOut address bundle
+        validateTxOutputs'
+            :: Either (ErrBalanceTx era) ()
+        validateTxOutputs' =
+            left ErrBalanceTxOutputError
+                $ validateTxOutputs
+                    selectionConstraints
+                    (outs <&> \out -> (view #address out, view #tokens out))
 
-    txPlutusScriptExecutionCost = Convert.toWallet @W.Coin $
-        if null redeemers
-            then mempty
-            else maxScriptExecutionCost pp
+        performSelection'
+            :: ExceptT (ErrBalanceTx era) m CoinSelection.Selection
+        performSelection' =
+            withExceptT coinSelectionErrorToBalanceTxError
+                $ performSelection selectionConstraints selectionParams
 
-    collateralRequirement =
-        if txPlutusScriptExecutionCost > W.Coin 0
-            then SelectionCollateralRequired
-            else SelectionCollateralNotRequired
-
-    feePerByte = getFeePerByte pp
-
-    boringFee =
-        estimateTxCost
-            feePerByte
-            TxSkeleton
-                { txWitnessTag = assumedTxWitnessTag utxoAssumptions
-                , txInputCount = UTxOSelection.selectedSize utxoSelection
-                , txOutputs = outs
-                , txChange = []
-                , txPaymentTemplate = Nothing
+        selectionConstraints =
+            SelectionConstraints
+                { tokenBundleSizeAssessor =
+                    mkTokenBundleSizeAssessor pp
+                , computeMinimumAdaQuantity = \addr tokens ->
+                    Convert.toWallet
+                        $ computeMinimumCoinForTxOut
+                            pp
+                            (mkLedgerTxOut addr (W.TokenBundle W.txOutMaxCoin tokens))
+                , isBelowMinimumAdaQuantity = \addr bundle ->
+                    isBelowMinimumCoinForTxOut pp (mkLedgerTxOut addr bundle)
+                , computeMinimumCost = \skeleton ->
+                    mconcat
+                        [ feePadding
+                        , fee0
+                        , txPlutusScriptExecutionCost
+                        , estimateTxCost feePerByte
+                            $ TxSkeleton
+                                { txWitnessTag = assumedTxWitnessTag utxoAssumptions
+                                , txInputCount = view #skeletonInputCount skeleton
+                                , txOutputs = view #skeletonOutputs skeleton
+                                , txChange = view #skeletonChange skeleton
+                                , txPaymentTemplate =
+                                    view #template
+                                        <$> assumedInputScriptTemplate utxoAssumptions
+                                }
+                        ]
+                        <\> boringFee
+                , maximumCollateralInputCount =
+                    unsafeIntCast @Natural @Int $ pp ^. ppMaxCollateralInputsL
+                , minimumCollateralPercentage =
+                    pp ^. ppCollateralPercentageL
+                , maximumLengthChangeAddress =
+                    Convert.toWalletAddress changeGen.maxLengthChangeAddress
                 }
 
-    feePadding
-        = Convert.toWallet . feeOfBytes feePerByte
-        $ extraBytes + scriptIntegrityHashBytes
-      where
-        -- Could be made smarter by only padding for the script
-        -- integrity hash when we intend to add one. [ADP-2621]
-        scriptIntegrityHashBytes = 32 + 2
-
-        -- Add padding to allow the fee value to increase.
-        -- Out of caution, assume it can increase by the theoretical
-        -- maximum of 8 bytes ('maximumCostOfIncreasingCoin').
-        --
-        -- NOTE: It's not convenient to import the constant at the
-        -- moment because of the package split.
-        --
-        -- Any overestimation will be reduced by 'distributeSurplus'
-        -- in the final stage of 'balanceTx'.
-        extraBytes = 8
-
-    transformSelection
-        :: CoinSelection.Selection
-        -> (SelectAssetsResult, changeState)
-    transformSelection sel =
-        let
-            (sel', changeState') =
-                assignChangeAddresses changeGen sel changeState
-            inputs = F.toList (sel' ^. #inputs)
-            collateral = sel' ^. #collateral
-            change = sel' ^. #change
-            inputScripts =
-                case utxoAssumptions of
-                    AllKeyPaymentCredentials -> []
-                    AllByronKeyPaymentCredentials -> []
-                    AllScriptPaymentCredentialsFrom _template toInpScripts ->
-                        ( toInpScripts
-                        . Convert.toLedgerAddress
-                        . view #address
-                        . snd
-                        ) <$> inputs <> collateral
-            selectAssetsResult = SelectAssetsResult
-                { extraInputs = Set.fromList (map fst inputs)
-                -- TODO [ADP-3355] Filter out pre-selected inputs here
-                --
-                -- The correctness of balanceTx is currently not affected, but
-                -- it is misleading.
-                -- https://cardanofoundation.atlassian.net/browse/ADP-3355
-                , extraCollateral = Set.fromList (map fst collateral)
-                , extraOutputs = change
-                , extraInputScripts = inputScripts
+        selectionParams =
+            SelectionParams
+                { -- The following fields are essentially adjusting the coin selection
+                  -- algorithm's notion of balance by @balance0 - sum inputs + sum
+                  -- outputs + fee0@ where @balance0@ is the balance of the
+                  -- partial tx.
+                  extraValueIn =
+                    balancePositive <> valueOfOutputs <> W.TokenBundle.fromCoin fee0
+                , extraValueOut =
+                    balanceNegative <> valueOfInputs
+                , -- NOTE: It is important that coin selection has the correct
+                  -- notion of fees, because it will be used to tell how much
+                  -- collateral is needed.
+                  collateralRequirement
+                , outputsToCover = outs
+                , utxoAvailableForCollateral = UTxOSelection.availableMap utxoSelection
+                , utxoAvailableForInputs = utxoSelection
+                , selectionStrategy = selectionStrategy
                 }
-        in
-        (selectAssetsResult, changeState')
+          where
+            (balanceNegative, balancePositive) = splitSignedValue balance
+            valueOfOutputs = F.foldMap' (view #tokens) outs
+            valueOfInputs = UTxOSelection.selectedBalance utxoSelection
+
+        mkLedgerTxOut
+            :: forall e
+             . IsRecentEra e
+            => W.Address
+            -> W.TokenBundle
+            -> TxOut e
+        mkLedgerTxOut address bundle =
+            case recentEra :: RecentEra e of
+                RecentEraBabbage -> Convert.toBabbageTxOut txOut
+                RecentEraConway -> Convert.toConwayTxOut txOut
+          where
+            txOut = W.TxOut address bundle
+
+        txPlutusScriptExecutionCost =
+            Convert.toWallet @W.Coin
+                $ if null redeemers
+                    then mempty
+                    else maxScriptExecutionCost pp
+
+        collateralRequirement =
+            if txPlutusScriptExecutionCost > W.Coin 0
+                then SelectionCollateralRequired
+                else SelectionCollateralNotRequired
+
+        feePerByte = getFeePerByte pp
+
+        boringFee =
+            estimateTxCost
+                feePerByte
+                TxSkeleton
+                    { txWitnessTag = assumedTxWitnessTag utxoAssumptions
+                    , txInputCount = UTxOSelection.selectedSize utxoSelection
+                    , txOutputs = outs
+                    , txChange = []
+                    , txPaymentTemplate = Nothing
+                    }
+
+        feePadding =
+            Convert.toWallet . feeOfBytes feePerByte
+                $ extraBytes + scriptIntegrityHashBytes
+          where
+            -- Could be made smarter by only padding for the script
+            -- integrity hash when we intend to add one. [ADP-2621]
+            scriptIntegrityHashBytes = 32 + 2
+
+            -- Add padding to allow the fee value to increase.
+            -- Out of caution, assume it can increase by the theoretical
+            -- maximum of 8 bytes ('maximumCostOfIncreasingCoin').
+            --
+            -- NOTE: It's not convenient to import the constant at the
+            -- moment because of the package split.
+            --
+            -- Any overestimation will be reduced by 'distributeSurplus'
+            -- in the final stage of 'balanceTx'.
+            extraBytes = 8
+
+        transformSelection
+            :: CoinSelection.Selection
+            -> (SelectAssetsResult, changeState)
+        transformSelection sel =
+            let
+                (sel', changeState') =
+                    assignChangeAddresses changeGen sel changeState
+                inputs = F.toList (sel' ^. #inputs)
+                collateral = sel' ^. #collateral
+                change = sel' ^. #change
+                inputScripts =
+                    case utxoAssumptions of
+                        AllKeyPaymentCredentials -> []
+                        AllByronKeyPaymentCredentials -> []
+                        AllScriptPaymentCredentialsFrom _template toInpScripts ->
+                            ( toInpScripts
+                                . Convert.toLedgerAddress
+                                . view #address
+                                . snd
+                            )
+                                <$> inputs <> collateral
+                selectAssetsResult =
+                    SelectAssetsResult
+                        { extraInputs = Set.fromList (map fst inputs)
+                        , -- TODO [ADP-3355] Filter out pre-selected inputs here
+                          --
+                          -- The correctness of balanceTx is currently not affected, but
+                          -- it is misleading.
+                          -- https://cardanofoundation.atlassian.net/browse/ADP-3355
+                          extraCollateral = Set.fromList (map fst collateral)
+                        , extraOutputs = change
+                        , extraInputScripts = inputScripts
+                        }
+            in
+                (selectAssetsResult, changeState')
 
 data ChangeAddressGen s = ChangeAddressGen
-    {
-    -- | Generates a new change address.
-    --
-    genChangeAddress :: s -> (Address, s)
-
-    -- | Returns a /dummy/ change address of the maximum possible length for
+    { genChangeAddress :: s -> (Address, s)
+    -- ^ Generates a new change address.
+    , maxLengthChangeAddress :: Address
+    -- ^ Returns a /dummy/ change address of the maximum possible length for
     --   this generator.
     --
     -- Implementations must satisfy the following property:
@@ -1182,8 +1215,6 @@ data ChangeAddressGen s = ChangeAddressGen
     --
     --  - never be used for anything besides its length and validity properties.
     --  - never be used as a payment target within a real transaction.
-    --
-    , maxLengthChangeAddress :: Address
     }
 
 -- | Assigns addresses to the change outputs of the given selection.
@@ -1216,7 +1247,7 @@ splitSignedValue :: Value -> (W.TokenBundle, W.TokenBundle)
 splitSignedValue v = (bNegative, bPositive)
   where
     bNegative = Convert.toWallet . filterPositive $ invert v
-    bPositive = Convert.toWallet . filterPositive $       v
+    bPositive = Convert.toWallet . filterPositive $ v
 
     filterPositive :: Value -> Value
     filterPositive (MaryValue (Coin a) (MultiAsset m)) =
@@ -1233,12 +1264,12 @@ splitSignedValue v = (bNegative, bPositive)
 data TxUpdate = TxUpdate
     { extraInputs :: Set W.TxIn
     , extraCollateral :: Set W.TxIn
-       -- ^ Only used in the Alonzo era and later. Will be silently ignored in
-       -- previous eras.
+    -- ^ Only used in the Alonzo era and later. Will be silently ignored in
+    -- previous eras.
     , extraOutputs :: [W.TxOut]
     , extraInputScripts :: [CA.Script CA.KeyHash]
     , feeUpdate :: TxFeeUpdate
-        -- ^ Set a new fee or use the old one.
+    -- ^ Set a new fee or use the old one.
     }
 
 -- | For testing that
@@ -1247,27 +1278,28 @@ data TxUpdate = TxUpdate
 --      == Right tx or Left
 -- @
 noTxUpdate :: TxUpdate
-noTxUpdate = TxUpdate
-    { extraInputs = mempty
-    , extraCollateral = mempty
-    , extraOutputs = []
-    , extraInputScripts = []
-    , feeUpdate = UseOldTxFee
-    }
+noTxUpdate =
+    TxUpdate
+        { extraInputs = mempty
+        , extraCollateral = mempty
+        , extraOutputs = []
+        , extraInputScripts = []
+        , feeUpdate = UseOldTxFee
+        }
 
 -- | Method to use when updating the fee of a transaction.
 data TxFeeUpdate
-    = UseOldTxFee
-        -- ^ Instead of updating the fee, just use the old fee of the
-        -- Tx (no-op for fee update).
-    | UseNewTxFee W.Coin
-        -- ^ Specify a new fee to use instead.
+    = -- | Instead of updating the fee, just use the old fee of the
+      -- Tx (no-op for fee update).
+      UseOldTxFee
+    | -- | Specify a new fee to use instead.
+      UseNewTxFee W.Coin
     deriving (Eq, Show)
 
 newtype ErrUpdateTx
-    = ErrUpdateTxExistingKeyWitnesses Int
-    -- ^ The transaction could not be updated because the *n* existing
-    -- key-witnesses would be rendered invalid.
+    = -- | The transaction could not be updated because the *n* existing
+      -- key-witnesses would be rendered invalid.
+      ErrUpdateTxExistingKeyWitnesses Int
     deriving (Generic, Eq, Show)
 
 -- | Used to add inputs and outputs when balancing a transaction.
@@ -1283,24 +1315,27 @@ newtype ErrUpdateTx
 -- To avoid the need for `ledger -> wallet` conversions, this function can only
 -- be used to *add* tx body content.
 updateTx
-    :: forall era. IsRecentEra era
+    :: forall era
+     . IsRecentEra era
     => Tx era
     -> TxUpdate
     -> Either ErrUpdateTx (Tx era)
 updateTx tx extraContent = do
-    let tx' = tx
-            & over bodyTxL (modifyShelleyTxBody extraContent)
-            & over (witsTxL . scriptTxWitsL) (<> extraInputScripts')
+    let tx' =
+            tx
+                & over bodyTxL (modifyShelleyTxBody extraContent)
+                & over (witsTxL . scriptTxWitsL) (<> extraInputScripts')
 
     case numberOfExistingKeyWits of
         0 -> Right tx'
         n -> Left $ ErrUpdateTxExistingKeyWitnesses n
   where
     numberOfExistingKeyWits :: Int
-    numberOfExistingKeyWits = sum
-        [ Set.size $ tx ^. (witsTxL . addrTxWitsL)
-        , Set.size $ tx ^. (witsTxL . bootAddrTxWitsL)
-        ]
+    numberOfExistingKeyWits =
+        sum
+            [ Set.size $ tx ^. (witsTxL . addrTxWitsL)
+            , Set.size $ tx ^. (witsTxL . bootAddrTxWitsL)
+            ]
 
     TxUpdate _ _ _ extraInputScripts _ = extraContent
 
@@ -1321,21 +1356,25 @@ updateTx tx extraContent = do
         RecentEraConway -> TimelockScript $ Convert.toLedgerTimelockScript s
 
 modifyShelleyTxBody
-    :: forall era. IsRecentEra era
+    :: forall era
+     . IsRecentEra era
     => TxUpdate
     -> TxBody era
     -> TxBody era
 modifyShelleyTxBody txUpdate =
     over feeTxBodyL modifyFee
-    . over outputsTxBodyL
-        (<> extraOutputs')
-    . over inputsTxBodyL
-        (<> extraInputs')
-    . over collateralInputsTxBodyL
-        (<> extraCollateral')
+        . over
+            outputsTxBodyL
+            (<> extraOutputs')
+        . over
+            inputsTxBodyL
+            (<> extraInputs')
+        . over
+            collateralInputsTxBodyL
+            (<> extraCollateral')
   where
     era = recentEra @era
-    TxUpdate {extraInputs, extraCollateral, extraOutputs, feeUpdate} = txUpdate
+    TxUpdate{extraInputs, extraCollateral, extraOutputs, feeUpdate} = txUpdate
     extraOutputs' = StrictSeq.fromList $ map (toLedgerTxOut era) extraOutputs
     extraInputs' = Set.map Convert.toLedger extraInputs
     extraCollateral' = Set.map Convert.toLedger extraCollateral
@@ -1359,47 +1398,48 @@ toWalletTxOut o = case recentEra :: RecentEra era of
     RecentEraConway -> Convert.fromConwayTxOut o
 
 -- | Maps an error from the coin selection API to a balanceTx error.
---
 coinSelectionErrorToBalanceTxError
-    :: forall era. IsRecentEra era
+    :: forall era
+     . IsRecentEra era
     => SelectionError WalletSelectionContext
     -> ErrBalanceTx era
 coinSelectionErrorToBalanceTxError = \case
     SelectionBalanceErrorOf balanceErr ->
         case balanceErr of
             BalanceInsufficient e ->
-                ErrBalanceTxAssetsInsufficient $
-                ErrBalanceTxAssetsInsufficientError
-                    { available =
-                        Convert.toLedger (view #utxoBalanceAvailable e)
-                    , required =
-                        Convert.toLedger (view #utxoBalanceRequired e)
-                    , shortfall =
-                        Convert.toLedger (view #utxoBalanceShortfall e)
-                    }
-            UnableToConstructChange
-                UnableToConstructChangeError {shortfall, requiredCost} ->
-                    ErrBalanceTxUnableToCreateChange
-                    ErrBalanceTxUnableToCreateChangeError
-                        { shortfall = Convert.toLedgerCoin shortfall
-                        , requiredCost = Convert.toLedgerCoin requiredCost
+                ErrBalanceTxAssetsInsufficient
+                    $ ErrBalanceTxAssetsInsufficientError
+                        { available =
+                            Convert.toLedger (view #utxoBalanceAvailable e)
+                        , required =
+                            Convert.toLedger (view #utxoBalanceRequired e)
+                        , shortfall =
+                            Convert.toLedger (view #utxoBalanceShortfall e)
                         }
+            UnableToConstructChange
+                UnableToConstructChangeError{shortfall, requiredCost} ->
+                    ErrBalanceTxUnableToCreateChange
+                        ErrBalanceTxUnableToCreateChangeError
+                            { shortfall = Convert.toLedgerCoin shortfall
+                            , requiredCost = Convert.toLedgerCoin requiredCost
+                            }
             EmptyUTxO ->
                 ErrBalanceTxUnableToCreateInput
-    SelectionCollateralErrorOf SelectionCollateralError
-        { largestCombinationAvailable
-        , minimumSelectionAmount
-        } ->
-        ErrBalanceTxInsufficientCollateral
-        ErrBalanceTxInsufficientCollateralError
+    SelectionCollateralErrorOf
+        SelectionCollateralError
             { largestCombinationAvailable
-                = largestCombinationAvailable
-                & fmap W.TokenBundle.fromCoin
-                & toExternalUTxOMap
-                & fromWalletUTxO
-            , minimumCollateralAmount
-                = Convert.toLedgerCoin minimumSelectionAmount
-            }
+            , minimumSelectionAmount
+            } ->
+            ErrBalanceTxInsufficientCollateral
+                ErrBalanceTxInsufficientCollateralError
+                    { largestCombinationAvailable =
+                        largestCombinationAvailable
+                            & fmap W.TokenBundle.fromCoin
+                            & toExternalUTxOMap
+                            & fromWalletUTxO
+                    , minimumCollateralAmount =
+                        Convert.toLedgerCoin minimumSelectionAmount
+                    }
 
 updateTxErrorToBalanceTxError :: ErrUpdateTx -> ErrBalanceTx era
 updateTxErrorToBalanceTxError = \case
@@ -1410,7 +1450,6 @@ updateTxErrorToBalanceTxError = \case
 --------------------------------------------------------------------------------
 
 -- | A validation error for a user-specified transaction output.
---
 data ErrBalanceTxOutputError = ErrBalanceTxOutputErrorOf
     { outputIndex :: Int
     , outputErrorInfo :: ErrBalanceTxOutputErrorInfo
@@ -1427,20 +1466,19 @@ data ErrBalanceTxOutputErrorInfo
         }
     | ErrBalanceTxOutputTokenQuantityExceedsLimit
         { address :: Address
-          -- ^ The address to which this token quantity was to be sent.
+        -- ^ The address to which this token quantity was to be sent.
         , policyId :: PolicyId
-          -- ^ The policy identifier to which this token quantity corresponds.
+        -- ^ The policy identifier to which this token quantity corresponds.
         , assetName :: AssetName
-          -- ^ The asset name to which this token quantity corresponds.
+        -- ^ The asset name to which this token quantity corresponds.
         , quantity :: Natural
-          -- ^ The token quantity that exceeded the bound.
+        -- ^ The token quantity that exceeded the bound.
         , quantityMaxBound :: Natural
-          -- ^ The maximum allowable token quantity.
+        -- ^ The maximum allowable token quantity.
         }
     deriving (Eq, Generic, Show)
 
 -- | Validates the given transaction outputs.
---
 validateTxOutputs
     :: SelectionConstraints
     -> [(W.Address, W.TokenBundle)]
@@ -1449,17 +1487,22 @@ validateTxOutputs constraints outs =
     -- If we encounter an error, just report the first error we encounter:
     case errors of
         e : _ -> Left e
-        []    -> pure ()
+        [] -> pure ()
   where
     errors :: [ErrBalanceTxOutputError]
-    errors = uncurry ErrBalanceTxOutputErrorOf <$> F.fold
-        [ mapMaybe (traverse (validateTxOutputSize constraints))
-            outputsIndexed
-        , foldMap (traverse validateTxOutputTokenQuantities)
-            outputsIndexed
-        , mapMaybe (traverse (validateTxOutputAdaQuantity constraints))
-            outputsIndexed
-        ]
+    errors =
+        uncurry ErrBalanceTxOutputErrorOf
+            <$> F.fold
+                [ mapMaybe
+                    (traverse (validateTxOutputSize constraints))
+                    outputsIndexed
+                , foldMap
+                    (traverse validateTxOutputTokenQuantities)
+                    outputsIndexed
+                , mapMaybe
+                    (traverse (validateTxOutputAdaQuantity constraints))
+                    outputsIndexed
+                ]
       where
         outputsIndexed = zip [0 ..] outs
 
@@ -1467,7 +1510,6 @@ validateTxOutputs constraints outs =
 --
 -- Returns an error if (and only if) the size exceeds the limit defined by the
 -- protocol.
---
 validateTxOutputSize
     :: SelectionConstraints
     -> (W.Address, W.TokenBundle)
@@ -1476,9 +1518,9 @@ validateTxOutputSize cs out@(address, bundle) = case sizeAssessment of
     TokenBundleSizeWithinLimit ->
         Nothing
     TokenBundleSizeExceedsLimit ->
-        Just $
-        ErrBalanceTxOutputSizeExceedsLimit
-            (Convert.toLedger address, Convert.toLedger bundle)
+        Just
+            $ ErrBalanceTxOutputSizeExceedsLimit
+                (Convert.toLedger address, Convert.toLedger bundle)
   where
     sizeAssessment :: TokenBundleSizeAssessment
     sizeAssessment =
@@ -1488,13 +1530,17 @@ validateTxOutputSize cs out@(address, bundle) = case sizeAssessment of
 --
 -- Returns a list of token quantities that exceed the limit defined by the
 -- protocol.
---
 validateTxOutputTokenQuantities
     :: (W.Address, W.TokenBundle)
     -> [ErrBalanceTxOutputErrorInfo]
 validateTxOutputTokenQuantities out =
     [ ErrBalanceTxOutputTokenQuantityExceedsLimit
-        {address, policyId, assetName, quantity, quantityMaxBound}
+        { address
+        , policyId
+        , assetName
+        , quantity
+        , quantityMaxBound
+        }
     | let address = Convert.toLedgerAddress $ fst out
     , (W.AssetId p a, W.TokenQuantity quantity) <-
         W.TokenMap.toFlatList $ (snd out) ^. #tokens
@@ -1508,17 +1554,17 @@ validateTxOutputTokenQuantities out =
 --
 -- An output's ada quantity must be greater than or equal to the minimum
 -- required quantity for that output.
---
 validateTxOutputAdaQuantity
     :: SelectionConstraints
     -> (W.Address, W.TokenBundle)
     -> Maybe ErrBalanceTxOutputErrorInfo
 validateTxOutputAdaQuantity constraints output@(address, bundle)
     | isBelowMinimum =
-        Just ErrBalanceTxOutputAdaQuantityInsufficient
-            { minimumExpectedCoin
-            , output = (Convert.toLedger address, Convert.toLedger bundle)
-            }
+        Just
+            ErrBalanceTxOutputAdaQuantityInsufficient
+                { minimumExpectedCoin
+                , output = (Convert.toLedger address, Convert.toLedger bundle)
+                }
     | otherwise =
         Nothing
   where
@@ -1526,10 +1572,11 @@ validateTxOutputAdaQuantity constraints output@(address, bundle)
     isBelowMinimum = uncurry (constraints ^. #isBelowMinimumAdaQuantity) output
 
     minimumExpectedCoin :: Coin
-    minimumExpectedCoin = Convert.toLedgerCoin $
-        (constraints ^. #computeMinimumAdaQuantity)
-        (fst output)
-        (snd output ^. #tokens)
+    minimumExpectedCoin =
+        Convert.toLedgerCoin
+            $ (constraints ^. #computeMinimumAdaQuantity)
+                (fst output)
+                (snd output ^. #tokens)
 
 --------------------------------------------------------------------------------
 -- Helpers for local state queries
@@ -1538,11 +1585,12 @@ validateTxOutputAdaQuantity constraints output@(address, bundle)
 -- FIXME: credentials registered and unregistered in the same tx would not need
 -- to be returned here.
 stakeCredentialsWithRefunds
-    :: forall era. IsRecentEra era
+    :: forall era
+     . IsRecentEra era
     => Tx era
     -> Set StakeCredential
 stakeCredentialsWithRefunds tx =
-     Set.fromList $ mapMaybe lookupUnRegStakeTxCert (certs tx)
+    Set.fromList $ mapMaybe lookupUnRegStakeTxCert (certs tx)
   where
     certs :: Tx era -> [TxCert era]
     certs = F.toList . view (bodyTxL . certsTxBodyL)

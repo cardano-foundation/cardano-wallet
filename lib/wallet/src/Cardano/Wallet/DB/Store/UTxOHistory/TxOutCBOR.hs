@@ -4,8 +4,6 @@ module Cardano.Wallet.DB.Store.UTxOHistory.TxOutCBOR
     )
 where
 
-import Prelude
-
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..)
     )
@@ -67,6 +65,7 @@ import Control.Monad
 import Data.ByteString.Lazy
     ( ByteString
     )
+import Prelude
 
 -- | Signal a failure to decode a 'TxOut' from a ByteString.
 data FailedDecodingDeltaUTxO
@@ -82,7 +81,7 @@ encodeTxOut (TxOut (Address addr) (TokenBundle (Coin c) m)) =
         <> encodeBytes addr
         <> encodeInteger (fromIntegral c)
         <> let tokens = toFlatList m
-            in encodeListLen (fromIntegral $ length tokens)
+           in  encodeListLen (fromIntegral $ length tokens)
                 <> foldMap
                     ( \( AssetId
                             (UnsafeTokenPolicyId (Hash policy))
@@ -115,15 +114,15 @@ decodeTxOut = do
                             ( AssetId
                                 (UnsafeTokenPolicyId (Hash policy))
                                 (UnsafeAssetName name)
-                            , TokenQuantity $
-                                fromIntegral quant
+                            , TokenQuantity
+                                $ fromIntegral quant
                             )
                     _ -> fail $ "decodeTxOut: expected 3, got " ++ show len
-            return $
-                TxOut
+            return
+                $ TxOut
                     (Address addr)
-                    ( TokenBundle (Coin $ fromIntegral c) $
-                        fromFlatList tokens
+                    ( TokenBundle (Coin $ fromIntegral c)
+                        $ fromFlatList tokens
                     )
         _ -> fail $ "decodeTxOut: expected 3, got " ++ show len
 

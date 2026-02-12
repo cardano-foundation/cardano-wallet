@@ -3,8 +3,6 @@ module Control.Monitoring.TracingSpec
     )
 where
 
-import Prelude
-
 import Control.Foldl
     ( Fold
     )
@@ -26,6 +24,7 @@ import Test.Hspec
     , it
     , shouldBe
     )
+import Prelude
 
 import qualified Control.Foldl as L
 

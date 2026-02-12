@@ -1,16 +1,13 @@
 {-# LANGUAGE TypeFamilies #-}
 
-{-|
-Copyright: © 2021-2023 IOHK, 2024 Cardano Foundation
-License: Apache-2.0
--}
+-- |
+-- Copyright: © 2021-2023 IOHK, 2024 Cardano Foundation
+-- License: Apache-2.0
 module Data.Delta.Core
     ( Delta (..)
     , NoChange (..)
     , Replace (..)
     ) where
-
-import Prelude
 
 import Data.Kind
     ( Type
@@ -21,16 +18,19 @@ import Data.List.NonEmpty
 import Data.Monoid
     ( Endo (..)
     )
+import Prelude
 
 {-------------------------------------------------------------------------------
     Delta types
 -------------------------------------------------------------------------------}
+
 -- | Type class for delta types.
 class Delta delta where
     -- | Base type for which @delta@ represents a delta.
     -- This is implemented as a type family, so that we can have
     -- multiple delta types for the same base type.
     type Base delta :: Type
+
     -- | Apply a delta to the base type.
     --
     -- Whenever the type @delta@ is a 'Semigroup', we require that
@@ -107,17 +107,17 @@ instance Delta delta => Delta (NonEmpty delta) where
     apply ds a = foldr apply a ds
 
 -- | A pair of deltas represents a delta for a pair.
-instance (Delta d1, Delta d2) => Delta (d1,d2) where
+instance (Delta d1, Delta d2) => Delta (d1, d2) where
     type Base (d1, d2) = (Base d1, Base d2)
-    apply (d1,d2) (a1,a2) = (apply d1 a1, apply d2 a2)
+    apply (d1, d2) (a1, a2) = (apply d1 a1, apply d2 a2)
 
 -- | A triple of deltas represents a delta for a triple.
-instance (Delta d1, Delta d2, Delta d3) => Delta (d1,d2,d3) where
-    type Base (d1,d2,d3) = (Base d1,Base d2,Base d3)
-    apply (d1,d2,d3) (a1,a2,a3) = (apply d1 a1, apply d2 a2, apply d3 a3)
+instance (Delta d1, Delta d2, Delta d3) => Delta (d1, d2, d3) where
+    type Base (d1, d2, d3) = (Base d1, Base d2, Base d3)
+    apply (d1, d2, d3) (a1, a2, a3) = (apply d1 a1, apply d2 a2, apply d3 a3)
 
 -- | A 4-tuple of deltas represents a delta for a 4-tuple.
-instance (Delta d1, Delta d2, Delta d3, Delta d4) => Delta (d1,d2,d3,d4) where
-    type Base (d1,d2,d3,d4) = (Base d1,Base d2,Base d3,Base d4)
-    apply (d1,d2,d3,d4) (a1,a2,a3,a4) =
+instance (Delta d1, Delta d2, Delta d3, Delta d4) => Delta (d1, d2, d3, d4) where
+    type Base (d1, d2, d3, d4) = (Base d1, Base d2, Base d3, Base d4)
+    apply (d1, d2, d3, d4) (a1, a2, a3, a4) =
         (apply d1 a1, apply d2 a2, apply d3 a3, apply d4 a4)

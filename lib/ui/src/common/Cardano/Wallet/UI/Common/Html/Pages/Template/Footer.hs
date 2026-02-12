@@ -3,8 +3,6 @@ module Cardano.Wallet.UI.Common.Html.Pages.Template.Footer
     )
 where
 
-import Prelude
-
 import Lucid
     ( HtmlT
     , a_
@@ -16,6 +14,7 @@ import Lucid
     , term
     , ul_
     )
+import Prelude
 
 -- | A link to the GitHub repository of the project.
 githubLinkH :: Monad m => HtmlT m ()

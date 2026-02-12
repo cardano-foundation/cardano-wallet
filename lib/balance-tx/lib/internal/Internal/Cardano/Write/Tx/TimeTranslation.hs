@@ -8,8 +8,6 @@ module Internal.Cardano.Write.Tx.TimeTranslation
     , epochInfo
     ) where
 
-import Prelude
-
 import Cardano.Slotting.EpochInfo
     ( EpochInfo
     )
@@ -19,10 +17,12 @@ import Cardano.Slotting.Time
 import Ouroboros.Consensus.HardFork.History
     ( PastHorizonException
     )
+import Prelude
 
-data TimeTranslation = TimeTranslation
-    (EpochInfo (Either PastHorizonException))
-    SystemStart
+data TimeTranslation
+    = TimeTranslation
+        (EpochInfo (Either PastHorizonException))
+        SystemStart
 
 timeTranslationFromEpochInfo
     :: SystemStart
@@ -34,5 +34,6 @@ timeTranslationFromEpochInfo systemStart info =
 systemStartTime :: TimeTranslation -> SystemStart
 systemStartTime (TimeTranslation _epochInfo systemStart) = systemStart
 
-epochInfo :: TimeTranslation -> EpochInfo (Either PastHorizonException)
+epochInfo
+    :: TimeTranslation -> EpochInfo (Either PastHorizonException)
 epochInfo (TimeTranslation info _systemStart) = info

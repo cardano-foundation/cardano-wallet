@@ -2,19 +2,17 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE TupleSections #-}
+
 -- |
 -- Copyright: © 2024 Cardano Foundation
 -- License: Apache-2.0
 --
 -- A local state query that retrieves information about the
 -- reward account.
---
 module Cardano.Wallet.Network.LocalStateQuery.RewardAccount
     ( fetchRewardAccounts
     , getStakeDelegDeposits
     ) where
-
-import Prelude
 
 import Cardano.Ledger.Credential
     ( StakeCredential
@@ -41,6 +39,7 @@ import Ouroboros.Consensus.Cardano
 import Ouroboros.Consensus.Shelley.Eras
     ( StandardCrypto
     )
+import Prelude
 
 import qualified Cardano.Ledger.Coin as Ledger
 import qualified Cardano.Ledger.Credential as SL

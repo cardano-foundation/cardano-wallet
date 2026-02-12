@@ -5,8 +5,6 @@ module Cardano.Wallet.UI.Common.Handlers.Settings
     ( toggleSSE
     ) where
 
-import Prelude
-
 import Cardano.Wallet.UI.Common.Layer
     ( Push (..)
     , SessionLayer (..)
@@ -21,6 +19,7 @@ import Control.Monad.Trans
 import Servant
     ( Handler
     )
+import Prelude
 
 -- | Toggles the Server-Sent Events (SSE) feature on and off.
 toggleSSE :: SessionLayer s -> Handler ()

@@ -6,8 +6,6 @@ module Cardano.Wallet.Launch.Cluster.Monitoring.TimedMonitor
     )
 where
 
-import Prelude
-
 import Control.Concurrent.Class.MonadSTM
     ( MonadSTM
     )
@@ -30,6 +28,7 @@ import Data.Time
     ( UTCTime
     , getCurrentTime
     )
+import Prelude
 
 import qualified Control.Foldl as F
 

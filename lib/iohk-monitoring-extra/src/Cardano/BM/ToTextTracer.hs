@@ -9,8 +9,6 @@ module Cardano.BM.ToTextTracer
     )
 where
 
-import Prelude
-
 import Cardano.BM.Data.Tracer
     ( HasSeverityAnnotation (..)
     , Tracer (Tracer)
@@ -62,6 +60,7 @@ import UnliftIO
 import UnliftIO.Directory
     ( createDirectoryIfMissing
     )
+import Prelude
 
 import qualified Data.Text as T
 import qualified Data.Text.IO as T

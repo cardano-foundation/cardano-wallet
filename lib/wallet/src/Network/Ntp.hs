@@ -5,7 +5,6 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE TypeApplications #-}
-
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- |
@@ -14,7 +13,6 @@
 --
 -- This module provides the Ntp client related settings, types
 -- and re-exports used in a number of places throughout codebase.
-
 module Network.Ntp
     ( withWalletNtpClient
     , getNtpStatus
@@ -22,12 +20,10 @@ module Network.Ntp
     , NtpStatusWithOffset (..)
     , ForceCheck (..)
 
-    -- * re-exports from ntp-client
+      -- * re-exports from ntp-client
     , NtpTrace (..)
     , NtpClient (..)
     ) where
-
-import Prelude
 
 import Cardano.BM.Data.Severity
     ( Severity (..)
@@ -70,6 +66,7 @@ import UnliftIO.STM
     ( atomically
     , checkSTM
     )
+import Prelude
 
 import qualified Data.Text as T
 
@@ -87,14 +84,20 @@ withWalletNtpClient ioManager tr = withNtpClient ioManager tr ntpSettings
 
 -- | Hard-coded NTP servers for cardano-wallet.
 ntpSettings :: NtpSettings
-ntpSettings = NtpSettings
-    { ntpServers = [ "0.de.pool.ntp.org", "0.europe.pool.ntp.org"
-                   , "0.pool.ntp.org", "1.pool.ntp.org"
-                   , "2.pool.ntp.org", "3.pool.ntp.org" ]
-    , ntpRequiredNumberOfResults = 3
-    , ntpResponseTimeout = 1_000_000
-    , ntpPollDelay = 300_000_000
-    }
+ntpSettings =
+    NtpSettings
+        { ntpServers =
+            [ "0.de.pool.ntp.org"
+            , "0.europe.pool.ntp.org"
+            , "0.pool.ntp.org"
+            , "1.pool.ntp.org"
+            , "2.pool.ntp.org"
+            , "3.pool.ntp.org"
+            ]
+        , ntpRequiredNumberOfResults = 3
+        , ntpResponseTimeout = 1_000_000
+        , ntpPollDelay = 300_000_000
+        }
 
 --------------------------------------------------------------------------------
 -- Types
@@ -105,14 +108,14 @@ data NtpSyncingStatus
     | NtpSyncingStatusPending
     | NtpSyncingStatusAvailable
     deriving (Eq, Generic, Show)
-    deriving anyclass NFData
+    deriving anyclass (NFData)
 
 data NtpStatusWithOffset = NtpStatusWithOffset
     { status :: !NtpSyncingStatus
     , offset :: !(Maybe (Quantity "microsecond" Integer))
     }
     deriving (Eq, Generic, Show)
-    deriving anyclass NFData
+    deriving anyclass (NFData)
 
 --------------------------------------------------------------------------------
 -- Printing and Logging
@@ -138,7 +141,10 @@ prettyResultOrFailure prettyA = \case
     BothSucceeded a ->
         prettyA a
     SuccessAndFailure a ip e ->
-        "succeeded and failed with " <> prettyA a <> ", " <> T.pack (show (ip, e))
+        "succeeded and failed with "
+            <> prettyA a
+            <> ", "
+            <> T.pack (show (ip, e))
     BothFailed e0 e1 ->
         "failed with " <> T.pack (show e0) <> ", " <> T.pack (show e1)
 
@@ -166,15 +172,17 @@ instance ToText NtpTrace where
             "local clock is " <> prettyNtpStatus a
         NtpTraceRunProtocolResults a ->
             "ntp client run protocol results: "
-            <> prettyResultOrFailure (T.intercalate ", " . map prettyNtpOffset) a
+                <> prettyResultOrFailure (T.intercalate ", " . map prettyNtpOffset) a
         NtpTracePacketSent _ a ->
             "ntp client sent packet when running " <> toText (show a)
         NtpTracePacketSendError _ e ->
-            "ntp client experienced error " <> toText (show e)
-            <> " when sending packet"
+            "ntp client experienced error "
+                <> toText (show e)
+                <> " when sending packet"
         NtpTracePacketDecodeError _ e ->
-            "ntp client experienced error " <> toText (show e)
-            <> " when decoding packet"
+            "ntp client experienced error "
+                <> toText (show e)
+                <> " when decoding packet"
         NtpTracePacketReceived _ a ->
             "ntp client received packet: " <> toText (show a)
         NtpTraceWaitingForRepliesTimeout v ->
@@ -191,9 +199,9 @@ instance HasSeverityAnnotation NtpTrace where
         NtpTraceClientStartQuery -> Debug
         NtpTraceNoLocalAddr -> Notice
         NtpTraceResult (NtpDrift micro)
-            | abs micro < (500*ms)  -> Debug   -- Not sure what limits actually
-            | abs micro < (1_000*ms) -> Notice  -- matter, but these seem
-            | otherwise             -> Warning -- reasonable.
+            | abs micro < (500 * ms) -> Debug -- Not sure what limits actually
+            | abs micro < (1_000 * ms) -> Notice -- matter, but these seem
+            | otherwise -> Warning -- reasonable.
         NtpTraceResult _ -> Debug
         NtpTraceRunProtocolResults _ -> Debug
         NtpTracePacketSent _ _ -> Debug
@@ -207,17 +215,18 @@ instance HasSeverityAnnotation NtpTrace where
 data ForceCheck = ForceBlockingRequest | CanUseCachedResults
 
 getNtpStatus :: NtpClient -> ForceCheck -> IO NtpStatusWithOffset
-getNtpStatus client forceCheck = toStatus <$> case forceCheck of
-    ForceBlockingRequest ->
-        -- Forces an NTP check / query on the central servers, use with care
-        ntpQueryBlocking client
-    CanUseCachedResults ->  atomically $ do
-        -- Reads a cached NTP status from an STM.TVar so we don't get
-        -- blacklisted by the central NTP "authorities" for sending
-        -- too many NTP requests.
-        s <- ntpGetStatus client
-        checkSTM (s /= NtpSyncPending)
-        pure s
+getNtpStatus client forceCheck =
+    toStatus <$> case forceCheck of
+        ForceBlockingRequest ->
+            -- Forces an NTP check / query on the central servers, use with care
+            ntpQueryBlocking client
+        CanUseCachedResults -> atomically $ do
+            -- Reads a cached NTP status from an STM.TVar so we don't get
+            -- blacklisted by the central NTP "authorities" for sending
+            -- too many NTP requests.
+            s <- ntpGetStatus client
+            checkSTM (s /= NtpSyncPending)
+            pure s
   where
     toStatus = \case
         NtpSyncPending ->
@@ -225,5 +234,6 @@ getNtpStatus client forceCheck = toStatus <$> case forceCheck of
         NtpSyncUnavailable ->
             NtpStatusWithOffset NtpSyncingStatusUnavailable Nothing
         NtpDrift ms ->
-            NtpStatusWithOffset NtpSyncingStatusAvailable
+            NtpStatusWithOffset
+                NtpSyncingStatusAvailable
                 (Just $ Quantity (fromIntegral ms :: Integer))

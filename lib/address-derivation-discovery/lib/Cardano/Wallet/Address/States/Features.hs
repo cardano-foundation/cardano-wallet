@@ -5,9 +5,7 @@ module Cardano.Wallet.Address.States.Features
     , TestFeatures (..)
     , defaultTestFeatures
     )
-    where
-
-import Prelude
+where
 
 import Cardano.Crypto.Wallet
     ( XPrv
@@ -16,7 +14,8 @@ import Cardano.Wallet.Address.Derivation
     ( Depth (..)
     )
 import Cardano.Wallet.Address.Derivation.Shared
-    ()
+    (
+    )
 import Cardano.Wallet.Address.States.Families
     ( CredFromOf
     , KeyOf
@@ -27,6 +26,7 @@ import Cardano.Wallet.Primitive.Passphrase.Types
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..)
     )
+import Prelude
 
 type IsOwned s =
     s
@@ -39,6 +39,7 @@ newtype TestFeatures s = TestFeatures
     }
 
 defaultTestFeatures :: TestFeatures s
-defaultTestFeatures = TestFeatures
-    { isOwnedTest = error "isOwned: not implemented"
-    }
+defaultTestFeatures =
+    TestFeatures
+        { isOwnedTest = error "isOwned: not implemented"
+        }

@@ -1,17 +1,22 @@
 module Main where
 
-import Prelude
-
 import Data.Aeson
     ( encode
     )
-import qualified Data.ByteString.Lazy.Char8 as BL
-import qualified Data.Map.Strict as Map
 import Data.Text
     ( Text
     )
-import qualified Data.Text as T
-import qualified Data.Text.Encoding as T
+import FlakyTests.GHA
+    ( FetchConfig (..)
+    , defaultFetchConfig
+    , fetchFlakyRuns
+    )
+import FlakyTests.Types
+    ( FlakyEntry (..)
+    , FlakySummary (..)
+    , RunInfo (..)
+    , TestFailure (..)
+    )
 import GitHub
     ( Auth (..)
     )
@@ -40,18 +45,12 @@ import System.IO
     ( hPutStrLn
     , stderr
     )
+import Prelude
 
-import FlakyTests.GHA
-    ( FetchConfig (..)
-    , defaultFetchConfig
-    , fetchFlakyRuns
-    )
-import FlakyTests.Types
-    ( FlakyEntry (..)
-    , FlakySummary (..)
-    , RunInfo (..)
-    , TestFailure (..)
-    )
+import qualified Data.ByteString.Lazy.Char8 as BL
+import qualified Data.Map.Strict as Map
+import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 
 newtype Options = Options
     { optBranch :: Maybe Text
@@ -102,7 +101,8 @@ main = do
 aggregate :: [(RunInfo, [TestFailure])] -> FlakySummary
 aggregate pairs =
     FlakySummary
-        $ Map.fromListWith merge
+        $ Map.fromListWith
+            merge
             [ (testPath tf, FlakyEntry 1 [ri])
             | (ri, tfs) <- pairs
             , tf <- tfs

@@ -6,12 +6,9 @@
 -- License: Apache-2.0
 --
 -- Tools for creating transactions that change the voting status.
---
 module Cardano.Wallet.Transaction.Voting
     ( certificateFromVotingAction
     ) where
-
-import Prelude
 
 import Cardano.Address.Derivation
     ( XPub
@@ -49,6 +46,7 @@ import Cryptography.Hash.Blake
 import Data.ByteString.Short
     ( toShort
     )
+import Prelude
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Ledger as Ledger
@@ -59,20 +57,20 @@ import qualified Cardano.Api.Shelley as Cardano
 ------------------------------------------------------------------------------}
 certificateFromVotingAction
     :: RecentEra era
-        -- ^ Era in which we create the certificate
+    -- ^ Era in which we create the certificate
     -> Either XPub (Script KeyHash)
-        -- ^ Our staking credential
+    -- ^ Our staking credential
     -> Maybe Coin
-       -- ^ Deposit
+    -- ^ Deposit
     -> VotingAction
-        -- ^ Voting action in Conway era onwards
+    -- ^ Voting action in Conway era onwards
     -> [Cardano.Certificate (CardanoApiEra era)]
-        -- ^ Certificates representing the voting action
-certificateFromVotingAction RecentEraBabbage _cred _depositM _va  =
+    -- ^ Certificates representing the voting action
+certificateFromVotingAction RecentEraBabbage _cred _depositM _va =
     []
-certificateFromVotingAction RecentEraConway cred depositM va=
+certificateFromVotingAction RecentEraConway cred depositM va =
     case (va, depositM) of
-        (Vote action,_) ->
+        (Vote action, _) ->
             [ Cardano.makeStakeAddressDelegationCertificate
                 $ Cardano.StakeDelegationRequirementsConwayOnwards
                     conwayWitness
@@ -92,8 +90,9 @@ certificateFromVotingAction RecentEraConway cred depositM va=
                     (toLedgerDelegatee Nothing (Just action))
             ]
         (VoteRegisteringKey _, Nothing) ->
-           error "certificateFromVotingAction: deposit value required in \
-                 \Conway era when registration is carried out"
+            error
+                "certificateFromVotingAction: deposit value required in \
+                \Conway era when registration is carried out"
   where
     conwayWitness = Cardano.ConwayEraOnwardsConway
 
@@ -106,19 +105,19 @@ toCardanoStakeCredential
 toCardanoStakeCredential = \case
     Left xpub ->
         Cardano.StakeCredentialByKey
-        . toHashStakeKey
-        $ xpub
+            . toHashStakeKey
+            $ xpub
     Right script ->
         Cardano.StakeCredentialByScript
-        . Cardano.hashScript
-        . Cardano.SimpleScript
-        $ toCardanoSimpleScript script
+            . Cardano.hashScript
+            . Cardano.SimpleScript
+            $ toCardanoSimpleScript script
 
 toHashStakeKey :: XPub -> Cardano.Hash Cardano.StakeKey
 toHashStakeKey =
     Cardano.StakeKeyHash
-    . Ledger.KeyHash
-    . UnsafeHash
-    . toShort
-    . blake2b224
-    . xpubPublicKey
+        . Ledger.KeyHash
+        . UnsafeHash
+        . toShort
+        . blake2b224
+        . xpubPublicKey

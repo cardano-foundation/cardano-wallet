@@ -1,12 +1,11 @@
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 
-{- |
-Copyright: © 2020-2022 IOHK
-License: Apache-2.0
-
-Raw certificate data extraction from 'Tx'
--}
+-- |
+-- Copyright: © 2020-2022 IOHK
+-- License: Apache-2.0
+--
+-- Raw certificate data extraction from 'Tx'
 module Cardano.Read.Ledger.Tx.Certificates
     ( -- * Certificate type
       CertificatesType
@@ -16,8 +15,6 @@ module Cardano.Read.Ledger.Tx.Certificates
     , getEraCertificates
     )
 where
-
-import Prelude
 
 import Cardano.Ledger.Api
     ( bodyTxL
@@ -52,6 +49,7 @@ import Control.Lens
 import Data.Sequence.Strict
     ( StrictSeq
     )
+import Prelude
 
 -- |
 -- Era-specific certificate type.

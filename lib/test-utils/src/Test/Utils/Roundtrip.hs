@@ -6,8 +6,6 @@ module Test.Utils.Roundtrip
     , httpApiDataRoundtrip
     ) where
 
-import Prelude
-
 import Data.Aeson
     ( FromJSON (..)
     , ToJSON (..)
@@ -68,6 +66,7 @@ import Web.HttpApiData
     ( FromHttpApiData (..)
     , ToHttpApiData (..)
     )
+import Prelude
 
 -- Golden tests files are generated automatically on first run. On later runs
 -- we check that the format stays the same. The golden files should be tracked
@@ -82,7 +81,8 @@ import Web.HttpApiData
 --
 -- The directory `test/data/Cardano/Wallet/Api` is used.
 jsonRoundtripAndGolden
-    :: forall a. (Arbitrary a, ToJSON a, FromJSON a, Typeable a)
+    :: forall a
+     . (Arbitrary a, ToJSON a, FromJSON a, Typeable a)
     => FilePath
     -> Proxy a
     -> Spec
@@ -90,7 +90,7 @@ jsonRoundtripAndGolden dir proxy = do
     roundtripSpecs proxy
     typeNameInfo <- runIO mkCompatibleTypeNameInfo
     sampleSize <- runIO getSampleSize
-    goldenSpecsWithNotePlain (settings {sampleSize}) typeNameInfo Nothing
+    goldenSpecsWithNotePlain (settings{sampleSize}) typeNameInfo Nothing
   where
     -- When generating new JSON golden files for some type, it is occasionally
     -- useful to generate a different number of samples to the default number.
@@ -101,8 +101,8 @@ jsonRoundtripAndGolden dir proxy = do
     --
     getSampleSize :: IO Int
     getSampleSize =
-        fromMaybe sampleSizeDefault . (readMaybe =<<) <$>
-        lookupEnv sampleSizeVariable
+        fromMaybe sampleSizeDefault . (readMaybe =<<)
+            <$> lookupEnv sampleSizeVariable
       where
         sampleSizeDefault = 10
         sampleSizeVariable = "GOLDEN_SAMPLE_SIZE"
@@ -114,36 +114,38 @@ jsonRoundtripAndGolden dir proxy = do
     mkCompatibleTypeNameInfo :: IO (TypeNameInfo a)
     mkCompatibleTypeNameInfo = do
         typeNameInfo <- mkTypeNameInfo settings proxy
-        pure typeNameInfo
-            { typeNameTypeName =
-                mkValidForWindows (typeNameTypeName typeNameInfo)
-            }
+        pure
+            typeNameInfo
+                { typeNameTypeName =
+                    mkValidForWindows (typeNameTypeName typeNameInfo)
+                }
       where
         mkValidForWindows :: TypeName -> TypeName
         mkValidForWindows (TypeName typeName) =
             TypeName (filter isAlphaNum typeName)
 
     settings :: Settings
-    settings = defaultSettings
-        { goldenDirectoryOption = CustomDirectoryName dir
-        , useModuleNameAsSubDirectory = False
-        -- Note that we fail the test if the random seed does not produce the
-        -- same values as those within the golden file. It's important that
-        -- we do fail, because otherwise we may inadvertently fail to cover
-        -- new additions to types and their associated generators.
-        , randomMismatchOption = RandomMismatchError
-        }
+    settings =
+        defaultSettings
+            { goldenDirectoryOption = CustomDirectoryName dir
+            , useModuleNameAsSubDirectory = False
+            , -- Note that we fail the test if the random seed does not produce the
+              -- same values as those within the golden file. It's important that
+              -- we do fail, because otherwise we may inadvertently fail to cover
+              -- new additions to types and their associated generators.
+              randomMismatchOption = RandomMismatchError
+            }
 
 -- Perform roundtrip tests for FromHttpApiData & ToHttpApiData instances
 httpApiDataRoundtrip
-    :: forall a.
-        ( Arbitrary a
-        , FromHttpApiData a
-        , ToHttpApiData a
-        , Typeable a
-        , Eq a
-        , Show a
-        )
+    :: forall a
+     . ( Arbitrary a
+       , FromHttpApiData a
+       , ToHttpApiData a
+       , Typeable a
+       , Eq a
+       , Show a
+       )
     => Proxy a
     -> Spec
 httpApiDataRoundtrip proxy =

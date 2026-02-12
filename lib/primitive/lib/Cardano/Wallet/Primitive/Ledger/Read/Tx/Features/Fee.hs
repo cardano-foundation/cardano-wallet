@@ -3,11 +3,8 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 
-module Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Fee
-    ( getFee)
-    where
-
-import Prelude
+module Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Fee (getFee)
+where
 
 import Cardano.Ledger.Coin
     ( Coin
@@ -23,12 +20,13 @@ import Cardano.Wallet.Read
 import Cardano.Wallet.Read.Eras
     ( IsEra
     )
+import Prelude
 
 import qualified Cardano.Wallet.Primitive.Ledger.Convert as Ledger
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 
-{-# INLINABLE getFee #-}
-getFee :: forall era . IsEra era => Fee era -> Maybe W.Coin
+{-# INLINEABLE getFee #-}
+getFee :: forall era. IsEra era => Fee era -> Maybe W.Coin
 getFee = case theEra @era of
     Byron -> \_ -> Nothing
     Shelley -> mkShelleyTxFee

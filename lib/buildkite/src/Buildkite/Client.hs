@@ -19,8 +19,6 @@ module Buildkite.Client
     )
 where
 
-import Prelude
-
 import Buildkite.API
     ( Artifact (..)
     , ArtifactURL (..)
@@ -73,6 +71,7 @@ import Streaming
     , Stream
     , void
     )
+import Prelude
 
 import qualified Buildkite.API as BKAPI
 import qualified Data.ByteString.Lazy.Char8 as BL

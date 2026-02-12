@@ -1,15 +1,27 @@
 module Cardano.Wallet.UI.Shelley.Html.Pages.Wallets.NewWallet where
 
-import Prelude hiding
-    ( id
+import Cardano.Wallet.UI.Common.API
+    ( Visible (..)
     )
-
+import Cardano.Wallet.UI.Common.Html.Copy
+    ( copyButton
+    )
 import Cardano.Wallet.UI.Common.Html.Htmx
     ( hxExt_
     , hxGet_
     , hxPost_
     , hxTarget_
     , useHtmxExtension
+    )
+import Cardano.Wallet.UI.Common.Html.Lib
+    ( linkText
+    )
+import Cardano.Wallet.UI.Shelley.API
+    ( walletLink
+    , walletMnemonicLink
+    )
+import Data.Text
+    ( Text
     )
 import Lucid
     ( Html
@@ -26,22 +38,8 @@ import Lucid
     , role_
     , type_
     )
-
-import Cardano.Wallet.UI.Common.API
-    ( Visible (..)
-    )
-import Cardano.Wallet.UI.Common.Html.Copy
-    ( copyButton
-    )
-import Cardano.Wallet.UI.Common.Html.Lib
-    ( linkText
-    )
-import Cardano.Wallet.UI.Shelley.API
-    ( walletLink
-    , walletMnemonicLink
-    )
-import Data.Text
-    ( Text
+import Prelude hiding
+    ( id
     )
 
 import qualified Data.Text as T

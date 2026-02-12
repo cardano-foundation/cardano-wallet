@@ -8,8 +8,6 @@
 
 module Cardano.Wallet.Api.Http.Server.Error.AssignReedemers () where
 
-import Prelude
-
 import Cardano.Wallet.Api.Http.Server.Error.IsServerError
     ( IsServerError (..)
     , apiError
@@ -29,6 +27,7 @@ import Internal.Cardano.Write.Tx.Balance
 import Servant.Server
     ( err400
     )
+import Prelude
 
 import qualified Data.Text as T
 

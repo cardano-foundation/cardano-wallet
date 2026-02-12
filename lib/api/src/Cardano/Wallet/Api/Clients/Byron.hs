@@ -25,8 +25,6 @@ module Cardano.Wallet.Api.Clients.Byron
     )
 where
 
-import Prelude
-
 import Cardano.Wallet.Api
     ( ByronWallets
     , CreateByronTransactionOld
@@ -76,7 +74,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx
     )
 import Data.Generics.Labels
-    ()
+    (
+    )
 import Data.Proxy
     ( Proxy (..)
     )
@@ -89,6 +88,7 @@ import Servant.Client
     ( ClientM
     , client
     )
+import Prelude
 
 postWallet
     :: SomeByronWalletPostData

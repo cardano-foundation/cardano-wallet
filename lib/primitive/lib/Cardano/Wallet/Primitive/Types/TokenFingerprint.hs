@@ -12,8 +12,6 @@ module Cardano.Wallet.Primitive.Types.TokenFingerprint
     , mkTokenFingerprint
     ) where
 
-import Prelude
-
 import Cardano.Wallet.Primitive.Types.AssetName
     ( AssetName (..)
     )
@@ -58,15 +56,16 @@ import GHC.Generics
 import Quiet
     ( Quiet (..)
     )
+import Prelude
 
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Data.ByteString as BS
 
-newtype TokenFingerprint =
-    UnsafeTokenFingerprint { unTokenFingerprint :: Text }
+newtype TokenFingerprint
+    = UnsafeTokenFingerprint {unTokenFingerprint :: Text}
     deriving stock (Eq, Ord, Generic)
     deriving (Read, Show) via (Quiet TokenFingerprint)
-    deriving anyclass Hashable
+    deriving anyclass (Hashable)
 
 instance NFData TokenFingerprint
 
@@ -74,11 +73,11 @@ instance NFData TokenFingerprint
 -- fingerprint is not necessarily unique, but can be used in user-facing
 -- interfaces as a comparison mechanism.
 mkTokenFingerprint :: TokenPolicyId -> AssetName -> TokenFingerprint
-mkTokenFingerprint (UnsafeTokenPolicyId (Hash p)) (UnsafeAssetName n)
-    = (p <> n)
-    & convert . hash @_ @Blake2b_160
-    & Bech32.encodeLenient tokenFingerprintHrp . Bech32.dataPartFromBytes
-    & UnsafeTokenFingerprint
+mkTokenFingerprint (UnsafeTokenPolicyId (Hash p)) (UnsafeAssetName n) =
+    (p <> n)
+        & convert . hash @_ @Blake2b_160
+        & Bech32.encodeLenient tokenFingerprintHrp . Bech32.dataPartFromBytes
+        & UnsafeTokenFingerprint
 
 tokenFingerprintHrp :: Bech32.HumanReadablePart
 tokenFingerprintHrp = [humanReadablePart|asset|]
@@ -89,7 +88,8 @@ instance ToText TokenFingerprint where
 instance FromText TokenFingerprint where
     fromText = tokenFingerprintFromText
 
-tokenFingerprintFromText :: Text -> Either TextDecodingError TokenFingerprint
+tokenFingerprintFromText
+    :: Text -> Either TextDecodingError TokenFingerprint
 tokenFingerprintFromText txt = case Bech32.decodeLenient txt of
     Left{} -> Left invalidBech32String
     Right (hrp, dp)
@@ -98,9 +98,12 @@ tokenFingerprintFromText txt = case Bech32.decodeLenient txt of
             Just 20 -> Right (UnsafeTokenFingerprint txt)
             _ -> Left invalidDatapart
   where
-    invalidBech32String = TextDecodingError
-        "A 'TokenFingerprint' must be a valid bech32-encoded string."
-    unrecognizedHrp = TextDecodingError
-        "Expected 'asset' as a human-readable part, but got something else."
-    invalidDatapart = TextDecodingError
-        "Expected a Blake2b-160 digest as data payload, but got something else."
+    invalidBech32String =
+        TextDecodingError
+            "A 'TokenFingerprint' must be a valid bech32-encoded string."
+    unrecognizedHrp =
+        TextDecodingError
+            "Expected 'asset' as a human-readable part, but got something else."
+    invalidDatapart =
+        TextDecodingError
+            "Expected a Blake2b-160 digest as data payload, but got something else."

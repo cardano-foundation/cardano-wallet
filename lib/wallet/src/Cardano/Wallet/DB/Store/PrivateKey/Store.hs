@@ -14,8 +14,6 @@ module Cardano.Wallet.DB.Store.PrivateKey.Store
     , StorePrivateKey
     ) where
 
-import Prelude
-
 import Cardano.Wallet.Address.Keys.PersistPrivateKey
     ( serializeXPrv
     , unsafeDeserializeXPrv
@@ -53,12 +51,15 @@ import Database.Persist.Sql
     ( SqlPersistT
     , deleteWhere
     )
+import Prelude
 
 import qualified Cardano.Wallet.DB.Sqlite.Schema as Schema
 
 -- | A 'Store' for 'PrivateKey'.
-type StorePrivateKey k = SimpleStore (SqlPersistT IO)
-    (Maybe (HashedCredentials k))
+type StorePrivateKey k =
+    SimpleStore
+        (SqlPersistT IO)
+        (Maybe (HashedCredentials k))
 
 -- | A 'Delta' for 'PrivateKey'.
 type DeltaPrivateKey k = Replace (Maybe (HashedCredentials k))
@@ -73,29 +74,31 @@ mkStorePrivateKey
     -> WalletId
     -> StorePrivateKey k
 mkStorePrivateKey kF wid = mkSimpleStore load write
-    where
-        load :: SqlPersistT IO
+  where
+    load
+        :: SqlPersistT
+            IO
             (Either SomeException (Maybe (HashedCredentials k)))
-        load = do
-            keys <- selectFirst [] []
-            pure $ Right $ keys <&> \key ->
-                    privateKeyFromEntity $ entityVal key
-            where
-                privateKeyFromEntity :: Schema.PrivateKey -> HashedCredentials k
-                privateKeyFromEntity (Schema.PrivateKey _ k h) =
-                    uncurry RootCredentials $ unsafeDeserializeXPrv kF (k, h)
+    load = do
+        keys <- selectFirst [] []
+        pure $ Right $ keys <&> \key ->
+            privateKeyFromEntity $ entityVal key
+      where
+        privateKeyFromEntity :: Schema.PrivateKey -> HashedCredentials k
+        privateKeyFromEntity (Schema.PrivateKey _ k h) =
+            uncurry RootCredentials $ unsafeDeserializeXPrv kF (k, h)
 
-        write :: Maybe (HashedCredentials k) -> SqlPersistT IO ()
-        write (Just key) = do
-            deleteWhere ([] :: [Filter Schema.PrivateKey])
-            insert_ (mkPrivateKeyEntity key)
-        write Nothing = deleteWhere ([] :: [Filter Schema.PrivateKey])
+    write :: Maybe (HashedCredentials k) -> SqlPersistT IO ()
+    write (Just key) = do
+        deleteWhere ([] :: [Filter Schema.PrivateKey])
+        insert_ (mkPrivateKeyEntity key)
+    write Nothing = deleteWhere ([] :: [Filter Schema.PrivateKey])
 
-        mkPrivateKeyEntity (RootCredentials k h) =
-            Schema.PrivateKey
-                { Schema.privateKeyWalletId = wid
-                , Schema.privateKeyRootKey = root
-                , Schema.privateKeyHash = hash
-                }
-          where
-            (root, hash) = serializeXPrv kF (k, h)
+    mkPrivateKeyEntity (RootCredentials k h) =
+        Schema.PrivateKey
+            { Schema.privateKeyWalletId = wid
+            , Schema.privateKeyRootKey = root
+            , Schema.privateKeyHash = hash
+            }
+      where
+        (root, hash) = serializeXPrv kF (k, h)

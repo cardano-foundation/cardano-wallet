@@ -12,8 +12,6 @@ module Cardano.Wallet.Primitive.Types.ProtocolParameters
     )
 where
 
-import Prelude
-
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin
     )
@@ -52,6 +50,7 @@ import GHC.Generics
 import Numeric.Natural
     ( Natural
     )
+import Prelude
 
 -- | Protocol parameters that can be changed through the update system.
 data ProtocolParameters = ProtocolParameters

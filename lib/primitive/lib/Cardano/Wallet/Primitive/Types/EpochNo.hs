@@ -11,8 +11,6 @@ module Cardano.Wallet.Primitive.Types.EpochNo
     )
 where
 
-import Prelude
-
 import Control.DeepSeq
     ( NFData (..)
     )
@@ -42,6 +40,7 @@ import GHC.Natural
 import GHC.Stack
     ( HasCallStack
     )
+import Prelude
 
 import qualified Data.Text as T
 

@@ -3,8 +3,6 @@
 
 module Cardano.Node.Cli.Launcher where
 
-import Prelude
-
 import Cardano.Wallet.Launch.Cluster.FileOf
     ( DirOf (..)
     , FileOf
@@ -29,6 +27,7 @@ import System.Process.Typed
     , stopProcess
     , useHandleClose
     )
+import Prelude
 
 start :: NodeProcessConfig -> IO (NodeInstance, NodeApi)
 start NodeProcessConfig{..} = do

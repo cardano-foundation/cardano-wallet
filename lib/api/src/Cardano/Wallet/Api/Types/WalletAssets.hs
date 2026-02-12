@@ -19,8 +19,6 @@ module Cardano.Wallet.Api.Types.WalletAssets
     )
 where
 
-import Prelude
-
 import Cardano.Wallet.Api.Lib.ApiT
     ( ApiT (ApiT)
     )
@@ -49,6 +47,7 @@ import GHC.Exts
 import GHC.Generics
     ( Generic
     )
+import Prelude
 
 import qualified Cardano.Wallet.Primitive.Types.AssetId as W
     ( AssetId (AssetId)
@@ -65,7 +64,8 @@ newtype ApiWalletAssets = ApiWalletAssets
     { getApiWalletAssets :: [ApiWalletAsset]
     }
     deriving (Data, Eq, Generic, Ord, Show, Typeable)
-    deriving newtype (Hashable, IsList, Semigroup, Monoid, FromJSON, ToJSON)
+    deriving newtype
+        (Hashable, IsList, Semigroup, Monoid, FromJSON, ToJSON)
     deriving anyclass (NFData)
 
 fromTokenMap :: W.TokenMap -> ApiWalletAssets

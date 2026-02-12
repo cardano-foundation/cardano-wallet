@@ -5,19 +5,15 @@
 {-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
-{-# OPTIONS_GHC -Wno-orphans #-}
-
 module Cardano.Pool.Types
     ( StakePoolsSummary (..)
-    , PoolId(..)
-    , PoolOwner(..)
+    , PoolId (..)
+    , PoolOwner (..)
     , poolIdBytesLength
     , decodePoolIdBech32
     , encodePoolIdBech32
     , StakePoolTicker (..)
     ) where
-
-import Prelude
 
 import Cardano.Wallet.Primitive.Types.Pool
     ( PoolId (..)
@@ -62,21 +58,22 @@ import Database.Persist.Sqlite
 import GHC.Generics
     ( Generic
     )
+import Prelude
 
 import qualified Data.Text as T
 
 -- | Very short name for a stake pool.
-newtype StakePoolTicker = StakePoolTicker { unStakePoolTicker :: Text }
+newtype StakePoolTicker = StakePoolTicker {unStakePoolTicker :: Text}
     deriving stock (Generic, Show, Eq, Ord)
     deriving newtype (ToText)
 
 instance FromText StakePoolTicker where
     fromText t
-        | T.length t >= 3 && T.length t <= 5
-            = Right $ StakePoolTicker t
-        | otherwise
-            = Left . TextDecodingError $
-                "stake pool ticker length must be 3-5 characters"
+        | T.length t >= 3 && T.length t <= 5 =
+            Right $ StakePoolTicker t
+        | otherwise =
+            Left . TextDecodingError
+                $ "stake pool ticker length must be 3-5 characters"
 
 -- Here to avoid needless orphan instances in the API types.
 instance FromJSON StakePoolTicker where

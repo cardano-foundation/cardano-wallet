@@ -1,12 +1,11 @@
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 
-{- |
-Copyright: © 2020-2022 IOHK
-License: Apache-2.0
-
-Raw mint data extraction from 'Tx'
--}
+-- |
+-- Copyright: © 2020-2022 IOHK
+-- License: Apache-2.0
+--
+-- Raw mint data extraction from 'Tx'
 module Cardano.Read.Ledger.Tx.ScriptValidity
     ( -- * Script validity type
       ScriptValidityType
@@ -15,8 +14,6 @@ module Cardano.Read.Ledger.Tx.ScriptValidity
       -- * Extraction
     , getEraScriptValidity
     ) where
-
-import Prelude
 
 import Cardano.Ledger.Alonzo.Tx
     ( IsValid
@@ -42,6 +39,7 @@ import Cardano.Read.Ledger.Tx.Tx
 import Control.Lens
     ( (^.)
     )
+import Prelude
 
 -- |
 -- Era-specific script validity type.

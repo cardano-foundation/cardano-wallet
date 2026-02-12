@@ -3,7 +3,6 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-
 {-# OPTIONS_GHC -Wno-orphans #-}
 
 -- |
@@ -16,8 +15,6 @@ module Cardano.Wallet.DB.Store.Delegations.StoreSpec
     )
 where
 
-import Prelude
-
 import Cardano.DB.Sqlite
     ( ForeignKeysSetting (..)
     , runQuery
@@ -29,7 +26,8 @@ import Cardano.Slotting.Slot
     ( SlotNo (..)
     )
 import Cardano.Wallet.DB.Arbitrary
-    ()
+    (
+    )
 import Cardano.Wallet.DB.Fixtures
     ( WalletProperty
     , logScale
@@ -41,6 +39,7 @@ import Cardano.Wallet.DB.Store.Delegations.Store
     )
 import Cardano.Wallet.Delegation.Model
     ( Status (Inactive)
+    , status
     , pattern Delegate
     , pattern DelegateAndVote
     , pattern Delegating
@@ -50,7 +49,6 @@ import Cardano.Wallet.Delegation.Model
     , pattern Registered
     , pattern Vote
     , pattern Voting
-    , status
     )
 import Cardano.Wallet.Delegation.ModelSpec
     ( Config (..)
@@ -91,6 +89,7 @@ import Test.Store
     , reset
     , unitTestStore
     )
+import Prelude
 
 spec :: Spec
 spec =
@@ -125,7 +124,7 @@ units = withInitializedWalletProp $ \_ runQ -> do
         liftIO
             $ generate
             $ vectorOf 3 arbitrary `suchThat` (\xs -> xs == nub xs)
-    [v0 :: DRep , v1, _v2] <-
+    [v0 :: DRep, v1, _v2] <-
         liftIO
             $ generate
             $ vectorOf 3 arbitrary `suchThat` (\xs -> xs == nub xs)

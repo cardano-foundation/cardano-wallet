@@ -11,8 +11,6 @@ module Cardano.Wallet.Launch.Cluster.Config
     )
 where
 
-import Prelude
-
 import Cardano.BM.Tracer
     ( Tracer
     )
@@ -42,6 +40,7 @@ import Data.List.NonEmpty
 import Numeric.Natural
     ( Natural
     )
+import Prelude
 
 newtype TestnetMagic = TestnetMagic {testnetMagicToNatural :: Natural}
     deriving stock (Show)

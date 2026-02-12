@@ -17,8 +17,6 @@ module Cardano.Wallet.Read.Tx.Gen.Shelley
     )
 where
 
-import Prelude
-
 import Cardano.Crypto.Hash
     ( Hash (..)
     )
@@ -103,10 +101,11 @@ import Data.Set
 import GHC.Stack
     ( HasCallStack
     )
+import Prelude
 
-import qualified Cardano.Ledger.Core as L
-import qualified Data.ByteString.Short as B
-import qualified Data.Set as Set
+import Cardano.Ledger.Core qualified as L
+import Data.ByteString.Short qualified as B
+import Data.Set qualified as Set
 
 mkShelleyTx
     :: TxParameters

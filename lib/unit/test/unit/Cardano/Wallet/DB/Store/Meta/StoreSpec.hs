@@ -1,13 +1,11 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 
 module Cardano.Wallet.DB.Store.Meta.StoreSpec (spec)
 where
-
-import Prelude
 
 import Cardano.DB.Sqlite
     ( ForeignKeysSetting (..)
@@ -17,7 +15,8 @@ import Cardano.Slotting.Slot
     ( SlotNo
     )
 import Cardano.Wallet.DB.Arbitrary
-    ()
+    (
+    )
 import Cardano.Wallet.DB.Fixtures
     ( WalletProperty
     , assertWith
@@ -88,6 +87,7 @@ import Test.QuickCheck.Monadic
 import Test.Store
     ( prop_StoreUpdate
     )
+import Prelude
 
 import qualified Data.Map.Strict as Map
 

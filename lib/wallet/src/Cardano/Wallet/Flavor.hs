@@ -34,11 +34,9 @@ module Cardano.Wallet.Flavor
     , IncludingStates
     , KeyFlavor (..)
     , CredFromOf
-    , Flavored(..)
+    , Flavored (..)
     )
 where
-
-import Prelude
 
 import Cardano.Wallet.Address.Derivation.Byron
     ( ByronKey
@@ -82,6 +80,7 @@ import Cardano.Wallet.TypeLevel
     ( Excluding
     , Including
     )
+import Prelude
 
 -- | A singleton type to capture the flavor of a state.
 data WalletFlavorS s where
@@ -195,8 +194,9 @@ keyFlavorFromState = keyOfWallet (walletFlavor @s)
 -- | Constraints for a state with a specific key.
 type StateWithKey s k = (WalletFlavor s, KeyOf s ~ k)
 
-notByronKey :: KeyFlavorS k
-    -> (Excluding '[ByronKey] k  => KeyFlavorS k -> x)
+notByronKey
+    :: KeyFlavorS k
+    -> (Excluding '[ByronKey] k => KeyFlavorS k -> x)
     -> Maybe x
 notByronKey x h = case x of
     ByronKeyS -> Nothing
@@ -208,8 +208,9 @@ notByronKey x h = case x of
 shelleyOrShared
     :: WalletFlavorS s
     -> x
-    -> (IncludingStates '[ 'IcarusF, 'ShelleyF, 'SharedF] (FlavorOf s)
-            => WalletFlavorS s -> x)
+    -> ( IncludingStates '[ 'IcarusF, 'ShelleyF, 'SharedF] (FlavorOf s)
+         => WalletFlavorS s -> x
+       )
     -> x
 shelleyOrShared x r h = case x of
     ShelleyWallet -> h ShelleyWallet

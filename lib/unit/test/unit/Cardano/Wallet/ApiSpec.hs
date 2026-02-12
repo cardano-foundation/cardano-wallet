@@ -20,23 +20,18 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
-
+{-# OPTIONS_GHC -Wno-orphans #-}
 -- The following is justified by the usage of the 'requestBody' field
 -- accessor on the 'Request' object from the Network.Wai.Internal module as a
 -- setter. The use of this field as a getter is deprecated, but we need it to
 -- mount an existing request body in a request.
 {-# OPTIONS_GHC -fno-warn-deprecations #-}
-
 -- TODO: https://cardanofoundation.atlassian.net/browse/ADP-2841
 {-# OPTIONS_GHC -fno-warn-star-is-type #-}
-
-{-# OPTIONS_GHC -Wno-orphans #-}
 
 module Cardano.Wallet.ApiSpec
     ( spec
     ) where
-
-import Prelude
 
 import Cardano.Wallet.Api
     ( Api
@@ -171,6 +166,7 @@ import Test.Hspec
 import Type.Reflection
     ( typeOf
     )
+import Prelude
 
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Char8 as B8
@@ -183,46 +179,58 @@ spec :: Spec
 spec = do
     gSpec (everyPathParam api) $ \(SomeTest proxy tests) ->
         describe "Malformed PathParam" $ do
-            forM_ tests $ \(req, msg) -> it (titleize proxy req) $
-                runSession (spec_MalformedParam req msg) application
+            forM_ tests $ \(req, msg) ->
+                it (titleize proxy req)
+                    $ runSession (spec_MalformedParam req msg) application
 
     gSpec (everyBodyParam api) $ \(SomeTest proxy tests) ->
         describe "Malformed BodyParam" $ do
-            forM_ tests $ \(req, msg) -> it (titleize proxy req) $
-                runSession (spec_MalformedParam req msg) application
+            forM_ tests $ \(req, msg) ->
+                it (titleize proxy req)
+                    $ runSession (spec_MalformedParam req msg) application
 
     gSpec (everyHeader api) $ \(SomeTest proxy tests) -> do
         case typeOf proxy `testEquality` typeOf (Proxy @"Accept") of
-            Just Refl -> describe "Malformed Headers" $
-                forM_ tests $ \(req, msg) -> it (titleize proxy req) $
-                    runSession (spec_WrongAcceptHeader req msg) application
+            Just Refl -> describe "Malformed Headers"
+                $ forM_ tests
+                $ \(req, msg) ->
+                    it (titleize proxy req)
+                        $ runSession (spec_WrongAcceptHeader req msg) application
             Nothing ->
                 pure ()
 
         case typeOf proxy `testEquality` typeOf (Proxy @"Content-Type") of
-            Just Refl -> describe "Malformed Headers" $
-                forM_ tests $ \(req, msg) -> it (titleize proxy req) $
-                    runSession (spec_WrongContentTypeHeader req msg) application
+            Just Refl -> describe "Malformed Headers"
+                $ forM_ tests
+                $ \(req, msg) ->
+                    it (titleize proxy req)
+                        $ runSession (spec_WrongContentTypeHeader req msg) application
             Nothing ->
                 pure ()
 
     gSpec (everyAllowedMethod api) $ \(SomeTest proxy tests) ->
-        describe "Not Allowed Methods" $
-            forM_ tests $ \(req, msg) -> it (titleize proxy req) $
-                runSession (spec_NotAllowedMethod req msg) application
+        describe "Not Allowed Methods"
+            $ forM_ tests
+            $ \(req, msg) ->
+                it (titleize proxy req)
+                    $ runSession (spec_NotAllowedMethod req msg) application
 
 assertErrorResponse
     :: HasCallStack
-    => Int -- ^ Expected status
-    -> Text -- ^ Expected error code string
+    => Int
+    -- ^ Expected status
+    -> Text
+    -- ^ Expected error code string
     -> ExpectedError
     -> SResponse
     -> Session ()
 assertErrorResponse status code (ExpectedError msg) response = do
     response & assertStatus status
-    response & assertHeader "Content-Type" "application/json;charset=utf-8"
-    response & assertBody
-        (Aeson.encode [aesonQQ|{ "code": #{code}, "message": #{msg} }|])
+    response
+        & assertHeader "Content-Type" "application/json;charset=utf-8"
+    response
+        & assertBody
+            (Aeson.encode [aesonQQ|{ "code": #{code}, "message": #{msg} }|])
 
 spec_MalformedParam :: Request -> ExpectedError -> Session ()
 spec_MalformedParam malformedRequest expectedError = do
@@ -237,7 +245,11 @@ spec_WrongAcceptHeader malformedRequest expectedError = do
 spec_WrongContentTypeHeader :: Request -> ExpectedError -> Session ()
 spec_WrongContentTypeHeader malformedRequest expectedError = do
     response <- request malformedRequest
-    assertErrorResponse 415 "unsupported_media_type" expectedError response
+    assertErrorResponse
+        415
+        "unsupported_media_type"
+        expectedError
+        response
 
 spec_NotAllowedMethod :: Request -> ExpectedError -> Session ()
 spec_NotAllowedMethod malformedRequest expectedError = do
@@ -249,7 +261,8 @@ spec_NotAllowedMethod malformedRequest expectedError = do
 --
 data SomeTest where
     SomeTest
-        :: forall k (a :: k). (Typeable a, Typeable k)
+        :: forall k (a :: k)
+         . (Typeable a, Typeable k)
         => Proxy a
         -> [(Request, ExpectedError)]
         -> SomeTest
@@ -268,59 +281,72 @@ instance GenericApiSpec a => GenericApiSpec [a] where
     gSpec xs toSpec = foldr (\x y -> gSpec x toSpec >> y) (pure ()) xs
 
 instance
-    ( Typeable a, Malformed (PathParam a)
-    ) => GenericApiSpec (PathParam a -> [Request])
-  where
+    ( Typeable a
+    , Malformed (PathParam a)
+    )
+    => GenericApiSpec (PathParam a -> [Request])
+    where
     gSpec toRequest toSpec = do
         let tests :: [[(Request, ExpectedError)]]
-            tests = fmap (\(xs, e) -> fmap (,e) xs)
-                (first toRequest <$> malformed @(PathParam a))
+            tests =
+                fmap
+                    (\(xs, e) -> fmap (,e) xs)
+                    (first toRequest <$> malformed @(PathParam a))
         forM_ tests (toSpec . SomeTest (Proxy @a))
 
 instance
-    ( Typeable a, Wellformed (PathParam a)
+    ( Typeable a
+    , Wellformed (PathParam a)
     , GenericApiSpec (PathParam a -> [Request])
     , Wellformed (PathParam b)
     , GenericApiSpec (PathParam b -> [Request])
-    ) => GenericApiSpec (PathParam a -> PathParam b -> [Request])
-  where
+    )
+    => GenericApiSpec (PathParam a -> PathParam b -> [Request])
+    where
     gSpec toRequest toSpec = do
         forM_ wellformed $ \w -> gSpec (toRequest w) toSpec
         forM_ wellformed $ \w -> gSpec (`toRequest` w) toSpec
 
 instance
-    ( Typeable a, Wellformed (PathParam a)
+    ( Typeable a
+    , Wellformed (PathParam a)
     , GenericApiSpec (PathParam a -> [Request])
-    , Typeable b, Wellformed (PathParam b)
+    , Typeable b
+    , Wellformed (PathParam b)
     , GenericApiSpec (PathParam b -> [Request])
     , Wellformed (PathParam c)
     , GenericApiSpec (PathParam c -> [Request])
-    ) => GenericApiSpec (PathParam a -> PathParam b -> PathParam c -> [Request])
-  where
+    )
+    => GenericApiSpec
+        (PathParam a -> PathParam b -> PathParam c -> [Request])
+    where
     gSpec toRequest toSpec = do
         forM_
-            [ (b,c) | b <- wellformed, c <- wellformed ]
-            (\(b,c) -> gSpec (\a -> toRequest a b c) toSpec)
+            [(b, c) | b <- wellformed, c <- wellformed]
+            (\(b, c) -> gSpec (\a -> toRequest a b c) toSpec)
 
         forM_
-            [ (a,c) | a <- wellformed, c <- wellformed ]
-            (\(a,c) -> gSpec (\b -> toRequest a b c) toSpec)
+            [(a, c) | a <- wellformed, c <- wellformed]
+            (\(a, c) -> gSpec (\b -> toRequest a b c) toSpec)
 
         forM_
-            [ (a,b) | a <- wellformed, b <- wellformed ]
-            (\(a,b) -> gSpec (\c -> toRequest a b c) toSpec)
+            [(a, b) | a <- wellformed, b <- wellformed]
+            (\(a, b) -> gSpec (\c -> toRequest a b c) toSpec)
 
-        -- The lambda above helps readability and make the pattern obvious
-        {- HLINT ignore "Avoid lambda" -}
+-- The lambda above helps readability and make the pattern obvious
+{- HLINT ignore "Avoid lambda" -}
 
 instance
-    ( Typeable a, Malformed (BodyParam a)
-    ) => GenericApiSpec (BodyParam a -> IO [Request])
-  where
+    ( Typeable a
+    , Malformed (BodyParam a)
+    )
+    => GenericApiSpec (BodyParam a -> IO [Request])
+    where
     gSpec toRequest toSpec = do
         let tests :: [(IO [Request], ExpectedError)]
             tests = first toRequest <$> malformed @(BodyParam a)
-        toSpec . SomeTest (Proxy @a) . distributeFirst =<< traverseLeft runIO tests
+        toSpec . SomeTest (Proxy @a) . distributeFirst
+            =<< traverseLeft runIO tests
       where
         -- e.g. [IO Request, ExpectedError] -> IO [Request, ExpectedError]
         traverseLeft
@@ -333,8 +359,9 @@ instance
     ( KnownSymbol h
     , Typeable ct
     , Malformed (Header h ct)
-    ) => GenericApiSpec (Header h ct -> [Request])
-  where
+    )
+    => GenericApiSpec (Header h ct -> [Request])
+    where
     gSpec toRequest toSpec = do
         let tests :: [([Request], ExpectedError)]
             tests = first toRequest <$> malformed @(Header h ct)
@@ -347,21 +374,24 @@ instance
     , Wellformed (Header h1 ct1)
     , GenericApiSpec (Header h0 ct0 -> [Request])
     , GenericApiSpec (Header h1 ct1 -> [Request])
-    ) => GenericApiSpec (Header h0 ct0 -> Header h1 ct1 -> [Request])
-  where
+    )
+    => GenericApiSpec (Header h0 ct0 -> Header h1 ct1 -> [Request])
+    where
     gSpec toRequest toSpec = do
         forM_ wellformed $ \w -> gSpec (toRequest w) toSpec
         forM_ wellformed $ \w -> gSpec (`toRequest` w) toSpec
 
-instance GenericApiSpec (Map [Text] [Method])
-  where
+instance GenericApiSpec (Map [Text] [Method]) where
     gSpec allowedMethods toSpec = do
-        toSpec $ SomeTest (Proxy @Void) $ mconcat $
-            for (Map.toList allowedMethods) $ \(pathInfo, methods) ->
+        toSpec
+            $ SomeTest (Proxy @Void)
+            $ mconcat
+            $ for (Map.toList allowedMethods)
+            $ \(pathInfo, methods) ->
                 forMaybe (allMethodsButHead \\ methods) $ \requestMethod ->
                     if shouldSkipRequest requestMethod pathInfo
-                    then Nothing
-                    else Just (defaultRequest { pathInfo, requestMethod }, msg)
+                        then Nothing
+                        else Just (defaultRequest{pathInfo, requestMethod}, msg)
       where
         for = flip map
         forMaybe = flip mapMaybe
@@ -377,7 +407,7 @@ instance GenericApiSpec (Map [Text] [Method])
 
         shouldSkipRequest :: Method -> [Text] -> Bool
         shouldSkipRequest method = \case
-            [ "stake-pools", "*", "wallets", _ ] -> method /= "DELETE"
+            ["stake-pools", "*", "wallets", _] -> method /= "DELETE"
             _ -> False
 
 --
@@ -385,37 +415,43 @@ instance GenericApiSpec (Map [Text] [Method])
 --
 
 application :: Application
-application = serve api server
-    & handleRawError (curry toServerError)
+application =
+    serve api server
+        & handleRawError (curry toServerError)
 
 api :: Proxy (Api ('Testnet 0))
 api = Proxy
 
 server :: Server (Api ('Testnet 0))
-server = error
-    "No test from this module should actually reach handlers of the server. \
-    \Tests are indeed all testing the internal machinery of Servant + Wai and \
-    \the way they interact with the outside world. Only valid requests are \
-    \delegated to our handlers."
+server =
+    error
+        "No test from this module should actually reach handlers of the server. \
+        \Tests are indeed all testing the internal machinery of Servant + Wai and \
+        \the way they interact with the outside world. Only valid requests are \
+        \delegated to our handlers."
 
-everyPathParam :: GEveryEndpoints api => Proxy api -> MkPathRequest api
+everyPathParam
+    :: GEveryEndpoints api => Proxy api -> MkPathRequest api
 everyPathParam proxy = gEveryPathParam proxy defaultRequest
 
 defaultApiRequest :: Request
-defaultApiRequest = defaultRequest
-    { requestHeaders =
-        [ (hContentType, "application/json")
-        , (hAccept, "*/*")
-        ]
-    }
+defaultApiRequest =
+    defaultRequest
+        { requestHeaders =
+            [ (hContentType, "application/json")
+            , (hAccept, "*/*")
+            ]
+        }
 
-everyBodyParam :: GEveryEndpoints api => Proxy api -> MkBodyRequest api
+everyBodyParam
+    :: GEveryEndpoints api => Proxy api -> MkBodyRequest api
 everyBodyParam proxy = gEveryBodyParam proxy defaultApiRequest
 
 everyHeader :: GEveryEndpoints api => Proxy api -> MkHeaderRequest api
 everyHeader proxy = gEveryHeader proxy defaultRequest
 
-everyAllowedMethod :: GEveryEndpoints api => Proxy api -> Map [Text] [Method]
+everyAllowedMethod
+    :: GEveryEndpoints api => Proxy api -> Map [Text] [Method]
 everyAllowedMethod proxy =
     Map.fromListWith (++) (toTuple <$> gEveryEndpoint proxy)
   where
@@ -434,48 +470,51 @@ class GEveryEndpoints api where
     type MkHeaderRequest api :: *
     gEveryHeader :: Proxy api -> Request -> MkHeaderRequest api
 
-    -- TODO
-    -- Capture request query params as QueryParam
-    --
-    -- newtype QueryParam t = QueryParam Text
-    --     deriving (Typeable)
-    --
-    -- type MkQueryRequest api :: *
-    -- gEveryQueryParams :: Proxy api -> Request -> MkQueryRequest api
+-- TODO
+-- Capture request query params as QueryParam
+--
+-- newtype QueryParam t = QueryParam Text
+--     deriving (Typeable)
+--
+-- type MkQueryRequest api :: *
+-- gEveryQueryParams :: Proxy api -> Request -> MkQueryRequest api
 
 instance
     ( GEveryEndpoints a
     , GEveryEndpoints b
-    ) => GEveryEndpoints (a :<|> b)
-  where
+    )
+    => GEveryEndpoints (a :<|> b)
+    where
     gEveryEndpoint _ =
         gEveryEndpoint (Proxy @a)
-      ++
-        gEveryEndpoint (Proxy @b)
+            ++ gEveryEndpoint (Proxy @b)
 
     type MkPathRequest (a :<|> b) = MkPathRequest a :<|> MkPathRequest b
-    gEveryPathParam _ req = do
-        gEveryPathParam (Proxy @a) req
-      :<|>
-        gEveryPathParam (Proxy @b) req
+    gEveryPathParam _ req =
+        do
+            gEveryPathParam (Proxy @a) req
+            :<|> gEveryPathParam (Proxy @b) req
 
     type MkBodyRequest (a :<|> b) = MkBodyRequest a :<|> MkBodyRequest b
-    gEveryBodyParam _ req = do
-        gEveryBodyParam (Proxy @a) req
-      :<|>
-        gEveryBodyParam (Proxy @b) req
+    gEveryBodyParam _ req =
+        do
+            gEveryBodyParam (Proxy @a) req
+            :<|> gEveryBodyParam (Proxy @b) req
 
-    type MkHeaderRequest (a :<|> b) = MkHeaderRequest a :<|> MkHeaderRequest b
-    gEveryHeader _ req = do
-        gEveryHeader (Proxy @a) req
-      :<|>
-        gEveryHeader (Proxy @b) req
+    type
+        MkHeaderRequest (a :<|> b) =
+            MkHeaderRequest a :<|> MkHeaderRequest b
+    gEveryHeader _ req =
+        do
+            gEveryHeader (Proxy @a) req
+            :<|> gEveryHeader (Proxy @b) req
 
 instance
     ( ReflectMethod m
     , Accept ct
-    ) => GEveryEndpoints (Verb (m :: StdMethod) s '[ct] a)
-  where
+    )
+    => GEveryEndpoints (Verb (m :: StdMethod) s '[ct] a)
+    where
     gEveryEndpoint _ =
         [ defaultRequest
             { requestMethod = reflectMethod $ Proxy @m
@@ -487,49 +526,55 @@ instance
 
     type MkPathRequest (Verb m s '[ct] a) = [Request]
     gEveryPathParam _ req =
-        [req { requestMethod = reflectMethod (Proxy @m) }]
+        [req{requestMethod = reflectMethod (Proxy @m)}]
 
     type MkBodyRequest (Verb m s '[ct] a) = [Request]
     gEveryBodyParam _ req =
-        [req { requestMethod = reflectMethod (Proxy @m) }]
+        [req{requestMethod = reflectMethod (Proxy @m)}]
 
-    type MkHeaderRequest (Verb m s '[ct] a) = Header "Accept" ct -> [Request]
+    type
+        MkHeaderRequest (Verb m s '[ct] a) =
+            Header "Accept" ct -> [Request]
     gEveryHeader _ req (Header h) =
-        [req { requestMethod = reflectMethod $ Proxy @m
-             , requestHeaders = requestHeaders req ++ [ (hAccept, h) ]
-             }
+        [ req
+            { requestMethod = reflectMethod $ Proxy @m
+            , requestHeaders = requestHeaders req ++ [(hAccept, h)]
+            }
         ]
 
 instance
-    ( ReflectMethod m
-    ) => GEveryEndpoints (NoContentVerb (m :: StdMethod))
-  where
+    (ReflectMethod m)
+    => GEveryEndpoints (NoContentVerb (m :: StdMethod))
+    where
     gEveryEndpoint _ =
-        [defaultRequest { requestMethod = reflectMethod (Proxy @m) }]
+        [defaultRequest{requestMethod = reflectMethod (Proxy @m)}]
 
     type MkPathRequest (NoContentVerb m) = [Request]
     gEveryPathParam _ req =
-        [req { requestMethod = reflectMethod (Proxy @m) }]
+        [req{requestMethod = reflectMethod (Proxy @m)}]
 
     type MkBodyRequest (NoContentVerb m) = [Request]
     gEveryBodyParam _ req =
-        [req { requestMethod = reflectMethod (Proxy @m) }]
+        [req{requestMethod = reflectMethod (Proxy @m)}]
 
     type MkHeaderRequest (NoContentVerb m) = [Request]
     gEveryHeader _ req =
-        [req { requestMethod = reflectMethod (Proxy @m) }]
+        [req{requestMethod = reflectMethod (Proxy @m)}]
 
 instance
     ( Wellformed (PathParam t)
     , GEveryEndpoints sub
-    ) => GEveryEndpoints (Capture p t :> sub)
-  where
+    )
+    => GEveryEndpoints (Capture p t :> sub)
+    where
     gEveryEndpoint _ =
         concatMap (\t -> addPathFragment t <$> gEveryEndpoint (Proxy @sub)) ts
       where
         ts = wellformed :: [PathParam t]
 
-    type MkPathRequest (Capture p t :> sub) = PathParam t -> MkPathRequest sub
+    type
+        MkPathRequest (Capture p t :> sub) =
+            PathParam t -> MkPathRequest sub
     gEveryPathParam _ req t =
         gEveryPathParam (Proxy @sub) (addPathFragment t req)
 
@@ -548,8 +593,9 @@ instance
 instance
     ( KnownSymbol s
     , GEveryEndpoints sub
-    ) => GEveryEndpoints (s :> sub)
-  where
+    )
+    => GEveryEndpoints (s :> sub)
+    where
     gEveryEndpoint _ =
         addPathFragment t <$> gEveryEndpoint (Proxy @sub)
       where
@@ -591,34 +637,48 @@ instance
 --     design, rather than a “both/and” design, allow a client to deliberately
 --     override an instance from a library, without requiring a change to the
 --     library.)
-instance {-# OVERLAPPING #-}
-    ( GEveryEndpoints sub
-    ) => GEveryEndpoints (ReqBody '[OctetStream] a :> sub)
-  where
+instance
+    {-# OVERLAPPING #-}
+    (GEveryEndpoints sub)
+    => GEveryEndpoints (ReqBody '[OctetStream] a :> sub)
+    where
     gEveryEndpoint _ =
         gEveryEndpoint (Proxy @sub)
 
-    type MkPathRequest (ReqBody '[OctetStream] a :> sub) = MkPathRequest sub
+    type
+        MkPathRequest (ReqBody '[OctetStream] a :> sub) =
+            MkPathRequest sub
     gEveryPathParam _ =
         gEveryPathParam (Proxy @sub)
 
-    type MkBodyRequest (ReqBody '[OctetStream] a :> sub) = BodyParam a -> IO (MkBodyRequest sub)
+    type
+        MkBodyRequest (ReqBody '[OctetStream] a :> sub) =
+            BodyParam a -> IO (MkBodyRequest sub)
     gEveryBodyParam _ req b =
-        gEveryBodyParam (Proxy @sub) <$> (setRequestBody b req {
-            requestHeaders = [ (hContentType, "application/octet-stream")
-                             , (hAccept, "*/*")
-                             ]
-        })
+        gEveryBodyParam (Proxy @sub)
+            <$> ( setRequestBody
+                    b
+                    req
+                        { requestHeaders =
+                            [ (hContentType, "application/octet-stream")
+                            , (hAccept, "*/*")
+                            ]
+                        }
+                )
 
-    type MkHeaderRequest (ReqBody '[OctetStream] a :> sub) = Header "Content-Type" OctetStream -> MkHeaderRequest sub
+    type
+        MkHeaderRequest (ReqBody '[OctetStream] a :> sub) =
+            Header "Content-Type" OctetStream -> MkHeaderRequest sub
     gEveryHeader _ req (Header h) =
-        gEveryHeader (Proxy @sub) $ req
-            { requestHeaders = requestHeaders req ++ [(hContentType, h)] }
+        gEveryHeader (Proxy @sub)
+            $ req
+                { requestHeaders = requestHeaders req ++ [(hContentType, h)]
+                }
 
 instance
-    ( GEveryEndpoints sub
-    ) => GEveryEndpoints (ReqBody '[ct] a :> sub)
-  where
+    (GEveryEndpoints sub)
+    => GEveryEndpoints (ReqBody '[ct] a :> sub)
+    where
     gEveryEndpoint _ =
         gEveryEndpoint (Proxy @sub)
 
@@ -626,19 +686,25 @@ instance
     gEveryPathParam _ =
         gEveryPathParam (Proxy @sub)
 
-    type MkBodyRequest (ReqBody '[ct] a :> sub) = BodyParam a -> IO (MkBodyRequest sub)
+    type
+        MkBodyRequest (ReqBody '[ct] a :> sub) =
+            BodyParam a -> IO (MkBodyRequest sub)
     gEveryBodyParam _ req b =
         gEveryBodyParam (Proxy @sub) <$> (setRequestBody b req)
 
-    type MkHeaderRequest (ReqBody '[ct] a :> sub) = Header "Content-Type" ct -> MkHeaderRequest sub
+    type
+        MkHeaderRequest (ReqBody '[ct] a :> sub) =
+            Header "Content-Type" ct -> MkHeaderRequest sub
     gEveryHeader _ req (Header h) =
-        gEveryHeader (Proxy @sub) $ req
-            { requestHeaders = requestHeaders req ++ [(hContentType, h)] }
+        gEveryHeader (Proxy @sub)
+            $ req
+                { requestHeaders = requestHeaders req ++ [(hContentType, h)]
+                }
 
 instance
-    ( GEveryEndpoints sub
-    ) => GEveryEndpoints (Servant.QueryParam a b :> sub)
-  where
+    (GEveryEndpoints sub)
+    => GEveryEndpoints (Servant.QueryParam a b :> sub)
+    where
     gEveryEndpoint _ =
         gEveryEndpoint (Proxy @sub)
 
@@ -650,14 +716,16 @@ instance
     gEveryBodyParam _ =
         gEveryBodyParam (Proxy @sub)
 
-    type MkHeaderRequest (Servant.QueryParam a b :> sub) = MkHeaderRequest sub
+    type
+        MkHeaderRequest (Servant.QueryParam a b :> sub) =
+            MkHeaderRequest sub
     gEveryHeader _ =
         gEveryHeader (Proxy @sub)
 
 instance
-    ( GEveryEndpoints sub
-    ) => GEveryEndpoints (Servant.QueryFlag s :> sub)
-  where
+    (GEveryEndpoints sub)
+    => GEveryEndpoints (Servant.QueryFlag s :> sub)
+    where
     gEveryEndpoint _ =
         gEveryEndpoint (Proxy @sub)
 
@@ -669,7 +737,9 @@ instance
     gEveryBodyParam _ =
         gEveryBodyParam (Proxy @sub)
 
-    type MkHeaderRequest (Servant.QueryFlag s :> sub) = MkHeaderRequest sub
+    type
+        MkHeaderRequest (Servant.QueryFlag s :> sub) =
+            MkHeaderRequest sub
     gEveryHeader _ =
         gEveryHeader (Proxy @sub)
 
@@ -681,28 +751,33 @@ distributeFirst :: [([x], y)] -> [(x, y)]
 distributeFirst zs = [(x, y) | (xs, y) <- zs, x <- xs]
 
 addPathFragment :: PathParam t -> Request -> Request
-addPathFragment (PathParam fragment) req = req
-    { pathInfo = pathInfo req ++ [fragment] }
+addPathFragment (PathParam fragment) req =
+    req
+        { pathInfo = pathInfo req ++ [fragment]
+        }
 
 setRequestBody :: BodyParam b -> Request -> IO Request
 setRequestBody (BodyParam bytes) req = do
     ref <- newIORef $ BL.toChunks bytes
-    pure req
-        { requestBodyLength = KnownLength $ fromIntegral $ BL.length bytes
-        , requestBody = atomicModifyIORef ref $ \case
-            []  -> ([], mempty)
-            h:q -> (q, h)
-        }
+    pure
+        req
+            { requestBodyLength = KnownLength $ fromIntegral $ BL.length bytes
+            , requestBody = atomicModifyIORef ref $ \case
+                [] -> ([], mempty)
+                h : q -> (q, h)
+            }
 
 titleize
-    :: forall t. (Typeable t)
+    :: forall t
+     . (Typeable t)
     => Proxy t
     -> Request
     -> String
-titleize proxy req = unwords
-    [ if proxyStr == "(Void)" then "" else proxyStr
-    , B8.unpack (requestMethod req)
-    , "/" <> T.unpack (T.intercalate "/" $ pathInfo req)
-    ]
+titleize proxy req =
+    unwords
+        [ if proxyStr == "(Void)" then "" else proxyStr
+        , B8.unpack (requestMethod req)
+        , "/" <> T.unpack (T.intercalate "/" $ pathInfo req)
+        ]
   where
     proxyStr = "(" <> show (typeRep proxy) <> ")"

@@ -6,8 +6,6 @@ module Cardano.Wallet.Launch.Cluster.Tx
     )
 where
 
-import Prelude
-
 import Cardano.Launcher.Node
     ( CardanoNodeConn
     )
@@ -37,7 +35,8 @@ import Control.Monad.Reader
     , MonadReader (..)
     )
 import Data.Generics.Labels
-    ()
+    (
+    )
 import Data.Tagged
     ( Tagged (..)
     , untag
@@ -48,6 +47,7 @@ import System.IO.Temp
 import System.Path
     ( absFile
     )
+import Prelude
 
 import qualified Data.Text as T
 

@@ -4,9 +4,7 @@ module Internal.Cardano.Write.Tx.Balance.TokenBundleSize
     , mkTokenBundleSizeAssessor
     , computeTokenBundleSerializedLengthBytes
     )
-    where
-
-import Prelude
+where
 
 import Cardano.CoinSelection.Size
     ( TokenBundleSizeAssessment (..)
@@ -36,6 +34,7 @@ import Internal.Cardano.Write.Tx
     , Value
     , Version
     )
+import Prelude
 
 import qualified Cardano.Wallet.Primitive.Ledger.Convert as Convert
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W
@@ -50,15 +49,14 @@ import qualified Data.ByteString.Lazy as BL
 --   included in a transaction output.
 --
 -- See 'TokenBundleSizeAssessor' for the expected properties of this function.
---
 mkTokenBundleSizeAssessor
     :: IsRecentEra era
     => PParams era
     -> TokenBundleSizeAssessor
 mkTokenBundleSizeAssessor pp = TokenBundleSizeAssessor $ \tb ->
     if computeTokenBundleSerializedLengthBytes tb ver > maxValSize
-    then TokenBundleSizeExceedsLimit
-    else TokenBundleSizeWithinLimit
+        then TokenBundleSizeExceedsLimit
+        else TokenBundleSizeWithinLimit
   where
     maxValSize :: W.TxSize
     maxValSize = W.TxSize $ pp ^. ppMaxValSizeL
@@ -73,9 +71,10 @@ computeTokenBundleSerializedLengthBytes
 computeTokenBundleSerializedLengthBytes tb ver = serSize (Convert.toLedger tb)
   where
     serSize :: Value -> W.TxSize
-    serSize v = maybe err W.TxSize
-        . intCastMaybe
-        . BL.length
-        $ serialize ver v
+    serSize v =
+        maybe err W.TxSize
+            . intCastMaybe
+            . BL.length
+            $ serialize ver v
       where
         err = error $ "negative serialized size of value: " <> show v

@@ -33,8 +33,6 @@ module Cardano.Wallet.Network.Implementation
     , Log (..)
     ) where
 
-import Prelude
-
 import Cardano.Api
     ( AnyCardanoEra (..)
     , CardanoEra (..)
@@ -379,6 +377,7 @@ import UnliftIO.Exception
     ( Handler (..)
     , IOException
     )
+import Prelude
 
 import qualified Cardano.Read.Ledger.Tx.CBOR as Read
 import qualified Cardano.Wallet.Network.LocalStateQuery as LSQ
@@ -486,13 +485,13 @@ withNodeNetworkLayerBase
                     withStats $ \trChainSyncLog -> do
                         let mapB =
                                 Read.applyEraFunValue Read.getEraBHeader
-                                . Read.fromConsensusBlock
+                                    . Read.fromConsensusBlock
                             mapP = fromOuroborosPoint
                         let client =
                                 mkWalletClient
                                     (mapChainSyncLog mapB mapP >$< trChainSyncLog)
                                     pipeliningStrategy
-                                    (mapChainFollower
+                                    ( mapChainFollower
                                         toOuroborosPoint
                                         mapP
                                         fromOuroborosTip
@@ -584,7 +583,8 @@ withNodeNetworkLayerBase
             link
                 =<< async
                     (connectClient trNodeTip handlers ouroborosApp versionData conn)
-            pure (readTip, networkParamsVar, interpreterVar, eraVar, txSubmissionQ)
+            pure
+                (readTip, networkParamsVar, interpreterVar, eraVar, txSubmissionQ)
 
         connectDelegationRewardsClient
             :: (HasCallStack)
@@ -601,8 +601,7 @@ withNodeNetworkLayerBase
 
         runFetchBlockClient
             :: forall block
-              . ( block ~ CardanoBlock (StandardCrypto)
-                )
+             . (block ~ CardanoBlock (StandardCrypto))
             => RetryHandlers
             -> TQueue IO (FetchBlockCmd IO block (Point block))
             -> IO ()
@@ -663,8 +662,9 @@ withNodeNetworkLayerBase
         _stakeDistribution queue coin = do
             liftIO $ traceWith tr $ MsgWillQueryRewardsForStake coin
 
-            mres <- bracketQuery "stakePoolsSummary" tr
-                $ queue `send` SomeLSQ (LSQ.stakeDistribution coin)
+            mres <-
+                bracketQuery "stakePoolsSummary" tr
+                    $ queue `send` SomeLSQ (LSQ.stakeDistribution coin)
 
             -- The result will be Nothing if query occurs during the byron era
             traceWith tr $ MsgFetchStakePoolsData mres
@@ -679,22 +679,23 @@ withNodeNetworkLayerBase
                 Nothing -> pure $ StakePoolsSummary 0 mempty mempty
 
         _getUTxOByTxIn queue readCachedEra ins
-            | ins == mempty = readCachedEra <&> \case
-                AnyCardanoEra ByronEra -> InNonRecentEraByron
-                AnyCardanoEra ShelleyEra -> InNonRecentEraShelley
-                AnyCardanoEra AllegraEra -> InNonRecentEraAllegra
-                AnyCardanoEra MaryEra -> InNonRecentEraMary
-                AnyCardanoEra AlonzoEra -> InNonRecentEraAlonzo
-                AnyCardanoEra BabbageEra -> InRecentEraBabbage mempty
-                AnyCardanoEra ConwayEra -> InRecentEraConway mempty
-            | otherwise
-                = bracketQuery "getUTxOByTxIn" tr
-                $ queue `send` SomeLSQ (LSQ.getUTxOByTxIn ins)
+            | ins == mempty =
+                readCachedEra <&> \case
+                    AnyCardanoEra ByronEra -> InNonRecentEraByron
+                    AnyCardanoEra ShelleyEra -> InNonRecentEraShelley
+                    AnyCardanoEra AllegraEra -> InNonRecentEraAllegra
+                    AnyCardanoEra MaryEra -> InNonRecentEraMary
+                    AnyCardanoEra AlonzoEra -> InNonRecentEraAlonzo
+                    AnyCardanoEra BabbageEra -> InRecentEraBabbage mempty
+                    AnyCardanoEra ConwayEra -> InRecentEraConway mempty
+            | otherwise =
+                bracketQuery "getUTxOByTxIn" tr
+                    $ queue `send` SomeLSQ (LSQ.getUTxOByTxIn ins)
         _getStakeDelegDeposits queue creds
             | creds == mempty = mempty
-            | otherwise
-                = bracketQuery "getStakeDelegDeposits" tr
-                $ queue `send` SomeLSQ (LSQ.getStakeDelegDeposits creds)
+            | otherwise =
+                bracketQuery "getStakeDelegDeposits" tr
+                    $ queue `send` SomeLSQ (LSQ.getStakeDelegDeposits creds)
 
         _watchNodeTip readTip callback = do
             observeForever readTip $ \tip -> do
@@ -763,18 +764,19 @@ postTxToQueue tr txSubmissionQueue tx = do
                     throwE $ ErrPostTxValidationError $ T.pack $ show e
 
 consensusGenTxFromTxRecent
-    :: forall era. Read.IsEra era
+    :: forall era
+     . Read.IsEra era
     => Read.Tx era
     -> Either ErrPostTx (Consensus.GenTx (CardanoBlock StandardCrypto))
 consensusGenTxFromTxRecent (Read.Tx tx) = case Read.theEra @era of
     Read.Babbage ->
         Right
-        $ Consensus.GenTxBabbage
-        $ Consensus.ShelleyTx (txIdTx tx) tx
+            $ Consensus.GenTxBabbage
+            $ Consensus.ShelleyTx (txIdTx tx) tx
     Read.Conway ->
         Right
-        $ Consensus.GenTxConway
-        $ Consensus.ShelleyTx (txIdTx tx) tx
+            $ Consensus.GenTxConway
+            $ Consensus.ShelleyTx (txIdTx tx) tx
     era -> Left $ ErrPostTxEraUnsupported (Read.EraValue era)
 
 {-------------------------------------------------------------------------------
@@ -793,7 +795,12 @@ doNothingProtocol
         Void
         Void
 doNothingProtocol =
-    InitiatorProtocolOnly $ MiniProtocolCb $ const $ const $ forever $ threadDelay 1_000_000
+    InitiatorProtocolOnly
+        $ MiniProtocolCb
+        $ const
+        $ const
+        $ forever
+        $ threadDelay 1_000_000
 
 type WalletOuroborosApplication m =
     OuroborosApplicationWithMinimalCtx
@@ -912,6 +919,7 @@ mkDelegationRewardsClient tr cfg queryRewardQ nodeToClientVer nodeToClientVerDat
             }
 
 type CardanoInterpreter sc = Interpreter (CardanoEras sc)
+
 -- | Construct node protocols with the given communication channels,
 -- for the purpose of:
 --
@@ -956,7 +964,9 @@ mkWalletToNodeProtocols
     onInterpreterUpdate
     onEraUpdate
     txSubmissionQ = do
-        (localStateQueryQ :: TQueue m (LocalStateQueryCmd (CardanoBlock StandardCrypto) m)) <-
+        ( localStateQueryQ
+                :: TQueue m (LocalStateQueryCmd (CardanoBlock StandardCrypto) m)
+            ) <-
             atomically newTQueue
 
         tipVar <- newTVarIO (Just $ AnyCardanoEra ByronEra, TipGenesis)
@@ -984,10 +994,11 @@ mkWalletToNodeProtocols
         --
         -- By blocking (with `send`) we ensure we don't queue multiple queries.
         let onTipUpdate _tip = do
-                let qry = (,,)
-                        <$> queryParams
-                        <*> queryInterpreter
-                        <*> LSQ.currentEra
+                let qry =
+                        (,,)
+                            <$> queryParams
+                            <*> queryInterpreter
+                            <*> LSQ.currentEra
                 (pparams, int, e) <- localStateQueryQ `send` (SomeLSQ qry)
                 onPParamsUpdate' pparams
                 onInterpreterUpdate int
@@ -998,31 +1009,38 @@ mkWalletToNodeProtocols
         let ntcProtocols v =
                 NodeToClientProtocols
                     { localChainSyncProtocol =
-                        InitiatorProtocolOnly $ MiniProtocolCb
+                        InitiatorProtocolOnly
+                            $ MiniProtocolCb
                             $ \_ channel -> do
-                            let codec = cChainSyncCodec $ codecs v cfg
-                            runPeer nullTracer codec channel
-                                $ chainSyncClientPeer
-                                $ chainSyncFollowTip toCardanoEra
-                                $ curry (atomically . writeTVar tipVar)
+                                let codec = cChainSyncCodec $ codecs v cfg
+                                runPeer nullTracer codec channel
+                                    $ chainSyncClientPeer
+                                    $ chainSyncFollowTip toCardanoEra
+                                    $ curry (atomically . writeTVar tipVar)
                     , localStateQueryProtocol =
-                        InitiatorProtocolOnly $ MiniProtocolCb
+                        InitiatorProtocolOnly
+                            $ MiniProtocolCb
                             $ \_ channel -> do
-                            let codec = cStateQueryCodec $ serialisedCodecs v cfg
-                                client = localStateQuery localStateQueryQ
-                                peer = localStateQueryClientPeer client
-                                tr' = MsgLocalStateQuery TipSyncClient >$< tr
-                            Stateful.runPeer tr' codec channel StateIdle
-                                 peer
+                                let codec = cStateQueryCodec $ serialisedCodecs v cfg
+                                    client = localStateQuery localStateQueryQ
+                                    peer = localStateQueryClientPeer client
+                                    tr' = MsgLocalStateQuery TipSyncClient >$< tr
+                                Stateful.runPeer
+                                    tr'
+                                    codec
+                                    channel
+                                    StateIdle
+                                    peer
                     , localTxSubmissionProtocol =
-                        InitiatorProtocolOnly $ MiniProtocolCb
+                        InitiatorProtocolOnly
+                            $ MiniProtocolCb
                             $ \_ channel -> do
-                            let bn2cVer = codecVersion v
-                                codec = cTxSubmissionCodec (clientCodecs cfg bn2cVer v)
-                                trTxSubmission = MsgTxSubmission >$< tr
-                                client = localTxSubmission txSubmissionQ
-                                peer = localTxSubmissionClientPeer client
-                            runPeer trTxSubmission codec channel peer
+                                let bn2cVer = codecVersion v
+                                    codec = cTxSubmissionCodec (clientCodecs cfg bn2cVer v)
+                                    trTxSubmission = MsgTxSubmission >$< tr
+                                    client = localTxSubmission txSubmissionQ
+                                    peer = localTxSubmissionClientPeer client
+                                runPeer trTxSubmission codec channel peer
                     , localTxMonitorProtocol = doNothingProtocol
                     }
         pure (ntcProtocols, snd <$> readTVar tipVar)
@@ -1101,7 +1119,8 @@ newObserver
 newObserver tr fetch = do
     cacheVar <- newTVarIO Map.empty
     toBeObservedVar <- newTVarIO Set.empty
-    return (observer cacheVar toBeObservedVar, refresh cacheVar toBeObservedVar)
+    return
+        (observer cacheVar toBeObservedVar, refresh cacheVar toBeObservedVar)
   where
     observer
         :: TVar m (Map key value)
@@ -1152,7 +1171,8 @@ codecVersion
     -> BlockNodeToClientVersion (CardanoBlock StandardCrypto)
 codecVersion version = verMap ! version
   where
-    verMap = supportedNodeToClientVersions (Proxy @(CardanoBlock StandardCrypto))
+    verMap =
+        supportedNodeToClientVersions (Proxy @(CardanoBlock StandardCrypto))
 
 codecConfig :: SlottingParameters -> CodecConfig (CardanoBlock c)
 codecConfig sp =
@@ -1172,7 +1192,10 @@ codecs
     -> CodecConfig (CardanoBlock StandardCrypto)
     -> ClientCodecs (CardanoBlock StandardCrypto) m
 codecs nodeToClientVersion cfg =
-    clientCodecs cfg (codecVersion nodeToClientVersion) nodeToClientVersion
+    clientCodecs
+        cfg
+        (codecVersion nodeToClientVersion)
+        nodeToClientVersion
 
 -- | A group of codecs which won't deserialise block data. Often only the block
 -- headers are needed. It's more efficient and easier not to deserialise.
@@ -1182,7 +1205,10 @@ serialisedCodecs
     -> CodecConfig (CardanoBlock StandardCrypto)
     -> DefaultCodecs (CardanoBlock StandardCrypto) m
 serialisedCodecs nodeToClientVersion cfg =
-    defaultCodecs cfg (codecVersion nodeToClientVersion) nodeToClientVersion
+    defaultCodecs
+        cfg
+        (codecVersion nodeToClientVersion)
+        nodeToClientVersion
 
 {-------------------------------------------------------------------------------
     I/O -- Connect to the cardano-node process.
@@ -1200,7 +1226,11 @@ connectClient
     -> CardanoNodeConn
     -> IO ()
 connectClient tr handlers client vData conn = withIOManager $ \manager ->
-    connectTo (localSnocket manager) tracers versions (nodeSocketFile conn)
+    connectTo
+        (localSnocket manager)
+        tracers
+        versions
+        (nodeSocketFile conn)
         & void . recoveringNodeConnection tr handlers
   where
     versions =
@@ -1229,7 +1259,8 @@ recoveringNodeConnection tr handlers action =
 type RetryHandlers = [RetryStatus -> Handler IO RetryAction]
 
 -- | Handlers that are retrying on every connection lost.
-retryOnConnectionLost :: Tracer IO ConnectionStatusLog -> RetryHandlers
+retryOnConnectionLost
+    :: Tracer IO ConnectionStatusLog -> RetryHandlers
 retryOnConnectionLost tr =
     [ \_retryStatus ->
         Handler
@@ -1244,7 +1275,8 @@ retryOnConnectionLost tr =
 -- When the node's connection vanished, we may also want to handle things in a
 -- slightly different way depending on whether we are a waller worker or just
 -- the node's tip thread.
-handleIOException :: Tracer IO IOException -> IOException -> IO RetryAction
+handleIOException
+    :: Tracer IO IOException -> IOException -> IO RetryAction
 handleIOException tr e = traceWith tr e $> retryAction
   where
     retryAction
@@ -1262,7 +1294,8 @@ handleIOException tr e = traceWith tr e $> retryAction
         | "resource exhausted" `isInfixOf` show e = ConsultPolicy
         | otherwise = DontRetry
 
-handleMuxError :: Tracer IO ReasonConnectionLost -> Error -> IO RetryAction
+handleMuxError
+    :: Tracer IO ReasonConnectionLost -> Error -> IO RetryAction
 handleMuxError tr muxErr = do
     traceWith tr (ReasonMuxError muxErr)
     case muxErr of
@@ -1428,12 +1461,13 @@ data Log where
                     (Point (CardanoBlock StandardCrypto))
                     (Query (CardanoBlock StandardCrypto))
                 )
-            State
+                State
            )
         -> Log
     MsgPostTx :: ByteString -> Log
     MsgNodeTip :: BlockHeader -> Log
-    MsgProtocolParameters :: ProtocolParameters -> SlottingParameters -> Log
+    MsgProtocolParameters
+        :: ProtocolParameters -> SlottingParameters -> Log
     MsgLocalStateQueryError :: QueryClientName -> String -> Log
     MsgLocalStateQueryEraMismatch
         :: MismatchEraInfo (CardanoEras StandardCrypto) -> Log
@@ -1460,7 +1494,8 @@ data QueryClientName
     | DelegationRewardsClient
     deriving (Show, Eq)
 
-type HandshakeTrace = TraceSendRecv (Handshake NodeToClientVersion CBOR.Term)
+type HandshakeTrace =
+    TraceSendRecv (Handshake NodeToClientVersion CBOR.Term)
 
 instance ToText Log where
     toText = \case

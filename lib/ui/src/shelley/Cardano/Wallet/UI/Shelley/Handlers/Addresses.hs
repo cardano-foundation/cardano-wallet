@@ -2,20 +2,16 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 
 module Cardano.Wallet.UI.Shelley.Handlers.Addresses
     ( listAddresses
     )
 where
-
-import Prelude hiding
-    ( lookup
-    )
 
 import Cardano.Wallet
     ( normalizeDelegationAddress
@@ -59,6 +55,9 @@ import Control.Monad.Trans
 import Servant
     ( Handler
     , runHandler
+    )
+import Prelude hiding
+    ( lookup
     )
 
 import qualified Cardano.Wallet.Api.Http.Shelley.Server as Server

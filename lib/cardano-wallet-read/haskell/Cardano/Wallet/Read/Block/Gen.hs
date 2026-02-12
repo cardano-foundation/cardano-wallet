@@ -5,8 +5,6 @@
 
 module Cardano.Wallet.Read.Block.Gen where
 
-import Prelude
-
 import Cardano.Ledger.BaseTypes
     ( natVersion
     )
@@ -29,9 +27,11 @@ import Cardano.Wallet.Read.Eras
     ( Era (..)
     , IsEra (..)
     )
+import Prelude
 
-{-# INLINABLE mkBlockEra #-}
-mkBlockEra :: forall era . IsEra era => BlockParameters era -> Block era
+{-# INLINEABLE mkBlockEra #-}
+mkBlockEra
+    :: forall era. IsEra era => BlockParameters era -> Block era
 mkBlockEra = case theEra @era of
     Byron -> g mkByronBlock
     Shelley -> g $ mkShelleyBlock (natVersion @2)

@@ -6,8 +6,6 @@
 
 module Cardano.Wallet.Shelley.NetworkSpec (spec) where
 
-import Prelude
-
 import Cardano.BM.Data.Severity
     ( Severity (..)
     )
@@ -100,9 +98,6 @@ import System.Directory
 import System.Environment.Extended
     ( isEnvSet
     )
-import "extra" System.IO.Extra
-    ( withTempFile
-    )
 import System.IO.Temp.Extra
     ( SkipCleanup (..)
     , withSystemTempDir
@@ -156,6 +151,10 @@ import UnliftIO.STM
     , readTVar
     , writeTVar
     )
+import "extra" System.IO.Extra
+    ( withTempFile
+    )
+import Prelude
 
 import qualified Cardano.Wallet.Launch.Cluster as Cluster
 import qualified Data.Map as Map

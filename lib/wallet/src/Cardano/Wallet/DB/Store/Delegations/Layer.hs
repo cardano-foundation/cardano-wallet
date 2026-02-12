@@ -13,8 +13,6 @@ module Cardano.Wallet.DB.Store.Delegations.Layer
     )
 where
 
-import Prelude
-
 import Cardano.Pool.Types
     ( PoolId
     )
@@ -56,6 +54,7 @@ import Data.Maybe
 import GHC.Generics
     ( Generic
     )
+import Prelude
 
 import qualified Data.Map.Strict as Map
 
@@ -89,8 +88,10 @@ putDelegationCertificate
     -> DeltaDelegations
 putDelegationCertificate cert sl = case cert of
     CertDelegateNone _ -> ApplyTransition Deregister sl
-    CertVoteAndDelegate _ pool drep -> ApplyTransition
-        (VoteAndDelegate drep pool) sl
+    CertVoteAndDelegate _ pool drep ->
+        ApplyTransition
+            (VoteAndDelegate drep pool)
+            sl
 
 -- | Arguments to 'readDelegation'.
 data CurrentEpochSlotting = CurrentEpochSlotting
@@ -104,44 +105,47 @@ data CurrentEpochSlotting = CurrentEpochSlotting
     deriving (Eq, Show, Generic)
 
 -- | Read the delegation status of a wallet.
-readDelegation :: CurrentEpochSlotting -> Delegations -> WalletDelegation
+readDelegation
+    :: CurrentEpochSlotting -> Delegations -> WalletDelegation
 readDelegation CurrentEpochSlotting{..} history =
     case previousEpochStartSlot of
         Nothing ->
             WalletDelegation
-            { active = NotDelegating
-            , next =
-                catMaybes
-                    [ WalletDelegationNext (currentEpoch + 2) <$>
-                        readDelegationStatus (>= currentEpochStartSlot) history
-                    ]
-            }
+                { active = NotDelegating
+                , next =
+                    catMaybes
+                        [ WalletDelegationNext (currentEpoch + 2)
+                            <$> readDelegationStatus (>= currentEpochStartSlot) history
+                        ]
+                }
         Just previousEpochStart ->
             WalletDelegation
-            { active =
-                fromMaybe NotDelegating $
-                    readDelegationStatus (< previousEpochStart) history
-            , next =
-                catMaybes
-                    [ WalletDelegationNext (currentEpoch + 1) <$>
-                        let condition slot
-                                = slot >= previousEpochStart
-                                && slot < currentEpochStartSlot
-                        in readDelegationStatus condition history
-                    , WalletDelegationNext (currentEpoch + 2) <$>
-                        readDelegationStatus (>= currentEpochStartSlot) history
-                    ]
-            }
+                { active =
+                    fromMaybe NotDelegating
+                        $ readDelegationStatus (< previousEpochStart) history
+                , next =
+                    catMaybes
+                        [ WalletDelegationNext (currentEpoch + 1)
+                            <$> let condition slot =
+                                        slot >= previousEpochStart
+                                            && slot < currentEpochStartSlot
+                                in  readDelegationStatus condition history
+                        , WalletDelegationNext (currentEpoch + 2)
+                            <$> readDelegationStatus (>= currentEpochStartSlot) history
+                        ]
+                }
   where
-    readDelegationStatus ::
-        (SlotNo -> Bool) -> Delegations -> Maybe WalletDelegationStatus
+    readDelegationStatus
+        :: (SlotNo -> Bool) -> Delegations -> Maybe WalletDelegationStatus
     readDelegationStatus cond =
-        (walletDelegationStatus . snd <$>) . find (cond . fst) . Map.toDescList
+        (walletDelegationStatus . snd <$>)
+            . find (cond . fst)
+            . Map.toDescList
 
     walletDelegationStatus :: Status DRep PoolId -> WalletDelegationStatus
     walletDelegationStatus = \case
         Inactive -> NotDelegating
-        Active Nothing Nothing  -> NotDelegating
+        Active Nothing Nothing -> NotDelegating
         Active Nothing (Just pid) -> Delegating pid
         Active (Just vote) Nothing -> Voting vote
         Active (Just vote) (Just pid) -> DelegatingVoting pid vote

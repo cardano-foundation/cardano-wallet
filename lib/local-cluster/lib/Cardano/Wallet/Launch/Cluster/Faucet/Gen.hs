@@ -7,8 +7,6 @@ module Cardano.Wallet.Launch.Cluster.Faucet.Gen
     ( genFaucetFunds
     ) where
 
-import Prelude
-
 import Cardano.Wallet.Faucet.Gen.Address
     ( NetworkTag
     , genAddress
@@ -50,6 +48,7 @@ import Test.QuickCheck
     , choose
     , vectorOf
     )
+import Prelude
 
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Text.Encoding as T

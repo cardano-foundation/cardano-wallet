@@ -1,11 +1,10 @@
 {-# LANGUAGE UndecidableInstances #-}
 
-{- |
-Copyright: © 2022 IOHK
-License: Apache-2.0
-
-The 'Block' type.
--}
+-- |
+-- Copyright: © 2022 IOHK
+-- License: Apache-2.0
+--
+-- The 'Block' type.
 module Cardano.Read.Ledger.Block.Block
     ( -- * Consensus block type
       ConsensusBlock
@@ -17,8 +16,6 @@ module Cardano.Read.Ledger.Block.Block
     , fromConsensusBlock
     , toConsensusBlock
     ) where
-
-import Prelude
 
 import Cardano.Read.Ledger.Eras
     ( Allegra
@@ -40,14 +37,14 @@ import Ouroboros.Consensus.Protocol.Praos
 import Ouroboros.Consensus.Protocol.TPraos
     ( TPraos
     )
+import Prelude
 
-import qualified Ouroboros.Consensus.Byron.Ledger as O
-import qualified Ouroboros.Consensus.Cardano.Block as O
-import qualified Ouroboros.Consensus.Shelley.Ledger as O
+import Ouroboros.Consensus.Byron.Ledger qualified as O
+import Ouroboros.Consensus.Cardano.Block qualified as O
+import Ouroboros.Consensus.Shelley.Ledger qualified as O
 
-{- | Type synonym for 'CardanoBlock',
-using the same cryptographic functionalities as Mainnet.
--}
+-- | Type synonym for 'CardanoBlock',
+-- using the same cryptographic functionalities as Mainnet.
 type ConsensusBlock = O.CardanoBlock O.StandardCrypto
 
 -- |
@@ -70,9 +67,8 @@ newtype Block era = Block {unBlock :: BlockT era}
 deriving instance Show (BlockT era) => Show (Block era)
 deriving instance Eq (BlockT era) => Eq (Block era)
 
-{- | Convert block as received from cardano-node
-via Haskell library of mini-protocol.
--}
+-- | Convert block as received from cardano-node
+-- via Haskell library of mini-protocol.
 fromConsensusBlock :: ConsensusBlock -> EraValue Block
 fromConsensusBlock = \case
     O.BlockByron b -> EraValue (Block b :: Block Byron)

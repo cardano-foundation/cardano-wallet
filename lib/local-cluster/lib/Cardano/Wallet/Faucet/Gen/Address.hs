@@ -7,8 +7,6 @@ module Cardano.Wallet.Faucet.Gen.Address
     )
 where
 
-import Prelude
-
 import Cardano.Address
     ( Address
     , unsafeMkAddress
@@ -28,6 +26,7 @@ import Test.QuickCheck
     , elements
     , vectorOf
     )
+import Prelude
 
 import qualified Data.ByteString as BS
 

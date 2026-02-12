@@ -2,18 +2,14 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 
 module Cardano.Wallet.UI.Shelley.Handlers.Wallet where
-
-import Prelude hiding
-    ( lookup
-    )
 
 import Cardano.Mnemonic
     ( MkSomeMnemonic (mkSomeMnemonic)
@@ -79,6 +75,9 @@ import Servant
     ( Handler
     , NoContent
     , runHandler
+    )
+import Prelude hiding
+    ( lookup
     )
 
 import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
@@ -166,7 +165,8 @@ deleteWallet layer ctx alert render = liftIO $ do
             sendSSE layer $ Push "wallet"
         pure r
 
-selectWallet :: SessionLayer (Maybe WalletId) -> WalletId -> Handler ()
+selectWallet
+    :: SessionLayer (Maybe WalletId) -> WalletId -> Handler ()
 selectWallet SessionLayer{..} wid = liftIO $ do
     update $ set stateL $ Just wid
     sendSSE $ Push "wallet"

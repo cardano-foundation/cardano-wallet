@@ -6,16 +6,12 @@
 -- License: Apache-2.0
 --
 -- Generating and verifying hashes of wallet passwords.
---
-
 module Cardano.Wallet.Primitive.Passphrase.Current
     ( encryptPassphrase
     , checkPassphrase
     , preparePassphrase
     , genSalt
     ) where
-
-import Prelude
 
 import Cardano.Wallet.Primitive.Passphrase.Types
     ( ErrWrongPassphrase (..)
@@ -44,6 +40,7 @@ import Data.Coerce
 import Data.Function
     ( on
     )
+import Prelude
 
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
@@ -55,15 +52,19 @@ encryptPassphrase
     -> m PassphraseHash
 encryptPassphrase (Passphrase bytes) = mkPassphraseHash <$> genSalt
   where
-    mkPassphraseHash (Passphrase salt) = PassphraseHash $ BA.convert $ mempty
-        <> BS.singleton (fromIntegral (BA.length salt))
-        <> BA.convert salt
-        <> fastPBKDF2_SHA512 params bytes salt
+    mkPassphraseHash (Passphrase salt) =
+        PassphraseHash
+            $ BA.convert
+            $ mempty
+                <> BS.singleton (fromIntegral (BA.length salt))
+                <> BA.convert salt
+                <> fastPBKDF2_SHA512 params bytes salt
 
-    params = Parameters
-        { iterCounts = 20000
-        , outputLength = 64
-        }
+    params =
+        Parameters
+            { iterCounts = 20000
+            , outputLength = 64
+            }
 
 genSalt :: MonadRandom m => m (Passphrase "salt")
 genSalt = Passphrase <$> getRandomBytes 16
@@ -77,8 +78,8 @@ checkPassphrase
     -> Either ErrWrongPassphrase ()
 checkPassphrase prepared stored = do
     salt <- getSalt (BA.convert stored)
-    unless (constantTimeEq (encryptPassphrase prepared salt) stored) $
-        Left ErrWrongPassphrase
+    unless (constantTimeEq (encryptPassphrase prepared salt) stored)
+        $ Left ErrWrongPassphrase
   where
     getSalt :: ByteString -> Either ErrWrongPassphrase (Passphrase "salt")
     getSalt bytes = do

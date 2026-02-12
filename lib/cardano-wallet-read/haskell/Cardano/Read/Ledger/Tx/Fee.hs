@@ -1,12 +1,11 @@
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 
-{- |
-Copyright: © 2020-2022 IOHK
-License: Apache-2.0
-
-Raw fee data extraction from 'Tx'
--}
+-- |
+-- Copyright: © 2020-2022 IOHK
+-- License: Apache-2.0
+--
+-- Raw fee data extraction from 'Tx'
 module Cardano.Read.Ledger.Tx.Fee
     ( -- * Fee type
       FeeType
@@ -16,8 +15,6 @@ module Cardano.Read.Ledger.Tx.Fee
     , getEraFee
     )
 where
-
-import Prelude
 
 import Cardano.Ledger.Coin
     ( Coin
@@ -46,6 +43,7 @@ import Cardano.Read.Ledger.Tx.Tx
 import Control.Lens
     ( (^.)
     )
+import Prelude
 
 -- |
 -- Era-specific fee type.

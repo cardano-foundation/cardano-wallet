@@ -3,10 +3,9 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-{- | This module contains functionality to generate faucet addresses.
-     It is not used at the moment by the local cluster, but it might be useful
-     for troubleshooting to introspect addresses derived from mnemonics.
--}
+-- | This module contains functionality to generate faucet addresses.
+--      It is not used at the moment by the local cluster, but it might be useful
+--      for troubleshooting to introspect addresses derived from mnemonics.
 module Cardano.Faucet.Writer
     ( genByronFaucets
     , genIcarusFaucets
@@ -15,14 +14,6 @@ module Cardano.Faucet.Writer
     ) where
 
 --------------------------------------------------------------------------------
-
-import Prelude
-
-import qualified Cardano.Address as CA
-import qualified Cardano.Faucet.Addresses as Addresses
-import qualified Data.Text as T
-import qualified Data.Text.Encoding as T
-import qualified Data.Text.IO as TIO
 
 import Cardano.Address
     ( Address
@@ -47,19 +38,28 @@ import Data.ByteArray.Encoding
 import Data.Text
     ( Text
     )
+import Prelude
+
+import qualified Cardano.Address as CA
+import qualified Cardano.Faucet.Addresses as Addresses
+import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
+import qualified Data.Text.IO as TIO
 
 --------------------------------------------------------------------------------
 
 -- | Generate faucets addresses and mnemonics to a file.
 --
 -- >>> genMnemonics 100 >>= genByronFaucets "byron-faucets.yaml"
-genByronFaucets :: CA.NetworkTag -> FilePath -> [Mnemonic 12] -> IO [[Text]]
+genByronFaucets
+    :: CA.NetworkTag -> FilePath -> [Mnemonic 12] -> IO [[Text]]
 genByronFaucets = genFaucet base58 . Addresses.byron
 
 -- | Generate faucets addresses and mnemonics to a file.
 --
 -- >>> genMnemonics 100 >>= genIcarusFaucets (CA.NetworkTag 42) "icarus-faucets.yaml"
-genIcarusFaucets :: CA.NetworkTag -> FilePath -> [Mnemonic 15] -> IO [[Text]]
+genIcarusFaucets
+    :: CA.NetworkTag -> FilePath -> [Mnemonic 15] -> IO [[Text]]
 genIcarusFaucets = genFaucet base58 . Addresses.icarus
 
 -- | Generate faucet addresses and mnemonics to a file.
@@ -90,9 +90,10 @@ genFaucet encodeAddress genAddresses file mnemonics = do
     TIO.writeFile file ""
     forM [(mnemonicToText m, take 10 (genAddresses m)) | m <- mnemonics]
         $ \(mnem, addrs) -> do
-            let comment = ("# " <>)
-                    $ T.intercalate ", "
-                    $ map (surroundedBy '"') mnem
+            let comment =
+                    ("# " <>)
+                        $ T.intercalate ", "
+                        $ map (surroundedBy '"') mnem
             appendToFile file comment
             forM_ addrs (appendToFile file . encodeFaucet)
             pure mnem

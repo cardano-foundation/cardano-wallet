@@ -3,12 +3,11 @@
 {-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-{- |
-Copyright: © 2024 Cardano Foundation
-License: Apache-2.0
-
-'TxOut' — transaction output.
--}
+-- |
+-- Copyright: © 2024 Cardano Foundation
+-- License: Apache-2.0
+--
+-- 'TxOut' — transaction output.
 module Cardano.Wallet.Read.Tx.TxOut
     ( -- * TxOut
       TxOut
@@ -18,20 +17,18 @@ module Cardano.Wallet.Read.Tx.TxOut
     , utxoFromEraTx
     , upgradeTxOutToBabbageOrLater
 
-    -- * Conversions
+      -- * Conversions
     , toBabbageOutput
     , toConwayOutput
 
-    -- * Serialization
+      -- * Serialization
     , deserializeTxOut
     , serializeTxOut
 
-    -- * Internal
+      -- * Internal
     , mkEraTxOut
     )
-    where
-
-import Prelude
+where
 
 import Cardano.Ledger.Binary
     ( DecoderError (DecoderErrorCustom)
@@ -95,17 +92,19 @@ import Data.Maybe.Strict
 import Data.Word
     ( Word16
     )
+import Prelude
 
-import qualified Cardano.Ledger.Babbage.TxBody as Babbage
-import qualified Cardano.Wallet.Read.Tx.ScriptValidity as Read
-import qualified Cardano.Wallet.Read.Tx.TxId as Read
-import qualified Data.ByteString.Lazy as BL
-import qualified Data.Map.Strict as Map
-import qualified Data.Text as T
+import Cardano.Ledger.Babbage.TxBody qualified as Babbage
+import Cardano.Wallet.Read.Tx.ScriptValidity qualified as Read
+import Cardano.Wallet.Read.Tx.TxId qualified as Read
+import Data.ByteString.Lazy qualified as BL
+import Data.Map.Strict qualified as Map
+import Data.Text qualified as T
 
 {-----------------------------------------------------------------------------
     Type
 ------------------------------------------------------------------------------}
+
 -- | A 'TxOut' is a transaction output from any era — past, present
 -- or next one.
 newtype TxOut = TxOutC (EraValue Output)
@@ -129,17 +128,20 @@ mkBasicTxOut addr value =
     -- Such quantities are valid 'Integer's, but they cannot be
     -- encoded in a 'TxOut', hence the 'Nothing' result.
     -- Cardano.Ledger uses the same error message when converting.
-    cVal = fromMaybe (error ("Illegal Value in TxOut: " ++ show val))
-        $ toCompact val
+    cVal =
+        fromMaybe (error ("Illegal Value in TxOut: " ++ show val))
+            $ toCompact val
     txout = Babbage.TxOutCompact addr cVal
 
 {-# INLINEABLE getCompactAddr #-}
+
 -- | Get the address which controls who can spend the transaction output.
 getCompactAddr :: TxOut -> CompactAddr
 getCompactAddr (TxOutC (EraValue txout)) =
     fromEraCompactAddr $ getEraCompactAddr txout
 
 {-# INLINEABLE getValue #-}
+
 -- | Get the monetary 'Value' in this transaction output.
 getValue :: TxOut -> Value
 getValue (TxOutC (EraValue txout)) =
@@ -188,9 +190,10 @@ type Dec era = Either DecoderError (Output era)
 -- prop> ∀ o.  deserializeTxOut (serializeTxOut o) == Just o
 deserializeTxOut :: BL.ByteString -> Either DecoderError TxOut
 deserializeTxOut bytes
-    | Just (x,xs) <- BL.uncons bytes = do
-        eera <- maybe (Left $ errUnknownEraIndex x) Right
-            $ parseEraIndex (fromEnum x)
+    | Just (x, xs) <- BL.uncons bytes = do
+        eera <-
+            maybe (Left $ errUnknownEraIndex x) Right
+                $ parseEraIndex (fromEnum x)
         case eera of
             EraValue (_ :: Era era) ->
                 TxOutC . EraValue <$> (deserializeOutput xs :: Dec era)
@@ -205,6 +208,7 @@ deserializeTxOut bytes
 ------------------------------------------------------------------------------}
 
 {-# INLINEABLE utxoFromEraTx #-}
+
 -- | Unspent transaction outputs (UTxO) created by the transaction.
 utxoFromEraTx :: forall era. IsEra era => Tx era -> Map.Map TxIn TxOut
 utxoFromEraTx tx =
@@ -213,10 +217,10 @@ utxoFromEraTx tx =
         Read.IsValidC False -> utxoFromEraTxCollateralOutputs tx
 
 {-# INLINEABLE utxoFromEraTxOutputs #-}
+
 -- | UTxO corresponding to the ordinary outputs of a transaction.
 --
 -- This function ignores the transaction's script validity.
---
 utxoFromEraTxOutputs
     :: forall era. IsEra era => Tx era -> Map.Map TxIn TxOut
 utxoFromEraTxOutputs tx =
@@ -226,18 +230,19 @@ utxoFromEraTxOutputs tx =
     mkOutputInEra out = Output out :: Output era
 
     toMap
-        :: forall t. Foldable t
+        :: forall t
+         . Foldable t
         => t (OutputType era) -> Map.Map TxIn TxOut
     toMap =
         Map.fromList
-        . zipWith (\ix -> mkTxInTxOutPair txid ix . mkOutputInEra) [0..]
-        . toList
+            . zipWith (\ix -> mkTxInTxOutPair txid ix . mkOutputInEra) [0 ..]
+            . toList
 
 {-# INLINEABLE utxoFromEraTxCollateralOutputs #-}
+
 -- | UTxO corresponding to the collateral outputs of a transaction.
 --
 -- This function ignores the transaction's script validity.
---
 utxoFromEraTxCollateralOutputs
     :: forall era. IsEra era => Tx era -> Map.Map TxIn TxOut
 utxoFromEraTxCollateralOutputs tx =
@@ -249,8 +254,8 @@ utxoFromEraTxCollateralOutputs tx =
     singleton :: StrictMaybe (OutputType era) -> Map.Map TxIn TxOut
     singleton =
         Map.fromList
-        . map (mkTxInTxOutPair txid index . mkOutputInEra)
-        . toList
+            . map (mkTxInTxOutPair txid index . mkOutputInEra)
+            . toList
 
     -- To reference a collateral output within transaction t, we specify an
     -- output index that is equal to the number of ordinary outputs within t.
@@ -261,12 +266,14 @@ utxoFromEraTxCollateralOutputs tx =
     -- https://github.com/IntersectMBO/cardano-ledger?tab=readme-ov-file
     --
     index :: Word16
-    index = fromIntegral $
-        withFoldableOutputs length (getEraOutputs tx)
+    index =
+        fromIntegral
+            $ withFoldableOutputs length (getEraOutputs tx)
 
 -- Helper function: Create a pair @(TxIn, TxOut)@.
 mkTxInTxOutPair
-    :: forall era. IsEra era
+    :: forall era
+     . IsEra era
     => Read.TxId -> Word16 -> Output era -> (TxIn, TxOut)
 mkTxInTxOutPair txid ix out =
     ( TxIn txid (TxIx ix)
@@ -275,7 +282,8 @@ mkTxInTxOutPair txid ix out =
 
 -- Helper function: Treat the 'Outputs' as a 'Foldable' container.
 withFoldableOutputs
-    :: forall era a. IsEra era
+    :: forall era a
+     . IsEra era
     => (forall t. Foldable t => t (OutputType era) -> a)
     -> Outputs era
     -> a
@@ -290,7 +298,8 @@ withFoldableOutputs f = case theEra :: Era era of
 
 -- Helper function: Treat the 'CollateralOutputs' as a 'StrictMaybe'.
 withMaybeCollateralOutputs
-    :: forall era a. IsEra era
+    :: forall era a
+     . IsEra era
     => (StrictMaybe (OutputType era) -> a)
     -> CollateralOutputs era
     -> a

@@ -3,8 +3,6 @@
 
 module Cardano.Wallet.DB.Store.Delegations.Migrations.V3Spec where
 
-import Prelude
-
 import Cardano.Wallet.DB.LayerSpec
     ( withinCopiedFile
     )
@@ -35,6 +33,7 @@ import Test.Hspec
     , it
     , shouldBe
     )
+import Prelude
 
 import qualified Data.Text as T
 import qualified Database.Persist.Sqlite as Sqlite
@@ -49,37 +48,42 @@ spec =
 testMigrationDelegationsTable :: FilePath -> IO ()
 testMigrationDelegationsTable dbName = do
     let performMigrations path =
-            runMigrations (newMigrationInterface nullTracer)
-                path migrateDelegations
+            runMigrations
+                (newMigrationInterface nullTracer)
+                path
+                migrateDelegations
         testOnCopiedAndMigrated test = fmap snd
-            $ withinCopiedFile dbName $ \path _  -> do
+            $ withinCopiedFile dbName
+            $ \path _ -> do
                 performMigrations path
                 test path
     testOnCopiedAndMigrated testDelegationsTableExists
     testOnCopiedAndMigrated testDelegationsTableHasExpectedData
     testOnCopiedAndMigrated testOldDelegationTablesAreDeleted
+  where
+    testDelegationsTableExists path = do
+        [Single (count :: Int)] <-
+            Sqlite.runSqlite (T.pack path)
+                $ Sqlite.rawSql delegationsTableExists []
+        count `shouldBe` 1
+        pure ()
 
-    where
+    testDelegationsTableHasExpectedData path = do
+        delegations <-
+            Sqlite.runSqlite (T.pack path)
+                $ Sqlite.rawSql delegationsTableData []
+        delegations `shouldBe` expectedValues
+        pure ()
 
-        testDelegationsTableExists path = do
-            [Single (count :: Int)] <- Sqlite.runSqlite (T.pack path) $
-                    Sqlite.rawSql delegationsTableExists []
-            count `shouldBe` 1
-            pure ()
+    testOldDelegationTablesAreDeleted path = do
+        [Single (count :: Int)] <-
+            Sqlite.runSqlite (T.pack path)
+                $ Sqlite.rawSql oldDelegationTablesAreDeleted []
+        count `shouldBe` 0
+        pure ()
 
-        testDelegationsTableHasExpectedData path = do
-            delegations <- Sqlite.runSqlite (T.pack path) $
-                    Sqlite.rawSql delegationsTableData []
-            delegations `shouldBe` expectedValues
-            pure ()
-
-        testOldDelegationTablesAreDeleted path = do
-            [Single (count :: Int)]  <- Sqlite.runSqlite (T.pack path) $
-                    Sqlite.rawSql oldDelegationTablesAreDeleted []
-            count `shouldBe` 0
-            pure ()
-
-        delegationsTableExists = [i|
+    delegationsTableExists =
+        [i|
             SELECT EXISTS (
                 SELECT
                     name
@@ -91,7 +95,8 @@ testMigrationDelegationsTable dbName = do
             );
             |]
 
-        delegationsTableData = [i|
+    delegationsTableData =
+        [i|
             SELECT
                 slot,
                 status,
@@ -102,7 +107,8 @@ testMigrationDelegationsTable dbName = do
                 slot ASC;
             |]
 
-        oldDelegationTablesAreDeleted = [i|
+    oldDelegationTablesAreDeleted =
+        [i|
             SELECT EXISTS (
                 SELECT
                     name
@@ -115,26 +121,28 @@ testMigrationDelegationsTable dbName = do
             );
             |]
 
-        expectedValues :: [(Single Int, Single Text, Maybe (Single Text))]
-        expectedValues =
-            [
-                ( Single 21812897
-                , Single "active"
-                , Just (Single "8aa469088eaf5c38c3d4faf0d3516ca670cd6df5545fafea2f70258b")
-                )
-            ,
-                ( Single 23116273
-                , Single "inactive"
-                , Nothing
-                )
-            ,
-                ( Single 23116274
-                , Single "registered"
-                , Nothing
-                )
-            ,
-                ( Single 23116275
-                , Single "active"
-                , Just (Single "8aa469088eaf5c38c3d4faf0d3516ca670cd6df5545fafea2f70258b")
-                )
-            ]
+    expectedValues :: [(Single Int, Single Text, Maybe (Single Text))]
+    expectedValues =
+        [
+            ( Single 21812897
+            , Single "active"
+            , Just
+                (Single "8aa469088eaf5c38c3d4faf0d3516ca670cd6df5545fafea2f70258b")
+            )
+        ,
+            ( Single 23116273
+            , Single "inactive"
+            , Nothing
+            )
+        ,
+            ( Single 23116274
+            , Single "registered"
+            , Nothing
+            )
+        ,
+            ( Single 23116275
+            , Single "active"
+            , Just
+                (Single "8aa469088eaf5c38c3d4faf0d3516ca670cd6df5545fafea2f70258b")
+            )
+        ]

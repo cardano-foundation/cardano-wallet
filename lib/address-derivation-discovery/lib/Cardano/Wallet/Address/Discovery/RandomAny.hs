@@ -17,17 +17,13 @@
 --
 -- An implementation of address discovery for the random address
 -- scheme as used by the legacy Cardano wallets.
-
 module Cardano.Wallet.Address.Discovery.RandomAny
-    (
-
-    -- ** Benchmarking
-    RndAnyState (..)
+    ( -- ** Benchmarking
+      RndAnyState (..)
     , mkRndAnyState
     , Prologue (..)
     , Discoveries (..)
     ) where
-import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv
@@ -106,6 +102,7 @@ import GHC.TypeLits
 import System.Random
     ( mkStdGen
     )
+import Prelude
 
 import qualified Cardano.Wallet.Address.Discovery.Random as Rnd
 
@@ -125,7 +122,8 @@ import qualified Cardano.Wallet.Address.Discovery.Random as Rnd
 -- caller creating the wallet to define it.
 newtype RndAnyState (network :: NetworkDiscriminant) (p :: Nat) = RndAnyState
     { innerState :: RndState network
-    } deriving (Generic, Show)
+    }
+    deriving (Generic, Show)
 
 instance NFData (RndAnyState n p)
 
@@ -136,19 +134,22 @@ instance NFData (RndAnyState n p)
 -- recognize as ours. It is expressed in per-myriad, so "1" means 0.01%,
 -- "100" means 1% and 10000 means 100%.
 mkRndAnyState
-    :: forall (p :: Nat) n. ()
+    :: forall (p :: Nat) n
+     . ()
     => ByronKey 'RootK XPrv
     -> Int
     -> RndAnyState n p
-mkRndAnyState key seed = RndAnyState
-    { innerState = RndState
-        { hdPassphrase = payloadPassphrase key
-        , accountIndex = minBound
-        , discoveredAddresses = mempty
-        , pendingAddresses = mempty
-        , gen = mkStdGen seed
+mkRndAnyState key seed =
+    RndAnyState
+        { innerState =
+            RndState
+                { hdPassphrase = payloadPassphrase key
+                , accountIndex = minBound
+                , discoveredAddresses = mempty
+                , pendingAddresses = mempty
+                , gen = mkStdGen seed
+                }
         }
-    }
 
 instance RndStateLike (RndAnyState n p) where
     importAddress addr (RndAnyState inner) =
@@ -171,24 +172,29 @@ instance KnownNat p => IsOurs (RndAnyState n p) Address where
         case isOurs addr inner of
             (Just path, inner') ->
                 (Just path, RndAnyState inner')
+            (Nothing, _)
+                | crc32 bytes < p && correctAddressType ->
+                    let
+                        (path, gen') =
+                            findUnusedPath
+                                (gen inner)
+                                (accountIndex inner)
+                                (unavailablePaths inner)
 
-            (Nothing, _) | crc32 bytes < p && correctAddressType ->
-                let
-                    (path, gen') = findUnusedPath
-                        (gen inner)
-                        (accountIndex inner)
-                        (unavailablePaths inner)
-
-                    inner' = addDiscoveredAddress
-                        addr Used path (inner { gen = gen' })
-                in
-                (Just (toDerivationIndexes path), RndAnyState inner')
-
+                        inner' =
+                            addDiscoveredAddress
+                                addr
+                                Used
+                                path
+                                (inner{gen = gen'})
+                    in
+                        (Just (toDerivationIndexes path), RndAnyState inner')
             (Nothing, _) ->
                 (Nothing, st)
       where
-        p = floor
-            (double (maxBound :: Word32) * double (natVal (Proxy @p)) / 10000)
+        p =
+            floor
+                (double (maxBound :: Word32) * double (natVal (Proxy @p)) / 10000)
 
         double :: Integral a => a -> Double
         double = fromIntegral
@@ -215,19 +221,19 @@ instance KnownAddresses (RndAnyState n p) where
     HD Random address book
 -------------------------------------------------------------------------------}
 -- piggy-back on SeqState existing instance, to simulate the same behavior.
-instance AddressBookIso (RndAnyState n p)
-  where
+instance AddressBookIso (RndAnyState n p) where
     data Prologue (RndAnyState n p) = PR (Prologue (Rnd.RndState n))
     data Discoveries (RndAnyState n p) = DR (Discoveries (Rnd.RndState n))
 
     addressIso = withIso addressIso $ \from to ->
-        let from2 st = let (a,b) = from $ innerState st in (PR a, DR b)
-            to2 (PR a, DR b) = RndAnyState $ to (a,b)
+        let from2 st = let (a, b) = from $ innerState st in (PR a, DR b)
+            to2 (PR a, DR b) = RndAnyState $ to (a, b)
         in  iso from2 to2
 
 instance Eq (Prologue (RndAnyState n p)) where PR a == PR b = a == b
 
-instance Eq (Discoveries (RndAnyState n p)) where DR a == DR b = a == b
+instance Eq (Discoveries (RndAnyState n p)) where
+    DR a == DR b = a == b
 
 type instance CredFromOf (RndAnyState n p) = 'CredFromKeyK
 type instance KeyOf (RndAnyState n p) = ByronKey

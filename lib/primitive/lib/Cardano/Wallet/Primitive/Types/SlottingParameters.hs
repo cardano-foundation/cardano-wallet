@@ -13,8 +13,6 @@ module Cardano.Wallet.Primitive.Types.SlottingParameters
     , stabilityWindowShelley
     ) where
 
-import Prelude
-
 import Cardano.Slotting.Slot
     ( SlotNo (..)
     )
@@ -25,7 +23,8 @@ import Control.Lens
     ( (^.)
     )
 import Data.Generics.Labels
-    ()
+    (
+    )
 import Data.Quantity
     ( Quantity (getQuantity)
     )
@@ -42,6 +41,7 @@ import Fmt
 import GHC.Generics
     ( Generic
     )
+import Prelude
 
 newtype SlotLength = SlotLength {unSlotLength :: NominalDiffTime}
     deriving (Show, Eq, Generic)

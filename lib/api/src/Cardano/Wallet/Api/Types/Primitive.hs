@@ -4,16 +4,12 @@
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
-
 {-# OPTIONS_GHC -Wno-orphans #-}
 
 -- |
 -- Copyright: © 2018-2022 IOHK, 2023 Cardano Foundation
 -- License: Apache-2.0
-
 module Cardano.Wallet.Api.Types.Primitive () where
-
-import Prelude
 
 import Cardano.Address.Script
     ( ScriptHash (..)
@@ -124,6 +120,7 @@ import Data.Word
 import Data.Word.Odd
     ( Word31
     )
+import Prelude
 
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.AssetName as W
@@ -138,8 +135,10 @@ instance ToJSON (ApiT DerivationIndex) where
 instance FromJSON (ApiT DerivationIndex) where
     parseJSON = fromTextApiT "DerivationIndex"
 
-instance (PassphraseMaxLength purpose, PassphraseMinLength purpose)
-    => FromJSON (ApiT (Passphrase purpose)) where
+instance
+    (PassphraseMaxLength purpose, PassphraseMinLength purpose)
+    => FromJSON (ApiT (Passphrase purpose))
+    where
     parseJSON = fromTextApiT "Passphrase"
 instance ToJSON (ApiT (Passphrase purpose)) where
     toJSON = toTextApiT
@@ -150,19 +149,23 @@ instance ToJSON (ApiT W.TokenPolicyId) where
     toJSON = toTextApiT
 
 instance FromJSON (ApiT PlutusScriptInfo) where
-    parseJSON = (fmap. fmap) ApiT . withObject "PlutusScriptInfo" $ \obj ->
-        (obj .: "script_hash") >>= (\case
-           Left str -> fail
-               $ "PlutusScriptInfo: script_hash should be hex-encoded \
-                 \56-character string, but got " ++ str
-           Right hash -> do
-               ver <- obj .: "language_version"
-               case fromText ver of
-                   Left (TextDecodingError err)
-                       -> fail $ "PlutusScriptInfo: language_version " ++ err
-                   Right plutusVersion
-                       -> pure $ PlutusScriptInfo plutusVersion (ScriptHash hash))
-        . fromHexText
+    parseJSON = (fmap . fmap) ApiT . withObject "PlutusScriptInfo" $ \obj ->
+        (obj .: "script_hash")
+            >>= ( \case
+                    Left str ->
+                        fail
+                            $ "PlutusScriptInfo: script_hash should be hex-encoded \
+                              \56-character string, but got "
+                                ++ str
+                    Right hash -> do
+                        ver <- obj .: "language_version"
+                        case fromText ver of
+                            Left (TextDecodingError err) ->
+                                fail $ "PlutusScriptInfo: language_version " ++ err
+                            Right plutusVersion ->
+                                pure $ PlutusScriptInfo plutusVersion (ScriptHash hash)
+                )
+                . fromHexText
 
 instance ToJSON (ApiT PlutusScriptInfo) where
     toJSON (ApiT (PlutusScriptInfo v (ScriptHash h))) =
@@ -174,44 +177,53 @@ instance ToJSON (ApiT PlutusScriptInfo) where
 instance ToJSON ReferenceInput where
     toJSON (ReferenceInput (TxIn txId ix)) =
         object
-        [ "id" .=toJSON (ApiT txId)
-        , "index" .= toJSON ix
-        ]
+            [ "id" .= toJSON (ApiT txId)
+            , "index" .= toJSON ix
+            ]
 
 instance FromJSON ReferenceInput where
-    parseJSON = withObject "ReferenceInput" $ \v -> ReferenceInput <$>
-        (TxIn <$> fmap getApiT (v .: "id") <*> v .: "index")
+    parseJSON = withObject "ReferenceInput" $ \v ->
+        ReferenceInput
+            <$> (TxIn <$> fmap getApiT (v .: "id") <*> v .: "index")
 
 instance FromJSON (ApiT AnyScript) where
     parseJSON = (fmap . fmap) ApiT . withObject "AnyScript" $ \obj -> do
         scriptType <- obj .:? "script_type"
         reference <- obj .:? "reference"
         case (scriptType :: Maybe String, reference :: Maybe ReferenceInput) of
-            (Just t , Nothing) -> case t of
+            (Just t, Nothing) -> case t of
                 "plutus" ->
                     flip PlutusScript ViaSpending . getApiT <$> obj .: "script_info"
                 "native" ->
                     flip NativeScript ViaSpending <$> obj .: "script"
                 "reference script" -> do
-                    scriptH <- (obj .: "script_hash") >>= (\case
-                               Left str -> fail $
-                                   "AnyScript: script_hash should be hex-encoded \
-                                   \56-character string, but got " ++ str
-                               Right hash -> pure $ ScriptHash hash)
-                               . fromHexText
+                    scriptH <-
+                        (obj .: "script_hash")
+                            >>= ( \case
+                                    Left str ->
+                                        fail
+                                            $ "AnyScript: script_hash should be hex-encoded \
+                                              \56-character string, but got "
+                                                ++ str
+                                    Right hash -> pure $ ScriptHash hash
+                                )
+                                . fromHexText
                     AnyScriptReference scriptH <$> obj .: "references"
-                _ -> fail
-                    "AnyScript needs either 'native', 'plutus' or 'reference script' in 'script_type'"
-            (Just t , Just ref) -> case t of
+                _ ->
+                    fail
+                        "AnyScript needs either 'native', 'plutus' or 'reference script' in 'script_type'"
+            (Just t, Just ref) -> case t of
                 "plutus" ->
-                    flip PlutusScript (ViaReferenceInput ref) . getApiT <$>
-                    obj .: "script_info"
+                    flip PlutusScript (ViaReferenceInput ref) . getApiT
+                        <$> obj .: "script_info"
                 "native" ->
                     flip NativeScript (ViaReferenceInput ref) <$> obj .: "script"
-                _ -> fail
-                    "AnyScript needs either 'native' or 'plutus' in 'script_type'"
-            _ -> fail
-                "AnyScript needs to have 'script_type' field"
+                _ ->
+                    fail
+                        "AnyScript needs either 'native' or 'plutus' in 'script_type'"
+            _ ->
+                fail
+                    "AnyScript needs to have 'script_type' field"
 
 instance ToJSON (ApiT AnyScript) where
     toJSON (ApiT anyScript) = case anyScript of
@@ -249,23 +261,27 @@ instance FromJSON (ApiT AnyExplicitScript) where
         scriptType <- obj .:? "script_type"
         reference <- obj .:? "reference"
         case (scriptType :: Maybe String, reference :: Maybe ReferenceInput) of
-            (Just t , Nothing) -> case t of
+            (Just t, Nothing) -> case t of
                 "plutus" ->
-                    flip PlutusExplicitScript ViaSpending . getApiT <$> obj .: "script_info"
+                    flip PlutusExplicitScript ViaSpending . getApiT
+                        <$> obj .: "script_info"
                 "native" ->
                     flip NativeExplicitScript ViaSpending <$> obj .: "script"
-                _ -> fail
-                    "AnyExplicitScript needs either 'native' or 'plutus' in 'script_type'"
-            (Just t , Just ref) -> case t of
+                _ ->
+                    fail
+                        "AnyExplicitScript needs either 'native' or 'plutus' in 'script_type'"
+            (Just t, Just ref) -> case t of
                 "plutus" ->
-                    flip PlutusExplicitScript (ViaReferenceInput ref) . getApiT <$>
-                    obj .: "script_info"
+                    flip PlutusExplicitScript (ViaReferenceInput ref) . getApiT
+                        <$> obj .: "script_info"
                 "native" ->
                     flip NativeExplicitScript (ViaReferenceInput ref) <$> obj .: "script"
-                _ -> fail
-                    "AnyExplicitScript needs either 'native' or 'plutus' in 'script_type'"
-            _ -> fail
-                "AnyExplicitScript needs to have 'script_type' field"
+                _ ->
+                    fail
+                        "AnyExplicitScript needs either 'native' or 'plutus' in 'script_type'"
+            _ ->
+                fail
+                    "AnyExplicitScript needs to have 'script_type' field"
 
 instance ToJSON (ApiT AnyExplicitScript) where
     toJSON (ApiT anyScript) = case anyScript of
@@ -293,8 +309,10 @@ instance ToJSON (ApiT AnyExplicitScript) where
                 ]
 
 instance FromJSON (ApiT W.AssetName) where
-    parseJSON = withText "AssetName"
-        (fmap (ApiT . W.UnsafeAssetName) . eitherToParser . fromHexText)
+    parseJSON =
+        withText
+            "AssetName"
+            (fmap (ApiT . W.UnsafeAssetName) . eitherToParser . fromHexText)
 instance ToJSON (ApiT W.AssetName) where
     toJSON = toJSON . hexText . W.unAssetName . getApiT
 
@@ -319,13 +337,16 @@ instance ToJSON (ApiT SlotNo) where
     toJSON (ApiT (SlotNo sn)) = toJSON sn
 
 instance FromJSON (ApiT TxIn) where
-    parseJSON = withObject "TxIn" $ \v -> ApiT <$>
-        (TxIn <$> fmap getApiT (v .: "id") <*> v .: "index")
+    parseJSON = withObject "TxIn" $ \v ->
+        ApiT
+            <$> (TxIn <$> fmap getApiT (v .: "id") <*> v .: "index")
 
 instance ToJSON (ApiT TxIn) where
-    toJSON (ApiT (TxIn txid ix)) = object
-        [ "id" .= toJSON (ApiT txid)
-        , "index" .= toJSON ix ]
+    toJSON (ApiT (TxIn txid ix)) =
+        object
+            [ "id" .= toJSON (ApiT txid)
+            , "index" .= toJSON ix
+            ]
 
 instance FromJSON (ApiT (Hash "Tx")) where
     parseJSON = fromTextApiT "Tx Hash"
@@ -333,17 +354,27 @@ instance ToJSON (ApiT (Hash "Tx")) where
     toJSON = toTextApiT
 
 instance FromJSON (ApiT TxScriptValidity) where
-    parseJSON = fmap ApiT . genericParseJSON Aeson.defaultOptions
-        { constructorTagModifier = camelTo2 '_' . drop 8 }
+    parseJSON =
+        fmap ApiT
+            . genericParseJSON
+                Aeson.defaultOptions
+                    { constructorTagModifier = camelTo2 '_' . drop 8
+                    }
 
 instance ToJSON (ApiT TxScriptValidity) where
-    toJSON = genericToJSON Aeson.defaultOptions
-        { constructorTagModifier = camelTo2 '_' . drop 8 } . getApiT
+    toJSON =
+        genericToJSON
+            Aeson.defaultOptions
+                { constructorTagModifier = camelTo2 '_' . drop 8
+                }
+            . getApiT
 
 instance FromJSON (ApiT PoolId) where
-    parseJSON = parseJSON >=> eitherToParser
-           . bimap ShowFmt ApiT
-           . decodePoolIdBech32
+    parseJSON =
+        parseJSON
+            >=> eitherToParser
+                . bimap ShowFmt ApiT
+                . decodePoolIdBech32
 instance ToJSON (ApiT PoolId) where
     toJSON = toJSON . encodePoolIdBech32 . getApiT
 
@@ -363,29 +394,31 @@ instance ToJSON (ApiT StakePoolMetadataUrl) where
     toJSON = toTextApiT
 
 instance FromJSON (ApiT W.NonWalletCertificate) where
-  parseJSON val
-    | val == object ["certificate_type" .= String "mir"]
-    = pure $ ApiT MIRCertificate
-    | val == object ["certificate_type" .= String "genesis"]
-    = pure $ ApiT GenesisCertificate
-    | otherwise
-    = fail
-        "expected object with key 'certificate_type' and value either 'mir' or 'genesis'"
+    parseJSON val
+        | val == object ["certificate_type" .= String "mir"] =
+            pure $ ApiT MIRCertificate
+        | val == object ["certificate_type" .= String "genesis"] =
+            pure $ ApiT GenesisCertificate
+        | otherwise =
+            fail
+                "expected object with key 'certificate_type' and value either 'mir' or 'genesis'"
 instance ToJSON (ApiT W.NonWalletCertificate) where
     toJSON (ApiT cert) = object ["certificate_type" .= String (toText cert)]
 
 instance FromJSON (ApiT TxMetadata) where
-    parseJSON = fmap ApiT
-        . either (fail . show) pure
-        . metadataFromJson TxMetadataJsonDetailedSchema
+    parseJSON =
+        fmap ApiT
+            . either (fail . show) pure
+            . metadataFromJson TxMetadataJsonDetailedSchema
 
 instance ToJSON (ApiT TxMetadata) where
     toJSON = metadataToJson TxMetadataJsonDetailedSchema . getApiT
 
 instance FromJSON (ApiT (Hash "ScriptIntegrity")) where
     parseJSON value = do
-        (hrp, bytes) <- parseJSON value >>=
-            parseBech32 "Malformed policy key"
+        (hrp, bytes) <-
+            parseJSON value
+                >>= parseBech32 "Malformed policy key"
         when
             (hrp /= [humanReadablePart|script_data|])
             $ fail "expected a bech32 script_data hash"
@@ -395,14 +428,16 @@ instance FromJSON (ApiT (Hash "ScriptIntegrity")) where
         pure $ ApiT $ Hash bytes
 instance ToJSON (ApiT (Hash "ScriptIntegrity")) where
     toJSON (ApiT (Hash hashed')) =
-        toJSON $ Bech32.encodeLenient
-            [humanReadablePart|script_data|]
-             $ dataPartFromBytes hashed'
+        toJSON
+            $ Bech32.encodeLenient
+                [humanReadablePart|script_data|]
+            $ dataPartFromBytes hashed'
 
 instance FromJSON (ApiT (Hash "ExtraSignature")) where
     parseJSON value = do
-        (hrp, bytes) <- parseJSON value >>=
-            parseBech32 "Malformed policy key"
+        (hrp, bytes) <-
+            parseJSON value
+                >>= parseBech32 "Malformed policy key"
         when
             (hrp /= [humanReadablePart|req_signer_vkh|])
             $ fail "expected a bech32 req_signer_vkh hash"
@@ -413,6 +448,7 @@ instance FromJSON (ApiT (Hash "ExtraSignature")) where
 
 instance ToJSON (ApiT (Hash "ExtraSignature")) where
     toJSON (ApiT (Hash hashed')) =
-        toJSON $ Bech32.encodeLenient
-            [humanReadablePart|req_signer_vkh|]
-             $ dataPartFromBytes hashed'
+        toJSON
+            $ Bech32.encodeLenient
+                [humanReadablePart|req_signer_vkh|]
+            $ dataPartFromBytes hashed'

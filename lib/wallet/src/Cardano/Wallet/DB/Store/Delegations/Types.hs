@@ -7,8 +7,6 @@ module Cardano.Wallet.DB.Store.Delegations.Types
     )
 where
 
-import Prelude
-
 import Control.Monad
     ( (>=>)
     )
@@ -25,6 +23,7 @@ import Database.Persist.Sql
 import GHC.Generics
     ( Generic
     )
+import Prelude
 
 data DelegationStatusEnum
     = InactiveE

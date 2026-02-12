@@ -1,19 +1,19 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 
 module Cardano.Wallet.DB.Store.Meta.ModelSpec
     ( spec
     , genRollback
-    , genExpand ) where
-
-import Prelude
+    , genExpand
+    ) where
 
 import Cardano.Wallet.DB.Arbitrary
-    ()
+    (
+    )
 import Cardano.Wallet.DB.Fixtures
     ( elementsOrArbitrary
     , logScale
@@ -64,6 +64,7 @@ import Test.QuickCheck
     , listOf1
     , property
     )
+import Prelude
 
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.Tx as W
@@ -87,10 +88,11 @@ genExpand wid g = mkTxMetaHistory wid <$> g
 genRollback :: TxMetaHistory -> Gen DeltaTxMetaHistory
 genRollback (TxMetaHistory history) =
     fmap Rollback
-    $ elementsOrArbitrary id
-    $ txMetaSlot <$> toList history
+        $ elementsOrArbitrary id
+        $ txMetaSlot <$> toList history
 
-withExpanded :: W.WalletId -> Gen [(W.Tx, W.TxMeta)] -> Gen TxMetaHistory
+withExpanded
+    :: W.WalletId -> Gen [(W.Tx, W.TxMeta)] -> Gen TxMetaHistory
 withExpanded wid expandG = do
     expansion <- logScale $ genExpand wid expandG
     pure $ apply (Expand expansion) mempty
@@ -98,19 +100,21 @@ withExpanded wid expandG = do
 type WithWalletProperty = WalletId -> Property
 
 withPropRollback
-    :: (( (TxMetaHistory, TxMetaHistory) -- bootHistory split
-        , (TxMetaHistory, TxMetaHistory) -- newHistory split
-        )
-        -> WithWalletProperty)
+    :: ( ( (TxMetaHistory, TxMetaHistory) -- bootHistory split
+         , (TxMetaHistory, TxMetaHistory) -- newHistory split
+         )
+         -> WithWalletProperty
+       )
     -> WithWalletProperty
 withPropRollback f wid = property $ do
-    bootHistory <- withExpanded
-        wid
-        (listOf1 arbitrary)
+    bootHistory <-
+        withExpanded
+            wid
+            (listOf1 arbitrary)
     slotNo <- internalSlotNoG bootHistory
     let newHistory =
             apply `flip` bootHistory
-            $ Rollback slotNo
+                $ Rollback slotNo
     pure
         $ cover
             40
@@ -124,12 +128,12 @@ withPropRollback f wid = property $ do
 
 prop_RollbackRemoveAfterSlot :: WithWalletProperty
 prop_RollbackRemoveAfterSlot =
-    withPropRollback $ \((_afterBoot,_beforeBoot),(afterNew,_beforeNew)) _
-    -> property $ null $ relations afterNew
+    withPropRollback $ \((_afterBoot, _beforeBoot), (afterNew, _beforeNew)) _ ->
+        property $ null $ relations afterNew
 
 prop_RollbackDoNotTouchPast :: WithWalletProperty
 prop_RollbackDoNotTouchPast =
-    withPropRollback $ \((afterBoot,beforeBoot),(_afterNew,beforeNew)) _ ->
+    withPropRollback $ \((afterBoot, beforeBoot), (_afterNew, beforeNew)) _ ->
         let past = (relations beforeNew) `Map.difference` (relations afterBoot)
         in  property $ TxMetaHistory past == beforeBoot
 
@@ -149,7 +153,8 @@ allSlots (TxMetaHistory txs) = Set.fromList . toList $ txMetaSlot <$> txs
 internalSlotNoG :: TxMetaHistory -> Gen W.SlotNo
 internalSlotNoG th = elements $ toList $ allSlots th
 
-splitHistory :: W.SlotNo -> TxMetaHistory -> (TxMetaHistory, TxMetaHistory)
+splitHistory
+    :: W.SlotNo -> TxMetaHistory -> (TxMetaHistory, TxMetaHistory)
 splitHistory slotSplit (TxMetaHistory txs) =
     (TxMetaHistory *** TxMetaHistory)
-    $ Map.partition ((> slotSplit) . txMetaSlot) txs
+        $ Map.partition ((> slotSplit) . txMetaSlot) txs

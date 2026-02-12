@@ -1,24 +1,20 @@
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 
-{- |
-Copyright: © 2020-2022 IOHK
-License: Apache-2.0
-
-Raw extra signers required data extraction from 'Tx'
--}
+-- |
+-- Copyright: © 2020-2022 IOHK
+-- License: Apache-2.0
+--
+-- Raw extra signers required data extraction from 'Tx'
 module Cardano.Read.Ledger.Tx.ExtraSigs
     ( ExtraSigsType
     , ExtraSigs (..)
     , getEraExtraSigs
     ) where
 
-import Prelude
-
 import Cardano.Ledger.Alonzo.TxBody
     ( reqSignerHashesTxBodyL
     )
-
 import Cardano.Ledger.Core
     ( bodyTxL
     )
@@ -49,6 +45,7 @@ import Control.Lens
 import Data.Set
     ( Set
     )
+import Prelude
 
 -- |
 -- Era-specific extra signers type.

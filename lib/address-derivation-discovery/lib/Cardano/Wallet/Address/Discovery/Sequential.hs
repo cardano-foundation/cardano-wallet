@@ -1,6 +1,7 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -16,10 +17,8 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
-
-{-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
-{-# LANGUAGE DataKinds #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- We intentionally specify the constraint  (k == SharedKey) ~ 'False
 -- in some exports.
@@ -34,13 +33,12 @@
 -- The management of _accounts_ is left-out for this implementation focuses on
 -- a single account. In practice, one wants to manage a set of pools, one per
 -- account.
-
 module Cardano.Wallet.Address.Discovery.Sequential
-    (
-      SupportsDiscovery
+    ( SupportsDiscovery
 
-    -- * Sequential Derivation
-    -- ** Address Pool Gap
+      -- * Sequential Derivation
+
+      -- ** Address Pool Gap
     , AddressPoolGap
     , MkAddressPoolGapError (..)
     , defaultAddressPoolGap
@@ -48,12 +46,12 @@ module Cardano.Wallet.Address.Discovery.Sequential
     , mkAddressPoolGap
     , mkUnboundedAddressPoolGap
 
-    -- ** Address Pool
+      -- ** Address Pool
     , SeqAddressPool (..)
     , getGap
     , newSeqAddressPool
 
-    -- ** State
+      -- ** State
     , SeqState (..)
     , DerivationPrefix (..)
     , purposeBIP44
@@ -63,10 +61,7 @@ module Cardano.Wallet.Address.Discovery.Sequential
     -- , discoverSeq
     -- , discoverSeqWithRewards
     , isOwned
-
     ) where
-
-import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv
@@ -179,6 +174,7 @@ import GHC.Generics
 import Type.Reflection
     ( Typeable
     )
+import Prelude
 
 import qualified Cardano.Wallet.Address.Pool as AddressPool
 import qualified Data.List as L
@@ -202,7 +198,7 @@ type SupportsDiscovery n k =
 -------------------------------------------------------------------------------}
 
 -- | Maximum number of consecutive undiscovered addresses allowed
-newtype AddressPoolGap = AddressPoolGap { getAddressPoolGap :: Word32 }
+newtype AddressPoolGap = AddressPoolGap {getAddressPoolGap :: Word32}
     deriving stock (Generic, Show, Eq, Ord)
 
 instance NFData AddressPoolGap
@@ -213,12 +209,13 @@ instance FromText AddressPoolGap where
         unless (T.null txt) $ Left err
         first (\case ErrGapOutOfRange{} -> err) (mkAddressPoolGap g)
       where
-        err = TextDecodingError $
-            "An address pool gap must be a natural number between "
-                <> show (fromEnum $ minBound @AddressPoolGap)
-                <> " and "
-                <> show (fromEnum $ maxBound @AddressPoolGap)
-                <> "."
+        err =
+            TextDecodingError
+                $ "An address pool gap must be a natural number between "
+                    <> show (fromEnum $ minBound @AddressPoolGap)
+                    <> " and "
+                    <> show (fromEnum $ maxBound @AddressPoolGap)
+                    <> "."
 
 instance ToText (AddressPoolGap) where
     toText = T.pack . show . getAddressPoolGap
@@ -238,10 +235,11 @@ instance Enum AddressPoolGap where
             AddressPoolGap (toEnum g)
 
 -- | Smart constructor for 'AddressPoolGap'
-mkAddressPoolGap :: Integer -> Either MkAddressPoolGapError AddressPoolGap
+mkAddressPoolGap
+    :: Integer -> Either MkAddressPoolGapError AddressPoolGap
 mkAddressPoolGap !g
-    | g >= fromIntegral (getAddressPoolGap minBound) &&
-      g <= fromIntegral (getAddressPoolGap maxBound) =
+    | g >= fromIntegral (getAddressPoolGap minBound)
+        && g <= fromIntegral (getAddressPoolGap maxBound) =
         Right $ AddressPoolGap (fromIntegral g)
     | otherwise =
         Left $ ErrGapOutOfRange g
@@ -268,15 +266,17 @@ defaultAddressPoolGap =
 {-------------------------------------------------------------------------------
     Sequential address pools
 -------------------------------------------------------------------------------}
+
 -- | An address pool which keeps track of sequential addresses.
 -- To create a new pool, see 'newSeqAddressPool'.
-newtype SeqAddressPool (c :: Role) (key :: Depth -> Type -> Type) =
-    SeqAddressPool {
-        getPool ::
-            AddressPool.Pool
-                (KeyFingerprint "payment" key)
-                (Index 'Soft 'CredFromKeyK)
-    } deriving (Generic, Show)
+newtype SeqAddressPool (c :: Role) (key :: Depth -> Type -> Type)
+    = SeqAddressPool
+    { getPool
+        :: AddressPool.Pool
+            (KeyFingerprint "payment" key)
+            (Index 'Soft 'CredFromKeyK)
+    }
+    deriving (Generic, Show)
 
 instance NFData (SeqAddressPool c k)
 
@@ -310,8 +310,10 @@ getGap = AddressPoolGap . fromIntegral . AddressPool.gap . getPool
     Pretty printing
 -------------------------------------------------------------------------------}
 
-instance PersistPublicKey (key 'AccountK) =>
-    Buildable (key 'AccountK XPub) where
+instance
+    PersistPublicKey (key 'AccountK)
+    => Buildable (key 'AccountK XPub)
+    where
     build key = prefixF 8 xpubF <> "..." <> suffixF 8 xpubF
       where
         xpubF = hexF $ serializeXPub key
@@ -323,8 +325,10 @@ instance PersistPublicKey (key 'PolicyK) => Buildable (key 'PolicyK XPub) where
 
 instance Buildable (ScriptTemplate, Maybe ScriptTemplate) where
     build (paymentTemplate, delegationTemplateM) =
-        " payment script credential: " <> scriptPaymentF <>
-        " delegation script credential: " <> scriptDelegationF
+        " payment script credential: "
+            <> scriptPaymentF
+            <> " delegation script credential: "
+            <> scriptDelegationF
       where
         scriptPaymentF = build paymentTemplate
         scriptDelegationF = maybe "absent" build delegationTemplateM
@@ -332,12 +336,14 @@ instance Buildable (ScriptTemplate, Maybe ScriptTemplate) where
 accXPubTxt :: XPub -> Text
 accXPubTxt xpub =
     let keyFormatted = T.decodeUtf8 $ encode EBase16 $ xpubPublicKey xpub
-    in T.take 8 keyFormatted <> "..." <> T.takeEnd 8 keyFormatted
+    in  T.take 8 keyFormatted <> "..." <> T.takeEnd 8 keyFormatted
 
 instance Buildable ScriptTemplate where
     build (ScriptTemplate cosignersMap script') =
-        "Cosigners:" <> build (presentCosigners cosignersMap) <>
-        " Script:" <> build (T.pack (show script'))
+        "Cosigners:"
+            <> build (presentCosigners cosignersMap)
+            <> " Script:"
+            <> build (T.pack (show script'))
       where
         printCosigner (Cosigner ix) = "cosigner#" <> T.pack (show ix)
         presentCosigners = (`Map.foldrWithKey` mempty) $ \c k acc ->
@@ -355,24 +361,24 @@ instance Buildable ScriptTemplate where
 -- This enables the state to be agnostic to the underlying address format.
 data SeqState (n :: NetworkDiscriminant) k = SeqState
     { internalPool :: !(SeqAddressPool 'UtxoInternal k)
-        -- ^ Addresses living on the 'UtxoInternal'
+    -- ^ Addresses living on the 'UtxoInternal'
     , externalPool :: !(SeqAddressPool 'UtxoExternal k)
-        -- ^ Addresses living on the 'UtxoExternal'
+    -- ^ Addresses living on the 'UtxoExternal'
     , pendingChangeIxs :: !(PendingIxs 'CredFromKeyK)
-        -- ^ Indexes from the internal pool that have been used in pending
-        -- transactions. The list is maintained sorted in descending order
-        -- (cf: 'PendingIxs')
+    -- ^ Indexes from the internal pool that have been used in pending
+    -- transactions. The list is maintained sorted in descending order
+    -- (cf: 'PendingIxs')
     , accountXPub :: k 'AccountK XPub
-        -- ^ The account public key associated with this state
+    -- ^ The account public key associated with this state
     , policyXPub :: Maybe (k 'PolicyK XPub)
-        -- ^ The policy public key associated with this state derived for
-        -- policy key hardened index=0
+    -- ^ The policy public key associated with this state derived for
+    -- policy key hardened index=0
     , rewardAccountKey :: k 'CredFromKeyK XPub
-        -- ^ Reward account public key associated with this wallet
+    -- ^ Reward account public key associated with this wallet
     , derivationPrefix :: DerivationPrefix
-        -- ^ Derivation path prefix from a root key up to the internal account
+    -- ^ Derivation path prefix from a root key up to the internal account
     , changeAddressMode :: ChangeAddressMode
-        -- ^ How to generate change addresses.
+    -- ^ How to generate change addresses.
     }
     deriving stock (Generic)
 
@@ -381,7 +387,8 @@ deriving instance
     , Show (k 'CredFromKeyK XPub)
     , Show (k 'PolicyK XPub)
     , Show (KeyFingerprint "payment" k)
-    ) => Show (SeqState n k)
+    )
+    => Show (SeqState n k)
 
 instance
     ( NFData (k 'AccountK XPub)
@@ -397,25 +404,36 @@ instance
     , Eq (k 'CredFromKeyK XPub)
     , Eq (k 'PolicyK XPub)
     , Eq (KeyFingerprint "payment" k)
-    ) => Eq (SeqState n k)
-  where
-    SeqState ai ae a1 a2 a3 a4 a5 a6 == SeqState bi be b1 b2 b3 b4 b5 b6
-        = and
-            [a1 == b1, a2 == b2, a3 == b3, a4 == b4, a5 == b5, a6 == b6
-            , ae `match` be, ai `match` bi
+    )
+    => Eq (SeqState n k)
+    where
+    SeqState ai ae a1 a2 a3 a4 a5 a6 == SeqState bi be b1 b2 b3 b4 b5 b6 =
+        and
+            [ a1 == b1
+            , a2 == b2
+            , a3 == b3
+            , a4 == b4
+            , a5 == b5
+            , a6 == b6
+            , ae `match` be
+            , ai `match` bi
             ]
       where
-        match (SeqAddressPool a) (SeqAddressPool b)
-            = AddressPool.addresses a == AddressPool.addresses b
-            && AddressPool.gap a == AddressPool.gap b
+        match (SeqAddressPool a) (SeqAddressPool b) =
+            AddressPool.addresses a == AddressPool.addresses b
+                && AddressPool.gap a == AddressPool.gap b
 
 instance Buildable (SeqState n k) where
-    build st = "SeqState:\n"
-        <> indentF 4 ("Derivation prefix: " <>
-            build (toText (derivationPrefix st)))
-        <> indentF 4 (build $ internalPool st)
-        <> indentF 4 (build $ externalPool st)
-        <> indentF 4 ("Change indexes: " <> indentF 4 chgsF)
+    build st =
+        "SeqState:\n"
+            <> indentF
+                4
+                ( "Derivation prefix: "
+                    <> build (toText (derivationPrefix st))
+                )
+            <> indentF 4 (build $ internalPool st)
+            <> indentF 4 (build $ externalPool st)
+            <> indentF 4 ("Change indexes: " <> indentF 4 chgsF)
       where
         chgsF = blockListF' "-" build (pendingIxsToList $ pendingChangeIxs st)
 
@@ -444,26 +462,27 @@ purposeCIP1852 = toEnum 0x8000_073c
 
 -- | Construct a Sequential state for a wallet from public account key.
 mkSeqStateFromAccountXPub
-    :: forall (n :: NetworkDiscriminant) k.
-        ( SupportsDiscovery n k
-        -- , Excluding '[SharedKey] k
-        )
+    :: forall (n :: NetworkDiscriminant) k
+     . ( SupportsDiscovery n k
+    -- , Excluding '[SharedKey] k
+       )
     => k 'AccountK XPub
     -> Maybe (k 'PolicyK XPub)
     -> Index 'Hardened 'PurposeK
     -> AddressPoolGap
     -> ChangeAddressMode
     -> SeqState n k
-mkSeqStateFromAccountXPub accXPub policyXPubM purpose g change = SeqState
-    { internalPool = newSeqAddressPool @n accXPub g
-    , externalPool = newSeqAddressPool @n accXPub g
-    , accountXPub = accXPub
-    , policyXPub = policyXPubM
-    , rewardAccountKey = rewardXPub
-    , pendingChangeIxs = emptyPendingIxs
-    , derivationPrefix = DerivationPrefix ( purpose, coinTypeAda, minBound )
-    , changeAddressMode = change
-    }
+mkSeqStateFromAccountXPub accXPub policyXPubM purpose g change =
+    SeqState
+        { internalPool = newSeqAddressPool @n accXPub g
+        , externalPool = newSeqAddressPool @n accXPub g
+        , accountXPub = accXPub
+        , policyXPub = policyXPubM
+        , rewardAccountKey = rewardXPub
+        , pendingChangeIxs = emptyPendingIxs
+        , derivationPrefix = DerivationPrefix (purpose, coinTypeAda, minBound)
+        , changeAddressMode = change
+        }
   where
     -- This matches the reward address for "normal wallets". The accountXPub
     -- is the first account, minBound being the first Soft index
@@ -471,15 +490,18 @@ mkSeqStateFromAccountXPub accXPub policyXPubM purpose g change = SeqState
 
 -- | Decorate an index with the derivation prefix corresponding to the state.
 decoratePath
-    :: SeqState n k -> Role -> Index 'Soft 'CredFromKeyK
+    :: SeqState n k
+    -> Role
+    -> Index 'Soft 'CredFromKeyK
     -> NE.NonEmpty DerivationIndex
-decoratePath st r ix = NE.fromList
-    [ DerivationIndex $ getIndex purpose
-    , DerivationIndex $ getIndex coinType
-    , DerivationIndex $ getIndex accountIx
-    , DerivationIndex $ fromIntegral $ fromEnum r
-    , DerivationIndex $ getIndex ix
-    ]
+decoratePath st r ix =
+    NE.fromList
+        [ DerivationIndex $ getIndex purpose
+        , DerivationIndex $ getIndex coinType
+        , DerivationIndex $ getIndex accountIx
+        , DerivationIndex $ fromIntegral $ fromEnum r
+        , DerivationIndex $ getIndex ix
+        ]
   where
     SeqState
         { derivationPrefix = DerivationPrefix (purpose, coinType, accountIx)
@@ -492,8 +514,8 @@ decoratePath st r ix = NE.fromList
 -- addresses on the internal chain anywhere in the available range.
 instance SupportsDiscovery n k => IsOurs (SeqState n k) Address where
     isOurs addrRaw st =
-        if networkDiscriminantCheck @k (sNetworkId @n) networkTag then
-            case paymentKeyFingerprint addrRaw of
+        if networkDiscriminantCheck @k (sNetworkId @n) networkTag
+            then case paymentKeyFingerprint addrRaw of
                 Left _ -> (Nothing, st)
                 Right addr ->
                     let (internalIndex, !internalPool') =
@@ -501,24 +523,25 @@ instance SupportsDiscovery n k => IsOurs (SeqState n k) Address where
                         (externalIndex, !externalPool') =
                             lookupAddress addr (externalPool st)
 
-                        ours = (decoratePath st UtxoExternal <$> externalIndex)
-                           <|> (decoratePath st UtxoInternal <$> internalIndex)
+                        ours =
+                            (decoratePath st UtxoExternal <$> externalIndex)
+                                <|> (decoratePath st UtxoInternal <$> internalIndex)
 
                         pendingChangeIxs' =
                             case internalIndex of
                                 Nothing -> pendingChangeIxs st
                                 Just ix ->
                                     dropLowerPendingIxs ix (pendingChangeIxs st)
-                    in
-                        ( ours `deepseq` ours
-                        , st { internalPool = internalPool'
-                             , externalPool = externalPool'
-                             , pendingChangeIxs =
-                                   pendingChangeIxs' `deepseq` pendingChangeIxs'
-                             }
+                    in  ( ours `deepseq` ours
+                        , st
+                            { internalPool = internalPool'
+                            , externalPool = externalPool'
+                            , pendingChangeIxs =
+                                pendingChangeIxs' `deepseq` pendingChangeIxs'
+                            }
                         )
-        else
-            (Nothing, st)
+            else
+                (Nothing, st)
       where
         AddressParts _ networkTag _ = toAddressParts addrRaw
         lookupAddress addr (SeqAddressPool pool) =
@@ -529,18 +552,22 @@ instance SupportsDiscovery n k => IsOurs (SeqState n k) Address where
                     (Just ix, SeqAddressPool $ AddressPool.update addr pool)
 
 instance
-    ( SoftDerivation k, AddressCredential k ~ 'CredFromKeyK
-    ) => GenChange (SeqState n k) where
-    -- | We pick indexes in sequence from the first known available index (i.e.
+    ( SoftDerivation k
+    , AddressCredential k ~ 'CredFromKeyK
+    )
+    => GenChange (SeqState n k)
+    where
+    -- \| We pick indexes in sequence from the first known available index (i.e.
     -- @length addrs - gap@) but we do not generate _new change addresses_. As a
     -- result, we can't generate more than @gap@ _pending_ change addresses and
     -- therefore, rotate the change addresses when we need extra change outputs.
     --
     -- See also: 'nextChangeIndex'
-    type ArgGenChange (SeqState n k) =
-        (k 'CredFromKeyK XPub -> k 'CredFromKeyK XPub -> Address)
+    type
+        ArgGenChange (SeqState n k) =
+            (k 'CredFromKeyK XPub -> k 'CredFromKeyK XPub -> Address)
 
-    genChange mkAddress st = (addr, st{pendingChangeIxs=pending'})
+    genChange mkAddress st = (addr, st{pendingChangeIxs = pending'})
       where
         ixMin = minBound @(Index 'Soft 'CredFromKeyK)
         updatePending pendingIxs =
@@ -548,7 +575,7 @@ instance
         (ix, pending') =
             case changeAddressMode st of
                 SingleChangeAddress ->
-                    ( ixMin, updatePending (pendingChangeIxs st) )
+                    (ixMin, updatePending (pendingChangeIxs st))
                 IncreasingChangeAddresses ->
                     nextChangeIndex (getPool $ internalPool st) (pendingChangeIxs st)
         addressXPub = deriveAddressPublicKey (accountXPub st) UtxoInternal ix
@@ -592,21 +619,24 @@ instance SupportsDiscovery n k => CompareDiscovery (SeqState n k) where
     compareDiscovery (SeqState !s1 !s2 _ _ _ _ _ _) a1 a2 =
         case (ix a1 s1 <|> ix a1 s2, ix a2 s1 <|> ix a2 s2) of
             (Nothing, Nothing) -> EQ
-            (Nothing, Just _)  -> GT
-            (Just _, Nothing)  -> LT
+            (Nothing, Just _) -> GT
+            (Just _, Nothing) -> LT
             (Just i1, Just i2) -> compare i1 i2
       where
-        ix :: Address -> SeqAddressPool c k -> Maybe (Index 'Soft 'CredFromKeyK)
+        ix
+            :: Address -> SeqAddressPool c k -> Maybe (Index 'Soft 'CredFromKeyK)
         ix a (SeqAddressPool pool) = case paymentKeyFingerprint a of
             Left _ -> Nothing
             Right addr -> AddressPool.lookup addr pool
 
-instance (PaymentAddress k 'CredFromKeyK, HasSNetworkId n)
-    => KnownAddresses (SeqState n k) where
+instance
+    (PaymentAddress k 'CredFromKeyK, HasSNetworkId n)
+    => KnownAddresses (SeqState n k)
+    where
     knownAddresses st =
         nonChangeAddresses <> usedChangeAddresses <> pendingChangeAddresses
       where
-        -- | List addresses in order of increasing indices.
+        -- \| List addresses in order of increasing indices.
         listAddresses
             :: forall c
              . Typeable c

@@ -1,9 +1,8 @@
-{- |
-Copyright: © 2024 Cardano Foundation
-License: Apache-2.0
-
-Era-indexed transaction identifier extraction.
--}
+-- |
+-- Copyright: © 2024 Cardano Foundation
+-- License: Apache-2.0
+--
+-- Era-indexed transaction identifier extraction.
 module Cardano.Read.Ledger.Tx.TxId
     ( -- * Transaction ID type
       TxIdType
@@ -14,12 +13,9 @@ module Cardano.Read.Ledger.Tx.TxId
     )
 where
 
-import Prelude
-
 import Cardano.Chain.UTxO
     ( taTx
     )
-import qualified Cardano.Chain.UTxO as BY
 import Cardano.Crypto.Hashing
     ( serializeCborHash
     )
@@ -27,8 +23,6 @@ import Cardano.Ledger.Core
     ( bodyTxL
     , txIdTxBody
     )
-import qualified Cardano.Ledger.Core as SH.Core
-import qualified Cardano.Ledger.TxIn as SH.TxIn
 import Cardano.Read.Ledger.Eras
     ( Allegra
     , Alonzo
@@ -49,6 +43,11 @@ import Cardano.Read.Ledger.Tx.Tx
 import Control.Lens
     ( (^.)
     )
+import Prelude
+
+import Cardano.Chain.UTxO qualified as BY
+import Cardano.Ledger.Core qualified as SH.Core
+import Cardano.Ledger.TxIn qualified as SH.TxIn
 
 -- | Era-specific transaction ID type.
 type family TxIdType era where

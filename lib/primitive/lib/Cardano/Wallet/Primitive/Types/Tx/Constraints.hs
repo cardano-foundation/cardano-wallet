@@ -14,7 +14,6 @@
 --
 -- This module provides types and functions that relate to constraints on the
 -- sizes and costs of transactions and their constituent components.
---
 module Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TxConstraints (..)
     , txOutputCoinCost
@@ -29,8 +28,6 @@ module Cardano.Wallet.Primitive.Types.Tx.Constraints
     , txMintBurnMaxTokenQuantity
     , coinIsValidForTxOut
     ) where
-
-import Prelude
 
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..)
@@ -88,6 +85,7 @@ import Numeric.Natural
 import Quiet
     ( Quiet (..)
     )
+import Prelude
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
@@ -108,39 +106,38 @@ import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 --
 -- This will lead to slight overestimation in the case of UTxOs that share the
 -- same payment key.
---
 data TxConstraints = TxConstraints
     { txBaseCost :: Coin
-      -- ^ The constant cost of an empty transaction.
+    -- ^ The constant cost of an empty transaction.
     , txBaseSize :: TxSize
-      -- ^ The constant size of an empty transaction.
+    -- ^ The constant size of an empty transaction.
     , txInputCost :: Coin
-      -- ^ The constant cost of a transaction input, assuming one witness is
-      -- required per input.
+    -- ^ The constant cost of a transaction input, assuming one witness is
+    -- required per input.
     , txInputSize :: TxSize
-      -- ^ The constant size of a transaction input, assuming one witness is
-      -- required per input.
+    -- ^ The constant size of a transaction input, assuming one witness is
+    -- required per input.
     , txOutputCost :: TokenBundle -> Coin
-      -- ^ The variable cost of a transaction output.
+    -- ^ The variable cost of a transaction output.
     , txOutputSize :: TokenBundle -> TxSize
-      -- ^ The variable size of a transaction output.
+    -- ^ The variable size of a transaction output.
     , txOutputMaximumSize :: TxSize
-      -- ^ The maximum size of a transaction output.
+    -- ^ The maximum size of a transaction output.
     , txOutputMaximumTokenQuantity :: TokenQuantity
-      -- ^ The maximum token quantity that can appear in a transaction output.
+    -- ^ The maximum token quantity that can appear in a transaction output.
     , txOutputMinimumAdaQuantity :: Address -> TokenMap -> Coin
-      -- ^ The variable minimum ada quantity of a transaction output.
+    -- ^ The variable minimum ada quantity of a transaction output.
     , txOutputBelowMinimumAdaQuantity :: Address -> TokenBundle -> Bool
-      -- ^ Returns 'True' if the given 'TokenBundle' has a 'Coin' value that is
-      -- below the minimum required.
+    -- ^ Returns 'True' if the given 'TokenBundle' has a 'Coin' value that is
+    -- below the minimum required.
     , txRewardWithdrawalCost :: Coin -> Coin
-      -- ^ The variable cost of a reward withdrawal.
+    -- ^ The variable cost of a reward withdrawal.
     , txRewardWithdrawalSize :: Coin -> TxSize
-      -- ^ The variable size of a reward withdrawal.
+    -- ^ The variable size of a reward withdrawal.
     , txMaximumSize :: TxSize
-      -- ^ The maximum size of a transaction.
+    -- ^ The maximum size of a transaction.
     }
-    deriving Generic
+    deriving (Generic)
 
 txOutputCoinCost :: TxConstraints -> Coin -> Coin
 txOutputCoinCost constraints = txOutputCost constraints . TokenBundle.fromCoin
@@ -157,11 +154,10 @@ txOutputHasValidTokenQuantities constraints m =
     TokenMap.maximumQuantity m <= txOutputMaximumTokenQuantity constraints
 
 -- | The size of a transaction, or part of a transaction, in bytes.
---
-newtype TxSize = TxSize { unTxSize :: Natural }
+newtype TxSize = TxSize {unTxSize :: Natural}
     deriving stock (Eq, Ord, Generic)
-    deriving Show via (Quiet TxSize)
-    deriving Num via Natural
+    deriving (Show) via (Quiet TxSize)
+    deriving (Num) via Natural
     deriving (Commutative, Semigroup, Monoid, MonoidNull) via Sum Natural
     deriving (LeftReductive, RightReductive, Reductive) via Sum Natural
     deriving (LeftGCDMonoid, RightGCDMonoid, GCDMonoid) via Sum Natural
@@ -175,19 +171,16 @@ instance NFData TxSize
 
 -- | The smallest quantity of lovelace that can appear in a transaction output's
 --   token bundle.
---
 txOutMinCoin :: Coin
 txOutMinCoin = Coin 0
 
 -- | The greatest quantity of lovelace that can appear in a transaction output's
 --   token bundle.
---
 txOutMaxCoin :: Coin
 txOutMaxCoin = Coin 45_000_000_000_000_000
 
 -- | The smallest token quantity that can appear in a transaction output's
 --   token bundle.
---
 txOutMinTokenQuantity :: TokenQuantity
 txOutMinTokenQuantity = TokenQuantity 1
 
@@ -197,13 +190,11 @@ txOutMinTokenQuantity = TokenQuantity 1
 -- Although the ledger specification allows token quantities of unlimited
 -- sizes, in practice we'll only see transaction outputs where the token
 -- quantities are bounded by the size of a 'Word64'.
---
 txOutMaxTokenQuantity :: TokenQuantity
 txOutMaxTokenQuantity = TokenQuantity $ fromIntegral $ maxBound @Word64
 
 -- | The greatest quantity of any given token that can be minted or burned in a
 --   transaction.
---
 txMintBurnMaxTokenQuantity :: TokenQuantity
 txMintBurnMaxTokenQuantity = TokenQuantity $ fromIntegral $ maxBound @Int64
 
@@ -212,6 +203,7 @@ txMintBurnMaxTokenQuantity = TokenQuantity $ fromIntegral $ maxBound @Int64
 --------------------------------------------------------------------------------
 
 coinIsValidForTxOut :: Coin -> Bool
-coinIsValidForTxOut c = (&&)
-    (c >= txOutMinCoin)
-    (c <= txOutMaxCoin)
+coinIsValidForTxOut c =
+    (&&)
+        (c >= txOutMinCoin)
+        (c <= txOutMaxCoin)

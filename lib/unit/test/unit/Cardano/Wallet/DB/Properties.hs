@@ -22,8 +22,6 @@ module Cardano.Wallet.DB.Properties
     ( properties
     ) where
 
-import Prelude
-
 import Cardano.Wallet.DB
     ( DBLayer (..)
     , DBLayerParams (..)
@@ -95,7 +93,8 @@ import Data.Generics.Internal.VL.Lens
     ( (^.)
     )
 import Data.Generics.Labels
-    ()
+    (
+    )
 import Data.Maybe
     ( isNothing
     , mapMaybe
@@ -127,13 +126,14 @@ import Test.QuickCheck.Monadic
     , pick
     , run
     )
+import Prelude
 
 import qualified Cardano.Wallet.Primitive.Types.Range as Range
 import qualified Data.List as L
 
 -- | How to boot a fresh database.
-type WithBootDBLayer s
-    = WalletId
+type WithBootDBLayer s =
+    WalletId
     -> DBLayerParams s
     -> (DBLayer IO s -> PropertyM IO ())
     -> PropertyM IO ()
@@ -166,7 +166,6 @@ properties
     => WithBootDBLayer s
     -> SpecWith ()
 properties withBootDBLayer = describe "DB.Properties" $ do
-
     let testOnLayer = monadicIO . withFreshWallet testWid withBootDBLayer
 
     describe "put . read yields a result" $ do
@@ -212,11 +211,11 @@ properties withBootDBLayer = describe "DB.Properties" $ do
 readTxHistory_
     :: Functor m
     => DBLayer m s
-    ->  m (Identity GenTxHistory)
-readTxHistory_ DBLayer {..} =
+    -> m (Identity GenTxHistory)
+readTxHistory_ DBLayer{..} =
     (Identity . GenTxHistory . fmap toTxHistory)
         <$> atomically
-            (readTransactions
+            ( readTransactions
                 Nothing
                 Descending
                 Range.everything
@@ -229,7 +228,7 @@ putTxHistory_
     :: DBLayer m s
     -> GenTxHistory
     -> m ()
-putTxHistory_ DBLayer {..} = atomically . putTxHistory . unGenTxHistory
+putTxHistory_ DBLayer{..} = atomically . putTxHistory . unGenTxHistory
 
 {-------------------------------------------------------------------------------
                                        Utils
@@ -301,11 +300,11 @@ prop_getTxAfterPutValidTxId
     :: TestOnLayer s
     -> GenTxHistory
     -> Property
-prop_getTxAfterPutValidTxId test txGen = test $ \DBLayer {..} _ -> do
+prop_getTxAfterPutValidTxId test txGen = test $ \DBLayer{..} _ -> do
     let txs = unGenTxHistory txGen
     run $ atomically $ putTxHistory txs
-    forM_ txs $ \(Tx {txId}, txMeta) -> do
-        (Just (TransactionInfo {txInfoId, txInfoMeta})) <-
+    forM_ txs $ \(Tx{txId}, txMeta) -> do
+        (Just (TransactionInfo{txInfoId, txInfoMeta})) <-
             run $ atomically $ getTx txId
         monitor
             $ counterexample
@@ -328,7 +327,7 @@ prop_getTxAfterPutInvalidTxId
     -> GenTxHistory
     -> (Hash "Tx")
     -> Property
-prop_getTxAfterPutInvalidTxId test txGen txId' = test $ \DBLayer {..} _ -> do
+prop_getTxAfterPutInvalidTxId test txGen txId' = test $ \DBLayer{..} _ -> do
     let txs = unGenTxHistory txGen
     run $ atomically $ putTxHistory txs
     res <- run $ atomically $ getTx txId'
@@ -391,7 +390,8 @@ prop_rollbackTxHistory test (InitialCheckpoint cp0) (GenTxHistory txs0) =
         let params = DBLayerParams cp0 RestorationPointAtGenesis meta mempty gp
 
         test testWid params $ \DBLayer{..} -> do
-            ShowFmt requestedPoint <- namedPick "Requested Rollback slot" arbitrary
+            ShowFmt requestedPoint <-
+                namedPick "Requested Rollback slot" arbitrary
             let ixs = forgotten requestedPoint
             monitor $ label ("Forgotten tx after point: " <> show (L.length ixs))
             monitor $ cover 50 (not $ null ixs) "rolling back something"
@@ -410,11 +410,14 @@ prop_rollbackTxHistory test (InitialCheckpoint cp0) (GenTxHistory txs0) =
                                 Nothing
                 pure (point, txs)
 
-            monitor $ counterexample
+            monitor
+                $ counterexample
                 $ "\n" <> "Actual Rollback Point:\n" <> (pretty point)
-            monitor $ counterexample
+            monitor
+                $ counterexample
                 $ "\nOriginal tx history:\n" <> (txsF txs0)
-            monitor $ counterexample
+            monitor
+                $ counterexample
                 $ "\nNew tx history:\n" <> (txsF txs)
 
             let slot = pseudoSlotNo point

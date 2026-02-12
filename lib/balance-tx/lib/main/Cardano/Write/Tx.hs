@@ -3,24 +3,21 @@
 -- |
 -- Copyright: © 2023-2024 Cardano Foundation
 -- License: Apache-2.0
---
---
 module Cardano.Write.Tx
-    (
-    -- * UTxO
+    ( -- * UTxO
       UTxO (..)
 
-    -- * Tx
+      -- * Tx
     , Tx
     , TxBody
 
-    -- ** PartialTx
+      -- ** PartialTx
     , PartialTx (..)
     , Redeemer (..)
     , StakeKeyDepositLookup (..)
     , TimelockKeyWitnessCounts (..)
 
-    -- ** Balancing
+      -- ** Balancing
     , balanceTx
     , TimeTranslation
     , UTxOAssumptions (..)
@@ -28,7 +25,7 @@ module Cardano.Write.Tx
     , constructUTxOIndex
     , ChangeAddressGen (..)
 
-    -- ** Balancing Errors
+      -- ** Balancing Errors
     , ErrAssignRedeemers (..)
     , ErrBalanceTx (..)
     , ErrBalanceTxAssetsInsufficientError (..)

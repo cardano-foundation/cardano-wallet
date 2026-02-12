@@ -3,8 +3,6 @@ module Cardano.Wallet.Primitive.Types.Tx.TxExtended
     )
 where
 
-import Prelude
-
 import Cardano.Wallet.Primitive.Types.TokenMapWithScripts
     ( TokenMapWithScripts
     )
@@ -15,6 +13,7 @@ import Cardano.Wallet.Primitive.Types.WitnessCount
     ( WitnessCount
     , WitnessCountCtx
     )
+import Prelude
 
 import qualified Cardano.Wallet.Primitive.Types.Certificates as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W

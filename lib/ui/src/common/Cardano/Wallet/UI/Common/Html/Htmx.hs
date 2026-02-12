@@ -36,8 +36,6 @@ module Cardano.Wallet.UI.Common.Html.Htmx
     )
 where
 
-import Prelude
-
 import Data.Text
     ( Text
     , pack
@@ -52,6 +50,7 @@ import Lucid.Base
     ( Attribute
     , makeAttribute
     )
+import Prelude
 
 -- | <https://htmx.org/attributes/hx-boost/>
 hxBoost_ :: Text -> Attribute

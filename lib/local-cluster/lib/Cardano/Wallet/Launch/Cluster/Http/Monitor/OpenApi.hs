@@ -9,8 +9,6 @@ module Cardano.Wallet.Launch.Cluster.Http.Monitor.OpenApi
     , phaseSchema
     ) where
 
-import Prelude
-
 import Control.Lens
     ( At (..)
     , (&)
@@ -51,6 +49,7 @@ import Data.Text
 import Network.HTTP.Media
     ( MediaType
     )
+import Prelude
 
 monitoringDefinitions :: Definitions Schema
 monitoringDefinitions =

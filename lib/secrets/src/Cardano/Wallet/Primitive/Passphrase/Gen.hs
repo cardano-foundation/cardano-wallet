@@ -7,8 +7,6 @@ module Cardano.Wallet.Primitive.Passphrase.Gen
     , genEncryptionPassphrase
     ) where
 
-import Prelude
-
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..)
     , PassphraseMaxLength (..)
@@ -30,6 +28,7 @@ import Test.QuickCheck
 import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary
     )
+import Prelude
 
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString.Char8 as B8
@@ -41,22 +40,25 @@ genUserPassphrase = do
     n <- choose (passphraseMinLength p, passphraseMaxLength p)
     bytes <- T.encodeUtf8 . T.pack <$> replicateM n arbitraryPrintableChar
     return $ Passphrase $ BA.convert bytes
-  where p = Proxy :: Proxy "user"
+  where
+    p = Proxy :: Proxy "user"
 
 shrinkUserPassphrase :: Passphrase "user" -> [Passphrase "user"]
 shrinkUserPassphrase (Passphrase bytes)
     | BA.length bytes <= passphraseMinLength p = []
     | otherwise =
         [ Passphrase
-        $ BA.convert
-        $ B8.take (passphraseMinLength p)
-        $ BA.convert bytes
+            $ BA.convert
+            $ B8.take (passphraseMinLength p)
+            $ BA.convert bytes
         ]
-  where p = Proxy :: Proxy "user"
+  where
+    p = Proxy :: Proxy "user"
 
 genPassphraseScheme :: Gen PassphraseScheme
 genPassphraseScheme = genericArbitrary
 
 genEncryptionPassphrase :: Gen (Passphrase "encryption")
-genEncryptionPassphrase = preparePassphrase EncryptWithPBKDF2
-    <$> genUserPassphrase
+genEncryptionPassphrase =
+    preparePassphrase EncryptWithPBKDF2
+        <$> genUserPassphrase

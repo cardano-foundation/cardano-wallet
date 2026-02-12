@@ -16,8 +16,6 @@ module Cardano.Wallet.Launch.Cluster.Faucet
     )
 where
 
-import Prelude
-
 import Cardano.Address
     ( Address
     )
@@ -134,6 +132,7 @@ import System.Path
     , (<.>)
     , (</>)
     )
+import Prelude
 
 import qualified Cardano.Address as Address
 import qualified Cardano.Address as CA
@@ -182,7 +181,7 @@ readFaucetAddresses = do
     Config{..} <- ask
     let faucetDataPath = absDirOf cfgClusterConfigs </> relDir "faucet-addrs"
     allFileNames <- liftIO $ listDirectory (toFilePath faucetDataPath)
-    let addrFileNames = relFile <$>  filter (".addr" `isSuffixOf`) allFileNames
+    let addrFileNames = relFile <$> filter (".addr" `isSuffixOf`) allFileNames
     liftIO $ forM addrFileNames $ readAddress . (faucetDataPath </>)
   where
     readAddress :: HasCallStack => AbsFile -> IO Address
@@ -239,7 +238,7 @@ depositAmt = 1_000_000
 faucetAmt :: Integer
 faucetAmt = 1_000 * oneMillionAda
   where
-    -- | Just one million Ada, in Lovelace.
+    -- \| Just one million Ada, in Lovelace.
     oneMillionAda = 1_000_000_000_000
 
 batch :: (HasCallStack, Monad m) => Int -> [a] -> ([a] -> m b) -> m ()
@@ -275,7 +274,8 @@ sendFaucetAssetsTo
     -> [(Address, (TokenBundle, [(String, String)]))]
     -- ^ (address, assets)
     -> ClusterM ()
-sendFaucetAssetsTo conn batchSize targets = batch batchSize targets
+sendFaucetAssetsTo conn batchSize targets =
+    batch batchSize targets
         $ sendFaucet conn "assets"
 
 -- | Build, sign, and send a batch of faucet funding transactions using
@@ -318,9 +318,10 @@ sendFaucet conn what targets = do
 
     let targetAssets = concatMap (snd . TokenBundle.toFlatList . fst . snd) targets
 
-    scripts <- forM
-        (nub $ concatMap (map snd . snd . snd) targets)
-        writeMonetaryPolicyScriptFile
+    scripts <-
+        forM
+            (nub $ concatMap (map snd . snd . snd) targets)
+            writeMonetaryPolicyScriptFile
 
     cli
         $ [ clusterEraToString cfgLastHardFork
@@ -339,10 +340,10 @@ sendFaucet conn what targets = do
           ]
             ++ concatMap (uncurry mkOutput . fmap fst) targets
             ++ mkMint targetAssets
-            ++ (concatMap
-                (\f -> ["--minting-script-file", toFilePath (absFileOf f)])
-                scripts
-                )
+            ++ ( concatMap
+                    (\f -> ["--minting-script-file", toFilePath (absFileOf f)])
+                    scripts
+               )
 
     policyKeys <-
         forM (nub $ concatMap (snd . snd) targets)
@@ -364,7 +365,8 @@ writePolicySigningKey
 writePolicySigningKey keyHash cborHex = do
     DirOf outputDir <- asks cfgClusterDir
     let keyFile = outputDir </> relFile keyHash <.> "skey"
-    liftIO $ Aeson.encodeFile (toFilePath keyFile)
+    liftIO
+        $ Aeson.encodeFile (toFilePath keyFile)
         $ object
             [ "type" .= Aeson.String "PaymentSigningKeyShelley_ed25519"
             , "description" .= Aeson.String "Payment Signing Key"

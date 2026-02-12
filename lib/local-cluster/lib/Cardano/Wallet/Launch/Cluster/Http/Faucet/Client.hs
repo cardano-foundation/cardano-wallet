@@ -16,8 +16,6 @@ module Cardano.Wallet.Launch.Cluster.Http.Faucet.Client
     )
 where
 
-import Prelude
-
 import Cardano.Wallet.Launch.Cluster.Http.Faucet.API
     ( SendFaucetAssetsAPI
     )
@@ -60,6 +58,7 @@ import UnliftIO
     , UnliftIO (..)
     , askUnliftIO
     )
+import Prelude
 
 -- | Queries that can be run against the local cluster
 data FaucetQ a where
@@ -73,7 +72,8 @@ instance Show AnyFaucetQ where
 
 -- | Opaque record of the client application
 newtype Faucet n = Faucet
-    { sendFaucetAssets :: WithNetwork SendFaucetAssets n -> ClientM NoContent
+    { sendFaucetAssets
+        :: WithNetwork SendFaucetAssets n -> ClientM NoContent
     }
 
 -- | Construct the client application given the network id witness

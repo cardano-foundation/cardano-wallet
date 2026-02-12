@@ -31,8 +31,6 @@ module Cardano.Wallet.BenchShared
     , withTempSqliteFile
     ) where
 
-import Prelude
-
 import Cardano.BM.Configuration.Static
     ( defaultConfigStdout
     )
@@ -156,6 +154,7 @@ import UnliftIO.Exception
 import UnliftIO.Temporary
     ( withSystemTempDirectory
     )
+import Prelude
 
 import qualified Cardano.BM.Configuration.Model as CM
 import qualified Cardano.BM.Data.BackendKind as CM
@@ -390,7 +389,8 @@ bench benchName action = do
     let t = Time $ finish - start
     (res, t) <$ sayErr (pretty $ nameF (build benchName) (build t))
 
-initBenchmarkLogging :: Text -> Severity -> IO (CM.Configuration, Trace IO Text)
+initBenchmarkLogging
+    :: Text -> Severity -> IO (CM.Configuration, Trace IO Text)
 initBenchmarkLogging name minSeverity = do
     c <- defaultConfigStdout
     CM.setMinSeverity c minSeverity

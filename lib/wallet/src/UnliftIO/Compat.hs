@@ -6,21 +6,18 @@
 -- this because the @retry@ package uses the generalized exception handler type
 -- from 'Control.Monad.Catch.Handler'. But the 'UnliftIO.Exceptions' module has
 -- its own definition of exactly the same type.
-
 module UnliftIO.Compat
-     ( -- * Handler conversion
-       coerceHandler
-     , coerceHandlers
-     , mkRetryHandler
+    ( -- * Handler conversion
+      coerceHandler
+    , coerceHandlers
+    , mkRetryHandler
 
-       -- * Missing combinators
-     , handleIf
+      -- * Missing combinators
+    , handleIf
 
-       -- * Re-export unsafe things
-     , AsyncCancelled (..)
-     ) where
-
-import Prelude
+      -- * Re-export unsafe things
+    , AsyncCancelled (..)
+    ) where
 
 import Cardano.Wallet.Network.Implementation.UnliftIO
     ( coerceHandler
@@ -35,6 +32,7 @@ import Control.Exception.Base
 import Control.Monad.IO.Unlift
     ( MonadUnliftIO (..)
     )
+import Prelude
 
 import qualified Control.Monad.Catch as Exceptions
 import qualified UnliftIO.Exception as UnliftIO
@@ -54,5 +52,6 @@ handleIf
     -> (e -> m a)
     -> m a
     -> m a
-handleIf f h = UnliftIO.handle
-    (\e -> if f e then h e else UnliftIO.throwIO e)
+handleIf f h =
+    UnliftIO.handle
+        (\e -> if f e then h e else UnliftIO.throwIO e)

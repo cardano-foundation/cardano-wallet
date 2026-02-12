@@ -6,8 +6,6 @@ module Cardano.Wallet.Launch.Cluster.Node.GenTopology
     )
 where
 
-import Prelude
-
 import Cardano.Wallet.Launch.Cluster.ClusterM
     ( ClusterM
     , askNodeDir
@@ -30,6 +28,7 @@ import System.Path
     , (<.>)
     , (</>)
     )
+import Prelude
 
 import qualified Data.Aeson as Aeson
 

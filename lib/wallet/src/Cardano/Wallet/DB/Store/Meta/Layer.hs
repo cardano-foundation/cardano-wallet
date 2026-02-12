@@ -11,8 +11,6 @@ module Cardano.Wallet.DB.Store.Meta.Layer
     , mkQueryStoreTxMeta
     ) where
 
-import Prelude
-
 import Cardano.Slotting.Slot
     ( SlotNo
     )
@@ -71,6 +69,7 @@ import Database.Persist.Sql
 import GHC.Natural
     ( Natural
     )
+import Prelude
 
 import qualified Cardano.Wallet.DB.Sqlite.Schema as DB
 import qualified Cardano.Wallet.Primitive.Types.Range as Range
@@ -95,9 +94,10 @@ filterMetas :: Bool -> Range SlotNo -> [Filter TxMeta]
 filterMetas _ (Range Nothing Nothing) = []
 filterMetas True (Range (Just low) Nothing) = [TxMetaSlot >=. low]
 filterMetas False (Range (Just low) Nothing) = [TxMetaSlot >. low]
-filterMetas _ (Range  Nothing (Just high)) = [TxMetaSlot <=. high]
-filterMetas b (Range low high) = filterMetas b (Range Nothing high)
-    <> filterMetas b (Range low Nothing)
+filterMetas _ (Range Nothing (Just high)) = [TxMetaSlot <=. high]
+filterMetas b (Range low high) =
+    filterMetas b (Range Nothing high)
+        <> filterMetas b (Range low Nothing)
 
 limitMetas :: Maybe Natural -> [SelectOpt record]
 limitMetas Nothing = []
@@ -108,7 +108,8 @@ orderMetas Ascending = [Asc TxMetaSlot, Asc TxMetaTxId]
 orderMetas Descending = [Desc TxMetaSlot, Asc TxMetaTxId]
 
 -- | A 'QueryStore' for 'TxMeta'.
-mkQueryStoreTxMeta :: Store (SqlPersistT IO) QueryTxMeta DeltaTxMetaHistory
+mkQueryStoreTxMeta
+    :: Store (SqlPersistT IO) QueryTxMeta DeltaTxMetaHistory
 mkQueryStoreTxMeta =
     mkQueryStore query' mkStoreMetaTransactions
   where

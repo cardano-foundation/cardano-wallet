@@ -2,8 +2,6 @@ module Cardano.Wallet.Benchmark.Memory.PmapSpec
     ( spec
     ) where
 
-import Prelude
-
 import Cardano.Wallet.Benchmark.Memory.Pmap
     ( Line (..)
     , lineParser
@@ -21,6 +19,7 @@ import Test.Hspec
     , it
     , shouldBe
     )
+import Prelude
 
 import qualified Data.ByteString.Char8 as B8
 

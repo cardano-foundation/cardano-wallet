@@ -10,8 +10,6 @@ module Cardano.Wallet.Primitive.Types.Block.Gen
     )
 where
 
-import Prelude
-
 import Cardano.Slotting.Slot
     ( SlotNo (..)
     , WithOrigin (..)
@@ -38,6 +36,7 @@ import Test.QuickCheck
     , elements
     , frequency
     )
+import Prelude
 
 genBlockHeader :: SlotNo -> Gen BlockHeader
 genBlockHeader sl = do

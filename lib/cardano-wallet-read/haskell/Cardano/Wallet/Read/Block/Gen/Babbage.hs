@@ -9,8 +9,6 @@ module Cardano.Wallet.Read.Block.Gen.Babbage
     )
 where
 
-import Prelude
-
 import Cardano.Crypto.DSIGN
     ( DSIGNAlgorithm (..)
     )
@@ -66,10 +64,11 @@ import Ouroboros.Consensus.Protocol.Praos.Header
     ( Header (..)
     , HeaderBody (..)
     )
+import Prelude
 
-import qualified Cardano.Ledger.Core as L
-import qualified Cardano.Ledger.Slot as L
-import qualified Ouroboros.Consensus.Shelley.Ledger as O
+import Cardano.Ledger.Core qualified as L
+import Cardano.Ledger.Slot qualified as L
+import Ouroboros.Consensus.Shelley.Ledger qualified as O
 
 mkBabbageBlock
     :: ( L.EraSegWits era
@@ -94,7 +93,8 @@ babbageHeader
 babbageHeader v slotNumber blockNumber =
     Header <*> mkSignedKES $ babbageBody v slotNumber blockNumber
 
-babbageBody :: Version -> L.SlotNo -> L.BlockNo -> HeaderBody StandardCrypto
+babbageBody
+    :: Version -> L.SlotNo -> L.BlockNo -> HeaderBody StandardCrypto
 babbageBody v slotNumber blockNumber =
     HeaderBody
         { hbBlockNo = blockNumber

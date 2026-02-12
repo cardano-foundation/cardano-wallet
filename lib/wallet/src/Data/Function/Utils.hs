@@ -5,11 +5,10 @@ module Data.Function.Utils
     , isInjectiveOver
     ) where
 
-import Prelude
-
 import Data.Set
     ( Set
     )
+import Prelude
 
 import qualified Data.Set as Set
 
@@ -29,6 +28,5 @@ applyN !n !f !a
 --
 -- >>> (`div` 2) `isInjectiveOver` Set.fromList [1 .. 10]
 -- False
---
 isInjectiveOver :: Ord b => (a -> b) -> Set a -> Bool
 isInjectiveOver f domain = Set.size domain == Set.size (Set.map f domain)

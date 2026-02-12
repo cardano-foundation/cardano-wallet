@@ -1,17 +1,15 @@
 {-# LANGUAGE GADTs #-}
+
 -- |
 -- Copyright: © 2024 Cardano Foundation
 -- License: Apache-2.0
 --
 -- A local state query that retrieves the current protocol parameters.
---
 module Cardano.Wallet.Network.LocalStateQuery.PParams
     ( protocolParams
     , protocolParamsLegacy
     , slottingParamsLegacy
     ) where
-
-import Prelude
 
 import Cardano.Wallet.Network.Implementation.Ouroboros
     ( LSQ (..)
@@ -53,6 +51,7 @@ import Ouroboros.Consensus.Shelley.Eras
 import Ouroboros.Consensus.Shelley.Ledger.Config
     ( getCompactGenesis
     )
+import Prelude
 
 import qualified Cardano.Chain.Update.Validation.Interface as Byron
     ( adoptedProtocolParameters

@@ -40,8 +40,6 @@ module Cardano.Wallet.Pools
     )
 where
 
-import Prelude
-
 import Cardano.BM.Data.Severity
     ( Severity (..)
     )
@@ -289,6 +287,7 @@ import UnliftIO.STM
     , writeTBQueue
     , writeTVar
     )
+import Prelude
 
 import qualified Cardano.Pool.DB as PoolDb
 import qualified Cardano.Pool.DB.Layer as Pool
@@ -463,7 +462,9 @@ newStakePoolLayer gcStatus nl db@DBLayer{..} restartSyncThread =
         -- We force a GC by resetting last sync time to 0 (start of POSIX
         -- time) and have the metadata thread restart.
         lastGC <- atomically readLastMetadataGC
-        STM.atomically $ writeTVar gcStatus $ maybe NotStarted Restarting lastGC
+        STM.atomically
+            $ writeTVar gcStatus
+            $ maybe NotStarted Restarting lastGC
         atomically $ putLastMetadataGC $ fromIntegral @Int 0
         restartSyncThread
 
@@ -557,10 +558,14 @@ combineDbAndLsqData ti nOpt lsqData =
                         , producedBlocks = (fmap fromIntegral . nProducedBlocks) dbData
                         }
                 , metadata = poolDbMetadata dbData
-                , cost = Quantity.fromCoin $
-                    poolCost $ registrationCert dbData
-                , pledge = Quantity.fromCoin $
-                    poolPledge $ registrationCert dbData
+                , cost =
+                    Quantity.fromCoin
+                        $ poolCost
+                        $ registrationCert dbData
+                , pledge =
+                    Quantity.fromCoin
+                        $ poolPledge
+                        $ registrationCert dbData
                 , margin = Quantity $ poolMargin $ registrationCert dbData
                 , retirement = retirementEpochInfo
                 , flags = [Delisted | delisted dbData]
@@ -575,7 +580,12 @@ combineDbAndLsqData ti nOpt lsqData =
 -- would be completely impractical.
 combineLsqData :: StakePoolsSummary -> Map PoolId PoolLsqData
 combineLsqData StakePoolsSummary{nOpt, rewards, stake} =
-    Map.merge stakeButNoRewards rewardsButNoStake bothPresent stake rewards
+    Map.merge
+        stakeButNoRewards
+        rewardsButNoStake
+        bothPresent
+        stake
+        rewards
   where
     -- calculate the saturation from the relative stake
     sat s = fromRational $ Percentage.toRational s / (1 / fromIntegral nOpt)
@@ -918,7 +928,8 @@ monitorMetadata gcStatus tr sp db@DBLayer{..} = do
         inFlights <- STM.atomically $ newTBQueue maxInFlight
         settings <- atomically readSettings
         endlessly [] $ \keys -> do
-            refs <- nub . (\\ keys) <$> atomically (unfetchedPoolMetadataRefs limit)
+            refs <-
+                nub . (\\ keys) <$> atomically (unfetchedPoolMetadataRefs limit)
             when (null refs) $ do
                 traceWith tr $ MsgFetchTakeBreak blockFrequency
                 threadDelay blockFrequency

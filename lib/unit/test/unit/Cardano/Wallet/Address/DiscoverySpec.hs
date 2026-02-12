@@ -11,8 +11,6 @@ module Cardano.Wallet.Address.DiscoverySpec
     ( spec
     ) where
 
-import Prelude
-
 import Cardano.Address.Derivation
     ( XPrv
     )
@@ -83,6 +81,7 @@ import Test.QuickCheck
     , property
     , (.&&.)
     )
+import Prelude
 
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Data.ByteArray as BA
@@ -112,14 +111,17 @@ prop_derivedKeysAreOurs
     -> ByronKey 'RootK XPrv
     -> Property
 prop_derivedKeysAreOurs seed encPwd accIx addrIx rk' =
-    isJust resPos .&&. addr `elem` (fst' <$> knownAddresses stPos') .&&.
-    isNothing resNeg .&&. addr `notElem` (fst' <$> knownAddresses stNeg')
+    isJust resPos
+        .&&. addr `elem` (fst' <$> knownAddresses stPos')
+        .&&. isNothing resNeg
+        .&&. addr `notElem` (fst' <$> knownAddresses stNeg')
   where
-    fst' (a,_,_) = a
+    fst' (a, _, _) = a
     (resPos, stPos') = isOurs addr (mkRndState @n rootXPrv 0)
     (resNeg, stNeg') = isOurs addr (mkRndState @n rk' 0)
-    key = publicKey ByronKeyS
-        $ unsafeGenerateKeyFromSeed @'CredFromKeyK (accIx, addrIx) seed encPwd
+    key =
+        publicKey ByronKeyS
+            $ unsafeGenerateKeyFromSeed @'CredFromKeyK (accIx, addrIx) seed encPwd
     rootXPrv = generateKeyFromSeed seed encPwd
     addr = paymentAddressS @n key
 
@@ -140,8 +142,9 @@ instance Arbitrary (ByronKey 'RootK XPrv) where
     arbitrary = genRootKeys
 
 instance Arbitrary (Passphrase "encryption") where
-    arbitrary = preparePassphrase EncryptWithPBKDF2
-        <$> arbitrary @(Passphrase "user")
+    arbitrary =
+        preparePassphrase EncryptWithPBKDF2
+            <$> arbitrary @(Passphrase "user")
 
 genRootKeys :: Gen (ByronKey 'RootK XPrv)
 genRootKeys = do

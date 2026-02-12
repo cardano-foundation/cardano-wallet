@@ -4,8 +4,6 @@
 
 module Cardano.Wallet.DB.Store.Delegations.Migrations.V5Spec where
 
-import Prelude
-
 import Cardano.Wallet.DB.LayerSpec
     ( withinCopiedFile
     )
@@ -86,6 +84,7 @@ import Test.QuickCheck
 import UnliftIO.Resource
     ( runResourceT
     )
+import Prelude
 
 import qualified Data.ByteString as BS
 import qualified Data.Text as T
@@ -143,7 +142,8 @@ testMigrationDelegationsTable dbName = do
 -- all different slots
 generateDelegations :: Int -> SlotNo -> Gen [Delegations]
 generateDelegations n lslot = do
-    indices <- drop 1 . scanl (+) 0 . fmap getPositive <$> replicateM n arbitrary
+    indices <-
+        drop 1 . scanl (+) 0 . fmap getPositive <$> replicateM n arbitrary
     forM indices $ \i -> do
         let slot = lslot + i
         status <-
@@ -166,7 +166,8 @@ arbitraryDRepID = do
 
 arbitraryDRep :: Gen DRep
 arbitraryDRep =
-    oneof [pure Abstain, pure NoConfidence, FromDRepID <$> arbitraryDRepID]
+    oneof
+        [pure Abstain, pure NoConfidence, FromDRepID <$> arbitraryDRepID]
 
 delegationOrd
     :: Delegations

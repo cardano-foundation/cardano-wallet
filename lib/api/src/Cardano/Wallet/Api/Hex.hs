@@ -4,9 +4,7 @@ module Cardano.Wallet.Api.Hex
     ( hexText
     , fromHexText
     )
-    where
-
-import Prelude
+where
 
 import Cardano.Wallet.Address.Derivation
     ( fromHex
@@ -18,6 +16,7 @@ import Data.ByteString
 import Data.Text
     ( Text
     )
+import Prelude
 
 import qualified Data.Text.Encoding as T
 

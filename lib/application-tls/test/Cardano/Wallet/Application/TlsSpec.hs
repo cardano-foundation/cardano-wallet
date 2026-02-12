@@ -6,8 +6,6 @@ module Cardano.Wallet.Application.TlsSpec
     ( spec
     ) where
 
-import Prelude
-
 import Cardano.Wallet.Application.Tls
     ( TlsConfiguration (..)
     , requireClientAuth
@@ -124,6 +122,7 @@ import UnliftIO
     , bracket
     , link
     )
+import Prelude
 
 import qualified Data.ByteString as BS
 import qualified Network.HTTP.Types.Status as Http
@@ -218,7 +217,7 @@ genPKI dir = do
     writeCert f = BS.writeFile (dir </> f <.> "crt") . encodePEM . snd
 
     findCert outDir certs = case filter ((== outDir) . takeFileName . certOutDir) certs of
-        (c:_) -> c
+        (c : _) -> c
         [] -> error "findCert: no matching certificate found"
 
 warpSettings :: Warp.Settings
@@ -290,7 +289,7 @@ mkHttpsManagerSettings TlsConfiguration{tlsCaCert, tlsSvCert, tlsSvKey} = do
         certs <- readSignedObject certFile
         keys <- readKeyFile keyFile
         case keys of
-            (k:_) -> pure (CertificateChain certs, k)
+            (k : _) -> pure (CertificateChain certs, k)
             [] -> error "readCredentials: no key found in file"
 
 -- | Start the application server, using the given settings and a bound socket.

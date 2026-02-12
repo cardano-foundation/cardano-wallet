@@ -8,8 +8,6 @@ module Cardano.Wallet.Launch.Cluster.Monitoring.Phase
     )
 where
 
-import Prelude
-
 import Cardano.Wallet.Launch.Cluster.Node.RunningNode
     ( RunningNode
     )
@@ -19,6 +17,7 @@ import Data.Time
 import GHC.Generics
     ( Generic
     )
+import Prelude
 
 -- | The different phases the cluster can be in. We use the convention to report
 -- the start of a phase.
@@ -32,7 +31,8 @@ data Phase
     | Relay
     | Cluster (Maybe RunningNode)
     deriving stock (Eq, Show, Generic)
-    -- deriving anyclass (ToJSON, FromJSON)
+
+-- deriving anyclass (ToJSON, FromJSON)
 
 -- | The history of the cluster phases
 newtype History = History

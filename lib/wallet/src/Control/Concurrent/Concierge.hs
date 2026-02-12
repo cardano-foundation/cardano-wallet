@@ -15,9 +15,7 @@ module Control.Concurrent.Concierge
     , atomicallyWith
     , atomicallyWithLifted
     )
-    where
-
-import Prelude
+where
 
 import Control.Concurrent.Class.MonadSTM
     ( MonadSTM
@@ -45,12 +43,14 @@ import Control.Monad.IO.Class
 import Data.Map.Strict
     ( Map
     )
+import Prelude
 
 import qualified Data.Map.Strict as Map
 
 {-------------------------------------------------------------------------------
     Concierge
 -------------------------------------------------------------------------------}
+
 -- | At a 'Concierge', you can obtain a lock and
 -- enforce sequential execution of concurrent 'IO' actions.
 --
@@ -81,7 +81,10 @@ atomicallyWith = atomicallyWithLifted liftIO
 atomicallyWithLifted
     :: (Ord lock, MonadSTM m, MonadThread m, MonadThrow n)
     => (forall b. m b -> n b)
-    -> Concierge m lock -> lock -> n a -> n a
+    -> Concierge m lock
+    -> lock
+    -> n a
+    -> n a
 atomicallyWithLifted lift Concierge{locks} lock action =
     bracket acquire (const release) (const action)
   where
@@ -90,7 +93,10 @@ atomicallyWithLifted lift Concierge{locks} lock action =
         atomically $ do
             ls <- readTVar locks
             case Map.lookup lock ls of
-                Just _  -> retry
+                Just _ -> retry
                 Nothing -> writeTVar locks $ Map.insert lock tid ls
-    release = lift $
-        atomically $ modifyTVar locks $ Map.delete lock
+    release =
+        lift
+            $ atomically
+            $ modifyTVar locks
+            $ Map.delete lock

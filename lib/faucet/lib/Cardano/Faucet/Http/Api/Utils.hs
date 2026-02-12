@@ -5,8 +5,6 @@
 
 module Cardano.Faucet.Http.Api.Utils where
 
-import Prelude
-
 import Data.OpenApi
     ( Reference (..)
     )
@@ -18,6 +16,7 @@ import Data.Typeable
     , Typeable
     , typeRep
     )
+import Prelude
 
 import qualified Data.Text as T
 

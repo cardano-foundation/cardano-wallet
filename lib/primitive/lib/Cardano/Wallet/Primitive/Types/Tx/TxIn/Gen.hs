@@ -12,9 +12,7 @@ module Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen
     , shrinkTxIndex
     , shrinkTxIn
     )
-    where
-
-import Prelude
+where
 
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
@@ -45,6 +43,7 @@ import Test.QuickCheck.Extra
     ( genSized2With
     , shrinkInterleaved
     )
+import Prelude
 
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Text as T
@@ -62,7 +61,7 @@ shrinkTxHash x
     | otherwise = [simplest]
   where
     simplest = case txHashes of
-        (h:_) -> h
+        (h : _) -> h
         [] -> error "shrinkTxHash: txHashes is empty"
 
 txHashes :: [Hash "Tx"]
@@ -89,7 +88,7 @@ shrinkTxIndex _ = [0]
 txIndices :: [Word32]
 txIndices =
     let w16range = [0 ..] :: [Word16]
-    in fromIntegral <$> w16range
+    in  fromIntegral <$> w16range
 
 --------------------------------------------------------------------------------
 -- Transaction inputs generated according to the size parameter
@@ -99,20 +98,23 @@ genTxIn :: Gen TxIn
 genTxIn = genSized2With TxIn genTxHash genTxIndex
 
 shrinkTxIn :: TxIn -> [TxIn]
-shrinkTxIn (TxIn h i) = uncurry TxIn <$> shrinkInterleaved
-    (h, shrinkTxHash)
-    (i, shrinkTxIndex)
+shrinkTxIn (TxIn h i) =
+    uncurry TxIn
+        <$> shrinkInterleaved
+            (h, shrinkTxHash)
+            (i, shrinkTxIndex)
 
 --------------------------------------------------------------------------------
 -- Transaction inputs chosen from a large range (to minimize collisions)
 --------------------------------------------------------------------------------
 
 genTxInLargeRange :: Gen TxIn
-genTxInLargeRange = TxIn
-    <$> genTxHashLargeRange
-    -- Note that we don't need to choose indices from a large range, as hashes
-    -- are already chosen from a large range:
-    <*> genTxIndex
+genTxInLargeRange =
+    TxIn
+        <$> genTxHashLargeRange
+        -- Note that we don't need to choose indices from a large range, as hashes
+        -- are already chosen from a large range:
+        <*> genTxIndex
 
 --------------------------------------------------------------------------------
 -- Internal utilities
@@ -121,14 +123,15 @@ genTxInLargeRange = TxIn
 -- The input must be a character in the range [0-9] or [A-F].
 --
 mkTxHash :: Char -> Hash "Tx"
-mkTxHash c
-    = fromRight reportError
-    $ fromText
-    $ T.pack
-    $ replicate txHashHexStringLength c
+mkTxHash c =
+    fromRight reportError
+        $ fromText
+        $ T.pack
+        $ replicate txHashHexStringLength c
   where
-    reportError = error $
-        "Unable to generate transaction hash from character: " <> show c
+    reportError =
+        error
+            $ "Unable to generate transaction hash from character: " <> show c
 
 txHashHexStringLength :: Int
 txHashHexStringLength = 64

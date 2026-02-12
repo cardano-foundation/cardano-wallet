@@ -1,10 +1,9 @@
-{- |
-Copyright: © 2024 Cardano Foundation
-License: Apache-2.0
-
-The 'Block' type represents a block indexed by one of the known eras.
-It is compatible with the types from @cardano-ledger@.
--}
+-- |
+-- Copyright: © 2024 Cardano Foundation
+-- License: Apache-2.0
+--
+-- The 'Block' type represents a block indexed by one of the known eras.
+-- It is compatible with the types from @cardano-ledger@.
 module Cardano.Wallet.Read.Block
     ( module Cardano.Read.Ledger.Block.BHeader
     , module Cardano.Read.Ledger.Block.Block

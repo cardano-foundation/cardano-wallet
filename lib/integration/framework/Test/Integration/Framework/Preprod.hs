@@ -8,19 +8,10 @@
 {-# LANGUAGE TypeApplications #-}
 
 module Test.Integration.Framework.Preprod
-    ( PreprodSetupLog(..)
+    ( PreprodSetupLog (..)
     , setupPreprodWallets
     , fixturePreprodWallets
     ) where
-
-import Prelude
-
-import qualified Cardano.Wallet.Api.Link as Link
-import qualified Data.Aeson as Aeson
-import qualified Data.ByteString.Lazy.Char8 as BL8
-import qualified Data.Map as Map
-import qualified Data.Text as T
-import qualified Network.HTTP.Types.Status as HTTP
 
 import Cardano.Mnemonic
     ( SomeMnemonic (..)
@@ -70,7 +61,8 @@ import Data.Generics.Internal.VL.Lens
     , (^.)
     )
 import Data.Generics.Labels
-    ()
+    (
+    )
 import Data.Map
     ( Map
     )
@@ -106,6 +98,14 @@ import Test.Integration.Framework.Request
     ( RequestException
     , request
     )
+import Prelude
+
+import qualified Cardano.Wallet.Api.Link as Link
+import qualified Data.Aeson as Aeson
+import qualified Data.ByteString.Lazy.Char8 as BL8
+import qualified Data.Map as Map
+import qualified Data.Text as T
+import qualified Network.HTTP.Types.Status as HTTP
 
 data PreprodSetupLog
     = WaitingForNodeConnection
@@ -113,7 +113,8 @@ data PreprodSetupLog
     | WaitingForWalletsToSync
     | PreprodSetupReady
 
-setupPreprodWallets :: Tracer IO PreprodSetupLog -> [SomeMnemonic] -> Context -> IO Context
+setupPreprodWallets
+    :: Tracer IO PreprodSetupLog -> [SomeMnemonic] -> Context -> IO Context
 setupPreprodWallets tr mnemonics ctx = do
     traceWith tr WaitingForNodeConnection
     waitForConnection
@@ -121,12 +122,21 @@ setupPreprodWallets tr mnemonics ctx = do
     traceWith tr CreatingWallets
     createWalletsIfNeeded mnemonics
 
-    wallets <- getResponse <$> request @[ApiWallet] ctx
-        (Link.listWallets @'Shelley) Default Empty
-    unless (length wallets == length mnemonics) $
-        expectationFailure $ unwords
-            [ "Setup error: have", show (length mnemonics), "mnemonics but only"
-            , show wallets, "have now been created."
+    wallets <-
+        getResponse
+            <$> request @[ApiWallet]
+                ctx
+                (Link.listWallets @'Shelley)
+                Default
+                Empty
+    unless (length wallets == length mnemonics)
+        $ expectationFailure
+        $ unwords
+            [ "Setup error: have"
+            , show (length mnemonics)
+            , "mnemonics but only"
+            , show wallets
+            , "have now been created."
             ]
 
     let walletIds = map (getApiT . view #id) wallets
@@ -136,33 +146,46 @@ setupPreprodWallets tr mnemonics ctx = do
     assertWalletsAreFunded
     traceWith tr PreprodSetupReady
 
-    pure ctx{ _preprodWallets = walletIds }
+    pure ctx{_preprodWallets = walletIds}
   where
     createWalletsIfNeeded :: [SomeMnemonic] -> IO ()
     createWalletsIfNeeded = mapM_ createWalletIfNeeded
 
     createWalletIfNeeded :: SomeMnemonic -> IO ()
     createWalletIfNeeded (SomeMnemonic mnemonic) = do
-        (s, response) <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default $ Json
-            [aesonQQ| {
+        (s, response) <-
+            request @ApiWallet ctx (Link.postWallet @'Shelley) Default
+                $ Json
+                    [aesonQQ| {
                 "name": "Faucet Wallet",
                 "mnemonic_sentence": #{mnemonicToText mnemonic},
                 "passphrase": #{fixturePassphrase}
             } |]
         case response of
             Right _ | s == HTTP.status201 -> pure ()
-            Left e | s == HTTP.status409 -> show e `shouldContain` "wallet_already_exists"
-            _ -> expectationFailure $ unwords
-                [ "setupPreprodWallets, createWalletsIfNeeded: unexpected response"
-                , show (s, response)
-                ]
+            Left e
+                | s == HTTP.status409 ->
+                    show e `shouldContain` "wallet_already_exists"
+            _ ->
+                expectationFailure
+                    $ unwords
+                        [ "setupPreprodWallets, createWalletsIfNeeded: unexpected response"
+                        , show (s, response)
+                        ]
 
     waitForConnection :: IO ()
-    waitForConnection = void $ retrying
-        (capDelay (30*oneSecond) $ fibonacciBackoff oneSecond)
-        shouldWait
-        (\_retryStatus -> request @ApiNetworkInformation ctx
-          Link.getNetworkInfo Default Empty)
+    waitForConnection =
+        void
+            $ retrying
+                (capDelay (30 * oneSecond) $ fibonacciBackoff oneSecond)
+                shouldWait
+                ( \_retryStatus ->
+                    request @ApiNetworkInformation
+                        ctx
+                        Link.getNetworkInfo
+                        Default
+                        Empty
+                )
       where
         shouldWait
             :: RetryStatus
@@ -173,52 +196,79 @@ setupPreprodWallets tr mnemonics ctx = do
 
     waitForAllWalletsToSync :: IO ()
     waitForAllWalletsToSync = do
-        eventuallyUsingDelay (5 * s) (90 * minutes) "setupPreprodWallets: all wallets are synced" $ do
-            wallets :: [ApiWallet] <- getResponse <$> request @[ApiWallet] ctx
-                (Link.listWallets @'Shelley) Default Empty
-            let progress = map (getApiT . view #state) wallets
-            all (== Ready) progress `shouldBe` True
+        eventuallyUsingDelay
+            (5 * s)
+            (90 * minutes)
+            "setupPreprodWallets: all wallets are synced"
+            $ do
+                wallets :: [ApiWallet] <-
+                    getResponse
+                        <$> request @[ApiWallet]
+                            ctx
+                            (Link.listWallets @'Shelley)
+                            Default
+                            Empty
+                let progress = map (getApiT . view #state) wallets
+                all (== Ready) progress `shouldBe` True
       where
         s = 1_000_000
         minutes = 60
 
     assertWalletsAreFunded :: IO ()
     assertWalletsAreFunded = do
-        wallets :: [ApiWallet] <- getResponse <$> request @[ApiWallet] ctx
-            (Link.listWallets @'Shelley) Default Empty
+        wallets :: [ApiWallet] <-
+            getResponse
+                <$> request @[ApiWallet]
+                    ctx
+                    (Link.listWallets @'Shelley)
+                    Default
+                    Empty
         addrsInNeedOfFunding <- catMaybes <$> mapM requiresFunding wallets
-        unless (null addrsInNeedOfFunding) $
-            expectationFailure $ fmt $ build $ mconcat
+        unless (null addrsInNeedOfFunding)
+            $ expectationFailure
+            $ fmt
+            $ build
+            $ mconcat
                 [ "Not all the expected wallets are funded. Please send funds"
                 , "to the following addresses before rerunning the tests:\n"
                 , blockListF addrsInNeedOfFunding
                 ]
       where
-        -- | Return address of the wallet if the wallet requires funding.
+        -- \| Return address of the wallet if the wallet requires funding.
         requiresFunding :: ApiWallet -> IO (Maybe String)
         requiresFunding w
-            | w ^. #balance . #total . #toNatural > 5_000_000
-                = pure Nothing
+            | w ^. #balance . #total . #toNatural > 5_000_000 =
+                pure Nothing
             | otherwise = do
-                resp <- getResponse
-                    <$> request @[ApiAddressWithPath ('Testnet 1)] ctx -- hardcoded to preprod
-                            (Link.listAddresses @'Shelley w) Default Empty
+                resp <-
+                    getResponse
+                        <$> request @[ApiAddressWithPath ('Testnet 1)]
+                            ctx -- hardcoded to preprod
+                            (Link.listAddresses @'Shelley w)
+                            Default
+                            Empty
                 case resp of
-                    (a:_) -> pure $ Just $ toStringViaJson (view #id a)
+                    (a : _) -> pure $ Just $ toStringViaJson (view #id a)
                     [] -> error "expected addresses in wallet"
 
         toStringViaJson :: ToJSON a => a -> String
         toStringViaJson x =
-          case Aeson.decode (Aeson.encode x) of
-            Just (Aeson.String t)
-                -> T.unpack t
-            _
-                -> BL8.unpack (Aeson.encode x) -- we can return the unexpected object
+            case Aeson.decode (Aeson.encode x) of
+                Just (Aeson.String t) ->
+                    T.unpack t
+                _ ->
+                    BL8.unpack (Aeson.encode x) -- we can return the unexpected object
 
-fixturePreprodWallets :: (HasCallStack, MonadUnliftIO m) => Context -> m [ApiWallet]
+fixturePreprodWallets
+    :: (HasCallStack, MonadUnliftIO m) => Context -> m [ApiWallet]
 fixturePreprodWallets ctx = do
-    wallets <- getResponse <$> request @[ApiWallet] ctx
-        (Link.listWallets @'Shelley) Default Empty
+    wallets <-
+        getResponse
+            <$> request @[ApiWallet]
+                ctx
+                (Link.listWallets @'Shelley)
+                Default
+                Empty
 
     let keyByWalletId :: ApiWallet -> (WalletId, ApiWallet)
         keyByWalletId w = (getApiT $ w ^. #id, w)
@@ -229,10 +279,15 @@ fixturePreprodWallets ctx = do
         lookupWallet :: WalletId -> ApiWallet
         lookupWallet wid = fromMaybe err $ Map.lookup wid walletsById
           where
-            err = error $ unwords
-                [ "fixturePreprodWallets: expected", show wid, "to be an"
-                , "existing wallet. The wallets that could be found are:\n\n"
-                ] ++ unlines (map show wallets)
+            err =
+                error
+                    $ unwords
+                        [ "fixturePreprodWallets: expected"
+                        , show wid
+                        , "to be an"
+                        , "existing wallet. The wallets that could be found are:\n\n"
+                        ]
+                        ++ unlines (map show wallets)
 
     -- Use the information from 'wallets'
     pure $ map lookupWallet $ _preprodWallets ctx

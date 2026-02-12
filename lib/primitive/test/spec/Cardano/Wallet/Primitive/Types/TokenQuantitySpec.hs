@@ -1,16 +1,13 @@
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-}
-
+{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Cardano.Wallet.Primitive.Types.TokenQuantitySpec
     ( spec
     ) where
-
-import Prelude
 
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..)
@@ -81,6 +78,7 @@ import Test.Utils.Laws
 import Test.Utils.Paths
     ( getTestData
     )
+import Prelude
 
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TokenQuantity
 import qualified Data.Char as Char
@@ -91,69 +89,71 @@ import qualified Test.Utils.Roundtrip as JsonRoundtrip
 
 spec :: Spec
 spec =
-    describe "Token quantity properties" $
-    modifyMaxSuccess (const 1000) $ do
+    describe "Token quantity properties"
+        $ modifyMaxSuccess (const 1000)
+        $ do
+            describe "Class instances obey laws" $ do
+                testLawsMany @TokenQuantity
+                    [ eqLaws
+                    , monoidLaws
+                    , ordLaws
+                    , semigroupLaws
+                    , semigroupMonoidLaws
+                    , showReadLaws
+                    ]
 
-    describe "Class instances obey laws" $ do
-        testLawsMany @TokenQuantity
-            [ eqLaws
-            , monoidLaws
-            , ordLaws
-            , semigroupLaws
-            , semigroupMonoidLaws
-            , showReadLaws
-            ]
+            describe "Operations" $ do
+                it "prop_pred_succ"
+                    $ property prop_pred_succ
+                it "prop_succ_pred"
+                    $ property prop_succ_pred
+                it "prop_succ_predZero"
+                    $ property prop_succ_predZero
+                it "prop_predZero_difference"
+                    $ property prop_predZero_difference
+                it "prop_predZero_pred"
+                    $ property prop_predZero_pred
 
-    describe "Operations" $ do
+            describe "Partitioning" $ do
+                it "prop_partitionDefault_fold"
+                    $ prop_partitionDefault_fold
+                    & property
+                it "prop_partitionDefault_length"
+                    $ prop_partitionDefault_length
+                    & property
+                it "prop_partitionDefault_zeroWeightSum"
+                    $ prop_partitionDefault_zeroWeightSum
+                    & property
 
-        it "prop_pred_succ" $
-            property prop_pred_succ
-        it "prop_succ_pred" $
-            property prop_succ_pred
-        it "prop_succ_predZero" $
-            property prop_succ_predZero
-        it "prop_predZero_difference" $
-            property prop_predZero_difference
-        it "prop_predZero_pred" $
-            property prop_predZero_pred
+            describe "Generating partitions" $ do
+                it "prop_genTokenQuantityPartition_fold"
+                    $ prop_genTokenQuantityPartition_fold
+                    & property
+                it "prop_genTokenQuantityPartition_length"
+                    $ prop_genTokenQuantityPartition_length
+                    & property
+                it "prop_genTokenQuantityPartition_nonPositive"
+                    $ prop_genTokenQuantityPartition_nonPositive
+                    & property
 
-    describe "Partitioning" $ do
+            describe "JSON serialization" $ do
+                describe "Roundtrip tests" $ do
+                    testJson $ Proxy @TokenQuantity
 
-        it "prop_partitionDefault_fold" $
-            prop_partitionDefault_fold & property
-        it "prop_partitionDefault_length" $
-            prop_partitionDefault_length & property
-        it "prop_partitionDefault_zeroWeightSum" $
-            prop_partitionDefault_zeroWeightSum & property
-
-    describe "Generating partitions" $ do
-
-        it "prop_genTokenQuantityPartition_fold" $
-            prop_genTokenQuantityPartition_fold & property
-        it "prop_genTokenQuantityPartition_length" $
-            prop_genTokenQuantityPartition_length & property
-        it "prop_genTokenQuantityPartition_nonPositive" $
-            prop_genTokenQuantityPartition_nonPositive & property
-
-    describe "JSON serialization" $ do
-
-        describe "Roundtrip tests" $ do
-            testJson $ Proxy @TokenQuantity
-
-    describe "Text serialization" $ do
-
-        describe "Roundtrip tests" $ do
-            textRoundtrip $ Proxy @TokenQuantity
-        it "prop_toText_noQuotes" $ do
-            property prop_toText_noQuotes
+            describe "Text serialization" $ do
+                describe "Roundtrip tests" $ do
+                    textRoundtrip $ Proxy @TokenQuantity
+                it "prop_toText_noQuotes" $ do
+                    property prop_toText_noQuotes
 
 --------------------------------------------------------------------------------
 -- Operations
 --------------------------------------------------------------------------------
 
 prop_pred_succ :: TokenQuantity -> Property
-prop_pred_succ q = q > TokenQuantity.zero ==>
-    (TokenQuantity.succ <$> TokenQuantity.pred q) === Just q
+prop_pred_succ q =
+    q > TokenQuantity.zero ==>
+        (TokenQuantity.succ <$> TokenQuantity.pred q) === Just q
 
 prop_succ_pred :: TokenQuantity -> Property
 prop_succ_pred q =
@@ -165,19 +165,20 @@ prop_succ_predZero q =
 
 prop_predZero_difference :: TokenQuantity -> Property
 prop_predZero_difference q =
-    checkCoverage $
-    cover  1 (q == TokenQuantity 0) "q == 0" $
-    cover 10 (q >= TokenQuantity 1) "q >= 1" $
-    TokenQuantity.predZero q === q `TokenQuantity.difference` TokenQuantity 1
+    checkCoverage
+        $ cover 1 (q == TokenQuantity 0) "q == 0"
+        $ cover 10 (q >= TokenQuantity 1) "q >= 1"
+        $ TokenQuantity.predZero q
+            === q `TokenQuantity.difference` TokenQuantity 1
 
 prop_predZero_pred :: TokenQuantity -> Property
 prop_predZero_pred q =
-    checkCoverage $
-    cover  1 (q == TokenQuantity 0) "q == 0" $
-    cover 10 (q >= TokenQuantity 1) "q >= 1" $
-    if q == TokenQuantity.zero
-    then TokenQuantity.predZero q === TokenQuantity.zero
-    else Just (TokenQuantity.predZero q) === TokenQuantity.pred q
+    checkCoverage
+        $ cover 1 (q == TokenQuantity 0) "q == 0"
+        $ cover 10 (q >= TokenQuantity 1) "q >= 1"
+        $ if q == TokenQuantity.zero
+            then TokenQuantity.predZero q === TokenQuantity.zero
+            else Just (TokenQuantity.predZero q) === TokenQuantity.pred q
 
 --------------------------------------------------------------------------------
 -- Partitioning

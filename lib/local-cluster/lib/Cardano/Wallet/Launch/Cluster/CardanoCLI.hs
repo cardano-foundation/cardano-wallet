@@ -12,8 +12,6 @@ module Cardano.Wallet.Launch.Cluster.CardanoCLI
     )
 where
 
-import Prelude
-
 import Cardano.BM.Tracing
     ( Tracer
     , traceWith
@@ -67,6 +65,7 @@ import System.Process.Typed
     , setEnv
     , setEnvInherit
     )
+import Prelude
 
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Lazy.Char8 as BL8
@@ -143,17 +142,20 @@ cliRetry
     -> ClusterM ()
 cliRetry msg processConfig = do
     Config{..} <- ask
-    (st, out, err) <- liftIO $ retrying pol (const isFail) (const $ cmd cfgTracer)
+    (st, out, err) <-
+        liftIO $ retrying pol (const isFail) (const $ cmd cfgTracer)
     traceClusterLog $ MsgCLIStatus msg st out err
     case st of
         ExitSuccess -> pure ()
-        ExitFailure _ -> liftIO $
-            throwIO
+        ExitFailure _ ->
+            liftIO
+                $ throwIO
                 $ ProcessHasExited
                     ("cardano-cli failed: " <> BL8.unpack err)
                     st
   where
-    cmd :: Tracer IO ClusterLog -> IO (ExitCode, BL8.ByteString, BL8.ByteString)
+    cmd
+        :: Tracer IO ClusterLog -> IO (ExitCode, BL8.ByteString, BL8.ByteString)
     cmd tr = do
         traceWith tr $ MsgCLIRetry msg
         (st, out, err) <- readProcess processConfig

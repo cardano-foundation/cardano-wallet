@@ -7,8 +7,6 @@ module Cardano.Wallet.DB.Store.Checkpoints.Migration
     ( migratePrologue
     ) where
 
-import Prelude
-
 import Cardano.DB.Sqlite
     ( ReadDBHandle
     , dbConn
@@ -39,6 +37,7 @@ import Control.Monad.Trans.Reader
 import Data.Text
     ( Text
     )
+import Prelude
 
 import qualified Data.Text as T
 import qualified Database.Sqlite as Sqlite
@@ -47,8 +46,16 @@ migratePrologue
     :: Migration (ReadDBHandle IO) 3 4
 migratePrologue = mkMigration $ ReaderT $ \db -> void $ do
     let conn = dbConn db
-    addColumnIfMissing conn True (DBField SeqStateChangeAddrMode) defaultVal
-    addColumnIfMissing conn True (DBField SharedStateChangeAddrMode) defaultVal
+    addColumnIfMissing
+        conn
+        True
+        (DBField SeqStateChangeAddrMode)
+        defaultVal
+    addColumnIfMissing
+        conn
+        True
+        (DBField SharedStateChangeAddrMode)
+        defaultVal
   where
     defaultVal = "increasing"
 
@@ -63,24 +70,39 @@ addColumnIfMissing
     -> IO ()
 addColumnIfMissing conn notNull field value = do
     isFieldPresent conn field >>= \case
-        TableMissing -> fail $ T.unpack $ T.unwords
-            [ headerFail
-            , "Expected TABLE", tableName field
-            , "to exist."
-            ]
+        TableMissing ->
+            fail
+                $ T.unpack
+                $ T.unwords
+                    [ headerFail
+                    , "Expected TABLE"
+                    , tableName field
+                    , "to exist."
+                    ]
         ColumnMissing -> do
-            query <- Sqlite.prepare conn $ T.unwords
-                [ "ALTER TABLE", tableName field
-                , "ADD COLUMN", fieldName field
-                , fieldType field, if notNull then "NOT NULL" else ""
-                , "DEFAULT", value
-                , ";"
-                ]
+            query <-
+                Sqlite.prepare conn
+                    $ T.unwords
+                        [ "ALTER TABLE"
+                        , tableName field
+                        , "ADD COLUMN"
+                        , fieldName field
+                        , fieldType field
+                        , if notNull then "NOT NULL" else ""
+                        , "DEFAULT"
+                        , value
+                        , ";"
+                        ]
             _ <- Sqlite.step query
             Sqlite.finalize query
-        ColumnPresent -> fail $ T.unpack $ T.unwords
-            [ headerFail
-            , "Expected COLUMN", fieldName field
-            , "in TABLE", tableName field
-            , "to not exist."
-            ]
+        ColumnPresent ->
+            fail
+                $ T.unpack
+                $ T.unwords
+                    [ headerFail
+                    , "Expected COLUMN"
+                    , fieldName field
+                    , "in TABLE"
+                    , tableName field
+                    , "to not exist."
+                    ]

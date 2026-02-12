@@ -17,8 +17,6 @@ module Buildkite.Connection
     )
 where
 
-import Prelude
-
 import Buildkite.API
     ( HandleClientError (..)
     , Skipping (..)
@@ -63,6 +61,7 @@ import Servant.Client
 import System.Environment
     ( getEnv
     )
+import Prelude
 
 import qualified Data.Text as T
 

@@ -2,8 +2,6 @@ module Cardano.Wallet.Primitive.Types.TokenFingerprintSpec
     ( spec
     ) where
 
-import Prelude
-
 import Cardano.Wallet.Primitive.Types.AssetName
     ( AssetName (..)
     )
@@ -33,6 +31,7 @@ import Test.Hspec
     , it
     , shouldBe
     )
+import Prelude
 
 import qualified Data.Text as T
 

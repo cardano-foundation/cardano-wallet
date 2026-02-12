@@ -18,8 +18,6 @@ module Cardano.Wallet.Launch.Cluster.Logging
     )
 where
 
-import Prelude
-
 import Cardano.BM.Extra
     ( BracketLog
     , bracketTracer
@@ -72,6 +70,7 @@ import System.Path
     , (<.>)
     , (</>)
     )
+import Prelude
 
 import qualified Data.ByteString.Lazy.Char8 as BL8
 import qualified Data.Text as T

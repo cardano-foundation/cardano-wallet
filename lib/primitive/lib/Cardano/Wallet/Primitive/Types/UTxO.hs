@@ -13,12 +13,9 @@
 -- License: Apache-2.0
 --
 -- This module provides the main 'UTxO' data type used by the wallet.
---
 module Cardano.Wallet.Primitive.Types.UTxO
-    (
-    -- * UTxO
+    ( -- * UTxO
       UTxO (..)
-
     , dom
     , null
     , size
@@ -39,29 +36,22 @@ module Cardano.Wallet.Primitive.Types.UTxO
     , filterByAddress
     , toList
 
-    -- * UTxO delta encoding
+      -- * UTxO delta encoding
     , DeltaUTxO
     , excluded
     , received
     , excludingD
     , receiveD
 
-    -- * Queries
+      -- * Queries
     , assetIds
     , txIds
 
-    -- * Transformations
+      -- * Transformations
     , mapAssetIds
     , mapTxIds
     , removeAssetId
-
     ) where
-
-import Prelude hiding
-    ( filter
-    , lookup
-    , null
-    )
 
 import Cardano.Wallet.Primitive.Types.Address
     ( Address
@@ -110,6 +100,11 @@ import Fmt
 import GHC.Generics
     ( Generic
     )
+import Prelude hiding
+    ( filter
+    , lookup
+    , null
+    )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TB
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
@@ -120,7 +115,7 @@ import qualified Data.Set as Set
 -- UTxO
 --------------------------------------------------------------------------------
 
-newtype UTxO = UTxO { unUTxO :: Map TxIn TxOut }
+newtype UTxO = UTxO {unUTxO :: Map TxIn TxOut}
     deriving stock (Show, Generic, Eq, Ord)
     deriving newtype (Semigroup, Monoid)
 
@@ -130,12 +125,17 @@ instance Buildable UTxO where
     build (UTxO utxo) =
         blockListF' "-" utxoF (Map.toList utxo)
       where
-        utxoF (inp, out) = buildMap
-            [ ("input"
-              , build inp)
-            , ("output"
-              , build out)
-            ]
+        utxoF (inp, out) =
+            buildMap
+                [
+                    ( "input"
+                    , build inp
+                    )
+                ,
+                    ( "output"
+                    , build out
+                    )
+                ]
         buildMap = blockMapF . fmap (first $ id @String)
 
 -- | Domain of a 'UTxO' = the set of /inputs/ of the /utxo/.
@@ -157,12 +157,11 @@ intersection :: UTxO -> UTxO -> UTxO
 intersection (UTxO a) (UTxO b) = UTxO $ Map.intersection a b
 
 -- | Indicates whether a pair of UTxO sets are disjoint.
---
 disjoint :: UTxO -> UTxO -> Bool
 disjoint u1 u2 = unUTxO u1 `Map.disjoint` unUTxO u2
 
 -- | ins⋪ u
-excluding :: UTxO -> Set TxIn ->  UTxO
+excluding :: UTxO -> Set TxIn -> UTxO
 excluding (UTxO utxo) =
     UTxO . Map.withoutKeys utxo
 
@@ -205,7 +204,8 @@ lookup i (UTxO u) = Map.lookup i u
 --
 -- Returns the subset of UTxO entries that have addresses for which the given
 -- indicator function returns 'True'.
-filterByAddressM :: forall f. Monad f => (Address -> f Bool) -> UTxO -> f UTxO
+filterByAddressM
+    :: forall f. Monad f => (Address -> f Bool) -> UTxO -> f UTxO
 filterByAddressM isOursF (UTxO m) =
     UTxO <$> Map.traverseMaybeWithKey filterFunc m
   where
@@ -235,18 +235,21 @@ partition :: (TxIn -> Bool) -> UTxO -> (UTxO, UTxO)
 partition f (UTxO u) = bimap UTxO UTxO $ Map.partitionWithKey (const . f) u
 
 -- | Converts a UTxO set into a list of UTxO elements.
---
 toList :: UTxO -> [(TxIn, TxOut)]
 toList = Map.toList . unUTxO
 
 {-------------------------------------------------------------------------------
     Delta encodings of UTxO
 -------------------------------------------------------------------------------}
+
 -- | Efficient delta encoding for 'UTxO'.
 data DeltaUTxO = DeltaUTxO
-    { excluded :: !(Set TxIn) -- ^ First exclude these inputs
-    , received :: !UTxO       -- ^ Then receive these additional outputs.
-    } deriving (Generic, Eq, Show)
+    { excluded :: !(Set TxIn)
+    -- ^ First exclude these inputs
+    , received :: !UTxO
+    -- ^ Then receive these additional outputs.
+    }
+    deriving (Generic, Eq, Show)
 
 instance Delta DeltaUTxO where
     type Base DeltaUTxO = UTxO
@@ -254,10 +257,11 @@ instance Delta DeltaUTxO where
 
 -- | Left argument is applied /after/ right argument.
 instance Semigroup DeltaUTxO where
-    db <> da = DeltaUTxO
-        { excluded = excluded da <> excluded'db
-        , received = received'da <> received db
-        }
+    db <> da =
+        DeltaUTxO
+            { excluded = excluded da <> excluded'db
+            , received = received'da <> received db
+            }
       where
         received'da = received da `excluding` excluded db
         excluded'db = excluded db `excludingS` received da
@@ -271,21 +275,21 @@ restrictedByS :: Set TxIn -> UTxO -> Set TxIn
 restrictedByS a (UTxO b) = Set.filter (`Map.member` b) a
 
 instance Monoid DeltaUTxO where
-    mempty = DeltaUTxO { excluded = mempty, received = mempty }
+    mempty = DeltaUTxO{excluded = mempty, received = mempty}
 
 -- | Exclude a set of transaction inputs, typically because we spend them.
 excludingD :: UTxO -> Set TxIn -> (DeltaUTxO, UTxO)
 excludingD u ins = (du, u `excluding` spent)
   where
     spent = ins `restrictedByS` u
-    du = DeltaUTxO { excluded = spent, received = mempty }
+    du = DeltaUTxO{excluded = spent, received = mempty}
 
 -- | Receive additional 'UTxO' / union.
 receiveD :: UTxO -> UTxO -> (DeltaUTxO, UTxO)
 receiveD a b = (da, a <> new)
   where
-    new =  b `excluding` dom a
-    da = DeltaUTxO { excluded = mempty, received = new}
+    new = b `excluding` dom a
+    da = DeltaUTxO{excluded = mempty, received = new}
 
 --------------------------------------------------------------------------------
 -- Queries
@@ -309,7 +313,6 @@ mapAssetIds f (UTxO u) = UTxO $ Map.map (TxOut.mapAssetIds f) u
 -- If the provided mapping gives rise to a collision within the 'TxIn' key set,
 -- then only the smallest 'TxOut' is retained, according to the 'Ord' instance
 -- for 'TxOut'.
---
 mapTxIds :: (TxId -> TxId) -> UTxO -> UTxO
 mapTxIds f (UTxO u) = UTxO $ Map.mapKeysWith min (over #inputId f) u
 

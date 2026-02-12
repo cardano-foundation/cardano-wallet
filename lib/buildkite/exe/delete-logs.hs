@@ -1,7 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-import Prelude
-
 import Buildkite.API
     ( Job (..)
     )
@@ -18,8 +16,6 @@ import Control.Tracer
 import Data.Text
     ( Text
     )
-import qualified Data.Text as T
-import qualified Data.Text.IO as T
 import Options.Applicative
     ( Parser
     , execParser
@@ -34,6 +30,10 @@ import Options.Applicative
     , strOption
     , (<**>)
     )
+import Prelude
+
+import qualified Data.Text as T
+import qualified Data.Text.IO as T
 import qualified Streaming.Prelude as S
 
 data Options

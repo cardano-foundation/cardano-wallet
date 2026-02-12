@@ -8,7 +8,6 @@
 -- License: Apache-2.0
 --
 -- Provides generators and shrinkers for the 'TxWithUTxO' data type.
---
 module Internal.Cardano.Write.Tx.TxWithUTxO.Gen
     ( generate
     , generateWithMinimalUTxO
@@ -17,9 +16,7 @@ module Internal.Cardano.Write.Tx.TxWithUTxO.Gen
     , shrinkTxWith
     , shrinkUTxOWith
     )
-    where
-
-import Prelude
+where
 
 import Cardano.Ledger.Api
     ( EraTx (bodyTxL)
@@ -52,6 +49,7 @@ import Test.QuickCheck.Extra
     , genNonEmptyDisjointMap
     , interleaveRoundRobin
     )
+import Prelude
 
 import qualified Internal.Cardano.Write.Tx.TxWithUTxO as TxWithUTxO
 
@@ -59,7 +57,6 @@ import qualified Internal.Cardano.Write.Tx.TxWithUTxO as TxWithUTxO
 --
 -- The domain of the UTxO map is a superset of the transaction input set, but
 -- it may or may not be a strict superset.
---
 generate
     :: IsRecentEra era
     => Gen (Tx era)
@@ -68,14 +65,13 @@ generate
     -> Gen (TxWithUTxO era)
 generate genTx genTxIn genTxOut =
     frequency
-        [ (9, generateWithMinimalUTxO genTx         genTxOut)
+        [ (9, generateWithMinimalUTxO genTx genTxOut)
         , (1, generateWithSurplusUTxO genTx genTxIn genTxOut)
         ]
 
 -- | Generates a 'TxWithUTxO' object that has a minimal UTxO set.
 --
 -- The domain of the UTxO map is exactly equal to the transaction input set.
---
 generateWithMinimalUTxO
     :: IsRecentEra era
     => Gen (Tx era)
@@ -91,9 +87,9 @@ generateWithMinimalUTxO genTx genTxOut = do
 -- | Generates a 'TxWithUTxO' object that has a surplus UTxO set.
 --
 -- The domain of the UTxO map is a strict superset of the transaction input set.
---
 generateWithSurplusUTxO
-    :: forall era. ()
+    :: forall era
+     . ()
     => IsRecentEra era
     => Gen (Tx era)
     -> Gen (TxIn)
@@ -107,25 +103,25 @@ generateWithSurplusUTxO genTx genTxIn genTxOut =
 
 shrinkWith
     :: IsRecentEra era
-    => (Tx         era -> [Tx         era])
-    -> (UTxO       era -> [UTxO       era])
+    => (Tx era -> [Tx era])
+    -> (UTxO era -> [UTxO era])
     -> (TxWithUTxO era -> [TxWithUTxO era])
 shrinkWith shrinkTx shrinkUTxO txWithUTxO =
     interleaveRoundRobin
-        [ shrinkTxWith   shrinkTx   txWithUTxO
+        [ shrinkTxWith shrinkTx txWithUTxO
         , shrinkUTxOWith shrinkUTxO txWithUTxO
         ]
 
 shrinkTxWith
     :: IsRecentEra era
-    => (Tx         era -> [Tx         era])
+    => (Tx era -> [Tx era])
     -> (TxWithUTxO era -> [TxWithUTxO era])
 shrinkTxWith shrinkTx (TxWithUTxO tx utxo) =
-    [ TxWithUTxO.constructFiltered tx' utxo | tx' <- shrinkTx tx ]
+    [TxWithUTxO.constructFiltered tx' utxo | tx' <- shrinkTx tx]
 
 shrinkUTxOWith
     :: IsRecentEra era
-    => (UTxO       era -> [UTxO       era])
+    => (UTxO era -> [UTxO era])
     -> (TxWithUTxO era -> [TxWithUTxO era])
 shrinkUTxOWith shrinkUTxO (TxWithUTxO tx utxo) =
-    [ TxWithUTxO.constructFiltered tx utxo' | utxo' <- shrinkUTxO utxo ]
+    [TxWithUTxO.constructFiltered tx utxo' | utxo' <- shrinkUTxO utxo]

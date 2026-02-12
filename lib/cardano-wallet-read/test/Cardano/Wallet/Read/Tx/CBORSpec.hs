@@ -5,8 +5,6 @@ module Cardano.Wallet.Read.Tx.CBORSpec
     ( spec
     ) where
 
-import Prelude
-
 import Cardano.Wallet.Read.Eras
     ( Babbage
     , EraValue (..)
@@ -33,37 +31,38 @@ import Test.QuickCheck
     , property
     , (===)
     )
+import Prelude
 
-import qualified Data.ByteString.Lazy as BL
-import qualified Test.Unit.Cardano.Read.Ledger.Tx as Txs
+import Data.ByteString.Lazy qualified as BL
+import Test.Unit.Cardano.Read.Ledger.Tx qualified as Txs
 
 spec :: Spec
 spec = describe "Cardano.Read.Ledger.Tx.CBOR" $ do
     describe "TxCBOR roundtrips" $ do
-        it "byron tx" $
-            prop_roundtrip Txs.byronTx
-        it "shelley tx" $
-            prop_roundtrip Txs.shelleyTx
-        it "allegra tx" $
-            prop_roundtrip Txs.allegraTx
-        it "mary tx" $
-            prop_roundtrip Txs.maryTx
-        it "mary tx, long output" $
-            prop_roundtrip Txs.maryTxLongOutput
-        it "property tx" $
-            prop_roundtrip Txs.alonzoTx
-        it "babbage tx" $
-            prop_roundtrip Txs.babbageTx
-        it "conway tx" $
-            prop_roundtrip Txs.conwayTx
+        it "byron tx"
+            $ prop_roundtrip Txs.byronTx
+        it "shelley tx"
+            $ prop_roundtrip Txs.shelleyTx
+        it "allegra tx"
+            $ prop_roundtrip Txs.allegraTx
+        it "mary tx"
+            $ prop_roundtrip Txs.maryTx
+        it "mary tx, long output"
+            $ prop_roundtrip Txs.maryTxLongOutput
+        it "property tx"
+            $ prop_roundtrip Txs.alonzoTx
+        it "babbage tx"
+            $ prop_roundtrip Txs.babbageTx
+        it "conway tx"
+            $ prop_roundtrip Txs.conwayTx
 
     describe "TxCBOR depends on era" $ do
         it "may fail deserializing a Conway Tx binary as a Babbage Tx" $ do
-            property $
-                let tx = Txs.conwayTx
-                    EraValue (K bytes) = renderTxToCBOR (EraValue tx)
-                    kBabbage = K bytes :: K BL.ByteString Babbage
-                in  isLeft $ parseTxFromCBOR $ EraValue kBabbage
+            property
+                $ let tx = Txs.conwayTx
+                      EraValue (K bytes) = renderTxToCBOR (EraValue tx)
+                      kBabbage = K bytes :: K BL.ByteString Babbage
+                  in  isLeft $ parseTxFromCBOR $ EraValue kBabbage
 
 prop_roundtrip :: forall era. IsEra era => Tx era -> Property
 prop_roundtrip tx =

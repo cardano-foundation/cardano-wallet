@@ -11,7 +11,6 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
-
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- |
@@ -19,19 +18,15 @@
 -- License: Apache-2.0
 --
 -- Implementation of address derivation for 'Shared' Keys.
-
 module Cardano.Wallet.Address.Derivation.Shared
     ( -- * Types
-      SharedKey(..)
+      SharedKey (..)
 
-    -- * Generation and derivation
+      -- * Generation and derivation
     , generateKeyFromSeed
     , unsafeGenerateKeyFromSeed
-
     , purposeCIP1854
     ) where
-
-import Prelude
 
 import Cardano.Address.Derivation
     ( xpubPublicKey
@@ -94,6 +89,7 @@ import Data.ByteString
 import Data.Proxy
     ( Proxy (..)
     )
+import Prelude
 
 import qualified Data.ByteString as BS
 
@@ -105,7 +101,7 @@ import qualified Data.ByteString as BS
 -- The seed should be at least 16 bytes.
 generateKeyFromSeed
     :: (SomeMnemonic, Maybe SomeMnemonic)
-       -- ^ The actual seed and its recovery / generation passphrase
+    -- ^ The actual seed and its recovery / generation passphrase
     -> Passphrase "encryption"
     -> SharedKey 'RootK XPrv
 generateKeyFromSeed = unsafeGenerateKeyFromSeed
@@ -116,7 +112,7 @@ generateKeyFromSeed = unsafeGenerateKeyFromSeed
 -- use 'generateKeyFromSeed'.
 unsafeGenerateKeyFromSeed
     :: (SomeMnemonic, Maybe SomeMnemonic)
-        -- ^ The actual seed and its recovery / generation passphrase
+    -- ^ The actual seed and its recovery / generation passphrase
     -> Passphrase "encryption"
     -> SharedKey depth XPrv
 unsafeGenerateKeyFromSeed mnemonics pwd =
@@ -127,7 +123,8 @@ instance HardDerivation SharedKey where
     type AddressCredential SharedKey = 'CredFromScriptK
 
     deriveAccountPrivateKey pwd (SharedKey rootXPrv) ix =
-        SharedKey $ deriveAccountPrivateKeyShelley purposeCIP1854 pwd rootXPrv ix
+        SharedKey
+            $ deriveAccountPrivateKeyShelley purposeCIP1854 pwd rootXPrv ix
 
     deriveAddressPrivateKey pwd (SharedKey accXPrv) role ix =
         SharedKey $ deriveAddressPrivateKeyShelley pwd accXPrv role ix
@@ -159,13 +156,14 @@ instance PersistPublicKey (SharedKey depth) where
 instance MkKeyFingerprint SharedKey Address where
     paymentKeyFingerprint addr =
         let AddressParts{..} = toAddressParts addr
-            baseAddr = 0b00110000       -- scripthash; scripthash
+            baseAddr = 0b00110000 -- scripthash; scripthash
             enterpriseAddr = 0b01110000 -- scripthash
-            rewardAcct = 0b11110000     -- scripthash
-        in if addrType `elem` [baseAddr, enterpriseAddr, rewardAcct] then
-            Right $ KeyFingerprint $ BS.take hashSizeBlake2b224 rest
-           else
-            Left $ ErrInvalidAddress addr (Proxy @SharedKey)
+            rewardAcct = 0b11110000 -- scripthash
+        in  if addrType `elem` [baseAddr, enterpriseAddr, rewardAcct]
+                then
+                    Right $ KeyFingerprint $ BS.take hashSizeBlake2b224 rest
+                else
+                    Left $ ErrInvalidAddress addr (Proxy @SharedKey)
 
 instance
     MkKeyFingerprint

@@ -3,46 +3,44 @@
 -- License: Apache-2.0
 --
 -- Re-export `EraValue` library.
---
-
 module Cardano.Wallet.Read.Eras
-  ( -- * Eras
-    Era (..)
-  , IsEra (..)
-  , Allegra
-  , Alonzo
-  , Babbage
-  , Byron
-  , Conway
-  , Mary
-  , Shelley
+    ( -- * Eras
+      Era (..)
+    , IsEra (..)
+    , Allegra
+    , Alonzo
+    , Babbage
+    , Byron
+    , Conway
+    , Mary
+    , Shelley
+    , KnownEras
+    , knownEras
+    , indexOfEra
+    , parseEraIndex
 
-  , KnownEras
-  , knownEras
-  , indexOfEra
-  , parseEraIndex
+      -- * Era-existential values
+    , EraValue (..)
+    , getEra
+    , eraValueSerialize
 
-    -- * Era-existential values
-  , EraValue (..)
-  , getEra
-  , eraValueSerialize
+      -- * Specials
+    , sequenceEraValue
 
-  -- * Specials
-  , sequenceEraValue
+      -- * Era polymorphic functions.
 
-  -- * Era polymorphic functions.
-  -- * Applying era functions.
-  , applyEraFun
-  , applyEraFunValue
+      -- * Applying era functions.
+    , applyEraFun
+    , applyEraFunValue
 
-  -- * Re-export structure combinators
-  , (:.:)(..)
-  , K (..)
-  , unK
-  , (:*:)(..)
-  , unComp
-  )
-  where
+      -- * Re-export structure combinators
+    , (:.:) (..)
+    , K (..)
+    , unK
+    , (:*:) (..)
+    , unComp
+    )
+where
 
 import Cardano.Read.Ledger.Eras
     ( Allegra
@@ -67,12 +65,12 @@ import Cardano.Wallet.Read.Eras.EraValue
     , parseEraIndex
     , sequenceEraValue
     )
+import GHC.Generics
+    ( (:*:) (..)
+    )
 import Generics.SOP
     ( K (..)
     , unComp
     , unK
     , (:.:) (..)
-    )
-import GHC.Generics
-    ( (:*:) (..)
     )

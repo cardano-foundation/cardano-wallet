@@ -5,8 +5,6 @@ module Cardano.Wallet.UI.Common.Html.Pages.Template.Body
     )
 where
 
-import Prelude
-
 import Cardano.Wallet.UI.Common.Html.Copy
     ( initClipboardScript
     )
@@ -27,6 +25,8 @@ import Lucid
 import Servant
     ( Link
     )
+import Prelude
+
 -- | A value attribute to use to connect to an SSE endpoint.
 sseConnectFromLink :: Link -> Text
 sseConnectFromLink sse = "connect:" <> linkText sse

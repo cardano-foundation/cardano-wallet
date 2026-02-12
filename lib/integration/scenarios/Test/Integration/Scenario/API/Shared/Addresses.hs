@@ -10,15 +10,12 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeSynonymInstances #-}
-
-{-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Test.Integration.Scenario.API.Shared.Addresses
     ( spec
     ) where
-
-import Prelude
 
 import Cardano.Wallet.Address.Derivation.SharedKey
     ( purposeCIP1854
@@ -74,34 +71,49 @@ import Test.Integration.Framework.DSL
     , request
     , verify
     )
+import Prelude
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Network.HTTP.Types as HTTP
 
 spec :: forall n. HasSNetworkId n => SpecWith Context
 spec = describe "SHARED_ADDRESSES" $ do
-    it "SHARED_ADDRESSES_LIST_01 - Can list known addresses on a default wallet" $ \ctx -> runResourceT $ do
-        let walName = "Shared Wallet" :: Text
-        (_, payload) <- getAccountWallet walName
-        rPost <- postSharedWallet ctx Default payload
-        verify rPost
-            [ expectResponseCode HTTP.status201
-            ]
-        let (ApiSharedWallet (Right wal)) = getFromResponse id rPost
+    it
+        "SHARED_ADDRESSES_LIST_01 - Can list known addresses on a default wallet"
+        $ \ctx -> runResourceT $ do
+            let walName = "Shared Wallet" :: Text
+            (_, payload) <- getAccountWallet walName
+            rPost <- postSharedWallet ctx Default payload
+            verify
+                rPost
+                [ expectResponseCode HTTP.status201
+                ]
+            let (ApiSharedWallet (Right wal)) = getFromResponse id rPost
 
-        r <- request @[ApiAddressWithPath n] ctx
-            (Link.listAddresses @'Shared wal) Default Empty
-        expectResponseCode HTTP.status200 r
-        let g = fromIntegral $ getAddressPoolGap defaultAddressPoolGap
-        expectListSize g r
-        forM_ [0..(g-1)] $ \addrNum -> do
-            expectListField addrNum (#state . #getApiT) (`shouldBe` Unused) r
-            expectListField addrNum #derivationPath
-                (`shouldSatisfy` (isValidDerivationPath purposeCIP1854)) r
+            r <-
+                request @[ApiAddressWithPath n]
+                    ctx
+                    (Link.listAddresses @'Shared wal)
+                    Default
+                    Empty
+            expectResponseCode HTTP.status200 r
+            let g = fromIntegral $ getAddressPoolGap defaultAddressPoolGap
+            expectListSize g r
+            forM_ [0 .. (g - 1)] $ \addrNum -> do
+                expectListField addrNum (#state . #getApiT) (`shouldBe` Unused) r
+                expectListField
+                    addrNum
+                    #derivationPath
+                    (`shouldSatisfy` (isValidDerivationPath purposeCIP1854))
+                    r
 
-    it "SHARED_ADDRESSES_LIST_02 - Can list known addresses on a pending wallet" $ \ctx -> runResourceT $ do
-        (_, accXPubTxt):_ <- liftIO $ genXPubsBech32 1
-        let payload = Json [json| {
+    it
+        "SHARED_ADDRESSES_LIST_02 - Can list known addresses on a pending wallet"
+        $ \ctx -> runResourceT $ do
+            (_, accXPubTxt) : _ <- liftIO $ genXPubsBech32 1
+            let payload =
+                    Json
+                        [json| {
                 "name": "Shared Wallet",
                 "account_public_key": #{accXPubTxt},
                 "account_index": "10H",
@@ -117,24 +129,31 @@ spec = describe "SHARED_ADDRESSES" $ do
                           }
                     }
                 } |]
-        rPost <- postSharedWallet ctx Default payload
-        verify rPost
-            [ expectResponseCode HTTP.status201
-            ]
-        let (ApiSharedWallet (Left wal)) = getFromResponse id rPost
+            rPost <- postSharedWallet ctx Default payload
+            verify
+                rPost
+                [ expectResponseCode HTTP.status201
+                ]
+            let (ApiSharedWallet (Left wal)) = getFromResponse id rPost
 
-        r <- request @[ApiAddressWithPath n] ctx
-            (Link.listAddresses @'Shared wal) Default Empty
-        expectResponseCode HTTP.status200 r
-        expectListSize 0 r
+            r <-
+                request @[ApiAddressWithPath n]
+                    ctx
+                    (Link.listAddresses @'Shared wal)
+                    Default
+                    Empty
+            expectResponseCode HTTP.status200 r
+            expectListSize 0 r
   where
-     getAccountWallet name = do
-          (_, accXPubTxt):_ <- liftIO $ genXPubsBech32 1
-          -- NOTE: A previous test had used "account_index": "30H",
-          -- presumably to spice things up,
-          -- but the `isValidDerivationPath` function expects that the
-          -- account index is equal to "0H".
-          let payload = Json [json| {
+    getAccountWallet name = do
+        (_, accXPubTxt) : _ <- liftIO $ genXPubsBech32 1
+        -- NOTE: A previous test had used "account_index": "30H",
+        -- presumably to spice things up,
+        -- but the `isValidDerivationPath` function expects that the
+        -- account index is equal to "0H".
+        let payload =
+                Json
+                    [json| {
                   "name": #{name},
                   "account_public_key": #{accXPubTxt},
                   "account_index": "0H",
@@ -149,4 +168,4 @@ spec = describe "SHARED_ADDRESSES" $ do
                             }
                       }
                   } |]
-          return (accXPubTxt, payload)
+        return (accXPubTxt, payload)

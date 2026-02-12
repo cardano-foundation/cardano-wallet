@@ -2,9 +2,7 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Internal.Cardano.Write.Tx.Balance.CoinSelectionSpec
-    where
-
-import Prelude
+where
 
 import Data.Function
     ( (&)
@@ -51,6 +49,7 @@ import Test.QuickCheck.Extra
 import Test.Utils.Pretty
     ( (====)
     )
+import Prelude
 
 import qualified Cardano.Wallet.Primitive.Types.Address.Gen as W
 import qualified Cardano.Wallet.Primitive.Types.Coin.Gen as W
@@ -68,21 +67,25 @@ import qualified Cardano.Wallet.Primitive.Types.UTxO.Gen as W
 
 spec :: Spec
 spec = describe "Cardano.Wallet.CoinSelectionSpec" $ do
+    parallel
+        $ describe
+            "Conversion between external (wallet) and internal W.UTxOs"
+        $ do
+            it "prop_toInternalUTxO_toExternalUTxO"
+                $ prop_toInternalUTxO_toExternalUTxO
+                & property
 
-    parallel $ describe
-        "Conversion between external (wallet) and internal W.UTxOs" $ do
+            it "prop_toInternalUTxOMap_toExternalUTxOMap"
+                $ prop_toInternalUTxOMap_toExternalUTxOMap
+                & property
 
-        it "prop_toInternalUTxO_toExternalUTxO" $
-            prop_toInternalUTxO_toExternalUTxO & property
-
-        it "prop_toInternalUTxOMap_toExternalUTxOMap" $
-            prop_toInternalUTxOMap_toExternalUTxOMap & property
-
-    parallel $ describe
-        "Conversion between external (wallet) and internal selections" $ do
-
-        it "prop_toInternalSelection_toExternalSelection" $
-            prop_toInternalSelection_toExternalSelection & property
+    parallel
+        $ describe
+            "Conversion between external (wallet) and internal selections"
+        $ do
+            it "prop_toInternalSelection_toExternalSelection"
+                $ prop_toInternalSelection_toExternalSelection
+                & property
 
 --------------------------------------------------------------------------------
 -- Conversion between external (wallet) and internal UTxOs
@@ -109,15 +112,16 @@ prop_toInternalSelection_toExternalSelection s =
 --------------------------------------------------------------------------------
 
 genSelection :: Gen Selection
-genSelection = Selection
-    <$> genInputs
-    <*> genCollateral
-    <*> genOutputs
-    <*> genChange
-    <*> genAssetsToMint
-    <*> genAssetsToBurn
-    <*> genExtraCoinSource
-    <*> genExtraCoinSink
+genSelection =
+    Selection
+        <$> genInputs
+        <*> genCollateral
+        <*> genOutputs
+        <*> genChange
+        <*> genAssetsToMint
+        <*> genAssetsToBurn
+        <*> genExtraCoinSource
+        <*> genExtraCoinSink
   where
     genInputs = genNonEmpty ((,) <$> W.genTxIn <*> W.genTxOut)
     genCollateral = listOf ((,) <$> W.genTxIn <*> genTxOutCoin)
@@ -131,16 +135,17 @@ genSelection = Selection
         W.TxOut <$> W.genAddress <*> (W.TokenBundle.fromCoin <$> W.genCoin)
 
 shrinkSelection :: Selection -> [Selection]
-shrinkSelection = genericRoundRobinShrink
-    <@> shrinkInputs
-    <:> shrinkCollateral
-    <:> shrinkOutputs
-    <:> shrinkChange
-    <:> shrinkAssetsToMint
-    <:> shrinkAssetsToBurn
-    <:> shrinkExtraCoinSource
-    <:> shrinkExtraCoinSink
-    <:> Nil
+shrinkSelection =
+    genericRoundRobinShrink
+        <@> shrinkInputs
+        <:> shrinkCollateral
+        <:> shrinkOutputs
+        <:> shrinkChange
+        <:> shrinkAssetsToMint
+        <:> shrinkAssetsToBurn
+        <:> shrinkExtraCoinSource
+        <:> shrinkExtraCoinSink
+        <:> Nil
   where
     shrinkInputs = shrinkNonEmpty (liftShrink2 W.shrinkTxIn W.shrinkTxOut)
     shrinkCollateral = shrinkList (liftShrink2 W.shrinkTxIn W.shrinkTxOut)
@@ -168,8 +173,9 @@ instance Arbitrary W.TxOut where
     shrink = W.shrinkTxOut
 
 instance Arbitrary W.UTxO where
-    arbitrary = oneof
-        [ W.genUTxO
-        , W.genUTxOLarge
-        ]
+    arbitrary =
+        oneof
+            [ W.genUTxO
+            , W.genUTxOLarge
+            ]
     shrink = W.shrinkUTxO

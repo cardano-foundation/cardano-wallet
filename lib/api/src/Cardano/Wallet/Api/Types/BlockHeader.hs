@@ -8,14 +8,11 @@
 -- |
 -- Copyright: © 2018-2022 IOHK, 2023 Cardano Foundation
 -- License: Apache-2.0
-
 module Cardano.Wallet.Api.Types.BlockHeader
     ( ApiBlockHeader (..)
     , mkApiBlockHeader
     )
-    where
-
-import Prelude
+where
 
 import Cardano.Wallet.Api.Aeson
     ( fromTextJSON
@@ -40,6 +37,7 @@ import Data.Quantity
 import GHC.Generics
     ( Generic
     )
+import Prelude
 
 import qualified Cardano.Wallet.Read as Read
 import qualified Cardano.Wallet.Read.Hash as Hash
@@ -47,11 +45,11 @@ import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Char8 as B8
 
 data ApiBlockHeader = ApiBlockHeader
-  { headerHash :: Hash "BlockHeader"
-  , slotNo :: Quantity "slot" Word64
-  , blockHeight :: Quantity "block" Word32
-  }
-  deriving (Eq, Show, Generic)
+    { headerHash :: Hash "BlockHeader"
+    , slotNo :: Quantity "slot" Word64
+    , blockHeight :: Quantity "block" Word32
+    }
+    deriving (Eq, Show, Generic)
 
 mkApiBlockHeader :: Read.ChainTip -> ApiBlockHeader
 mkApiBlockHeader Read.GenesisTip =
@@ -60,7 +58,7 @@ mkApiBlockHeader Read.GenesisTip =
         , slotNo = Quantity 0
         , blockHeight = Quantity 0
         }
-mkApiBlockHeader Read.BlockTip{slotNo,headerHash,blockNo} =
+mkApiBlockHeader Read.BlockTip{slotNo, headerHash, blockNo} =
     ApiBlockHeader
         { headerHash = Hash $ Hash.hashToBytes headerHash
         , slotNo = Quantity $ fromIntegral $ Read.unSlotNo slotNo

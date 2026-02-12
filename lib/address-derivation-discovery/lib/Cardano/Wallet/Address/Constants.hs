@@ -5,9 +5,7 @@ module Cardano.Wallet.Address.Constants
     , maxLengthAddressForIcarus
     , maxLengthAddressForShelley
     )
-    where
-
-import Prelude
+where
 
 import Cardano.Wallet.Primitive.Passphrase.Types
     ( Passphrase (..)
@@ -18,6 +16,7 @@ import Cardano.Wallet.Primitive.Types.Address
 import Cardano.Wallet.Primitive.Types.ProtocolMagic
     ( ProtocolMagic (ProtocolMagic)
     )
+import Prelude
 
 import qualified Cardano.Byron.Codec.Cbor as CBOR
 import qualified Cardano.Crypto.Wallet as CC

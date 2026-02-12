@@ -10,11 +10,6 @@ module Cardano.Wallet.DB.Sqlite.Migration.New
     , newMigrationInterface
     ) where
 
-import Prelude hiding
-    ( id
-    , (.)
-    )
-
 import Cardano.DB.Sqlite
     ( DBHandle (..)
     , DBLog
@@ -53,6 +48,10 @@ import Database.Sqlite
     )
 import System.Directory
     ( copyFile
+    )
+import Prelude hiding
+    ( id
+    , (.)
     )
 
 import qualified Cardano.Wallet.DB.Sqlite.Migration.Old as Old

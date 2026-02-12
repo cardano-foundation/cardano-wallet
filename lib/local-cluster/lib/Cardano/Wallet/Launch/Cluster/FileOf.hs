@@ -2,8 +2,8 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE KindSignatures #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 
 module Cardano.Wallet.Launch.Cluster.FileOf
     ( FileOf (..)
@@ -18,8 +18,6 @@ module Cardano.Wallet.Launch.Cluster.FileOf
     , absolutize
     )
 where
-
-import Prelude
 
 import GHC.TypeLits
     ( Symbol
@@ -41,6 +39,7 @@ import System.Path.Part
     ( Abs
     , AbsRel
     )
+import Prelude
 
 import qualified System.Path.PartClass as C
 

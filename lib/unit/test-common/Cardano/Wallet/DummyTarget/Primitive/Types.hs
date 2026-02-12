@@ -21,8 +21,6 @@ module Cardano.Wallet.DummyTarget.Primitive.Types
     , dummyNetworkLayer
     ) where
 
-import Prelude
-
 import Cardano.Wallet.Network
     ( NetworkLayer (..)
     )
@@ -90,6 +88,7 @@ import GHC.Stack
 import Internal.Cardano.Write.Tx.Gen
     ( mockPParams
     )
+import Prelude
 
 import qualified Cardano.Write.Eras as Write
 import qualified Data.ByteString.Char8 as B8
@@ -102,79 +101,90 @@ dummyGenesisHash :: Hash "Genesis"
 dummyGenesisHash = Hash (B8.replicate 32 '1')
 
 block0 :: Block
-block0 = Block
-    { header = BlockHeader
-        { slotNo = SlotNo 0
-        , blockHeight = Quantity 0
-        , headerHash = Hash $ getHash dummyGenesisHash
-        , parentHeaderHash = Nothing
+block0 =
+    Block
+        { header =
+            BlockHeader
+                { slotNo = SlotNo 0
+                , blockHeight = Quantity 0
+                , headerHash = Hash $ getHash dummyGenesisHash
+                , parentHeaderHash = Nothing
+                }
+        , transactions = []
+        , delegations = []
         }
-    , transactions = []
-    , delegations = []
-    }
 
 dummyGenesisParameters :: GenesisParameters
-dummyGenesisParameters = GenesisParameters
-    { getGenesisBlockHash = dummyGenesisHash
-    , getGenesisBlockDate = StartTime $ posixSecondsToUTCTime 0
-    }
+dummyGenesisParameters =
+    GenesisParameters
+        { getGenesisBlockHash = dummyGenesisHash
+        , getGenesisBlockDate = StartTime $ posixSecondsToUTCTime 0
+        }
 
 dummySlottingParameters :: SlottingParameters
-dummySlottingParameters = SlottingParameters
-    { getSlotLength = SlotLength 1
-    , getEpochLength = EpochLength 21_600
-    , getActiveSlotCoefficient = ActiveSlotCoefficient 1
-    , getSecurityParameter = Quantity 2_160
-    }
+dummySlottingParameters =
+    SlottingParameters
+        { getSlotLength = SlotLength 1
+        , getEpochLength = EpochLength 21_600
+        , getActiveSlotCoefficient = ActiveSlotCoefficient 1
+        , getSecurityParameter = Quantity 2_160
+        }
 
 dummyTimeInterpreter :: Monad m => TimeInterpreter m
-dummyTimeInterpreter = hoistTimeInterpreter (pure . runIdentity)
-    $ mkSingleEraInterpreter
-        (getGenesisBlockDate dummyGenesisParameters)
-        dummySlottingParameters
+dummyTimeInterpreter =
+    hoistTimeInterpreter (pure . runIdentity)
+        $ mkSingleEraInterpreter
+            (getGenesisBlockDate dummyGenesisParameters)
+            dummySlottingParameters
 
 dummyNetworkParameters :: NetworkParameters
-dummyNetworkParameters = NetworkParameters
-    { genesisParameters = dummyGenesisParameters
-    , slottingParameters = dummySlottingParameters
-    , protocolParameters = dummyProtocolParameters
-    }
+dummyNetworkParameters =
+    NetworkParameters
+        { genesisParameters = dummyGenesisParameters
+        , slottingParameters = dummySlottingParameters
+        , protocolParameters = dummyProtocolParameters
+        }
 
 dummyProtocolParameters :: ProtocolParameters
-dummyProtocolParameters = fromConwayPParams
-    emptyEraInfo
-    (mockPParams @Write.Conway)
+dummyProtocolParameters =
+    fromConwayPParams
+        emptyEraInfo
+        (mockPParams @Write.Conway)
 
-dummyLedgerProtocolParameters :: Write.IsRecentEra era => Write.PParams era
+dummyLedgerProtocolParameters
+    :: Write.IsRecentEra era => Write.PParams era
 dummyLedgerProtocolParameters = mockPParams
 
 dummyNetworkLayer :: HasCallStack => NetworkLayer m a
-dummyNetworkLayer = NetworkLayer
-    { chainSync = err "chainSync"
-    , fetchNextBlock = err "fetchNextBlock"
-    , currentNodeEra = err "currentNodeEra"
-    , currentNodeTip = err "currentNodeTip"
-    , watchNodeTip = err "watchNodeTip"
-    , currentPParams = err "currentPParams"
-    , currentProtocolParameters = err "currentProtocolParameters"
-    , currentSlottingParameters = err "currentSlottingParameters"
-    , getUTxOByTxIn = err "getUTxOByTxIn"
-    , getStakeDelegDeposits = error "getStakeDelegDeposits"
-    , postSealedTx = err "postSealedTx"
-    , postTx = err "postTx"
-    , stakeDistribution = err "stakeDistribution"
-    , getCachedRewardAccountBalance = err "getRewardCachedAccountBalance"
-    , fetchRewardAccountBalances = err "fetchRewardAccountBalances"
-    , timeInterpreter = err "timeInterpreter"
-    , syncProgress = err "syncProgress"
-    }
+dummyNetworkLayer =
+    NetworkLayer
+        { chainSync = err "chainSync"
+        , fetchNextBlock = err "fetchNextBlock"
+        , currentNodeEra = err "currentNodeEra"
+        , currentNodeTip = err "currentNodeTip"
+        , watchNodeTip = err "watchNodeTip"
+        , currentPParams = err "currentPParams"
+        , currentProtocolParameters = err "currentProtocolParameters"
+        , currentSlottingParameters = err "currentSlottingParameters"
+        , getUTxOByTxIn = err "getUTxOByTxIn"
+        , getStakeDelegDeposits = error "getStakeDelegDeposits"
+        , postSealedTx = err "postSealedTx"
+        , postTx = err "postTx"
+        , stakeDistribution = err "stakeDistribution"
+        , getCachedRewardAccountBalance = err "getRewardCachedAccountBalance"
+        , fetchRewardAccountBalances = err "fetchRewardAccountBalances"
+        , timeInterpreter = err "timeInterpreter"
+        , syncProgress = err "syncProgress"
+        }
   where
-    err subject = error $
-        "`" <> subject <> "` is not implemented in the dummy network layer."
+    err subject =
+        error
+            $ "`" <> subject <> "` is not implemented in the dummy network layer."
 
 {-----------------------------------------------------------------------------
     Convenience functions
 ------------------------------------------------------------------------------}
+
 -- | Construct a @Tx@, computing its hash using the dummy @mkTxId@.
 mkTx
     :: Maybe TxCBOR
@@ -189,22 +199,23 @@ mkTx
     -> Tx
 mkTx cbor fees ins cins outs cout wdrls md validity =
     Tx
-      { txId = (mkTxId ins outs wdrls md)
-      , txCBOR = cbor
-      , fee = fees
-      , resolvedInputs = ins
-      , resolvedCollateralInputs = cins
-      , outputs = outs
-      , collateralOutput = cout
-      , withdrawals = wdrls
-      , metadata = md
-      , scriptValidity = validity
-      }
+        { txId = (mkTxId ins outs wdrls md)
+        , txCBOR = cbor
+        , fee = fees
+        , resolvedInputs = ins
+        , resolvedCollateralInputs = cins
+        , outputs = outs
+        , collateralOutput = cout
+        , withdrawals = wdrls
+        , metadata = md
+        , scriptValidity = validity
+        }
 
 -- | txId calculation for testing purposes.
 mkTxId
     :: [(TxIn, Maybe TxOut)]
     -> [TxOut]
     -> Map RewardAccount Coin
-    -> Maybe TxMetadata -> Hash "Tx"
+    -> Maybe TxMetadata
+    -> Hash "Tx"
 mkTxId ins outs wdrls md = mockHash (ins, outs, wdrls, md)

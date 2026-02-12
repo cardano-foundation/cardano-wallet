@@ -12,12 +12,9 @@
 --
 -- API handlers and server using the underlying wallet layer to provide
 -- endpoints reachable through HTTP.
-
 module Cardano.Wallet.Api.Http.Server
     ( server
     ) where
-
-import Prelude
 
 import Cardano.Address
     ( unAddress
@@ -242,7 +239,8 @@ import Data.Generics.Internal.VL.Lens
     ( (^.)
     )
 import Data.Generics.Labels
-    ()
+    (
+    )
 import Data.List
     ( sortOn
     )
@@ -265,6 +263,7 @@ import Servant
 import Servant.Server
     ( ServerError (..)
     )
+import Prelude
 
 import qualified Cardano.Address.Derivation as CA
 import qualified Cardano.Address.KeyHash as CA
@@ -286,66 +285,72 @@ server
     -> BlockchainSource
     -> Server (Api n)
 server byron icarus shelley multisig spl ntp blockchainSource =
-         wallets
-    :<|> walletKeys
-    :<|> assets
-    :<|> addresses
-    :<|> coinSelections
-    :<|> shelleyTransactions
-    :<|> shelleyMigrations
-    :<|> stakePools
-    :<|> dreps
-    :<|> byronWallets
-    :<|> byronAssets
-    :<|> byronAddresses
-    :<|> byronCoinSelections
-    :<|> byronTransactions
-    :<|> byronMigrations
-    :<|> network' (networkIdVal (sNetworkId @n))
-    :<|> proxy
-    :<|> settingS
-    :<|> smash
-    :<|> sharedWallets multisig
-    :<|> sharedWalletKeys multisig
-    :<|> sharedAddresses multisig
-    :<|> sharedTransactions multisig
-    :<|> blocks
+    wallets
+        :<|> walletKeys
+        :<|> assets
+        :<|> addresses
+        :<|> coinSelections
+        :<|> shelleyTransactions
+        :<|> shelleyMigrations
+        :<|> stakePools
+        :<|> dreps
+        :<|> byronWallets
+        :<|> byronAssets
+        :<|> byronAddresses
+        :<|> byronCoinSelections
+        :<|> byronTransactions
+        :<|> byronMigrations
+        :<|> network' (networkIdVal (sNetworkId @n))
+        :<|> proxy
+        :<|> settingS
+        :<|> smash
+        :<|> sharedWallets multisig
+        :<|> sharedWalletKeys multisig
+        :<|> sharedAddresses multisig
+        :<|> sharedTransactions multisig
+        :<|> blocks
   where
     wallets :: Server Wallets
-    wallets = deleteWallet shelley
-        :<|> (fmap fst . getWallet shelley mkShelleyWallet)
-        :<|> (fmap fst <$> listWallets shelley mkShelleyWallet)
-        :<|> postWallet shelley Shelley.generateKeyFromSeed ShelleyKey
-        :<|> putWallet shelley mkShelleyWallet
-        :<|> putWalletPassphrase
-                shelley Shelley.generateKeyFromSeed Shelley.getKey
-        :<|> getWalletUtxoSnapshot shelley
-        :<|> getUTxOsStatistics shelley
+    wallets =
+        deleteWallet shelley
+            :<|> (fmap fst . getWallet shelley mkShelleyWallet)
+            :<|> (fmap fst <$> listWallets shelley mkShelleyWallet)
+            :<|> postWallet shelley Shelley.generateKeyFromSeed ShelleyKey
+            :<|> putWallet shelley mkShelleyWallet
+            :<|> putWalletPassphrase
+                shelley
+                Shelley.generateKeyFromSeed
+                Shelley.getKey
+            :<|> getWalletUtxoSnapshot shelley
+            :<|> getUTxOsStatistics shelley
 
     walletKeys :: Server WalletKeys
-    walletKeys = derivePublicKey shelley ApiVerificationKeyShelley
-        :<|> signMetadata shelley
-        :<|> postAccountPublicKey shelley ApiAccountKey
-        :<|> getAccountPublicKey shelley ApiAccountKey
-        :<|> getPolicyKey shelley
-        :<|> postPolicyKey shelley
-        :<|> postPolicyId shelley
+    walletKeys =
+        derivePublicKey shelley ApiVerificationKeyShelley
+            :<|> signMetadata shelley
+            :<|> postAccountPublicKey shelley ApiAccountKey
+            :<|> getAccountPublicKey shelley ApiAccountKey
+            :<|> getPolicyKey shelley
+            :<|> postPolicyKey shelley
+            :<|> postPolicyId shelley
 
     assets :: Server Assets
     assets =
         listAssets shelley
-        :<|> getAsset shelley
-        :<|> getAssetDefault shelley
+            :<|> getAsset shelley
+            :<|> getAssetDefault shelley
 
     addresses :: Server (Addresses n)
-    addresses = listAddresses shelley (normalizeDelegationAddress @_ @ShelleyKey @n)
-        :<|> (handler ApiAddressInspect . inspectAddress . unApiAddressInspectData)
-        :<|> (handler id . postAnyAddress (networkIdVal (sNetworkId @n)))
+    addresses =
+        listAddresses shelley (normalizeDelegationAddress @_ @ShelleyKey @n)
+            :<|> (handler ApiAddressInspect . inspectAddress . unApiAddressInspectData)
+            :<|> (handler id . postAnyAddress (networkIdVal (sNetworkId @n)))
       where
         toServerError :: TextDecodingError -> ServerError
         toServerError = apiError err400 BadRequest . T.pack . getTextDecodingError
 
-        handler :: (a -> result) -> Either TextDecodingError a -> Handler result
+        handler
+            :: (a -> result) -> Either TextDecodingError a -> Handler result
         handler transform =
             Handler . withExceptT toServerError . except . fmap transform
 
@@ -353,68 +358,82 @@ server byron icarus shelley multisig spl ntp blockchainSource =
     --   https://github.com/quchen/articles/blob/master/fbut.md#f-x---is-not-f--x---
     {- HLINT ignore "Redundant lambda" -}
     coinSelections :: Server (CoinSelections n)
-    coinSelections = (\wid -> \case
-        ApiSelectForPayment ascp ->
-            selectCoins shelley (delegationAddressS @n) wid ascp
-        ApiSelectForDelegation (ApiSelectCoinsAction action) ->
-            case action of
-                Join pid ->
-                    selectCoinsForJoin
-                        shelley
-                        (knownPools spl)
-                        (getPoolLifeCycleStatus spl)
-                        (getApiT pid)
-                        (getApiT wid)
-                Quit ->
-                    selectCoinsForQuit shelley wid
+    coinSelections =
+        ( \wid -> \case
+            ApiSelectForPayment ascp ->
+                selectCoins shelley (delegationAddressS @n) wid ascp
+            ApiSelectForDelegation (ApiSelectCoinsAction action) ->
+                case action of
+                    Join pid ->
+                        selectCoinsForJoin
+                            shelley
+                            (knownPools spl)
+                            (getPoolLifeCycleStatus spl)
+                            (getApiT pid)
+                            (getApiT wid)
+                    Quit ->
+                        selectCoinsForQuit shelley wid
         )
 
     shelleyTransactions :: Server (ShelleyTransactions n)
     shelleyTransactions =
-             constructTransaction shelley
-                (knownPools spl)
-                (getPoolLifeCycleStatus spl)
-        :<|> signTransaction shelley
-        :<|>
-            (\wid mMinWithdrawal mStart mEnd mOrder mLimit mAddress simpleMetadataFlag ->
-                listTransactions shelley wid mMinWithdrawal mStart mEnd mOrder mLimit
-                    mAddress (parseSimpleMetadataFlag simpleMetadataFlag)
-            )
-        :<|>
-            (\wid txId simpleMetadataFlag ->
-                getTransaction shelley wid txId
-                    (parseSimpleMetadataFlag simpleMetadataFlag)
-            )
-        :<|> deleteTransaction shelley
-        :<|> postTransactionOld shelley (delegationAddressS @n)
-        :<|> postTransactionFeeOld shelley
-        :<|> balanceTransaction shelley
-        :<|> decodeTransaction shelley
-        :<|> submitTransaction @_ @_ @_ @n shelley
+        constructTransaction
+            shelley
+            (knownPools spl)
+            (getPoolLifeCycleStatus spl)
+            :<|> signTransaction shelley
+            :<|> ( \wid mMinWithdrawal mStart mEnd mOrder mLimit mAddress simpleMetadataFlag ->
+                    listTransactions
+                        shelley
+                        wid
+                        mMinWithdrawal
+                        mStart
+                        mEnd
+                        mOrder
+                        mLimit
+                        mAddress
+                        (parseSimpleMetadataFlag simpleMetadataFlag)
+                 )
+            :<|> ( \wid txId simpleMetadataFlag ->
+                    getTransaction
+                        shelley
+                        wid
+                        txId
+                        (parseSimpleMetadataFlag simpleMetadataFlag)
+                 )
+            :<|> deleteTransaction shelley
+            :<|> postTransactionOld shelley (delegationAddressS @n)
+            :<|> postTransactionFeeOld shelley
+            :<|> balanceTransaction shelley
+            :<|> decodeTransaction shelley
+            :<|> submitTransaction @_ @_ @_ @n shelley
 
     shelleyMigrations :: Server (ShelleyMigrations n)
     shelleyMigrations =
-             createMigrationPlan shelley (Just SelfWithdrawal)
-        :<|> migrateWallet shelley (Just SelfWithdrawal)
+        createMigrationPlan shelley (Just SelfWithdrawal)
+            :<|> migrateWallet shelley (Just SelfWithdrawal)
 
     stakePools :: Server (StakePools n)
     stakePools =
-             listStakePools_
-        :<|> joinStakePool shelley (knownPools spl) (getPoolLifeCycleStatus spl)
-        :<|> quitStakePool shelley
-        :<|> (postPoolMaintenance :<|> getPoolMaintenance)
-        :<|> delegationFee shelley
-        :<|> listStakeKeys rewardAccountFromAddress shelley
+        listStakePools_
+            :<|> joinStakePool shelley (knownPools spl) (getPoolLifeCycleStatus spl)
+            :<|> quitStakePool shelley
+            :<|> (postPoolMaintenance :<|> getPoolMaintenance)
+            :<|> delegationFee shelley
+            :<|> listStakeKeys rewardAccountFromAddress shelley
       where
         listStakePools_ = \case
             Just (ApiT stake) -> do
                 currentEpoch <- getCurrentEpoch shelley
                 liftIO $ fmap ApiT <$> listStakePools spl currentEpoch stake
-            Nothing -> Handler $ throwE $ apiError err400 QueryParamMissing $
-                mconcat
-                [ "The stake intended to delegate must be provided as a query "
-                , "parameter as it affects the rewards and ranking."
-                ]
+            Nothing ->
+                Handler
+                    $ throwE
+                    $ apiError err400 QueryParamMissing
+                    $ mconcat
+                        [ "The stake intended to delegate must be provided as a query "
+                        , "parameter as it affects the rewards and ranking."
+                        ]
 
         postPoolMaintenance action' = do
             case action' of
@@ -430,7 +449,7 @@ server byron icarus shelley multisig spl ntp blockchainSource =
 
     byronWallets :: Server ByronWallets
     byronWallets =
-        (\case
+        ( \case
             RandomWalletFromMnemonic x -> postRandomWallet byron x
             RandomWalletFromXPrv x -> postRandomWalletFromXPrv byron x
             SomeIcarusWallet x -> postIcarusWallet icarus x
@@ -439,73 +458,100 @@ server byron icarus shelley multisig spl ntp blockchainSource =
             SomeAccount x ->
                 postAccountWallet icarus mkLegacyWallet IcarusKey idleWorker x
         )
-        :<|> (\wid -> withLegacyLayer wid
-                (byron , deleteWallet byron wid)
-                (icarus, deleteWallet icarus wid)
-             )
-        :<|> (\wid -> withLegacyLayer' wid
-                ( byron
-                , fst <$> getWallet byron mkLegacyWallet wid
-                , const (fst <$> getWallet byron mkLegacyWallet wid)
-                )
-                ( icarus
-                , fst <$> getWallet icarus mkLegacyWallet wid
-                , const (fst <$> getWallet icarus mkLegacyWallet wid)
-                )
-             )
-        :<|> liftA2 (\xs ys -> fmap fst $ sortOn snd $ xs ++ ys)
-                (listWallets byron  mkLegacyWallet)
+            :<|> ( \wid ->
+                    withLegacyLayer
+                        wid
+                        (byron, deleteWallet byron wid)
+                        (icarus, deleteWallet icarus wid)
+                 )
+            :<|> ( \wid ->
+                    withLegacyLayer'
+                        wid
+                        ( byron
+                        , fst <$> getWallet byron mkLegacyWallet wid
+                        , const (fst <$> getWallet byron mkLegacyWallet wid)
+                        )
+                        ( icarus
+                        , fst <$> getWallet icarus mkLegacyWallet wid
+                        , const (fst <$> getWallet icarus mkLegacyWallet wid)
+                        )
+                 )
+            :<|> liftA2
+                (\xs ys -> fmap fst $ sortOn snd $ xs ++ ys)
+                (listWallets byron mkLegacyWallet)
                 (listWallets icarus mkLegacyWallet)
-        :<|> (\wid name -> withLegacyLayer wid
-                (byron , putWalletByron byron mkLegacyWallet wid name)
-                (icarus, putWalletByron icarus mkLegacyWallet wid name)
-             )
-        :<|> (\wid -> withLegacyLayer wid
-                (byron , getWalletUtxoSnapshot byron wid)
-                (icarus, getWalletUtxoSnapshot icarus wid)
-             )
-        :<|> (\wid -> withLegacyLayer wid
-                (byron , getUTxOsStatistics byron wid)
-                (icarus, getUTxOsStatistics icarus wid)
-             )
-        :<|> (\wid pwd -> withLegacyLayer wid
-                (byron , putByronWalletPassphrase byron wid pwd)
-                (icarus, putByronWalletPassphrase icarus wid pwd)
-             )
+            :<|> ( \wid name ->
+                    withLegacyLayer
+                        wid
+                        (byron, putWalletByron byron mkLegacyWallet wid name)
+                        (icarus, putWalletByron icarus mkLegacyWallet wid name)
+                 )
+            :<|> ( \wid ->
+                    withLegacyLayer
+                        wid
+                        (byron, getWalletUtxoSnapshot byron wid)
+                        (icarus, getWalletUtxoSnapshot icarus wid)
+                 )
+            :<|> ( \wid ->
+                    withLegacyLayer
+                        wid
+                        (byron, getUTxOsStatistics byron wid)
+                        (icarus, getUTxOsStatistics icarus wid)
+                 )
+            :<|> ( \wid pwd ->
+                    withLegacyLayer
+                        wid
+                        (byron, putByronWalletPassphrase byron wid pwd)
+                        (icarus, putByronWalletPassphrase icarus wid pwd)
+                 )
 
     byronAssets :: Server ByronAssets
     byronAssets =
-            (\wid -> withLegacyLayer wid
+        ( \wid ->
+            withLegacyLayer
+                wid
                 (byron, listAssets byron wid)
                 (icarus, listAssets icarus wid)
-            )
-        :<|> (\wid t n -> withLegacyLayer wid
-                (byron, getAsset byron wid t n)
-                (icarus, getAsset icarus wid t n)
-            )
-        :<|> (\wid t -> withLegacyLayer wid
-                (byron, getAssetDefault byron wid t)
-                (icarus, getAssetDefault icarus wid t)
-            )
+        )
+            :<|> ( \wid t n ->
+                    withLegacyLayer
+                        wid
+                        (byron, getAsset byron wid t n)
+                        (icarus, getAsset icarus wid t n)
+                 )
+            :<|> ( \wid t ->
+                    withLegacyLayer
+                        wid
+                        (byron, getAssetDefault byron wid t)
+                        (icarus, getAssetDefault icarus wid t)
+                 )
 
     byronAddresses :: Server (ByronAddresses n)
     byronAddresses =
-             (\wid s -> withLegacyLayer wid
+        ( \wid s ->
+            withLegacyLayer
+                wid
                 (byron, postRandomAddress byron wid s)
                 (icarus, liftHandler $ throwE ErrCreateAddressNotAByronWallet)
-             )
-        :<|> (\wid addr -> withLegacyLayer wid
-                (byron, putRandomAddress byron wid addr)
-                (icarus, liftHandler $ throwE ErrCreateAddressNotAByronWallet)
-             )
-        :<|> (\wid s -> withLegacyLayer wid
-                (byron, putRandomAddresses byron wid s)
-                (icarus, liftHandler $ throwE ErrCreateAddressNotAByronWallet)
-             )
-        :<|> (\wid s -> withLegacyLayer wid
-                (byron , listAddresses byron (const pure) wid s)
-                (icarus, listAddresses icarus (const pure) wid s)
-             )
+        )
+            :<|> ( \wid addr ->
+                    withLegacyLayer
+                        wid
+                        (byron, putRandomAddress byron wid addr)
+                        (icarus, liftHandler $ throwE ErrCreateAddressNotAByronWallet)
+                 )
+            :<|> ( \wid s ->
+                    withLegacyLayer
+                        wid
+                        (byron, putRandomAddresses byron wid s)
+                        (icarus, liftHandler $ throwE ErrCreateAddressNotAByronWallet)
+                 )
+            :<|> ( \wid s ->
+                    withLegacyLayer
+                        wid
+                        (byron, listAddresses byron (const pure) wid s)
+                        (icarus, listAddresses icarus (const pure) wid s)
+                 )
 
     byronCoinSelections :: Server (ByronCoinSelections n)
     byronCoinSelections wid (ApiSelectForPayment x) =
@@ -514,74 +560,107 @@ server byron icarus shelley multisig spl ntp blockchainSource =
         handleRandom = liftHandler $ throwE ErrNotASequentialWallet
         handleSequential = selectCoins icarus genChangeSequential wid x
         genChangeSequential paymentK _ = paymentAddressS @n paymentK
-    byronCoinSelections _ _ = Handler
-        $ throwE
-        $ apiError err400 InvalidWalletType
-        "Byron wallets don't have delegation capabilities."
+    byronCoinSelections _ _ =
+        Handler
+            $ throwE
+            $ apiError
+                err400
+                InvalidWalletType
+                "Byron wallets don't have delegation capabilities."
 
     byronTransactions :: Server (ByronTransactions n)
     byronTransactions =
-            (\wid r0 r1 s l a -> withLegacyLayer wid
+        ( \wid r0 r1 s l a ->
+            withLegacyLayer
+                wid
                 ( byron
                 , listTransactions
-                    byron wid Nothing r0 r1 s l a TxMetadataDetailedSchema
+                    byron
+                    wid
+                    Nothing
+                    r0
+                    r1
+                    s
+                    l
+                    a
+                    TxMetadataDetailedSchema
                 )
                 ( icarus
                 , listTransactions
-                    icarus wid Nothing r0 r1 s l a TxMetadataDetailedSchema
+                    icarus
+                    wid
+                    Nothing
+                    r0
+                    r1
+                    s
+                    l
+                    a
+                    TxMetadataDetailedSchema
                 )
-             )
-        :<|>
-            (\wid txid -> withLegacyLayer wid
-                ( byron
-                , getTransaction byron wid txid TxMetadataDetailedSchema
-                )
-                ( icarus
-                , getTransaction icarus wid txid TxMetadataDetailedSchema
-                )
-             )
-        :<|> (\wid txid -> withLegacyLayer wid
-                (byron , deleteTransaction byron wid txid)
-                (icarus, deleteTransaction icarus wid txid)
-             )
-        :<|> (\wid tx -> withLegacyLayer wid
-                 (byron, do
-                    let pwd = coerce (getApiT $ tx ^. #passphrase)
-                    genChange <- rndStateChange byron wid pwd
-                    postTransactionOld byron genChange wid tx
-
+        )
+            :<|> ( \wid txid ->
+                    withLegacyLayer
+                        wid
+                        ( byron
+                        , getTransaction byron wid txid TxMetadataDetailedSchema
+                        )
+                        ( icarus
+                        , getTransaction icarus wid txid TxMetadataDetailedSchema
+                        )
                  )
-                 (icarus, do
-                    let genChange k _ = paymentAddressS @n k
-                    postTransactionOld icarus genChange wid tx
+            :<|> ( \wid txid ->
+                    withLegacyLayer
+                        wid
+                        (byron, deleteTransaction byron wid txid)
+                        (icarus, deleteTransaction icarus wid txid)
                  )
-             )
-       :<|> (\wid tx -> withLegacyLayer wid
-                (byron, postTransactionFeeOld byron wid tx)
-                (icarus, postTransactionFeeOld icarus wid tx)
-            )
+            :<|> ( \wid tx ->
+                    withLegacyLayer
+                        wid
+                        ( byron
+                        , do
+                            let pwd = coerce (getApiT $ tx ^. #passphrase)
+                            genChange <- rndStateChange byron wid pwd
+                            postTransactionOld byron genChange wid tx
+                        )
+                        ( icarus
+                        , do
+                            let genChange k _ = paymentAddressS @n k
+                            postTransactionOld icarus genChange wid tx
+                        )
+                 )
+            :<|> ( \wid tx ->
+                    withLegacyLayer
+                        wid
+                        (byron, postTransactionFeeOld byron wid tx)
+                        (icarus, postTransactionFeeOld icarus wid tx)
+                 )
 
     byronMigrations :: Server (ByronMigrations n)
     byronMigrations =
-             (\wid postData -> withLegacyLayer wid
-                (byron , createMigrationPlan byron Nothing wid postData)
+        ( \wid postData ->
+            withLegacyLayer
+                wid
+                (byron, createMigrationPlan byron Nothing wid postData)
                 (icarus, createMigrationPlan icarus Nothing wid postData)
-             )
-        :<|> (\wid m -> withLegacyLayer wid
-                (byron , migrateWallet byron Nothing wid m)
-                (icarus, migrateWallet icarus Nothing wid m)
-             )
+        )
+            :<|> ( \wid m ->
+                    withLegacyLayer
+                        wid
+                        (byron, migrateWallet byron Nothing wid m)
+                        (icarus, migrateWallet icarus Nothing wid m)
+                 )
 
     network' :: NetworkId -> Server Network
     network' nid =
         getNetworkInformation nid nl mode
-        :<|> getNetworkParameters genesis nl
-        :<|> getNetworkClock ntp
+            :<|> getNetworkParameters genesis nl
+            :<|> getNetworkClock ntp
       where
         nl = icarus ^. networkLayer
-        genesis@(_,_) = icarus ^. genesisData
+        genesis@(_, _) = icarus ^. genesisData
         mode = case blockchainSource of
-          NodeSource {} -> Node
+            NodeSource{} -> Node
 
     proxy :: Server Proxy_
     proxy = postExternalTransaction icarus
@@ -589,12 +668,12 @@ server byron icarus shelley multisig spl ntp blockchainSource =
     settingS :: Server Settings
     settingS = putSettings' :<|> getSettings'
       where
-        putSettings' (SettingsPutData (ApiT settings'))
-            = Handler $ do
+        putSettings' (SettingsPutData (ApiT settings')) =
+            Handler $ do
                 liftIO $ putSettings spl settings'
                 pure NoContent
-        getSettings'
-            = Handler $ fmap ApiT $ liftIO $ getSettings spl
+        getSettings' =
+            Handler $ fmap ApiT $ liftIO $ getSettings spl
 
     smash :: Server SMASH
     smash = getCurrentSmashHealth
@@ -615,26 +694,38 @@ server byron icarus shelley multisig spl ntp blockchainSource =
         :: ApiLayer (SharedState n SharedKey)
         -> Server SharedWallets
     sharedWallets apilayer =
-             postSharedWallet @_ @_ @SharedKey apilayer Shared.generateKeyFromSeed SharedKey
-        :<|> (fmap fst . getWallet apilayer mkSharedWallet)
-        :<|> putWallet apilayer mkSharedWallet
-        :<|> (fmap fst <$> listWallets apilayer mkSharedWallet)
-        :<|> patchSharedWallet @_ @_ @SharedKey apilayer SharedKey Payment
-        :<|> patchSharedWallet @_ @_ @SharedKey apilayer SharedKey Delegation
-        :<|> deleteWallet apilayer
-        :<|> getUTxOsStatistics apilayer
-        :<|> getWalletUtxoSnapshot apilayer
+        postSharedWallet @_ @_ @SharedKey
+            apilayer
+            Shared.generateKeyFromSeed
+            SharedKey
+            :<|> (fmap fst . getWallet apilayer mkSharedWallet)
+            :<|> putWallet apilayer mkSharedWallet
+            :<|> (fmap fst <$> listWallets apilayer mkSharedWallet)
+            :<|> patchSharedWallet @_ @_ @SharedKey apilayer SharedKey Payment
+            :<|> patchSharedWallet @_ @_ @SharedKey apilayer SharedKey Delegation
+            :<|> deleteWallet apilayer
+            :<|> getUTxOsStatistics apilayer
+            :<|> getWalletUtxoSnapshot apilayer
 
     sharedWalletKeys
         :: ApiLayer (SharedState n SharedKey)
         -> Server SharedWalletKeys
-    sharedWalletKeys apilayer = derivePublicKey apilayer ApiVerificationKeyShared
-        :<|> (\wid ix p -> postAccountPublicKey apilayer ApiAccountKeyShared wid ix (toKeyDataPurpose p) )
-        :<|> getAccountPublicKey apilayer ApiAccountKeyShared
+    sharedWalletKeys apilayer =
+        derivePublicKey apilayer ApiVerificationKeyShared
+            :<|> ( \wid ix p ->
+                    postAccountPublicKey
+                        apilayer
+                        ApiAccountKeyShared
+                        wid
+                        ix
+                        (toKeyDataPurpose p)
+                 )
+            :<|> getAccountPublicKey apilayer ApiAccountKeyShared
       where
-          toKeyDataPurpose :: ApiPostAccountKeyData -> ApiPostAccountKeyDataWithPurpose
-          toKeyDataPurpose (ApiPostAccountKeyData p f) =
-              ApiPostAccountKeyDataWithPurpose p f Nothing
+        toKeyDataPurpose
+            :: ApiPostAccountKeyData -> ApiPostAccountKeyDataWithPurpose
+        toKeyDataPurpose (ApiPostAccountKeyData p f) =
+            ApiPostAccountKeyDataWithPurpose p f Nothing
 
     sharedAddresses
         :: ApiLayer (SharedState n SharedKey)
@@ -646,21 +737,32 @@ server byron icarus shelley multisig spl ntp blockchainSource =
         :: ApiLayer (SharedState n SharedKey)
         -> Server (SharedTransactions n)
     sharedTransactions apilayer =
-        constructSharedTransaction apilayer
-            (knownPools spl) (getPoolLifeCycleStatus spl)
-        :<|> signTransaction apilayer
-        :<|> decodeSharedTransaction apilayer
-        :<|> submitSharedTransaction apilayer
-        :<|>
-            (\wid txId simpleMetadataFlag ->
-                getTransaction apilayer wid txId
-                    (parseSimpleMetadataFlag simpleMetadataFlag)
-            )
-        :<|>
-            (\wid mMinWithdrawal mStart mEnd mOrder mLimit mAddress simpleMetadataFlag ->
-                listTransactions apilayer wid mMinWithdrawal mStart mEnd mOrder
-                    mLimit mAddress (parseSimpleMetadataFlag simpleMetadataFlag)
-            )
+        constructSharedTransaction
+            apilayer
+            (knownPools spl)
+            (getPoolLifeCycleStatus spl)
+            :<|> signTransaction apilayer
+            :<|> decodeSharedTransaction apilayer
+            :<|> submitSharedTransaction apilayer
+            :<|> ( \wid txId simpleMetadataFlag ->
+                    getTransaction
+                        apilayer
+                        wid
+                        txId
+                        (parseSimpleMetadataFlag simpleMetadataFlag)
+                 )
+            :<|> ( \wid mMinWithdrawal mStart mEnd mOrder mLimit mAddress simpleMetadataFlag ->
+                    listTransactions
+                        apilayer
+                        wid
+                        mMinWithdrawal
+                        mStart
+                        mEnd
+                        mOrder
+                        mLimit
+                        mAddress
+                        (parseSimpleMetadataFlag simpleMetadataFlag)
+                 )
 
     blocks :: Handler ApiBlockHeader
     blocks = getBlocksLatestHeader (shelley ^. networkLayer)
@@ -673,65 +775,74 @@ postAnyAddress net addrData = do
     (addr, addrType) <- case addrData of
         (ApiAddressData (AddrEnterprise spendingCred) validation') -> do
             guardValidation validation' spendingCred
-            pure ( unAddress $
-                     CA.paymentAddress discriminant (spendingFrom spendingCred)
-                 , EnterpriseDelegating )
+            pure
+                ( unAddress
+                    $ CA.paymentAddress discriminant (spendingFrom spendingCred)
+                , EnterpriseDelegating
+                )
         (ApiAddressData (AddrRewardAccount stakingCred) validation') -> do
             case CA.stakeAddress discriminant (stakingFrom stakingCred) of
                 Right stakeAddr -> do
                     guardValidation validation' stakingCred
-                    pure ( unAddress stakeAddr, RewardAccount )
+                    pure (unAddress stakeAddr, RewardAccount)
                 Left e -> error $ show e
         (ApiAddressData (AddrBase spendingCred stakingCred) validation') -> do
             guardValidation validation' spendingCred
             guardValidation validation' stakingCred
-            pure ( unAddress $ CA.delegationAddress discriminant
-                     (spendingFrom spendingCred) (stakingFrom stakingCred)
-                 , EnterpriseDelegating )
+            pure
+                ( unAddress
+                    $ CA.delegationAddress
+                        discriminant
+                        (spendingFrom spendingCred)
+                        (stakingFrom stakingCred)
+                , EnterpriseDelegating
+                )
     pure $ AnyAddress addr addrType (fromInteger netTag)
   where
-      fromXPub = fromJust . CA.xpubFromBytes
-      fromPub = fromJust . CA.pubFromBytes
-      netTag = case net of
-          Cardano.Mainnet -> 1
-          _ -> 0
-      spendingFrom cred = case cred of
-          CredentialPubKey bytes ->
-              CA.PaymentFromKey $ CA.liftPub $ fromPub bytes
-          CredentialKeyHash bytes ->
-              CA.PaymentFromKeyHash $ CA.KeyHash CA.Payment bytes
-          CredentialExtendedPubKey bytes ->
-              CA.PaymentFromExtendedKey $ CA.liftXPub $ fromXPub bytes
-          CredentialScript script' ->
-              CA.PaymentFromScript script'
-          CredentialScriptHash scriptHash ->
-              CA.PaymentFromScriptHash scriptHash
-      stakingFrom cred = case cred of
-          CredentialPubKey bytes ->
-              CA.DelegationFromKey $ CA.liftPub $ fromPub bytes
-          CredentialKeyHash bytes ->
-              CA.DelegationFromKeyHash $ CA.KeyHash CA.Delegation bytes
-          CredentialExtendedPubKey bytes ->
-              CA.DelegationFromExtendedKey $ CA.liftXPub $ fromXPub bytes
-          CredentialScript script' ->
-              CA.DelegationFromScript script'
-          CredentialScriptHash scriptHash ->
-              CA.DelegationFromScriptHash scriptHash
-      guardValidation v cred =
-            when (fst $ checkValidation v cred) $
-                Left $ snd $ checkValidation v cred
-      checkValidation v cred = case cred of
-          CredentialPubKey _ -> (False, TextDecodingError "")
-          CredentialKeyHash _ -> (False, TextDecodingError "")
-          CredentialExtendedPubKey _ -> (False, TextDecodingError "")
-          CredentialScriptHash _ -> (False, TextDecodingError "")
-          CredentialScript script' -> case v of
-              Just (ApiT v') ->
-                  case validateScript v' script' of
-                      Left err -> (True, TextDecodingError $ prettyErrValidateScript err)
-                      Right _ -> (False, TextDecodingError "")
-              _ -> (False, TextDecodingError "")
-      discriminant =
+    fromXPub = fromJust . CA.xpubFromBytes
+    fromPub = fromJust . CA.pubFromBytes
+    netTag = case net of
+        Cardano.Mainnet -> 1
+        _ -> 0
+    spendingFrom cred = case cred of
+        CredentialPubKey bytes ->
+            CA.PaymentFromKey $ CA.liftPub $ fromPub bytes
+        CredentialKeyHash bytes ->
+            CA.PaymentFromKeyHash $ CA.KeyHash CA.Payment bytes
+        CredentialExtendedPubKey bytes ->
+            CA.PaymentFromExtendedKey $ CA.liftXPub $ fromXPub bytes
+        CredentialScript script' ->
+            CA.PaymentFromScript script'
+        CredentialScriptHash scriptHash ->
+            CA.PaymentFromScriptHash scriptHash
+    stakingFrom cred = case cred of
+        CredentialPubKey bytes ->
+            CA.DelegationFromKey $ CA.liftPub $ fromPub bytes
+        CredentialKeyHash bytes ->
+            CA.DelegationFromKeyHash $ CA.KeyHash CA.Delegation bytes
+        CredentialExtendedPubKey bytes ->
+            CA.DelegationFromExtendedKey $ CA.liftXPub $ fromXPub bytes
+        CredentialScript script' ->
+            CA.DelegationFromScript script'
+        CredentialScriptHash scriptHash ->
+            CA.DelegationFromScriptHash scriptHash
+    guardValidation v cred =
+        when (fst $ checkValidation v cred)
+            $ Left
+            $ snd
+            $ checkValidation v cred
+    checkValidation v cred = case cred of
+        CredentialPubKey _ -> (False, TextDecodingError "")
+        CredentialKeyHash _ -> (False, TextDecodingError "")
+        CredentialExtendedPubKey _ -> (False, TextDecodingError "")
+        CredentialScriptHash _ -> (False, TextDecodingError "")
+        CredentialScript script' -> case v of
+            Just (ApiT v') ->
+                case validateScript v' script' of
+                    Left err -> (True, TextDecodingError $ prettyErrValidateScript err)
+                    Right _ -> (False, TextDecodingError "")
+            _ -> (False, TextDecodingError "")
+    discriminant =
         case CA.mkNetworkDiscriminant netTag of
             Right d -> d
             Left e -> error $ show e

@@ -3,21 +3,17 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE ViewPatterns #-}
 
-{- |
-Copyright: © 2024 Cardano Foundation
-License: Apache-2.0
-
-Validity interval of a transaction.
--}
+-- |
+-- Copyright: © 2024 Cardano Foundation
+-- License: Apache-2.0
+--
+-- Validity interval of a transaction.
 module Cardano.Wallet.Read.Tx.Validity
-    (
-    ValidityInterval (ValidityIntervalC)
+    ( ValidityInterval (ValidityIntervalC)
     , invalidBefore
     , invalidHereafter
     , getValidityInterval
     ) where
-
-import Prelude
 
 import Cardano.Ledger.Api
     ( ValidityInterval (ValidityInterval)
@@ -44,8 +40,10 @@ import Data.Maybe.Strict
     , maybeToStrictMaybe
     , strictMaybeToMaybe
     )
+import Prelude
 
 {-# COMPLETE ValidityIntervalC #-}
+
 -- | Alternative view on 'Cardano.Ledger.Api.ValidityInterval'
 -- from "Cardano.Ledger.Api".
 pattern ValidityIntervalC
@@ -54,13 +52,13 @@ pattern ValidityIntervalC
     -> Maybe SlotNo
     -- ^ 'invalidHereafter'
     -> ValidityInterval
-pattern ValidityIntervalC{invalidBefore,invalidHereafter} <-
-    (toPair -> (invalidBefore,invalidHereafter))
-  where
-    ValidityIntervalC x y = fromPair (x,y)
+pattern ValidityIntervalC{invalidBefore, invalidHereafter} <-
+    (toPair -> (invalidBefore, invalidHereafter))
+    where
+        ValidityIntervalC x y = fromPair (x, y)
 
 fromPair :: (Maybe SlotNo, Maybe SlotNo) -> ValidityInterval
-fromPair (x,y) = ValidityInterval (f x) (f y)
+fromPair (x, y) = ValidityInterval (f x) (f y)
   where
     f = fmap toLedgerSlotNo . maybeToStrictMaybe
 
@@ -69,9 +67,11 @@ toPair (ValidityInterval x y) = (f x, f y)
   where
     f = fmap fromLedgerSlotNo . strictMaybeToMaybe
 
-{-# INLINABLE getValidityInterval #-}
+{-# INLINEABLE getValidityInterval #-}
+
 -- | Get the validity interval of a transaction.
-getValidityInterval :: forall era. IsEra era => Tx era -> ValidityInterval
+getValidityInterval
+    :: forall era. IsEra era => Tx era -> ValidityInterval
 getValidityInterval = case theEra :: Era era of
     Byron -> onValidity (const $ ValidityInterval SNothing SNothing)
     Shelley -> onValidity (ValidityInterval SNothing . SJust)
@@ -85,7 +85,8 @@ getValidityInterval = case theEra :: Era era of
 onValidity
     :: IsEra era
     => (ValidityType era -> t)
-    -> Tx era -> t
+    -> Tx era
+    -> t
 onValidity f x =
     case getEraValidity x of
         Validity v -> f v

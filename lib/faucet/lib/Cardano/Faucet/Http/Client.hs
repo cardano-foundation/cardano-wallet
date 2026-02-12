@@ -9,8 +9,6 @@ module Cardano.Faucet.Http.Client
 
 --------------------------------------------------------------------------------
 
-import qualified Servant.Client as Servant
-
 import Cardano.Address
     ( NetworkTag
     )
@@ -32,6 +30,8 @@ import Servant
     ( Proxy (..)
     , (:<|>) (..)
     )
+
+import qualified Servant.Client as Servant
 
 --------------------------------------------------------------------------------
 

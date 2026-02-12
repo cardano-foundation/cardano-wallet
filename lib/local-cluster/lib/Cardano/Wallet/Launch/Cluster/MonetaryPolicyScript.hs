@@ -7,8 +7,6 @@ module Cardano.Wallet.Launch.Cluster.MonetaryPolicyScript
     )
 where
 
-import Prelude
-
 import Cardano.Wallet.Launch.Cluster.CardanoCLI
     ( cli
     , cliLine
@@ -36,7 +34,8 @@ import Data.Aeson
     , (.=)
     )
 import Data.Generics.Labels
-    ()
+    (
+    )
 import Data.Text
     ( Text
     )
@@ -49,6 +48,7 @@ import System.Path
 import UnliftIO.Exception
     ( throwString
     )
+import Prelude
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Types as Aeson
@@ -98,7 +98,8 @@ writeMonetaryPolicyScriptFile
 writeMonetaryPolicyScriptFile keyHash = do
     DirOf outputDir <- asks cfgClusterDir
     let scriptFile = outputDir </> (relFile keyHash <.> "script")
-    liftIO $ Aeson.encodeFile (toFilePath scriptFile)
+    liftIO
+        $ Aeson.encodeFile (toFilePath scriptFile)
         $ object
             [ "type" .= Aeson.String "sig"
             , "keyHash" .= keyHash
@@ -108,8 +109,9 @@ writeMonetaryPolicyScriptFile keyHash = do
 -- | Dig in to a @cardano-cli@ TextView key file to get the hex-encoded key.
 readKeyFromFile :: AbsFile -> IO Text
 readKeyFromFile f = do
-    textView <- either throwString pure =<<
-        Aeson.eitherDecodeFileStrict' (toFilePath f)
+    textView <-
+        either throwString pure
+            =<< Aeson.eitherDecodeFileStrict' (toFilePath f)
     either throwString pure
         $ Aeson.parseEither
             (Aeson.withObject "TextView" (.: "cborHex"))

@@ -12,8 +12,6 @@ module Cardano.Wallet.Launch.Cluster.Http.Service
     )
 where
 
-import Prelude
-
 import Cardano.Wallet.Launch.Cluster.Config
     ( Config
     )
@@ -77,6 +75,7 @@ import Data.Profunctor
 import Network.Socket
     ( PortNumber
     )
+import Prelude
 
 -- | Configuration for the monitoring service
 data ServiceConfiguration = ServiceConfiguration
@@ -101,7 +100,8 @@ withService
     -- ^ Configuration for the monitoring service
     -> ContT () IO (Tracer IO Phase, (RunMonitorQ IO, RunFaucetQ IO))
 withService network conn clusterConfig tr config = do
-    (port, tracer) <- withServiceServer network conn clusterConfig tr config
+    (port, tracer) <-
+        withServiceServer network conn clusterConfig tr config
     queries <- withServiceClient network port tr
     pure (tracer, queries)
 

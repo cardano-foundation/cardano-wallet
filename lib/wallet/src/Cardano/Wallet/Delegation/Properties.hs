@@ -13,8 +13,6 @@ module Cardano.Wallet.Delegation.Properties
     )
 where
 
-import Prelude
-
 import Cardano.Wallet.Delegation.Model
     ( History
     , Operation (..)
@@ -31,6 +29,7 @@ import Test.QuickCheck
     , forAll
     , (===)
     )
+import Prelude
 
 -- | A step of the history, with both states and the change to compute
 -- new from old.
@@ -48,17 +47,17 @@ setsTheFuture
     -> (slot -> Operation slot drep pool)
     -> (Status drep pool -> Status drep pool)
     -> Property
-setsTheFuture genSlot Step{old_=history, new_=history', delta_} op transition =
+setsTheFuture genSlot Step{old_ = history, new_ = history', delta_} op transition =
     let x = slotOf delta_
         old = status x history
     in  conjoin
-        [ delta_ === op x
-        , forAll (genSlot history') $ \y ->
-            let new = status y history'
-            in  case compare y x of
-                    LT -> new === status y history
-                    _ -> new === transition old
-        ]
+            [ delta_ === op x
+            , forAll (genSlot history') $ \y ->
+                let new = status y history'
+                in  case compare y x of
+                        LT -> new === status y history
+                        _ -> new === transition old
+            ]
 
 -- | Properties replicated verbatim from specifications.
 -- See 'specifications/Cardano/Wallet/Delegation.agda'.

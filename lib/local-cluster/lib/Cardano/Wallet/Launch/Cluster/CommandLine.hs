@@ -11,8 +11,6 @@ module Cardano.Wallet.Launch.Cluster.CommandLine
     )
 where
 
-import Prelude
-
 import Cardano.BM.Data.Severity
     ( Severity
     )
@@ -56,6 +54,7 @@ import Options.Applicative
 import System.Path
     ( absRel
     )
+import Prelude
 
 import qualified Cardano.BM.Data.Severity as Severity
 
@@ -216,7 +215,8 @@ nodeToClientSocketParser (Absolutizer absOf) =
                     <> help "Path to the node-to-client socket"
                 )
 
-clusterConfigsDirParser :: Absolutizer -> Parser (DirOf "cluster-configs")
+clusterConfigsDirParser
+    :: Absolutizer -> Parser (DirOf "cluster-configs")
 clusterConfigsDirParser (Absolutizer absOf) =
     DirOf . absOf . absRel
         <$> strOption
@@ -235,7 +235,8 @@ clusterDirParser (Absolutizer absOf) =
                     <> help "Path to the local cluster directory"
                 )
 
-clusterLogsParser :: Absolutizer -> Parser (Maybe (FileOf "cluster-logs"))
+clusterLogsParser
+    :: Absolutizer -> Parser (Maybe (FileOf "cluster-logs"))
 clusterLogsParser (Absolutizer absOf) =
     optional
         $ FileOf . absOf . absRel

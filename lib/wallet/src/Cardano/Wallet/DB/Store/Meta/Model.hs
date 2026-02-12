@@ -5,24 +5,20 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeFamilies #-}
 
-{- |
- Copyright: © 2018-2022 IOHK, 2023 Cardano Foundation
- License: Apache-2.0
-
-Pure, low level model for a collection of "meta transactions",
-i.e. additional data ('TxMeta') that the wallet stores for each transaction.
-Meta transactions are encoded "as" expressed in DB tables.
-
--}
+-- |
+--  Copyright: © 2018-2022 IOHK, 2023 Cardano Foundation
+--  License: Apache-2.0
+--
+-- Pure, low level model for a collection of "meta transactions",
+-- i.e. additional data ('TxMeta') that the wallet stores for each transaction.
+-- Meta transactions are encoded "as" expressed in DB tables.
 module Cardano.Wallet.DB.Store.Meta.Model
-    ( DeltaTxMetaHistory(..)
-    , TxMetaHistory(..)
+    ( DeltaTxMetaHistory (..)
+    , TxMetaHistory (..)
     , mkTxMetaHistory
     , rollbackTxMetaHistory
     , mkTxMetaFromEntity
     ) where
-
-import Prelude
 
 import Cardano.Wallet.DB.Sqlite.Schema
     ( TxMeta (..)
@@ -54,6 +50,7 @@ import Fmt
 import GHC.Generics
     ( Generic
     )
+import Prelude
 
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
@@ -64,15 +61,16 @@ import qualified Data.Map.Strict as Map
 {-----------------------------------------------------------------------------
     Type
 ------------------------------------------------------------------------------}
+
 -- | A collection of `TxMeta`, indexed by transaction identifier.
-newtype TxMetaHistory =
-    TxMetaHistory { relations :: Map TxId TxMeta }
-    deriving ( Generic, Eq, Show, Monoid, Semigroup )
+newtype TxMetaHistory
+    = TxMetaHistory {relations :: Map TxId TxMeta}
+    deriving (Generic, Eq, Show, Monoid, Semigroup)
 
 instance Buildable TxMetaHistory where
     build txs =
         "TxMetaHistory "
-        <> build (length $ relations txs)
+            <> build (length $ relations txs)
 
 {-----------------------------------------------------------------------------
     Operations
@@ -114,36 +112,40 @@ rollbackTxMetaHistory point (TxMetaHistory txs) =
 mkTxMetaEntity :: W.WalletId -> W.Tx -> W.TxMeta -> TxMeta
 mkTxMetaEntity wid tx derived =
     TxMeta
-    { txMetaTxId = TxId $ tx ^. #txId
-    , txMetaWalletId = wid
-    , txMetaStatus = derived ^. #status
-    , txMetaDirection = derived ^. #direction
-    , txMetaSlot = derived ^. #slotNo
-    , txMetaBlockHeight = getQuantity
-          (derived ^. #blockHeight)
-    , txMetaAmount = derived ^. #amount
-    , txMetaFee = fromIntegral . W.unCoin <$> W.fee tx
-    , txMetaSlotExpires = derived ^. #expiry
-    , txMetadata = W.metadata tx
-    , txMetaScriptValidity = W.scriptValidity tx <&> \case
-          W.TxScriptValid -> True
-          W.TxScriptInvalid -> False
-    }
+        { txMetaTxId = TxId $ tx ^. #txId
+        , txMetaWalletId = wid
+        , txMetaStatus = derived ^. #status
+        , txMetaDirection = derived ^. #direction
+        , txMetaSlot = derived ^. #slotNo
+        , txMetaBlockHeight =
+            getQuantity
+                (derived ^. #blockHeight)
+        , txMetaAmount = derived ^. #amount
+        , txMetaFee = fromIntegral . W.unCoin <$> W.fee tx
+        , txMetaSlotExpires = derived ^. #expiry
+        , txMetadata = W.metadata tx
+        , txMetaScriptValidity =
+            W.scriptValidity tx <&> \case
+                W.TxScriptValid -> True
+                W.TxScriptInvalid -> False
+        }
 
 -- | Compute a 'TxMetaHistory' for a wallet.
 mkTxMetaHistory :: W.WalletId -> [(W.Tx, W.TxMeta)] -> TxMetaHistory
-mkTxMetaHistory wid txs = TxMetaHistory $
-    Map.fromList
-        [ (TxId $ tx ^. #txId, mkTxMetaEntity wid tx meta)
+mkTxMetaHistory wid txs =
+    TxMetaHistory
+        $ Map.fromList
+            [ (TxId $ tx ^. #txId, mkTxMetaEntity wid tx meta)
             | (tx, meta) <- txs
-        ]
+            ]
 
 mkTxMetaFromEntity :: TxMeta -> W.TxMeta
-mkTxMetaFromEntity TxMeta{..} = W.TxMeta
-    { W.status = txMetaStatus
-    , W.direction = txMetaDirection
-    , W.slotNo = txMetaSlot
-    , W.blockHeight = Quantity (txMetaBlockHeight)
-    , amount = txMetaAmount
-    , W.expiry = txMetaSlotExpires
-    }
+mkTxMetaFromEntity TxMeta{..} =
+    W.TxMeta
+        { W.status = txMetaStatus
+        , W.direction = txMetaDirection
+        , W.slotNo = txMetaSlot
+        , W.blockHeight = Quantity (txMetaBlockHeight)
+        , amount = txMetaAmount
+        , W.expiry = txMetaSlotExpires
+        }

@@ -5,8 +5,6 @@
 
 module Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.WitnessCount where
 
-import Prelude
-
 import Cardano.Address.KeyHash
     ( KeyRole (..)
     )
@@ -17,6 +15,13 @@ import Cardano.Ledger.Api
     , hashScript
     , scriptTxWitsL
     )
+import Cardano.Ledger.Babbage
+    ( AlonzoScript
+    , BabbageTxOut
+    )
+import Cardano.Read.Ledger.Tx.Hash
+    ( getEraTxHash
+    )
 import Cardano.Read.Ledger.Tx.Outputs
     ( Outputs (..)
     , getEraOutputs
@@ -24,6 +29,10 @@ import Cardano.Read.Ledger.Tx.Outputs
 import Cardano.Read.Ledger.Tx.Witnesses
     ( Witnesses (..)
     , getEraWitnesses
+    )
+import Cardano.Wallet.Primitive.Ledger.Convert
+    ( toWalletScript
+    , toWalletScriptFromShelley
     )
 import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Outputs
     ( fromBabbageTxOut
@@ -34,11 +43,24 @@ import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Scripts
     , babbageAnyExplicitScript
     , conwayAnyExplicitScript
     )
+import Cardano.Wallet.Primitive.Types.AnyExplicitScripts
+    ( AnyExplicitScript (..)
+    )
+import Cardano.Wallet.Primitive.Types.TokenMapWithScripts
+    ( ReferenceInput (ReferenceInput)
+    , ScriptReference (ViaReferenceInput, ViaSpending)
+    )
 import Cardano.Wallet.Primitive.Types.TokenPolicyId
     ( TokenPolicyId
     )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..)
+    )
+import Cardano.Wallet.Primitive.Types.WitnessCount
+    ( WitnessCount (WitnessCount)
+    , WitnessCountCtx
+    , emptyWitnessCount
+    , toKeyRole
     )
 import Cardano.Wallet.Read
     ( Allegra
@@ -50,31 +72,6 @@ import Cardano.Wallet.Read
     , Mary
     , Shelley
     , Tx
-    )
-
-import Cardano.Ledger.Babbage
-    ( AlonzoScript
-    , BabbageTxOut
-    )
-import Cardano.Read.Ledger.Tx.Hash
-    ( getEraTxHash
-    )
-import Cardano.Wallet.Primitive.Ledger.Convert
-    ( toWalletScript
-    , toWalletScriptFromShelley
-    )
-import Cardano.Wallet.Primitive.Types.AnyExplicitScripts
-    ( AnyExplicitScript (..)
-    )
-import Cardano.Wallet.Primitive.Types.TokenMapWithScripts
-    ( ReferenceInput (ReferenceInput)
-    , ScriptReference (ViaReferenceInput, ViaSpending)
-    )
-import Cardano.Wallet.Primitive.Types.WitnessCount
-    ( WitnessCount (WitnessCount)
-    , WitnessCountCtx
-    , emptyWitnessCount
-    , toKeyRole
     )
 import Control.Lens
     ( folded
@@ -89,6 +86,7 @@ import Data.Word
     ( Word32
     , Word8
     )
+import Prelude
 
 import qualified Cardano.Ledger.Api as L
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
@@ -124,14 +122,16 @@ mkAnyEraWitnessCount
 mkAnyEraWitnessCount wits anyScripts =
     WitnessCount (addrWits wits) anyScripts (bootAddrWits wits)
 
-shelleyWitnessCount :: Witnesses Shelley -> WitnessCountCtx -> WitnessCount
+shelleyWitnessCount
+    :: Witnesses Shelley -> WitnessCountCtx -> WitnessCount
 shelleyWitnessCount (Witnesses w) _ =
     mkAnyEraWitnessCount w $ do
         s <- w ^.. scriptTxWitsL . folded
         let script = toWalletScriptFromShelley Payment s
         pure $ NativeExplicitScript script ViaSpending
 
-allegraWitnessCount :: Witnesses Allegra -> WitnessCountCtx -> WitnessCount
+allegraWitnessCount
+    :: Witnesses Allegra -> WitnessCountCtx -> WitnessCount
 allegraWitnessCount (Witnesses w) _ =
     mkAnyEraWitnessCount w $ do
         s <- w ^.. scriptTxWitsL . folded
@@ -145,7 +145,8 @@ maryWitnessCount (Witnesses w) witCtx =
         let script = toWalletScript (toKeyRole witCtx) s
         pure $ NativeExplicitScript script ViaSpending
 
-alonzoWitnessCount :: Witnesses Alonzo -> WitnessCountCtx -> WitnessCount
+alonzoWitnessCount
+    :: Witnesses Alonzo -> WitnessCountCtx -> WitnessCount
 alonzoWitnessCount (Witnesses w) witCtx =
     mkAnyEraWitnessCount w $ do
         s <- w ^.. scriptTxWitsL . folded

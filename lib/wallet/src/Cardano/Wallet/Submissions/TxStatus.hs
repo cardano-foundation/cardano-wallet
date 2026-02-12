@@ -7,13 +7,11 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeFamilies #-}
 
-{- |
-Copyright: © 2022 IOHK
-License: Apache-2.0
-
-Data type 'Submissions' for storing a set of submitted transactions.
-
--}
+-- |
+-- Copyright: © 2022 IOHK
+-- License: Apache-2.0
+--
+-- Data type 'Submissions' for storing a set of submitted transactions.
 module Cardano.Wallet.Submissions.TxStatus
     ( HasTxId (..)
     , TxStatus (..)
@@ -28,8 +26,6 @@ module Cardano.Wallet.Submissions.TxStatus
     , expirySlot
     ) where
 
-import Prelude
-
 import Control.Lens
     ( makePrisms
     )
@@ -39,6 +35,7 @@ import Data.Map.Strict
 import Data.Maybe
     ( fromMaybe
     )
+import Prelude
 
 import qualified Data.Map.Strict as Map
 
@@ -51,20 +48,27 @@ class (Show (TxId a), Eq (TxId a)) => HasTxId a where
 data TxStatus slot tx where
     -- | A transaction which is waiting to appear in on the blockchain.
     InSubmission
-      :: slot -- ^ expiration slot
-      -> tx -- ^ transaction
-      -> TxStatus slot tx
+        :: slot
+        -- ^ expiration slot
+        -> tx
+        -- ^ transaction
+        -> TxStatus slot tx
     -- | A transaction which has been accepted on the blockchain.
     InLedger
-      :: slot -- ^ expiration slot
-      -> slot -- ^ accetpance slot
-      -> tx -- ^ transaction
-      -> TxStatus slot tx
+        :: slot
+        -- ^ expiration slot
+        -> slot
+        -- ^ accetpance slot
+        -> tx
+        -- ^ transaction
+        -> TxStatus slot tx
     -- | A transaction which has expired.
     Expired
-      :: slot -- ^ expiration slot
-      -> tx -- ^ transaction
-      -> TxStatus slot tx
+        :: slot
+        -- ^ expiration slot
+        -> tx
+        -- ^ transaction
+        -> TxStatus slot tx
     -- | A transaction which is not tracked by the submissions store.
     Unknown :: TxStatus slot tx
     deriving (Show, Eq, Functor)
@@ -77,7 +81,7 @@ getTx (InLedger _ _ tx) = Just tx
 getTx (Expired _ tx) = Just tx
 getTx Unknown = Nothing
 
-type TxStatuses slot tx = Map (TxId tx) (TxStatus slot tx )
+type TxStatuses slot tx = Map (TxId tx) (TxStatus slot tx)
 
 -- | Extract a transaction status based on its identifier.
 status

@@ -1,8 +1,8 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 
 -- |
 -- Copyright: © 2022–2023 IOHK
@@ -13,9 +13,7 @@ module Cardano.Wallet.DB.Store.Delegations.Store
     ( mkStoreDelegations
     , encodeStatus
     )
-    where
-
-import Prelude
+where
 
 import Cardano.Pool.Types
     ( PoolId
@@ -71,10 +69,12 @@ import Database.Persist.Sql
     ( SqlPersistT
     , insertMany_
     )
+import Prelude
 
 import qualified Data.Map.Strict as Map
 
-mkStoreDelegations :: UpdateStore (SqlPersistT IO) (Operation SlotNo DRep PoolId)
+mkStoreDelegations
+    :: UpdateStore (SqlPersistT IO) (Operation SlotNo DRep PoolId)
 mkStoreDelegations = mkUpdateStore loadS' writeS' updateS'
 
 loadS'
@@ -92,7 +92,8 @@ data DecodeDelegationError
     | ActiveVotingWithoutPoolAndDRep
     deriving (Show, Eq, Exception)
 
-decodeStatus :: Delegations -> (Either SomeException (SlotNo, Status DRep PoolId))
+decodeStatus
+    :: Delegations -> (Either SomeException (SlotNo, Status DRep PoolId))
 decodeStatus (Delegations sn n m_pi m_v) = case n of
     InactiveE -> Right (sn, Inactive)
     RegisteredE -> Right (sn, Active Nothing Nothing)

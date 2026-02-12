@@ -7,7 +7,7 @@ module Control.Monad.Fail.Extended
 
 import Prelude
 
-newtype ReportFailure a = ReportFailure { reportFailure :: Either String a }
+newtype ReportFailure a = ReportFailure {reportFailure :: Either String a}
     deriving (Functor, Applicative, Monad) via (Either String)
 
 instance MonadFail ReportFailure where fail = ReportFailure . Left

@@ -1,11 +1,10 @@
 {-# LANGUAGE UndecidableInstances #-}
 
-{- |
-Copyright: © 2020-2022 IOHK
-License: Apache-2.0
-
-Prototocol parameters.
--}
+-- |
+-- Copyright: © 2020-2022 IOHK
+-- License: Apache-2.0
+--
+-- Prototocol parameters.
 module Cardano.Read.Ledger.PParams
     ( -- * Protocol parameters type
       PParamsType
@@ -13,10 +12,6 @@ module Cardano.Read.Ledger.PParams
     )
 where
 
-import Prelude
-
-import qualified Cardano.Chain.Update as BY
-import qualified Cardano.Ledger.Core as SH
 import Cardano.Read.Ledger.Eras
     ( Allegra
     , Alonzo
@@ -26,18 +21,21 @@ import Cardano.Read.Ledger.Eras
     , Mary
     , Shelley
     )
+import Prelude
 
-{- | Protocol parameters of different eras.
+import Cardano.Chain.Update qualified as BY
+import Cardano.Ledger.Core qualified as SH
 
-See https://cips.cardano.org/cip/CIP-9
-for more information on the meaning of these parameters.
-
-In the Shelley-based eras, this only includes protocol
-parameters which can be changed by an update proposal.
-This does not include some parameters such as the
-\"length of a slot in seconds\"; the Shelley specification
-calls such parameters \"Global Constants\".
--}
+-- | Protocol parameters of different eras.
+--
+-- See https://cips.cardano.org/cip/CIP-9
+-- for more information on the meaning of these parameters.
+--
+-- In the Shelley-based eras, this only includes protocol
+-- parameters which can be changed by an update proposal.
+-- This does not include some parameters such as the
+-- \"length of a slot in seconds\"; the Shelley specification
+-- calls such parameters \"Global Constants\".
 type family PParamsType era where
     PParamsType Byron = BY.ProtocolParameters
     PParamsType Shelley = SH.PParams Shelley

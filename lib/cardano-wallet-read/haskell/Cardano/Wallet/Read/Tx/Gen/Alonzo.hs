@@ -7,8 +7,6 @@ module Cardano.Wallet.Read.Tx.Gen.Alonzo
     )
 where
 
-import Prelude
-
 import Cardano.Ledger.Alonzo.Tx
     ( AlonzoTx (AlonzoTx)
     , IsValid (..)
@@ -86,6 +84,7 @@ import Data.Sequence.Strict
 import Data.Set
     ( Set
     )
+import Prelude
 
 mkAlonzoTx
     :: TxParameters
@@ -127,7 +126,8 @@ txouts
     -> StrictSeq (AlonzoTxOut AlonzoEra)
 txouts xs = fromList $ do
     (addr, Lovelace val) <- toList xs
-    pure $ AlonzoTxOut (decodeShelleyAddress addr) (mkMaryValue val) SNothing
+    pure
+        $ AlonzoTxOut (decodeShelleyAddress addr) (mkMaryValue val) SNothing
 
 network :: StrictMaybe Network
 network = SNothing

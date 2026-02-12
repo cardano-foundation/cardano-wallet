@@ -4,8 +4,6 @@
 
 module Cardano.Wallet.Launch.Cluster.Node.Process where
 
-import Prelude
-
 import Cardano.Launcher.Node
     ( CardanoNodeConfig
     , CardanoNodeConn
@@ -30,6 +28,7 @@ import Control.Monad.Reader
 import Control.Tracer
     ( Contravariant (..)
     )
+import Prelude
 
 withCardanoNodeProcess
     :: String

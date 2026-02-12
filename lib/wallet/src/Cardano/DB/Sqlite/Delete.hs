@@ -12,14 +12,14 @@
 -- A function to wait until a suitable time to delete a SQLite database file,
 -- and a function to delete a SQLite database file, which isn't as
 -- straightforward as it sounds.
-
 module Cardano.DB.Sqlite.Delete
     ( -- * Removing files with retry
       deleteSqliteDatabase
     , deleteSqliteDatabase'
     , deleteSqliteDatabaseRetryPolicy
     , DeleteSqliteDatabaseLog (..)
-    -- * Ref-counting open databases
+
+      -- * Ref-counting open databases
     , RefCount
     , newRefCount
     , withRef
@@ -27,8 +27,6 @@ module Cardano.DB.Sqlite.Delete
     , waitForFree'
     , waitForFreeRetryPolicy
     ) where
-
-import Prelude
 
 import Cardano.BM.Data.Severity
     ( Severity (..)
@@ -83,6 +81,7 @@ import UnliftIO.MVar
     , newMVar
     , readMVar
     )
+import Prelude
 
 #if defined(mingw32_HOST_OS)
 import Control.Retry
@@ -121,7 +120,8 @@ import qualified Data.Text as T
 --
 -- See <https://github.com/haskell/directory/issues/96> for more information
 -- about this issue.
-deleteSqliteDatabase :: Tracer IO DeleteSqliteDatabaseLog -> FilePath -> IO ()
+deleteSqliteDatabase
+    :: Tracer IO DeleteSqliteDatabaseLog -> FilePath -> IO ()
 deleteSqliteDatabase tr =
     deleteSqliteDatabase' tr deleteSqliteDatabaseRetryPolicy
 
@@ -134,7 +134,7 @@ deleteSqliteDatabase'
     -> IO ()
 deleteSqliteDatabase' tr pol db = mapM_ delete files
   where
-    files = [ db, db <> "-wal", db <> "-shm" ]
+    files = [db, db <> "-wal", db <> "-shm"]
     delete = handleErrors tr pol . removePathForcibly
 
 handleErrors
@@ -158,8 +158,8 @@ linearBackoff
     :: Int
     -- ^ Base delay in microseconds
     -> RetryPolicy
-linearBackoff base = retryPolicy $ \ RetryStatus { rsIterNumber = n } ->
-  Just $! base * n
+linearBackoff base = retryPolicy $ \RetryStatus{rsIterNumber = n} ->
+    Just $! base * n
 
 -- | Recommended retry policy for 'deleteSqliteDatabase'.
 deleteSqliteDatabaseRetryPolicy :: RetryPolicy
@@ -174,7 +174,9 @@ data DeleteSqliteDatabaseLog
 instance ToText DeleteSqliteDatabaseLog where
     toText msg = case msg of
         MsgRetryDelete retryNum ->
-            "retry " <> T.pack (show retryNum) <> " for lock/sharing violation - probably due to antivirus software"
+            "retry "
+                <> T.pack (show retryNum)
+                <> " for lock/sharing violation - probably due to antivirus software"
         MsgGaveUpDelete e ->
             "gave up on delete due to " <> T.pack e
 
@@ -190,8 +192,10 @@ instance HasSeverityAnnotation DeleteSqliteDatabaseLog where
 
 -- | Mutable variable containing reference counts to IDs of type @ix@.
 data RefCount ix = RefCount
-    { _refCount :: MVar (Map ix Int) -- ^ number of references to each index
-    , _takeLock :: MVar () -- ^ lock on incrementing references
+    { _refCount :: MVar (Map ix Int)
+    -- ^ number of references to each index
+    , _takeLock :: MVar ()
+    -- ^ lock on incrementing references
     }
 
 -- | Construct a 'RefCount' with zero references.
@@ -245,7 +249,7 @@ waitForFree'
     -> IO a
 waitForFree' tr pol (RefCount mvar lock) ix action = modifyMVar lock $ const $ do
     res <- retrying pol (const $ pure . isJust) (const check)
-    ((), ) <$> action (fromMaybe 0 res)
+    ((),) <$> action (fromMaybe 0 res)
   where
     check = do
         refs <- Map.lookup ix <$> readMVar mvar
@@ -255,5 +259,7 @@ waitForFree' tr pol (RefCount mvar lock) ix action = modifyMVar lock $ const $ d
 -- | Recommended retry schedule for polling the 'RefCount'. It will poll for up
 -- to 2 minutes.
 waitForFreeRetryPolicy :: RetryPolicy
-waitForFreeRetryPolicy = fibonacciBackoff 50_000 & capDelay 5_000_000
-    & limitRetriesByCumulativeDelay 120_000_000
+waitForFreeRetryPolicy =
+    fibonacciBackoff 50_000
+        & capDelay 5_000_000
+        & limitRetriesByCumulativeDelay 120_000_000

@@ -1,21 +1,17 @@
 {-# LANGUAGE UndecidableInstances #-}
 
-{- |
-Copyright: © 2022 IOHK, 2024 Cardano Foundation
-License: Apache-2.0
-
-The 'Tx' type represents transactions as they are read from the mainnet ledger.
-It is compatible with the era-specific index types from @cardano-ledger@.
--}
+-- |
+-- Copyright: © 2022 IOHK, 2024 Cardano Foundation
+-- License: Apache-2.0
+--
+-- The 'Tx' type represents transactions as they are read from the mainnet ledger.
+-- It is compatible with the era-specific index types from @cardano-ledger@.
 module Cardano.Read.Ledger.Tx.Tx
     ( -- * Transaction type
       Tx (..)
     , TxT
     ) where
 
-import Prelude
-
-import qualified Cardano.Chain.UTxO as Byron
 import Cardano.Ledger.Alonzo.Tx
     ( AlonzoTx
     )
@@ -31,6 +27,9 @@ import Cardano.Read.Ledger.Eras
     , Mary
     , Shelley
     )
+import Prelude
+
+import Cardano.Chain.UTxO qualified as Byron
 
 -- |
 -- Closed type family returning the ledger transaction type for each known era.

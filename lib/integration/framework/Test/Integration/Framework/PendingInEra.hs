@@ -4,8 +4,6 @@ module Test.Integration.Framework.PendingInEra
     )
 where
 
-import Prelude
-
 import Cardano.Wallet.Api.Types.Era
     ( ApiEra (..)
     )
@@ -16,6 +14,7 @@ import Test.Hspec.Core.Spec
 import Test.Integration.Framework.Context
     ( Context (..)
     )
+import Prelude
 
 pendingInConway :: Context -> Expectation
 pendingInConway ctx = case _mainEra ctx of

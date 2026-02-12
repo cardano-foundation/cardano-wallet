@@ -9,8 +9,6 @@ module Cardano.Wallet.Launch.Cluster.Faucet.Serialize
     , saveFunds
     ) where
 
-import Prelude
-
 import Cardano.Address
     ( bech32
     , fromBech32
@@ -55,6 +53,7 @@ import UnliftIO
     ( SomeException
     , catch
     )
+import Prelude
 
 import qualified Data.Text as T
 import qualified Data.Yaml as Y

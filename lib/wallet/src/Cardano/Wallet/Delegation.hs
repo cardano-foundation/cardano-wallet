@@ -2,7 +2,6 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
 
 module Cardano.Wallet.Delegation
@@ -12,11 +11,9 @@ module Cardano.Wallet.Delegation
     , guardVoting
     , quitStakePoolDelegationAction
     , joinDRepVotingAction
-    , DelegationRequest(..)
+    , DelegationRequest (..)
     , VoteRequest (..)
     ) where
-
-import Prelude
 
 import Cardano.Pool.Types
     ( PoolId (..)
@@ -67,6 +64,7 @@ import Data.Maybe
 import Data.Set
     ( Set
     )
+import Prelude
 
 import qualified Cardano.Wallet.DB.Store.Delegations.Layer as Dlgs
 import qualified Cardano.Wallet.DB.WalletState as WalletState
@@ -80,14 +78,18 @@ import qualified Data.Set as Set
 -- the library figures out if stake key needs to be registered first
 -- so that clients don't have to worry about this concern.
 data DelegationRequest
-    = Join PoolId
-    -- ^ Delegate to a pool using the default staking key (derivation index 0),
-    -- registering the stake key if needed.
-    | Quit
-    -- ^ Stop delegating if the wallet is delegating.
+    = -- | Delegate to a pool using the default staking key (derivation index 0),
+      -- registering the stake key if needed.
+      Join PoolId
+    | -- | Stop delegating if the wallet is delegating.
+      Quit
     deriving (Eq, Show)
 
-data VoteRequest = NotVotedYet | VotedSameAsBefore | VotedDifferently | NotVotedThisTime
+data VoteRequest
+    = NotVotedYet
+    | VotedSameAsBefore
+    | VotedDifferently
+    | NotVotedThisTime
     deriving (Eq, Show)
 
 {-----------------------------------------------------------------------------
@@ -106,34 +108,50 @@ joinStakePoolDelegationAction
         ErrStakePoolDelegation
         (Tx.DelegationAction, Maybe Tx.VotingAction)
 joinStakePoolDelegationAction
-    era wallet currentEpochSlotting knownPools poolId poolStatus votingRequest
-  = case guardJoin era knownPools delegation poolId retirementInfo votingRequest of
-        Left e -> Left $ ErrStakePoolJoin e
-        Right () -> Right
-            ( if stakeKeyIsRegistered
-                then Tx.Join poolId
-                else Tx.JoinRegisteringKey poolId
-            , case era of
-                Write.RecentEraBabbage -> Nothing
-                Write.RecentEraConway ->
-                    if not stakeKeyIsRegistered then
-                        Just $ Tx.VoteRegisteringKey Abstain
-                    else if votingRequest /= NotVotedThisTime then
-                        Just $ Tx.Vote Abstain
-                    else
-                        Nothing
-            )
-  where
-    stakeKeyIsRegistered =
-        Dlgs.isStakeKeyRegistered
-        $ WalletState.delegations wallet
-    delegation =
-        Dlgs.readDelegation currentEpochSlotting
-        $ WalletState.delegations wallet
-    retirementInfo =
-        PoolRetirementEpochInfo (currentEpochSlotting ^. #currentEpoch)
-            . view #retirementEpoch <$>
-            W.getPoolRetirementCertificate poolStatus
+    era
+    wallet
+    currentEpochSlotting
+    knownPools
+    poolId
+    poolStatus
+    votingRequest =
+        case guardJoin
+            era
+            knownPools
+            delegation
+            poolId
+            retirementInfo
+            votingRequest of
+            Left e -> Left $ ErrStakePoolJoin e
+            Right () ->
+                Right
+                    ( if stakeKeyIsRegistered
+                        then Tx.Join poolId
+                        else Tx.JoinRegisteringKey poolId
+                    , case era of
+                        Write.RecentEraBabbage -> Nothing
+                        Write.RecentEraConway ->
+                            if not stakeKeyIsRegistered
+                                then
+                                    Just $ Tx.VoteRegisteringKey Abstain
+                                else
+                                    if votingRequest /= NotVotedThisTime
+                                        then
+                                            Just $ Tx.Vote Abstain
+                                        else
+                                            Nothing
+                    )
+      where
+        stakeKeyIsRegistered =
+            Dlgs.isStakeKeyRegistered
+                $ WalletState.delegations wallet
+        delegation =
+            Dlgs.readDelegation currentEpochSlotting
+                $ WalletState.delegations wallet
+        retirementInfo =
+            PoolRetirementEpochInfo (currentEpochSlotting ^. #currentEpoch)
+                . view #retirementEpoch
+                <$> W.getPoolRetirementCertificate poolStatus
 
 guardJoin
     :: Write.IsRecentEra era
@@ -145,20 +163,22 @@ guardJoin
     -> VoteRequest
     -> Either ErrCannotJoin ()
 guardJoin era knownPools delegation pid mRetirementEpochInfo votedTheSameM = do
-    when (pid `Set.notMember` knownPools) $
-        Left (ErrNoSuchPool pid)
+    when (pid `Set.notMember` knownPools)
+        $ Left (ErrNoSuchPool pid)
 
     forM_ mRetirementEpochInfo $ \info ->
-        when (currentEpoch info >= retirementEpoch info) $
-            Left (ErrNoSuchPool pid)
+        when (currentEpoch info >= retirementEpoch info)
+            $ Left (ErrNoSuchPool pid)
 
     when ((null next) && isDelegatingTo (== pid) active) eraVotingLogic
 
-    when (not (null next) && isDelegatingTo (== pid) (last next)) eraVotingLogic
+    when
+        (not (null next) && isDelegatingTo (== pid) (last next))
+        eraVotingLogic
   where
-    WalletDelegation {active, next} = delegation
+    WalletDelegation{active, next} = delegation
     eraVotingLogic = case (era, votedTheSameM) of
-        (Write.RecentEraBabbage,_) ->
+        (Write.RecentEraBabbage, _) ->
             Left (ErrAlreadyDelegating pid)
         (Write.RecentEraConway, NotVotedYet) ->
             pure ()
@@ -172,10 +192,12 @@ guardJoin era knownPools delegation pid mRetirementEpochInfo votedTheSameM = do
 {-----------------------------------------------------------------------------
     Quit stake pool
 ------------------------------------------------------------------------------}
+
 -- | Given the state of the wallet,
 -- return a 'DelegationAction' for quitting the current stake pool.
 quitStakePoolDelegationAction
-    :: forall s. ()
+    :: forall s
+     . ()
     => WalletState.WalletState s
     -> Coin
     -- ^ Reward balance of the wallet
@@ -189,11 +211,11 @@ quitStakePoolDelegationAction wallet rewards currentEpochSlotting withdrawal =
   where
     voting =
         isJust
-        $ Dlgs.getVoting
-        $ WalletState.delegations wallet
+            $ Dlgs.getVoting
+            $ WalletState.delegations wallet
     delegation =
         Dlgs.readDelegation currentEpochSlotting
-        $ WalletState.delegations wallet
+            $ WalletState.delegations wallet
 
 guardQuit
     :: WalletDelegation
@@ -201,35 +223,42 @@ guardQuit
     -> Coin
     -> Bool
     -> Either ErrCannotQuit ()
-guardQuit WalletDelegation{active,next} wdrl rewards voting = do
+guardQuit WalletDelegation{active, next} wdrl rewards voting = do
     let last_ = maybe active (view #status) $ lastMay next
     let anyone _ = True
     when (not (isDelegatingTo anyone last_) && not voting)
         $ Left ErrNotDelegatingOrAboutTo
     case wdrl of
-        WithdrawalSelf {} -> Right ()
+        WithdrawalSelf{} -> Right ()
         _
-            | rewards == Coin 0  -> Right ()
-            | otherwise          -> Left $ ErrNonNullRewards rewards
+            | rewards == Coin 0 -> Right ()
+            | otherwise -> Left $ ErrNonNullRewards rewards
 
 guardVoting
     :: Maybe DelegationRequest
-    -> Maybe (Bool,DRep)
+    -> Maybe (Bool, DRep)
     -> Either ErrCannotVote ()
 guardVoting optionalDelegationAction votingSameAgainM = do
-    when (isNothing optionalDelegationAction && (fst <$> votingSameAgainM) == Just True ) $
-        Left $ ErrAlreadyVoted $ snd (fromJust votingSameAgainM)
+    when
+        ( isNothing optionalDelegationAction
+            && (fst <$> votingSameAgainM) == Just True
+        )
+        $ Left
+        $ ErrAlreadyVoted
+        $ snd (fromJust votingSameAgainM)
 
 joinDRepVotingAction
-    :: forall era . Write.IsRecentEra era
+    :: forall era
+     . Write.IsRecentEra era
     => Write.RecentEra era
     -> DRep
     -> W.WalletDelegation
     -> Bool
     -> Either ErrCannotVote Tx.VotingAction
 joinDRepVotingAction era targetDRep dlg stakeKeyIsRegistered = do
-    when (sameWalletDelegation dlg) $
-        Left $ ErrAlreadyVoted targetDRep
+    when (sameWalletDelegation dlg)
+        $ Left
+        $ ErrAlreadyVoted targetDRep
     second (const votingAction) $ guardEraIsConway era
   where
     isDRepSame (W.Voting drep) = drep == targetDRep
@@ -250,5 +279,5 @@ joinDRepVotingAction era targetDRep dlg stakeKeyIsRegistered = do
 
     votingAction =
         if stakeKeyIsRegistered
-        then Tx.Vote targetDRep
-        else Tx.VoteRegisteringKey targetDRep
+            then Tx.Vote targetDRep
+            else Tx.VoteRegisteringKey targetDRep

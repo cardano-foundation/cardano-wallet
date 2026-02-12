@@ -17,8 +17,6 @@ module Cardano.Wallet.Primitive.SyncProgress
     , syncProgress
     ) where
 
-import Prelude
-
 import Cardano.Slotting.Slot
     ( SlotNo
     )
@@ -70,6 +68,7 @@ import Ouroboros.Consensus.BlockchainTime.WallClock.Types
     ( RelativeTime (..)
     , diffRelTime
     )
+import Prelude
 
 import qualified Data.Percentage as Percentage
 
@@ -115,10 +114,12 @@ instance ToText SyncTolerance where
 instance FromText SyncTolerance where
     fromText = bimap (const errSyncTolerance) SyncTolerance . fromText
       where
-        errSyncTolerance = TextDecodingError $ unwords
-            [ "Cannot parse given time duration. Here are a few examples of"
-            , "valid text representing a sync tolerance: '3s', '3600s', '42s'."
-            ]
+        errSyncTolerance =
+            TextDecodingError
+                $ unwords
+                    [ "Cannot parse given time duration. Here are a few examples of"
+                    , "valid text representing a sync tolerance: '3s', '3600s', '42s'."
+                    ]
 
 -- | Estimate restoration progress based on:
 --
@@ -135,13 +136,13 @@ instance FromText SyncTolerance where
 syncProgress
     :: (HasCallStack, Monad m)
     => SyncTolerance
-        -- ^ A time tolerance inside which we consider ourselves synced
+    -- ^ A time tolerance inside which we consider ourselves synced
     -> TimeInterpreter m
-        -- ^ Converts slots to actual time.
+    -- ^ Converts slots to actual time.
     -> SlotNo
-        -- ^ Slot of latest block consumed
+    -- ^ Slot of latest block consumed
     -> RelativeTime
-        -- ^ Current wall clock time
+    -- ^ Current wall clock time
     -> m SyncProgress
 syncProgress (SyncTolerance tolerance) ti slot now = do
     timeCovered <- interpretQuery ti $ slotToRelTime slot
@@ -149,19 +150,21 @@ syncProgress (SyncTolerance tolerance) ti slot now = do
             | now == start = 0
             | otherwise = convert timeCovered % convert now
 
-    pure $ if withinTolerance timeCovered now
-        then Ready
-        else Syncing
-            . Quantity
-            . fromRight (error $ errMsg progress)
-            . Percentage.fromRational
-            $ toRational progress
+    pure
+        $ if withinTolerance timeCovered now
+            then Ready
+            else
+                Syncing
+                    . Quantity
+                    . fromRight (error $ errMsg progress)
+                    . Percentage.fromRational
+                    $ toRational progress
   where
     start = RelativeTime 0
 
     convert :: RelativeTime -> Int
     convert = round . (* 1_000) . getRelativeTime
 
-    withinTolerance a b =  b `diffRelTime` a <= tolerance
+    withinTolerance a b = b `diffRelTime` a <= tolerance
 
     errMsg x = "syncProgress: " ++ show x ++ " is out of bounds"

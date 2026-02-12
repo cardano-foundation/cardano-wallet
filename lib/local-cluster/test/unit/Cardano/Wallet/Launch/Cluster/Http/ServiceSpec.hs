@@ -14,13 +14,11 @@ module Cardano.Wallet.Launch.Cluster.Http.ServiceSpec
     )
 where
 
-import Prelude
-
-import Cardano.Binary
-    ( serialize'
-    )
 import Cardano.BM.ToTextTracer
     ( ToTextTracer (..)
+    )
+import Cardano.Binary
+    ( serialize'
     )
 import Cardano.Chain.Common
     ( unsafeGetLovelace
@@ -179,6 +177,7 @@ import UnliftIO.Async
 import UnliftIO.Concurrent
     ( threadDelay
     )
+import Prelude
 
 import qualified Cardano.Address as Addr
 import qualified Cardano.Chain.UTxO as Byron

@@ -7,15 +7,12 @@
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
-
-{-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Cardano.Wallet.Address.Discovery.SharedSpec
     ( spec
     ) where
-
-import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv
@@ -128,6 +125,7 @@ import Test.QuickCheck
     , (===)
     , (==>)
     )
+import Prelude
 
 import qualified Cardano.Wallet.Address.Pool as AddressPool
 import qualified Data.ByteString as BS
@@ -137,26 +135,44 @@ import qualified Data.Map.Strict as Map
 spec :: Spec
 spec = do
     describe "isShared for Catalyst" $ do
-        it "address composed with our verification key should be discoverable if within pool gap"
+        it
+            "address composed with our verification key should be discoverable if within pool gap"
             (property (prop_addressWithScriptFromOurVerKeyIxIn @'Mainnet))
-        it "address composed with our verification key must not be discoverable if beyond pool gap"
+        it
+            "address composed with our verification key must not be discoverable if beyond pool gap"
             (property (prop_addressWithScriptFromOurVerKeyIxBeyond @'Mainnet))
-        it "first discovery enlarges ourAddresses and marks the address Used"
+        it
+            "first discovery enlarges ourAddresses and marks the address Used"
             (property (prop_addressDiscoveryMakesAddressUsed @'Mainnet))
-        it "multiple discovery of the same address is idempotent for state"
+        it
+            "multiple discovery of the same address is idempotent for state"
             (property (prop_addressDoubleDiscovery @'Mainnet))
-        it "address composed with our verification key must not be discoverable with other account public key for the same key index"
+        it
+            "address composed with our verification key must not be discoverable with other account public key for the same key index"
             (property (prop_addressDiscoveryImpossibleFromOtherAccXPub @'Mainnet))
-        it "address composed with our verification key must not be discoverable within the same mnemonic when other of its account is used"
-            (property (prop_addressDiscoveryImpossibleFromOtherAccountOfTheSameRootXPrv @'Mainnet))
-        it "address composed with our verification key must not be discoverable within proper account is script changes structure"
-            (property (prop_addressDiscoveryImpossibleWithinAccountButDifferentScript @'Mainnet))
-        it "upon address discovery there is exact and consecutive number of Unused indices that amounts to the address pool gap number"
+        it
+            "address composed with our verification key must not be discoverable within the same mnemonic when other of its account is used"
+            ( property
+                ( prop_addressDiscoveryImpossibleFromOtherAccountOfTheSameRootXPrv
+                    @'Mainnet
+                )
+            )
+        it
+            "address composed with our verification key must not be discoverable within proper account is script changes structure"
+            ( property
+                ( prop_addressDiscoveryImpossibleWithinAccountButDifferentScript
+                    @'Mainnet
+                )
+            )
+        it
+            "upon address discovery there is exact and consecutive number of Unused indices that amounts to the address pool gap number"
             (property (prop_addressDiscoveryDoesNotChangeGapInvariance @'Mainnet))
 
     describe "KnownAddresses" $ do
-        it "addresses with wrong prefixes and our credentials are discovered via isOurs" $ do
-            (property prop_oursUnexpectedPrefix)
+        it
+            "addresses with wrong prefixes and our credentials are discovered via isOurs"
+            $ do
+                (property prop_oursUnexpectedPrefix)
 
 -- specialize to SharedKey
 mkSharedStateFromAccountXPub'
@@ -171,145 +187,224 @@ mkSharedStateFromAccountXPub'
 mkSharedStateFromAccountXPub' = mkSharedStateFromAccountXPub SharedKeyS
 
 prop_addressWithScriptFromOurVerKeyIxIn
-    :: forall n. HasSNetworkId n
+    :: forall n
+     . HasSNetworkId n
     => CatalystSharedState
     -> Index 'Soft 'CredFromScriptK
     -> Property
 prop_addressWithScriptFromOurVerKeyIxIn (CatalystSharedState accXPub' accIx' pTemplate' dTemplate' g) keyIx =
     preconditions keyIx g dTemplate' ==>
-    keyIx' === keyIx
+        keyIx' === keyIx
   where
     addr = constructAddressFromIx @n UtxoExternal pTemplate' dTemplate' keyIx
-    sharedState = mkSharedStateFromAccountXPub' @n accXPub' accIx' IncreasingChangeAddresses g pTemplate' dTemplate'
+    sharedState =
+        mkSharedStateFromAccountXPub' @n
+            accXPub'
+            accIx'
+            IncreasingChangeAddresses
+            g
+            pTemplate'
+            dTemplate'
     (Just (keyIx', _), _) = isShared @n addr sharedState
 
 prop_addressWithScriptFromOurVerKeyIxBeyond
-    :: forall n. HasSNetworkId n
+    :: forall n
+     . HasSNetworkId n
     => CatalystSharedState
     -> Index 'Soft 'CredFromScriptK
     -> Property
 prop_addressWithScriptFromOurVerKeyIxBeyond (CatalystSharedState accXPub' accIx' pTemplate' dTemplate' g) keyIx =
     fromIntegral (fromEnum keyIx) >= threshold g ==>
-    fst (isShared @n addr sharedState) === Nothing .&&.
-    snd (isShared @n addr sharedState) === sharedState
+        fst (isShared @n addr sharedState) === Nothing
+            .&&. snd (isShared @n addr sharedState) === sharedState
   where
     addr = constructAddressFromIx @n UtxoExternal pTemplate' dTemplate' keyIx
-    sharedState = mkSharedStateFromAccountXPub' @n accXPub' accIx' IncreasingChangeAddresses g pTemplate' dTemplate'
+    sharedState =
+        mkSharedStateFromAccountXPub' @n
+            accXPub'
+            accIx'
+            IncreasingChangeAddresses
+            g
+            pTemplate'
+            dTemplate'
 
 getAddrPool
     :: SharedState n k
-    -> AddressPool.Pool (KeyFingerprint "payment" k) (Index 'Soft 'CredFromScriptK)
+    -> AddressPool.Pool
+        (KeyFingerprint "payment" k)
+        (Index 'Soft 'CredFromScriptK)
 getAddrPool st = case ready st of
     Active (SharedAddressPools (SharedAddressPool pool) _ _) -> pool
     Pending -> error "expected active state"
 
 prop_addressDiscoveryMakesAddressUsed
-    :: forall n. HasSNetworkId n
+    :: forall n
+     . HasSNetworkId n
     => CatalystSharedState
     -> Index 'Soft 'CredFromScriptK
     -> Property
 prop_addressDiscoveryMakesAddressUsed (CatalystSharedState accXPub' accIx' pTemplate' dTemplate' g) keyIx =
     preconditions keyIx g dTemplate' ==>
-    (snd <$> Map.lookup addr ourAddrs) === Just Used .&&.
-    fromIntegral (Map.size ourAddrs) === (fromIntegral (fromEnum ix + 1) + getAddressPoolGap g)
+        (snd <$> Map.lookup addr ourAddrs) === Just Used
+            .&&. fromIntegral (Map.size ourAddrs)
+                === (fromIntegral (fromEnum ix + 1) + getAddressPoolGap g)
   where
-    sharedState = mkSharedStateFromAccountXPub' @n accXPub' accIx' IncreasingChangeAddresses g pTemplate' dTemplate'
+    sharedState =
+        mkSharedStateFromAccountXPub' @n
+            accXPub'
+            accIx'
+            IncreasingChangeAddresses
+            g
+            pTemplate'
+            dTemplate'
     addr = AddressPool.addressFromIx (getAddrPool sharedState) keyIx
     (Just (ix, _), sharedState') = isShared @n (liftPaymentAddress @n addr) sharedState
     ourAddrs = AddressPool.addresses (getAddrPool sharedState')
 
 prop_addressDoubleDiscovery
-    :: forall n. HasSNetworkId n
+    :: forall n
+     . HasSNetworkId n
     => CatalystSharedState
     -> Index 'Soft 'CredFromScriptK
     -> Property
 prop_addressDoubleDiscovery (CatalystSharedState accXPub' accIx' pTemplate' dTemplate' g) keyIx =
     preconditions keyIx g dTemplate' ==>
-    isJust (fst sharedState') === True .&&.
-    snd sharedState' === snd sharedState''
+        isJust (fst sharedState') === True
+            .&&. snd sharedState' === snd sharedState''
   where
     addr = constructAddressFromIx @n UtxoExternal pTemplate' dTemplate' keyIx
-    sharedState = mkSharedStateFromAccountXPub' @n accXPub' accIx' IncreasingChangeAddresses g pTemplate' dTemplate'
+    sharedState =
+        mkSharedStateFromAccountXPub' @n
+            accXPub'
+            accIx'
+            IncreasingChangeAddresses
+            g
+            pTemplate'
+            dTemplate'
     sharedState' = isShared @n addr sharedState
     sharedState'' = isShared @n addr (snd sharedState')
 
 prop_addressDiscoveryImpossibleFromOtherAccXPub
-    :: forall n. HasSNetworkId n
+    :: forall n
+     . HasSNetworkId n
     => CatalystSharedState
     -> Index 'Soft 'CredFromScriptK
     -> SharedKey 'AccountK XPub
     -> Property
 prop_addressDiscoveryImpossibleFromOtherAccXPub (CatalystSharedState _ accIx' pTemplate' dTemplate' g) keyIx accXPub' =
     preconditions keyIx g dTemplate' ==>
-    fst (isShared addr sharedState) === Nothing .&&.
-    snd (isShared addr sharedState) === sharedState
+        fst (isShared addr sharedState) === Nothing
+            .&&. snd (isShared addr sharedState) === sharedState
   where
     addr = constructAddressFromIx @n UtxoExternal pTemplate' dTemplate' keyIx
     (ScriptTemplate _ script') = pTemplate'
-    pTemplate'' = ScriptTemplate
-        (Map.fromList [(Cosigner 0, getRawKey SharedKeyS accXPub')]) script'
-    sharedState = mkSharedStateFromAccountXPub' @n accXPub' accIx' IncreasingChangeAddresses g pTemplate'' dTemplate'
+    pTemplate'' =
+        ScriptTemplate
+            (Map.fromList [(Cosigner 0, getRawKey SharedKeyS accXPub')])
+            script'
+    sharedState =
+        mkSharedStateFromAccountXPub' @n
+            accXPub'
+            accIx'
+            IncreasingChangeAddresses
+            g
+            pTemplate''
+            dTemplate'
 
 prop_addressDiscoveryImpossibleFromOtherAccountOfTheSameRootXPrv
-    :: forall n. HasSNetworkId n
+    :: forall n
+     . HasSNetworkId n
     => CatalystSharedState
     -> Index 'Soft 'CredFromScriptK
-    -> (SharedKey 'RootK XPrv, Index 'Hardened 'AccountK, Index 'Hardened 'AccountK)
+    -> ( SharedKey 'RootK XPrv
+       , Index 'Hardened 'AccountK
+       , Index 'Hardened 'AccountK
+       )
     -> Property
 prop_addressDiscoveryImpossibleFromOtherAccountOfTheSameRootXPrv (CatalystSharedState _ _ pTemplate' dTemplate' g) keyIx (rootXPrv, accIx', accIx'') =
     preconditions keyIx g dTemplate' ==>
-    fst (isShared addr sharedState) === Nothing .&&.
-    snd (isShared addr sharedState) === sharedState
+        fst (isShared addr sharedState) === Nothing
+            .&&. snd (isShared addr sharedState) === sharedState
   where
-    accXPub' = publicKey SharedKeyS
-        $ deriveAccountPrivateKey mempty rootXPrv accIx'
-    accXPub'' = publicKey SharedKeyS
-        $ deriveAccountPrivateKey mempty rootXPrv accIx''
+    accXPub' =
+        publicKey SharedKeyS
+            $ deriveAccountPrivateKey mempty rootXPrv accIx'
+    accXPub'' =
+        publicKey SharedKeyS
+            $ deriveAccountPrivateKey mempty rootXPrv accIx''
     (ScriptTemplate _ script') = pTemplate'
-    pTemplate'' = ScriptTemplate
-        (Map.fromList [(Cosigner 0, getRawKey SharedKeyS accXPub')]) script'
-    pTemplate''' = ScriptTemplate
-        (Map.fromList [(Cosigner 0, getRawKey SharedKeyS accXPub'')]) script'
-    sharedState = mkSharedStateFromAccountXPub' @n accXPub'' accIx'' IncreasingChangeAddresses g pTemplate'' dTemplate'
-    addr = constructAddressFromIx @n UtxoExternal pTemplate''' dTemplate' keyIx
+    pTemplate'' =
+        ScriptTemplate
+            (Map.fromList [(Cosigner 0, getRawKey SharedKeyS accXPub')])
+            script'
+    pTemplate''' =
+        ScriptTemplate
+            (Map.fromList [(Cosigner 0, getRawKey SharedKeyS accXPub'')])
+            script'
+    sharedState =
+        mkSharedStateFromAccountXPub' @n
+            accXPub''
+            accIx''
+            IncreasingChangeAddresses
+            g
+            pTemplate''
+            dTemplate'
+    addr =
+        constructAddressFromIx @n UtxoExternal pTemplate''' dTemplate' keyIx
 
 prop_addressDiscoveryImpossibleWithinAccountButDifferentScript
-    :: forall n. HasSNetworkId n
+    :: forall n
+     . HasSNetworkId n
     => CatalystSharedState
     -> Index 'Soft 'CredFromScriptK
     -> OneCosignerScript
     -> Property
 prop_addressDiscoveryImpossibleWithinAccountButDifferentScript (CatalystSharedState accXPub' accIx' pTemplate' dTemplate' g) keyIx (OneCosignerScript script') =
     preconditions keyIx g dTemplate' ==>
-    fst (isShared addr sharedState) === Nothing .&&.
-    snd (isShared addr sharedState) === sharedState
+        fst (isShared addr sharedState) === Nothing
+            .&&. snd (isShared addr sharedState) === sharedState
   where
     (ScriptTemplate cosignerXpubs _) = pTemplate'
     pTemplate'' = ScriptTemplate cosignerXpubs script'
-    sharedState = mkSharedStateFromAccountXPub' @n accXPub' accIx' IncreasingChangeAddresses g pTemplate' dTemplate'
+    sharedState =
+        mkSharedStateFromAccountXPub' @n
+            accXPub'
+            accIx'
+            IncreasingChangeAddresses
+            g
+            pTemplate'
+            dTemplate'
     addr = constructAddressFromIx @n UtxoExternal pTemplate'' dTemplate' keyIx
 
 prop_addressDiscoveryDoesNotChangeGapInvariance
-    :: forall n. HasSNetworkId n
+    :: forall n
+     . HasSNetworkId n
     => CatalystSharedState
     -> Index 'Soft 'CredFromScriptK
     -> Property
 prop_addressDiscoveryDoesNotChangeGapInvariance (CatalystSharedState accXPub' accIx' pTemplate' dTemplate' g) keyIx =
     preconditions keyIx g dTemplate' ==>
-    fromIntegral (L.length mapOfConsecutiveUnused) === getAddressPoolGap g
+        fromIntegral (L.length mapOfConsecutiveUnused) === getAddressPoolGap g
   where
-    sharedState = mkSharedStateFromAccountXPub' @n accXPub' accIx' IncreasingChangeAddresses g pTemplate' dTemplate'
+    sharedState =
+        mkSharedStateFromAccountXPub' @n
+            accXPub'
+            accIx'
+            IncreasingChangeAddresses
+            g
+            pTemplate'
+            dTemplate'
     addr = AddressPool.addressFromIx (getAddrPool sharedState) keyIx
     (_, sharedState') = isShared @n (liftPaymentAddress @n addr) sharedState
-    mapOfConsecutiveUnused = case
-        ( L.dropWhile (== Unused)
-        . L.map snd
-        . L.sortOn fst
-        . Map.elems . AddressPool.addresses
-        $ getAddrPool sharedState'
-        ) of
-            (_:rest) -> rest
-            [] -> error "mapOfConsecutiveUnused: empty after dropWhile"
+    mapOfConsecutiveUnused = case ( L.dropWhile (== Unused)
+                                        . L.map snd
+                                        . L.sortOn fst
+                                        . Map.elems
+                                        . AddressPool.addresses
+                                        $ getAddrPool sharedState'
+                                  ) of
+        (_ : rest) -> rest
+        [] -> error "mapOfConsecutiveUnused: empty after dropWhile"
 
 preconditions
     :: Index 'Soft 'CredFromScriptK
@@ -325,8 +420,8 @@ preconditions keyIx g dTemplate' =
 
 threshold :: AddressPoolGap -> Word32
 threshold g =
-    fromIntegral (fromEnum (minBound @(Index 'Soft 'CredFromScriptK))) +
-    getAddressPoolGap g
+    fromIntegral (fromEnum (minBound @(Index 'Soft 'CredFromScriptK)))
+        + getAddressPoolGap g
 
 data CatalystSharedState = CatalystSharedState
     { accXPub :: SharedKey 'AccountK XPub
@@ -334,7 +429,8 @@ data CatalystSharedState = CatalystSharedState
     , pTemplate :: ScriptTemplate
     , dTemplate :: Maybe ScriptTemplate
     , addrPoolGap :: AddressPoolGap
-    } deriving (Eq, Show)
+    }
+    deriving (Eq, Show)
 
 prop_oursUnexpectedPrefix
     :: SharedState 'Mainnet SharedKey
@@ -342,11 +438,11 @@ prop_oursUnexpectedPrefix
     -> Property
 prop_oursUnexpectedPrefix s prefix =
     case knownAddresses s of
-        ((Address addr, _, _):_) ->
+        ((Address addr, _, _) : _) ->
             let addr' = case BS.uncons addr of
                     Just (_, rest) -> BS.cons (unWord8 prefix) rest
                     Nothing -> error "prop_oursUnexpectedPrefix: address is empty"
-            in first isJust (isOurs (Address addr') s) === (False, s)
+            in  first isJust (isOurs (Address addr') s) === (False, s)
         [] -> error "expected known addresses"
 
 {-------------------------------------------------------------------------------
@@ -359,19 +455,24 @@ instance Arbitrary CatalystSharedState where
         accXPub' <- snd <$> genKeys accIx'
         slotUntil <- genNatural
         slotAfter <- genNatural `suchThat` (> slotUntil)
-        let script' = RequireAllOf
-                [ RequireSignatureOf (Cosigner 0)
-                , RequireAnyOf [ ActiveUntilSlot slotUntil, ActiveFromSlot slotAfter] ]
-        let pTemplate' = ScriptTemplate
-                (Map.fromList [(Cosigner 0, getRawKey SharedKeyS accXPub')])
-                script'
+        let script' =
+                RequireAllOf
+                    [ RequireSignatureOf (Cosigner 0)
+                    , RequireAnyOf [ActiveUntilSlot slotUntil, ActiveFromSlot slotAfter]
+                    ]
+        let pTemplate' =
+                ScriptTemplate
+                    (Map.fromList [(Cosigner 0, getRawKey SharedKeyS accXPub')])
+                    script'
         (OneCosignerScript otherScript) <- arbitrary
-        let _otherTemplate = ScriptTemplate
-                (Map.fromList [(Cosigner 0, getRawKey SharedKeyS accXPub')])
-                otherScript
-        --dTemplate' <- elements [Nothing, Just pTemplate', Just otherTemplate]
+        let _otherTemplate =
+                ScriptTemplate
+                    (Map.fromList [(Cosigner 0, getRawKey SharedKeyS accXPub')])
+                    otherScript
+        -- dTemplate' <- elements [Nothing, Just pTemplate', Just otherTemplate]
         dTemplate' <- elements [Nothing, Just pTemplate']
-        CatalystSharedState accXPub' accIx' pTemplate' dTemplate'  <$> arbitrary
+        CatalystSharedState accXPub' accIx' pTemplate' dTemplate'
+            <$> arbitrary
 
 instance Arbitrary (SharedKey 'AccountK XPub) where
     arbitrary = do
@@ -379,7 +480,8 @@ instance Arbitrary (SharedKey 'AccountK XPub) where
         snd <$> genKeys accIx'
 
 newtype OneCosignerScript = OneCosignerScript
-    { unScript :: Script Cosigner } deriving (Show, Eq)
+    {unScript :: Script Cosigner}
+    deriving (Show, Eq)
 
 instance Arbitrary OneCosignerScript where
     arbitrary = OneCosignerScript <$> genScript [Cosigner 0]
@@ -421,11 +523,12 @@ newtype UnexpectedPrefix = UnexpectedPrefix {unWord8 :: Word8}
 
 instance Arbitrary UnexpectedPrefix where
     arbitrary = do
-        let baseAddr = 0b00110001       -- scripthash; scripthash, mainnet
+        let baseAddr = 0b00110001 -- scripthash; scripthash, mainnet
             enterpriseAddr = 0b01110001 -- scripthash, mainnet
-            rewardAcct = 0b11110001     -- scripthash, mainnet
+            rewardAcct = 0b11110001 -- scripthash, mainnet
             validPrefixesMainnet = [baseAddr, enterpriseAddr, rewardAcct]
-        UnexpectedPrefix <$> arbitrary `suchThat` (`notElem` validPrefixesMainnet)
+        UnexpectedPrefix
+            <$> arbitrary `suchThat` (`notElem` validPrefixesMainnet)
 
 instance Arbitrary (SharedState 'Mainnet SharedKey) where
     arbitrary = do
@@ -433,6 +536,12 @@ instance Arbitrary (SharedState 'Mainnet SharedKey) where
         pwd <- genEncryptionPassphrase
         accIx' <- arbitrary
         scriptTemplate <- genScriptTemplate
-        pure $ mkSharedStateFromRootXPrv SharedKeyS
-            (RootCredentials rootXPrv pwd) accIx' IncreasingChangeAddresses
-            defaultAddressPoolGap scriptTemplate Nothing
+        pure
+            $ mkSharedStateFromRootXPrv
+                SharedKeyS
+                (RootCredentials rootXPrv pwd)
+                accIx'
+                IncreasingChangeAddresses
+                defaultAddressPoolGap
+                scriptTemplate
+                Nothing

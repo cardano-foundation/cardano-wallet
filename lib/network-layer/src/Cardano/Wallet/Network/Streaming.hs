@@ -20,10 +20,6 @@ module Cardano.Wallet.Network.Streaming
     )
 where
 
-import Prelude hiding
-    ( take
-    )
-
 import Cardano.Read.Ledger.Block.BHeader
     ( getEraBHeader
     )
@@ -95,6 +91,9 @@ import UnliftIO.STM
     , takeTMVar
     , writeTBQueue
     )
+import Prelude hiding
+    ( take
+    )
 
 import qualified Streaming.Prelude as S
 
@@ -165,7 +164,8 @@ withStreamingFromBlockChain network tr newBuffer = do
         S.yield msg
         next
 
-explodeBlock :: IsEra era => Block era -> (BHeader :*: ([] :.: Tx)) era
+explodeBlock
+    :: IsEra era => Block era -> (BHeader :*: ([] :.: Tx)) era
 explodeBlock block =
     let txs = getEraTransactions block
         bh = getEraBHeader block

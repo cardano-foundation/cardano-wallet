@@ -6,8 +6,6 @@
 module Cardano.Wallet.Api.Clients.Testnet.Shelley
 where
 
-import Prelude
-
 import Cardano.Wallet.Api.Clients.Testnet.Id
     ( Testnet42
     )
@@ -72,7 +70,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx
     )
 import Data.Generics.Labels
-    ()
+    (
+    )
 import Data.List.NonEmpty
     ( NonEmpty
     )
@@ -85,6 +84,7 @@ import Servant.API
 import Servant.Client
     ( ClientM
     )
+import Prelude
 
 import qualified Cardano.Wallet.Api.Clients.Shelley as Shelley
 
@@ -229,7 +229,10 @@ getAssets
 getAssets = Shelley.getAssets
 
 getAsset
-    :: ApiT WalletId -> ApiT TokenPolicyId -> ApiT AssetName -> ClientM ApiAsset
+    :: ApiT WalletId
+    -> ApiT TokenPolicyId
+    -> ApiT AssetName
+    -> ClientM ApiAsset
 getAsset = Shelley.getAsset
 
 getAsset'

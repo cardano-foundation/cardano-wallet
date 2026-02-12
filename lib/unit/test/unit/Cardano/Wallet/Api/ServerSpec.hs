@@ -4,12 +4,9 @@
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
 module Cardano.Wallet.Api.ServerSpec (spec) where
-
-import Prelude
 
 import Cardano.Api
     ( AnyCardanoEra (..)
@@ -144,6 +141,7 @@ import UnliftIO.Async
 import UnliftIO.Concurrent
     ( threadDelay
     )
+import Prelude
 
 import qualified Cardano.Wallet.Primitive.SyncProgress as S
 import qualified Cardano.Wallet.Read as Read
@@ -166,15 +164,15 @@ serverSpec = describe "API Server" $ do
     it "binds to the local interface" $ do
         withListeningSocket "127.0.0.1" ListenOnRandomPort $ \case
             Right (port, sock) -> do
-                getSocketName sock `shouldReturn`
-                    SockAddrInet (fromIntegral port) lo
+                getSocketName sock
+                    `shouldReturn` SockAddrInet (fromIntegral port) lo
             Left e -> fail (show e)
 
     it "can bind on any interface" $ do
         withListeningSocket "0.0.0.0" ListenOnRandomPort $ \case
             Right (port, sock) -> do
-                getSocketName sock `shouldReturn`
-                    SockAddrInet (fromIntegral port) 0
+                getSocketName sock
+                    `shouldReturn` SockAddrInet (fromIntegral port) 0
             Left e -> fail (show e)
 
     it "listens on the local interface" $ do
@@ -192,8 +190,9 @@ serverSpec = describe "API Server" $ do
                 fail "test case timed out"
 
         withListeningSocket "127.0.0.1" ListenOnRandomPort $ \case
-            Right (port, sock) -> race_ timeout $
-                concurrently_ (client port) (server sock)
+            Right (port, sock) ->
+                race_ timeout
+                    $ concurrently_ (client port) (server sock)
             Left e -> fail (show e)
 
     -- assuming there is no host "patate"
@@ -204,7 +203,8 @@ serverSpec = describe "API Server" $ do
     -- can't bind to link-local IPv6 address
     it "handles invalid address" $ do
         withListeningSocket "fe80::90c2:786f:431:b721" ListenOnRandomPort $ \res ->
-            res `shouldBe` Left (ListenErrorInvalidAddress "fe80::90c2:786f:431:b721")
+            res
+                `shouldBe` Left (ListenErrorInvalidAddress "fe80::90c2:786f:431:b721")
 
     -- assuming we are not running the tests as root
     it "handles privileged ports" $ do
@@ -222,34 +222,37 @@ serverSpec = describe "API Server" $ do
 
 networkInfoSpec :: Spec
 networkInfoSpec = describe "getNetworkInformation" $ do
-    it "doesn't return 500 when the time interpreter horizon is behind\
-       \ the current time" $ property $ \(gap' ::(NonNegative Int)) ->
-        monadicIO $ do
-        let gap = fromRational $ toRational $ getNonNegative gap'
-        st <- run $ StartTime . ((negate gap) `addUTCTime`) <$> getCurrentTime
-        let ti = forkInterpreter st
-        now <- currentRelativeTime ti
-        let nodeTip' = SlotNo 0
-        let nl = mockNetworkLayer nodeTip' ti now
-        Right info <- run
-            $ runHandler
-            $ getNetworkInformation (Testnet $ NetworkMagic 1) nl Node
+    it
+        "doesn't return 500 when the time interpreter horizon is behind\
+        \ the current time"
+        $ property
+        $ \(gap' :: (NonNegative Int)) ->
+            monadicIO $ do
+                let gap = fromRational $ toRational $ getNonNegative gap'
+                st <- run $ StartTime . ((negate gap) `addUTCTime`) <$> getCurrentTime
+                let ti = forkInterpreter st
+                now <- currentRelativeTime ti
+                let nodeTip' = SlotNo 0
+                let nl = mockNetworkLayer nodeTip' ti now
+                Right info <-
+                    run
+                        $ runHandler
+                        $ getNetworkInformation (Testnet $ NetworkMagic 1) nl Node
 
-        --  0              20
-        --  *               |        *
-        --  Node tip     Horizon   Network Tip
-        --  <------------------------>
-        --            gap
-        --
-        --  20 = epoch length = 10*k
-        if gap >= 20
-        then do
-            assertWith "networkTip is Nothing" $ isNothing $ networkTip info
-            assertWith "nextEpoch is Nothing" $ isNothing $ nextEpoch info
-        else do
-            assertWith "networkTip is Just " $ isJust $ networkTip info
-            assertWith "nextEpoch is Just" $ isJust $ nextEpoch info
-
+                --  0              20
+                --  *               |        *
+                --  Node tip     Horizon   Network Tip
+                --  <------------------------>
+                --            gap
+                --
+                --  20 = epoch length = 10*k
+                if gap >= 20
+                    then do
+                        assertWith "networkTip is Nothing" $ isNothing $ networkTip info
+                        assertWith "nextEpoch is Nothing" $ isNothing $ nextEpoch info
+                    else do
+                        assertWith "networkTip is Just " $ isJust $ networkTip info
+                        assertWith "nextEpoch is Just" $ isJust $ nextEpoch info
   where
     assertWith :: String -> Bool -> PropertyM IO ()
     assertWith lbl condition = do
@@ -265,12 +268,13 @@ networkInfoSpec = describe "getNetworkInformation" $ do
     mockNetworkLayer sl ti relativeTime =
         dummyNetworkLayer
             { currentNodeEra = pure $ AnyCardanoEra MaryEra
-            , currentNodeTip = pure $
-                Read.BlockTip
-                    { slotNo = Read.SlotNo $ fromIntegral $ unSlotNo sl
-                    , headerHash = mockHash
-                    , blockNo = Read.BlockNo $ fromIntegral $ unSlotNo sl
-                    }
+            , currentNodeTip =
+                pure
+                    $ Read.BlockTip
+                        { slotNo = Read.SlotNo $ fromIntegral $ unSlotNo sl
+                        , headerHash = mockHash
+                        , blockNo = Read.BlockNo $ fromIntegral $ unSlotNo sl
+                        }
             , timeInterpreter = ti
             , syncProgress = \slot ->
                 S.syncProgress
@@ -286,16 +290,21 @@ networkInfoSpec = describe "getNetworkInformation" $ do
     forkInterpreter startTime =
         let
             start = HF.initBound
-            end = HF.Bound
+            end =
+                HF.Bound
                     (RelativeTime 20)
                     (SlotNo 20)
                     (EpochNo 1)
 
-            era1Params = HF.defaultEraParams (SecurityParam $ unsafeNonZero 2) (mkSlotLength 1)
-            summary = HF.summaryWithExactly $ exactlyOne $
-                HF.EraSummary start (HF.EraEnd end) era1Params
+            era1Params =
+                HF.defaultEraParams (SecurityParam $ unsafeNonZero 2) (mkSlotLength 1)
+            summary =
+                HF.summaryWithExactly
+                    $ exactlyOne
+                    $ HF.EraSummary start (HF.EraEnd end) era1Params
             int = HF.mkInterpreter summary
-        in mkTimeInterpreter nullTracer startTime (pure int)
+        in
+            mkTimeInterpreter nullTracer startTime (pure int)
 
 errorHandlingSpec :: Spec
 errorHandlingSpec = describe "liftHandler and toServerError" $ do
@@ -315,24 +324,27 @@ errorHandlingSpec = describe "liftHandler and toServerError" $ do
         res `shouldSatisfy` isLeft
         let Left actualErr = res
         errHTTPCode actualErr `shouldBe` 404
-        errReasonPhrase actualErr `shouldBe`
-            "Not Found"
-        BL.toStrict (errBody actualErr) `shouldSatisfy`
-            (B8.isInfixOf "no_such_wallet")
-        errHeaders actualErr `shouldBe`
-            [("Content-Type","application/json;charset=utf-8")]
+        errReasonPhrase actualErr
+            `shouldBe` "Not Found"
+        BL.toStrict (errBody actualErr)
+            `shouldSatisfy` (B8.isInfixOf "no_such_wallet")
+        errHeaders actualErr
+            `shouldBe` [("Content-Type", "application/json;charset=utf-8")]
 
     it "Unhandled exception" $ do
         pendingWith "TODO: ADP-641 catch all exceptions in application"
-        let expectedErr = ServerError
-                { errHTTPCode = 500
-                , errReasonPhrase = "Internal Server Error"
-                , errBody = mconcat
-                    [ "{\"code\":\"internal_server_error\","
-                    , "\"message\":\"Something went wrong\"}" ]
-                , errHeaders =
-                    [("Content-Type","application/json;charset=utf-8")]
-                }
+        let expectedErr =
+                ServerError
+                    { errHTTPCode = 500
+                    , errReasonPhrase = "Internal Server Error"
+                    , errBody =
+                        mconcat
+                            [ "{\"code\":\"internal_server_error\","
+                            , "\"message\":\"Something went wrong\"}"
+                            ]
+                    , errHeaders =
+                        [("Content-Type", "application/json;charset=utf-8")]
+                    }
 
         runHandler (getNetworkClock (error "bomb") True)
             `shouldReturn` Left expectedErr

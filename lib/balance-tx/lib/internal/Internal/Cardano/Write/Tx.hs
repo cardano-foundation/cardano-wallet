@@ -25,20 +25,19 @@
 -- 'RecentEra'). Intended to be used by things like balanceTx, constructTx and
 -- wallet migration.
 module Internal.Cardano.Write.Tx
-    (
-    -- ** Key witness counts
+    ( -- ** Key witness counts
       KeyWitnessCounts (..)
 
-    -- ** Helpers for cardano-api compatibility
+      -- ** Helpers for cardano-api compatibility
     , fromCardanoApiTx
     , toCardanoApiTx
 
-    -- ** Misc
+      -- ** Misc
     , StandardCrypto
     , StandardBabbage
     , StandardConway
 
-    -- * PParams
+      -- * PParams
     , PParams
     , PParamsInAnyRecentEra (..)
     , toRecentEraGADT
@@ -50,16 +49,16 @@ module Internal.Cardano.Write.Tx
     , ProtVer (..)
     , Version
 
-    -- * Tx
+      -- * Tx
     , Tx
     , TxBody
     , serializeTx
     , deserializeTx
 
-    -- * TxId
+      -- * TxId
     , Ledger.TxId
 
-    -- * TxOut
+      -- * TxOut
     , TxOut
     , BabbageTxOut (..)
     , TxOutInBabbage
@@ -67,61 +66,58 @@ module Internal.Cardano.Write.Tx
     , ErrInvalidTxOutInEra (..)
     , unwrapTxOutInRecentEra
     , wrapTxOutInRecentEra
-
     , computeMinimumCoinForTxOut
     , isBelowMinimumCoinForTxOut
 
-    -- ** Address
+      -- ** Address
     , Address
     , unsafeAddressFromBytes
 
-    -- ** Value
+      -- ** Value
     , Value
     , modifyCoin
     , coin
     , Coin (..)
 
-    -- ** Datum
+      -- ** Datum
     , Datum (..)
 
-    -- *** Binary Data
+      -- *** Binary Data
     , BinaryData
 
-    -- *** Datum Hash
+      -- *** Datum Hash
     , DatumHash
     , datumHashFromBytes
     , datumHashToBytes
 
-    -- ** Rewards
+      -- ** Rewards
     , RewardAccount
     , StakeCredential
 
-    -- ** Script
+      -- ** Script
     , Script
     , Alonzo.isPlutusScript
     , ScriptHash
 
-    -- * TxIn
+      -- * TxIn
     , TxIn
     , unsafeMkTxIn
 
-    -- * UTxO
+      -- * UTxO
     , Shelley.UTxO (..)
     , utxoFromTxOutsInRecentEra
     , unsafeUtxoFromTxOutsInRecentEra
     , forceUTxOToEra
 
-    -- * Policy and asset identifiers
+      -- * Policy and asset identifiers
     , type PolicyId
     , pattern PolicyId
     , AssetName
 
-    -- * Balancing
+      -- * Balancing
     , evaluateTransactionBalance
     )
-    where
-
-import Prelude
+where
 
 import Cardano.Crypto.Hash
     ( Hash (UnsafeHash)
@@ -198,7 +194,8 @@ import Data.Generics.Internal.VL.Lens
     , (^.)
     )
 import Data.Generics.Labels
-    ()
+    (
+    )
 import Data.IntCast
     ( intCast
     , intCastMaybe
@@ -224,6 +221,7 @@ import Ouroboros.Consensus.Shelley.Eras
     , StandardConway
     , StandardCrypto
     )
+import Prelude
 
 import qualified Cardano.Api as CardanoApi
 import qualified Cardano.Api.Shelley as CardanoApi
@@ -254,14 +252,14 @@ import qualified Data.Map as Map
 data KeyWitnessCounts = KeyWitnessCounts
     { nKeyWits :: !Word
     -- ^ "Normal" verification key witnesses introduced with the Shelley era.
-
     , nBootstrapWits :: !Word
     -- ^ Bootstrap key witnesses, a.k.a Byron witnesses.
-    } deriving (Eq, Show)
+    }
+    deriving (Eq, Show)
 
 instance Semigroup KeyWitnessCounts where
-    KeyWitnessCounts s1 b1 <> KeyWitnessCounts s2 b2
-        = KeyWitnessCounts (s1 + s2) (b1 + b2)
+    KeyWitnessCounts s1 b1 <> KeyWitnessCounts s2 b2 =
+        KeyWitnessCounts (s1 + s2) (b1 + b2)
 
 instance Monoid KeyWitnessCounts where
     mempty = KeyWitnessCounts 0 0
@@ -274,9 +272,10 @@ type TxIn = Ledger.TxIn
 
 -- | Useful for testing
 unsafeMkTxIn :: ByteString -> Word -> TxIn
-unsafeMkTxIn hash ix = Ledger.mkTxInPartial
-    (toTxId hash)
-    (fromIntegral ix)
+unsafeMkTxIn hash ix =
+    Ledger.mkTxInPartial
+        (toTxId hash)
+        (fromIntegral ix)
   where
     toTxId :: ByteString -> Ledger.TxId
     toTxId h =
@@ -319,16 +318,18 @@ datumHashToBytes = Crypto.hashToBytes . extractHash
 -- the latest era has not removed information from the @TxOut@. This allows
 -- e.g. @ToJSON@ / @FromJSON@ instances to be written for two eras using only
 -- one implementation.
-data TxOutInRecentEra =
-    TxOutInRecentEra
+data TxOutInRecentEra
+    = TxOutInRecentEra
         Address
         Value
         (Datum LatestLedgerEra)
         (Maybe (AlonzoScript LatestLedgerEra))
-        -- Same contents as 'TxOut LatestLedgerEra'.
+
+-- Same contents as 'TxOut LatestLedgerEra'.
 
 wrapTxOutInRecentEra
-    :: forall era. IsRecentEra era
+    :: forall era
+     . IsRecentEra era
     => TxOut era
     -> TxOutInRecentEra
 wrapTxOutInRecentEra out = case recentEra @era of
@@ -344,7 +345,8 @@ data ErrInvalidTxOutInEra
     deriving (Show, Eq)
 
 unwrapTxOutInRecentEra
-    :: forall era. IsRecentEra era
+    :: forall era
+     . IsRecentEra era
     => TxOutInRecentEra
     -> Either ErrInvalidTxOutInEra (TxOut era)
 unwrapTxOutInRecentEra recentEraTxOut = case recentEra @era of
@@ -361,7 +363,9 @@ recentEraToBabbageTxOut
     :: TxOutInRecentEra
     -> Either ErrInvalidTxOutInEra (BabbageTxOut Babbage)
 recentEraToBabbageTxOut (TxOutInRecentEra addr val datum mscript) =
-    Babbage.BabbageTxOut addr val
+    Babbage.BabbageTxOut
+        addr
+        val
         (downgradeDatum datum)
         <$> (maybe (Right SNothing) (fmap SJust . downgradeScript) mscript)
   where
@@ -377,10 +381,10 @@ recentEraToBabbageTxOut (TxOutInRecentEra addr val datum mscript) =
         :: AlonzoScript Conway
         -> Either ErrInvalidTxOutInEra (AlonzoScript Babbage)
     downgradeScript = \case
-        TimelockScript timelockEra
-            -> pure $ Alonzo.TimelockScript (translateTimelock timelockEra)
-        PlutusScript s
-            -> PlutusScript <$> downgradePlutusScript s
+        TimelockScript timelockEra ->
+            pure $ Alonzo.TimelockScript (translateTimelock timelockEra)
+        PlutusScript s ->
+            PlutusScript <$> downgradePlutusScript s
 
     downgradePlutusScript
         :: PlutusScript Conway
@@ -412,7 +416,8 @@ recentEraToBabbageTxOut (TxOutInRecentEra addr val datum mscript) =
 -- quantities regardless of the fact that modifying the ada 'Coin' value may
 -- itself change the size and min-ada requirement.
 computeMinimumCoinForTxOut
-    :: forall era. IsRecentEra era
+    :: forall era
+     . IsRecentEra era
     => PParams era
     -> TxOut era
     -> Coin
@@ -426,7 +431,8 @@ computeMinimumCoinForTxOut pp out =
         over coinTxOutL (const $ Convert.toLedger W.txOutMaxCoin)
 
 isBelowMinimumCoinForTxOut
-    :: forall era. IsRecentEra era
+    :: forall era
+     . IsRecentEra era
     => PParams era
     -> TxOut era
     -> Bool
@@ -451,8 +457,8 @@ utxoFromTxOutsInRecentEra
     => [(TxIn, TxOutInRecentEra)]
     -> Either ErrInvalidTxOutInEra (Shelley.UTxO era)
 utxoFromTxOutsInRecentEra =
-    fmap (Shelley.UTxO . Map.fromList) . mapM (secondM unwrapTxOutInRecentEra)
-
+    fmap (Shelley.UTxO . Map.fromList)
+        . mapM (secondM unwrapTxOutInRecentEra)
   where
     secondM :: Monad m => (o -> m o') -> (i, o) -> m (i, o')
     secondM f (i, o) = f o >>= \o' -> return (i, o')
@@ -465,20 +471,22 @@ unsafeUtxoFromTxOutsInRecentEra =
     either (error . show) id . utxoFromTxOutsInRecentEra
 
 forceUTxOToEra
-    :: forall era1 era2. (IsRecentEra era1, IsRecentEra era2)
+    :: forall era1 era2
+     . (IsRecentEra era1, IsRecentEra era2)
     => UTxO era1
     -> Either ErrInvalidTxOutInEra (UTxO era2)
 forceUTxOToEra (UTxO utxo) =
     utxoFromTxOutsInRecentEra
-    $ map (second wrapTxOutInRecentEra)
-    $ Map.toList utxo
+        $ map (second wrapTxOutInRecentEra)
+        $ Map.toList utxo
 
 --------------------------------------------------------------------------------
 -- Tx
 --------------------------------------------------------------------------------
 
 serializeTx
-    :: forall era. IsRecentEra era
+    :: forall era
+     . IsRecentEra era
     => Tx era
     -> ByteString
 serializeTx tx =
@@ -490,16 +498,18 @@ deserializeTx = case recentEra @era of
     RecentEraConway -> deserializeConwayTx
   where
     deserializeBabbageTx :: ByteString -> Tx Babbage
-    deserializeBabbageTx
-        = fromCardanoApiTx
-        . either (error . show) id
-        . CardanoApi.deserialiseFromCBOR (CardanoApi.AsTx CardanoApi.AsBabbageEra)
+    deserializeBabbageTx =
+        fromCardanoApiTx
+            . either (error . show) id
+            . CardanoApi.deserialiseFromCBOR
+                (CardanoApi.AsTx CardanoApi.AsBabbageEra)
 
     deserializeConwayTx :: ByteString -> Tx Conway
-    deserializeConwayTx
-        = fromCardanoApiTx
-        . either (error . show) id
-        . CardanoApi.deserialiseFromCBOR (CardanoApi.AsTx CardanoApi.AsConwayEra)
+    deserializeConwayTx =
+        fromCardanoApiTx
+            . either (error . show) id
+            . CardanoApi.deserialiseFromCBOR
+                (CardanoApi.AsTx CardanoApi.AsConwayEra)
 
 --------------------------------------------------------------------------------
 -- Compatibility
@@ -514,12 +524,13 @@ fromCardanoApiTx = \case
         tx
 
 toCardanoApiTx
-    :: forall era. IsRecentEra era
+    :: forall era
+     . IsRecentEra era
     => Tx era
     -> CardanoApi.Tx (CardanoApiEra era)
 toCardanoApiTx =
     CardanoApi.ShelleyTx
-    $ shelleyBasedEraFromRecentEra (recentEra :: RecentEra era)
+        $ shelleyBasedEraFromRecentEra (recentEra :: RecentEra era)
 
 --------------------------------------------------------------------------------
 -- PParams
@@ -558,19 +569,21 @@ newtype FeePerByte = FeePerByte Natural
     deriving (Show, Eq)
 
 getFeePerByte
-    :: forall era. (HasCallStack, IsRecentEra era)
+    :: forall era
+     . (HasCallStack, IsRecentEra era)
     => PParams era
     -> FeePerByte
 getFeePerByte pp =
-    unsafeCoinToFee $
-        case recentEra @era of
+    unsafeCoinToFee
+        $ case recentEra @era of
             RecentEraConway -> pp ^. Core.ppMinFeeAL
             RecentEraBabbage -> pp ^. Core.ppMinFeeAL
   where
     unsafeCoinToFee :: Coin -> FeePerByte
-    unsafeCoinToFee = unCoin >>> intCastMaybe >>> \case
-        Just fee -> FeePerByte fee
-        Nothing -> error "Impossible: min fee protocol parameter is negative"
+    unsafeCoinToFee =
+        unCoin >>> intCastMaybe >>> \case
+            Just fee -> FeePerByte fee
+            Nothing -> error "Impossible: min fee protocol parameter is negative"
 
 feeOfBytes :: FeePerByte -> Natural -> Coin
 feeOfBytes (FeePerByte perByte) bytes = Coin $ intCast $ perByte * bytes
@@ -604,9 +617,9 @@ stakeKeyDeposit pp = pp ^. Core.ppKeyDepositL
 --
 -- Note that the fee field of the transaction affects the balance, and
 -- is not automatically the minimum fee.
---
 evaluateTransactionBalance
-    :: forall era. IsRecentEra era
+    :: forall era
+     . IsRecentEra era
     => PParams era
     -> (StakeCredential -> Maybe Coin)
     -> Shelley.UTxO era

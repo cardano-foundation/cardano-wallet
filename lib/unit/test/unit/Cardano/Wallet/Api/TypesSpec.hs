@@ -8,7 +8,6 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE PolyKinds #-}
@@ -23,21 +22,16 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
-
-{-# OPTIONS_GHC -fno-specialise #-}
-{-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 {-# OPTIONS_GHC -fconstraint-solver-iterations=0 #-}
+{-# OPTIONS_GHC -fno-specialise #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- |
 -- Copyright: © 2018-2022 IOHK, 2023 Cardano Foundation
 -- License: Apache-2.0
-
 module Cardano.Wallet.Api.TypesSpec (spec) where
-
-import Prelude hiding
-    ( id
-    )
 
 import Cardano.Address.KeyHash
     ( KeyHash (..)
@@ -96,7 +90,8 @@ import Cardano.Wallet.Address.Derivation.Shelley
     , generateKeyFromSeed
     )
 import Cardano.Wallet.Address.DerivationSpec
-    ()
+    (
+    )
 import Cardano.Wallet.Address.Discovery.Sequential
     ( AddressPoolGap
     , getAddressPoolGap
@@ -684,7 +679,8 @@ import Test.QuickCheck.Gen
     ( sublistOf
     )
 import Test.QuickCheck.Instances
-    ()
+    (
+    )
 import Test.QuickCheck.Modifiers
     ( NonNegative (..)
     )
@@ -708,6 +704,9 @@ import Text.Regex.PCRE
     )
 import Web.HttpApiData
     ( FromHttpApiData (..)
+    )
+import Prelude hiding
+    ( id
     )
 
 import qualified Cardano.Api as Cardano
@@ -733,19 +732,19 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Yaml as Yaml
-import qualified Prelude
 import qualified Test.Utils.Roundtrip as Utils
+import qualified Prelude
 
 type T0 = 'Testnet 0
 
 spec :: Spec
 spec = do
-
     let jsonTestDataPath :: FilePath
         jsonTestDataPath = ($(getTestData) </> "Cardano" </> "Wallet" </> "Api")
 
     let jsonTest
-            :: forall a. (Arbitrary a, Typeable a, ToJSON a, FromJSON a)
+            :: forall a
+             . (Arbitrary a, Typeable a, ToJSON a, FromJSON a)
             => Spec
         jsonTest = Utils.jsonRoundtripAndGolden jsonTestDataPath (Proxy @a)
 
@@ -897,36 +896,37 @@ spec = do
         $ \era -> ApiEra.fromAnyCardanoEra (ApiEra.toAnyCardanoEra era) === era
 
     describe "ToText-FromText Roundtrip" $ do
-            textRoundtrip $ Proxy @Iso8601Time
-            textRoundtrip $ Proxy @SortOrder
-            textRoundtrip $ Proxy @Coin
-            textRoundtrip $ Proxy @TokenFingerprint
+        textRoundtrip $ Proxy @Iso8601Time
+        textRoundtrip $ Proxy @SortOrder
+        textRoundtrip $ Proxy @Coin
+        textRoundtrip $ Proxy @TokenFingerprint
 
     describe "SealedTx JSON decoding" $ do
         -- NOTE(AB): I tried to factor more of the properties as their structure only
         -- differs by the encoding but this required exporting 'HasBase' from Types to
         let parseJSONSealedTx jsonTx =
-                (serialisedTx . getApiT  <$> Aeson.eitherDecode @(ApiT SealedTx) jsonTx)
+                (serialisedTx . getApiT <$> Aeson.eitherDecode @(ApiT SealedTx) jsonTx)
 
-        it "can decode from base-16 encoded string" $
-            forAll selectFromPreparedBinaries $ \ bs ->
-                 let result = parseJSONSealedTx $ Aeson.encode $ ApiBytesT @'Base16 bs
-                  in result == Right bs &
-                     counterexample ("Parse result: " <> show result)
+        it "can decode from base-16 encoded string"
+            $ forAll selectFromPreparedBinaries
+            $ \bs ->
+                let result = parseJSONSealedTx $ Aeson.encode $ ApiBytesT @'Base16 bs
+                in  result == Right bs
+                        & counterexample ("Parse result: " <> show result)
 
-        it "can decode from base-64 encoded string" $
-            forAll selectFromPreparedBinaries $ \ bs ->
-                 let result = parseJSONSealedTx $ Aeson.encode $ ApiBytesT @'Base64 bs
-                  in result == Right bs &
-                     counterexample ("Parse result: " <> show result)
+        it "can decode from base-64 encoded string"
+            $ forAll selectFromPreparedBinaries
+            $ \bs ->
+                let result = parseJSONSealedTx $ Aeson.encode $ ApiBytesT @'Base64 bs
+                in  result == Right bs
+                        & counterexample ("Parse result: " <> show result)
 
     describe "AddressAmount" $ do
-        it "fromText \"22323\"" $
-            let err =
-                    "Parse error. " <>
-                    "Expecting format \"<amount>@<address>\" but got \"22323\""
-            in
-                fromText @(AddressAmount Text) "22323"
+        it "fromText \"22323\""
+            $ let err =
+                    "Parse error. "
+                        <> "Expecting format \"<amount>@<address>\" but got \"22323\""
+              in  fromText @(AddressAmount Text) "22323"
                     === Left (TextDecodingError err)
 
     describe "HttpApiData roundtrip" $ do
@@ -938,249 +938,332 @@ spec = do
 
     describe
         "verify that every type used with JSON content type in a servant API \
-        \has compatible ToJSON and ToSchema instances using a matcher" $ do
-        let match regex sourc = matchTest
-                (makeRegexOpts compBlank execBlank $ T.unpack regex)
-                (T.unpack sourc)
-        validateEveryToJSONWithPatternChecker match (Proxy @(Api T0))
+        \has compatible ToJSON and ToSchema instances using a matcher"
+        $ do
+            let match regex sourc =
+                    matchTest
+                        (makeRegexOpts compBlank execBlank $ T.unpack regex)
+                        (T.unpack sourc)
+            validateEveryToJSONWithPatternChecker match (Proxy @(Api T0))
 
     describe
         "Verify that every type used with JSON content type in a servant API \
-        \has compatible ToJSON and ToSchema instances using validateEveryToJSON" $
-        validateEveryToJSON $
-            Proxy @(
-                ReqBody '[JSON] AccountPostData :> PostNoContent
-              :<|>
-                ReqBody '[JSON] WalletPostData  :> PostNoContent
-            )
+        \has compatible ToJSON and ToSchema instances using validateEveryToJSON"
+        $ validateEveryToJSON
+        $ Proxy
+            @( ReqBody '[JSON] AccountPostData :> PostNoContent
+                :<|> ReqBody '[JSON] WalletPostData :> PostNoContent
+             )
 
-    describe "Verify that JSON encoding schema validated for type" $
-      do
-        let check
-                :: forall v
-                . (ToJSON v, ToSchema v, Show v, Arbitrary v)
-                => Spec
-            check = prop (show $ typeRep (Proxy @v))
-                $ forAll arbitrary
-                $ \(v :: v) ->
-                    let es = validateToJSON v
-                    in counterexample (show (v, es))
-                        $ length es `shouldBe` 0
+    describe "Verify that JSON encoding schema validated for type"
+        $ do
+            let check
+                    :: forall v
+                     . (ToJSON v, ToSchema v, Show v, Arbitrary v)
+                    => Spec
+                check = prop (show $ typeRep (Proxy @v))
+                    $ forAll arbitrary
+                    $ \(v :: v) ->
+                        let es = validateToJSON v
+                        in  counterexample (show (v, es))
+                                $ length es
+                                `shouldBe` 0
 
-        check @WalletPostData
-        check @AccountPostData
+            check @WalletPostData
+            check @AccountPostData
 
     describe
         "verify that every path specified by the servant server matches an \
-        \existing path in the specification" $
-        forM_ (everyApiEndpoint (Proxy @(Api T0))) $ \endpoint ->
-        it (show endpoint <> " exists in specification") $ do
-            let path = T.pack (apiEndpointPath endpoint)
-                verb = apiEndpointVerb endpoint
-            case foldl' unsafeLookupKey specification ["paths", path] of
-                Aeson.Object obj -> do
-                    let key = Aeson.fromString (Char.toLower <$> verb)
-                    case Aeson.lookup key obj of
-                        Just{} -> pure @IO ()
-                        Nothing ->
-                            fail $ "Path " <> show path
-                                <> " doesn't allow method " <> show verb
-                _ -> fail $
-                    "couldn't find path " <> show path <> " in specification: "
-                    <> show (unsafeLookupKey specification "paths" &
-                        \(Aeson.Object m) -> keys m)
+        \existing path in the specification"
+        $ forM_ (everyApiEndpoint (Proxy @(Api T0)))
+        $ \endpoint ->
+            it (show endpoint <> " exists in specification") $ do
+                let path = T.pack (apiEndpointPath endpoint)
+                    verb = apiEndpointVerb endpoint
+                case foldl' unsafeLookupKey specification ["paths", path] of
+                    Aeson.Object obj -> do
+                        let key = Aeson.fromString (Char.toLower <$> verb)
+                        case Aeson.lookup key obj of
+                            Just{} -> pure @IO ()
+                            Nothing ->
+                                fail
+                                    $ "Path "
+                                        <> show path
+                                        <> " doesn't allow method "
+                                        <> show verb
+                    _ ->
+                        fail
+                            $ "couldn't find path "
+                                <> show path
+                                <> " in specification: "
+                                <> show
+                                    ( unsafeLookupKey specification "paths"
+                                        & \(Aeson.Object m) -> keys m
+                                    )
 
     describe "verify JSON parsing failures too" $ do
-
         describe "ApiAsArray (Maybe t)" $ do
-            let parseApiAsArray = Aeson.parseEither $
-                    parseJSON @(ApiAsArray "test_field" (Maybe Word64))
+            let parseApiAsArray =
+                    Aeson.parseEither
+                        $ parseJSON @(ApiAsArray "test_field" (Maybe Word64))
             let expectedFailureMessage =
                     "Error in $: Expected at most one item for \"test_field\"."
-            it "element count = 0 (should succeed)" $
-                parseApiAsArray [aesonQQ|[]|]
-                    `shouldBe` Right (ApiAsArray Nothing)
-            it "element count = 1 (should succeed)" $
-                parseApiAsArray [aesonQQ|[0]|]
-                    `shouldBe` Right (ApiAsArray (Just 0))
-            it "element count = 2 (should fail)" $
-                parseApiAsArray [aesonQQ|[0, 1]|]
-                    `shouldBe` Left expectedFailureMessage
-            it "element count = 3 (should fail)" $
-                parseApiAsArray [aesonQQ|[0, 1, 2]|]
-                    `shouldBe` Left expectedFailureMessage
+            it "element count = 0 (should succeed)"
+                $ parseApiAsArray [aesonQQ|[]|]
+                `shouldBe` Right (ApiAsArray Nothing)
+            it "element count = 1 (should succeed)"
+                $ parseApiAsArray [aesonQQ|[0]|]
+                `shouldBe` Right (ApiAsArray (Just 0))
+            it "element count = 2 (should fail)"
+                $ parseApiAsArray [aesonQQ|[0, 1]|]
+                `shouldBe` Left expectedFailureMessage
+            it "element count = 3 (should fail)"
+                $ parseApiAsArray [aesonQQ|[0, 1, 2]|]
+                `shouldBe` Left expectedFailureMessage
 
         it "ApiT (Passphrase \"user\") (too short)" $ do
             let minLength = passphraseMinLength (Proxy :: Proxy "user")
-            let msg = "Error in $: passphrase is too short: \
-                    \expected at least " <> show minLength <> " characters"
+            let msg =
+                    "Error in $: passphrase is too short: \
+                    \expected at least "
+                        <> show minLength
+                        <> " characters"
             Aeson.parseEither parseJSON [aesonQQ|"patate"|]
                 `shouldBe` (Left @String @(ApiT (Passphrase "user")) msg)
 
         it "ApiT (Passphrase \"user\") (too long)" $ do
             let maxLength = passphraseMaxLength (Proxy :: Proxy "user")
-            let msg = "Error in $: passphrase is too long: \
-                    \expected at most " <> show maxLength <> " characters"
-            Aeson.parseEither parseJSON [aesonQQ|
+            let msg =
+                    "Error in $: passphrase is too long: \
+                    \expected at most "
+                        <> show maxLength
+                        <> " characters"
+            Aeson.parseEither
+                parseJSON
+                [aesonQQ|
                 #{replicate (2*maxLength) '*'}
-            |] `shouldBe` (Left @String @(ApiT (Passphrase "user")) msg)
+            |]
+                `shouldBe` (Left @String @(ApiT (Passphrase "user")) msg)
 
         it "ApiT (Passphrase \"lenient\") (too long)" $ do
             let maxLength = passphraseMaxLength (Proxy :: Proxy "lenient")
-            let msg = "Error in $: passphrase is too long: \
-                    \expected at most " <> show maxLength <> " characters"
-            Aeson.parseEither parseJSON [aesonQQ|
+            let msg =
+                    "Error in $: passphrase is too long: \
+                    \expected at most "
+                        <> show maxLength
+                        <> " characters"
+            Aeson.parseEither
+                parseJSON
+                [aesonQQ|
                 #{replicate (2*maxLength) '*'}
-            |] `shouldBe` (Left @String @(ApiT (Passphrase "lenient")) msg)
+            |]
+                `shouldBe` (Left @String @(ApiT (Passphrase "lenient")) msg)
 
         it "ApiT WalletName (too short)" $ do
-            let msg = "Error in $: name is too short: \
-                    \expected at least " <> show walletNameMinLength <> " character"
+            let msg =
+                    "Error in $: name is too short: \
+                    \expected at least "
+                        <> show walletNameMinLength
+                        <> " character"
             Aeson.parseEither parseJSON [aesonQQ|""|]
                 `shouldBe` (Left @String @(ApiT WalletName) msg)
 
         it "ApiT WalletName (too long)" $ do
-            let msg = "Error in $: name is too long: \
-                    \expected at most " <> show walletNameMaxLength <> " characters"
-            Aeson.parseEither parseJSON [aesonQQ|
+            let msg =
+                    "Error in $: name is too long: \
+                    \expected at most "
+                        <> show walletNameMaxLength
+                        <> " characters"
+            Aeson.parseEither
+                parseJSON
+                [aesonQQ|
                 #{replicate (2*walletNameMaxLength) '*'}
-            |] `shouldBe` (Left @String @(ApiT WalletName) msg)
+            |]
+                `shouldBe` (Left @String @(ApiT WalletName) msg)
 
         it "ApiMnemonicT '[12] (not enough words)" $ do
-            let msg = "Error in $: Invalid number of words: 12 words\
+            let msg =
+                    "Error in $: Invalid number of words: 12 words\
                     \ are expected."
-            Aeson.parseEither parseJSON [aesonQQ|
+            Aeson.parseEither
+                parseJSON
+                [aesonQQ|
                 ["toilet", "toilet", "toilet"]
-            |] `shouldBe` (Left @String @(ApiMnemonicT '[12]) msg)
+            |]
+                `shouldBe` (Left @String @(ApiMnemonicT '[12]) msg)
 
         it "ApiT DerivationIndex (too small)" $ do
-            let message = unwords
-                  [ "Error in $:"
-                  , "A derivation index must be a natural number between"
-                  , show (getIndex @'Soft minBound)
-                  , "and"
-                  , show (getIndex @'Soft maxBound)
-                  , "with an optional 'H' suffix (e.g. '1815H' or '44')."
-                  , "Indexes without suffixes are called 'Soft'"
-                  , "Indexes with suffixes are called 'Hardened'."
-                  ]
+            let message =
+                    unwords
+                        [ "Error in $:"
+                        , "A derivation index must be a natural number between"
+                        , show (getIndex @'Soft minBound)
+                        , "and"
+                        , show (getIndex @'Soft maxBound)
+                        , "with an optional 'H' suffix (e.g. '1815H' or '44')."
+                        , "Indexes without suffixes are called 'Soft'"
+                        , "Indexes with suffixes are called 'Hardened'."
+                        ]
 
             let value = show $ pred $ toInteger $ getIndex @'Soft minBound
             Aeson.parseEither parseJSON [aesonQQ|#{value}|]
                 `shouldBe` Left @String @(ApiT DerivationIndex) message
 
         it "ApiT DerivationIndex (too large)" $ do
-            let message = unwords
-                  [ "Error in $:"
-                  , "A derivation index must be a natural number between"
-                  , show (getIndex @'Soft minBound)
-                  , "and"
-                  , show (getIndex @'Soft maxBound)
-                  , "with an optional 'H' suffix (e.g. '1815H' or '44')."
-                  , "Indexes without suffixes are called 'Soft'"
-                  , "Indexes with suffixes are called 'Hardened'."
-                  ]
+            let message =
+                    unwords
+                        [ "Error in $:"
+                        , "A derivation index must be a natural number between"
+                        , show (getIndex @'Soft minBound)
+                        , "and"
+                        , show (getIndex @'Soft maxBound)
+                        , "with an optional 'H' suffix (e.g. '1815H' or '44')."
+                        , "Indexes without suffixes are called 'Soft'"
+                        , "Indexes with suffixes are called 'Hardened'."
+                        ]
 
             let value = show $ succ $ toInteger $ getIndex @'Soft maxBound
             Aeson.parseEither parseJSON [aesonQQ|#{value}|]
                 `shouldBe` Left @String @(ApiT DerivationIndex) message
 
         it "ApiT AddressPoolGap (too small)" $ do
-            let msg = "Error in $: An address pool gap must be a natural number between "
-                    <> show (getAddressPoolGap minBound)
-                    <> " and "
-                    <> show (getAddressPoolGap maxBound)
-                    <> "."
-            Aeson.parseEither parseJSON [aesonQQ|
+            let msg =
+                    "Error in $: An address pool gap must be a natural number between "
+                        <> show (getAddressPoolGap minBound)
+                        <> " and "
+                        <> show (getAddressPoolGap maxBound)
+                        <> "."
+            Aeson.parseEither
+                parseJSON
+                [aesonQQ|
                 #{getAddressPoolGap minBound - 1}
-            |] `shouldBe` (Left @String @(ApiT AddressPoolGap) msg)
+            |]
+                `shouldBe` (Left @String @(ApiT AddressPoolGap) msg)
 
         it "ApiT AddressPoolGap (too big)" $ do
-            let msg = "Error in $: An address pool gap must be a natural number between "
-                    <> show (getAddressPoolGap minBound)
-                    <> " and "
-                    <> show (getAddressPoolGap maxBound)
-                    <> "."
-            Aeson.parseEither parseJSON [aesonQQ|
+            let msg =
+                    "Error in $: An address pool gap must be a natural number between "
+                        <> show (getAddressPoolGap minBound)
+                        <> " and "
+                        <> show (getAddressPoolGap maxBound)
+                        <> "."
+            Aeson.parseEither
+                parseJSON
+                [aesonQQ|
                 #{getAddressPoolGap maxBound + 1}
-            |] `shouldBe` (Left @String @(ApiT AddressPoolGap) msg)
+            |]
+                `shouldBe` (Left @String @(ApiT AddressPoolGap) msg)
 
         it "ApiT AddressPoolGap (not a integer)" $ do
-            let msg = "Error in $: parsing Integer failed, unexpected floating number\
+            let msg =
+                    "Error in $: parsing Integer failed, unexpected floating number\
                     \ 2.5"
-            Aeson.parseEither parseJSON [aesonQQ|
+            Aeson.parseEither
+                parseJSON
+                [aesonQQ|
                 2.5
-            |] `shouldBe` (Left @String @(ApiT AddressPoolGap) msg)
+            |]
+                `shouldBe` (Left @String @(ApiT AddressPoolGap) msg)
 
         it "ApiT (Hash \"Tx\")" $ do
-            let msg = "Error in $: Invalid tx hash: \
+            let msg =
+                    "Error in $: Invalid tx hash: \
                     \expecting a hex-encoded value that is 32 bytes in length."
-            Aeson.parseEither parseJSON [aesonQQ|
+            Aeson.parseEither
+                parseJSON
+                [aesonQQ|
                 "-----"
-            |] `shouldBe` (Left @String @(ApiT (Hash "Tx")) msg)
+            |]
+                `shouldBe` (Left @String @(ApiT (Hash "Tx")) msg)
 
         it "ApiT WalletId" $ do
-            let msg = "Error in $: wallet id should be a hex-encoded \
+            let msg =
+                    "Error in $: wallet id should be a hex-encoded \
                     \string of 40 characters"
-            Aeson.parseEither parseJSON [aesonQQ|
+            Aeson.parseEither
+                parseJSON
+                [aesonQQ|
                 "invalid-id"
-            |] `shouldBe` (Left @String @(ApiT WalletId) msg)
+            |]
+                `shouldBe` (Left @String @(ApiT WalletId) msg)
 
         it "AddressAmount (too small)" $ do
-            let msg = "Error in $.amount.quantity: \
+            let msg =
+                    "Error in $.amount.quantity: \
                     \parsing AddressAmount failed, parsing Natural failed, \
                     \unexpected negative number -14"
-            Aeson.parseEither parseJSON [aesonQQ|
+            Aeson.parseEither
+                parseJSON
+                [aesonQQ|
                 { "address": "addr_test1vquxc75xmzzy7sy955pyz4tqg0ycgttjcv2u39ay929q2yqul2q5p"
                 , "amount": {"unit":"lovelace","quantity":-14}
                 }
-            |] `shouldBe` (Left @String @(AddressAmount (ApiAddress T0)) msg)
+            |]
+                `shouldBe` (Left @String @(AddressAmount (ApiAddress T0)) msg)
 
         it "AddressAmount (too big)" $ do
-            let msg = "Error in $: parsing AddressAmount failed, \
+            let msg =
+                    "Error in $: parsing AddressAmount failed, \
                     \invalid coin value: value has to be lower \
-                    \than or equal to " <> show (unCoin txOutMaxCoin)
-                    <> " lovelace."
-            Aeson.parseEither parseJSON [aesonQQ|
+                    \than or equal to "
+                        <> show (unCoin txOutMaxCoin)
+                        <> " lovelace."
+            Aeson.parseEither
+                parseJSON
+                [aesonQQ|
                 { "address": "addr_test1vquxc75xmzzy7sy955pyz4tqg0ycgttjcv2u39ay929q2yqul2q5p"
                 , "amount":
                     { "unit":"lovelace"
                     ,"quantity":#{unCoin txOutMaxCoin + 1}
                     }
                 }
-            |] `shouldBe` (Left @String @(AddressAmount (ApiAddress T0)) msg)
+            |]
+                `shouldBe` (Left @String @(AddressAmount (ApiAddress T0)) msg)
 
         it "ApiT PoolId" $ do
             let msg =
                     "Error in $: Invalid stake pool id: expecting a Bech32 \
                     \encoded value with human readable part of 'pool'."
-            Aeson.parseEither parseJSON [aesonQQ|
+            Aeson.parseEither
+                parseJSON
+                [aesonQQ|
                 "invalid-id"
-            |] `shouldBe` (Left @String @(ApiT PoolId) msg)
+            |]
+                `shouldBe` (Left @String @(ApiT PoolId) msg)
 
         it "ApiT PoolId" $ do
             let msg =
                     "Error in $: Invalid stake pool id: expecting a Bech32 \
                     \encoded value with human readable part of 'pool'."
-            Aeson.parseEither parseJSON [aesonQQ|
+            Aeson.parseEither
+                parseJSON
+                [aesonQQ|
                 "4c43d68b21921034519c36d2475f5adba989bb4465ec"
-            |] `shouldBe` (Left @String @(ApiT PoolId) msg)
+            |]
+                `shouldBe` (Left @String @(ApiT PoolId) msg)
 
         it "ApiT (Hash \"Genesis\")" $ do
-            let msg = "Error in $: Invalid genesis hash: \
+            let msg =
+                    "Error in $: Invalid genesis hash: \
                     \expecting a hex-encoded value that is 32 bytes in length."
-            Aeson.parseEither parseJSON [aesonQQ|
+            Aeson.parseEither
+                parseJSON
+                [aesonQQ|
                 "-----"
-            |] `shouldBe` (Left @String @(ApiT (Hash "Genesis")) msg)
+            |]
+                `shouldBe` (Left @String @(ApiT (Hash "Genesis")) msg)
 
         describe "StakePoolMetadata" $ do
-            let msg = "Error in $.ticker: stake pool ticker length must be \
-                      \3-5 characters"
+            let msg =
+                    "Error in $.ticker: stake pool ticker length must be \
+                    \3-5 characters"
 
             let testInvalidTicker :: Text -> SpecWith ()
                 testInvalidTicker txt =
                     it ("Invalid ticker length: " ++ show (T.length txt)) $ do
-                        Aeson.parseEither parseJSON [aesonQQ|
+                        Aeson.parseEither
+                            parseJSON
+                            [aesonQQ|
                             {
                                 "owner": "ed25519_pk1afhcpw2tg7nr2m3wr4x8jaa4dv7d09gnv27kwfxpjyvukwxs8qdqwg85xp",
                                 "homepage": "https://12345",
@@ -1188,7 +1271,8 @@ spec = do
                                 "pledge_address": "ed25519_pk15vz9yc5c3upgze8tg5kd7kkzxqgqfxk5a3kudp22hdg0l2za00sq2ufkk7",
                                 "name": "invalid"
                             }
-                        |] `shouldBe` (Left @String @(ApiT StakePoolMetadata) msg)
+                        |]
+                            `shouldBe` (Left @String @(ApiT StakePoolMetadata) msg)
 
             forM_ ["too long", "sh", ""] testInvalidTicker
 
@@ -1199,18 +1283,19 @@ spec = do
                 `shouldBe` (Left @Text @(ApiT WalletId) msg)
 
         it "ApiT AddressState" $ do
-            let msg = "Unable to decode the given text value.\
+            let msg =
+                    "Unable to decode the given text value.\
                     \ Please specify one of the following values: used, unused."
             parseUrlPiece "patate"
                 `shouldBe` (Left @Text @(ApiT AddressState) msg)
 
     describe "Api Errors" $ do
-        it "Every ApiErrorInfo constructor has a corresponding schema type" $
-            let res = fromJSON @SchemaApiErrorInfo specification
-                errStr = case res of
+        it "Every ApiErrorInfo constructor has a corresponding schema type"
+            $ let res = fromJSON @SchemaApiErrorInfo specification
+                  errStr = case res of
                     Error s -> s
                     _ -> ""
-            in counterexample errStr $ res == Success SchemaApiErrorInfo
+              in  counterexample errStr $ res == Success SchemaApiErrorInfo
 
 {-------------------------------------------------------------------------------
                               Error type encoding
@@ -1224,19 +1309,21 @@ data SchemaApiErrorInfo = SchemaApiErrorInfo
 instance FromJSON SchemaApiErrorInfo where
     parseJSON = withObject "SchemaApiErrorInfo" $ \o -> do
         let constructors :: [String] =
-                showConstr <$>
-                dataTypeConstrs (dataTypeOf (undefined :: ApiErrorInfo))
+                showConstr
+                    <$> dataTypeConstrs (dataTypeOf (undefined :: ApiErrorInfo))
         vals :: [Either String Yaml.Value] <-
             forM constructors $ \c ->
                 maybe (Left c) Right <$> o .:? Aeson.fromString (toSchemaName c)
         case lefts vals of
             [] -> pure SchemaApiErrorInfo
-            xs -> fail $ unlines
-                [ "Missing ApiErrorInfo constructors for:"
-                , show xs
-                , "Each of these need a corresponding swagger type of the form:"
-                , "x-errConstructorName"
-                ]
+            xs ->
+                fail
+                    $ unlines
+                        [ "Missing ApiErrorInfo constructors for:"
+                        , show xs
+                        , "Each of these need a corresponding swagger type of the form:"
+                        , "x-errConstructorName"
+                        ]
       where
         toSchemaName :: String -> String
         toSchemaName [] = []
@@ -1250,23 +1337,24 @@ instance Arbitrary ApiAmount where
     arbitrary = ApiAmount.fromCoin <$> arbitrary
     shrink = shrinkMap ApiAmount.fromCoin ApiAmount.toCoin
 
-instance Arbitrary (ApiRewardAccount n)
-    where
-        arbitrary = ApiRewardAccount <$> arbitrary
+instance Arbitrary (ApiRewardAccount n) where
+    arbitrary = ApiRewardAccount <$> arbitrary
 
 fromCardanoAddressAny :: Cardano.AddressAny -> Address
-fromCardanoAddressAny =  Address . Cardano.serialiseToRawBytes
+fromCardanoAddressAny = Address . Cardano.serialiseToRawBytes
 
 instance HasSNetworkId n => Arbitrary (ApiAddress n) where
-    arbitrary = ApiAddress . fromCardanoAddressAny <$>
-        genAddressAnyWithNetworkId (pure $ networkIdVal (sNetworkId @n))
+    arbitrary =
+        ApiAddress . fromCardanoAddressAny
+            <$> genAddressAnyWithNetworkId (pure $ networkIdVal (sNetworkId @n))
 
 instance HasSNetworkId n => Arbitrary (ApiAddressWithPath n) where
     shrink _ = []
-    arbitrary = ApiAddressWithPath
-        <$> arbitrary
-        <*> arbitrary
-        <*> arbitrary
+    arbitrary =
+        ApiAddressWithPath
+            <$> arbitrary
+            <*> arbitrary
+            <*> arbitrary
 
 instance Arbitrary EpochInfo where
     arbitrary = EpochInfo <$> arbitrary <*> genUniformTime
@@ -1296,18 +1384,20 @@ instance Arbitrary ApiCredential where
         xpubKey <- BS.pack <$> replicateM 64 arbitrary
         keyHash <- BS.pack <$> replicateM 28 arbitrary
         scriptHash <- ScriptHash . BS.pack <$> replicateM 28 arbitrary
-        oneof [ pure $ CredentialPubKey pubKey
-              , pure $ CredentialExtendedPubKey xpubKey
-              , pure $ CredentialKeyHash keyHash
-              , pure $ CredentialScriptHash scriptHash
-              , CredentialScript <$> genSharedKeyHashScript ]
-          where
-            genSharedKeyHash = do
-                cred <- oneof [pure PaymentShared, pure DelegationShared]
-                KeyHash cred . BS.pack <$> vectorOf 28 arbitrary
-            genSharedKeyHashScript = do
-                keyHashes <- vectorOf 10 genSharedKeyHash
-                genScript keyHashes
+        oneof
+            [ pure $ CredentialPubKey pubKey
+            , pure $ CredentialExtendedPubKey xpubKey
+            , pure $ CredentialKeyHash keyHash
+            , pure $ CredentialScriptHash scriptHash
+            , CredentialScript <$> genSharedKeyHashScript
+            ]
+      where
+        genSharedKeyHash = do
+            cred <- oneof [pure PaymentShared, pure DelegationShared]
+            KeyHash cred . BS.pack <$> vectorOf 28 arbitrary
+        genSharedKeyHashScript = do
+            keyHashes <- vectorOf 10 genSharedKeyHash
+            genScript keyHashes
 
 instance Arbitrary ApiCredentialType where
     arbitrary = ApiCredentialType <$> arbitraryBoundedEnum
@@ -1322,17 +1412,18 @@ instance Arbitrary ApiAddressData where
         validation' <- oneof [pure Nothing, Just <$> arbitrary]
         credential1 <- arbitrary
         credential2 <- arbitrary
-        addr <- elements
-            [ AddrEnterprise credential1
-            , AddrRewardAccount credential2
-            , AddrBase credential1 credential2
-            ]
+        addr <-
+            elements
+                [ AddrEnterprise credential1
+                , AddrRewardAccount credential2
+                , AddrBase credential1 credential2
+                ]
         pure $ ApiAddressData addr validation'
 
 instance Arbitrary AnyAddress where
     arbitrary = do
         payload' <- BS.pack <$> replicateM 32 arbitrary
-        network' <- choose (0,1)
+        network' <- choose (0, 1)
         addrType <- arbitraryBoundedEnum
         pure $ AnyAddress payload' addrType network'
 
@@ -1349,7 +1440,7 @@ instance Arbitrary ApiMultiDelegationAction where
     shrink = genericShrink
 
 instance Arbitrary Cosigner where
-    arbitrary = Cosigner <$> choose (0,10)
+    arbitrary = Cosigner <$> choose (0, 10)
 
 instance Arbitrary ApiScriptTemplate where
     arbitrary = ApiScriptTemplate <$> arbitrary
@@ -1361,9 +1452,11 @@ instance Arbitrary ApiActiveSharedWallet where
     arbitrary = genericArbitrary -- fixme: seems to be slow
 
 instance Arbitrary ApiSharedWallet where
-    arbitrary = oneof
-        [ ApiSharedWallet . Right <$> arbitrary
-        , ApiSharedWallet . Left <$> arbitrary ]
+    arbitrary =
+        oneof
+            [ ApiSharedWallet . Right <$> arbitrary
+            , ApiSharedWallet . Left <$> arbitrary
+            ]
 
 instance Arbitrary ApiScriptTemplateEntry where
     arbitrary = do
@@ -1372,8 +1465,10 @@ instance Arbitrary ApiScriptTemplateEntry where
         let scriptCosigners = retrieveAllCosigners script
         cosignersSubset <- sublistOf scriptCosigners `suchThat` (not . null)
         xpubsOrSelf <- vectorOf (length cosignersSubset) genXPubOrSelf
-        pure $ ApiScriptTemplateEntry
-            (Map.fromList $ zip cosignersSubset xpubsOrSelf) script
+        pure
+            $ ApiScriptTemplateEntry
+                (Map.fromList $ zip cosignersSubset xpubsOrSelf)
+                script
       where
         genXPubOrSelf :: Gen XPubOrSelf
         genXPubOrSelf = oneof [SomeAccountKey <$> genMockXPub, pure Self]
@@ -1388,8 +1483,10 @@ instance Arbitrary ApiSharedWalletPostData where
     arbitrary = do
         let fromMnemonics = arbitrary :: Gen ApiSharedWalletPostDataFromMnemonics
         let fromAccXPub = arbitrary :: Gen ApiSharedWalletPostDataFromAccountPubX
-        oneof [ ApiSharedWalletPostData . Right <$> fromAccXPub
-              , ApiSharedWalletPostData . Left <$> fromMnemonics ]
+        oneof
+            [ ApiSharedWalletPostData . Right <$> fromAccXPub
+            , ApiSharedWalletPostData . Left <$> fromMnemonics
+            ]
 
 instance Arbitrary ApiSharedWalletPatchData where
     arbitrary = genericArbitrary
@@ -1405,7 +1502,8 @@ instance HasSNetworkId n => Arbitrary (ApiSelectCoinsData n) where
 
 instance Arbitrary ApiCertificate where
     arbitrary =
-        oneof [ JoinPool <$> arbitraryRewardAccountPath <*> arbitrary
+        oneof
+            [ JoinPool <$> arbitraryRewardAccountPath <*> arbitrary
             , QuitPool <$> arbitraryRewardAccountPath
             , RegisterRewardAccount <$> arbitraryRewardAccountPath
             ]
@@ -1415,33 +1513,36 @@ instance Arbitrary ApiCertificate where
     shrink = genericShrink
 
 instance HasSNetworkId n => Arbitrary (ApiCoinSelection n) where
-    arbitrary = ApiCoinSelection
-        <$> reasonablySized arbitrary
-        <*> reasonablySized arbitrary
-        <*> reasonablySized arbitrary
-        <*> reasonablySized arbitrary
-        <*> reasonablySized arbitrary
-        <*> reasonablySized arbitrary
-        <*> reasonablySized arbitrary
-        <*> reasonablySized arbitrary
-        <*> arbitrary
+    arbitrary =
+        ApiCoinSelection
+            <$> reasonablySized arbitrary
+            <*> reasonablySized arbitrary
+            <*> reasonablySized arbitrary
+            <*> reasonablySized arbitrary
+            <*> reasonablySized arbitrary
+            <*> reasonablySized arbitrary
+            <*> reasonablySized arbitrary
+            <*> reasonablySized arbitrary
+            <*> arbitrary
     shrink = genericShrink
 
 instance HasSNetworkId n => Arbitrary (ApiCoinSelectionChange n) where
-    arbitrary = ApiCoinSelectionChange
-        <$> arbitrary
-        <*> arbitrary
-        <*> arbitrary
-        <*> arbitrary
+    arbitrary =
+        ApiCoinSelectionChange
+            <$> arbitrary
+            <*> arbitrary
+            <*> arbitrary
+            <*> arbitrary
     shrink _ = []
 
 instance HasSNetworkId n => Arbitrary (ApiCoinSelectionCollateral n) where
-    arbitrary = ApiCoinSelectionCollateral
-        <$> arbitrary
-        <*> arbitrary
-        <*> arbitrary
-        <*> arbitrary
-        <*> arbitrary
+    arbitrary =
+        ApiCoinSelectionCollateral
+            <$> arbitrary
+            <*> arbitrary
+            <*> arbitrary
+            <*> arbitrary
+            <*> arbitrary
     shrink _ = []
 
 instance HasSNetworkId n => Arbitrary (ApiCoinSelectionOutput n) where
@@ -1449,10 +1550,11 @@ instance HasSNetworkId n => Arbitrary (ApiCoinSelectionOutput n) where
     shrink _ = []
 
 instance HasSNetworkId n => Arbitrary (ApiCoinSelectionWithdrawal n) where
-    arbitrary = ApiCoinSelectionWithdrawal
-        <$> arbitrary
-        <*> reasonablySized arbitrary
-        <*> arbitrary
+    arbitrary =
+        ApiCoinSelectionWithdrawal
+            <$> arbitrary
+            <*> reasonablySized arbitrary
+            <*> arbitrary
 
 instance Arbitrary AddressState where
     arbitrary = genericArbitrary
@@ -1505,25 +1607,28 @@ instance Arbitrary ApiByronWalletBalance where
     shrink = genericShrink
 
 instance Arbitrary ApiWalletMigrationBalance where
-    arbitrary = ApiWalletMigrationBalance
-        <$> reasonablySized arbitrary
-        <*> reasonablySized arbitrary
+    arbitrary =
+        ApiWalletMigrationBalance
+            <$> reasonablySized arbitrary
+            <*> reasonablySized arbitrary
     shrink = genericShrink
 
 instance HasSNetworkId n => Arbitrary (ApiWalletMigrationPlan n) where
-    arbitrary = ApiWalletMigrationPlan
-        <$> reasonablySized arbitrary
-        <*> reasonablySized arbitrary
-        <*> reasonablySized arbitrary
-        <*> reasonablySized arbitrary
+    arbitrary =
+        ApiWalletMigrationPlan
+            <$> reasonablySized arbitrary
+            <*> reasonablySized arbitrary
+            <*> reasonablySized arbitrary
+            <*> reasonablySized arbitrary
     shrink = genericShrink
 
 instance HasSNetworkId n => Arbitrary (ApiWalletMigrationPlanPostData n) where
     arbitrary = do
         addrCount <- choose (1, 255)
-        addrs <- (:|)
-            <$> arbitrary
-            <*> replicateM (addrCount - 1) arbitrary
+        addrs <-
+            (:|)
+                <$> arbitrary
+                <*> replicateM (addrCount - 1) arbitrary
         pure $ ApiWalletMigrationPlanPostData addrs
 
 instance
@@ -1569,23 +1674,27 @@ instance Arbitrary WalletOrAccountPostData where
     arbitrary = do
         let walletPostDataGen = arbitrary :: Gen WalletPostData
         let accountPostDataGen = arbitrary :: Gen AccountPostData
-        oneof [ WalletOrAccountPostData . Left <$> walletPostDataGen
-              , WalletOrAccountPostData . Right <$> accountPostDataGen ]
+        oneof
+            [ WalletOrAccountPostData . Left <$> walletPostDataGen
+            , WalletOrAccountPostData . Right <$> accountPostDataGen
+            ]
 
 instance Arbitrary ApiAccountPublicKey where
     arbitrary = do
         seed <- SomeMnemonic <$> genMnemonic @15
         let rootXPrv = generateKeyFromSeed (seed, Nothing) mempty
-        let accXPub = publicKey ShelleyKeyS
-                $ deriveAccountPrivateKey mempty rootXPrv minBound
+        let accXPub =
+                publicKey ShelleyKeyS
+                    $ deriveAccountPrivateKey mempty rootXPrv minBound
         pure $ ApiAccountPublicKey $ ApiT $ getKey accXPub
 
 instance Arbitrary ApiAccountSharedPublicKey where
     arbitrary = do
         seed <- SomeMnemonic <$> genMnemonic @15
         let rootXPrv = generateKeyFromSeed (seed, Nothing) mempty
-        let accXPub = publicKey ShelleyKeyS
-                $ deriveAccountPrivateKey mempty rootXPrv minBound
+        let accXPub =
+                publicKey ShelleyKeyS
+                    $ deriveAccountPrivateKey mempty rootXPrv minBound
         pure $ ApiAccountSharedPublicKey $ ApiT $ getKey accXPub
 
 instance Arbitrary AccountPostData where
@@ -1602,8 +1711,10 @@ instance Arbitrary ByronWalletFromXPrvPostData where
     arbitrary = do
         n <- arbitrary
         rootXPrv <- ApiT . unsafeXPrv . BS.pack <$> vector 128
-        bytesNumber <- choose (64,100)
-        h <- ApiT . PassphraseHash . BA.convert . B8.pack <$> replicateM bytesNumber arbitrary
+        bytesNumber <- choose (64, 100)
+        h <-
+            ApiT . PassphraseHash . BA.convert . B8.pack
+                <$> replicateM bytesNumber arbitrary
         pure $ ByronWalletFromXPrvPostData n rootXPrv h
 
 instance Arbitrary SomeByronWalletPostData where
@@ -1618,7 +1729,7 @@ instance Arbitrary (ByronWalletPostData '[15]) where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
-instance Arbitrary (ByronWalletPostData '[12,15,18,21,24]) where
+instance Arbitrary (ByronWalletPostData '[12, 15, 18, 21, 24]) where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
@@ -1639,9 +1750,11 @@ instance Arbitrary SmashServer where
     arbitrary = genericArbitrary
 
 instance Arbitrary URI where
-    arbitrary = elements
-        [fromJust (parseURI "https://my.little.friend")
-        ,fromJust (parseURI "http://its-friday.com:8000")]
+    arbitrary =
+        elements
+            [ fromJust (parseURI "https://my.little.friend")
+            , fromJust (parseURI "http://its-friday.com:8000")
+            ]
 
 instance Arbitrary Settings where
     arbitrary = genericArbitrary
@@ -1681,36 +1794,44 @@ instance Arbitrary ApiWalletDelegationStatus where
     arbitrary = genericArbitrary
 
 instance Arbitrary ApiWalletDelegationNext where
-    arbitrary = oneof
-        [ ApiWalletDelegationNext Api.Delegating
-            <$> fmap Just arbitrary
-            <*> pure Nothing
-            <*> fmap Just arbitrary
-        , ApiWalletDelegationNext Api.NotDelegating
-            Nothing Nothing . Just <$> arbitrary
-        ]
+    arbitrary =
+        oneof
+            [ ApiWalletDelegationNext Api.Delegating
+                <$> fmap Just arbitrary
+                <*> pure Nothing
+                <*> fmap Just arbitrary
+            , ApiWalletDelegationNext
+                Api.NotDelegating
+                Nothing
+                Nothing
+                . Just
+                <$> arbitrary
+            ]
 
 instance Arbitrary (Passphrase "lenient") where
     arbitrary = do
         n <- choose (passphraseMinLength p, passphraseMaxLength p)
         bytes <- T.encodeUtf8 . T.pack <$> replicateM n arbitraryPrintableChar
         return $ Passphrase $ BA.convert bytes
-      where p = Proxy :: Proxy "lenient"
+      where
+        p = Proxy :: Proxy "lenient"
 
     shrink (Passphrase bytes)
         | BA.length bytes <= passphraseMinLength p = []
         | otherwise =
             [ Passphrase
-            $ BA.convert
-            $ B8.take (passphraseMinLength p)
-            $ BA.convert bytes
+                $ BA.convert
+                $ B8.take (passphraseMinLength p)
+                $ BA.convert bytes
             ]
-      where p = Proxy :: Proxy "lenient"
+      where
+        p = Proxy :: Proxy "lenient"
 
 instance Arbitrary ApiWalletDelegation where
-    arbitrary = ApiWalletDelegation
-        <$> fmap (\x -> x { changesAt = Nothing }) arbitrary
-        <*> oneof [ vector i | i <- [0..2 ] ]
+    arbitrary =
+        ApiWalletDelegation
+            <$> fmap (\x -> x{changesAt = Nothing}) arbitrary
+            <*> oneof [vector i | i <- [0 .. 2]]
 
 instance Arbitrary PoolId where
     arbitrary = do
@@ -1718,45 +1839,51 @@ instance Arbitrary PoolId where
         return $ PoolId $ BS.pack $ take 28 bytes
 
 instance Arbitrary StakePool where
-    arbitrary = StakePool
-        <$> arbitrary
-        <*> arbitrary
-        <*> arbitrary
-        <*> arbitrary
-        <*> arbitrary
-        <*> arbitrary
-        <*> arbitrary
-        <*> arbitrary
+    arbitrary =
+        StakePool
+            <$> arbitrary
+            <*> arbitrary
+            <*> arbitrary
+            <*> arbitrary
+            <*> arbitrary
+            <*> arbitrary
+            <*> arbitrary
+            <*> arbitrary
 
 instance Arbitrary StakePoolFlag where
     shrink = genericShrink
     arbitrary = genericArbitrary
 
 instance Arbitrary StakePoolMetrics where
-    arbitrary = StakePoolMetrics . Quantity . fromIntegral
-        <$> choose (1::Integer, 1_000_000_000_000)
-        <*> arbitrary
-        <*> (choose (0.0, 5.0))
-        <*> (Quantity . fromIntegral <$> choose (1::Integer, 22_600_000))
+    arbitrary =
+        StakePoolMetrics . Quantity . fromIntegral
+            <$> choose (1 :: Integer, 1_000_000_000_000)
+            <*> arbitrary
+            <*> (choose (0.0, 5.0))
+            <*> (Quantity . fromIntegral <$> choose (1 :: Integer, 22_600_000))
 
 instance Arbitrary StakePoolMetadata where
-    arbitrary = StakePoolMetadata
-        <$> arbitrary
-        <*> arbitraryText 50
-        <*> arbitraryMaybeText 255
-        <*> arbitraryText 100
+    arbitrary =
+        StakePoolMetadata
+            <$> arbitrary
+            <*> arbitraryText 50
+            <*> arbitraryMaybeText 255
+            <*> arbitraryText 100
       where
         arbitraryText maxLen = do
             len <- choose (1, maxLen)
             T.pack <$> vector len
-        arbitraryMaybeText maxLen = frequency
-            [ (9, Just <$> arbitraryText maxLen)
-            , (1, pure Nothing) ]
+        arbitraryMaybeText maxLen =
+            frequency
+                [ (9, Just <$> arbitraryText maxLen)
+                , (1, pure Nothing)
+                ]
 
 instance Arbitrary StakePoolTicker where
-    arbitrary = unsafeFromText . T.pack <$> do
-        len <- choose (3, 5)
-        replicateM len arbitrary
+    arbitrary =
+        unsafeFromText . T.pack <$> do
+            len <- choose (3, 5)
+            replicateM len arbitrary
 
 instance Arbitrary ApiWalletSignData where
     arbitrary = ApiWalletSignData <$> arbitrary <*> arbitrary
@@ -1808,22 +1935,25 @@ instance Arbitrary1 ApiT where
 instance
     ( ValidEntropySize n
     , ValidChecksumSize n csz
-    ) => Arbitrary (Entropy n) where
+    )
+    => Arbitrary (Entropy n)
+    where
     arbitrary =
         let
             size = fromIntegral $ natVal @n Proxy
             entropy =
-                mkEntropy  @n . BA.convert . B8.pack <$> vector (size `quot` 8)
+                mkEntropy @n . BA.convert . B8.pack <$> vector (size `quot` 8)
         in
             either (error . show . UnexpectedEntropyError) Prelude.id <$> entropy
 
-instance {-# OVERLAPS #-}
+instance
+    {-# OVERLAPS #-}
     ( n ~ EntropySize mw
     , csz ~ CheckSumBits n
     , ConsistentEntropy n mw csz
     )
     => Arbitrary (ApiMnemonicT (mw ': '[]))
-  where
+    where
     arbitrary = do
         ent <- arbitrary @(Entropy n)
         return
@@ -1838,7 +1968,7 @@ instance
     , Arbitrary (ApiMnemonicT rest)
     )
     => Arbitrary (ApiMnemonicT (mw ': rest))
-  where
+    where
     arbitrary = do
         ApiMnemonicT x <- arbitrary @(ApiMnemonicT '[mw])
         ApiMnemonicT y <- arbitrary @(ApiMnemonicT rest)
@@ -1857,11 +1987,16 @@ instance
             ]
 
 instance Arbitrary ApiBlockReference where
-    arbitrary = ApiBlockReference
-        <$> arbitrary <*> arbitrary <*> genUniformTime <*> arbitrary
+    arbitrary =
+        ApiBlockReference
+            <$> arbitrary
+            <*> arbitrary
+            <*> genUniformTime
+            <*> arbitrary
     shrink (ApiBlockReference sln sli t bh) =
         [ ApiBlockReference sln' sli' t bh'
-        | (sln', sli', bh') <- shrink (sln, sli, bh) ]
+        | (sln', sli', bh') <- shrink (sln, sli, bh)
+        ]
 
 instance Arbitrary ApiBlockInfo where
     arbitrary = genericArbitrary
@@ -1871,17 +2006,19 @@ instance Arbitrary ApiSlotReference where
     arbitrary = ApiSlotReference <$> arbitrary <*> arbitrary <*> genUniformTime
     shrink (ApiSlotReference sln sli t) =
         [ ApiSlotReference sln' sli' t
-        | (sln', sli') <- shrink (sln, sli) ]
+        | (sln', sli') <- shrink (sln, sli)
+        ]
 
 instance Arbitrary ApiSlotId where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
 instance Arbitrary ApiNetworkInfo where
-    arbitrary = oneof
-        [ pure $ ApiNetworkInfo "mainnet" 764_824_073
-        , ApiNetworkInfo "testnet" <$> arbitrary
-        ]
+    arbitrary =
+        oneof
+            [ pure $ ApiNetworkInfo "mainnet" 764_824_073
+            , ApiNetworkInfo "testnet" <$> arbitrary
+            ]
 
 instance Arbitrary ApiWalletMode where
     arbitrary = genericArbitrary
@@ -1928,7 +2065,7 @@ instance Arbitrary (Quantity "second" NominalDiffTime) where
 instance Arbitrary (Quantity "percent" Double) where
     shrink (Quantity 0.0) = []
     shrink _ = [Quantity 0.0]
-    arbitrary = Quantity <$> choose (0,100)
+    arbitrary = Quantity <$> choose (0, 100)
 
 deriving instance Arbitrary ApiPostPolicyKeyData
 
@@ -1953,11 +2090,14 @@ instance ToSchema ApiPolicyId where
 instance Arbitrary ApiVerificationKeyShelley where
     arbitrary = do
         hashing <- elements [WithHashing, WithoutHashing]
-        ApiVerificationKeyShelley <$> genKeyRole (len hashing) <*> pure hashing
+        ApiVerificationKeyShelley
+            <$> genKeyRole (len hashing)
+            <*> pure hashing
       where
-        genKeyRole n = (,)
-            <$> fmap B8.pack (vectorOf n arbitrary)
-            <*> elements [UtxoExternal, UtxoInternal, MutableAccount]
+        genKeyRole n =
+            (,)
+                <$> fmap B8.pack (vectorOf n arbitrary)
+                <*> elements [UtxoExternal, UtxoInternal, MutableAccount]
         len WithHashing = 28
         len WithoutHashing = 32
 
@@ -1968,15 +2108,15 @@ instance Arbitrary ApiVerificationKeyShared where
     arbitrary =
         oneof [noHashedGen, hashedGen]
       where
-          noHashedGen = do
-              payload' <- fmap B8.pack (replicateM 32 arbitrary)
-              role' <- elements [UtxoExternal, MutableAccount]
-              pure $ ApiVerificationKeyShared (payload', role') WithoutHashing
+        noHashedGen = do
+            payload' <- fmap B8.pack (replicateM 32 arbitrary)
+            role' <- elements [UtxoExternal, MutableAccount]
+            pure $ ApiVerificationKeyShared (payload', role') WithoutHashing
 
-          hashedGen = do
-              payload' <- fmap B8.pack (replicateM 28 arbitrary)
-              role' <- elements [UtxoExternal, MutableAccount]
-              pure $ ApiVerificationKeyShared (payload', role') WithHashing
+        hashedGen = do
+            payload' <- fmap B8.pack (replicateM 28 arbitrary)
+            role' <- elements [UtxoExternal, MutableAccount]
+            pure $ ApiVerificationKeyShared (payload', role') WithHashing
 
 instance ToSchema ApiVerificationKeyShared where
     declareNamedSchema _ = declareSchemaForDefinition "ApiVerificationKeyShared"
@@ -2031,26 +2171,31 @@ instance Arbitrary AssetDecimals where
 
 instance Arbitrary AssetMetadata where
     -- TODO: We should add a proper arbitrary instance
-    arbitrary = AssetMetadata "asset" "An asset"
-        <$> (oneof [pure Nothing, pure $ Just "AST"])
-        <*> genMaybe (pure $ AssetURL $ fromJust $ parseURI "https://asset.url")
-        <*> genLogo
-        <*> arbitrary
+    arbitrary =
+        AssetMetadata "asset" "An asset"
+            <$> (oneof [pure Nothing, pure $ Just "AST"])
+            <*> genMaybe (pure $ AssetURL $ fromJust $ parseURI "https://asset.url")
+            <*> genLogo
+            <*> arbitrary
       where
-        genMaybe g = frequency
-            [ (80, pure Nothing)
-            , (20, Just <$> g)
-            ]
+        genMaybe g =
+            frequency
+                [ (80, pure Nothing)
+                , (20, Just <$> g)
+                ]
         genLogo = genMaybe $ pure $ AssetLogo $ B8.pack "<logo>"
 
     shrink _ = []
 
 instance Arbitrary TokenMetadataError where
-    arbitrary = oneof $ map pure
-        [ TokenMetadataClientError (error "actual exception not needed")
-        , TokenMetadataFetchError (error "actual exception not needed")
-        , TokenMetadataJSONParseError "" ""
-        ]
+    arbitrary =
+        oneof
+            $ map
+                pure
+                [ TokenMetadataClientError (error "actual exception not needed")
+                , TokenMetadataFetchError (error "actual exception not needed")
+                , TokenMetadataJSONParseError "" ""
+                ]
 
 instance Arbitrary ApiAsset where
     arbitrary = toApiAsset <$> arbitrary <*> genAssetId
@@ -2064,28 +2209,32 @@ instance Arbitrary a => Arbitrary (AddressAmountNoAssets a) where
     shrink _ = []
 
 instance Arbitrary ApiSignTransactionPostData where
-    arbitrary = ApiSignTransactionPostData
-        <$> arbitrary
-        <*> arbitrary
-        <*> elements [Just HexEncoded, Just Base64Encoded, Nothing]
+    arbitrary =
+        ApiSignTransactionPostData
+            <$> arbitrary
+            <*> arbitrary
+            <*> elements [Just HexEncoded, Just Base64Encoded, Nothing]
 
 instance Arbitrary ApiDecodeTransactionPostData where
-    arbitrary = ApiDecodeTransactionPostData
-        <$> arbitrary
-        <*> arbitrary
+    arbitrary =
+        ApiDecodeTransactionPostData
+            <$> arbitrary
+            <*> arbitrary
 
 instance HasSNetworkId n => Arbitrary (PostTransactionOldData n) where
-    arbitrary = PostTransactionOldData
-        <$> arbitrary
-        <*> arbitrary
-        <*> elements [Just SelfWithdrawal, Nothing]
-        <*> arbitrary
-        <*> arbitrary
+    arbitrary =
+        PostTransactionOldData
+            <$> arbitrary
+            <*> arbitrary
+            <*> elements [Just SelfWithdrawal, Nothing]
+            <*> arbitrary
+            <*> arbitrary
 
 instance Arbitrary TxMetadataWithSchema where
-  arbitrary = TxMetadataWithSchema
-    <$> elements [TxMetadataNoSchema, TxMetadataDetailedSchema]
-    <*> arbitrary
+    arbitrary =
+        TxMetadataWithSchema
+            <$> elements [TxMetadataNoSchema, TxMetadataDetailedSchema]
+            <*> arbitrary
 
 instance Arbitrary ApiEncryptMetadata where
     arbitrary = applyArbitrary2 ApiEncryptMetadata
@@ -2097,121 +2246,142 @@ instance Arbitrary ApiEncryptMetadataMethod where
 instance Arbitrary DRepID where
     arbitrary = do
         InfiniteList bytes _ <- arbitrary
-        oneof [ pure $ DRepFromKeyHash $ DRepKeyHash $
-                BS.pack $ take 28 bytes
-              , pure $ DRepFromScriptHash $ DRepScriptHash $
-                BS.pack $ take 28 bytes
-              ]
+        oneof
+            [ pure
+                $ DRepFromKeyHash
+                $ DRepKeyHash
+                $ BS.pack
+                $ take 28 bytes
+            , pure
+                $ DRepFromScriptHash
+                $ DRepScriptHash
+                $ BS.pack
+                $ take 28 bytes
+            ]
 
 instance Arbitrary DRep where
-  arbitrary =
-    oneof [pure Abstain, pure NoConfidence, FromDRepID <$> arbitrary]
+    arbitrary =
+        oneof [pure Abstain, pure NoConfidence, FromDRepID <$> arbitrary]
 
 instance HasSNetworkId n => Arbitrary (ApiConstructTransactionData n) where
-    arbitrary = ApiConstructTransactionData
-        <$> arbitrary
-        <*> elements [Just SelfWithdraw, Nothing]
-        <*> arbitrary
-        <*> arbitrary
-        <*> arbitrary
-        <*> arbitrary
-        <*> arbitrary
-        <*> pure Nothing
-        <*> pure Nothing
-        <*> elements [Just HexEncoded, Just Base64Encoded, Nothing]
+    arbitrary =
+        ApiConstructTransactionData
+            <$> arbitrary
+            <*> elements [Just SelfWithdraw, Nothing]
+            <*> arbitrary
+            <*> arbitrary
+            <*> arbitrary
+            <*> arbitrary
+            <*> arbitrary
+            <*> pure Nothing
+            <*> pure Nothing
+            <*> elements [Just HexEncoded, Just Base64Encoded, Nothing]
 
 instance HasSNetworkId n => Arbitrary (ApiExternalInput n) where
-    arbitrary = ApiExternalInput
-        <$> arbitrary
-        <*> arbitrary
-        <*> arbitrary
-        <*> arbitrary
-        <*> arbitrary
-        <*> liftArbitrary (liftArbitrary genDatumHash)
+    arbitrary =
+        ApiExternalInput
+            <$> arbitrary
+            <*> arbitrary
+            <*> arbitrary
+            <*> arbitrary
+            <*> arbitrary
+            <*> liftArbitrary (liftArbitrary genDatumHash)
 
 instance HasSNetworkId n => Arbitrary (ApiBalanceTransactionPostData n) where
-    arbitrary = ApiBalanceTransactionPostData
-        <$> arbitrary
-        <*> arbitrary
-        <*> arbitrary
-        <*> elements [Just HexEncoded, Just Base64Encoded, Nothing]
+    arbitrary =
+        ApiBalanceTransactionPostData
+            <$> arbitrary
+            <*> arbitrary
+            <*> arbitrary
+            <*> elements [Just HexEncoded, Just Base64Encoded, Nothing]
 
 instance HasSNetworkId n => Arbitrary (ApiRedeemer n) where
-    arbitrary = oneof
-        [ ApiRedeemerSpending <$> arbitrary <*> arbitrary
-        , ApiRedeemerMinting <$> arbitrary <*> arbitrary
-        , ApiRedeemerRewarding <$> arbitrary <*> arbitrary
-        ]
+    arbitrary =
+        oneof
+            [ ApiRedeemerSpending <$> arbitrary <*> arbitrary
+            , ApiRedeemerMinting <$> arbitrary <*> arbitrary
+            , ApiRedeemerRewarding <$> arbitrary <*> arbitrary
+            ]
 
 instance HasSNetworkId n => Arbitrary (ApiTxInputGeneral n) where
-    arbitrary = oneof
-        [ ExternalInput <$> arbitrary
-        , WalletInput <$> arbitrary
-        ]
+    arbitrary =
+        oneof
+            [ ExternalInput <$> arbitrary
+            , WalletInput <$> arbitrary
+            ]
 
 instance HasSNetworkId n => Arbitrary (ApiWithdrawalGeneral n) where
-    arbitrary = ApiWithdrawalGeneral
-        <$> arbitrary
-        <*> arbitrary
-        <*> oneof [pure External, pure Our]
+    arbitrary =
+        ApiWithdrawalGeneral
+            <$> arbitrary
+            <*> arbitrary
+            <*> oneof [pure External, pure Our]
 
 instance HasSNetworkId n => Arbitrary (ApiWalletInput n) where
-    arbitrary = ApiWalletInput
-        <$> arbitrary
-        <*> arbitrary
-        <*> arbitrary
-        <*> arbitrary
-        <*> arbitrary
-        <*> arbitrary
+    arbitrary =
+        ApiWalletInput
+            <$> arbitrary
+            <*> arbitrary
+            <*> arbitrary
+            <*> arbitrary
+            <*> arbitrary
+            <*> arbitrary
 
 instance HasSNetworkId n => Arbitrary (ApiWalletOutput n) where
-    arbitrary = ApiWalletOutput
-        <$> arbitrary
-        <*> arbitrary
-        <*> arbitrary
-        <*> arbitrary
+    arbitrary =
+        ApiWalletOutput
+            <$> arbitrary
+            <*> arbitrary
+            <*> arbitrary
+            <*> arbitrary
 
 instance HasSNetworkId n => Arbitrary (ApiTxOutputGeneral n) where
-    arbitrary = oneof
-        [ ExternalOutput <$> arbitrary
-        , WalletOutput <$> arbitrary
-        ]
+    arbitrary =
+        oneof
+            [ ExternalOutput <$> arbitrary
+            , WalletOutput <$> arbitrary
+            ]
 
 instance Arbitrary NonWalletCertificate where
-    arbitrary = oneof
-        [ pure GenesisCertificate
-        , pure MIRCertificate
-        ]
+    arbitrary =
+        oneof
+            [ pure GenesisCertificate
+            , pure MIRCertificate
+            ]
 
 instance Arbitrary ApiDeregisterPool where
-    arbitrary = ApiDeregisterPool
-        <$> arbitrary
-        <*> arbitrary
+    arbitrary =
+        ApiDeregisterPool
+            <$> arbitrary
+            <*> arbitrary
 
 instance Arbitrary ApiRegisterPool where
-    arbitrary = ApiRegisterPool
-        <$> arbitrary
-        <*> arbitrary
-        <*> fmap Quantity genPercentage
-        <*> arbitrary
-        <*> arbitrary
-        <*> pure Nothing
+    arbitrary =
+        ApiRegisterPool
+            <$> arbitrary
+            <*> arbitrary
+            <*> fmap Quantity genPercentage
+            <*> arbitrary
+            <*> arbitrary
+            <*> pure Nothing
 
 instance HasSNetworkId n => Arbitrary (ApiExternalCertificate n) where
-    arbitrary = oneof
-        [ RegisterRewardAccountExternal <$> arbitrary
-        , JoinPoolExternal <$> arbitrary <*> arbitrary
-        , QuitPoolExternal <$> arbitrary
-        ]
+    arbitrary =
+        oneof
+            [ RegisterRewardAccountExternal <$> arbitrary
+            , JoinPoolExternal <$> arbitrary <*> arbitrary
+            , QuitPoolExternal <$> arbitrary
+            ]
 
 instance HasSNetworkId n => Arbitrary (ApiAnyCertificate n) where
-    arbitrary = oneof
-        [ WalletDelegationCertificate <$> arbitrary
-        , DelegationCertificate <$> arbitrary
-        , StakePoolRegister <$> arbitrary
-        , StakePoolDeregister <$> arbitrary
-        , OtherCertificate <$> arbitrary
-        ]
+    arbitrary =
+        oneof
+            [ WalletDelegationCertificate <$> arbitrary
+            , DelegationCertificate <$> arbitrary
+            , StakePoolRegister <$> arbitrary
+            , StakePoolDeregister <$> arbitrary
+            , OtherCertificate <$> arbitrary
+            ]
 
 instance Arbitrary ValidityIntervalExplicit where
     arbitrary = do
@@ -2225,37 +2395,43 @@ instance Arbitrary ApiWitnessCount where
         txId <- arbitrary
         referenceInp <-
             elements [ViaSpending, ViaReferenceInput (ReferenceInput txId)]
-        fmap mkApiWitnessCount $ WitnessCount
-            <$> choose (0, 10)
-            <*> vectorOf numberOfScripts (flip NativeExplicitScript referenceInp  <$> arbitrary)
-            <*> choose (0, 2)
+        fmap mkApiWitnessCount
+            $ WitnessCount
+                <$> choose (0, 10)
+                <*> vectorOf
+                    numberOfScripts
+                    (flip NativeExplicitScript referenceInp <$> arbitrary)
+                <*> choose (0, 2)
 
 instance HasSNetworkId n => Arbitrary (ApiDecodedTransaction n) where
-    arbitrary = ApiDecodedTransaction
-        <$> arbitrary
-        <*> arbitrary
-        <*> arbitrary
-        <*> arbitrary
-        <*> arbitrary
-        <*> arbitrary
-        <*> arbitrary
-        <*> arbitrary
-        <*> arbitrary
-        <*> arbitrary
-        <*> arbitrary
-        <*> arbitrary
-        <*> arbitrary
-        <*> arbitrary
-        <*> arbitrary
-        <*> arbitrary
+    arbitrary =
+        ApiDecodedTransaction
+            <$> arbitrary
+            <*> arbitrary
+            <*> arbitrary
+            <*> arbitrary
+            <*> arbitrary
+            <*> arbitrary
+            <*> arbitrary
+            <*> arbitrary
+            <*> arbitrary
+            <*> arbitrary
+            <*> arbitrary
+            <*> arbitrary
+            <*> arbitrary
+            <*> arbitrary
+            <*> arbitrary
+            <*> arbitrary
 
 instance Arbitrary StakeAddress where
     arbitrary = do
-        header  <- elements [ BS.singleton 241, BS.singleton 224 ]
+        header <- elements [BS.singleton 241, BS.singleton 224]
         payload <- BS.pack <$> vector 28
-        pure $ fromRight' $ deserialiseFromRawBytes
-            (proxyToAsType Proxy)
-            (header <> payload)
+        pure
+            $ fromRight'
+            $ deserialiseFromRawBytes
+                (proxyToAsType Proxy)
+                (header <> payload)
 
 instance Arbitrary ApiSealedTxEncoding where
     arbitrary = elements [HexEncoded, Base64Encoded]
@@ -2277,49 +2453,67 @@ instance Arbitrary ApiTokens where
         policyid <- arbitrary
         scriptHash <- ScriptHash . BS.pack <$> vector 28
         let keyhash = KeyHash Policy $ getHash $ unTokenPolicyId policyid
-        script <- elements
-            [ ApiT $ NativeScript (RequireSignatureOf keyhash) ViaSpending
-            , ApiT $ NativeScript (RequireAllOf
-                [ RequireSignatureOf keyhash
-                , ActiveFromSlot 100
-                ]) ViaSpending
-            , ApiT $ NativeScript (RequireAllOf
-                [ RequireSignatureOf keyhash
-                , ActiveFromSlot 100
-                , ActiveUntilSlot 150
-                ]) ViaSpending
-            , ApiT $ PlutusScript (PlutusScriptInfo PlutusVersionV1 scriptHash)
-                ViaSpending
-            , ApiT $ PlutusScript (PlutusScriptInfo PlutusVersionV2 scriptHash)
-                ViaSpending
-            ]
-        assetNum <- choose (1,4)
+        script <-
+            elements
+                [ ApiT $ NativeScript (RequireSignatureOf keyhash) ViaSpending
+                , ApiT
+                    $ NativeScript
+                        ( RequireAllOf
+                            [ RequireSignatureOf keyhash
+                            , ActiveFromSlot 100
+                            ]
+                        )
+                        ViaSpending
+                , ApiT
+                    $ NativeScript
+                        ( RequireAllOf
+                            [ RequireSignatureOf keyhash
+                            , ActiveFromSlot 100
+                            , ActiveUntilSlot 150
+                            ]
+                        )
+                        ViaSpending
+                , ApiT
+                    $ PlutusScript
+                        (PlutusScriptInfo PlutusVersionV1 scriptHash)
+                        ViaSpending
+                , ApiT
+                    $ PlutusScript
+                        (PlutusScriptInfo PlutusVersionV2 scriptHash)
+                        ViaSpending
+                ]
+        assetNum <- choose (1, 4)
         assets <- vectorOf assetNum arbitrary
         pure $ ApiTokens (ApiT policyid) script (NE.fromList assets)
 
 instance Arbitrary ApiAssetMintBurn where
     arbitrary = do
-        let keyix = ApiT $ DerivationIndex $
-                getIndex (minBound :: Index 'Hardened 'PolicyK)
+        let keyix =
+                ApiT
+                    $ DerivationIndex
+                    $ getIndex (minBound :: Index 'Hardened 'PolicyK)
         ApiAssetMintBurn
             <$> arbitrary
             <*> arbitrary
             <*> pure (Just keyix)
 
 instance Arbitrary ApiPostPolicyIdData where
-    arbitrary = ApiPostPolicyIdData
-        <$> elements
-            [ ApiT $ RequireSignatureOf (Cosigner 0)
-            , ApiT $ RequireAllOf
-                [ RequireSignatureOf (Cosigner 0)
-                , ActiveFromSlot 100
+    arbitrary =
+        ApiPostPolicyIdData
+            <$> elements
+                [ ApiT $ RequireSignatureOf (Cosigner 0)
+                , ApiT
+                    $ RequireAllOf
+                        [ RequireSignatureOf (Cosigner 0)
+                        , ActiveFromSlot 100
+                        ]
+                , ApiT
+                    $ RequireAllOf
+                        [ RequireSignatureOf (Cosigner 0)
+                        , ActiveFromSlot 100
+                        , ActiveUntilSlot 150
+                        ]
                 ]
-            , ApiT $ RequireAllOf
-                [ RequireSignatureOf (Cosigner 0)
-                , ActiveFromSlot 100
-                , ActiveUntilSlot 150
-                ]
-            ]
 
 instance ToSchema ApiPostPolicyIdData where
     declareNamedSchema _ = do
@@ -2327,41 +2521,47 @@ instance ToSchema ApiPostPolicyIdData where
         declareSchemaForDefinition "ApiPostPolicyIdData"
 
 instance HasSNetworkId n => Arbitrary (ApiMintBurnData n) where
-    arbitrary = ApiMintBurnData
-        <$> oneof
-            [ Left <$> arbitrary @(ApiMintBurnDataFromScript n)
-            , Right <$> arbitrary @(ApiMintBurnDataFromInput n)
-            ]
+    arbitrary =
+        ApiMintBurnData
+            <$> oneof
+                [ Left <$> arbitrary @(ApiMintBurnDataFromScript n)
+                , Right <$> arbitrary @(ApiMintBurnDataFromInput n)
+                ]
 
 instance HasSNetworkId n => Arbitrary (ApiMintBurnDataFromScript n) where
-    arbitrary = ApiMintBurnDataFromScript
-        <$> elements
-            [ ApiT $ RequireSignatureOf (Cosigner 0)
-            , ApiT $ RequireAllOf
-                [ RequireSignatureOf (Cosigner 0)
-                , ActiveFromSlot 100
+    arbitrary =
+        ApiMintBurnDataFromScript
+            <$> elements
+                [ ApiT $ RequireSignatureOf (Cosigner 0)
+                , ApiT
+                    $ RequireAllOf
+                        [ RequireSignatureOf (Cosigner 0)
+                        , ActiveFromSlot 100
+                        ]
+                , ApiT
+                    $ RequireAllOf
+                        [ RequireSignatureOf (Cosigner 0)
+                        , ActiveFromSlot 100
+                        , ActiveUntilSlot 150
+                        ]
                 ]
-            , ApiT $ RequireAllOf
-                [ RequireSignatureOf (Cosigner 0)
-                , ActiveFromSlot 100
-                , ActiveUntilSlot 150
+            <*> oneof
+                [ Just . ApiT <$> genAssetName
+                , pure Nothing
                 ]
-            ]
-        <*> oneof
-            [ Just . ApiT <$> genAssetName
-            , pure Nothing
-            ]
-        <*> arbitrary
+            <*> arbitrary
 
 instance HasSNetworkId n => Arbitrary (ApiMintBurnDataFromInput n) where
-    arbitrary = (ApiMintBurnDataFromInput . ReferenceInput
-        <$> arbitrary)
-        <*> arbitrary
-        <*> oneof
-            [ Just . ApiT <$> genAssetName
-            , pure Nothing
-            ]
-        <*> arbitrary
+    arbitrary =
+        ( ApiMintBurnDataFromInput . ReferenceInput
+            <$> arbitrary
+        )
+            <*> arbitrary
+            <*> oneof
+                [ Just . ApiT <$> genAssetName
+                , pure Nothing
+                ]
+            <*> arbitrary
 
 instance Arbitrary ApiStakeKeyIndex where
     arbitrary = ApiStakeKeyIndex <$> arbitrary
@@ -2376,10 +2576,11 @@ instance Arbitrary ApiBurnData where
     arbitrary = ApiBurnData <$> arbitrary
 
 instance HasSNetworkId n => Arbitrary (ApiMintBurnOperation n) where
-    arbitrary = oneof
-        [ ApiMint <$> arbitrary
-        , ApiBurn <$> arbitrary
-        ]
+    arbitrary =
+        oneof
+            [ ApiMint <$> arbitrary
+            , ApiBurn <$> arbitrary
+            ]
 
 {--
 instance Arbitrary ApiMintBurnInfo where
@@ -2414,60 +2615,63 @@ deriving instance Arbitrary ApiValidityIntervalExplicit
 
 instance HasSNetworkId n => Arbitrary (ApiPutAddressesData n) where
     arbitrary = do
-        n <- choose (1,255)
+        n <- choose (1, 255)
         addrs <- vector n
         pure $ ApiPutAddressesData addrs
 
 instance HasSNetworkId n => Arbitrary (PostTransactionFeeOldData n) where
-    arbitrary = PostTransactionFeeOldData
-        <$> arbitrary
-        <*> elements [Just SelfWithdrawal, Nothing]
-        <*> arbitrary
-        <*> arbitrary
+    arbitrary =
+        PostTransactionFeeOldData
+            <$> arbitrary
+            <*> elements [Just SelfWithdrawal, Nothing]
+            <*> arbitrary
+            <*> arbitrary
 
 selectFromPreparedBinaries :: Gen ByteString
-selectFromPreparedBinaries = elements $ toByteString <$>
-    [ "83a400818258200eaa33be8780935ca5a7c1e628a2d54402446f96236ca8f1770e07fa22b\
-      \a864808018282583901bdd74c3bd086d38939876fcbd56e91dd56fccca9be70b424390443\
-      \67af33d417814e6fa7953195797d73f9b5fb511854b4b0d8b2023959951a002dc6c082583\
-      \9011a2f2f103b895dbe7388acc9cc10f90dc4ada53f46c841d2ac44630789fc61d21ddfcb\
-      \d4d43652bf05c40c346fa794871423b65052d7614c1b0000001748472188021a0001ffb80\
-      \3198d11a1008182582043ea6d45e9abe6e30faff4a9b675abdc49534a6eda9ba96f9368d1\
-      \2d879dfc6758409b898ca143e1b245c9c745c690b8137b724fc63f8a3b852bcd2234cee4e\
-      \68c25cd333e845a224b9cb4600f271d545e35a41d17a16c046aea66ed34a536559f0df6"
-    , "83a400818258200eaa33be8780935ca5a7c1e628a2d54402446f96236ca8f1770e07fa22b\
-      \a86481301828258390118b8c2b229e68b21c54c68d91944fead4c043e8348368b1ac551c9\
-      \00c93e3edd82798a526ccf85b2a42e04037349ffe185e26a16356dfce61a002dc6c082583\
-      \90110a9b4666ba80e4878491d1ac20465c9893a8df5581dc705770626203d4d23fe6a7acd\
-      \da5a1b41f56100f02bfa270a3c560c4e55cf8312331b0000001748472188021a0001ffb80\
-      \3198d4fa10081825820fc2f860286fc72c1c1e29f1c0a23e9e11771f60e1d26799f71846c\
-      \89f5aa91315840e4dec970d40b749d9bc77996c2f102bd056b5f9ba3fd13745f410d8fc96\
-      \e0aaca4a4b4e1d52d6ce1d92b0d79412e542f2bebfa29f991c09c131b1dfeb2832300f6"
-    , "83a40081825820c03484e3bf981bec7cc5cf4da1a3d9fe4eab83b3f5f7574752a2b8a9b24\
-      \09b2f0001828258390154fe81cb1633e9f2f4446b78f67f00ac19abc4351be6548719118b\
-      \f8c93e3edd82798a526ccf85b2a42e04037349ffe185e26a16356dfce61a000f424082583\
-      \90184f41fa42d8ab05639aeb780ff4b3fe290f11d3439b04303fdfa9488af33d417814e6f\
-      \a7953195797d73f9b5fb511854b4b0d8b2023959951a001c84c8021a0001ffb803198d88a\
-      \10081825820931c2a7343df63fb785aec4b2de688b8290cf634f638f647f22c2e68256919\
-      \6a5840c6e88b52c406131a7b004b76fe24f611b1f5d19964ee2ce3144fff391a725be7a5a\
-      \b3f27389eb75dbe354026d5822f7b71f9deb84cff0126e809bd5690409f00f6"
-    , "83a400818258200eaa33be8780935ca5a7c1e628a2d54402446f96236ca8f1770e07fa22b\
-      \a8648000184825839014067fb21919c12519843c07d09b4c548e34f7e7c473b352f2751bd\
-      \a42387e650558a9026a0b9623adc92aa411f8fa598ee901db296a51bf51a000f424082583\
-      \90132a432e6d711312ba6c390725ee81cd525c9b5ec5e8bf99772062d6d2387e650558a90\
-      \26a0b9623adc92aa411f8fa598ee901db296a51bf51a000f4240825839011a2f2f103b895\
-      \dbe7388acc9cc10f90dc4ada53f46c841d2ac44630789fc61d21ddfcbd4d43652bf05c40c\
-      \346fa794871423b65052d7614c1b0000000ba42b175482583901c59701fee28ad31559870\
-      \ecd6ea92b143b1ce1b68ccb62f8e8437b3089fc61d21ddfcbd4d43652bf05c40c346fa794\
-      \871423b65052d7614c1b0000000ba42b1754021a000234d803198d16a10081825820c15b9\
-      \90344122b12494a5edd1020d9eb32e34b0f82691f8e31645ddab712ff2b58408e6a29053f\
-      \9f7f04f3de256cc4b30f24b2d5ffe4927c86e9d6310b224afb94f4e5b8eea6573e6fa1404\
-      \07153c12fdf8cf619edff0c7c27aa91ae3acb56041a00f6"
-    ]
+selectFromPreparedBinaries =
+    elements
+        $ toByteString
+            <$> [ "83a400818258200eaa33be8780935ca5a7c1e628a2d54402446f96236ca8f1770e07fa22b\
+                  \a864808018282583901bdd74c3bd086d38939876fcbd56e91dd56fccca9be70b424390443\
+                  \67af33d417814e6fa7953195797d73f9b5fb511854b4b0d8b2023959951a002dc6c082583\
+                  \9011a2f2f103b895dbe7388acc9cc10f90dc4ada53f46c841d2ac44630789fc61d21ddfcb\
+                  \d4d43652bf05c40c346fa794871423b65052d7614c1b0000001748472188021a0001ffb80\
+                  \3198d11a1008182582043ea6d45e9abe6e30faff4a9b675abdc49534a6eda9ba96f9368d1\
+                  \2d879dfc6758409b898ca143e1b245c9c745c690b8137b724fc63f8a3b852bcd2234cee4e\
+                  \68c25cd333e845a224b9cb4600f271d545e35a41d17a16c046aea66ed34a536559f0df6"
+                , "83a400818258200eaa33be8780935ca5a7c1e628a2d54402446f96236ca8f1770e07fa22b\
+                  \a86481301828258390118b8c2b229e68b21c54c68d91944fead4c043e8348368b1ac551c9\
+                  \00c93e3edd82798a526ccf85b2a42e04037349ffe185e26a16356dfce61a002dc6c082583\
+                  \90110a9b4666ba80e4878491d1ac20465c9893a8df5581dc705770626203d4d23fe6a7acd\
+                  \da5a1b41f56100f02bfa270a3c560c4e55cf8312331b0000001748472188021a0001ffb80\
+                  \3198d4fa10081825820fc2f860286fc72c1c1e29f1c0a23e9e11771f60e1d26799f71846c\
+                  \89f5aa91315840e4dec970d40b749d9bc77996c2f102bd056b5f9ba3fd13745f410d8fc96\
+                  \e0aaca4a4b4e1d52d6ce1d92b0d79412e542f2bebfa29f991c09c131b1dfeb2832300f6"
+                , "83a40081825820c03484e3bf981bec7cc5cf4da1a3d9fe4eab83b3f5f7574752a2b8a9b24\
+                  \09b2f0001828258390154fe81cb1633e9f2f4446b78f67f00ac19abc4351be6548719118b\
+                  \f8c93e3edd82798a526ccf85b2a42e04037349ffe185e26a16356dfce61a000f424082583\
+                  \90184f41fa42d8ab05639aeb780ff4b3fe290f11d3439b04303fdfa9488af33d417814e6f\
+                  \a7953195797d73f9b5fb511854b4b0d8b2023959951a001c84c8021a0001ffb803198d88a\
+                  \10081825820931c2a7343df63fb785aec4b2de688b8290cf634f638f647f22c2e68256919\
+                  \6a5840c6e88b52c406131a7b004b76fe24f611b1f5d19964ee2ce3144fff391a725be7a5a\
+                  \b3f27389eb75dbe354026d5822f7b71f9deb84cff0126e809bd5690409f00f6"
+                , "83a400818258200eaa33be8780935ca5a7c1e628a2d54402446f96236ca8f1770e07fa22b\
+                  \a8648000184825839014067fb21919c12519843c07d09b4c548e34f7e7c473b352f2751bd\
+                  \a42387e650558a9026a0b9623adc92aa411f8fa598ee901db296a51bf51a000f424082583\
+                  \90132a432e6d711312ba6c390725ee81cd525c9b5ec5e8bf99772062d6d2387e650558a90\
+                  \26a0b9623adc92aa411f8fa598ee901db296a51bf51a000f4240825839011a2f2f103b895\
+                  \dbe7388acc9cc10f90dc4ada53f46c841d2ac44630789fc61d21ddfcbd4d43652bf05c40c\
+                  \346fa794871423b65052d7614c1b0000000ba42b175482583901c59701fee28ad31559870\
+                  \ecd6ea92b143b1ce1b68ccb62f8e8437b3089fc61d21ddfcbd4d43652bf05c40c346fa794\
+                  \871423b65052d7614c1b0000000ba42b1754021a000234d803198d16a10081825820c15b9\
+                  \90344122b12494a5edd1020d9eb32e34b0f82691f8e31645ddab712ff2b58408e6a29053f\
+                  \9f7f04f3de256cc4b30f24b2d5ffe4927c86e9d6310b224afb94f4e5b8eea6573e6fa1404\
+                  \07153c12fdf8cf619edff0c7c27aa91ae3acb56041a00f6"
+                ]
   where
     toByteString txt =
         let (Right bs) = fromHex $ T.encodeUtf8 txt
-        in bs
+        in  bs
 
 deriving instance Arbitrary a => Arbitrary (ApiAsArray s a)
 
@@ -2633,9 +2837,10 @@ instance Arbitrary TxScriptValidity where
     shrink = shrinkTxScriptValidity
 
 instance Arbitrary (ApiWithdrawal (t :: NetworkDiscriminant)) where
-    arbitrary = ApiWithdrawal
-        <$> arbitrary
-        <*> arbitrary
+    arbitrary =
+        ApiWithdrawal
+            <$> arbitrary
+            <*> arbitrary
 
 instance Arbitrary RewardAccount where
     arbitrary = do
@@ -2650,9 +2855,10 @@ instance Arbitrary UTxO where
     shrink (UTxO utxo) = UTxO <$> shrink utxo
     arbitrary = do
         n <- choose (0, 10)
-        utxo <- zip
-            <$> vector n
-            <*> vector n
+        utxo <-
+            zip
+                <$> vector n
+                <*> vector n
         return $ UTxO $ Map.fromList utxo
 
 instance Arbitrary TxOut where
@@ -2662,16 +2868,17 @@ instance Arbitrary TxOut where
 
 instance Arbitrary TxIn where
     -- No Shrinking
-    arbitrary = TxIn
-        <$> arbitrary
-        -- NOTE: No need for a crazy high indexes
-        <*> Test.QuickCheck.scale (`mod` 3) arbitrary
+    arbitrary =
+        TxIn
+            <$> arbitrary
+            -- NOTE: No need for a crazy high indexes
+            <*> Test.QuickCheck.scale (`mod` 3) arbitrary
 
 instance Arbitrary ApiWalletUtxoSnapshot where
     arbitrary = do
         entryCount <- choose (0, 4)
         entries <- replicateM entryCount genEntry
-        pure $ ApiWalletUtxoSnapshot { entries }
+        pure $ ApiWalletUtxoSnapshot{entries}
       where
         genEntry :: Gen ApiWalletUtxoSnapshotEntry
         genEntry = do
@@ -2681,10 +2888,11 @@ instance Arbitrary ApiWalletUtxoSnapshot where
             -- greater than or equal to the minimum permissible ada quantity:
             let ada = ApiAmount.fromCoin $ max adaValue1 adaValue2
             assets <- ApiWalletAssets.fromTokenMap <$> genTokenMapSmallRange
-            pure ApiWalletUtxoSnapshotEntry
-                { ada
-                , assets
-                }
+            pure
+                ApiWalletUtxoSnapshotEntry
+                    { ada
+                    , assets
+                    }
 
 instance Arbitrary ApiUtxoStatistics where
     arbitrary = do
@@ -2692,11 +2900,12 @@ instance Arbitrary ApiUtxoStatistics where
         let (UTxOStatistics histoBars stakes bType) =
                 UTxOStatistics.compute utxos
         let boundCountMap =
-                Map.fromList $ map (\(HistogramBar k v)-> (k,v)) histoBars
-        return $ ApiUtxoStatistics
-            (ApiAmount.fromWord64 stakes)
-            (ApiT bType)
-            boundCountMap
+                Map.fromList $ map (\(HistogramBar k v) -> (k, v)) histoBars
+        return
+            $ ApiUtxoStatistics
+                (ApiAmount.fromWord64 stakes)
+                (ApiT bType)
+                boundCountMap
 
 instance HasSNetworkId n => Arbitrary (ApiTxInput n) where
     shrink _ = []
@@ -2743,12 +2952,14 @@ instance Arbitrary ApiPostRandomAddressData where
 
 instance Arbitrary ApiAddressInspect where
     arbitrary = do
-        style <- elements [ "Byron", "Icarus", "Shelley" ]
-        stake <- elements [ "none", "by value", "by pointer" ]
-        pure $ ApiAddressInspect $ Aeson.object
-            [ "address_style" .= Aeson.String style
-            , "stake_reference" .= Aeson.String stake
-            ]
+        style <- elements ["Byron", "Icarus", "Shelley"]
+        stake <- elements ["none", "by value", "by pointer"]
+        pure
+            $ ApiAddressInspect
+            $ Aeson.object
+                [ "address_style" .= Aeson.String style
+                , "stake_reference" .= Aeson.String stake
+                ]
 
 instance Arbitrary HealthCheckSMASH where
     arbitrary = genericArbitrary
@@ -2780,17 +2991,21 @@ instance Arbitrary ApiAccountKey where
     arbitrary = do
         xpubKey <- BS.pack <$> replicateM 64 arbitrary
         pubKey <- BS.pack <$> replicateM 32 arbitrary
-        oneof [ pure $ ApiAccountKey pubKey NonExtended purposeCIP1852
-              , pure $ ApiAccountKey xpubKey Extended purposeCIP1852
-              , pure $ ApiAccountKey pubKey NonExtended purposeCIP1854
-              , pure $ ApiAccountKey xpubKey Extended purposeCIP1854]
+        oneof
+            [ pure $ ApiAccountKey pubKey NonExtended purposeCIP1852
+            , pure $ ApiAccountKey xpubKey Extended purposeCIP1852
+            , pure $ ApiAccountKey pubKey NonExtended purposeCIP1854
+            , pure $ ApiAccountKey xpubKey Extended purposeCIP1854
+            ]
 
 instance Arbitrary ApiAccountKeyShared where
     arbitrary = do
         xpubKey <- BS.pack <$> replicateM 64 arbitrary
         pubKey <- BS.pack <$> replicateM 32 arbitrary
-        oneof [ pure $ ApiAccountKeyShared pubKey NonExtended purposeCIP1854
-              , pure $ ApiAccountKeyShared xpubKey Extended purposeCIP1854 ]
+        oneof
+            [ pure $ ApiAccountKeyShared pubKey NonExtended purposeCIP1854
+            , pure $ ApiAccountKeyShared xpubKey Extended purposeCIP1854
+            ]
 
 instance Arbitrary (ApiStakeKeys n) where
     arbitrary = Test.QuickCheck.scale (`div` 4) genericArbitrary
@@ -2864,12 +3079,12 @@ specification :: Aeson.Value
 specification =
     unsafeDecode bytes
   where
-    bytes = $(
-        let swaggerYaml = "./specifications/api/swagger.yaml"
-        in liftIO (lookupEnv "SWAGGER_YAML") >>=
-        maybe (makeRelativeToProject swaggerYaml) pure >>=
-        embedFile
-        )
+    bytes =
+        $( let swaggerYaml = "./specifications/api/swagger.yaml"
+           in  liftIO (lookupEnv "SWAGGER_YAML")
+                >>= maybe (makeRelativeToProject swaggerYaml) pure
+                >>= embedFile
+         )
     unsafeDecode =
         either (error . (msg <>) . show) Prelude.id . Yaml.decodeEither'
     msg = "Whoops! Failed to parse or find the api specification document: "
@@ -2885,8 +3100,10 @@ instance Typeable n => ToSchema (ApiPutAddressesData n) where
 
 instance Typeable n => ToSchema (ApiSelectCoinsData n) where
     declareNamedSchema _ = do
-        addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
-        addDefinition =<< declareSchemaForDefinition "TransactionMetadataValueNoSchema"
+        addDefinition
+            =<< declareSchemaForDefinition "TransactionMetadataValue"
+        addDefinition
+            =<< declareSchemaForDefinition "TransactionMetadataValueNoSchema"
         declareSchemaForDefinition "ApiSelectCoinsData"
 
 instance ToSchema (ApiT SmashServer) where
@@ -2962,7 +3179,7 @@ instance ToSchema (ByronWalletPostData '[12]) where
 instance ToSchema (ByronWalletPostData '[15]) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiByronWalletIcarusPostData"
 
-instance ToSchema (ByronWalletPostData '[12,15,18,21,24]) where
+instance ToSchema (ByronWalletPostData '[12, 15, 18, 21, 24]) where
     -- NOTE ApiByronWalletLedgerPostData works too. Only the description differs.
     declareNamedSchema _ = declareSchemaForDefinition "ApiByronWalletTrezorPostData"
 
@@ -3014,14 +3231,18 @@ instance ToSchema (ApiBytesT 'Base64 SerialisedTx) where
 
 instance Typeable n => ToSchema (PostTransactionOldData n) where
     declareNamedSchema _ = do
-        addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
-        addDefinition =<< declareSchemaForDefinition "TransactionMetadataValueNoSchema"
+        addDefinition
+            =<< declareSchemaForDefinition "TransactionMetadataValue"
+        addDefinition
+            =<< declareSchemaForDefinition "TransactionMetadataValueNoSchema"
         declareSchemaForDefinition "ApiPostTransactionData"
 
 instance Typeable n => ToSchema (PostTransactionFeeOldData n) where
     declareNamedSchema _ = do
-        addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
-        addDefinition =<< declareSchemaForDefinition "TransactionMetadataValueNoSchema"
+        addDefinition
+            =<< declareSchemaForDefinition "TransactionMetadataValue"
+        addDefinition
+            =<< declareSchemaForDefinition "TransactionMetadataValueNoSchema"
         declareSchemaForDefinition "ApiPostTransactionFeeData"
 
 instance Typeable n => ToSchema (ApiExternalInput n) where
@@ -3032,8 +3253,10 @@ instance Typeable n => ToSchema (ApiBalanceTransactionPostData n) where
 
 instance Typeable n => ToSchema (ApiTransaction n) where
     declareNamedSchema _ = do
-        addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
-        addDefinition =<< declareSchemaForDefinition "TransactionMetadataValueNoSchema"
+        addDefinition
+            =<< declareSchemaForDefinition "TransactionMetadataValue"
+        addDefinition
+            =<< declareSchemaForDefinition "TransactionMetadataValueNoSchema"
         addDefinition =<< declareSchemaForDefinition "ScriptValue"
         declareSchemaForDefinition "ApiTransaction"
 
@@ -3132,8 +3355,10 @@ instance ToSchema ApiPostRandomAddressData where
 
 instance ToSchema ApiWalletSignData where
     declareNamedSchema _ = do
-        addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
-        addDefinition =<< declareSchemaForDefinition "TransactionMetadataValueNoSchema"
+        addDefinition
+            =<< declareSchemaForDefinition "TransactionMetadataValue"
+        addDefinition
+            =<< declareSchemaForDefinition "TransactionMetadataValueNoSchema"
         declareSchemaForDefinition "ApiWalletSignData"
 
 instance ToSchema ApiPostAccountKeyData where
@@ -3163,24 +3388,26 @@ instance Typeable n => ToSchema (ApiForeignStakeKey n) where
 instance ToSchema ApiNullStakeKey where
     declareNamedSchema _ = declareSchemaForDefinition "ApiNullStakeKey"
 
-instance ToSchema ApiTokenAmountFingerprint  where
+instance ToSchema ApiTokenAmountFingerprint where
     declareNamedSchema _ =
         declareSchemaForDefinition "ApiTokenAmountFingerprint"
 
-instance ToSchema ApiTokens  where
+instance ToSchema ApiTokens where
     declareNamedSchema _ = do
         addDefinition =<< declareSchemaForDefinition "ScriptValue"
         declareSchemaForDefinition "ApiTokens"
 
-instance ToSchema ApiAssetMintBurn  where
+instance ToSchema ApiAssetMintBurn where
     declareNamedSchema _ = do
         addDefinition =<< declareSchemaForDefinition "ScriptValue"
         declareSchemaForDefinition "ApiAssetMintBurn"
 
 instance Typeable n => ToSchema (ApiConstructTransactionData n) where
     declareNamedSchema _ = do
-        addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
-        addDefinition =<< declareSchemaForDefinition "TransactionMetadataValueNoSchema"
+        addDefinition
+            =<< declareSchemaForDefinition "TransactionMetadataValue"
+        addDefinition
+            =<< declareSchemaForDefinition "TransactionMetadataValueNoSchema"
         addDefinition =<< declareSchemaForDefinition "ScriptTemplateValue"
         declareSchemaForDefinition "ApiConstructTransactionData"
 
@@ -3210,8 +3437,10 @@ instance Typeable n => ToSchema (ApiWithdrawalsGeneral n) where
 
 instance Typeable n => ToSchema (ApiDecodedTransaction n) where
     declareNamedSchema _ = do
-        addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
-        addDefinition =<< declareSchemaForDefinition "TransactionMetadataValueNoSchema"
+        addDefinition
+            =<< declareSchemaForDefinition "TransactionMetadataValue"
+        addDefinition
+            =<< declareSchemaForDefinition "TransactionMetadataValueNoSchema"
         addDefinition =<< declareSchemaForDefinition "ScriptValue"
         addDefinition =<< declareSchemaForDefinition "ScriptValueGeneral"
         declareSchemaForDefinition "ApiDecodedTransaction"
@@ -3221,12 +3450,17 @@ instance ToSchema ApiBlockHeader where
 
 -- | Utility function to provide an ad-hoc 'ToSchema' instance for a definition:
 -- we simply look it up within the Swagger specification.
-declareSchemaForDefinition :: Text -> Declare (Definitions Schema) NamedSchema
+declareSchemaForDefinition
+    :: Text -> Declare (Definitions Schema) NamedSchema
 declareSchemaForDefinition ref = do
-    let json = foldl' unsafeLookupKey specification ["components","schemas",ref]
+    let json = foldl' unsafeLookupKey specification ["components", "schemas", ref]
     case Aeson.eitherDecode' $ Aeson.encode json of
-        Left err -> error $
-            "unable to decode schema for definition '" <> T.unpack ref <> "': " <> show err
+        Left err ->
+            error
+                $ "unable to decode schema for definition '"
+                    <> T.unpack ref
+                    <> "': "
+                    <> show err
         Right schema ->
             return $ NamedSchema (Just ref) schema
 
@@ -3266,16 +3500,22 @@ everyApiEndpoint p = extractEndpoints p []
 class ExtractEndpoints api where
     extractEndpoints :: Proxy api -> [String] -> [ApiEndpoint]
 
-instance {-# OVERLAPPING #-} (ExtractEndpoints sub, KnownSymbol path) =>
-    ExtractEndpoints (path :> sub) where
-        extractEndpoints _ prefixes = do
-            let prefixes' = symbolVal (Proxy @path) : prefixes
-            extractEndpoints (Proxy @sub) prefixes'
+instance
+    {-# OVERLAPPING #-}
+    (ExtractEndpoints sub, KnownSymbol path)
+    => ExtractEndpoints (path :> sub)
+    where
+    extractEndpoints _ prefixes = do
+        let prefixes' = symbolVal (Proxy @path) : prefixes
+        extractEndpoints (Proxy @sub) prefixes'
 
-instance {-# OVERLAPPING #-} (ExtractEndpoints left, ExtractEndpoints right) =>
-    ExtractEndpoints (left :<|> right) where
-        extractEndpoints _ paths =
-            extractEndpoints (Proxy @left) paths
+instance
+    {-# OVERLAPPING #-}
+    (ExtractEndpoints left, ExtractEndpoints right)
+    => ExtractEndpoints (left :<|> right)
+    where
+    extractEndpoints _ paths =
+        extractEndpoints (Proxy @left) paths
             <> extractEndpoints (Proxy @right) paths
 
 instance {-# OVERLAPPABLE #-} GetPath a => ExtractEndpoints a where
@@ -3299,13 +3539,13 @@ instance (KnownSymbol path, GetPath sub) => GetPath (path :> sub) where
         getPath (Proxy @sub) & \(verb, sub) ->
             (verb, "/" <> symbolVal (Proxy @path) <> sub)
 
-instance (KnownSymbol param, GetPath sub) => GetPath (Capture param t :> sub)
-  where
+instance (KnownSymbol param, GetPath sub) => GetPath (Capture param t :> sub) where
     getPath _ =
-         case symbolVal (Proxy :: Proxy param) of
-            sym | sym == "*" ->
-                getPath (Proxy @sub) & \(verb, sub) ->
-                    (verb, "/" <> sym <> sub)
+        case symbolVal (Proxy :: Proxy param) of
+            sym
+                | sym == "*" ->
+                    getPath (Proxy @sub) & \(verb, sub) ->
+                        (verb, "/" <> sym <> sub)
             sym ->
                 getPath (Proxy @sub) & \(verb, sub) ->
                     (verb, "/{" <> sym <> "}" <> sub)

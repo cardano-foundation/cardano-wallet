@@ -7,7 +7,6 @@
 -- License: Apache-2.0
 --
 -- Common helper functions for LSQs
---
 module Cardano.Wallet.Network.LocalStateQuery.Extra
     ( byronOrShelleyBased
     , onAnyEra
@@ -15,8 +14,6 @@ module Cardano.Wallet.Network.LocalStateQuery.Extra
     , shelleyBased
     , currentEra
     ) where
-
-import Prelude
 
 import Cardano.Api
     ( AnyCardanoEra (..)
@@ -69,6 +66,7 @@ import Ouroboros.Consensus.Protocol.TPraos
 import Ouroboros.Consensus.Shelley.Eras
     ( StandardCrypto
     )
+import Prelude
 
 import qualified Cardano.Wallet.Read as Read
 import qualified Ouroboros.Consensus.Byron.Ledger as Byron
@@ -102,11 +100,20 @@ byronOrShelleyBased onByron onShelleyBased =
 -- | Combine era-specific local state queries into an era-agnostic one.
 onAnyEra'
     :: LSQ Byron.ByronBlock m (f Byron)
-    -> LSQ (Shelley.ShelleyBlock (TPraos StandardCrypto) Shelley) m (f Shelley)
-    -> LSQ (Shelley.ShelleyBlock (TPraos StandardCrypto) Allegra) m (f Allegra)
+    -> LSQ
+        (Shelley.ShelleyBlock (TPraos StandardCrypto) Shelley)
+        m
+        (f Shelley)
+    -> LSQ
+        (Shelley.ShelleyBlock (TPraos StandardCrypto) Allegra)
+        m
+        (f Allegra)
     -> LSQ (Shelley.ShelleyBlock (TPraos StandardCrypto) Mary) m (f Mary)
     -> LSQ (Shelley.ShelleyBlock (TPraos StandardCrypto) Alonzo) m (f Alonzo)
-    -> LSQ (Shelley.ShelleyBlock (Praos StandardCrypto) Babbage) m (f Babbage)
+    -> LSQ
+        (Shelley.ShelleyBlock (Praos StandardCrypto) Babbage)
+        m
+        (f Babbage)
     -> LSQ (Shelley.ShelleyBlock (Praos StandardCrypto) Conway) m (f Conway)
     -> LSQ (CardanoBlock StandardCrypto) m (Read.EraValue f)
 onAnyEra' a b c d e f g =

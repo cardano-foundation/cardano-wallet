@@ -4,13 +4,12 @@ module Cardano.Wallet.Launch.Cluster.Aeson
     )
 where
 
-import Prelude
-
 import Data.Aeson
     ( FromJSON
     , Value
     , eitherDecodeFileStrict
     )
+import Prelude
 
 type ChangeValue = Value -> Value
 

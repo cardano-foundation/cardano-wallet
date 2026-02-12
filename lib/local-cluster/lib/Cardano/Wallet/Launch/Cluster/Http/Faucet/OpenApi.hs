@@ -7,8 +7,6 @@ module Cardano.Wallet.Launch.Cluster.Http.Faucet.OpenApi
     , sendAssetsSchema
     ) where
 
-import Prelude
-
 import Control.Lens
     ( At (..)
     , (&)
@@ -44,6 +42,7 @@ import Data.OpenApi
 import Network.HTTP.Media
     ( MediaType
     )
+import Prelude
 
 faucetDefinitions :: Definitions Schema
 faucetDefinitions =

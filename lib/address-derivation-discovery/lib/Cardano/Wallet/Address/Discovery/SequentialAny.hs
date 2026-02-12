@@ -1,5 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -13,10 +14,8 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
-
-{-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
-{-# LANGUAGE DataKinds #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- We intentionally specify the constraint  (k == SharedKey) ~ 'False
 -- in some exports.
@@ -31,17 +30,12 @@
 -- The management of _accounts_ is left-out for this implementation focuses on
 -- a single account. In practice, one wants to manage a set of pools, one per
 -- account.
-
 module Cardano.Wallet.Address.Discovery.SequentialAny
-    (
-
-    -- ** Benchmarking
-    SeqAnyState (..)
+    ( -- ** Benchmarking
+      SeqAnyState (..)
     , Discoveries (..)
     , Prologue (..)
     ) where
-
-import Prelude
 
 import Cardano.Crypto.Wallet
     ( XPub
@@ -126,6 +120,7 @@ import GHC.TypeLits
     , Nat
     , natVal
     )
+import Prelude
 
 import qualified Cardano.Wallet.Address.Discovery.Sequential as Seq
 import qualified Cardano.Wallet.Address.Pool as AddressPool
@@ -144,8 +139,8 @@ import qualified Cardano.Wallet.Address.Pool as AddressPool
 -- The proportion is stored as a type-level parameter so that we don't have to
 -- alter the database schema to store it. It simply exists and depends on the
 -- caller creating the wallet to define it.
-newtype SeqAnyState (network :: NetworkDiscriminant) key (p :: Nat) =
-    SeqAnyState { innerState :: SeqState network key }
+newtype SeqAnyState (network :: NetworkDiscriminant) key (p :: Nat)
+    = SeqAnyState {innerState :: SeqState network key}
     deriving (Generic)
 
 deriving instance
@@ -189,7 +184,7 @@ instance KnownNat p => IsOurs (SeqAnyState n k p) Address where
 
         correctAddressType =
             case toLedger (Address bytes) of
-                (Addr _ KeyHashObj {} _) -> True
+                (Addr _ KeyHashObj{} _) -> True
                 _anythingElse -> False
 
 instance IsOurs (SeqAnyState n k p) RewardAccount where
@@ -198,30 +193,34 @@ instance IsOurs (SeqAnyState n k p) RewardAccount where
 instance
     ( SoftDerivation k
     , AddressCredential k ~ 'CredFromKeyK
-    ) => GenChange (SeqAnyState n k p)
-  where
+    )
+    => GenChange (SeqAnyState n k p)
+    where
     type ArgGenChange (SeqAnyState n k p) = ArgGenChange (SeqState n k)
     genChange a (SeqAnyState s) = SeqAnyState <$> genChange a s
 
 instance SupportsDiscovery n k => CompareDiscovery (SeqAnyState n k p) where
     compareDiscovery (SeqAnyState s) = compareDiscovery s
 
-instance (PaymentAddress k 'CredFromKeyK, HasSNetworkId n)
-    => KnownAddresses (SeqAnyState n k p) where
+instance
+    (PaymentAddress k 'CredFromKeyK, HasSNetworkId n)
+    => KnownAddresses (SeqAnyState n k p)
+    where
     knownAddresses (SeqAnyState s) = knownAddresses s
 
 -- piggy-back on SeqState existing instance, to simulate the same behavior.
-instance ( (key == SharedKey) ~ 'False, Eq (SeqState n key))
+instance
+    ((key == SharedKey) ~ 'False, Eq (SeqState n key))
     => AddressBookIso (SeqAnyState n key p)
-  where
-    data Prologue (SeqAnyState n key p) =
-        PS (Prologue (Seq.SeqState n key))
-    data Discoveries (SeqAnyState n key p) =
-        DS (Discoveries (Seq.SeqState n key))
+    where
+    data Prologue (SeqAnyState n key p)
+        = PS (Prologue (Seq.SeqState n key))
+    data Discoveries (SeqAnyState n key p)
+        = DS (Discoveries (Seq.SeqState n key))
 
     addressIso = withIso addressIso $ \from to ->
-        let from2 st = let (a,b) = from $ innerState st in (PS a, DS b)
-            to2 (PS a, DS b) = SeqAnyState $ to (a,b)
+        let from2 st = let (a, b) = from $ innerState st in (PS a, DS b)
+            to2 (PS a, DS b) = SeqAnyState $ to (a, b)
         in  iso from2 to2
 
 instance Eq (Seq.SeqState n k) => Eq (Prologue (SeqAnyState n k p)) where

@@ -8,8 +8,6 @@
 -- License: Apache-2.0
 --
 -- 'TxId' — unique identifier for a 'TxBody'.
---
-
 module Cardano.Wallet.Read.Tx.TxId
     ( TxId
     , pattern TxId
@@ -18,12 +16,10 @@ module Cardano.Wallet.Read.Tx.TxId
     , hashFromTxId
     , getTxId
 
-    -- * Internal
+      -- * Internal
     , fromLedgerTxId
     )
-    where
-
-import Prelude
+where
 
 import Cardano.Ledger.Hashes
     ( EraIndependentTxBody
@@ -42,10 +38,11 @@ import Cardano.Wallet.Read.Hash
 import Cardano.Wallet.Read.Tx.Tx
     ( Tx
     )
+import Prelude
 
-import qualified Cardano.Ledger.Hashes as Hashes
-import qualified Cardano.Ledger.TxIn as SH.TxIn
-import qualified Cardano.Read.Ledger.Tx.TxId as L
+import Cardano.Ledger.Hashes qualified as Hashes
+import Cardano.Ledger.TxIn qualified as SH.TxIn
+import Cardano.Read.Ledger.Tx.TxId qualified as L
 
 -- | Unique identifier for a transaction body,
 -- obtained by hashing.
@@ -63,7 +60,8 @@ type TxId = SH.TxIn.TxId
 {-# COMPLETE TxId #-}
 pattern TxId :: Hash Blake2b_256 EraIndependentTxBody -> TxId
 pattern TxId x <- (hashFromTxId -> x)
-  where TxId x = txIdFromHash x
+    where
+        TxId x = txIdFromHash x
 
 -- | Wrap hash of a transaction body as 'TxId'.
 txIdFromHash
@@ -76,6 +74,7 @@ hashFromTxId
 hashFromTxId (SH.TxIn.TxId h) = Hashes.extractHash h
 
 {-# INLINEABLE getTxId #-}
+
 -- | Extract the 'TxId' of a transaction.
 getTxId :: forall era. IsEra era => Tx era -> TxId
 getTxId = fromLedgerTxId . L.getEraTxId

@@ -19,32 +19,29 @@
 -- License: Apache-2.0
 --
 -- An implementation of the DBLayer which uses Persistent and SQLite.
-
 module Cardano.Wallet.DB.Layer
     ( -- * Directory of single-file wallet databases
       newDBFactory
     , findDatabases
     , DBFactoryLog (..)
 
-    -- * Open a database for a specific 'WalletId'
+      -- * Open a database for a specific 'WalletId'
     , withLoadDBLayerFromFile
     , withBootDBLayerFromFile
     , newBootDBLayerInMemory
     , withBootDBLayerInMemory
 
-    -- * Logs
+      -- * Logs
     , WalletDBLog (..)
 
-    -- * Interfaces
+      -- * Interfaces
     , PersistAddressBook (..)
     , DefaultFieldValues (..)
 
-    -- * Testing
+      -- * Testing
     , withTestLoadDBLayerFromFile
     , readWalletId
     ) where
-
-import Prelude
 
 import Cardano.BM.Data.Severity
     ( Severity (..)
@@ -153,6 +150,9 @@ import Cardano.Wallet.DB.Store.Transactions.TransactionInfo
     ( mkTransactionInfoFromReadTx
     , mkTransactionInfoFromRelation
     )
+import Cardano.Wallet.DB.Store.WalletState.Store
+    ( mkStoreWallet
+    )
 import Cardano.Wallet.DB.Store.Wallets.Layer
     ( QueryStoreTxWalletsHistory
     , QueryTxWalletsHistory (..)
@@ -160,9 +160,6 @@ import Cardano.Wallet.DB.Store.Wallets.Layer
     )
 import Cardano.Wallet.DB.Store.Wallets.Model
     ( DeltaTxWalletsHistory (..)
-    )
-import Cardano.Wallet.DB.Store.WalletState.Store
-    ( mkStoreWallet
     )
 import Cardano.Wallet.DB.WalletState
     ( DeltaWalletState
@@ -281,6 +278,7 @@ import UnliftIO.MVar
     , newMVar
     , readMVar
     )
+import Prelude
 
 import qualified Cardano.Wallet.Delegation.Model as Dlgs
 import qualified Cardano.Wallet.Primitive.Model as W
@@ -306,14 +304,14 @@ newDBFactory
      . PersistAddressBook s
     => WalletFlavorS s
     -> Tracer IO DBFactoryLog
-       -- ^ Logging object
+    -- ^ Logging object
     -> DefaultFieldValues
-       -- ^ Default database field values, used during migration.
+    -- ^ Default database field values, used during migration.
     -> TimeInterpreter IO
-       -- ^ Time interpreter for slot to time conversions
+    -- ^ Time interpreter for slot to time conversions
     -> Maybe FilePath
-       -- ^ Path to database directory, or Nothing for in-memory database
-    -> IO (DBFactory IO s )
+    -- ^ Path to database directory, or Nothing for in-memory database
+    -> IO (DBFactory IO s)
 newDBFactory wf tr defaultFieldValues ti = \case
     Nothing -> do
         -- NOTE1
@@ -330,74 +328,76 @@ newDBFactory wf tr defaultFieldValues ti = \case
         -- called after using the database. In practice, this is only a problem
         -- for testing.
         mvar <- newMVar mempty
-        pure DBFactory
-            { withDatabaseLoad = \wid _action -> do
-                throw $ ErrNoSuchWallet wid
-
-            , withDatabaseBoot = \wid params action -> do
-                db <- modifyMVar mvar $ \m -> case Map.lookup wid m of
-                    Just db -> pure (m, db)
-                    Nothing -> do
-                        let tr' = contramap (MsgWalletDB "") tr
-                        (_cleanup, db) <-
-                            newBootDBLayerInMemory wf tr' ti wid params
-                        pure (Map.insert wid db m, db)
-                action db
-
-            , removeDatabase = \wid -> do
-                traceWith tr $ MsgRemoving (pretty wid)
-                modifyMVar_ mvar (pure . Map.delete wid)
-
-            , listDatabases =
-                Map.keys <$> readMVar mvar
-            }
-
+        pure
+            DBFactory
+                { withDatabaseLoad = \wid _action -> do
+                    throw $ ErrNoSuchWallet wid
+                , withDatabaseBoot = \wid params action -> do
+                    db <- modifyMVar mvar $ \m -> case Map.lookup wid m of
+                        Just db -> pure (m, db)
+                        Nothing -> do
+                            let tr' = contramap (MsgWalletDB "") tr
+                            (_cleanup, db) <-
+                                newBootDBLayerInMemory wf tr' ti wid params
+                            pure (Map.insert wid db m, db)
+                    action db
+                , removeDatabase = \wid -> do
+                    traceWith tr $ MsgRemoving (pretty wid)
+                    modifyMVar_ mvar (pure . Map.delete wid)
+                , listDatabases =
+                    Map.keys <$> readMVar mvar
+                }
     Just databaseDir -> do
         refs <- newRefCount
-        pure DBFactory
-            { withDatabaseLoad = \wid action -> withRef refs wid
-                $ withLoadDBLayerFromFile wf
-                    (contramap (MsgWalletDB (databaseFile wid)) tr)
-                    ti
-                    wid
-                    (Just defaultFieldValues)
-                    (databaseFile wid)
-                    action
-
-            , withDatabaseBoot = \wid params action -> withRef refs wid
-                $ withBootDBLayerFromFile wf
-                    (contramap (MsgWalletDB (databaseFile wid)) tr)
-                    ti
-                    wid
-                    (Just defaultFieldValues)
-                    params
-                    (databaseFile wid)
-                    action
-
-            , removeDatabase = \wid -> do
-                let widp = pretty wid
-                -- try to wait for all 'withDatabaseBoot' calls to finish before
-                -- deleting database file.
-                let trWait = contramap (MsgWaitingForDatabase widp) tr
-                -- TODO: rather than refcounting, why not keep retrying the
-                -- delete until there are no file busy errors?
-                waitForFree trWait refs wid $ \inUse -> do
-                    unless (inUse == 0) $
-                        traceWith tr $ MsgRemovingInUse widp inUse
-                    traceWith tr $ MsgRemoving widp
-                    let trDel = contramap (MsgRemovingDatabaseFile widp) tr
-                    deleteSqliteDatabase trDel (databaseFile wid)
-
-            , listDatabases =
-                findDatabases key tr databaseDir
-            }
+        pure
+            DBFactory
+                { withDatabaseLoad = \wid action ->
+                    withRef refs wid
+                        $ withLoadDBLayerFromFile
+                            wf
+                            (contramap (MsgWalletDB (databaseFile wid)) tr)
+                            ti
+                            wid
+                            (Just defaultFieldValues)
+                            (databaseFile wid)
+                            action
+                , withDatabaseBoot = \wid params action ->
+                    withRef refs wid
+                        $ withBootDBLayerFromFile
+                            wf
+                            (contramap (MsgWalletDB (databaseFile wid)) tr)
+                            ti
+                            wid
+                            (Just defaultFieldValues)
+                            params
+                            (databaseFile wid)
+                            action
+                , removeDatabase = \wid -> do
+                    let widp = pretty wid
+                    -- try to wait for all 'withDatabaseBoot' calls to finish before
+                    -- deleting database file.
+                    let trWait = contramap (MsgWaitingForDatabase widp) tr
+                    -- TODO: rather than refcounting, why not keep retrying the
+                    -- delete until there are no file busy errors?
+                    waitForFree trWait refs wid $ \inUse -> do
+                        unless (inUse == 0)
+                            $ traceWith tr
+                            $ MsgRemovingInUse widp inUse
+                        traceWith tr $ MsgRemoving widp
+                        let trDel = contramap (MsgRemovingDatabaseFile widp) tr
+                        deleteSqliteDatabase trDel (databaseFile wid)
+                , listDatabases =
+                    findDatabases key tr databaseDir
+                }
       where
         key = keyOfWallet wf
         databaseFilePrefix = keyTypeDescriptor key
         databaseFile wid =
-            databaseDir </>
-            databaseFilePrefix <> "." <>
-            T.unpack (toText wid) <> ".sqlite"
+            databaseDir
+                </> databaseFilePrefix
+                    <> "."
+                    <> T.unpack (toText wid)
+                    <> ".sqlite"
 
 -- | Return all wallet databases that match the specified key type within the
 --   specified directory.
@@ -448,22 +448,31 @@ instance ToText DBFactoryLog where
     toText = \case
         MsgFoundDatabase _file wid ->
             "Found existing wallet: " <> wid
-        MsgUnknownDBFile file -> mconcat
-            [ "Found something other than a database file in "
-            , "the database folder: ", T.pack file
-            ]
+        MsgUnknownDBFile file ->
+            mconcat
+                [ "Found something other than a database file in "
+                , "the database folder: "
+                , T.pack file
+                ]
         MsgRemoving wid ->
             "Removing wallet's database. Wallet id was " <> wid
         MsgRemovingDatabaseFile wid msg ->
             "Removing " <> wid <> ": " <> toText msg
         MsgWaitingForDatabase wid Nothing ->
-            "Database "+|wid|+" is ready to be deleted"
+            "Database " +| wid |+ " is ready to be deleted"
         MsgWaitingForDatabase wid (Just count) ->
-            "Waiting for "+|count|+" withDatabaseBoot "+|wid|+" call(s) to finish"
+            "Waiting for "
+                +| count
+                |+ " withDatabaseBoot "
+                +| wid
+                |+ " call(s) to finish"
         MsgRemovingInUse wid count ->
-            "Timed out waiting for "+|count|+
-            " withDatabaseBoot "+|wid|+" call(s) to finish. " <>
-            "Attempting to remove the database anyway."
+            "Timed out waiting for "
+                +| count
+                |+ " withDatabaseBoot "
+                +| wid
+                |+ " call(s) to finish. "
+                    <> "Attempting to remove the database anyway."
         MsgWalletDB _file msg -> toText msg
 
 {-------------------------------------------------------------------------------
@@ -471,9 +480,10 @@ instance ToText DBFactoryLog where
 -------------------------------------------------------------------------------}
 getSchemaVersion' :: SqlPersistT IO Version
 getSchemaVersion' = do
-    [Sqlite.Single (Sqlite.PersistInt64 version)]
-        <- Sqlite.rawSql
-            "SELECT version FROM database_schema_version" []
+    [Sqlite.Single (Sqlite.PersistInt64 version)] <-
+        Sqlite.rawSql
+            "SELECT version FROM database_schema_version"
+            []
     pure $ Version (fromIntegral version)
 
 createSchemaVersionTableIfMissing' :: ManualMigration
@@ -490,8 +500,8 @@ readWalletId :: SqlPersistT IO (Maybe W.WalletId)
 readWalletId = do
     result <- Sqlite.rawSql "SELECT wallet_id FROM wallet" []
     pure $ case result of
-        [Sqlite.Single walletId]
-            -> case Sqlite.fromPersistValue walletId of
+        [Sqlite.Single walletId] ->
+            case Sqlite.fromPersistValue walletId of
                 Left _ -> Nothing
                 Right w -> Just w
         _ -> Nothing
@@ -499,17 +509,18 @@ readWalletId = do
 {-------------------------------------------------------------------------------
     DB migration and creation
 -------------------------------------------------------------------------------}
+
 -- | Run migrations on a database file.
 -- This will modify the file and may create backup files.
 migrateDBFile
     :: Tracer IO DBLog
-        -- ^ Tracer for logging
+    -- ^ Tracer for logging
     -> WalletFlavorS s
-        -- ^ Flavor of the wallet contained in the database file.
+    -- ^ Flavor of the wallet contained in the database file.
     -> Maybe DefaultFieldValues
-        -- ^ Default database field values, used during old migration.
+    -- ^ Default database field values, used during old migration.
     -> FilePath
-        -- ^ Path of the @.sqlite@ file to migrate.
+    -- ^ Path of the @.sqlite@ file to migrate.
     -> IO (Either MigrationError ())
 migrateDBFile tr walletF defaultFieldValues fp = runExceptT $ do
     ExceptT $ withDBHandle tr fp $ runManualOldMigrations tr oldMigrations
@@ -530,6 +541,7 @@ throwMigrationError = either throwIO pure
 {-------------------------------------------------------------------------------
     DBLayer
 -------------------------------------------------------------------------------}
+
 -- | Load a 'DBLayer' from a file.
 --
 -- Perform migrations as necessary; throw an exception if that fails.
@@ -537,20 +549,20 @@ withLoadDBLayerFromFile
     :: forall s a
      . PersistAddressBook s
     => WalletFlavorS s
-        -- ^ Wallet flavor
+    -- ^ Wallet flavor
     -> Tracer IO WalletDBLog
-       -- ^ Logging object
+    -- ^ Logging object
     -> TimeInterpreter IO
-       -- ^ Time interpreter for slot to time conversions.
+    -- ^ Time interpreter for slot to time conversions.
     -> W.WalletId
-         -- ^ Wallet ID of the database.
+    -- ^ Wallet ID of the database.
     -> Maybe DefaultFieldValues
-       -- ^ Default database field values, used during manual migration.
-       -- Use 'Nothing' to skip manual migrations.
+    -- ^ Default database field values, used during manual migration.
+    -- Use 'Nothing' to skip manual migrations.
     -> FilePath
-       -- ^ Path to database file
+    -- ^ Path to database file
     -> (DBLayer IO s -> IO a)
-       -- ^ Action to run.
+    -- ^ Action to run.
     -> IO a
 withLoadDBLayerFromFile wF tr ti wid defaultFieldValues dbFile action = do
     let trDB = contramap MsgDB tr
@@ -574,35 +586,35 @@ withBootDBLayerFromFile
     :: forall s a
      . PersistAddressBook s
     => WalletFlavorS s
-        -- ^ Wallet flavor
+    -- ^ Wallet flavor
     -> Tracer IO WalletDBLog
-       -- ^ Logging object
+    -- ^ Logging object
     -> TimeInterpreter IO
-       -- ^ Time interpreter for slot to time conversions.
+    -- ^ Time interpreter for slot to time conversions.
     -> W.WalletId
-         -- ^ Wallet ID of the database.
+    -- ^ Wallet ID of the database.
     -> Maybe DefaultFieldValues
-       -- ^ Default database field values, used during manual migration.
-       -- TODO: No migrations should be performed, remove.
+    -- ^ Default database field values, used during manual migration.
+    -- TODO: No migrations should be performed, remove.
     -> DBLayerParams s
-       -- ^ Parameters required to initialize a database.
+    -- ^ Parameters required to initialize a database.
     -> FilePath
-       -- ^ Path to database file
+    -- ^ Path to database file
     -> (DBLayer IO s -> IO a)
-       -- ^ Action to run.
+    -- ^ Action to run.
     -> IO a
 withBootDBLayerFromFile wF tr ti wid _defaultFieldValues params dbFile action =
-  do
-    let trDB = contramap MsgDB tr
-    res <- withSqliteContextFile
-        trDB
-        dbFile
-        createSchemaVersionTableIfMissing'
-        migrateAll
-        $ \ctx -> do
-            dblayer <- bootDBLayerFromSqliteContext wF ti wid params ctx
-            action dblayer
-    throwMigrationError res
+    do
+        let trDB = contramap MsgDB tr
+        res <- withSqliteContextFile
+            trDB
+            dbFile
+            createSchemaVersionTableIfMissing'
+            migrateAll
+            $ \ctx -> do
+                dblayer <- bootDBLayerFromSqliteContext wF ti wid params ctx
+                action dblayer
+        throwMigrationError res
 
 -- | Create a 'DBLayer' in memory.
 --
@@ -611,17 +623,17 @@ newBootDBLayerInMemory
     :: forall s
      . PersistAddressBook s
     => WalletFlavorS s
-        -- ^ Wallet flavor
+    -- ^ Wallet flavor
     -> Tracer IO WalletDBLog
-       -- ^ Logging object
+    -- ^ Logging object
     -> TimeInterpreter IO
-       -- ^ Time interpreter for slot to time conversions.
+    -- ^ Time interpreter for slot to time conversions.
     -> W.WalletId
-         -- ^ Wallet ID of the database.
+    -- ^ Wallet ID of the database.
     -> DBLayerParams s
-       -- ^ Parameters required to initialize a database.
+    -- ^ Parameters required to initialize a database.
     -> IO (IO (), DBLayer IO s)
-        -- ^ ( Function to destroy the wallet database, 'DBLayer' )
+    -- ^ ( Function to destroy the wallet database, 'DBLayer' )
 newBootDBLayerInMemory wF tr ti wid params = do
     let tr' = contramap MsgDB tr
     (destroy, ctx) <-
@@ -631,8 +643,9 @@ newBootDBLayerInMemory wF tr ti wid params = do
             migrateAll
             ForeignKeysEnabled
 
-    db <- bootDBLayerFromSqliteContext wF ti wid params ctx
-        `onException` destroy
+    db <-
+        bootDBLayerFromSqliteContext wF ti wid params ctx
+            `onException` destroy
     pure (destroy, db)
 
 -- | Create a 'DBLayer' in memory.
@@ -652,7 +665,9 @@ withBootDBLayerInMemory
     -> IO a
 withBootDBLayerInMemory wF tr ti wid params action =
     bracket
-        (newBootDBLayerInMemory wF tr ti wid params) fst (action . snd)
+        (newBootDBLayerInMemory wF tr ti wid params)
+        fst
+        (action . snd)
 
 {-------------------------------------------------------------------------------
     DBLayer from SqliteContext
@@ -681,8 +696,8 @@ bootDBLayerFromSqliteContext wF ti wid params SqliteContext{runQuery} = do
                 $ cp ^. #currentTip
         Just wallet -> do
             atomically_ $ guardWalletDoesNotExist wid
-            dblayer@DBLayer{transactionsStore, atomically}
-                <- atomically_ $ mkDBLayer <$> initDBVar store wallet
+            dblayer@DBLayer{transactionsStore, atomically} <-
+                atomically_ $ mkDBLayer <$> initDBVar store wallet
             atomically
                 $ updateS transactionsStore Nothing
                 $ ExpandTxWalletsHistory wid
@@ -691,12 +706,12 @@ bootDBLayerFromSqliteContext wF ti wid params SqliteContext{runQuery} = do
   where
     store = mkStoreWallet wF wid
 
-    atomically_ :: forall a . SqlPersistT IO a -> IO a
+    atomically_ :: forall a. SqlPersistT IO a -> IO a
     atomically_ = runQuery
 
     mkDBLayer walletState =
         mkDBLayerFromParts ti wid
-        $ mkDBLayerCollection ti wid atomically_ walletState
+            $ mkDBLayerCollection ti wid atomically_ walletState
 
 -- | Load a database from an 'SqliteContext'.
 loadDBLayerFromSqliteContext
@@ -715,12 +730,12 @@ loadDBLayerFromSqliteContext wF ti wid SqliteContext{runQuery} =
   where
     store = mkStoreWallet wF wid
 
-    atomically_ :: forall a . SqlPersistT IO a -> IO a
+    atomically_ :: forall a. SqlPersistT IO a -> IO a
     atomically_ = runQuery
 
     mkDBLayer walletState =
         mkDBLayerFromParts ti wid
-        $ mkDBLayerCollection ti wid atomically_ walletState
+            $ mkDBLayerCollection ti wid atomically_ walletState
 
 guardWalletExists :: W.WalletId -> SqlPersistT IO ()
 guardWalletExists wid = do
@@ -735,6 +750,7 @@ guardWalletDoesNotExist _wid = do
 {-------------------------------------------------------------------------------
     DBLayerCollection
 -------------------------------------------------------------------------------}
+
 -- | Create a 'DBLayerCollection' from a 'DBVar'
 mkDBLayerCollection
     :: forall stm m s
@@ -762,53 +778,57 @@ mkDBLayerCollection ti wid atomically_ walletState =
     getSchemaVersion_ = getSchemaVersion'
 
     readCheckpoint
-        ::  SqlPersistT IO (W.Wallet s)
+        :: SqlPersistT IO (W.Wallet s)
     readCheckpoint = getLatest <$> readDBVar walletState
 
     {-----------------------------------------------------------------------
                                 Checkpoints
     -----------------------------------------------------------------------}
-    dbCheckpoints = DBCheckpoints
-        { walletsDB_ = walletState
-
-        , readCheckpoint_ = readCheckpoint
-
-        , listCheckpoints_ = do
-            let toChainPoint = W.chainPointFromBlockHeader
-            map (toChainPoint . blockHeaderFromEntity . entityVal) <$> selectList
-                [ CheckpointWalletId ==. wid ]
-                [ Asc CheckpointSlot ]
-        , readGenesisParameters_ = selectGenesisParameters wid
-        }
+    dbCheckpoints =
+        DBCheckpoints
+            { walletsDB_ = walletState
+            , readCheckpoint_ = readCheckpoint
+            , listCheckpoints_ = do
+                let toChainPoint = W.chainPointFromBlockHeader
+                map (toChainPoint . blockHeaderFromEntity . entityVal)
+                    <$> selectList
+                        [CheckpointWalletId ==. wid]
+                        [Asc CheckpointSlot]
+            , readGenesisParameters_ = selectGenesisParameters wid
+            }
 
     rollbackTo_ requestedPoint = do
-        nearestCheckpoint
-            <- Delta.onDBVar walletState
-            $ Delta.updateWithResult
-            $ \wal ->
-            case findNearestPoint wal requestedPoint of
-                Nothing -> throw $ ErrNoOlderCheckpoint wid requestedPoint
-                Just nearestPoint ->
-                    let nearestSlotNo = case nearestPoint of
-                                    { At s -> s; Origin -> 0 }
-                    in
-                    (  [ UpdateCheckpoints
-                            [ RollbackTo nearestPoint ]
-                        , UpdateSubmissions
-                            $ rollBackSubmissions nearestSlotNo
-                        , UpdateDelegations
-                            $ Dlgs.Rollback nearestSlotNo
-                        ]
-                    ,   case Map.lookup nearestPoint
-                                (wal ^. #checkpoints . #checkpoints) of
-                            Nothing -> error "rollbackTo_: \
-                                \nearest point not found, impossible!"
-                            Just p -> p
-                    )
+        nearestCheckpoint <-
+            Delta.onDBVar walletState
+                $ Delta.updateWithResult
+                $ \wal ->
+                    case findNearestPoint wal requestedPoint of
+                        Nothing -> throw $ ErrNoOlderCheckpoint wid requestedPoint
+                        Just nearestPoint ->
+                            let nearestSlotNo = case nearestPoint of
+                                    At s -> s
+                                    Origin -> 0
+                            in  (
+                                    [ UpdateCheckpoints
+                                        [RollbackTo nearestPoint]
+                                    , UpdateSubmissions
+                                        $ rollBackSubmissions nearestSlotNo
+                                    , UpdateDelegations
+                                        $ Dlgs.Rollback nearestSlotNo
+                                    ]
+                                , case Map.lookup
+                                    nearestPoint
+                                    (wal ^. #checkpoints . #checkpoints) of
+                                    Nothing ->
+                                        error
+                                            "rollbackTo_: \
+                                            \nearest point not found, impossible!"
+                                    Just p -> p
+                                )
         let currentTip = nearestCheckpoint ^. #currentTip
             nearestPoint = currentTip ^. #slotNo
-        updateS transactionsQS Nothing $
-            RollbackTxWalletsHistory nearestPoint
+        updateS transactionsQS Nothing
+            $ RollbackTxWalletsHistory nearestPoint
         pure $ W.chainPointFromBlockHeader currentTip
 
     {-----------------------------------------------------------------------
@@ -817,21 +837,21 @@ mkDBLayerCollection ti wid atomically_ walletState =
     lookupTx = queryS transactionsQS . GetByTxId
     lookupTxOut = queryS transactionsQS . GetTxOut
 
-    dbTxHistory = DBTxHistory
-        { putTxHistory_ = updateS transactionsQS Nothing
-                . ExpandTxWalletsHistory wid
-        , readTxHistory_ = \range tip mlimit order -> do
-            txs <- queryS transactionsQS $ SomeMetas range mlimit order
-            forM txs $
-                selectTransactionInfo ti tip lookupTx lookupTxOut
-
-        , getTx_ = \txid tip -> do
-            txm <- queryS transactionsQS $ OneMeta $ TxId txid
-            forM txm $
-                selectTransactionInfo ti tip lookupTx lookupTxOut
-
-        , mkDecorator_ = mkDecorator transactionsQS
-        }
+    dbTxHistory =
+        DBTxHistory
+            { putTxHistory_ =
+                updateS transactionsQS Nothing
+                    . ExpandTxWalletsHistory wid
+            , readTxHistory_ = \range tip mlimit order -> do
+                txs <- queryS transactionsQS $ SomeMetas range mlimit order
+                forM txs
+                    $ selectTransactionInfo ti tip lookupTx lookupTxOut
+            , getTx_ = \txid tip -> do
+                txm <- queryS transactionsQS $ OneMeta $ TxId txid
+                forM txm
+                    $ selectTransactionInfo ti tip lookupTx lookupTxOut
+            , mkDecorator_ = mkDecorator transactionsQS
+            }
 
 mkDecorator
     :: QueryStoreTxWalletsHistory
@@ -844,39 +864,42 @@ mkDecorator transactionsQS =
 {-------------------------------------------------------------------------------
     DBLayer
 -------------------------------------------------------------------------------}
+
 -- | For the purpose of testing,
 -- open a given @.sqlite@ file, load it into a `DBLayer`
 -- (possibly triggering migrations), and run an action on it.
 --
 -- Useful for testing the logs and results of migrations.
 withTestLoadDBLayerFromFile
-    :: forall s a.
-        ( PersistAddressBook s
-        , WalletFlavor s
-        )
+    :: forall s a
+     . ( PersistAddressBook s
+       , WalletFlavor s
+       )
     => Tracer IO WalletDBLog
-        -- ^ Tracer for logging
+    -- ^ Tracer for logging
     -> TimeInterpreter IO
-       -- ^ Time interpreter for slot to time conversions.
+    -- ^ Time interpreter for slot to time conversions.
     -> FilePath
-        -- ^ Filename of the @.sqlite@ file to load.
+    -- ^ Filename of the @.sqlite@ file to load.
     -> (DBLayer IO s -> IO a)
-        -- ^ Action to run.
+    -- ^ Action to run.
     -> IO a
-        -- ^ Result of the action.
+    -- ^ Result of the action.
 withTestLoadDBLayerFromFile tr ti dbFile action = do
-    mwid <- either (error . show) id <$>
-        withSqliteContextFile
-            (contramap MsgDB tr)
-            dbFile
-            noManualMigration
-            noMigration
-            (flip runQuery readWalletId)
+    mwid <-
+        either (error . show) id
+            <$> withSqliteContextFile
+                (contramap MsgDB tr)
+                dbFile
+                noManualMigration
+                noMigration
+                (flip runQuery readWalletId)
     case mwid of
         Nothing -> fail "No wallet id found in database"
         Just wid -> do
             let wF = walletFlavor @s
-            withLoadDBLayerFromFile wF
+            withLoadDBLayerFromFile
+                wF
                 tr
                 ti
                 wid
@@ -889,13 +912,14 @@ withTestLoadDBLayerFromFile tr ti dbFile action = do
 -- | Default field values used when testing,
 -- in the context of 'withLoadDBLayerFromFile'.
 testDefaultFieldValues :: DefaultFieldValues
-testDefaultFieldValues = DefaultFieldValues
-    { defaultActiveSlotCoefficient = W.ActiveSlotCoefficient 1.0
-    , defaultDesiredNumberOfPool = 0
-    , defaultMinimumUTxOValue = Coin 1_000_000
-    , defaultHardforkEpoch = Nothing
-    , defaultKeyDeposit = Coin 2_000_000
-    }
+testDefaultFieldValues =
+    DefaultFieldValues
+        { defaultActiveSlotCoefficient = W.ActiveSlotCoefficient 1.0
+        , defaultDesiredNumberOfPool = 0
+        , defaultMinimumUTxOValue = Coin 1_000_000
+        , defaultHardforkEpoch = Nothing
+        , defaultKeyDeposit = Coin 2_000_000
+        }
 
 {-------------------------------------------------------------------------------
     Conversion between types
@@ -931,7 +955,6 @@ genesisParametersFromEntity (Wallet _ _ _ _ _ hash startTime) =
 -- This approach typically provides enough information
 -- for /outgoing/ payments, but less so for /ingoing/ payments.
 -- This function will simply decode the cbor, when present.
-
 selectTransactionInfo
     :: MonadIO m
     => TimeInterpreter IO
@@ -1001,6 +1024,7 @@ instance ToText WalletDBLog where
 {-------------------------------------------------------------------------------
     Internal errors
 -------------------------------------------------------------------------------}
+
 -- | A fatal exception thrown when trying to rollback but, there's no checkpoint
 -- to rollback to. The database maintain the invariant that there's always at
 -- least one checkpoint (the first one made for genesis) present in the
@@ -1008,11 +1032,14 @@ instance ToText WalletDBLog where
 --
 -- If we don't find any checkpoint, it means that this invariant has been
 -- violated.
-data ErrRollbackTo = ErrNoOlderCheckpoint W.WalletId W.Slot deriving (Show)
+data ErrRollbackTo = ErrNoOlderCheckpoint W.WalletId W.Slot
+    deriving (Show)
+
 instance Exception ErrRollbackTo
 
 -- | Can't initialize a wallet because the given 'BlockHeader' is not genesis.
 data ErrInitializeGenesisAbsent
-    = ErrInitializeGenesisAbsent W.WalletId W.BlockHeader deriving (Eq, Show)
+    = ErrInitializeGenesisAbsent W.WalletId W.BlockHeader
+    deriving (Eq, Show)
 
 instance Exception ErrInitializeGenesisAbsent

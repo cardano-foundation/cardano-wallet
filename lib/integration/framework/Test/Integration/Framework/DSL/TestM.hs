@@ -41,9 +41,6 @@ import Data.Aeson
 import Data.String
     ( IsString (..)
     )
-import Prelude hiding
-    ( lookup
-    )
 import Servant.Client
     ( ClientError (..)
     , ClientM
@@ -58,6 +55,9 @@ import Test.Hspec.Extra
 import Test.Integration.Framework.Context
     ( Context
     , runClientRequest
+    )
+import Prelude hiding
+    ( lookup
     )
 
 import qualified Data.Aeson.KeyMap as Aeson
@@ -88,7 +88,8 @@ partialRight :: (Show a) => Either a b -> b
 partialRight (Right b) = b
 partialRight (Left x) = error $ "partialRight: " <> show x
 
-clientError :: Either ClientError a -> (Over ClientError ()) -> TestM ()
+clientError
+    :: Either ClientError a -> (Over ClientError ()) -> TestM ()
 clientError (Left e) f = runReaderT f e
 clientError Right{} _ = error "clientError: expected Left, but got Right"
 

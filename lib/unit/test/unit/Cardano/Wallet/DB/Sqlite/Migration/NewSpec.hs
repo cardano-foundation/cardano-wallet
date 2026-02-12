@@ -28,9 +28,6 @@ import Data.List
 import Data.Text
     ( Text
     )
-import Prelude hiding
-    ( (.)
-    )
 import System.Directory
     ( listDirectory
     )
@@ -45,6 +42,9 @@ import Test.Hspec
     )
 import UnliftIO
     ( MonadUnliftIO
+    )
+import Prelude hiding
+    ( (.)
     )
 
 import qualified Database.Persist.Sqlite as Sqlite
@@ -63,8 +63,8 @@ spec = do
                 backupDatabaseFile interface dbf $ Version 1
                 execute interface dbf populateTable
                 backupDatabaseFile interface dbf $ Version 2
-                sort <$> listDirectory dir `shouldReturn`
-                    sort ["db", "db.v1.bak", "db.v2.bak"]
+                sort <$> listDirectory dir
+                    `shouldReturn` sort ["db", "db.v1.bak", "db.v2.bak"]
 
 execute
     :: MonadUnliftIO m

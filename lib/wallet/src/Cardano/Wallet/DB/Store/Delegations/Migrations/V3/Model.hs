@@ -13,8 +13,6 @@ module Cardano.Wallet.DB.Store.Delegations.Migrations.V3.Model
     , status
     ) where
 
-import Prelude
-
 import Data.Delta
     ( Delta (..)
     )
@@ -24,6 +22,7 @@ import Data.Function
 import Data.Map.Strict
     ( Map
     )
+import Prelude
 
 import qualified Data.Map.Strict as Map
 

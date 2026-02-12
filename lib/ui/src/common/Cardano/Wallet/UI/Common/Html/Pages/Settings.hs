@@ -1,23 +1,10 @@
 module Cardano.Wallet.UI.Common.Html.Pages.Settings where
 
-import Prelude hiding
-    ( id
-    )
-
 import Cardano.Wallet.UI.Common.Html.Htmx
     ( hxPost_
     , hxSwap_
     , hxTrigger_
     )
-import Lucid
-    ( Html
-    , HtmlT
-    , checked_
-    , class_
-    , input_
-    , type_
-    )
-
 import Cardano.Wallet.UI.Common.Html.Lib
     ( linkText
     )
@@ -35,8 +22,19 @@ import Cardano.Wallet.UI.Common.Layer
 import Control.Lens
     ( view
     )
+import Lucid
+    ( Html
+    , HtmlT
+    , checked_
+    , class_
+    , input_
+    , type_
+    )
 import Servant.Links
     ( Link
+    )
+import Prelude hiding
+    ( id
     )
 
 -- | Settings page

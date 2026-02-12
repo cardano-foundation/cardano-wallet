@@ -14,10 +14,8 @@
 --
 -- Exposes a wallet-friendly interface to types and functions exported by the
 -- ledger specification.
---
 module Cardano.Wallet.Primitive.Ledger.Convert
-    (
-      -- * Conversions from wallet types to ledger specification types
+    ( -- * Conversions from wallet types to ledger specification types
       toLedgerAddress
     , toLedgerCoin
     , toLedgerTokenBundle
@@ -40,7 +38,8 @@ module Cardano.Wallet.Primitive.Ledger.Convert
     , toWalletScriptFromShelley
 
       -- * Roundtrip conversion between wallet types and ledger specification
-      --   types
+
+    --   types
     , Convert (..)
 
       -- * Conversions for transaction outputs in recent eras
@@ -48,14 +47,11 @@ module Cardano.Wallet.Primitive.Ledger.Convert
     , toConwayTxOut
     , fromBabbageTxOut
     , fromConwayTxOut
-
     , toWalletUTxOBabbage
     , toWalletUTxOConway
     , toLedgerUTxOBabbage
     , toLedgerUTxOConway
     ) where
-
-import Prelude
 
 import Cardano.Address.KeyHash
     ( KeyHash (..)
@@ -133,7 +129,8 @@ import Data.Generics.Internal.VL.Lens
     ( view
     )
 import Data.Generics.Labels
-    ()
+    (
+    )
 import Data.IntCast
     ( intCast
     , intCastMaybe
@@ -150,6 +147,7 @@ import GHC.Stack
 import Numeric.Natural
     ( Natural
     )
+import Prelude
 
 import qualified Cardano.Crypto.Hash.Class as Crypto
 import qualified Cardano.Ledger.Address as Ledger
@@ -183,12 +181,12 @@ import qualified Data.Sequence.Strict as StrictSeq
 --
 -- >>> toLedger . toWallet == id
 -- >>> toWallet . toLedger == id
---
 class Convert wallet ledger | wallet -> ledger where
     -- | Converts a value from a wallet type to the equivalent ledger
     --   specification type.
     toLedger
         :: HasCallStack => wallet -> ledger
+
     -- | Converts a value from a ledger specification type to the equivalent
     --   wallet type.
     toWallet
@@ -226,28 +224,32 @@ toLedgerTokenBundle bundle =
   where
     ledgerAda = toLedgerCoin $ TokenBundle.getCoin bundle
     ledgerTokens :: Ledger.MultiAsset
-    ledgerTokens = bundle
-        & view #tokens
-        & TokenMap.toNestedMap
-        & Map.mapKeys toLedgerTokenPolicyId
-        & Map.map mapInner
-        & Ledger.MultiAsset
-    mapInner inner = inner
-        & Map.mapKeys toLedgerAssetName
-        & Map.map toLedgerTokenQuantity
+    ledgerTokens =
+        bundle
+            & view #tokens
+            & TokenMap.toNestedMap
+            & Map.mapKeys toLedgerTokenPolicyId
+            & Map.map mapInner
+            & Ledger.MultiAsset
+    mapInner inner =
+        inner
+            & Map.mapKeys toLedgerAssetName
+            & Map.map toLedgerTokenQuantity
 
 toWalletTokenBundle :: Ledger.MaryValue -> TokenBundle
 toWalletTokenBundle
     (Ledger.MaryValue ledgerAda (Ledger.MultiAsset ledgerTokens)) =
         TokenBundle.fromNestedMap (walletAda, walletTokens)
-  where
-    walletAda = toWalletCoin ledgerAda
-    walletTokens = ledgerTokens
-        & Map.mapKeys toWalletTokenPolicyId
-        & Map.map mapInner
-    mapInner inner = inner
-        & Map.mapKeys toWalletAssetName
-        & Map.map toWalletTokenQuantity
+      where
+        walletAda = toWalletCoin ledgerAda
+        walletTokens =
+            ledgerTokens
+                & Map.mapKeys toWalletTokenPolicyId
+                & Map.map mapInner
+        mapInner inner =
+            inner
+                & Map.mapKeys toWalletAssetName
+                & Map.map toWalletTokenQuantity
 
 --------------------------------------------------------------------------------
 -- Conversions for 'AssetName'
@@ -279,11 +281,12 @@ toLedgerTokenPolicyId p@(UnsafeTokenPolicyId (Hash bytes)) =
         Just hash ->
             Ledger.PolicyID (Ledger.ScriptHash hash)
         Nothing ->
-            error $ unwords
-                [ "Ledger.toLedgerTokenPolicyId"
-                , "Unable to construct hash for token policy:"
-                , pretty p
-                ]
+            error
+                $ unwords
+                    [ "Ledger.toLedgerTokenPolicyId"
+                    , "Unable to construct hash for token policy:"
+                    , pretty p
+                    ]
 
 toWalletTokenPolicyId :: Ledger.PolicyID -> TokenPolicyId
 toWalletTokenPolicyId (Ledger.PolicyID (Ledger.ScriptHash hash)) =
@@ -305,11 +308,12 @@ toWalletTokenQuantity q
     | q >= 0 =
         TokenQuantity $ fromIntegral q
     | otherwise =
-        error $ unwords
-            [ "Ledger.toWalletTokenQuantity:"
-            , "Unexpected negative value:"
-            , pretty q
-            ]
+        error
+            $ unwords
+                [ "Ledger.toWalletTokenQuantity:"
+                , "Unexpected negative value:"
+                , pretty q
+                ]
 
 --------------------------------------------------------------------------------
 -- Conversions for 'TxIn'
@@ -332,11 +336,13 @@ instance Convert TxIn Ledger.TxIn where
 
         convertIx = fromMaybe err . intCastMaybe . fromEnum
           where
-            err = error $ unwords
-                [ "Ledger.toWallet @TxIn:"
-                , "Unexpected out of bounds TxIx"
-                , show ix
-                ]
+            err =
+                error
+                    $ unwords
+                        [ "Ledger.toWallet @TxIn:"
+                        , "Unexpected out of bounds TxIx"
+                        , show ix
+                        ]
 
 --------------------------------------------------------------------------------
 -- Conversions for 'Address'
@@ -349,10 +355,12 @@ instance Convert Address Ledger.Addr where
 toLedgerAddress :: Address -> Ledger.Addr
 toLedgerAddress (Address bytes) = case Ledger.decodeAddrLenient bytes of
     Just addr -> addr
-    Nothing -> error $ unwords
-        [ "toLedger @Address: Invalid address:"
-        , pretty (Address bytes)
-        ]
+    Nothing ->
+        error
+            $ unwords
+                [ "toLedger @Address: Invalid address:"
+                , pretty (Address bytes)
+                ]
 
 toWalletAddress :: Ledger.Addr -> Address
 toWalletAddress = Address . Ledger.serialiseAddr
@@ -385,72 +393,77 @@ toConwayTxOut (TxOut addr bundle) =
 fromConwayTxOut
     :: Babbage.BabbageTxOut ConwayEra
     -> TxOut
-fromConwayTxOut (Babbage.BabbageTxOut addr val _ _)
-    = TxOut (toWallet addr) (toWallet val)
+fromConwayTxOut (Babbage.BabbageTxOut addr val _ _) =
+    TxOut (toWallet addr) (toWallet val)
 
 -- NOTE: Inline scripts and datums will be lost in the conversion.
 fromBabbageTxOut
     :: Babbage.BabbageTxOut BabbageEra
     -> TxOut
-fromBabbageTxOut (Babbage.BabbageTxOut addr val _ _)
-    = TxOut (toWallet addr) (toWallet val)
+fromBabbageTxOut (Babbage.BabbageTxOut addr val _ _) =
+    TxOut (toWallet addr) (toWallet val)
 
 --------------------------------------------------------------------------------
 -- Conversions for 'UTxO'
 --------------------------------------------------------------------------------
 
 toLedgerUTxOBabbage :: UTxO -> Ledger.UTxO BabbageEra
-toLedgerUTxOBabbage (UTxO m) = Ledger.UTxO
-    $ Map.mapKeys toLedger
-    $ Map.map toBabbageTxOut m
+toLedgerUTxOBabbage (UTxO m) =
+    Ledger.UTxO
+        $ Map.mapKeys toLedger
+        $ Map.map toBabbageTxOut m
 
 toLedgerUTxOConway :: UTxO -> Ledger.UTxO ConwayEra
-toLedgerUTxOConway (UTxO m) = Ledger.UTxO
-    $ Map.mapKeys toLedger
-    $ Map.map toConwayTxOut m
+toLedgerUTxOConway (UTxO m) =
+    Ledger.UTxO
+        $ Map.mapKeys toLedger
+        $ Map.map toConwayTxOut m
 
 toWalletUTxOBabbage :: Ledger.UTxO BabbageEra -> UTxO
-toWalletUTxOBabbage (Ledger.UTxO m) = UTxO
-    $ Map.mapKeys toWallet
-    $ Map.map fromBabbageTxOut m
+toWalletUTxOBabbage (Ledger.UTxO m) =
+    UTxO
+        $ Map.mapKeys toWallet
+        $ Map.map fromBabbageTxOut m
 
 toWalletUTxOConway :: Ledger.UTxO ConwayEra -> UTxO
-toWalletUTxOConway (Ledger.UTxO m) = UTxO
-    $ Map.mapKeys toWallet
-    $ Map.map fromConwayTxOut m
+toWalletUTxOConway (Ledger.UTxO m) =
+    UTxO
+        $ Map.mapKeys toWallet
+        $ Map.map fromConwayTxOut m
 
 --------------------------------------------------------------------------------
 -- Conversions for timelock and multisignature scripts
 --------------------------------------------------------------------------------
 
 toWalletScript
-    :: forall era.
-        ( Scripts.AllegraEraScript era
-        , Ledger.NativeScript era ~ Scripts.Timelock era
-        )
+    :: forall era
+     . ( Scripts.AllegraEraScript era
+       , Ledger.NativeScript era ~ Scripts.Timelock era
+       )
     => (Hash "VerificationKey" -> KeyRole)
     -> Scripts.Timelock era
     -> Script KeyHash
 toWalletScript tokeyrole = \case
     Scripts.RequireSignature (Ledger.KeyHash h) ->
         let payload = hashToBytes h
-        in RequireSignatureOf (KeyHash (tokeyrole (Hash payload)) payload)
+        in  RequireSignatureOf (KeyHash (tokeyrole (Hash payload)) payload)
     Scripts.RequireAllOf contents ->
         RequireAllOf $ map (toWalletScript tokeyrole) $ toList contents
     Scripts.RequireAnyOf contents ->
         RequireAnyOf $ map (toWalletScript tokeyrole) $ toList contents
     Scripts.RequireMOf num contents ->
-        RequireSomeOf (fromIntegral num) $ (toWalletScript tokeyrole) <$> toList contents
+        RequireSomeOf (fromIntegral num)
+            $ (toWalletScript tokeyrole) <$> toList contents
     Scripts.RequireTimeExpire (SlotNo slot) ->
         ActiveUntilSlot $ fromIntegral slot
     Scripts.RequireTimeStart (SlotNo slot) ->
         ActiveFromSlot $ fromIntegral slot
 
 toWalletScriptFromShelley
-    :: forall era.
-        ( Scripts.ShelleyEraScript era
-        , Ledger.NativeScript era ~ Scripts.MultiSig era
-        )
+    :: forall era
+     . ( Scripts.ShelleyEraScript era
+       , Ledger.NativeScript era ~ Scripts.MultiSig era
+       )
     => KeyRole
     -> Ledger.MultiSig era
     -> Script KeyHash
@@ -465,14 +478,15 @@ toWalletScriptFromShelley keyrole = fromLedgerScript'
     fromLedgerScript' (Scripts.RequireAnyOf contents) =
         RequireAnyOf $ map fromLedgerScript' $ toList contents
     fromLedgerScript' (Scripts.RequireMOf num contents) =
-        RequireSomeOf (fromIntegral num) $ fromLedgerScript' <$> toList contents
+        RequireSomeOf (fromIntegral num)
+            $ fromLedgerScript' <$> toList contents
     fromLedgerScript' _ = error "impossible"
 
 toLedgerTimelockScript
-    :: forall era.
-        ( Scripts.AllegraEraScript era
-        , LCore.NativeScript era ~ Scripts.Timelock era
-        )
+    :: forall era
+     . ( Scripts.AllegraEraScript era
+       , LCore.NativeScript era ~ Scripts.Timelock era
+       )
     => Script KeyHash
     -> Scripts.Timelock era
 toLedgerTimelockScript s = case s of
@@ -482,31 +496,33 @@ toLedgerTimelockScript s = case s of
             Nothing -> error "Hash key not valid"
     RequireAllOf contents ->
         Scripts.RequireAllOf
-        $ StrictSeq.fromList
-        $ map toLedgerTimelockScript contents
+            $ StrictSeq.fromList
+            $ map toLedgerTimelockScript contents
     RequireAnyOf contents ->
         Scripts.RequireAnyOf
-        $ StrictSeq.fromList
-        $ map toLedgerTimelockScript contents
+            $ StrictSeq.fromList
+            $ map toLedgerTimelockScript contents
     RequireSomeOf num contents ->
         Scripts.RequireMOf (intCast num)
-        $ StrictSeq.fromList
-        $ map toLedgerTimelockScript contents
+            $ StrictSeq.fromList
+            $ map toLedgerTimelockScript contents
     ActiveUntilSlot slot ->
         Scripts.RequireTimeExpire
-        (convertSlotNo slot)
+            (convertSlotNo slot)
     ActiveFromSlot slot ->
         Scripts.RequireTimeStart
-        (convertSlotNo slot)
+            (convertSlotNo slot)
   where
     convertSlotNo :: Natural -> SlotNo
     convertSlotNo x = SlotNo $ fromMaybe err $ intCastMaybe x
       where
-        err = error $ unwords
-            [ "toLedgerTimelockScript:"
-            , "Unexpected out of bounds SlotNo"
-            , show x
-            ]
+        err =
+            error
+                $ unwords
+                    [ "toLedgerTimelockScript:"
+                    , "Unexpected out of bounds SlotNo"
+                    , show x
+                    ]
 
 --------------------------------------------------------------------------------
 -- Conversions for 'Delegatee'
@@ -524,11 +540,12 @@ toLedgerDelegatee poolM vaM = case (poolM, vaM) of
     (Just poolId, Just vote) ->
         Conway.DelegStakeVote (toKeyHash poolId) (toLedgerDRep vote)
     _ ->
-        error $ unwords
-            [ "toLedgerDelegatee:"
-            , "wrong use:"
-            , "at least pool or vote action must be present"
-            ]
+        error
+            $ unwords
+                [ "toLedgerDelegatee:"
+                , "wrong use:"
+                , "at least pool or vote action must be present"
+                ]
   where
     toKeyHash (PoolId pid) = Ledger.KeyHash . Crypto.UnsafeHash $ toShort pid
 
@@ -551,7 +568,8 @@ toLedgerDRep = \case
             $ toShort scripthash
 
 toPlutusScriptInfo
-    :: forall era. Alonzo.AlonzoEraScript era
+    :: forall era
+     . Alonzo.AlonzoEraScript era
     => Alonzo.PlutusScript era
     -> PlutusVersion
 toPlutusScriptInfo script = case Alonzo.plutusScriptLanguage @era script of

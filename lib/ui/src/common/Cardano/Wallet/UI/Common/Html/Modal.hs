@@ -8,8 +8,6 @@ module Cardano.Wallet.UI.Common.Html.Modal
     )
 where
 
-import Prelude
-
 import Cardano.Wallet.UI.Common.Html.Htmx
     ( hxGet_
     , hxTarget_
@@ -33,6 +31,7 @@ import Lucid
 import Servant
     ( Link
     )
+import Prelude
 
 -- | the unique node of the modal support, pls add it to the end of the body
 modalsH :: Applicative m => HtmlT m ()
@@ -65,7 +64,8 @@ mkModal ModalData{..} = do
     div_ [class_ "modal-body"] modalBody
     div_ [class_ "modal-footer"] modalFooter
 
-mkModalButton :: Monad m => Link -> [Attribute] -> HtmlT m () -> HtmlT m ()
+mkModalButton
+    :: Monad m => Link -> [Attribute] -> HtmlT m () -> HtmlT m ()
 mkModalButton getLink buttonAttrs =
     button_
         $ [ hxGet_ $ linkText getLink

@@ -5,8 +5,6 @@ module Cardano.Wallet.Read.Tx.TxOutSpec
     ( spec
     ) where
 
-import Prelude
-
 import Cardano.Ledger.Address
     ( Addr (Addr)
     )
@@ -68,15 +66,17 @@ import Test.QuickCheck
     , vectorOf
     , (===)
     )
+import Prelude
 
-import qualified Data.ByteString.Char8 as B8
+import Data.ByteString.Char8 qualified as B8
 
 spec :: Spec
 spec =
-    describe "upgradeTxOutToBabbageOrLater" $
-        it "preserves getEraValue" $
-            forAll genTxOut $ \txout ->
-                getValue txout
+    describe "upgradeTxOutToBabbageOrLater"
+        $ it "preserves getEraValue"
+        $ forAll genTxOut
+        $ \txout ->
+            getValue txout
                 === getValue (upgradeTxOutToBabbageOrLater txout)
 
 {-----------------------------------------------------------------------------
@@ -84,15 +84,16 @@ spec =
 ------------------------------------------------------------------------------}
 
 genAddr :: Gen Addr
-genAddr = mkAddr . mkPaymentCred . B8.pack
-    <$> vectorOf (2*28) (elements $ ['0'..'9'] <> ['a'..'f'])
+genAddr =
+    mkAddr . mkPaymentCred . B8.pack
+        <$> vectorOf (2 * 28) (elements $ ['0' .. '9'] <> ['a' .. 'f'])
 
 genValue :: Gen Value
 genValue = injectCoin . CoinC . getPositive <$> arbitrary
 
 genNonByronEra :: Gen (EraValue Era)
 genNonByronEra = case knownEras of
-    (_:rest) -> elements rest
+    (_ : rest) -> elements rest
     [] -> error "genNonByronEra: knownEras is empty"
 
 genTxOut :: Gen TxOut
@@ -105,7 +106,8 @@ genTxOut = do
     Constructors
 ------------------------------------------------------------------------------}
 mkBasicOutput
-    :: forall era. IsEra era
+    :: forall era
+     . IsEra era
     => Addr -> Value -> Output era
 mkBasicOutput addr value = case theEra :: Era era of
     Byron -> error "not implemented"
@@ -119,9 +121,9 @@ mkBasicOutput addr value = case theEra :: Era era of
 mkPaymentCred :: ByteString -> PaymentCredential
 mkPaymentCred =
     KeyHashObj
-    . KeyHash
-    . fromMaybe (error "paymentCred: invalid hex length")
-    . hashFromBytesAsHex
+        . KeyHash
+        . fromMaybe (error "paymentCred: invalid hex length")
+        . hashFromBytesAsHex
 
 mkAddr :: PaymentCredential -> Addr
 mkAddr x = Addr Mainnet x StakeRefNull

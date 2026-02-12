@@ -14,9 +14,7 @@ module Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Outputs
     , fromShelleyAddress
     , fromByronTxOut
     )
-    where
-
-import Prelude
+where
 
 import Cardano.Binary
     ( serialize'
@@ -68,6 +66,7 @@ import Data.Foldable
 import GHC.Stack
     ( HasCallStack
     )
+import Prelude
 
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Chain.UTxO as Byron
@@ -93,8 +92,8 @@ import qualified GHC.IsList as GHC
     ( toList
     )
 
-{-# INLINABLE getOutputs #-}
-getOutputs :: forall era . IsEra era => Outputs era -> [W.TxOut]
+{-# INLINEABLE getOutputs #-}
+getOutputs :: forall era. IsEra era => Outputs era -> [W.TxOut]
 getOutputs = case theEra @era of
     Byron -> \(Outputs os) -> fromByronTxOut <$> toList os
     Shelley -> \(Outputs os) -> fromShelleyTxOut <$> toList os
@@ -108,14 +107,16 @@ fromShelleyAddress :: SL.Addr -> W.Address
 fromShelleyAddress = W.Address . SL.serialiseAddr
 
 fromShelleyTxOut :: SL.ShelleyTxOut ShelleyEra -> W.TxOut
-fromShelleyTxOut (SL.ShelleyTxOut addr amount) = W.TxOut
-    (fromShelleyAddress addr)
-    (TokenBundle.fromCoin $ Ledger.toWalletCoin amount)
+fromShelleyTxOut (SL.ShelleyTxOut addr amount) =
+    W.TxOut
+        (fromShelleyAddress addr)
+        (TokenBundle.fromCoin $ Ledger.toWalletCoin amount)
 
 fromAllegraTxOut :: SL.ShelleyTxOut AllegraEra -> W.TxOut
-fromAllegraTxOut (SL.ShelleyTxOut addr amount) = W.TxOut
-    (fromShelleyAddress addr)
-    (TokenBundle.fromCoin $ Ledger.toWalletCoin amount)
+fromAllegraTxOut (SL.ShelleyTxOut addr amount) =
+    W.TxOut
+        (fromShelleyAddress addr)
+        (TokenBundle.fromCoin $ Ledger.toWalletCoin amount)
 
 fromMaryTxOut :: SL.ShelleyTxOut MaryEra -> W.TxOut
 fromMaryTxOut (SL.ShelleyTxOut addr value) =
@@ -133,8 +134,8 @@ fromBabbageTxOut
 fromBabbageTxOut (Babbage.BabbageTxOut addr value _datum refScript) =
     ( W.TxOut (fromShelleyAddress addr) (toWalletTokenBundle value)
     , case refScript of
-          SJust s -> Just s
-          SNothing -> Nothing
+        SJust s -> Just s
+        SNothing -> Nothing
     )
 
 fromConwayTxOut
@@ -143,8 +144,8 @@ fromConwayTxOut
 fromConwayTxOut (Babbage.BabbageTxOut addr value _datum refScript) =
     ( W.TxOut (fromShelleyAddress addr) (toWalletTokenBundle value)
     , case refScript of
-          SJust s -> Just s
-          SNothing -> Nothing
+        SJust s -> Just s
+        SNothing -> Nothing
     )
 
 -- Lovelace to coin. Quantities from ledger should always fit in Word64.
@@ -154,7 +155,8 @@ fromCardanoLovelace =
   where
     unQuantity (Cardano.Quantity q) = q
 
-fromCardanoValue :: HasCallStack => Cardano.Value -> TokenBundle.TokenBundle
+fromCardanoValue
+    :: HasCallStack => Cardano.Value -> TokenBundle.TokenBundle
 fromCardanoValue = uncurry TokenBundle.fromFlatList . extract
   where
     extract value =
@@ -168,8 +170,8 @@ fromCardanoValue = uncurry TokenBundle.fromFlatList . extract
     mkQuantity = W.TokenQuantity . checkBounds
       where
         checkBounds n
-          | n >= 0 = fromIntegral n
-          | otherwise = internalError "negative token quantity"
+            | n >= 0 = fromIntegral n
+            | otherwise = internalError "negative token quantity"
 
     mkBundle assets =
         [ (W.AssetId (mkPolicyId p) (mkAssetName n), mkQuantity q)
@@ -180,7 +182,9 @@ fromCardanoValue = uncurry TokenBundle.fromFlatList . extract
     mkAssetName = W.UnsafeAssetName . Cardano.serialiseToRawBytes
 
 fromByronTxOut :: Byron.TxOut -> W.TxOut
-fromByronTxOut (Byron.TxOut addr coin) = W.TxOut
-    { W.address = W.Address (serialize' addr)
-    , W.tokens = TokenBundle.fromCoin $ Coin.fromWord64 $ unsafeGetLovelace coin
-    }
+fromByronTxOut (Byron.TxOut addr coin) =
+    W.TxOut
+        { W.address = W.Address (serialize' addr)
+        , W.tokens =
+            TokenBundle.fromCoin $ Coin.fromWord64 $ unsafeGetLovelace coin
+        }

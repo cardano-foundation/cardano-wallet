@@ -9,7 +9,6 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE ViewPatterns #-}
-
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- |
@@ -17,7 +16,6 @@
 -- License: Apache-2.0
 --
 -- This module contains utility functions for logging and mapping trace data.
-
 module Cardano.BM.Extra
     ( -- * Conversions from BM framework
       trMessage
@@ -45,8 +43,6 @@ module Cardano.BM.Extra
       -- * Tracer conversions
     , flatContramapTracer
     ) where
-
-import Prelude
 
 import Cardano.BM.Data.LogItem
     ( LOContent (..)
@@ -143,6 +139,7 @@ import UnliftIO.Exception
     , isSyncException
     , withException
     )
+import Prelude
 
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Text.Encoding as T
@@ -160,10 +157,11 @@ trMessageText
     => Tracer m (LoggerName, LogObject Text)
     -> Tracer m a
 trMessageText tr = Tracer $ \arg -> do
-   let msg = toText arg
-       tracer = if msg == mempty then nullTracer else tr
-   meta <- mkLOMeta (getSeverityAnnotation arg) (getPrivacyAnnotation arg)
-   traceWith tracer (mempty, LogObject mempty meta (LogMessage msg))
+    let msg = toText arg
+        tracer = if msg == mempty then nullTracer else tr
+    meta <-
+        mkLOMeta (getSeverityAnnotation arg) (getPrivacyAnnotation arg)
+    traceWith tracer (mempty, LogObject mempty meta (LogMessage msg))
 
 -- | Tracer transformer which converts 'Trace m a' to 'Tracer m a' by wrapping
 -- typed log messages into a 'LogObject'.
@@ -172,20 +170,26 @@ trMessage
     => Tracer m (LoggerName, LogObject a)
     -> Tracer m a
 trMessage tr = Tracer $ \arg -> do
-   meta <- mkLOMeta (getSeverityAnnotation arg) (getPrivacyAnnotation arg)
-   traceWith tr (mempty, LogObject mempty meta (LogMessage arg))
+    meta <-
+        mkLOMeta (getSeverityAnnotation arg) (getPrivacyAnnotation arg)
+    traceWith tr (mempty, LogObject mempty meta (LogMessage arg))
 
-instance forall m a. (MonadIO m, ToText a, HasPrivacyAnnotation a, HasSeverityAnnotation a) => Transformable Text m a where
+instance
+    forall m a
+     . (MonadIO m, ToText a, HasPrivacyAnnotation a, HasSeverityAnnotation a)
+    => Transformable Text m a
+    where
     trTransformer _verb = Tracer . traceWith . trMessageText
 
 -- | Trace transformer which removes empty traces.
 filterNonEmpty
-    :: forall m a. (Monad m, Monoid a, Eq a)
+    :: forall m a
+     . (Monad m, Monoid a, Eq a)
     => Trace m a
     -> Trace m a
 filterNonEmpty tr = Tracer $ \arg -> do
-    when (nonEmptyMessage $ loContent $ snd arg) $
-        traceWith tr arg
+    when (nonEmptyMessage $ loContent $ snd arg)
+        $ traceWith tr arg
   where
     nonEmptyMessage (LogMessage msg) = msg /= mempty
     nonEmptyMessage _ = True
@@ -201,7 +205,8 @@ stdoutTextTracer = Tracer $ liftIO . B8.putStrLn . T.encodeUtf8 . toText
 
 -- | Run an 'ExceptT' action, then trace its result, all in one step.
 -- This is a more basic version of 'resultTracer'.
-traceWithExceptT :: Monad m => Tracer m (Either e a) -> ExceptT e m a -> ExceptT e m a
+traceWithExceptT
+    :: Monad m => Tracer m (Either e a) -> ExceptT e m a -> ExceptT e m a
 traceWithExceptT tr (ExceptT action) = ExceptT $ do
     res <- action
     traceWith tr res
@@ -243,10 +248,12 @@ formatResultMsgWith
     -> BracketLog' (Either e r)
     -- ^ Logging around function.
     -> Builder
-formatResultMsgWith err fmt title params b = nameF (build title) $ blockListF
-    [ nameF "inputs" (blockMapF params)
-    , buildBracketLog (either err fmt) b
-    ]
+formatResultMsgWith err fmt title params b =
+    nameF (build title)
+        $ blockListF
+            [ nameF "inputs" (blockMapF params)
+            , buildBracketLog (either err fmt) b
+            ]
 
 -- | A good default mapping of message severities for 'traceResult'.
 resultSeverity :: Severity -> BracketLog' (Either e r) -> Severity
@@ -283,9 +290,10 @@ instance Exception e => ToJSON (LoggedException e) where
     toJSON e = object ["exception" .= toText e]
 
 exceptionMsg :: SomeException -> (BracketLog' r)
-exceptionMsg e = if isSyncException e
-    then BracketException $ LoggedException e
-    else BracketAsyncException $ LoggedException e
+exceptionMsg e =
+    if isSyncException e
+        then BracketException $ LoggedException e
+        else BracketAsyncException $ LoggedException e
 
 {-------------------------------------------------------------------------------
                                 Bracketed logging
@@ -293,14 +301,14 @@ exceptionMsg e = if isSyncException e
 
 -- | Used for tracing around an action.
 data BracketLog' r
-    = BracketStart
-    -- ^ Logged before the action starts.
-    | BracketFinish r
-    -- ^ Logged after the action finishes.
-    | BracketException (LoggedException SomeException)
-    -- ^ Logged when the action throws an exception.
-    | BracketAsyncException (LoggedException SomeException)
-    -- ^ Logged when the action receives an async exception.
+    = -- | Logged before the action starts.
+      BracketStart
+    | -- | Logged after the action finishes.
+      BracketFinish r
+    | -- | Logged when the action throws an exception.
+      BracketException (LoggedException SomeException)
+    | -- | Logged when the action receives an async exception.
+      BracketAsyncException (LoggedException SomeException)
     deriving (Generic, Show, Eq, ToJSON, Functor)
 
 instance Buildable r => ToText (BracketLog' r)
@@ -319,7 +327,7 @@ buildBracketLog toBuilder = \case
 
 instance HasPrivacyAnnotation (BracketLog' r)
 instance HasSeverityAnnotation (BracketLog' r) where
-    -- | Default severities for 'BracketLog' - the enclosing log message may of
+    -- \| Default severities for 'BracketLog' - the enclosing log message may of
     -- course use different values.
     getSeverityAnnotation = \case
         BracketStart -> Debug
@@ -375,30 +383,33 @@ bracketTracer'' res msg tr action = do
         (traceWith tr . exceptionMsg)
 
 instance MonadIO m => Outcome m (BracketLog' r) where
-  type IntermediateValue (BracketLog' r) = AbsoluteTime
-  type OutcomeMetric (BracketLog' r)     = DiffTime
+    type IntermediateValue (BracketLog' r) = AbsoluteTime
+    type OutcomeMetric (BracketLog' r) = DiffTime
 
-  classifyObservable = pure . \case
-      BracketStart -> OutcomeStarts
-      BracketFinish _ -> OutcomeEnds
-      BracketException _ -> OutcomeEnds
-      BracketAsyncException _ -> OutcomeEnds
+    classifyObservable =
+        pure . \case
+            BracketStart -> OutcomeStarts
+            BracketFinish _ -> OutcomeEnds
+            BracketException _ -> OutcomeEnds
+            BracketAsyncException _ -> OutcomeEnds
 
-  -- NOTE: The AbsoluteTime functions are required so that measurements are
-  -- correct at times when leap seconds are applied. This is following the
-  -- tracer-transformers example.
-  captureObservableValue _   = systemToTAITime <$> liftIO getSystemTime
-  computeOutcomeMetric _ x y = pure $ diffAbsoluteTime y x
+    -- NOTE: The AbsoluteTime functions are required so that measurements are
+    -- correct at times when leap seconds are applied. This is following the
+    -- tracer-transformers example.
+    captureObservableValue _ = systemToTAITime <$> liftIO getSystemTime
+    computeOutcomeMetric _ x y = pure $ diffAbsoluteTime y x
 
 -- Pair up bracketlogs with some context information
 instance MonadIO m => Outcome m (ctx, BracketLog) where
-  type IntermediateValue (ctx, BracketLog) = (ctx, IntermediateValue BracketLog)
-  type OutcomeMetric (ctx, BracketLog) = (ctx, OutcomeMetric BracketLog)
-  classifyObservable (_ctx, b) = classifyObservable b
-  captureObservableValue (ctx, b) =
-      (ctx,) <$> captureObservableValue b
-  computeOutcomeMetric (ctx, b) (_, x) (_, y) =
-      (ctx,) <$> computeOutcomeMetric b x y
+    type
+        IntermediateValue (ctx, BracketLog) =
+            (ctx, IntermediateValue BracketLog)
+    type OutcomeMetric (ctx, BracketLog) = (ctx, OutcomeMetric BracketLog)
+    classifyObservable (_ctx, b) = classifyObservable b
+    captureObservableValue (ctx, b) =
+        (ctx,) <$> captureObservableValue b
+    computeOutcomeMetric (ctx, b) (_, x) (_, y) =
+        (ctx,) <$> computeOutcomeMetric b x y
 
 -- | Get metric results from 'mkOutcomeExtractor' and throw away the rest.
 fiddleOutcome
@@ -435,6 +446,7 @@ produceTimings f trDiffTime = do
 {-------------------------------------------------------------------------------
                                Tracer conversions
 -------------------------------------------------------------------------------}
+
 -- | Conditional mapping of a 'Tracer'.
 flatContramapTracer
     :: Monad m

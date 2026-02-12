@@ -7,11 +7,6 @@ module Cardano.Wallet.Primitive.Ledger.Read.Block
     )
 where
 
-import Prelude hiding
-    ( id
-    , (.)
-    )
-
 import Cardano.Read.Ledger.Block.Txs
     ( getEraTransactions
     )
@@ -42,6 +37,10 @@ import Control.Category
 import Control.Error
     ( partitionEithers
     )
+import Prelude hiding
+    ( id
+    , (.)
+    )
 
 import qualified Cardano.Wallet.Primitive.Types.Block as W
 import qualified Cardano.Wallet.Primitive.Types.Certificates as W
@@ -63,7 +62,8 @@ primitiveBlock hg = do
         , pools
         )
 
-getTxsAndCertificates :: IsEra era => Block era -> [(W.Tx, [W.Certificate])]
+getTxsAndCertificates
+    :: IsEra era => Block era -> [(W.Tx, [W.Certificate])]
 getTxsAndCertificates block =
     let txs = getEraTransactions block
         ptxs = primitiveTx <$> txs

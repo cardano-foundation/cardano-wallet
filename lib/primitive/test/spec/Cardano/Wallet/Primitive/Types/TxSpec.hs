@@ -10,12 +10,9 @@
 -- |
 -- Copyright: © 2021 IOHK
 -- License: Apache-2.0
---
 module Cardano.Wallet.Primitive.Types.TxSpec
     ( spec
     ) where
-
-import Prelude
 
 import Cardano.Wallet.Primitive.Types.AssetId
     ( AssetId (..)
@@ -89,7 +86,9 @@ import Test.QuickCheck
     , (===)
     )
 import Test.QuickCheck.Instances.ByteString
-    ()
+    (
+    )
+import Prelude
 
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
 import qualified Data.Foldable as F
@@ -97,48 +96,57 @@ import qualified Data.Set as Set
 
 spec :: Spec
 spec = do
-
     describe "SealedTx" $ do
-        prop "sealedTxFromBytes - won't accept gibberish"
+        prop
+            "sealedTxFromBytes - won't accept gibberish"
             prop_sealedTxGibberish
-        prop "mockSealedTx - passes through mock values"
+        prop
+            "mockSealedTx - passes through mock values"
             prop_mockSealedTx
 
     describe "Transformations" $ do
-
         describe "txMapAssetIds" $ do
-            it "prop_txMapAssetIds_identity" $
-                prop_txMapAssetIds_identity & property
-            it "prop_txMapAssetIds_composition" $
-                prop_txMapAssetIds_composition & property
+            it "prop_txMapAssetIds_identity"
+                $ prop_txMapAssetIds_identity
+                & property
+            it "prop_txMapAssetIds_composition"
+                $ prop_txMapAssetIds_composition
+                & property
 
         describe "txMapTxIds" $ do
-            it "prop_txMapTxIds_identity" $
-                prop_txMapTxIds_identity & property
-            it "prop_txMapTxIds_composition" $
-                prop_txMapTxIds_composition & property
+            it "prop_txMapTxIds_identity"
+                $ prop_txMapTxIds_identity
+                & property
+            it "prop_txMapTxIds_composition"
+                $ prop_txMapTxIds_composition
+                & property
 
         describe "txRemoveAssetId" $ do
-            it "prop_txRemoveAssetId_txAssetIds" $
-                prop_txRemoveAssetId_txAssetIds & property
+            it "prop_txRemoveAssetId_txAssetIds"
+                $ prop_txRemoveAssetId_txAssetIds
+                & property
 
         describe "txOutMapAssetIds" $ do
-            it "prop_txOutMapAssetIds_identity" $
-                prop_txOutMapAssetIds_identity & property
-            it "prop_txOutMapAssetIds_composition" $
-                prop_txOutMapAssetIds_composition & property
+            it "prop_txOutMapAssetIds_identity"
+                $ prop_txOutMapAssetIds_identity
+                & property
+            it "prop_txOutMapAssetIds_composition"
+                $ prop_txOutMapAssetIds_composition
+                & property
 
         describe "txOutRemoveAssetId" $ do
-            it "prop_txOutRemoveAssetId_txOutAssetIds" $
-                prop_txOutRemoveAssetId_txOutAssetIds & property
+            it "prop_txOutRemoveAssetId_txOutAssetIds"
+                $ prop_txOutRemoveAssetId_txOutAssetIds
+                & property
 
 {-------------------------------------------------------------------------------
                          Evaluation of SealedTx fields
 -------------------------------------------------------------------------------}
 
 prop_sealedTxGibberish :: Gibberish -> Property
-prop_sealedTxGibberish (Gibberish bs) = property $
-    isLeft (sealedTxFromBytes bs)
+prop_sealedTxGibberish (Gibberish bs) =
+    property
+        $ isLeft (sealedTxFromBytes bs)
 
 prop_mockSealedTx :: Gibberish -> Property
 prop_mockSealedTx (Gibberish bs) =
@@ -160,8 +168,8 @@ prop_txMapAssetIds_identity m =
 prop_txMapAssetIds_composition
     :: Tx -> Fun AssetId AssetId -> Fun AssetId AssetId -> Property
 prop_txMapAssetIds_composition m (applyFun -> f) (applyFun -> g) =
-    txMapAssetIds f (txMapAssetIds g m) ===
-    txMapAssetIds (f . g) m
+    txMapAssetIds f (txMapAssetIds g m)
+        === txMapAssetIds (f . g) m
 
 prop_txMapTxIds_identity :: Tx -> Property
 prop_txMapTxIds_identity m =
@@ -173,8 +181,8 @@ prop_txMapTxIds_composition
     -> Fun TxId TxId
     -> Property
 prop_txMapTxIds_composition m (applyFun -> f) (applyFun -> g) =
-    txMapTxIds f (txMapTxIds g m) ===
-    txMapTxIds (f . g) m
+    txMapTxIds f (txMapTxIds g m)
+        === txMapTxIds (f . g) m
 
 prop_txRemoveAssetId_txAssetIds :: Tx -> Property
 prop_txRemoveAssetId_txAssetIds tx =
@@ -182,9 +190,10 @@ prop_txRemoveAssetId_txAssetIds tx =
         Nothing ->
             assetIds === mempty
         Just assetId ->
-            Set.notMember assetId
+            Set.notMember
+                assetId
                 (txAssetIds (tx `txRemoveAssetId` assetId))
-            === True
+                === True
   where
     assetIdM = listToMaybe $ F.toList assetIds
     assetIds = txAssetIds tx
@@ -196,8 +205,8 @@ prop_txOutMapAssetIds_identity m =
 prop_txOutMapAssetIds_composition
     :: TxOut -> Fun AssetId AssetId -> Fun AssetId AssetId -> Property
 prop_txOutMapAssetIds_composition m (applyFun -> f) (applyFun -> g) =
-    TxOut.mapAssetIds f (TxOut.mapAssetIds g m) ===
-    TxOut.mapAssetIds (f . g) m
+    TxOut.mapAssetIds f (TxOut.mapAssetIds g m)
+        === TxOut.mapAssetIds (f . g) m
 
 prop_txOutRemoveAssetId_txOutAssetIds :: TxOut -> Property
 prop_txOutRemoveAssetId_txOutAssetIds txOut =
@@ -205,9 +214,10 @@ prop_txOutRemoveAssetId_txOutAssetIds txOut =
         Nothing ->
             assetIds === mempty
         Just assetId ->
-            Set.notMember assetId
+            Set.notMember
+                assetId
                 (TxOut.assetIds (txOut `TxOut.removeAssetId` assetId))
-            === True
+                === True
   where
     assetIdM = listToMaybe $ F.toList assetIds
     assetIds = TxOut.assetIds txOut

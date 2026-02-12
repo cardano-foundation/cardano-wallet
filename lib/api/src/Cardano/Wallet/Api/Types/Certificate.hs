@@ -9,14 +9,11 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StrictData #-}
 {-# LANGUAGE TypeApplications #-}
-
 {-# OPTIONS_GHC -Wno-orphans #-}
 
 -- |
 -- Copyright: © 2018-2022 IOHK, 2023 Cardano Foundation
 -- License: Apache-2.0
---
-
 module Cardano.Wallet.Api.Types.Certificate
     ( ApiAnyCertificate (..)
     , ApiCertificate (..)
@@ -26,9 +23,7 @@ module Cardano.Wallet.Api.Types.Certificate
     , ApiRewardAccount (..)
     , mkApiAnyCertificate
     )
-    where
-
-import Prelude
+where
 
 import Cardano.Pool.Metadata.Types
     ( StakePoolMetadataHash
@@ -59,7 +54,8 @@ import Cardano.Wallet.Api.Types.Amount
     ( ApiAmount
     )
 import Cardano.Wallet.Api.Types.Primitive
-    ()
+    (
+    )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId (sNetworkId)
     , NetworkDiscriminant
@@ -112,6 +108,7 @@ import Data.Text.Class
 import GHC.Generics
     ( Generic
     )
+import Prelude
 
 import qualified Cardano.Wallet.Api.Types.Amount as ApiAmount
 import qualified Cardano.Wallet.Primitive.Types as W
@@ -122,18 +119,20 @@ import qualified Data.List.NonEmpty as NE
 newtype ApiRewardAccount (n :: NetworkDiscriminant)
     = ApiRewardAccount W.RewardAccount
     deriving (Eq, Generic, Show)
-    deriving anyclass NFData
+    deriving anyclass (NFData)
 
-instance HasSNetworkId n => FromJSON (ApiRewardAccount n)
-  where
-    parseJSON x = parseJSON x >>= eitherToParser
-        . bimap ShowFmt ApiRewardAccount
-        . decodeStakeAddress (sNetworkId @n)
+instance HasSNetworkId n => FromJSON (ApiRewardAccount n) where
+    parseJSON x =
+        parseJSON x
+            >>= eitherToParser
+                . bimap ShowFmt ApiRewardAccount
+                . decodeStakeAddress (sNetworkId @n)
 
-instance HasSNetworkId n => ToJSON (ApiRewardAccount n)
-  where
-    toJSON (ApiRewardAccount acct) = toJSON
-        . encodeStakeAddress (sNetworkId @n) $ acct
+instance HasSNetworkId n => ToJSON (ApiRewardAccount n) where
+    toJSON (ApiRewardAccount acct) =
+        toJSON
+            . encodeStakeAddress (sNetworkId @n)
+            $ acct
 
 data ApiExternalCertificate (n :: NetworkDiscriminant)
     = RegisterRewardAccountExternal
@@ -156,7 +155,7 @@ data ApiExternalCertificate (n :: NetworkDiscriminant)
         , vote :: ApiT DRep
         }
     deriving (Eq, Generic, Show)
-    deriving anyclass NFData
+    deriving anyclass (NFData)
 
 instance HasSNetworkId n => FromJSON (ApiExternalCertificate n) where
     parseJSON = genericParseJSON apiCertificateOptions
@@ -170,17 +169,18 @@ data ApiRegisterPool = ApiRegisterPool
     , poolMargin :: Quantity "percent" Percentage
     , poolCost :: ApiAmount
     , poolPledge :: ApiAmount
-    , poolMetadata :: Maybe (ApiT StakePoolMetadataUrl, ApiT StakePoolMetadataHash)
+    , poolMetadata
+        :: Maybe (ApiT StakePoolMetadataUrl, ApiT StakePoolMetadataHash)
     }
     deriving (Eq, Generic, Show)
-    deriving anyclass NFData
+    deriving anyclass (NFData)
 
 data ApiDeregisterPool = ApiDeregisterPool
     { poolId :: ApiT PoolId
     , retirementEpoch :: ApiT W.EpochNo
     }
     deriving (Eq, Generic, Show)
-    deriving anyclass NFData
+    deriving anyclass (NFData)
 
 data ApiCertificate
     = RegisterRewardAccount
@@ -203,16 +203,16 @@ data ApiCertificate
         , vote :: ApiT DRep
         }
     deriving (Eq, Generic, Show)
-    deriving anyclass NFData
+    deriving anyclass (NFData)
 
-data ApiAnyCertificate n =
-      WalletDelegationCertificate ApiCertificate
+data ApiAnyCertificate n
+    = WalletDelegationCertificate ApiCertificate
     | DelegationCertificate (ApiExternalCertificate n)
     | StakePoolRegister ApiRegisterPool
     | StakePoolDeregister ApiDeregisterPool
     | OtherCertificate (ApiT NonWalletCertificate)
     deriving (Eq, Generic, Show)
-    deriving anyclass NFData
+    deriving anyclass (NFData)
 
 instance FromJSON ApiRegisterPool where
     parseJSON = parseExtendedAesonObject "ApiRegisterPool" "certificate_type"
@@ -252,17 +252,18 @@ instance HasSNetworkId n => ToJSON (ApiAnyCertificate n) where
     toJSON (OtherCertificate cert) = toJSON cert
 
 apiCertificateOptions :: Aeson.Options
-apiCertificateOptions = defaultOptions
-      { constructorTagModifier = camelTo2 '_'
-      , tagSingleConstructors = True
-      , fieldLabelModifier = camelTo2 '_' . dropWhile (== '_')
-      , omitNothingFields = True
-      , sumEncoding = TaggedObject
-          {
-            tagFieldName = "certificate_type"
-          , contentsFieldName = "details" -- this isn't actually used
-          }
-      }
+apiCertificateOptions =
+    defaultOptions
+        { constructorTagModifier = camelTo2 '_'
+        , tagSingleConstructors = True
+        , fieldLabelModifier = camelTo2 '_' . dropWhile (== '_')
+        , omitNothingFields = True
+        , sumEncoding =
+            TaggedObject
+                { tagFieldName = "certificate_type"
+                , contentsFieldName = "details" -- this isn't actually used
+                }
+        }
 instance FromJSON ApiCertificate where
     parseJSON = genericParseJSON apiCertificateOptions
 
@@ -270,7 +271,8 @@ instance ToJSON ApiCertificate where
     toJSON = genericToJSON apiCertificateOptions
 
 mkApiAnyCertificate
-    :: forall n . Maybe W.RewardAccount
+    :: forall n
+     . Maybe W.RewardAccount
     -> NonEmpty DerivationIndex
     -> W.Certificate
     -> ApiAnyCertificate n
@@ -278,62 +280,79 @@ mkApiAnyCertificate acct' acctPath' = \case
     W.CertificateOfDelegation _ delCert -> toApiDelCert acct' acctPath' delCert
     W.CertificateOfPool poolCert -> toApiPoolCert poolCert
     W.CertificateOther otherCert -> toApiOtherCert otherCert
-    where
+  where
     toApiOtherCert = OtherCertificate . ApiT
 
     toApiPoolCert
-        (W.Registration
-            (W.PoolRegistrationCertificate
-                poolId' poolOwners' poolMargin'
-                poolCost' poolPledge' poolMetadata')) =
-        let enrich (a, b) = (ApiT a, ApiT b)
-        in StakePoolRegister $ ApiRegisterPool
-           (ApiT poolId')
-           (map ApiT poolOwners')
-           (Quantity poolMargin')
-           (ApiAmount.fromCoin poolCost')
-           (ApiAmount.fromCoin poolPledge')
-           (enrich <$> poolMetadata')
+        ( W.Registration
+                ( W.PoolRegistrationCertificate
+                        poolId'
+                        poolOwners'
+                        poolMargin'
+                        poolCost'
+                        poolPledge'
+                        poolMetadata'
+                    )
+            ) =
+            let enrich (a, b) = (ApiT a, ApiT b)
+            in  StakePoolRegister
+                    $ ApiRegisterPool
+                        (ApiT poolId')
+                        (map ApiT poolOwners')
+                        (Quantity poolMargin')
+                        (ApiAmount.fromCoin poolCost')
+                        (ApiAmount.fromCoin poolPledge')
+                        (enrich <$> poolMetadata')
     toApiPoolCert
         (W.Retirement (W.PoolRetirementCertificate poolId' retirementEpoch')) =
-        StakePoolDeregister $ ApiDeregisterPool
-        (ApiT poolId')
-        (ApiT retirementEpoch')
+            StakePoolDeregister
+                $ ApiDeregisterPool
+                    (ApiT poolId')
+                    (ApiT retirementEpoch')
 
     toApiDelCert acctM acctPath (W.CertDelegateNone rewardKey) =
-        if Just rewardKey == acctM then
-            WalletDelegationCertificate $ QuitPool $ NE.map ApiT acctPath
-        else
-            DelegationCertificate
-                $ QuitPoolExternal (ApiRewardAccount rewardKey)
+        if Just rewardKey == acctM
+            then
+                WalletDelegationCertificate $ QuitPool $ NE.map ApiT acctPath
+            else
+                DelegationCertificate
+                    $ QuitPoolExternal (ApiRewardAccount rewardKey)
     toApiDelCert acctM acctPath (W.CertVoteAndDelegate rewardKey Nothing Nothing) =
-        if Just rewardKey == acctM then
-            WalletDelegationCertificate $
-                RegisterRewardAccount $ NE.map ApiT acctPath
-        else
-            DelegationCertificate $
-                RegisterRewardAccountExternal (ApiRewardAccount rewardKey)
+        if Just rewardKey == acctM
+            then
+                WalletDelegationCertificate
+                    $ RegisterRewardAccount
+                    $ NE.map ApiT acctPath
+            else
+                DelegationCertificate
+                    $ RegisterRewardAccountExternal (ApiRewardAccount rewardKey)
     toApiDelCert acctM acctPath (W.CertVoteAndDelegate rewardKey (Just poolId') Nothing) =
-        if Just rewardKey == acctM then
-            WalletDelegationCertificate $
-            JoinPool (NE.map ApiT acctPath) (ApiT poolId')
-        else
-            DelegationCertificate $
-            JoinPoolExternal (ApiRewardAccount rewardKey) (ApiT poolId')
+        if Just rewardKey == acctM
+            then
+                WalletDelegationCertificate
+                    $ JoinPool (NE.map ApiT acctPath) (ApiT poolId')
+            else
+                DelegationCertificate
+                    $ JoinPoolExternal (ApiRewardAccount rewardKey) (ApiT poolId')
     toApiDelCert acctM acctPath (W.CertVoteAndDelegate rewardKey Nothing (Just vote')) =
-        if Just rewardKey == acctM then
-            WalletDelegationCertificate $
-            CastVote (NE.map ApiT acctPath) (ApiT vote')
-        else
-            DelegationCertificate $
-            CastVoteExternal (ApiRewardAccount rewardKey) (ApiT vote')
+        if Just rewardKey == acctM
+            then
+                WalletDelegationCertificate
+                    $ CastVote (NE.map ApiT acctPath) (ApiT vote')
+            else
+                DelegationCertificate
+                    $ CastVoteExternal (ApiRewardAccount rewardKey) (ApiT vote')
     toApiDelCert acctM acctPath (W.CertVoteAndDelegate rewardKey (Just poolId') (Just vote')) =
-        if Just rewardKey == acctM then
-            WalletDelegationCertificate $
-            JoinPoolCastVote (NE.map ApiT acctPath) (ApiT poolId') (ApiT vote')
-        else
-            DelegationCertificate $
-            JoinPoolCastVoteExternal (ApiRewardAccount rewardKey) (ApiT poolId') (ApiT vote')
+        if Just rewardKey == acctM
+            then
+                WalletDelegationCertificate
+                    $ JoinPoolCastVote (NE.map ApiT acctPath) (ApiT poolId') (ApiT vote')
+            else
+                DelegationCertificate
+                    $ JoinPoolCastVoteExternal
+                        (ApiRewardAccount rewardKey)
+                        (ApiT poolId')
+                        (ApiT vote')
 
 instance ToJSON (ApiT DRep) where
     toJSON = toJSON . toText . getApiT

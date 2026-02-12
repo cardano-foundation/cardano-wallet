@@ -8,8 +8,6 @@ module Cardano.Wallet.Primitive.Types.EraInfo
     )
 where
 
-import Prelude
-
 import Cardano.Wallet.Primitive.Types.EpochNo
     ( EpochNo
     )
@@ -23,6 +21,7 @@ import Fmt
 import GHC.Generics
     ( Generic
     )
+import Prelude
 
 -- | Represents 'info' about the starting epoch/time of all possible eras.
 --

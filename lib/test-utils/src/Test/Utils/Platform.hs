@@ -7,7 +7,6 @@
 -- License: Apache-2.0
 --
 -- Utility function for making test suites pass on difficult platforms.
-
 module Test.Utils.Platform
     ( -- * Skipping tests
       skipOnWindows
@@ -15,17 +14,15 @@ module Test.Utils.Platform
     , pendingOnWine
     , pendingOnMacOS
 
-    -- * OS detection
+      -- * OS detection
     , whenWindows
     , isWindows
     , isMacOS
     , getIsWine
 
-    -- * Cross-platform compatibility
+      -- * Cross-platform compatibility
     , nullFileName
     ) where
-
-import Prelude
 
 import Control.Monad
     ( when
@@ -52,6 +49,7 @@ import UnliftIO.Exception
 import UnliftIO.Process
     ( readProcessWithExitCode
     )
+import Prelude
 
 skipOnWindows :: HasCallStack => String -> Expectation
 skipOnWindows _reason = whenWindows $ throwIO Success
@@ -78,7 +76,8 @@ whenWindows = when isWindows
 -- | Use the presence of @winepath.exe@ to detect when running tests under Wine.
 getIsWine :: IO Bool
 getIsWine = handle (\(_ :: IOException) -> pure False) $ do
-    (code, _, _) <- readProcessWithExitCode "winepath" ["--version"] mempty
+    (code, _, _) <-
+        readProcessWithExitCode "winepath" ["--version"] mempty
     pure (code == ExitSuccess)
 
 nullFileName :: FilePath

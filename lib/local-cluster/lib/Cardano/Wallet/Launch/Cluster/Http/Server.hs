@@ -10,8 +10,6 @@ module Cardano.Wallet.Launch.Cluster.Http.Server
     )
 where
 
-import Prelude
-
 import Cardano.Wallet.Launch.Cluster.Http.API
     ( API
     )
@@ -52,6 +50,7 @@ import UnliftIO
     ( async
     , link
     )
+import Prelude
 
 server
     :: forall n

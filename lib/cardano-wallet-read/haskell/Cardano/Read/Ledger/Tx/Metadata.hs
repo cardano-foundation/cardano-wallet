@@ -1,12 +1,11 @@
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 
-{- |
-Copyright: © 2020-2022 IOHK
-License: Apache-2.0
-
-Raw mint data extraction from 'Tx'
--}
+-- |
+-- Copyright: © 2020-2022 IOHK
+-- License: Apache-2.0
+--
+-- Raw mint data extraction from 'Tx'
 module Cardano.Read.Ledger.Tx.Metadata
     ( -- * Metadata type
       MetadataType
@@ -15,8 +14,6 @@ module Cardano.Read.Ledger.Tx.Metadata
       -- * Extraction
     , getEraMetadata
     ) where
-
-import Prelude
 
 import Cardano.Ledger.Allegra.TxAuxData
     ( AllegraTxAuxData
@@ -53,6 +50,7 @@ import Control.Lens
 import Data.Maybe.Strict
     ( StrictMaybe
     )
+import Prelude
 
 -- |
 -- Era-specific metadata (auxiliary data) type.

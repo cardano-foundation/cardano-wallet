@@ -13,8 +13,6 @@ module Cardano.Wallet.Primitive.Types.TokenMapWithScripts
     )
 where
 
-import Prelude
-
 import Cardano.Address.KeyHash
     ( KeyHash
     )
@@ -45,6 +43,7 @@ import Data.Text.Class
 import GHC.Generics
     ( Generic
     )
+import Prelude
 
 import qualified Data.Map.Strict as Map
 

@@ -2,8 +2,6 @@ module Test.Integration.Framework.LocalCluster.SendFaucetAssets
     ( sendFaucetAssets
     ) where
 
-import Prelude
-
 import Cardano.Wallet.Launch.Cluster.Process
     ( FaucetQ (..)
     , RunFaucetQ (..)
@@ -18,6 +16,7 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Data.Bifunctor
     ( first
     )
+import Prelude
 
 import qualified Cardano.Address as Address
 import qualified Cardano.Wallet.Faucet as Faucet

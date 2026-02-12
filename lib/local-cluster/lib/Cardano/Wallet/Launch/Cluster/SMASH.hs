@@ -1,9 +1,7 @@
 module Cardano.Wallet.Launch.Cluster.SMASH
- ( withSMASH
- )
- where
-
-import Prelude
+    ( withSMASH
+    )
+where
 
 import Cardano.Wallet.Launch.Cluster.Logging
     ( ClusterLog (..)
@@ -37,7 +35,8 @@ import Data.ByteString
     ( ByteString
     )
 import Data.Generics.Labels
-    ()
+    (
+    )
 import Data.Text
     ( Text
     )
@@ -53,6 +52,7 @@ import System.FilePath
 import Test.Utils.StaticServer
     ( withStaticServer
     )
+import Prelude
 
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Char8 as B8

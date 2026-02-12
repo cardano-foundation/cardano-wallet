@@ -9,11 +9,9 @@
 -- License: Apache-2.0
 --
 -- Test properties of the rewards-history 'Store'.
-module Cardano.Wallet.DB.Store.Rewards.StoreSpec (
-    spec,
-) where
-
-import Prelude
+module Cardano.Wallet.DB.Store.Rewards.StoreSpec
+    ( spec
+    ) where
 
 import Cardano.DB.Sqlite
     ( ForeignKeysSetting (..)
@@ -21,7 +19,8 @@ import Cardano.DB.Sqlite
     , runQuery
     )
 import Cardano.Wallet.DB.Arbitrary
-    ()
+    (
+    )
 import Cardano.Wallet.DB.Fixtures
     ( logScale
     , withDBInMemory
@@ -47,6 +46,7 @@ import Test.QuickCheck
 import Test.Store
     ( prop_StoreUpdate
     )
+import Prelude
 
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
@@ -55,8 +55,8 @@ spec :: Spec
 spec =
     around (withDBInMemory ForeignKeysDisabled) $ do
         describe "latest-rewards of a wallet store" $ do
-            it "probably respects store laws" $
-                property . prop_StoreRewardsLaws
+            it "probably respects store laws"
+                $ property . prop_StoreRewardsLaws
 
 prop_StoreRewardsLaws :: SqliteContext -> W.WalletId -> Property
 prop_StoreRewardsLaws db wid =

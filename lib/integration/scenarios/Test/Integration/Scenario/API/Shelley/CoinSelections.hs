@@ -18,8 +18,6 @@ module Test.Integration.Scenario.API.Shelley.CoinSelections
     ( spec
     ) where
 
-import Prelude
-
 import Cardano.Mnemonic
     ( SomeMnemonic (..)
     , mnemonicToText
@@ -42,8 +40,12 @@ import Cardano.Wallet.Api.Types.Amount
 import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..)
     , ApiErrorNoSuchWallet (ApiErrorNoSuchWallet)
-    , ApiErrorOutputTokenBundleSizeExceedsLimit (ApiErrorOutputTokenBundleSizeExceedsLimit)
-    , ApiErrorOutputTokenQuantityExceedsLimit (ApiErrorOutputTokenQuantityExceedsLimit)
+    , ApiErrorOutputTokenBundleSizeExceedsLimit
+        ( ApiErrorOutputTokenBundleSizeExceedsLimit
+        )
+    , ApiErrorOutputTokenQuantityExceedsLimit
+        ( ApiErrorOutputTokenQuantityExceedsLimit
+        )
     )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId
@@ -120,6 +122,7 @@ import Test.Integration.Framework.TestData
     , errMsg406
     , errMsg415
     )
+import Prelude
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Cardano.Wallet.Api.Types.WalletAssets as ApiWalletAssets
@@ -223,13 +226,15 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
             (addr : _) <- fmap (view #id) <$> listAddresses @n ctx w
             let minUTxOValue' = ApiAmount . minUTxOValue $ _mainEra ctx
             let payments = AddressAmount addr minUTxOValue' mempty :| []
-            _ <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
+            _ <-
+                request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
             rTx <- selectCoins @_ @'Shelley ctx w payments
-            verify rTx
+            verify
+                rTx
                 [ expectResponseCode HTTP.status404
                 ]
-            decodeErrorInfo rTx `Lifted.shouldBe`
-                NoSuchWallet (ApiErrorNoSuchWallet (w ^. #id))
+            decodeErrorInfo rTx
+                `Lifted.shouldBe` NoSuchWallet (ApiErrorNoSuchWallet (w ^. #id))
 
     it
         "WALLETS_COIN_SELECTION_03 - \
@@ -376,7 +381,8 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
             let payment = AddressAmount addr amount mempty
             let transform = addField "withdrawal" mnemonicTxt
 
-            res <- selectCoinsWith @_ @'Shelley ctx source (payment :| []) transform
+            res <-
+                selectCoinsWith @_ @'Shelley ctx source (payment :| []) transform
             verifyMsg
                 "HTTP status"
                 res
@@ -427,16 +433,16 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
                         sourceWallet
                         (payment :| [])
             sel <- makeRequest
-            verify sel [ expectResponseCode HTTP.status403 ]
-            decodeErrorInfo sel `Lifted.shouldBe`
-                OutputTokenQuantityExceedsLimit
-                ( ApiErrorOutputTokenQuantityExceedsLimit
-                    (toText $ apiAddress targetAddress)
-                    (ApiT policyId)
-                    (ApiT assetName)
-                    (excessiveQuantity)
-                    (txOutMaxTokenQuantity)
-                )
+            verify sel [expectResponseCode HTTP.status403]
+            decodeErrorInfo sel
+                `Lifted.shouldBe` OutputTokenQuantityExceedsLimit
+                    ( ApiErrorOutputTokenQuantityExceedsLimit
+                        (toText $ apiAddress targetAddress)
+                        (ApiT policyId)
+                        (ApiT assetName)
+                        (excessiveQuantity)
+                        (txOutMaxTokenQuantity)
+                    )
 
     -- Attempt to create a coin selection with an output that has an excessive
     -- number of assets, such that the serialized representation of the output
@@ -475,10 +481,10 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
                         sourceWallet
                         (payment :| [])
             sel <- makeRequest
-            verify sel [ expectResponseCode HTTP.status403 ]
-            decodeErrorInfo sel `Lifted.shouldBe`
-                OutputTokenBundleSizeExceedsLimit
-                ( ApiErrorOutputTokenBundleSizeExceedsLimit
-                    (toText $ apiAddress targetAddress)
-                    (fromIntegral assetCount)
-                )
+            verify sel [expectResponseCode HTTP.status403]
+            decodeErrorInfo sel
+                `Lifted.shouldBe` OutputTokenBundleSizeExceedsLimit
+                    ( ApiErrorOutputTokenBundleSizeExceedsLimit
+                        (toText $ apiAddress targetAddress)
+                        (fromIntegral assetCount)
+                    )

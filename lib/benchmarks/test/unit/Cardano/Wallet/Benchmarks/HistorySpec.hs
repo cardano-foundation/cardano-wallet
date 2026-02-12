@@ -5,8 +5,6 @@ module Cardano.Wallet.Benchmarks.HistorySpec
     )
 where
 
-import Prelude
-
 import Cardano.Wallet.Benchmarks.Collect
     ( Result (..)
     )
@@ -32,6 +30,7 @@ import Test.Hspec
     , shouldBe
     , shouldSatisfy
     )
+import Prelude
 
 import qualified Data.ByteString.Lazy.Char8 as BL8
 import qualified Data.Map.Monoidal.Strict as MMap

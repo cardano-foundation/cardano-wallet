@@ -8,8 +8,6 @@ module Cardano.Wallet.Primitive.SyncProgressSpec
     ( spec
     ) where
 
-import Prelude
-
 import Cardano.Slotting.Slot
     ( SlotNo (..)
     )
@@ -87,6 +85,7 @@ import UnliftIO.Exception
     , evaluate
     , try
     )
+import Prelude
 
 spec :: Spec
 spec = do
@@ -100,7 +99,8 @@ spec = do
                 }
     let st = SyncTolerance 10
 
-    let ti = (mkSingleEraInterpreter (StartTime t0) sp :: TimeInterpreter Identity)
+    let ti =
+            (mkSingleEraInterpreter (StartTime t0) sp :: TimeInterpreter Identity)
     let runQry = runIdentity . interpretQuery ti
     describe "syncProgress" $ do
         it "works for any two slots" $ property $ \tip (dt :: RelativeTime) ->

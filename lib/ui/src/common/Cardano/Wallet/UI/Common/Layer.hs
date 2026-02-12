@@ -17,8 +17,9 @@ module Cardano.Wallet.UI.Common.Layer
     )
 where
 
-import Prelude
-
+import Cardano.Wallet.Network
+    ( NetworkLayer (..)
+    )
 import Cardano.Wallet.UI.Common.Handlers.SSE
     ( Message (..)
     )
@@ -39,9 +40,15 @@ import Control.Monad
     , void
     , when
     )
+import Control.Monad.Cont
+    ( ContT (..)
+    )
 import Control.Tracer
     ( Tracer (..)
     , traceWith
+    )
+import Data.Functor
+    ( ($>)
     )
 import UnliftIO
     ( MonadIO (..)
@@ -51,6 +58,9 @@ import UnliftIO
     , putTMVar
     , withAsync
     , writeTChan
+    )
+import UnliftIO.Concurrent
+    ( threadDelay
     )
 import UnliftIO.STM
     ( TChan
@@ -63,19 +73,7 @@ import UnliftIO.STM
     , readTVarIO
     , takeTMVar
     )
-
-import Cardano.Wallet.Network
-    ( NetworkLayer (..)
-    )
-import Control.Monad.Cont
-    ( ContT (..)
-    )
-import Data.Functor
-    ( ($>)
-    )
-import UnliftIO.Concurrent
-    ( threadDelay
-    )
+import Prelude
 
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Map.Strict as Map

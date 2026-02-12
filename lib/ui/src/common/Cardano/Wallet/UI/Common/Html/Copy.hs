@@ -14,8 +14,6 @@ module Cardano.Wallet.UI.Common.Html.Copy
     )
 where
 
-import Prelude
-
 import Data.String.Interpolate
     ( i
     )
@@ -36,6 +34,7 @@ import Lucid
 import Lucid.Base
     ( makeAttribute
     )
+import Prelude
 
 -- | A button that copies the content of a field to the clipboard.
 copyButton

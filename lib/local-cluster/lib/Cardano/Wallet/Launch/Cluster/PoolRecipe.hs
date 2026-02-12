@@ -10,22 +10,21 @@ module Cardano.Wallet.Launch.Cluster.PoolRecipe
     )
 where
 
-import Prelude
-
+import Cardano.Wallet.Unsafe
+import Data.Aeson
 import Data.ByteString
     ( ByteString
     )
+import Data.List.NonEmpty
 import Data.Word.Odd
     ( Word31
     )
 import GHC.Generics
     ( Generic
     )
+import Prelude
 
-import Cardano.Wallet.Unsafe
-import Data.Aeson
 import qualified Data.Aeson as Aeson
-import Data.List.NonEmpty
 import qualified Data.List.NonEmpty as NE
 
 newtype PoolId = PoolId {getPoolId :: ByteString}

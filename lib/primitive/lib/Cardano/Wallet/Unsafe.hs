@@ -17,7 +17,6 @@
 --
 -- But these "unsafe" functions should not be used in application code, unless
 -- it's certain that the error case will never happen.
-
 module Cardano.Wallet.Unsafe
     ( unsafeRight
     , unsafeFromHex
@@ -34,14 +33,11 @@ module Cardano.Wallet.Unsafe
     , unsafeBech32Decode
     , unsafeMkPercentage
     , unsafeIntToWord
-
     , someDummyMnemonic
     , unsafeMkMnemonic
     , unsafeMkEntropy
     , unsafeMkSomeMnemonicFromEntropy
     ) where
-
-import Prelude
 
 import Cardano.Crypto.Wallet
     ( XPrv
@@ -121,6 +117,7 @@ import GHC.Stack
 import GHC.TypeLits
     ( natVal
     )
+import Prelude
 
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Codec.Binary.Bech32 as Bech32
@@ -140,7 +137,8 @@ unsafeRight :: (Buildable e, HasCallStack) => Either e a -> a
 unsafeRight = either (internalError . build) id
 
 -- | Decode an hex-encoded 'ByteString' into raw bytes, or fail.
-unsafeFromHex :: forall b. (HasCallStack, ByteArray b) => ByteString -> b
+unsafeFromHex
+    :: forall b. (HasCallStack, ByteArray b) => ByteString -> b
 unsafeFromHex = unsafeRight . convertFromBase @ByteString @b Base16
 
 -- | Decode hex-encoded 'Text' into a 'ByteString', or fail. This variant of
@@ -181,7 +179,7 @@ unsafeXPub bytes =
 -- | Build 'Mnemonic' from literals
 unsafeMkMnemonic
     :: forall mw n csz
-    .  (ConsistentEntropy n mw csz, EntropySize mw ~ n, HasCallStack)
+     . (ConsistentEntropy n mw csz, EntropySize mw ~ n, HasCallStack)
     => [Text]
     -> Mnemonic mw
 unsafeMkMnemonic m =
@@ -193,11 +191,12 @@ unsafeMkMnemonic m =
 -- called after checking for an invariant or, after ensuring that preconditions
 -- for meeting the underlying error have been discarded.
 unsafeRunExceptT :: (MonadFail m, Show e) => ExceptT e m a -> m a
-unsafeRunExceptT = runExceptT >=> \case
-    Left e ->
-        fail $ "unexpected error: " <> show e
-    Right a ->
-        return a
+unsafeRunExceptT =
+    runExceptT >=> \case
+        Left e ->
+            fail $ "unexpected error: " <> show e
+        Right a ->
+            return a
 
 -- | CBOR deserialise without error handling - handy for prototypes or testing.
 unsafeDeserialiseCbor
@@ -205,50 +204,52 @@ unsafeDeserialiseCbor
     => (forall s. CBOR.Decoder s a)
     -> BL.ByteString
     -> a
-unsafeDeserialiseCbor decoder bytes = either
-    (\e -> error $ "unsafeSerializeCbor: " <> show e)
-    snd
-    (CBOR.deserialiseFromBytes decoder bytes)
+unsafeDeserialiseCbor decoder bytes =
+    either
+        (\e -> error $ "unsafeSerializeCbor: " <> show e)
+        snd
+        (CBOR.deserialiseFromBytes decoder bytes)
 
 unsafeMkEntropy
-    :: forall ent csz.
-        ( HasCallStack
-        , ValidEntropySize ent
-        , ValidChecksumSize ent csz
-        )
+    :: forall ent csz
+     . ( HasCallStack
+       , ValidEntropySize ent
+       , ValidChecksumSize ent csz
+       )
     => ByteString
     -> Entropy ent
 unsafeMkEntropy = either (error . show) id . mkEntropy . BA.convert
 
 unsafeMkSomeMnemonicFromEntropy
-    :: forall mw ent csz.
-        ( HasCallStack
-        , ValidEntropySize ent
-        , ValidChecksumSize ent csz
-        , ValidMnemonicSentence mw
-        , ent ~ EntropySize mw
-        , mw ~ MnemonicWords ent
-        )
+    :: forall mw ent csz
+     . ( HasCallStack
+       , ValidEntropySize ent
+       , ValidChecksumSize ent csz
+       , ValidMnemonicSentence mw
+       , ent ~ EntropySize mw
+       , mw ~ MnemonicWords ent
+       )
     => Proxy mw
     -> ByteString
     -> SomeMnemonic
-unsafeMkSomeMnemonicFromEntropy _ = SomeMnemonic
-    . entropyToMnemonic
-    . unsafeMkEntropy @ent
+unsafeMkSomeMnemonicFromEntropy _ =
+    SomeMnemonic
+        . entropyToMnemonic
+        . unsafeMkEntropy @ent
 
 -- | A dummy @SomeMnemonic@ for testing.
 --
 -- Could have been named @dummySomeMnemonic@, but this way it sounds more like
 -- valid english.
 someDummyMnemonic
-    :: forall mw ent csz.
-        ( HasCallStack
-        , ValidEntropySize ent
-        , ValidChecksumSize ent csz
-        , ValidMnemonicSentence mw
-        , ent ~ EntropySize mw
-        , mw ~ MnemonicWords ent
-        )
+    :: forall mw ent csz
+     . ( HasCallStack
+       , ValidEntropySize ent
+       , ValidChecksumSize ent csz
+       , ValidMnemonicSentence mw
+       , ent ~ EntropySize mw
+       , mw ~ MnemonicWords ent
+       )
     => Proxy mw
     -> SomeMnemonic
 someDummyMnemonic proxy =
@@ -268,12 +269,19 @@ unsafeBech32DecodeFile = fmap (unsafeBech32Decode . firstLine) . TIO.readFile
 -- | Get the data part of a bech32-encoded string, ignoring the human-readable part.
 unsafeBech32Decode :: HasCallStack => Text -> BL.ByteString
 unsafeBech32Decode txt = case Bech32.decodeLenient txt of
-    Right (_hrp, dp) -> maybe (bomb "missing data part")
-        BL.fromStrict (Bech32.dataPartToBytes dp)
+    Right (_hrp, dp) ->
+        maybe
+            (bomb "missing data part")
+            BL.fromStrict
+            (Bech32.dataPartToBytes dp)
     Left e -> bomb (show e)
   where
-    bomb msg = error $ "Could not decode bech32 string " ++ show txt
-        ++ " because " ++ msg
+    bomb msg =
+        error
+            $ "Could not decode bech32 string "
+                ++ show txt
+                ++ " because "
+                ++ msg
 
 unsafeMkPercentage :: HasCallStack => Rational -> Percentage
 unsafeMkPercentage r = fromRight bomb $ Percentage.fromRational r
@@ -295,7 +303,8 @@ unsafeIntToWord
        , Integral to
        , Typeable from
        , Typeable to
-       , Show from)
+       , Show from
+       )
     => from -> to
 unsafeIntToWord n
     | n < fromIntegral (minBound :: to) = crash "underflow"
@@ -303,6 +312,13 @@ unsafeIntToWord n
     | otherwise = fromIntegral n
   where
     crash :: Builder -> to
-    crash err = internalError $ err |+" converting value "+|| n ||+
-        " from " +|| typeRep (Proxy @from) ||+
-        " to "+|| typeRep (Proxy @to) ||+"!"
+    crash err =
+        internalError
+            $ err
+            |+ " converting value "
+            +|| n
+            ||+ " from "
+            +|| typeRep (Proxy @from)
+            ||+ " to "
+            +|| typeRep (Proxy @to)
+            ||+ "!"

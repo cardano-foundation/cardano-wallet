@@ -16,8 +16,6 @@ module Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Certificates
     )
 where
 
-import Prelude
-
 import Cardano.Crypto.Hash.Class
     ( hashToBytes
     )
@@ -82,6 +80,7 @@ import Fmt
 import GHC.Stack
     ( HasCallStack
     )
+import Prelude
 
 import qualified Cardano.Ledger.Api as Ledger
 import qualified Cardano.Ledger.BaseTypes as SL
@@ -97,10 +96,11 @@ import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
 import qualified Data.Percentage as Percentage
 import qualified Data.Set as Set
 
-{-# INLINABLE getCertificates #-}
+{-# INLINEABLE getCertificates #-}
+
 -- | Compute wallet primitive certificates from ledger certificates
 getCertificates
-    :: forall era . IsEra era => Certificates era -> [W.Certificate]
+    :: forall era. IsEra era => Certificates era -> [W.Certificate]
 getCertificates = case theEra @era of
     Byron -> const []
     Shelley -> mkShelleyCertsK
@@ -136,11 +136,11 @@ fromConwayCert = \case
         CertificateOther AuthCommitteeHotKey
     Ledger.ResignCommitteeColdTxCert _ _ ->
         CertificateOther ResignCommitteeColdKey
-    Ledger.RegDRepTxCert {} ->
+    Ledger.RegDRepTxCert{} ->
         CertificateOther RegDRep
     Ledger.UnRegDRepTxCert _ _ ->
         CertificateOther UnRegDRep
-    Ledger.UpdateDRepTxCert {} ->
+    Ledger.UpdateDRepTxCert{} ->
         CertificateOther UpdateDRep
 
 fromLedgerCoin :: HasCallStack => SL.Coin -> W.Coin
@@ -172,7 +172,8 @@ mkPoolRegistrationCertificate pp =
                     <$> strictMaybeToMaybe (ppMetadata pp)
             }
 
-mkPoolRetirementCertificate :: SL.KeyHash rol -> EpochNo -> W.Certificate
+mkPoolRetirementCertificate
+    :: SL.KeyHash rol -> EpochNo -> W.Certificate
 mkPoolRetirementCertificate pid (EpochNo e) =
     W.CertificateOfPool
         $ Retirement
@@ -206,23 +207,30 @@ mkDelegationVoting
 mkDelegationVoting deposit cred = \case
     Ledger.DelegStake pool ->
         W.CertificateOfDelegation deposit
-            $ W.CertVoteAndDelegate (fromStakeCredential cred)
-            (Just $ fromPoolKeyHash pool) Nothing
+            $ W.CertVoteAndDelegate
+                (fromStakeCredential cred)
+                (Just $ fromPoolKeyHash pool)
+                Nothing
     Ledger.DelegVote vote ->
         W.CertificateOfDelegation deposit
-            $ W.CertVoteAndDelegate (fromStakeCredential cred)
-            Nothing (Just $ fromLedgerDRep vote)
+            $ W.CertVoteAndDelegate
+                (fromStakeCredential cred)
+                Nothing
+                (Just $ fromLedgerDRep vote)
     Ledger.DelegStakeVote pool vote ->
         W.CertificateOfDelegation deposit
-            $ W.CertVoteAndDelegate (fromStakeCredential cred)
-            (Just $ fromPoolKeyHash pool) (Just $ fromLedgerDRep vote)
+            $ W.CertVoteAndDelegate
+                (fromStakeCredential cred)
+                (Just $ fromPoolKeyHash pool)
+                (Just $ fromLedgerDRep vote)
 
 fromLedgerDRep :: Ledger.DRep -> DRep
 fromLedgerDRep = \case
     Ledger.DRepAlwaysAbstain -> Abstain
     Ledger.DRepAlwaysNoConfidence -> NoConfidence
     Ledger.DRepCredential (SL.ScriptHashObj (SL.ScriptHash scripthash)) ->
-        FromDRepID (DRepFromScriptHash (DRepScriptHash $ hashToBytes scripthash))
+        FromDRepID
+            (DRepFromScriptHash (DRepScriptHash $ hashToBytes scripthash))
     Ledger.DRepCredential (SL.KeyHashObj (SL.KeyHash keyhash)) ->
         FromDRepID (DRepFromKeyHash (DRepKeyHash $ hashToBytes keyhash))
 
@@ -230,22 +238,24 @@ fromShelleyCert
     :: ( Ledger.ShelleyEraTxCert era
        , Ledger.ProtVerAtMost era 8
        , Ledger.TxCert era ~ ShelleyTxCert era
-    )
+       )
     => Ledger.TxCert era -> W.Certificate
 fromShelleyCert = \case
     Ledger.DelegStakeTxCert delegator pool ->
         W.CertificateOfDelegation Nothing
             $ W.CertVoteAndDelegate
                 (fromStakeCredential delegator)
-                (Just $ fromPoolKeyHash pool) Nothing
+                (Just $ fromPoolKeyHash pool)
+                Nothing
     Ledger.RegTxCert cred -> mkRegisterKeyCertificate Nothing cred
     Ledger.UnRegTxCert cred -> mkDelegationNone Nothing cred
     Ledger.RegPoolTxCert pp -> mkPoolRegistrationCertificate pp
     Ledger.RetirePoolTxCert pid en -> mkPoolRetirementCertificate pid en
-    Ledger.GenesisDelegTxCert {} -> W.CertificateOther W.GenesisCertificate
+    Ledger.GenesisDelegTxCert{} -> W.CertificateOther W.GenesisCertificate
     Ledger.MirTxCert _ -> W.CertificateOther W.MIRCertificate
 
-fromPoolMetadata :: SL.PoolMetadata
+fromPoolMetadata
+    :: SL.PoolMetadata
     -> (StakePoolMetadataUrl, StakePoolMetadataHash)
 fromPoolMetadata meta =
     ( StakePoolMetadataUrl (urlToText (pmUrl meta))
@@ -272,15 +282,18 @@ fromOwnerKeyHash (SL.KeyHash h) =
     PoolOwner (hashToBytes h)
 
 fromUnitInterval :: HasCallStack => SL.UnitInterval -> Percentage
-fromUnitInterval x
-    = either bomb id
-    . Percentage.fromRational
-    . toRational
-    . SL.unboundRational
-    $ x
+fromUnitInterval x =
+    either bomb id
+        . Percentage.fromRational
+        . toRational
+        . SL.unboundRational
+        $ x
   where
-    bomb = internalError $
-        "fromUnitInterval: encountered invalid parameter value: " +|| x ||+ ""
+    bomb =
+        internalError
+            $ "fromUnitInterval: encountered invalid parameter value: "
+            +|| x
+            ||+ ""
 
 toWalletCoin :: HasCallStack => SL.Coin -> W.Coin
 toWalletCoin (SL.Coin c) = Coin.unsafeFromIntegral c

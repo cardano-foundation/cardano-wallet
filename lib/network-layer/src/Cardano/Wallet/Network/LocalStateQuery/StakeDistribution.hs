@@ -1,15 +1,13 @@
 {-# LANGUAGE GADTs #-}
+
 -- |
 -- Copyright: © 2024 Cardano Foundation
 -- License: Apache-2.0
 --
 -- A local state query that retrieves the stake distribution.
---
 module Cardano.Wallet.Network.LocalStateQuery.StakeDistribution
     ( stakeDistribution
     ) where
-
-import Prelude
 
 import Cardano.Ledger.Coin
     ( Coin
@@ -54,6 +52,7 @@ import Ouroboros.Consensus.Cardano
 import Ouroboros.Consensus.Shelley.Eras
     ( StandardCrypto
     )
+import Prelude
 
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
@@ -90,7 +89,8 @@ getNOpt =
         (Just . optimumNumberOfPools <$> LSQry Shelley.GetCurrentPParams)
         (Just . optimumNumberOfPools <$> LSQry Shelley.GetCurrentPParams)
 
-queryNonMyopicMemberRewards :: W.Coin -> LSQ' (Maybe (Map PoolId W.Coin))
+queryNonMyopicMemberRewards
+    :: W.Coin -> LSQ' (Maybe (Map PoolId W.Coin))
 queryNonMyopicMemberRewards coin =
     shelleyBased
         $ (getRewardMap . fromNonMyopicMemberRewards)

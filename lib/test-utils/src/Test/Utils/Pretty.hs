@@ -1,12 +1,9 @@
 -- | A convenience wrapper type for pretty-showing test values.
-
 module Test.Utils.Pretty
     ( Pretty (..)
     , (====)
     , pShowBuilder
     ) where
-
-import Prelude
 
 import Data.Text.Class
     ( ToText (..)
@@ -26,11 +23,12 @@ import Test.QuickCheck
 import Text.Pretty.Simple
     ( pShow
     )
+import Prelude
 
 import qualified Data.Text.Lazy as TL
 
-newtype Pretty a = Pretty { unPretty :: a }
-    deriving Eq
+newtype Pretty a = Pretty {unPretty :: a}
+    deriving (Eq)
 
 instance Arbitrary a => Arbitrary (Pretty a) where
     arbitrary = Pretty <$> arbitrary
@@ -51,5 +49,6 @@ pShowBuilder = fromLazyText . pShow
 
 -- | Like '===', but prettier.
 infix 4 ====
+
 (====) :: (Eq a, Show a) => a -> a -> Property
 a ==== b = Pretty a === Pretty b

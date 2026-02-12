@@ -8,8 +8,6 @@ module Cardano.Wallet.Primitive.Types.BlockSummarySpec
     ( spec
     ) where
 
-import Prelude
-
 import Cardano.Slotting.Slot
     ( WithOrigin (..)
     )
@@ -56,6 +54,7 @@ import Test.QuickCheck
     , sublistOf
     , (===)
     )
+import Prelude
 
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set

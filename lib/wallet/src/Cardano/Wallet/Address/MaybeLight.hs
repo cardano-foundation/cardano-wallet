@@ -10,9 +10,7 @@ module Cardano.Wallet.Address.MaybeLight
     , LightDiscoverTxs
     , DiscoverTxs (..)
     )
-    where
-
-import Prelude
+where
 
 import Cardano.Wallet.Address.Derivation
     ( DelegationAddress
@@ -62,6 +60,7 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
 import Data.Bifunctor
     ( second
     )
+import Prelude
 
 import qualified Cardano.Wallet.Address.Pool as AddressPool
 
@@ -77,7 +76,8 @@ type LightDiscoverTxs s =
 -- | Function that discovers transactions based on an address.
 newtype DiscoverTxs addr txs s = DiscoverTxs
     { discoverTxs
-        :: forall m. Monad m
+        :: forall m
+         . Monad m
         => (addr -> m txs) -> s -> m (txs, s)
     }
 
@@ -90,12 +90,10 @@ instance MaybeLight (RndAnyState n p) where
 instance MaybeLight (SeqAnyState n k p) where
     maybeDiscover = Nothing
 
-instance HasSNetworkId n => MaybeLight (SeqState n IcarusKey)
-  where
+instance HasSNetworkId n => MaybeLight (SeqState n IcarusKey) where
     maybeDiscover = Just $ DiscoverTxs discoverSeq
 
-instance HasSNetworkId n => MaybeLight (SeqState n ShelleyKey)
-  where
+instance HasSNetworkId n => MaybeLight (SeqState n ShelleyKey) where
     maybeDiscover = Just $ DiscoverTxs discoverSeqWithRewards
 
 instance MaybeLight (SharedState n k) where
@@ -105,28 +103,33 @@ instance MaybeLight (SharedState n k) where
 -- efficient query @addr -> m txs@.
 -- Does /not/ take 'RewardAccount' into account.
 discoverSeq
-    :: forall n k m. (PaymentAddress k 'CredFromKeyK, Monad m, HasSNetworkId n)
+    :: forall n k m
+     . (PaymentAddress k 'CredFromKeyK, Monad m, HasSNetworkId n)
     => (Either Address RewardAccount -> m ChainEvents)
-    -> SeqState n k -> m (ChainEvents, SeqState n k)
+    -> SeqState n k
+    -> m (ChainEvents, SeqState n k)
 discoverSeq query state = do
     (eventsInternal, internalPool') <- discover (internalPool state)
     (eventsExternal, externalPool') <- discover (externalPool state)
     let discoveredEvents = eventsInternal <> eventsExternal
-        state' = state
-            { internalPool = internalPool'
-            , externalPool = externalPool'
-            , pendingChangeIxs =
-                dropLowerPendingIxs
-                    (AddressPool.nextIndex (getPool internalPool'))
-                    (pendingChangeIxs state)
-            }
+        state' =
+            state
+                { internalPool = internalPool'
+                , externalPool = externalPool'
+                , pendingChangeIxs =
+                    dropLowerPendingIxs
+                        (AddressPool.nextIndex (getPool internalPool'))
+                        (pendingChangeIxs state)
+                }
     pure (discoveredEvents, state')
   where
     -- Only enterprise address (for legacy Icarus keys)
     fromPayment = liftPaymentAddressS @n @k @'CredFromKeyK
     discover :: SeqAddressPool r k -> m (ChainEvents, SeqAddressPool r k)
-    discover = fmap (second SeqAddressPool)
-        . AddressPool.discover (query . Left . fromPayment) . getPool
+    discover =
+        fmap (second SeqAddressPool)
+            . AddressPool.discover (query . Left . fromPayment)
+            . getPool
 
 -- | Discover addresses and transactions using an
 -- efficient query @addr -> m txs@.
@@ -142,18 +145,20 @@ discoverSeqWithRewards
     -> SeqState n k
     -> m (ChainEvents, SeqState n k)
 discoverSeqWithRewards query state = do
-    eventsReward <- query . Right $ toRewardAccount (rewardAccountKey state)
+    eventsReward <-
+        query . Right $ toRewardAccount (rewardAccountKey state)
     (eventsInternal, internalPool') <- discover (internalPool state)
     (eventsExternal, externalPool') <- discover (externalPool state)
     let discoveredEvents = eventsReward <> eventsInternal <> eventsExternal
-        state' = state
-            { internalPool = internalPool'
-            , externalPool = externalPool'
-            , pendingChangeIxs =
-                dropLowerPendingIxs
-                    (AddressPool.nextIndex (getPool internalPool'))
-                    (pendingChangeIxs state)
-            }
+        state' =
+            state
+                { internalPool = internalPool'
+                , externalPool = externalPool'
+                , pendingChangeIxs =
+                    dropLowerPendingIxs
+                        (AddressPool.nextIndex (getPool internalPool'))
+                        (pendingChangeIxs state)
+                }
     pure (discoveredEvents, state')
   where
     -- Every 'Address' is composed of a payment part and a staking part.
@@ -166,5 +171,7 @@ discoverSeqWithRewards query state = do
     fromPayment hash = liftDelegationAddressS @n hash (rewardAccountKey state)
 
     discover :: SeqAddressPool r k -> m (ChainEvents, SeqAddressPool r k)
-    discover = fmap (second SeqAddressPool)
-        . AddressPool.discover (query . Left . fromPayment) . getPool
+    discover =
+        fmap (second SeqAddressPool)
+            . AddressPool.discover (query . Left . fromPayment)
+            . getPool

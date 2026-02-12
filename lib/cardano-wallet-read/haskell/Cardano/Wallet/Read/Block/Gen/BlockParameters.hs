@@ -33,7 +33,8 @@ makeLensesFor
     [ ("slotNumber", "slotNumberL")
     , ("blockNumber", "blockNumberL")
     , ("txs", "txsL")
-    ] ''BlockParameters
+    ]
+    ''BlockParameters
 
 exampleBlockParameters :: [Tx era] -> BlockParameters era
 exampleBlockParameters txs =

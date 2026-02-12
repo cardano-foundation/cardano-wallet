@@ -10,8 +10,6 @@ module Test.Integration.Scenario.API.Shelley.Restoration
     ( spec
     ) where
 
-import Prelude
-
 import Cardano.Wallet.Api.Types
     ( ApiT (..)
     )
@@ -51,8 +49,8 @@ import Test.Integration.Framework.DSL.TestM
     , fieldIs
     , itM
     , over
-    , pattern Partial
     , request
+    , pattern Partial
     )
 import Test.Integration.Framework.DSL.Wallet
     ( Patch
@@ -69,6 +67,7 @@ import Test.Integration.Framework.DSL.Wallet
     , withRestorationMode
     , xPubOfMnemonics
     )
+import Prelude
 
 import qualified Cardano.Wallet.Api.Clients.Network as C
 import qualified Cardano.Wallet.Read as Read

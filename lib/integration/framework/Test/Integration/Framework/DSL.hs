@@ -11,24 +11,23 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
-
-{-# OPTIONS_GHC -fno-warn-simplifiable-class-constraints #-}
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
+{-# OPTIONS_GHC -fno-warn-simplifiable-class-constraints #-}
 
 module Test.Integration.Framework.DSL
-    ( Context(..)
-    , TxDescription(..)
+    ( Context (..)
+    , TxDescription (..)
 
-    -- * Steps
+      -- * Steps
     , request
     , rawRequest
     , unsafeRequest
     , unsafeResponse
 
-    -- * Decoding errors
+      -- * Decoding errors
     , decodeErrorInfo
 
-    -- * Expectations
+      -- * Expectations
     , expectPathEventuallyExist
     , expectSuccess
     , expectError
@@ -51,22 +50,22 @@ module Test.Integration.Framework.DSL
     , (.<)
     , verify
     , verifyMsg
-    , Headers(..)
-    , Payload(..)
-    , RequestException(..)
+    , Headers (..)
+    , Payload (..)
+    , RequestException (..)
     , shouldBe
 
-    -- * Lens
+      -- * Lens
     , walletId
     , utxoStatisticsFromCoins
 
-    -- * Constants
+      -- * Constants
     , minUTxOValue
     , defaultTxTTL
     , maximumCollateralInputCountByEra
     , minimumCollateralPercentageByEra
 
-    -- * Create wallets
+      -- * Create wallets
     , restoreWalletFromPubKey
     , emptyRandomWallet
     , emptyRandomWalletMws
@@ -99,13 +98,13 @@ module Test.Integration.Framework.DSL
     , getAccountKeyShared
     , getSomeVerificationKey
 
-    -- * Wallet helpers
+      -- * Wallet helpers
     , listFilteredWallets
     , listFilteredByronWallets
     , listFilteredSharedWallets
     , getWalletIdFromSharedWallet
 
-    -- * Helpers
+      -- * Helpers
     , (</>)
     , (!!)
     , clientEnv
@@ -196,7 +195,7 @@ module Test.Integration.Framework.DSL
     , submitSharedTxWithWid
     , notRetiringPools
 
-    -- * Delegation helpers
+      -- * Delegation helpers
     , notDelegating
     , delegating
     , onlyVoting
@@ -205,7 +204,7 @@ module Test.Integration.Framework.DSL
     , arbitraryStake
     , delegateToPool
 
-    -- * CLI
+      -- * CLI
     , commandName
     , command
     , cardanoWalletCLI
@@ -231,10 +230,11 @@ module Test.Integration.Framework.DSL
     , deleteTransactionViaCLI
     , getTransactionViaCLI
 
-    -- * utilities
+      -- * utilities
     , getRetirementEpoch
     , replaceStakeKey
-     -- * Re-exports
+
+      -- * Re-exports
     , runResourceT
     , ResourceT
     , listLimitedTransactions
@@ -242,8 +242,6 @@ module Test.Integration.Framework.DSL
     , noBabbage
     , babbageOrConway
     ) where
-
-import Prelude
 
 import Cardano.Address.Derivation
     ( XPub
@@ -435,10 +433,6 @@ import Cardano.Wallet.Primitive.Types.UTxOStatistics
     ( HistogramBar (..)
     , UTxOStatistics (..)
     )
-import "cardano-addresses" Codec.Binary.Encoding
-    ( AbstractEncoding (..)
-    , encode
-    )
 import Control.Arrow
     ( second
     )
@@ -515,7 +509,8 @@ import Data.Generics.Internal.VL.Traversal
     ( Traversal'
     )
 import Data.Generics.Labels
-    ()
+    (
+    )
 import Data.Generics.Product.Typed
     ( HasType
     , typed
@@ -598,6 +593,9 @@ import System.Directory
 import System.Exit
     ( ExitCode (..)
     )
+import Test.HUnit.Lang
+    ( HUnitFailure (..)
+    )
 import Test.Hspec
     ( Expectation
     , HasCallStack
@@ -613,9 +611,6 @@ import Test.Hspec.Expectations.Lifted
 import Test.Hspec.Extra
     ( appendFailureReason
     , counterexample
-    )
-import Test.HUnit.Lang
-    ( HUnitFailure (..)
     )
 import Test.Integration.Framework.Context
     ( Context (..)
@@ -659,6 +654,11 @@ import UnliftIO.Process
 import Web.HttpApiData
     ( ToHttpApiData (..)
     )
+import "cardano-addresses" Codec.Binary.Encoding
+    ( AbstractEncoding (..)
+    , encode
+    )
+import Prelude
 
 import qualified Cardano.Faucet.Mnemonics as Mnemonics
 import qualified Cardano.Wallet.Address.Derivation.Byron as Byron
@@ -693,11 +693,13 @@ import qualified Network.HTTP.Types.Status as HTTP
 --
 
 -- | Expect a successful response, without any further assumptions.
-expectSuccess :: (HasCallStack, MonadIO m) => (s, Either RequestException a) -> m ()
+expectSuccess
+    :: (HasCallStack, MonadIO m) => (s, Either RequestException a) -> m ()
 expectSuccess = either wantedSuccessButError (const $ pure ()) . snd
 
 -- | Expect an error response, without any further assumptions.
-expectError :: (MonadIO m, Show a) => (s, Either RequestException a) -> m ()
+expectError
+    :: (MonadIO m, Show a) => (s, Either RequestException a) -> m ()
 expectError = either (const $ pure ()) wantedErrorButSuccess . snd
 
 -- | Expect an error response, without any further assumptions.
@@ -711,9 +713,9 @@ expectErrorMessage want = either expectation wantedErrorButSuccess . snd
     expectation exception = fmt exception `shouldContain` want
     fmt = \case
         DecodeFailure res msg -> msg ++ "\n" ++ BL8.unpack res
-        ClientError val       -> BL8.unpack $ Aeson.encode val
-        RawClientError val    -> BL8.unpack val
-        HttpException err     -> show err
+        ClientError val -> BL8.unpack $ Aeson.encode val
+        RawClientError val -> BL8.unpack val
+        HttpException err -> show err
 
 -- | Defines an expectation about an API error, assuming it can successfully
 --   be decoded as an 'ApiErrorInfo' object.
@@ -734,16 +736,19 @@ decodeErrorInfo (_, response) =
         Left (ClientError value) ->
             fromMaybe decodeFailure $ Aeson.decode $ Aeson.encode value
         somethingElse ->
-            error $ unwords
-                [ "decodeErrorInfo:"
-                , "Expected a 'ClientError', but encountered something else:"
-                , show somethingElse
-                ]
+            error
+                $ unwords
+                    [ "decodeErrorInfo:"
+                    , "Expected a 'ClientError', but encountered something else:"
+                    , show somethingElse
+                    ]
   where
-    decodeFailure = error $ unwords
-        [ "decodeErrorInfo:"
-        , "Unable to decode 'ApiErrorInfo' value"
-        ]
+    decodeFailure =
+        error
+            $ unwords
+                [ "decodeErrorInfo:"
+                , "Unable to decode 'ApiErrorInfo' value"
+                ]
 
 -- | Expect a given response code on the response.
 expectResponseCode
@@ -752,10 +757,10 @@ expectResponseCode
     -> (HTTP.Status, a)
     -> m ()
 expectResponseCode expected (actual, a) =
-    counterexample ("From the following response: " <> show (Pretty a)) $
-    if actual == expected
-        then pure ()
-        else actual `shouldBe` expected
+    counterexample ("From the following response: " <> show (Pretty a))
+        $ if actual == expected
+            then pure ()
+            else actual `shouldBe` expected
 
 expectField
     :: (HasCallStack, MonadIO m)
@@ -764,10 +769,11 @@ expectField
     -> (HTTP.Status, Either RequestException s)
     -> m ()
 expectField getter predicate (_, res) = case res of
-    Left e  -> wantedSuccessButError e
+    Left e -> wantedSuccessButError e
     Right s -> liftIO $ case s ^? getter of
-        Nothing -> expectationFailure
-            "could not traverse response to test expectations"
+        Nothing ->
+            expectationFailure
+                "could not traverse response to test expectations"
         Just a -> predicate a
 
 expectListField
@@ -782,9 +788,11 @@ expectListField i getter predicate (c, res) = liftIO $ case res of
     Right xs
         | length xs > i ->
             expectField getter predicate (c, Right (xs !! i))
-        | otherwise -> expectationFailure $
-            "expectListField: trying to access the #" <> show i <>
-            " element from a list but there's none! "
+        | otherwise ->
+            expectationFailure
+                $ "expectListField: trying to access the #"
+                    <> show i
+                    <> " element from a list but there's none! "
 
 -- | Expects data list returned by the API to be of certain length
 expectListSize
@@ -793,7 +801,7 @@ expectListSize
     -> (HTTP.Status, Either RequestException (xs a))
     -> m ()
 expectListSize l (_, res) = liftIO $ case res of
-    Left e   -> wantedSuccessButError e
+    Left e -> wantedSuccessButError e
     Right xs -> length (toList xs) `shouldBe` l
 
 -- | Expects data list returned by the API to be of certain length
@@ -803,7 +811,7 @@ expectListSizeSatisfy
     -> (HTTP.Status, Either RequestException (xs a))
     -> m ()
 expectListSizeSatisfy cond (_, res) = liftIO $ case res of
-    Left e   -> wantedSuccessButError e
+    Left e -> wantedSuccessButError e
     Right xs -> length (toList xs) `shouldSatisfy` cond
 
 -- | Expects wallet UTxO statistics from the request to be equal to
@@ -814,7 +822,7 @@ expectWalletUTxO
     -> Either RequestException ApiUtxoStatistics
     -> m ()
 expectWalletUTxO coins = \case
-    Left e  -> wantedSuccessButError e
+    Left e -> wantedSuccessButError e
     Right stats -> utxoStatisticsFromCoins coins `shouldBe` stats
 
 utxoStatisticsFromCoins :: [Natural] -> ApiUtxoStatistics
@@ -824,10 +832,11 @@ utxoStatisticsFromCoins coins =
             ( TxIn (Hash "ARBITRARY") idx
             , TxOut addr (TokenBundle.fromCoin $ Coin c)
             )
-        utxo = UTxO $ Map.fromList $ zipWith constructUtxoEntry [0..] coins
+        utxo = UTxO $ Map.fromList $ zipWith constructUtxoEntry [0 ..] coins
         (UTxOStatistics hist stakes bType) = UTxOStatistics.compute utxo
-        distr = Map.fromList $ map (\(HistogramBar k v)-> (k,v)) hist
-    in ApiUtxoStatistics (ApiAmount.fromWord64 stakes) (ApiT bType) distr
+        distr = Map.fromList $ map (\(HistogramBar k v) -> (k, v)) hist
+    in  ApiUtxoStatistics (ApiAmount.fromWord64 stakes) (ApiT bType) distr
+
 --
 -- CLI output expectations
 --
@@ -835,14 +844,16 @@ utxoStatisticsFromCoins coins =
 -- | Expects a given string to be a valid JSON output corresponding to some
 -- given data-type 'a'. Returns this type if successful.
 expectValidJSON
-    :: forall m a. (FromJSON a, MonadIO m)
-    =>Proxy a
+    :: forall m a
+     . (FromJSON a, MonadIO m)
+    => Proxy a
     -> String
     -> m a
-expectValidJSON _ str = liftIO $
-    case Aeson.eitherDecode @a (BL.fromStrict $ T.encodeUtf8 $ T.pack str) of
+expectValidJSON _ str = liftIO
+    $ case Aeson.eitherDecode @a (BL.fromStrict $ T.encodeUtf8 $ T.pack str) of
         Left e ->
-            expectationFailure' $ "expected valid JSON but failed decoding: " <> show e
+            expectationFailure'
+                $ "expected valid JSON but failed decoding: " <> show e
         Right a -> return a
 
 expectCliListField
@@ -853,12 +864,15 @@ expectCliListField
     -> [s]
     -> m ()
 expectCliListField i getter predicate xs
-        | length xs > i = expectCliField getter predicate (xs !! i)
-        | otherwise = liftIO . expectationFailure $
-            "expectCliListField: trying to access the #" <> show i <>
-            " element from a list but there's none! "
+    | length xs > i = expectCliField getter predicate (xs !! i)
+    | otherwise =
+        liftIO . expectationFailure
+            $ "expectCliListField: trying to access the #"
+                <> show i
+                <> " element from a list but there's none! "
 
-expectCliField :: MonadIO m => Lens' s a -> (a -> Expectation) -> s -> m ()
+expectCliField
+    :: MonadIO m => Lens' s a -> (a -> Expectation) -> s -> m ()
 expectCliField getter predicate out = do
     let a = (view getter out)
     liftIO $ predicate a
@@ -869,8 +883,9 @@ expectPathEventuallyExist filepath = do
     handle <- async doesPathExistNow
     winner <- race (threadDelay (60 * oneSecond)) (wait handle)
     case winner of
-        Left _ -> expectationFailure $
-            "waited more than 60s for " <> filepath <> " to be created!"
+        Left _ ->
+            expectationFailure
+                $ "waited more than 60s for " <> filepath <> " to be created!"
         Right _ ->
             return ()
   where
@@ -913,12 +928,11 @@ walletId =
 -- In those cases, a larger value will be required. The precise value can be
 -- determined by calling one of the endpoints that returns an 'ApiFee' object,
 -- and inspecting the 'minimumCoins' field.
---
 minUTxOValue :: ApiEra -> Natural
 minUTxOValue e
-    | e >= ApiBabbage =   969_750
-    | e >= ApiAlonzo  =   999_978
-    | otherwise       = 1_000_000
+    | e >= ApiBabbage = 969_750
+    | e >= ApiAlonzo = 999_978
+    | otherwise = 1_000_000
 
 -- | Wallet server's chosen transaction TTL value (in seconds) when none is
 -- given.
@@ -927,25 +941,25 @@ defaultTxTTL = 7_200
 
 maximumCollateralInputCountByEra :: ApiEra -> Word16
 maximumCollateralInputCountByEra = \case
-    ApiByron   -> 0
+    ApiByron -> 0
     ApiShelley -> 0
     ApiAllegra -> 0
-    ApiMary    -> 0
+    ApiMary -> 0
     -- value from alonzo-genesis.yaml:
-    ApiAlonzo  -> 3
+    ApiAlonzo -> 3
     ApiBabbage -> 3
-    ApiConway  -> 3
+    ApiConway -> 3
 
 minimumCollateralPercentageByEra :: ApiEra -> Natural
 minimumCollateralPercentageByEra = \case
-    ApiByron   -> 0
+    ApiByron -> 0
     ApiShelley -> 0
     ApiAllegra -> 0
-    ApiMary    -> 0
+    ApiMary -> 0
     -- value from alonzo-genesis.yaml:
-    ApiAlonzo  -> 150
+    ApiAlonzo -> 150
     ApiBabbage -> 150
-    ApiConway  -> 150
+    ApiConway -> 150
 
 --
 -- Helpers
@@ -957,64 +971,65 @@ minimumCollateralPercentageByEra = \case
 --
 -- This function computes the effective fee by subtracting the total output
 -- value from the total input value.
---
 computeApiCoinSelectionFee :: ApiCoinSelection n -> Coin
 computeApiCoinSelectionFee selection
     | feeIsValid =
         Coin $ fromIntegral fee
     | otherwise =
-        error $ unlines
-            [ "Unable to compute fee of ApiCoinSelection:"
-            , "fee:"
-            , show fee
-            , "balanceOfInputs:"
-            , show balanceOfInputs
-            , "balanceOfOutputs:"
-            , show balanceOfOutputs
-            , "balanceOfChange:"
-            , show balanceOfChange
-            , "balanceOfRewardWithdrawals"
-            , show balanceOfRewardWithdrawals
-            , "balanceOfDeposits"
-            , show balanceOfDeposits
-            ]
+        error
+            $ unlines
+                [ "Unable to compute fee of ApiCoinSelection:"
+                , "fee:"
+                , show fee
+                , "balanceOfInputs:"
+                , show balanceOfInputs
+                , "balanceOfOutputs:"
+                , show balanceOfOutputs
+                , "balanceOfChange:"
+                , show balanceOfChange
+                , "balanceOfRewardWithdrawals"
+                , show balanceOfRewardWithdrawals
+                , "balanceOfDeposits"
+                , show balanceOfDeposits
+                ]
   where
     fee :: Integer
-    fee
-        = balanceOfInputs
-        + balanceOfRewardWithdrawals
-        - balanceOfOutputs
-        - balanceOfChange
-        - balanceOfDeposits
+    fee =
+        balanceOfInputs
+            + balanceOfRewardWithdrawals
+            - balanceOfOutputs
+            - balanceOfChange
+            - balanceOfDeposits
     feeIsValid :: Bool
-    feeIsValid = (&&)
-        (fee >= Coin.toInteger txOutMinCoin)
-        (fee <= Coin.toInteger txOutMaxCoin)
-    balanceOfInputs
-        = selection
-        & view #inputs
-        & F.foldMap (Sum . ApiAmount.toInteger . view #amount)
-        & getSum
-    balanceOfOutputs
-        = selection
-        & view #outputs
-        & F.foldMap (Sum . ApiAmount.toInteger . view #amount)
-        & getSum
-    balanceOfChange
-        = selection
-        & view #change
-        & F.foldMap (Sum . ApiAmount.toInteger . view #amount)
-        & getSum
-    balanceOfRewardWithdrawals
-        = selection
-        & view #withdrawals
-        & F.foldMap (Sum . ApiAmount.toInteger . view #amount)
-        & getSum
-    balanceOfDeposits
-        = selection
-        & view #depositsTaken
-        & F.foldMap (Sum . ApiAmount.toInteger)
-        & getSum
+    feeIsValid =
+        (&&)
+            (fee >= Coin.toInteger txOutMinCoin)
+            (fee <= Coin.toInteger txOutMaxCoin)
+    balanceOfInputs =
+        selection
+            & view #inputs
+            & F.foldMap (Sum . ApiAmount.toInteger . view #amount)
+            & getSum
+    balanceOfOutputs =
+        selection
+            & view #outputs
+            & F.foldMap (Sum . ApiAmount.toInteger . view #amount)
+            & getSum
+    balanceOfChange =
+        selection
+            & view #change
+            & F.foldMap (Sum . ApiAmount.toInteger . view #amount)
+            & getSum
+    balanceOfRewardWithdrawals =
+        selection
+            & view #withdrawals
+            & F.foldMap (Sum . ApiAmount.toInteger . view #amount)
+            & getSum
+    balanceOfDeposits =
+        selection
+            & view #depositsTaken
+            & F.foldMap (Sum . ApiAmount.toInteger)
+            & getSum
 
 isValidDerivationPath
     :: Index 'Hardened 'PurposeK
@@ -1026,26 +1041,40 @@ derivationPathValidationErrors
     :: Index 'Hardened 'PurposeK
     -> NonEmpty (ApiT DerivationIndex)
     -> [String]
-derivationPathValidationErrors purpose path = catMaybes
-    [ let l = length path in if l /= 5
-        then Just ("Derivation path must have 5 elements but it has " <> show l)
-        else Nothing
-    , if purposeIdx /= Just (ApiT (DerivationIndex (getIndex purpose)))
-            then Just ("Derivation path must start with a purpose "
-                <> show purpose <> " but it has " <> show purposeIdx)
+derivationPathValidationErrors purpose path =
+    catMaybes
+        [ let l = length path
+          in  if l /= 5
+                then
+                    Just ("Derivation path must have 5 elements but it has " <> show l)
+                else Nothing
+        , if purposeIdx /= Just (ApiT (DerivationIndex (getIndex purpose)))
+            then
+                Just
+                    ( "Derivation path must start with a purpose "
+                        <> show purpose
+                        <> " but it has "
+                        <> show purposeIdx
+                    )
             else Nothing
-    , if coinTypeIdx /= Just (ApiT (DerivationIndex (getIndex coinTypeAda)))
-        then Just $ "Derivation path must have " <> show coinTypeAda
-                <> " as second element (coin type) but it has "
-                <> show coinTypeIdx
-        else Nothing
-    , let minAccount = getIndex @'Hardened minBound in
-        if accountIdx /= Just (ApiT (DerivationIndex minAccount))
-        then Just $ "Derivation path must have " <> show minAccount
-                <> " as third element (account) but it has "
-                <> show accountIdx
-        else Nothing
-    ]
+        , if coinTypeIdx /= Just (ApiT (DerivationIndex (getIndex coinTypeAda)))
+            then
+                Just
+                    $ "Derivation path must have "
+                        <> show coinTypeAda
+                        <> " as second element (coin type) but it has "
+                        <> show coinTypeIdx
+            else Nothing
+        , let minAccount = getIndex @'Hardened minBound
+          in  if accountIdx /= Just (ApiT (DerivationIndex minAccount))
+                then
+                    Just
+                        $ "Derivation path must have "
+                            <> show minAccount
+                            <> " as third element (account) but it has "
+                            <> show accountIdx
+                else Nothing
+        ]
   where
     purposeIdx = path !? 0
     coinTypeIdx = path !? 1
@@ -1053,37 +1082,40 @@ derivationPathValidationErrors purpose path = catMaybes
 
 isValidRandomDerivationPath :: NonEmpty (ApiT DerivationIndex) -> Bool
 isValidRandomDerivationPath path =
-    ( length path == 2 )
-    &&
-    ( [ ApiT $ DerivationIndex $ getIndex @'Hardened minBound
-      ] `isPrefixOf` NE.toList path
-    )
+    (length path == 2)
+        && ( [ ApiT $ DerivationIndex $ getIndex @'Hardened minBound
+             ]
+                `isPrefixOf` NE.toList path
+           )
 
 pickAnAsset :: ApiWalletAssets -> ((Text, Text), Natural)
 pickAnAsset (ApiWalletAssets assets) = case assets of
-    (ApiWalletAsset (ApiT p) (ApiT a) q):_ ->
+    (ApiWalletAsset (ApiT p) (ApiT a) q) : _ ->
         ((toText p, toText a), q)
     _ -> error "pickAnAsset: empty list"
 
 -- Like mkTxPayload, except that assets are included in the payment.
 -- Asset amounts are specified by ((PolicyId Hex, AssetName Hex), amount).
 mkTxPayloadMA
-    :: forall n m.
-        ( MonadUnliftIO m
-        , HasSNetworkId n
-        )
+    :: forall n m
+     . ( MonadUnliftIO m
+       , HasSNetworkId n
+       )
     => ApiAddress n
     -> Natural
     -> [((Text, Text), Natural)]
     -> Text
     -> m Payload
 mkTxPayloadMA destination coin val passphrase = do
-    let assetJson ((pid, name), q) = [aesonQQ|{
+    let assetJson ((pid, name), q) =
+            [aesonQQ|{
                 "policy_id": #{pid},
                 "asset_name": #{name},
                 "quantity": #{q}
             }|]
-    return $ Json [aesonQQ|{
+    return
+        $ Json
+            [aesonQQ|{
             "payments": [{
                 "address": #{destination},
                 "amount": {
@@ -1096,10 +1128,10 @@ mkTxPayloadMA destination coin val passphrase = do
         }|]
 
 postTx
-    :: forall n w m.
-        ( HasSNetworkId n
-        , MonadUnliftIO m
-        )
+    :: forall n w m
+     . ( HasSNetworkId n
+       , MonadUnliftIO m
+       )
     => Context
     -> (w, w -> (Method, Text), Text)
     -> ApiWallet
@@ -1108,7 +1140,9 @@ postTx
 postTx ctx (wSrc, postTxEndp, pass) wDest amt = do
     addrs <- listAddresses @n ctx wDest
     let destination = (addrs !! 1) ^. #id
-    let payload = Json [aesonQQ|{
+    let payload =
+            Json
+                [aesonQQ|{
             "payments": [{
                 "address": #{destination},
                 "amount": {
@@ -1126,8 +1160,10 @@ updateMetadataSource :: MonadUnliftIO m => Context -> Text -> m ()
 updateMetadataSource ctx t = do
     r <- request @SettingsPutData ctx Link.putSettings Default payload
     expectResponseCode HTTP.status204 r
- where
-  payload = Json [aesonQQ| {
+  where
+    payload =
+        Json
+            [aesonQQ| {
        "settings": {
            "pool_metadata_source": #{t}
             }
@@ -1135,14 +1171,19 @@ updateMetadataSource ctx t = do
 
 bracketSettings :: MonadUnliftIO m => Context -> m () -> m ()
 bracketSettings ctx action = do
-    r@(_, response) <- request @(ApiT Settings) ctx Link.getSettings Default Empty
+    r@(_, response) <-
+        request @(ApiT Settings) ctx Link.getSettings Default Empty
     expectResponseCode HTTP.status200 r
     case response of
         Left e -> wantedSuccessButError e
         Right s -> do
             action
-            r' <- request @SettingsPutData ctx Link.putSettings Default
-                (Json $ Aeson.toJSON $ SettingsPutData s)
+            r' <-
+                request @SettingsPutData
+                    ctx
+                    Link.putSettings
+                    Default
+                    (Json $ Aeson.toJSON $ SettingsPutData s)
             expectResponseCode HTTP.status204 r'
 
 verifyMetadataSource
@@ -1157,10 +1198,15 @@ verifyMetadataSource ctx s = do
 
 triggerMaintenanceAction :: MonadUnliftIO m => Context -> Text -> m ()
 triggerMaintenanceAction ctx a = do
-    r <- request @ApiMaintenanceAction ctx Link.postPoolMaintenance Default payload
+    r <-
+        request @ApiMaintenanceAction
+            ctx
+            Link.postPoolMaintenance
+            Default
+            payload
     expectResponseCode HTTP.status204 r
- where
-   payload = Json [aesonQQ| { "maintenance_action": #{a} } |]
+  where
+    payload = Json [aesonQQ| { "maintenance_action": #{a} } |]
 
 verifyMaintenanceAction
     :: MonadUnliftIO m
@@ -1168,7 +1214,12 @@ verifyMaintenanceAction
     -> PoolMetadataGCStatus
     -> m ()
 verifyMaintenanceAction ctx s = do
-    r <- request @ApiMaintenanceAction ctx Link.getPoolMaintenance Default Empty
+    r <-
+        request @ApiMaintenanceAction
+            ctx
+            Link.getPoolMaintenance
+            Default
+            Empty
     expectResponseCode HTTP.status200 r
     expectField (#gcStakePools . #getApiT) (`shouldBe` s) r
 
@@ -1179,8 +1230,13 @@ accPubKeyFromMnemonics
     -> Passphrase "encryption"
     -> Text
 accPubKeyFromMnemonics mnemonic1 mnemonic2 ix passphrase =
-    T.decodeUtf8 $ serializeXPub $ publicKey SharedKeyS $
-        deriveAccountPrivateKey passphrase rootXPrv (Index $ 2_147_483_648 + ix)
+    T.decodeUtf8
+        $ serializeXPub
+        $ publicKey SharedKeyS
+        $ deriveAccountPrivateKey
+            passphrase
+            rootXPrv
+            (Index $ 2_147_483_648 + ix)
   where
     rootXPrv = Shared.generateKeyFromSeed (mnemonic1, mnemonic2) passphrase
 
@@ -1191,17 +1247,19 @@ sharedAccPubKeyFromMnemonics
     -> Passphrase "encryption"
     -> Text
 sharedAccPubKeyFromMnemonics mnemonic1 mnemonic2 ix passphrase =
-    T.decodeUtf8 $ encode (EBech32 hrp)
+    T.decodeUtf8
+        $ encode (EBech32 hrp)
         $ xpubToBytes
         $ getRawKey SharedKeyS
         $ publicKey SharedKeyS
         $ deriveAccountPrivateKey passphrase rootXPrv
-        $ Index $ 2_147_483_648 + ix
+        $ Index
+        $ 2_147_483_648 + ix
   where
     hrp = [Bech32.humanReadablePart|acct_shared_xvk|]
     rootXPrv = Shared.generateKeyFromSeed (mnemonic1, mnemonic2) passphrase
 
-genXPubs :: Int -> IO [(XPub,Text)]
+genXPubs :: Int -> IO [(XPub, Text)]
 genXPubs num = replicateM num genXPub
   where
     genXPub = do
@@ -1214,7 +1272,7 @@ genXPubs num = replicateM num genXPub
     xpubFromText :: Text -> Maybe XPub
     xpubFromText = fmap eitherToMaybe fromHexText >=> xpubFromBytes
 
-genXPubsBech32 :: Int -> IO [(XPub,Text)]
+genXPubsBech32 :: Int -> IO [(XPub, Text)]
 genXPubsBech32 num = replicateM num genXPub
   where
     genXPub = do
@@ -1225,8 +1283,11 @@ genXPubsBech32 num = replicateM num genXPub
         pure (accXPub, accXPubTxt)
 
     xpubFromText :: Text -> Maybe XPub
-    xpubFromText = fmap (getApiT . sharedKey) . fmap eitherToMaybe
-        (fromText @ApiAccountSharedPublicKey)
+    xpubFromText =
+        fmap (getApiT . sharedKey)
+            . fmap
+                eitherToMaybe
+                (fromText @ApiAccountSharedPublicKey)
 
 fromHexText :: Text -> Either String ByteString
 fromHexText = fromHex . T.encodeUtf8
@@ -1240,10 +1301,11 @@ bech32Text hrp = T.decodeUtf8 . encode (EBech32 hrp)
 getTxId :: (ApiTransaction n) -> String
 getTxId tx = T.unpack $ toUrlPiece $ ApiTxId (tx ^. #id)
 
-unsafeGetTransactionTime :: MonadUnliftIO m => [ApiTransaction n] -> m UTCTime
+unsafeGetTransactionTime
+    :: MonadUnliftIO m => [ApiTransaction n] -> m UTCTime
 unsafeGetTransactionTime txs =
     case fmap time . insertedAt <$> txs of
-        (Just t):_ -> pure t
+        (Just t) : _ -> pure t
         _ -> throwString "Expected at least one transaction with a time."
 
 waitForTxStatus
@@ -1256,14 +1318,15 @@ waitForTxStatus
     -> m ()
 waitForTxStatus ctx w txStatus tx = eventually "Tx is in ledger" $ do
     let endpoint = Link.getTransaction @'Shelley w tx
-    r <- getResponse <$> request @(ApiTransaction n) ctx endpoint Default Empty
+    r <-
+        getResponse <$> request @(ApiTransaction n) ctx endpoint Default Empty
     r ^. #status . #getApiT `shouldBe` txStatus
 
 waitAllTxsInLedger
-    :: forall n m.
-        ( HasSNetworkId n
-        , MonadUnliftIO m
-        )
+    :: forall n m
+     . ( HasSNetworkId n
+       , MonadUnliftIO m
+       )
     => Context
     -> ApiWallet
     -> m ()
@@ -1298,15 +1361,17 @@ waitNumberOfEpochBoundaries numberOfEpochs ctx = liftIO $ do
     -- Sometimes current node tip is a few slots off what we expect it to be;
     -- The additional sleep compensates for this imprecision;
     (actualEpochAfterSleep', slotInEpochAfterSleep') <-
-        tipInfo ctx >>= iterateUntilM
-            (\(epochAfterSleep, _slotInEpochAfterSleep) ->
-                epochAfterSleep >= expectedEpochAfterSleep)
-            (\(_epochAfterSleep, slotInEpochAfterSleep) -> do
-                let missedSlots =
-                        slotsPerEpoch - unSlotInEpoch slotInEpochAfterSleep
-                sleep $ slotLen * fromIntegral missedSlots
-                tipInfo ctx
-            )
+        tipInfo ctx
+            >>= iterateUntilM
+                ( \(epochAfterSleep, _slotInEpochAfterSleep) ->
+                    epochAfterSleep >= expectedEpochAfterSleep
+                )
+                ( \(_epochAfterSleep, slotInEpochAfterSleep) -> do
+                    let missedSlots =
+                            slotsPerEpoch - unSlotInEpoch slotInEpochAfterSleep
+                    sleep $ slotLen * fromIntegral missedSlots
+                    tipInfo ctx
+                )
 
     unless (actualEpochAfterSleep' >= expectedEpochAfterSleep)
         $ expectationFailure . mconcat
@@ -1337,7 +1402,7 @@ slotInfo ctx = do
     pure (slotLen, slotsPerEpoch)
 
 sleep :: NominalDiffTime -> IO ()
-sleep t = threadDelay (ceiling (t * 10 ^ (6::Int)))
+sleep t = threadDelay (ceiling (t * 10 ^ (6 :: Int)))
 
 waitForEpoch :: MonadIO m => EpochNo -> Context -> m ()
 waitForEpoch targetEpoch ctx = liftIO $ do
@@ -1347,20 +1412,21 @@ waitForEpoch targetEpoch ctx = liftIO $ do
     unless (currentEpoch > targetEpoch) $ do
         let n = unEpochNo $ targetEpoch - currentEpoch
 
-        sleep $ slotLen * fromIntegral slotsPerEpoch * fromIntegral n
-            - fromIntegral (unSlotInEpoch slotInEpoch) * slotLen
+        sleep
+            $ slotLen * fromIntegral slotsPerEpoch * fromIntegral n
+                - fromIntegral (unSlotInEpoch slotInEpoch) * slotLen
 
-        (epochAfterSleep , _slotInEpoch) <- tipInfo ctx
+        (epochAfterSleep, _slotInEpoch) <- tipInfo ctx
         unless (epochAfterSleep >= targetEpoch)
             $ expectationFailure . mconcat
             $ [ "After waiting for "
-            , show n
-            , " epochs, current epoch ("
-            , show (unEpochNo epochAfterSleep)
-            , ") is less than expected ("
-            , show (unEpochNo targetEpoch)
-            , ")"
-            ]
+              , show n
+              , " epochs, current epoch ("
+              , show (unEpochNo epochAfterSleep)
+              , ") is less than expected ("
+              , show (unEpochNo targetEpoch)
+              , ")"
+              ]
 
 -- Sometimes, we need to wait long-enough for transactions to become immutable.
 -- What long enough is rather empirical here, but it must satisfies one important
@@ -1397,71 +1463,76 @@ waitForTxImmutability _ctx = liftIO $ do
     --
     -- let stabilityDelay   = round (sl * 3 * k / f)
     -- let txInsertionDelay = round (sl * 10 / f)
-    let stabilityDelay   = 6 * oneSecond
+    let stabilityDelay = 6 * oneSecond
     let txInsertionDelay = 4 * oneSecond
 
     threadDelay $ stabilityDelay + txInsertionDelay
 
 between :: (Ord a, Show a, HasCallStack) => (a, a) -> a -> Expectation
 between (min', max') x
-    | min' <= x && x <= max'
-        = return ()
-    | otherwise
-        = expectationFailure $ mconcat
-            [ show x
-            , " ∉ ["
-            , show min'
-            , ", "
-            , show max'
-            ]
+    | min' <= x && x <= max' =
+        return ()
+    | otherwise =
+        expectationFailure
+            $ mconcat
+                [ show x
+                , " ∉ ["
+                , show min'
+                , ", "
+                , show max'
+                ]
 
 (.>) :: (Ord a, MonadIO m, Show a) => a -> a -> m ()
 x .> bound
-    | x > bound
-        = return ()
-    | otherwise
-        = expectationFailure $ mconcat
-            [ show x
-            , " does not satisfy (> "
-            , show bound
-            , ")"
-            ]
+    | x > bound =
+        return ()
+    | otherwise =
+        expectationFailure
+            $ mconcat
+                [ show x
+                , " does not satisfy (> "
+                , show bound
+                , ")"
+                ]
 
 (.<) :: (Ord a, MonadIO m, Show a) => a -> a -> m ()
 x .< bound
-    | x < bound
-        = return ()
-    | otherwise
-        = expectationFailure $ mconcat
-            [ show x
-            , " does not satisfy (< "
-            , show bound
-            , ")"
-            ]
+    | x < bound =
+        return ()
+    | otherwise =
+        expectationFailure
+            $ mconcat
+                [ show x
+                , " does not satisfy (< "
+                , show bound
+                , ")"
+                ]
 
 (.>=) :: (Ord a, MonadIO m, Show a) => a -> a -> m ()
 a .>= b
-    | a >= b
-        = return ()
-    | otherwise
-        = expectationFailure $ mconcat
-            [ show a
-            , " does not satisfy (>= "
-            , show b
-            , ")"
-            ]
+    | a >= b =
+        return ()
+    | otherwise =
+        expectationFailure
+            $ mconcat
+                [ show a
+                , " does not satisfy (>= "
+                , show b
+                , ")"
+                ]
 
 (.<=) :: (Ord a, MonadIO m, Show a) => a -> a -> m ()
 a .<= b
-    | a <= b
-        = return ()
-    | otherwise
-        = expectationFailure $ mconcat
-            [ show a
-            , " does not satisfy (<= "
-            , show b
-            , ")"
-            ]
+    | a <= b =
+        return ()
+    | otherwise =
+        expectationFailure
+            $ mconcat
+                [ show a
+                , " does not satisfy (<= "
+                , show b
+                , ")"
+                ]
 
 -- | Like @expectationFailure@, but with a @IO a@ return type instead of @IO
 -- ()@.
@@ -1482,7 +1553,7 @@ expectationFailure' msg = do
 -- much longer than that isn't really useful (in particular, this doesn't
 -- depend on the host machine running the test, because the protocol moves
 -- forward at the same speed regardless...)
-eventuallyReport  :: MonadUnliftIO m => IO String -> m a -> m a
+eventuallyReport :: MonadUnliftIO m => IO String -> m a -> m a
 eventuallyReport = eventuallyUsingDelayReport (500 * ms) 90
   where
     ms = 1_000
@@ -1496,43 +1567,57 @@ eventually = eventuallyReport . pure
 -- It sleeps for a specified delay between retries and fails after timeout.
 eventuallyUsingDelayReport
     :: (MonadUnliftIO m)
-    => Int -- ^ Delay in microseconds
-    -> Int -- ^ Timeout in seconds
-    -> IO String -- ^ Brief description of the IO action
+    => Int
+    -- ^ Delay in microseconds
+    -> Int
+    -- ^ Timeout in seconds
+    -> IO String
+    -- ^ Brief description of the IO action
     -> m a
     -> m a
 eventuallyUsingDelayReport delay timeout ioDesc io = do
     lastErrorRef <- liftIO $ newIORef Nothing
-    winner <- race (threadDelay $ timeout * oneSecond) (trial lastErrorRef)
+    winner <-
+        race (threadDelay $ timeout * oneSecond) (trial lastErrorRef)
     case winner of
         Left () -> do
             lastError <- liftIO $ readIORef lastErrorRef
             desc <- liftIO ioDesc
-            let msg = "Waited longer than " ++ show timeout ++
-                      "s to resolve action: " ++ show desc ++ "."
+            let msg =
+                    "Waited longer than "
+                        ++ show timeout
+                        ++ "s to resolve action: "
+                        ++ show desc
+                        ++ "."
             case fromException @HUnitFailure =<< lastError of
                 Just lastError' -> throwIO $ appendFailureReason msg lastError'
                 Nothing ->
-                    liftIO $ expectationFailure' $ mconcat
-                        [ msg
-                        , " Error condition: "
-                        , show lastError
-                        ]
+                    liftIO
+                        $ expectationFailure'
+                        $ mconcat
+                            [ msg
+                            , " Error condition: "
+                            , show lastError
+                            ]
         Right a ->
             return a
   where
     trial lastErrorRef = loop
       where
-        loop = io `catch` \(e :: SomeException) -> do
-            liftIO $ writeIORef lastErrorRef (Just e)
-            threadDelay delay
-            loop
+        loop =
+            io `catch` \(e :: SomeException) -> do
+                liftIO $ writeIORef lastErrorRef (Just e)
+                threadDelay delay
+                loop
 
 eventuallyUsingDelay
     :: MonadUnliftIO m
-    => Int -- ^ Delay in microseconds
-    -> Int -- ^ Timeout in seconds
-    -> String -- ^ Brief description of the IO action
+    => Int
+    -- ^ Delay in microseconds
+    -> Int
+    -- ^ Timeout in seconds
+    -> String
+    -- ^ Brief description of the IO action
     -> m a
     -> m a
 eventuallyUsingDelay delay timeout desc =
@@ -1550,17 +1635,16 @@ utcIso8601ToText = utcTimeToText iso8601ExtendedUtc
 -- the cleanup manually.
 
 -- | Restore HW Wallet from pub key
---
 restoreWalletFromPubKey
-    :: forall w (style :: WalletStyle) m.
-        ( Link.Discriminate style
-        , Link.PostWallet style
-        , HasType (ApiT WalletId) w
-        , HasType (ApiT SyncProgress) w
-        , Show w
-        , FromJSON w
-        , MonadIO m
-        )
+    :: forall w (style :: WalletStyle) m
+     . ( Link.Discriminate style
+       , Link.PostWallet style
+       , HasType (ApiT WalletId) w
+       , HasType (ApiT SyncProgress) w
+       , Show w
+       , FromJSON w
+       , MonadIO m
+       )
     => Context
     -> Text
     -> Text
@@ -1568,7 +1652,9 @@ restoreWalletFromPubKey
 restoreWalletFromPubKey ctx pubKey name = snd <$> allocate create destroy
   where
     create = do
-        let payloadRestore = Json [aesonQQ| {
+        let payloadRestore =
+                Json
+                    [aesonQQ| {
                 "name": #{name},
                 "account_public_key": #{pubKey}
             }|]
@@ -1577,10 +1663,18 @@ restoreWalletFromPubKey ctx pubKey name = snd <$> allocate create destroy
         let wid = getResponse r
         eventually "restoreWalletFromPubKey: wallet is 100% synced " $ do
             rg <- request @w ctx (Link.getWallet @style wid) Default Empty
-            expectField (typed @(ApiT SyncProgress) . #getApiT) (`shouldBe` Ready) rg
+            expectField
+                (typed @(ApiT SyncProgress) . #getApiT)
+                (`shouldBe` Ready)
+                rg
         return wid
-    destroy w = void $ request @Aeson.Value ctx
-      (Link.deleteWallet @style w) Default Empty
+    destroy w =
+        void
+            $ request @Aeson.Value
+                ctx
+                (Link.deleteWallet @style w)
+                Default
+                Empty
 
 -- | Create an empty wallet
 emptyRandomWallet
@@ -1589,7 +1683,9 @@ emptyRandomWallet
     -> ResourceT m ApiByronWallet
 emptyRandomWallet ctx = do
     mnemonic <- Mnemonics.generateSome Mnemonics.M12
-    emptyByronWalletWith ctx "random"
+    emptyByronWalletWith
+        ctx
+        "random"
         ("Random Wallet", mnemonic, fixturePassphrase)
 
 emptyRandomWalletMws
@@ -1598,8 +1694,11 @@ emptyRandomWalletMws
     -> ResourceT m (ApiByronWallet, SomeMnemonic)
 emptyRandomWalletMws ctx = do
     mnemonic <- Mnemonics.generateSome Mnemonics.M12
-    (,mnemonic) <$> emptyByronWalletWith ctx "random"
-        ("Random Wallet", mnemonic, fixturePassphrase)
+    (,mnemonic)
+        <$> emptyByronWalletWith
+            ctx
+            "random"
+            ("Random Wallet", mnemonic, fixturePassphrase)
 
 emptyIcarusWallet
     :: MonadUnliftIO m
@@ -1607,7 +1706,9 @@ emptyIcarusWallet
     -> ResourceT m ApiByronWallet
 emptyIcarusWallet ctx = do
     mnemonic <- Mnemonics.generateSome Mnemonics.M15
-    emptyByronWalletWith ctx "icarus"
+    emptyByronWalletWith
+        ctx
+        "icarus"
         ("Icarus Wallet", mnemonic, fixturePassphrase)
 
 emptyIcarusWalletMws
@@ -1616,8 +1717,11 @@ emptyIcarusWalletMws
     -> ResourceT m (ApiByronWallet, SomeMnemonic)
 emptyIcarusWalletMws ctx = do
     mnemonic <- Mnemonics.generateSome Mnemonics.M15
-    (,mnemonic) <$> emptyByronWalletWith ctx "icarus"
-        ("Icarus Wallet", mnemonic, fixturePassphrase)
+    (,mnemonic)
+        <$> emptyByronWalletWith
+            ctx
+            "icarus"
+            ("Icarus Wallet", mnemonic, fixturePassphrase)
 
 emptyRandomWalletWithPasswd
     :: MonadUnliftIO m
@@ -1625,15 +1729,17 @@ emptyRandomWalletWithPasswd
     -> Text
     -> ResourceT m ApiByronWallet
 emptyRandomWalletWithPasswd ctx rawPwd = do
-    let pwd = preparePassphrase W.EncryptWithScrypt
-            $ Passphrase
-            $ BA.convert
-            $ T.encodeUtf8 rawPwd
+    let pwd =
+            preparePassphrase W.EncryptWithScrypt
+                $ Passphrase
+                $ BA.convert
+                $ T.encodeUtf8 rawPwd
     seed <- Mnemonics.generateSome Mnemonics.M12
-    let key = T.decodeUtf8
-            $ hex
-            $ Byron.getKey
-            $ Byron.generateKeyFromSeed seed pwd
+    let key =
+            T.decodeUtf8
+                $ hex
+                $ Byron.getKey
+                $ Byron.generateKeyFromSeed seed pwd
     pwdH <- liftIO $ toText <$> encryptPassphraseTestingOnly 64 pwd
     emptyByronWalletFromXPrvWith ctx "random" ("Random Wallet", key, pwdH)
 
@@ -1648,8 +1754,13 @@ postWallet' ctx headers payload = snd <$> allocate create (free . snd)
     create =
         request @ApiWallet ctx (Link.postWallet @'Shelley) headers payload
 
-    free (Right w) = void $ request @Aeson.Value ctx
-        (Link.deleteWallet @'Shelley w) Default Empty
+    free (Right w) =
+        void
+            $ request @Aeson.Value
+                ctx
+                (Link.deleteWallet @'Shelley w)
+                Default
+                Empty
     free (Left _) = return ()
 
 postWallet
@@ -1669,18 +1780,26 @@ postByronWallet ctx payload = snd <$> allocate create (free . snd)
     create =
         request @ApiByronWallet ctx (Link.postWallet @'Byron) Default payload
 
-    free (Right w) = void $ request @Aeson.Value ctx
-        (Link.deleteWallet @'Byron w) Default Empty
+    free (Right w) =
+        void
+            $ request @Aeson.Value
+                ctx
+                (Link.deleteWallet @'Byron w)
+                Default
+                Empty
     free (Left _) = return ()
 
 emptyByronWalletWith
-    :: forall m. MonadUnliftIO m
+    :: forall m
+     . MonadUnliftIO m
     => Context
     -> String
     -> (Text, SomeMnemonic, Text)
     -> ResourceT m ApiByronWallet
 emptyByronWalletWith ctx style (name, mnemonic, pass) = do
-    let payload = Json [aesonQQ| {
+    let payload =
+            Json
+                [aesonQQ| {
             "name": #{name},
             "mnemonic_sentence": #{someMnemonicToWords mnemonic},
             "passphrase": #{pass},
@@ -1691,13 +1810,16 @@ emptyByronWalletWith ctx style (name, mnemonic, pass) = do
     return (getResponse r)
 
 emptyByronWalletFromXPrvWith
-    :: forall m. MonadUnliftIO m
+    :: forall m
+     . MonadUnliftIO m
     => Context
     -> String
     -> (Text, Text, Text)
     -> ResourceT m ApiByronWallet
 emptyByronWalletFromXPrvWith ctx style (name, key, passHash) = do
-    let payload = Json [aesonQQ| {
+    let payload =
+            Json
+                [aesonQQ| {
             "name": #{name},
             "encrypted_root_private_key": #{key},
             "passphrase_hash": #{passHash},
@@ -1713,7 +1835,9 @@ emptyWalletAndMnemonic
     -> ResourceT m (ApiWallet, SomeMnemonic)
 emptyWalletAndMnemonic ctx = do
     mnemonic <- Mnemonics.generateSome Mnemonics.M15
-    let payload = Json [aesonQQ| {
+    let payload =
+            Json
+                [aesonQQ| {
             "name": "Empty Wallet",
             "mnemonic_sentence": #{someMnemonicToWords mnemonic},
             "passphrase": #{fixturePassphrase}
@@ -1730,7 +1854,9 @@ emptyWalletAndMnemonicAndSndFactor ctx = do
     mnemonic <- Mnemonics.generateSome Mnemonics.M15
     sndFactor <-
         liftIO $ (mnemonicToText . entropyToMnemonic) <$> genEntropy @128
-    let payload = Json [aesonQQ| {
+    let payload =
+            Json
+                [aesonQQ| {
             "name": "Empty Wallet",
             "mnemonic_sentence": #{someMnemonicToWords mnemonic},
             "mnemonic_second_factor": #{sndFactor},
@@ -1747,7 +1873,9 @@ emptyWallet
     -> ResourceT m ApiWallet
 emptyWallet ctx = do
     mnemonic <- Mnemonics.generateSome Mnemonics.M15
-    let payload = Json [aesonQQ| {
+    let payload =
+            Json
+                [aesonQQ| {
             "name": "Empty Wallet",
             "mnemonic_sentence": #{someMnemonicToWords mnemonic},
             "passphrase": #{fixturePassphrase}
@@ -1763,8 +1891,11 @@ emptyWalletWith
     -> (Text, Text, Int)
     -> ResourceT m ApiWallet
 emptyWalletWith ctx (name, passphrase, addrPoolGap) = do
-    mnemonic <- liftIO $ (mnemonicToText . entropyToMnemonic) <$> genEntropy @160
-    let payload = Json [aesonQQ| {
+    mnemonic <-
+        liftIO $ (mnemonicToText . entropyToMnemonic) <$> genEntropy @160
+    let payload =
+            Json
+                [aesonQQ| {
             "name": #{name},
             "mnemonic_sentence": #{mnemonic},
             "passphrase": #{passphrase},
@@ -1780,8 +1911,11 @@ emptyWalletAndMnemonicWith
     -> (Text, Text, Int)
     -> ResourceT m (ApiWallet, [Text])
 emptyWalletAndMnemonicWith ctx (name, passphrase, addrPoolGap) = do
-    mnemonic <- liftIO $ (mnemonicToText . entropyToMnemonic) <$> genEntropy @160
-    let payload = Json [aesonQQ| {
+    mnemonic <-
+        liftIO $ (mnemonicToText . entropyToMnemonic) <$> genEntropy @160
+    let payload =
+            Json
+                [aesonQQ| {
             "name": #{name},
             "mnemonic_sentence": #{mnemonic},
             "passphrase": #{passphrase},
@@ -1797,7 +1931,9 @@ walletFromMnemonic
     -> SomeMnemonic
     -> ResourceT m ApiWallet
 walletFromMnemonic ctx (SomeMnemonic m) = do
-    let payload = Json [aesonQQ|{
+    let payload =
+            Json
+                [aesonQQ|{
             "name": "walletFromMnemonic Wallet",
             "mnemonic_sentence": #{mnemonicToText m},
             "passphrase": #{fixturePassphrase}
@@ -1812,7 +1948,9 @@ rewardWallet
     -> ResourceT m (ApiWallet, SomeMnemonic)
 rewardWallet ctx = do
     mnemonic@(SomeMnemonic m) <- liftIO $ nextRewardMnemonic (_faucet ctx)
-    let payload = Json [aesonQQ|{
+    let payload =
+            Json
+                [aesonQQ|{
             "name": "Reward Wallet",
             "mnemonic_sentence": #{mnemonicToText m},
             "passphrase": #{fixturePassphrase}
@@ -1821,18 +1959,18 @@ rewardWallet ctx = do
     expectResponseCode HTTP.status201 r
     let fetchWallet w =
             let endpoint = Link.getWallet @'Shelley w
-             in request @ApiWallet ctx endpoint Default Empty
+            in  request @ApiWallet ctx endpoint Default Empty
     let w = getResponse r
 
     waitNumberOfEpochBoundaries 2 ctx
 
-    eventually "MIR wallet has available balance" $
-        fetchWallet w >>=
-            flip verify [expectField (#balance . #available) (.> ApiAmount 0)]
+    eventually "MIR wallet has available balance"
+        $ fetchWallet w
+            >>= flip verify [expectField (#balance . #available) (.> ApiAmount 0)]
 
-    eventually "MIR wallet has a reward balance" $
-        fetchWallet w >>=
-            flip verify [expectField (#balance . #reward) (.> ApiAmount 0)]
+    eventually "MIR wallet has a reward balance"
+        $ fetchWallet w
+            >>= flip verify [expectField (#balance . #reward) (.> ApiAmount 0)]
 
     (,mnemonic) . getResponse <$> fetchWallet w
 
@@ -1842,14 +1980,15 @@ fixtureMultiAssetWallet
     => Context
     -> ResourceT m ApiWallet
 fixtureMultiAssetWallet ctx =
-    fst <$> fixtureWalletWithMnemonics nextMaryAllegraMnemonic ctx "muilti-asset"
+    fst
+        <$> fixtureWalletWithMnemonics nextMaryAllegraMnemonic ctx "muilti-asset"
 
 fixtureMultiAssetRandomWallet
-    :: forall n m.
-        ( HasCallStack
-        , HasSNetworkId n
-        , MonadUnliftIO m
-        )
+    :: forall n m
+     . ( HasCallStack
+       , HasSNetworkId n
+       , MonadUnliftIO m
+       )
     => Context
     -> ResourceT m ApiByronWallet
 fixtureMultiAssetRandomWallet ctx = do
@@ -1858,7 +1997,12 @@ fixtureMultiAssetRandomWallet ctx = do
 
     -- create Byron address
     let p = Json [aesonQQ| { "passphrase": #{fixturePassphrase} }|]
-    r <- request @(ApiAddressWithPath n) ctx (Link.postRandomAddress wB) Default p
+    r <-
+        request @(ApiAddressWithPath n)
+            ctx
+            (Link.postRandomAddress wB)
+            Default
+            p
     expectSuccess r
 
     -- pick out assets to send
@@ -1866,33 +2010,49 @@ fixtureMultiAssetRandomWallet ctx = do
     assetsSrc `shouldNotBe` mempty
     let val = minUTxOValue (_mainEra ctx) <$ pickAnAsset assetsSrc
 
-    rL <- request @[ApiAddressWithPath n] ctx (Link.listAddresses @'Byron wB) Default Empty
+    rL <-
+        request @[ApiAddressWithPath n]
+            ctx
+            (Link.listAddresses @'Byron wB)
+            Default
+            Empty
     let addrs = getResponse rL
     let destination = (addrs !! 1) ^. #id
     payload <- mkTxPayloadMA @n destination 0 [val] fixturePassphrase
 
     -- send assets to Byron wallet
-    rtx <- request @(ApiTransaction n) ctx
-        (Link.createTransactionOld @'Shelley wMA) Default payload
+    rtx <-
+        request @(ApiTransaction n)
+            ctx
+            (Link.createTransactionOld @'Shelley wMA)
+            Default
+            payload
     expectResponseCode HTTP.status202 rtx
 
     eventually "Byron wallet has assets" $ do
-        rb <- request @ApiByronWallet ctx
-            (Link.getWallet @'Byron wB) Default Empty
-        verify rb
-            [ expectField (#assets . #available)
+        rb <-
+            request @ApiByronWallet
+                ctx
+                (Link.getWallet @'Byron wB)
+                Default
+                Empty
+        verify
+            rb
+            [ expectField
+                (#assets . #available)
                 (`shouldNotBe` mempty)
-            , expectField (#assets . #total)
+            , expectField
+                (#assets . #total)
                 (`shouldNotBe` mempty)
             , expectField (#state . #getApiT) (`shouldBe` Ready)
             ]
         return (getResponse rb)
 
 fixtureMultiAssetIcarusWallet
-    :: forall n m.
-        ( HasSNetworkId n
-        , MonadUnliftIO m
-        )
+    :: forall n m
+     . ( HasSNetworkId n
+       , MonadUnliftIO m
+       )
     => Context
     -> ResourceT m ApiByronWallet
 fixtureMultiAssetIcarusWallet ctx = do
@@ -1904,39 +2064,58 @@ fixtureMultiAssetIcarusWallet ctx = do
     assetsSrc `shouldNotBe` mempty
     let val = minUTxOValue (_mainEra ctx) <$ pickAnAsset assetsSrc
 
-    rL <- request @[ApiAddressWithPath n] ctx (Link.listAddresses @'Byron wB) Default Empty
+    rL <-
+        request @[ApiAddressWithPath n]
+            ctx
+            (Link.listAddresses @'Byron wB)
+            Default
+            Empty
     let addrs = getResponse rL
     let destination = (addrs !! 1) ^. #id
     payload <- mkTxPayloadMA @n destination 0 [val] fixturePassphrase
 
     -- send assets to Icarus wallet
-    rtx <- request @(ApiTransaction n) ctx
-        (Link.createTransactionOld @'Shelley wMA) Default payload
+    rtx <-
+        request @(ApiTransaction n)
+            ctx
+            (Link.createTransactionOld @'Shelley wMA)
+            Default
+            payload
     expectResponseCode HTTP.status202 rtx
 
     eventually "Icarus wallet has assets" $ do
-        rb <- request @ApiByronWallet ctx
-            (Link.getWallet @'Byron wB) Default Empty
-        verify rb
-            [ expectField (#assets . #available)
+        rb <-
+            request @ApiByronWallet
+                ctx
+                (Link.getWallet @'Byron wB)
+                Default
+                Empty
+        verify
+            rb
+            [ expectField
+                (#assets . #available)
                 (`shouldNotBe` mempty)
-            , expectField (#assets . #total)
+            , expectField
+                (#assets . #total)
                 (`shouldNotBe` mempty)
             ]
         return (getResponse rb)
 
 emptySharedWallet
-    :: forall m. MonadUnliftIO m
+    :: forall m
+     . MonadUnliftIO m
     => Context
     -> ResourceT m ApiSharedWallet
 emptySharedWallet ctx = do
-   m15 <- Mnemonics.generateSome Mnemonics.M15
-   m12 <- Mnemonics.generateSome Mnemonics.M12
-   let passphrase = Passphrase $ BA.convert $ T.encodeUtf8 fixturePassphrase
-   let index = 30
-   let accXPubDerived =
-           sharedAccPubKeyFromMnemonics m15 (Just m12) index passphrase
-   let payload = Json [aesonQQ| {
+    m15 <- Mnemonics.generateSome Mnemonics.M15
+    m12 <- Mnemonics.generateSome Mnemonics.M12
+    let passphrase = Passphrase $ BA.convert $ T.encodeUtf8 fixturePassphrase
+    let index = 30
+    let accXPubDerived =
+            sharedAccPubKeyFromMnemonics m15 (Just m12) index passphrase
+    let payload =
+            Json
+                [aesonQQ| {
            "name": "Shared Wallet",
            "mnemonic_sentence": #{someMnemonicToWords m15},
            "mnemonic_second_factor": #{someMnemonicToWords m12},
@@ -1951,32 +2130,36 @@ emptySharedWallet ctx = do
                      }
                }
            } |]
-   rPost <- postSharedWallet ctx Default payload
-   verify (fmap (swapEither . view #wallet) <$> rPost)
-       [ expectResponseCode HTTP.status201
-       ]
-   pure $ getResponse rPost
+    rPost <- postSharedWallet ctx Default payload
+    verify
+        (fmap (swapEither . view #wallet) <$> rPost)
+        [ expectResponseCode HTTP.status201
+        ]
+    pure $ getResponse rPost
 
 emptySharedWalletDelegating
-    :: forall m. MonadUnliftIO m
+    :: forall m
+     . MonadUnliftIO m
     => Context
-    -> ResourceT m (ApiSharedWallet,ApiSharedWallet)
+    -> ResourceT m (ApiSharedWallet, ApiSharedWallet)
 emptySharedWalletDelegating ctx = do
-   --cosigner#0
-   m15A <- Mnemonics.generateSome Mnemonics.M15
-   m12A <- Mnemonics.generateSome Mnemonics.M12
-   let passphrase = Passphrase $ BA.convert $ T.encodeUtf8 fixturePassphrase
-   let indexA = 30
-   let accXPubDerivedA =
-           sharedAccPubKeyFromMnemonics m15A (Just m12A) indexA passphrase
-   --cosigner#1
-   m15B <- Mnemonics.generateSome Mnemonics.M15
-   m12B <- Mnemonics.generateSome Mnemonics.M12
-   let indexB = 40
-   let accXPubDerivedB =
-           sharedAccPubKeyFromMnemonics m15B (Just m12B) indexB passphrase
+    -- cosigner#0
+    m15A <- Mnemonics.generateSome Mnemonics.M15
+    m12A <- Mnemonics.generateSome Mnemonics.M12
+    let passphrase = Passphrase $ BA.convert $ T.encodeUtf8 fixturePassphrase
+    let indexA = 30
+    let accXPubDerivedA =
+            sharedAccPubKeyFromMnemonics m15A (Just m12A) indexA passphrase
+    -- cosigner#1
+    m15B <- Mnemonics.generateSome Mnemonics.M15
+    m12B <- Mnemonics.generateSome Mnemonics.M12
+    let indexB = 40
+    let accXPubDerivedB =
+            sharedAccPubKeyFromMnemonics m15B (Just m12B) indexB passphrase
 
-   let payloadA = Json [aesonQQ| {
+    let payloadA =
+            Json
+                [aesonQQ| {
            "name": "Shared Wallet",
            "mnemonic_sentence": #{someMnemonicToWords m15A},
            "mnemonic_second_factor": #{someMnemonicToWords m12A},
@@ -2003,12 +2186,15 @@ emptySharedWalletDelegating ctx = do
                      }
                }
            } |]
-   rPostA <- postSharedWallet ctx Default payloadA
-   verify (fmap (swapEither . view #wallet) <$> rPostA)
-       [ expectResponseCode HTTP.status201
-       ]
+    rPostA <- postSharedWallet ctx Default payloadA
+    verify
+        (fmap (swapEither . view #wallet) <$> rPostA)
+        [ expectResponseCode HTTP.status201
+        ]
 
-   let payloadB = Json [aesonQQ| {
+    let payloadB =
+            Json
+                [aesonQQ| {
            "name": "Shared Wallet",
            "mnemonic_sentence": #{someMnemonicToWords m15B},
            "mnemonic_second_factor": #{someMnemonicToWords m12B},
@@ -2035,12 +2221,13 @@ emptySharedWalletDelegating ctx = do
                      }
                }
            } |]
-   rPostB <- postSharedWallet ctx Default payloadB
-   verify (fmap (swapEither . view #wallet) <$> rPostB)
-       [ expectResponseCode HTTP.status201
-       ]
+    rPostB <- postSharedWallet ctx Default payloadB
+    verify
+        (fmap (swapEither . view #wallet) <$> rPostB)
+        [ expectResponseCode HTTP.status201
+        ]
 
-   pure (getResponse rPostA, getResponse rPostB)
+    pure (getResponse rPostA, getResponse rPostB)
 
 fundSharedWallet
     :: forall n m
@@ -2052,19 +2239,26 @@ fundSharedWallet
     -> NonEmpty ApiSharedWallet
     -> ResourceT m ()
 fundSharedWallet ctx amt sharedWals = do
-   let wal = case NE.head sharedWals of
-           ApiSharedWallet (Right wal') -> wal'
-           _ -> error
-               "funding of shared wallet make sense only for active one"
+    let wal = case NE.head sharedWals of
+            ApiSharedWallet (Right wal') -> wal'
+            _ ->
+                error
+                    "funding of shared wallet make sense only for active one"
 
-   rAddr <- request @[ApiAddressWithPath n] ctx
-       (Link.listAddresses @'Shared wal) Default Empty
-   expectResponseCode HTTP.status200 rAddr
-   let sharedAddrs = getResponse rAddr
-   let destination = (sharedAddrs !! 1) ^. #id
+    rAddr <-
+        request @[ApiAddressWithPath n]
+            ctx
+            (Link.listAddresses @'Shared wal)
+            Default
+            Empty
+    expectResponseCode HTTP.status200 rAddr
+    let sharedAddrs = getResponse rAddr
+    let destination = (sharedAddrs !! 1) ^. #id
 
-   wShelley <- fixtureWallet ctx
-   let payloadTx = Json [aesonQQ|{
+    wShelley <- fixtureWallet ctx
+    let payloadTx =
+            Json
+                [aesonQQ|{
            "payments": [{
                "address": #{destination},
                "amount": {
@@ -2074,24 +2268,31 @@ fundSharedWallet ctx amt sharedWals = do
            }],
            "passphrase": #{fixturePassphrase}
        }|]
-   let ep = Link.createTransactionOld @'Shelley
-   rTx <- request @(ApiTransaction n) ctx (ep wShelley) Default payloadTx
-   expectResponseCode HTTP.status202 rTx
-   let fee = ApiAmount.toNatural (unsafeResponse rTx ^. #fee)
-   eventually "wShelley balance is decreased" $ do
-       ra <- request @ApiWallet ctx
-           (Link.getWallet @'Shelley wShelley) Default Empty
-       expectField
-           (#balance . #available)
-           (`shouldBe` ApiAmount (faucetAmt - fee - amt)) ra
+    let ep = Link.createTransactionOld @'Shelley
+    rTx <- request @(ApiTransaction n) ctx (ep wShelley) Default payloadTx
+    expectResponseCode HTTP.status202 rTx
+    let fee = ApiAmount.toNatural (unsafeResponse rTx ^. #fee)
+    eventually "wShelley balance is decreased" $ do
+        ra <-
+            request @ApiWallet
+                ctx
+                (Link.getWallet @'Shelley wShelley)
+                Default
+                Empty
+        expectField
+            (#balance . #available)
+            (`shouldBe` ApiAmount (faucetAmt - fee - amt))
+            ra
 
-   forM_ sharedWals $ \walShared -> do
-       rWal <- getSharedWallet ctx walShared
-       verify (fmap (view #wallet) <$> rWal)
-           [ expectResponseCode HTTP.status200
-           , expectField (traverse . #balance . #available)
-               (`shouldBe` ApiAmount amt)
-           ]
+    forM_ sharedWals $ \walShared -> do
+        rWal <- getSharedWallet ctx walShared
+        verify
+            (fmap (view #wallet) <$> rWal)
+            [ expectResponseCode HTTP.status200
+            , expectField
+                (traverse . #balance . #available)
+                (`shouldBe` ApiAmount amt)
+            ]
 
 fixtureSharedWallet
     :: forall n m
@@ -2102,9 +2303,9 @@ fixtureSharedWallet
     => Context
     -> ResourceT m ApiActiveSharedWallet
 fixtureSharedWallet ctx = do
-   walShared@(ApiSharedWallet (Right wal)) <- emptySharedWallet ctx
-   fundSharedWallet @n ctx faucetUtxoAmt (pure walShared)
-   return wal
+    walShared@(ApiSharedWallet (Right wal)) <- emptySharedWallet ctx
+    fundSharedWallet @n ctx faucetUtxoAmt (pure walShared)
+    return wal
 
 fixtureSharedWalletDelegating
     :: forall n m
@@ -2115,10 +2316,12 @@ fixtureSharedWalletDelegating
     => Context
     -> ResourceT m (ApiActiveSharedWallet, ApiActiveSharedWallet)
 fixtureSharedWalletDelegating ctx = do
-   (walSharedA@(ApiSharedWallet (Right walA)), ApiSharedWallet (Right walB)) <-
-       emptySharedWalletDelegating ctx
-   fundSharedWallet @n ctx faucetUtxoAmt (NE.fromList [walSharedA])
-   return (walA, walB)
+    ( walSharedA@(ApiSharedWallet (Right walA))
+        , ApiSharedWallet (Right walB)
+        ) <-
+        emptySharedWalletDelegating ctx
+    fundSharedWallet @n ctx faucetUtxoAmt (NE.fromList [walSharedA])
+    return (walA, walB)
 
 postSharedWallet
     :: MonadUnliftIO m
@@ -2129,28 +2332,48 @@ postSharedWallet
 postSharedWallet ctx headers payload = snd <$> allocate create (free . snd)
   where
     create =
-        request @ApiSharedWallet ctx (Link.postWallet @'Shared) headers payload
+        request @ApiSharedWallet
+            ctx
+            (Link.postWallet @'Shared)
+            headers
+            payload
 
-    free (Right (ApiSharedWallet (Left w))) = void $ request @Aeson.Value ctx
-        (Link.deleteWallet @'Shared w) Default Empty
-    free (Right (ApiSharedWallet (Right w))) = void $ request @Aeson.Value ctx
-        (Link.deleteWallet @'Shared w) Default Empty
+    free (Right (ApiSharedWallet (Left w))) =
+        void
+            $ request @Aeson.Value
+                ctx
+                (Link.deleteWallet @'Shared w)
+                Default
+                Empty
+    free (Right (ApiSharedWallet (Right w))) =
+        void
+            $ request @Aeson.Value
+                ctx
+                (Link.deleteWallet @'Shared w)
+                Default
+                Empty
     free (Left _) = return ()
 
 deleteSharedWallet
-    :: forall m. MonadUnliftIO m
+    :: forall m
+     . MonadUnliftIO m
     => Context
     -> ApiSharedWallet
     -> m (HTTP.Status, Either RequestException Value)
 deleteSharedWallet ctx = \case
-      ApiSharedWallet (Left wal') -> r wal'
-      ApiSharedWallet (Right wal') -> r wal'
+    ApiSharedWallet (Left wal') -> r wal'
+    ApiSharedWallet (Right wal') -> r wal'
   where
-      r :: forall w. HasType (ApiT WalletId) w => w -> m (HTTP.Status, Either RequestException Value)
-      r w = request @Aeson.Value ctx (Link.deleteWallet @'Shared w) Default Empty
+    r
+        :: forall w
+         . HasType (ApiT WalletId) w
+        => w -> m (HTTP.Status, Either RequestException Value)
+    r w =
+        request @Aeson.Value ctx (Link.deleteWallet @'Shared w) Default Empty
 
 getSharedWallet
-    :: forall m. MonadUnliftIO m
+    :: forall m
+     . MonadUnliftIO m
     => Context
     -> ApiSharedWallet
     -> m (HTTP.Status, Either RequestException ApiSharedWallet)
@@ -2158,11 +2381,16 @@ getSharedWallet ctx = \case
     ApiSharedWallet (Left wal') -> r wal'
     ApiSharedWallet (Right wal') -> r wal'
   where
-      r :: forall w. HasType (ApiT WalletId) w => w -> m (HTTP.Status, Either RequestException ApiSharedWallet)
-      r w = request @ApiSharedWallet ctx (Link.getWallet @'Shared w) Default Empty
+    r
+        :: forall w
+         . HasType (ApiT WalletId) w
+        => w -> m (HTTP.Status, Either RequestException ApiSharedWallet)
+    r w =
+        request @ApiSharedWallet ctx (Link.getWallet @'Shared w) Default Empty
 
 getSharedWalletKey
-    :: forall m. MonadUnliftIO m
+    :: forall m
+     . MonadUnliftIO m
     => Context
     -> ApiSharedWallet
     -> Role
@@ -2174,11 +2402,20 @@ getSharedWalletKey ctx wal role ix isHashed =
         ApiSharedWallet (Left wal') -> r wal'
         ApiSharedWallet (Right wal') -> r wal'
   where
-      r :: forall w. HasType (ApiT WalletId) w => w -> m (HTTP.Status, Either RequestException ApiVerificationKeyShared)
-      r w = request @ApiVerificationKeyShared ctx (Link.getWalletKey @'Shared w role ix isHashed) Default Empty
+    r
+        :: forall w
+         . HasType (ApiT WalletId) w
+        => w -> m (HTTP.Status, Either RequestException ApiVerificationKeyShared)
+    r w =
+        request @ApiVerificationKeyShared
+            ctx
+            (Link.getWalletKey @'Shared w role ix isHashed)
+            Default
+            Empty
 
 postAccountKeyShared
-    :: forall m. MonadUnliftIO m
+    :: forall m
+     . MonadUnliftIO m
     => Context
     -> ApiSharedWallet
     -> DerivationIndex
@@ -2190,11 +2427,20 @@ postAccountKeyShared ctx wal ix headers payload =
         ApiSharedWallet (Left wal') -> r wal'
         ApiSharedWallet (Right wal') -> r wal'
   where
-      r :: forall w. HasType (ApiT WalletId) w => w -> m (HTTP.Status, Either RequestException ApiAccountKeyShared)
-      r w = request @ApiAccountKeyShared ctx (Link.postAccountKey @'Shared w ix) headers payload
+    r
+        :: forall w
+         . HasType (ApiT WalletId) w
+        => w -> m (HTTP.Status, Either RequestException ApiAccountKeyShared)
+    r w =
+        request @ApiAccountKeyShared
+            ctx
+            (Link.postAccountKey @'Shared w ix)
+            headers
+            payload
 
 getAccountKeyShared
-    :: forall m. MonadUnliftIO m
+    :: forall m
+     . MonadUnliftIO m
     => Context
     -> ApiSharedWallet
     -> Maybe KeyFormat
@@ -2204,16 +2450,26 @@ getAccountKeyShared ctx wal isHashed =
         ApiSharedWallet (Left wal') -> r wal'
         ApiSharedWallet (Right wal') -> r wal'
   where
-      r :: forall w. HasType (ApiT WalletId) w => w -> m (HTTP.Status, Either RequestException ApiAccountKeyShared)
-      r w = request @ApiAccountKeyShared ctx (Link.getAccountKey @'Shared w isHashed) Default Empty
+    r
+        :: forall w
+         . HasType (ApiT WalletId) w
+        => w -> m (HTTP.Status, Either RequestException ApiAccountKeyShared)
+    r w =
+        request @ApiAccountKeyShared
+            ctx
+            (Link.getAccountKey @'Shared w isHashed)
+            Default
+            Empty
 
 getSomeVerificationKey
-    :: forall m. MonadUnliftIO m
+    :: forall m
+     . MonadUnliftIO m
     => Context
     -> ApiWallet
     -> m (ApiVerificationKeyShelley, ApiT (Hash "VerificationKey"))
 getSomeVerificationKey ctx w = do
-    let link = Link.getWalletKey @'Shelley w UtxoExternal (DerivationIndex 0) Nothing
+    let link =
+            Link.getWalletKey @'Shelley w UtxoExternal (DerivationIndex 0) Nothing
     (_, vk@(ApiVerificationKeyShelley (bytes, _) _)) <-
         unsafeRequest @ApiVerificationKeyShelley ctx link Empty
     pure (vk, ApiT $ Hash $ blake2b224 @ByteString bytes)
@@ -2224,7 +2480,8 @@ patchEndpointEnding = \case
     Delegation -> "delegation-script-template"
 
 patchSharedWallet
-    :: forall m. MonadUnliftIO m
+    :: forall m
+     . MonadUnliftIO m
     => Context
     -> ApiSharedWallet
     -> CredentialType
@@ -2235,10 +2492,13 @@ patchSharedWallet ctx wal cred payload =
         ApiSharedWallet (Left wal') -> r wal'
         ApiSharedWallet (Right wal') -> r wal'
   where
-      r :: forall w. HasType (ApiT WalletId) w => w -> m (HTTP.Status, Either RequestException ApiSharedWallet)
-      r w =
-          let endpoint = "v2/shared-wallets" </> w ^. walletId </> patchEndpointEnding cred
-          in request @ApiSharedWallet ctx ("PATCH", endpoint) Default payload
+    r
+        :: forall w
+         . HasType (ApiT WalletId) w
+        => w -> m (HTTP.Status, Either RequestException ApiSharedWallet)
+    r w =
+        let endpoint = "v2/shared-wallets" </> w ^. walletId </> patchEndpointEnding cred
+        in  request @ApiSharedWallet ctx ("PATCH", endpoint) Default payload
 
 -- | Default passphrase used for fixture wallets
 fixturePassphrase :: Text
@@ -2280,20 +2540,26 @@ fixtureWalletWithMnemonics
     -> String -- wallet label
     -> ResourceT m (ApiWallet, SomeMnemonic)
 fixtureWalletWithMnemonics nextWalletMnemonic ctx label = do
-    mnemonic@(SomeMnemonic sm) <- liftIO $ nextWalletMnemonic (_faucet ctx)
-    r <- postWallet ctx $ Json
-        [aesonQQ| {
+    mnemonic@(SomeMnemonic sm) <-
+        liftIO $ nextWalletMnemonic (_faucet ctx)
+    r <-
+        postWallet ctx
+            $ Json
+                [aesonQQ| {
             "name": "Faucet Wallet",
             "mnemonic_sentence": #{mnemonicToText sm},
             "passphrase": #{fixturePassphrase}
         } |]
     expectResponseCode HTTP.status201 r
     let w = getResponse r
-    liftIO $ race (threadDelay (60 * oneSecond)) (checkBalance w) >>= \case
-        Left _ -> expectationFailure'
-            $ "fixtureWallet (" <> label
-            <> "): waited too long for initial transaction"
-        Right a -> pure (a, mnemonic)
+    liftIO
+        $ race (threadDelay (60 * oneSecond)) (checkBalance w) >>= \case
+            Left _ ->
+                expectationFailure'
+                    $ "fixtureWallet ("
+                        <> label
+                        <> "): waited too long for initial transaction"
+            Right a -> pure (a, mnemonic)
   where
     checkBalance w = do
         r <- request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty
@@ -2338,21 +2604,33 @@ fixtureRandomWalletAddrs =
 -- TODO: Remove duplication between Shelley / Byron fixtures.
 fixtureRandomWalletWith
     :: forall n m
-     . (HasSNetworkId n , MonadUnliftIO m)
+     . (HasSNetworkId n, MonadUnliftIO m)
     => Context
     -> [Natural]
     -> ResourceT m ApiByronWallet
 fixtureRandomWalletWith ctx coins0 = do
-    src  <- fixtureRandomWallet ctx
+    src <- fixtureRandomWallet ctx
     mnemonic <- Mnemonics.generateSome Mnemonics.M12
-    dest <- emptyByronWalletWith
-        ctx "random" ("Random Wallet", mnemonic, fixturePassphrase)
+    dest <-
+        emptyByronWalletWith
+            ctx
+            "random"
+            ("Random Wallet", mnemonic, fixturePassphrase)
     let addrs = randomAddresses @n mnemonic
-    liftIO $ mapM_ (moveByronCoins @n ctx src (dest, addrs)) (groupsOf 10 coins0)
-    void $ request @() ctx
-        (Link.deleteWallet @'Byron src) Default Empty
-    r <- request @ApiByronWallet ctx
-        (Link.getWallet @'Byron dest) Default Empty
+    liftIO
+        $ mapM_ (moveByronCoins @n ctx src (dest, addrs)) (groupsOf 10 coins0)
+    void
+        $ request @()
+            ctx
+            (Link.deleteWallet @'Byron src)
+            Default
+            Empty
+    r <-
+        request @ApiByronWallet
+            ctx
+            (Link.getWallet @'Byron dest)
+            Default
+            Empty
     expectResponseCode HTTP.status200 r
     pure (getResponse r)
 
@@ -2373,7 +2651,7 @@ fixtureIcarusWallet = fmap fst . fixtureIcarusWalletMws
 
 fixtureIcarusWalletAddrs
     :: forall n m
-     . (HasSNetworkId n , MonadUnliftIO m)
+     . (HasSNetworkId n, MonadUnliftIO m)
     => Context
     -> ResourceT m (ApiByronWallet, [Address])
 fixtureIcarusWalletAddrs =
@@ -2382,9 +2660,9 @@ fixtureIcarusWalletAddrs =
 -- | Restore a legacy wallet (Byron or Icarus)
 fixtureLegacyWallet
     :: forall m
-      . ( MonadUnliftIO m
-        , HasCallStack
-        )
+     . ( MonadUnliftIO m
+       , HasCallStack
+       )
     => Context
     -> String
     -> [Text]
@@ -2392,30 +2670,40 @@ fixtureLegacyWallet
 fixtureLegacyWallet ctx style mnemonic = snd <$> allocate create free
   where
     create = do
-        r <- request @ApiByronWallet ctx (Link.postWallet @'Byron) Default $
-            let name = "Faucet Legacy Byron Wallet " <> style
-             in Json [aesonQQ|{
+        r <-
+            request @ApiByronWallet ctx (Link.postWallet @'Byron) Default
+                $ let name = "Faucet Legacy Byron Wallet " <> style
+                  in  Json
+                        [aesonQQ|{
                 "name": #{name},
                 "mnemonic_sentence": #{mnemonic},
                 "passphrase": #{fixturePassphrase},
                 "style": #{style}
             }|]
         expectResponseCode HTTP.status201 r
-        liftIO $ race
-            (threadDelay (60 * oneSecond))
-            (checkBalance (getResponse r)) >>= \case
-                Right a -> pure a
-                Left () -> do
-                    threadDelay maxBound
-                    expectationFailure' $
-                        "fixtureByronWallet: timing out (> 60s) \
-                        \while checking " <> show style <> " wallet's balance."
+        liftIO
+            $ race
+                (threadDelay (60 * oneSecond))
+                (checkBalance (getResponse r))
+                >>= \case
+                    Right a -> pure a
+                    Left () -> do
+                        threadDelay maxBound
+                        expectationFailure'
+                            $ "fixtureByronWallet: timing out (> 60s) \
+                              \while checking "
+                                <> show style
+                                <> " wallet's balance."
 
     free w = void $ request @() ctx (Link.deleteWallet @'Byron w) Default Empty
 
     checkBalance w = do
-        r <- request @ApiByronWallet ctx
-            (Link.getWallet @'Byron w) Default Empty
+        r <-
+            request @ApiByronWallet
+                ctx
+                (Link.getWallet @'Byron w)
+                Default
+                Empty
         if getFromResponse (#balance . #available) r > ApiAmount 0
             then pure (getResponse r)
             else threadDelay oneSecond *> checkBalance w
@@ -2427,10 +2715,10 @@ fixtureLegacyWallet ctx style mnemonic = snd <$> allocate create free
 -- This function makes no attempt at ensuring the request is valid, so be
 -- careful.
 fixtureWalletWith
-    :: forall n m.
-        ( HasSNetworkId n
-        , MonadUnliftIO m
-        )
+    :: forall n m
+     . ( HasSNetworkId n
+       , MonadUnliftIO m
+       )
     => Context
     -> [Natural]
     -> ResourceT m ApiWallet
@@ -2438,99 +2726,149 @@ fixtureWalletWith ctx coins0 = do
     src <- fixtureWallet ctx
     dest <- emptyWallet ctx
     liftIO $ mapM_ (moveCoins src dest) (groupsOf 10 coins0)
-    liftIO $ void $ request @() ctx
-        (Link.deleteWallet @'Shelley src) Default Empty
+    liftIO
+        $ void
+        $ request @()
+            ctx
+            (Link.deleteWallet @'Shelley src)
+            Default
+            Empty
 
     waitForTxImmutability ctx
 
-    r <- request @ApiWallet ctx
-        (Link.getWallet @'Shelley dest) Default Empty
+    r <-
+        request @ApiWallet
+            ctx
+            (Link.getWallet @'Shelley dest)
+            Default
+            Empty
     expectResponseCode HTTP.status200 r
     pure (getResponse r)
   where
-    -- | Move coins from a wallet to another
+    -- \| Move coins from a wallet to another
     moveCoins
         :: ApiWallet
-            -- ^ Source Wallet
+        -- \^ Source Wallet
         -> ApiWallet
-            -- ^ Destination wallet
+        -- \^ Destination wallet
         -> [Natural]
-            -- ^ Coins to move
+        -- \^ Coins to move
         -> IO ()
     moveCoins src dest coins = do
-        balance <- getFromResponse (#balance . #available . #toNatural)
-            <$> request @ApiWallet ctx
-                    (Link.getWallet @'Shelley dest) Default Empty
-        addrs <- fmap (view #id) . getResponse
-            <$> request @[ApiAddressWithPath n] ctx
-                    (Link.listAddresses @'Shelley dest) Default Empty
-        let payments = for (zip coins addrs) $ \(amt, addr) -> [aesonQQ|{
+        balance <-
+            getFromResponse (#balance . #available . #toNatural)
+                <$> request @ApiWallet
+                    ctx
+                    (Link.getWallet @'Shelley dest)
+                    Default
+                    Empty
+        addrs <-
+            fmap (view #id) . getResponse
+                <$> request @[ApiAddressWithPath n]
+                    ctx
+                    (Link.listAddresses @'Shelley dest)
+                    Default
+                    Empty
+        let payments = for (zip coins addrs) $ \(amt, addr) ->
+                [aesonQQ|{
                 "address": #{addr},
                 "amount": {
                     "quantity": #{amt},
                     "unit": "lovelace"
                 }
             }|]
-        let payload = Json [aesonQQ|{
+        let payload =
+                Json
+                    [aesonQQ|{
                 "payments": #{payments :: [Value]},
                 "passphrase": #{fixturePassphrase}
             }|]
-        request @(ApiTransaction n) ctx
-            (Link.createTransactionOld @'Shelley src) Default payload
+        request @(ApiTransaction n)
+            ctx
+            (Link.createTransactionOld @'Shelley src)
+            Default
+            payload
             >>= expectResponseCode HTTP.status202
         eventually "balance available = balance total" $ do
-            rb <- request @ApiWallet ctx
-                (Link.getWallet @'Shelley dest) Default Empty
+            rb <-
+                request @ApiWallet
+                    ctx
+                    (Link.getWallet @'Shelley dest)
+                    Default
+                    Empty
             expectField
                 (#balance . #available)
-                (`shouldBe` ApiAmount (sum (balance:coins))) rb
-            ra <- request @ApiWallet ctx
-                (Link.getWallet @'Shelley src) Default Empty
+                (`shouldBe` ApiAmount (sum (balance : coins)))
+                rb
+            ra <-
+                request @ApiWallet
+                    ctx
+                    (Link.getWallet @'Shelley src)
+                    Default
+                    Empty
 
             getFromResponse (#balance . #available) ra
-                `shouldBe`
-                    getFromResponse (#balance . #total) ra
+                `shouldBe` getFromResponse (#balance . #total) ra
 
 -- | Move coins from a wallet to another
 moveByronCoins
     :: forall n
      . HasSNetworkId n
     => Context
-        -- ^ Api context
+    -- ^ Api context
     -> ApiByronWallet
-        -- ^ Source Wallet
+    -- ^ Source Wallet
     -> (ApiByronWallet, [Address])
-        -- ^ Destination wallet
+    -- ^ Destination wallet
     -> [Natural]
-        -- ^ Coins to move
+    -- ^ Coins to move
     -> IO ()
 moveByronCoins ctx src (dest, addrs) coins = do
-    balance <- getFromResponse (#balance . #available . #toNatural)
-        <$> request @ApiByronWallet ctx
-            (Link.getWallet @'Byron dest) Default Empty
+    balance <-
+        getFromResponse (#balance . #available . #toNatural)
+            <$> request @ApiByronWallet
+                ctx
+                (Link.getWallet @'Byron dest)
+                Default
+                Empty
     let payments = for (zip coins addrs) $ \(amt, addr) ->
             let addrStr = encodeAddress (sNetworkId @n) addr
-            in [aesonQQ|{
+            in  [aesonQQ|{
                 "address": #{addrStr},
                 "amount": {
                     "quantity": #{amt},
                     "unit": "lovelace"
                 }
             }|]
-    let payload = Json [aesonQQ|{
+    let payload =
+            Json
+                [aesonQQ|{
             "payments": #{payments :: [Value]},
             "passphrase": #{fixturePassphrase}
         }|]
-    request @(ApiTransaction n) ctx
-        (Link.createTransactionOld @'Byron src) Default payload
+    request @(ApiTransaction n)
+        ctx
+        (Link.createTransactionOld @'Byron src)
+        Default
+        payload
         >>= expectResponseCode HTTP.status202
     eventually "balance available = balance total" $ do
-        rb <- request @ApiByronWallet ctx
-            (Link.getWallet @'Byron dest) Default Empty
-        expectField (#balance . #available)
-            (`shouldBe` ApiAmount (sum (balance:coins))) rb
-        ra <- request @ApiByronWallet ctx
-            (Link.getWallet @'Byron src) Default Empty
+        rb <-
+            request @ApiByronWallet
+                ctx
+                (Link.getWallet @'Byron dest)
+                Default
+                Empty
+        expectField
+            (#balance . #available)
+            (`shouldBe` ApiAmount (sum (balance : coins)))
+            rb
+        ra <-
+            request @ApiByronWallet
+                ctx
+                (Link.getWallet @'Byron src)
+                Default
+                Empty
         getFromResponse (#balance . #available) ra
             `shouldBe` getFromResponse (#balance . #total) ra
 
@@ -2545,7 +2883,8 @@ faucetUtxoAmt = ada 100_000
   where
     ada = (*) (1_000_000)
 
-getResponse :: HasCallStack => (HTTP.Status, Either RequestException a) -> a
+getResponse
+    :: HasCallStack => (HTTP.Status, Either RequestException a) -> a
 getResponse = getFromResponse id
 
 getFromResponse
@@ -2567,55 +2906,66 @@ getFromResponseList i getter (_, res) = case res of
     Left _ -> error "getFromResponseList failed to get item"
     Right xs
         | length xs > i -> view getter (xs !! i)
-        | otherwise -> error $
-            "getFromResponseList: trying to access the #" <> show i <>
-            " element from a list but there's none! "
+        | otherwise ->
+            error
+                $ "getFromResponseList: trying to access the #"
+                    <> show i
+                    <> " element from a list but there's none! "
 
 json :: QuasiQuoter
 json = aesonQQ
 
 arbitraryStake :: Maybe Coin
 arbitraryStake = Just $ ada 10_000_000_000
-  where ada = Coin . (1_000_000 *)
+  where
+    ada = Coin . (1_000_000 *)
 
 joinStakePool
-    :: forall n w m.
-        ( HasType (ApiT WalletId) w
-        , HasSNetworkId n
-        , MonadUnliftIO m
-        )
+    :: forall n w m
+     . ( HasType (ApiT WalletId) w
+       , HasSNetworkId n
+       , MonadUnliftIO m
+       )
     => Context
     -> ApiPoolSpecifier
     -> (w, Text)
     -> m (HTTP.Status, Either RequestException (ApiTransaction n))
 joinStakePool ctx p (w, pass) = do
     let payload = Json [aesonQQ| { "passphrase": #{pass} } |]
-    request @(ApiTransaction n) ctx
-        (Link.joinStakePool (Identity p) w) Default payload
+    request @(ApiTransaction n)
+        ctx
+        (Link.joinStakePool (Identity p) w)
+        Default
+        payload
 
 joinStakePoolUnsigned
-    :: forall n style w.
-        ( HasType (ApiT WalletId) w
-        , HasSNetworkId n
-        , Link.Discriminate style
-        )
+    :: forall n style w
+     . ( HasType (ApiT WalletId) w
+       , HasSNetworkId n
+       , Link.Discriminate style
+       )
     => Context
     -> w
     -> ApiT PoolId
     -> IO (HTTP.Status, Either RequestException (ApiCoinSelection n))
 joinStakePoolUnsigned ctx w pid = do
-    let payload = Json [aesonQQ| {
+    let payload =
+            Json
+                [aesonQQ| {
             "delegation_action": { "action": "join", "pool": #{pid} }
         } |]
-    request @(ApiCoinSelection n) ctx
-        (Link.selectCoins @style w) Default payload
+    request @(ApiCoinSelection n)
+        ctx
+        (Link.selectCoins @style w)
+        Default
+        payload
 
 quitStakePool
-    :: forall n w m.
-        ( HasType (ApiT WalletId) w
-        , HasSNetworkId n
-        , MonadUnliftIO m
-        )
+    :: forall n w m
+     . ( HasType (ApiT WalletId) w
+       , HasSNetworkId n
+       , MonadUnliftIO m
+       )
     => Context
     -> (w, Text)
     -> m (HTTP.Status, Either RequestException (ApiTransaction n))
@@ -2624,42 +2974,48 @@ quitStakePool ctx (w, pass) = do
     request @(ApiTransaction n) ctx (Link.quitStakePool w) Default payload
 
 quitStakePoolUnsigned
-    :: forall n style w m.
-        ( HasType (ApiT WalletId) w
-        , HasSNetworkId n
-        , MonadIO m
-        , Link.Discriminate style
-        )
+    :: forall n style w m
+     . ( HasType (ApiT WalletId) w
+       , HasSNetworkId n
+       , MonadIO m
+       , Link.Discriminate style
+       )
     => Context
     -> w
     -> m (HTTP.Status, Either RequestException (ApiCoinSelection n))
 quitStakePoolUnsigned ctx w = liftIO $ do
     let payload = Json [aesonQQ|{ "delegation_action": { "action": "quit" } }|]
-    request @(ApiCoinSelection n) ctx
-        (Link.selectCoins @style w) Default payload
+    request @(ApiCoinSelection n)
+        ctx
+        (Link.selectCoins @style w)
+        Default
+        payload
 
 joinDRep
-    :: forall n w m.
-        ( HasType (ApiT WalletId) w
-        , HasSNetworkId n
-        , MonadUnliftIO m
-        )
+    :: forall n w m
+     . ( HasType (ApiT WalletId) w
+       , HasSNetworkId n
+       , MonadUnliftIO m
+       )
     => Context
     -> ApiDRepSpecifier
     -> (w, Text)
     -> m (HTTP.Status, Either RequestException (ApiTransaction n))
 joinDRep ctx p (w, pass) = do
     let payload = Json [aesonQQ| { "passphrase": #{pass} } |]
-    request @(ApiTransaction n) ctx
-        (Link.joinDRep (Identity p) w) Default payload
+    request @(ApiTransaction n)
+        ctx
+        (Link.joinDRep (Identity p) w)
+        Default
+        payload
 
 selectCoins
-    :: forall n style w m.
-        ( HasType (ApiT WalletId) w
-        , HasSNetworkId n
-        , Link.Discriminate style
-        , MonadUnliftIO m
-        )
+    :: forall n style w m
+     . ( HasType (ApiT WalletId) w
+       , HasSNetworkId n
+       , Link.Discriminate style
+       , MonadUnliftIO m
+       )
     => Context
     -> w
     -> NonEmpty (AddressAmount (ApiAddress n))
@@ -2668,23 +3024,28 @@ selectCoins ctx w payments =
     selectCoinsWith @n @style @w ctx w payments id
 
 selectCoinsWith
-    :: forall n style w m.
-        ( HasType (ApiT WalletId) w
-        , HasSNetworkId n
-        , Link.Discriminate style
-        , MonadUnliftIO m
-        )
+    :: forall n style w m
+     . ( HasType (ApiT WalletId) w
+       , HasSNetworkId n
+       , Link.Discriminate style
+       , MonadUnliftIO m
+       )
     => Context
     -> w
     -> NonEmpty (AddressAmount (ApiAddress n))
     -> (Payload -> Payload)
     -> m (HTTP.Status, Either RequestException (ApiCoinSelection n))
 selectCoinsWith ctx w payments transform = do
-    let payload = Json [aesonQQ| {
+    let payload =
+            Json
+                [aesonQQ| {
             "payments": #{payments}
         } |]
-    request @(ApiCoinSelection n) ctx
-        (Link.selectCoins @style w) Default (transform payload)
+    request @(ApiCoinSelection n)
+        ctx
+        (Link.selectCoins @style w)
+        Default
+        (transform payload)
 
 delegationFee
     :: forall w m
@@ -2718,7 +3079,7 @@ randomAddresses mw =
             Byron.deriveAddressPrivateKey pwd accXPrv
     in
         [ paymentAddressS @n (publicKey ByronKeyS $ addrXPrv ix)
-        | ix <- [minBound..maxBound]
+        | ix <- [minBound .. maxBound]
         ]
 
 -- | Generate an infinite list of addresses for icarus wallets
@@ -2744,7 +3105,7 @@ icarusAddresses mw =
             deriveAddressPrivateKey pwd accXPrv UtxoExternal
     in
         [ paymentAddressS @n (publicKey IcarusKeyS $ addrXPrv ix)
-        | ix <- [minBound..maxBound]
+        | ix <- [minBound .. maxBound]
         ]
 
 -- | Generate an infinite list of addresses for shelley wallets.
@@ -2770,7 +3131,7 @@ shelleyAddresses mw =
             deriveAddressPrivateKey pwd accXPrv UtxoExternal
     in
         [ paymentAddressS @n (publicKey ShelleyKeyS $ addrXPrv ix)
-        | ix <- [minBound..maxBound]
+        | ix <- [minBound .. maxBound]
         ]
 
 listAddresses
@@ -2790,10 +3151,14 @@ signTx
     => Context
     -> ApiWallet
     -> ApiT SealedTx
-    -> [(HTTP.Status, Either RequestException ApiSerialisedTransaction) -> m ()]
+    -> [ (HTTP.Status, Either RequestException ApiSerialisedTransaction)
+       -> m ()
+       ]
     -> m ApiSerialisedTransaction
 signTx ctx w sealedTx expectations = do
-    let toSign = Json [aesonQQ|
+    let toSign =
+            Json
+                [aesonQQ|
                            { "transaction": #{sealedTx}
                            , "passphrase": #{fixturePassphrase}
                            }|]
@@ -2807,10 +3172,14 @@ signSharedTx
     => Context
     -> ApiActiveSharedWallet
     -> ApiT SealedTx
-    -> [(HTTP.Status, Either RequestException ApiSerialisedTransaction) -> m ()]
+    -> [ (HTTP.Status, Either RequestException ApiSerialisedTransaction)
+       -> m ()
+       ]
     -> m ApiSerialisedTransaction
 signSharedTx ctx w sealedTx expectations = do
-    let toSign = Json [aesonQQ|
+    let toSign =
+            Json
+                [aesonQQ|
                            { "transaction": #{sealedTx}
                            , "passphrase": #{fixturePassphrase}
                            }|]
@@ -2828,13 +3197,19 @@ submitTx
 submitTx ctx tx expectations = do
     let bytes = serialisedTx $ getApiT (tx ^. #serialisedTxSealed)
     let submitEndpoint = Link.postExternalTransaction
-    let headers = Headers
-            [ ("Content-Type", "application/octet-stream")
-            , ("Accept", "application/json")
-            ]
-    r <- request @ApiTxId ctx submitEndpoint headers (NonJson $ BL.fromStrict bytes)
+    let headers =
+            Headers
+                [ ("Content-Type", "application/octet-stream")
+                , ("Accept", "application/json")
+                ]
+    r <-
+        request @ApiTxId
+            ctx
+            submitEndpoint
+            headers
+            (NonJson $ BL.fromStrict bytes)
     verify r expectations
-    pure $ getResponse  r
+    pure $ getResponse r
 
 submitTxWithWid
     :: MonadUnliftIO m
@@ -2859,10 +3234,10 @@ submitSharedTxWithWid ctx w tx = do
     request @ApiTxId ctx submitEndpoint Default payload
 
 getWallet
-    :: forall w m.
-        ( MonadUnliftIO m
-        , HasType (ApiT WalletId) w
-        )
+    :: forall w m
+     . ( MonadUnliftIO m
+       , HasType (ApiT WalletId) w
+       )
     => Context
     -> w
     -> m ApiWallet
@@ -2877,20 +3252,22 @@ getWallet ctx w = do
 -- to pools which will retire later.
 notRetiringPools :: MonadUnliftIO f => Context -> f [StakePool]
 notRetiringPools ctx = do
-    filter won'tRetire . map getApiT . snd <$>
-        unsafeRequest @[ApiT StakePool] ctx
-        (Link.listStakePools arbitraryStake) Empty
+    filter won'tRetire . map getApiT . snd
+        <$> unsafeRequest @[ApiT StakePool]
+            ctx
+            (Link.listStakePools arbitraryStake)
+            Empty
   where
-      won'tRetire pool' = case pool' ^. #retirement of
-          Nothing -> True
-          Just epoch -> epoch ^. #epochNumber >= 100
+    won'tRetire pool' = case pool' ^. #retirement of
+        Nothing -> True
+        Just epoch -> epoch ^. #epochNumber >= 100
 
 listAllTransactions
-    :: forall n w m.
-        ( HasSNetworkId n
-        , HasType (ApiT WalletId) w
-        , MonadUnliftIO m
-        )
+    :: forall n w m
+     . ( HasSNetworkId n
+       , HasType (ApiT WalletId) w
+       , MonadUnliftIO m
+       )
     => Context
     -> w
     -> m [ApiTransaction n]
@@ -2898,25 +3275,26 @@ listAllTransactions ctx w =
     listTransactions ctx w Nothing Nothing (Just Descending) Nothing
 
 listLimitedTransactions
-    :: forall n w m.
-        ( HasSNetworkId n
-        , HasType (ApiT WalletId) w
-        , MonadUnliftIO m
-        )
+    :: forall n w m
+     . ( HasSNetworkId n
+       , HasType (ApiT WalletId) w
+       , MonadUnliftIO m
+       )
     => Context
     -> w
     -> Natural
     -> m [ApiTransaction n]
 listLimitedTransactions ctx w limit = do
     listTransactions ctx w Nothing Nothing (Just Descending)
-        $ Just $ ApiLimit limit
+        $ Just
+        $ ApiLimit limit
 
 listTransactions
-    :: forall n w m.
-        ( HasSNetworkId n
-        , HasType (ApiT WalletId) w
-        , MonadUnliftIO m
-        )
+    :: forall n w m
+     . ( HasSNetworkId n
+       , HasType (ApiT WalletId) w
+       , MonadUnliftIO m
+       )
     => Context
     -> w
     -> Maybe UTCTime
@@ -2930,13 +3308,15 @@ listTransactions ctx w mStart mEnd mOrder mLimit = do
     let txs = getResponse r
     return txs
   where
-    path = Link.listTransactions' @'Shelley w
-        Nothing
-        (Iso8601Time <$> mStart)
-        (Iso8601Time <$> mEnd)
-        mOrder
-        mLimit
-        Nothing
+    path =
+        Link.listTransactions' @'Shelley
+            w
+            Nothing
+            (Iso8601Time <$> mStart)
+            (Iso8601Time <$> mEnd)
+            mOrder
+            mLimit
+            Nothing
 
 -- | Delete all wallets
 deleteAllWallets :: Context -> IO ()
@@ -2947,50 +3327,76 @@ deleteAllWallets ctx = do
         d <- request @Value ctx ("DELETE", endpoint) None Empty
         expectResponseCode HTTP.status204 d
     respByron <-
-        request @[ApiByronWallet] ctx ("GET", "v2/byron-wallets") Default Empty
+        request @[ApiByronWallet]
+            ctx
+            ("GET", "v2/byron-wallets")
+            Default
+            Empty
     forM_ (wallets (snd respByron)) $ \wal -> do
         let endpoint = "v2/byron-wallets" </> wal ^. walletId
         d <- request @Value ctx ("DELETE", endpoint) None Empty
         expectResponseCode HTTP.status204 d
- where
-     wallets :: forall w . Either RequestException [w] -> [w]
-     wallets c = case c of
-         Left e -> error $ "deleteAllWallets: Cannot return wallets: " <> show e
-         Right s -> s
+  where
+    wallets :: forall w. Either RequestException [w] -> [w]
+    wallets c = case c of
+        Left e -> error $ "deleteAllWallets: Cannot return wallets: " <> show e
+        Right s -> s
 
 -- | Calls 'GET /wallets' and filters the response. This allows tests to be
 -- written for a parallel setting.
 listFilteredWallets
     :: MonadUnliftIO m
-    => Set Text -- ^ Set of walletIds to include
+    => Set Text
+    -- ^ Set of walletIds to include
     -> Context
     -> m (HTTP.Status, Either RequestException [ApiWallet])
 listFilteredWallets include ctx = do
-    (s, mwallets) <- request @[ApiWallet] ctx
-        (Link.listWallets @'Shelley) Default Empty
-    return (s, filter (\w -> (w ^. walletId) `Set.member` include) <$> mwallets)
+    (s, mwallets) <-
+        request @[ApiWallet]
+            ctx
+            (Link.listWallets @'Shelley)
+            Default
+            Empty
+    return
+        (s, filter (\w -> (w ^. walletId) `Set.member` include) <$> mwallets)
 
 -- | Calls 'GET /byron-wallets' and filters the response. This allows tests to
 -- be written for a parallel setting.
 listFilteredByronWallets
     :: MonadUnliftIO m
-    => Set Text -- ^ Set of walletIds to include
+    => Set Text
+    -- ^ Set of walletIds to include
     -> Context
     -> m (HTTP.Status, Either RequestException [ApiByronWallet])
 listFilteredByronWallets include ctx = do
-    (s, mwallets) <- request @[ApiByronWallet] ctx
-        (Link.listWallets @'Byron) Default Empty
-    return (s, filter (\w -> (w ^. walletId) `Set.member` include) <$> mwallets)
+    (s, mwallets) <-
+        request @[ApiByronWallet]
+            ctx
+            (Link.listWallets @'Byron)
+            Default
+            Empty
+    return
+        (s, filter (\w -> (w ^. walletId) `Set.member` include) <$> mwallets)
 
 listFilteredSharedWallets
     :: MonadUnliftIO m
-    => Set Text -- ^ Set of walletIds to include
+    => Set Text
+    -- ^ Set of walletIds to include
     -> Context
     -> m (HTTP.Status, Either RequestException [ApiSharedWallet])
 listFilteredSharedWallets include ctx = do
-    (s, mwallets) <- request @[ApiSharedWallet] ctx
-        (Link.listWallets @'Shared) Default Empty
-    return (s, filter (\w -> (getWalletIdFromSharedWallet w ^. walletId) `Set.member` include) <$> mwallets)
+    (s, mwallets) <-
+        request @[ApiSharedWallet]
+            ctx
+            (Link.listWallets @'Shared)
+            Default
+            Empty
+    return
+        ( s
+        , filter
+            (\w -> (getWalletIdFromSharedWallet w ^. walletId) `Set.member` include)
+            <$> mwallets
+        )
 
 getWalletIdFromSharedWallet :: ApiSharedWallet -> ApiT WalletId
 getWalletIdFromSharedWallet (ApiSharedWallet (Right res)) = res ^. #id
@@ -2998,40 +3404,47 @@ getWalletIdFromSharedWallet (ApiSharedWallet (Left res)) = res ^. #id
 
 -- | Wait for a booting wallet server to start. Wait up to 30s or fail.
 waitForServer
-    :: forall ctx m. (HasType (Port "wallet") ctx, MonadIO m)
+    :: forall ctx m
+     . (HasType (Port "wallet") ctx, MonadIO m)
     => ctx
     -> m ()
-waitForServer ctx = liftIO $ void $ retrying
-    (capDelay (30*oneSecond) $ constantDelay oneSecond)
-    -- NOTE
-    -- We still bind the output and error streams to some custom handles because
-    -- if we don't, the library defaults to `stdout` and `stderr` which can get
-    -- quite noisy.
-    (\_ (e, _ :: Stderr, _ :: Stdout) -> pure $ e == ExitFailure 1)
-    (const $ listWalletsViaCLI ctx)
+waitForServer ctx =
+    liftIO
+        $ void
+        $ retrying
+            (capDelay (30 * oneSecond) $ constantDelay oneSecond)
+            -- NOTE
+            -- We still bind the output and error streams to some custom handles because
+            -- if we don't, the library defaults to `stdout` and `stderr` which can get
+            -- quite noisy.
+            (\_ (e, _ :: Stderr, _ :: Stdout) -> pure $ e == ExitFailure 1)
+            (const $ listWalletsViaCLI ctx)
 
 unsafeCreateDigest :: Text -> Digest Blake2b_160
-unsafeCreateDigest s = fromMaybe
-    (error $ "unsafeCreateDigest failed to create digest from: " <> show s)
-    (digestFromByteString $ B8.pack $ T.unpack s)
+unsafeCreateDigest s =
+    fromMaybe
+        (error $ "unsafeCreateDigest failed to create digest from: " <> show s)
+        (digestFromByteString $ B8.pack $ T.unpack s)
 
 wantedSuccessButError
     :: (MonadIO m, Show e, HasCallStack)
     => e
     -> m ()
-wantedSuccessButError = liftIO
-    . expectationFailure
-    . ("expected a successful response but got an error: " <>)
-    . show
+wantedSuccessButError =
+    liftIO
+        . expectationFailure
+        . ("expected a successful response but got an error: " <>)
+        . show
 
 wantedErrorButSuccess
     :: (MonadIO m, Show a, HasCallStack)
     => a
     -> m ()
-wantedErrorButSuccess = liftIO
-    .  expectationFailure
-    . ("expected an error but got a successful response: " <>)
-    . show
+wantedErrorButSuccess =
+    liftIO
+        . expectationFailure
+        . ("expected an error but got a successful response: " <>)
+        . show
 
 -- | Applies the value 'a' to all assertions in the given sequence.
 --
@@ -3039,16 +3452,22 @@ wantedErrorButSuccess = liftIO
 verify :: (Show a, MonadUnliftIO m) => a -> [a -> m ()] -> m ()
 verify a = counterexample msg . mapM_ (a &)
   where
-    msg = "While verifying value:\n"+|indentF 2 (pShowBuilder a)|+""
+    msg = "While verifying value:\n" +| indentF 2 (pShowBuilder a) |+ ""
 
 -- | Applies the value 'a' to all assertions in the given sequence.
 --
 -- Like 'verify', but the counterexample shows a description of what conditions
 -- were being checked.
-verifyMsg :: (Show a, MonadUnliftIO m) => String -> a -> [a -> m ()] -> m ()
+verifyMsg
+    :: (Show a, MonadUnliftIO m) => String -> a -> [a -> m ()] -> m ()
 verifyMsg desc a = counterexample msg . mapM_ (a &)
   where
-    msg = "Verifying "+|desc|+" for value:\n"+|indentF 2 (pShowBuilder a)|+""
+    msg =
+        "Verifying "
+            +| desc
+            |+ " for value:\n"
+            +| indentF 2 (pShowBuilder a)
+            |+ ""
 
 --
 -- Manipulating endpoints
@@ -3071,17 +3490,17 @@ withMethod method (_, path) = (method, path)
 --
 -- >>> withPathParam 1 (const "suffix") $ Link.joinStakePool @Shelley myPool myWallet
 -- ( "GET", "v2/stake-pools/2512a00e9653fe49a44a5886202e24d77eeb998f/wallets/patate" )
-withPathParam :: Int -> (Text -> Text) -> (Method, Text) -> (Method, Text)
+withPathParam
+    :: Int -> (Text -> Text) -> (Method, Text) -> (Method, Text)
 withPathParam n0 update (method, path) =
     case T.splitOn "/" path of
         [] -> errInvalidEndpoint
-
-        version:q ->
-            (method, T.intercalate "/" (version:findAndModify n0 q))
+        version : q ->
+            (method, T.intercalate "/" (version : findAndModify n0 q))
   where
-    findAndModify 0 (k:v:q) = k : update v : q
-    findAndModify n (k:v:q) = k : v : findAndModify (n - 1) q
-    findAndModify _ _       = errInvalidEndpoint
+    findAndModify 0 (k : v : q) = k : update v : q
+    findAndModify n (k : v : q) = k : v : findAndModify (n - 1) q
+    findAndModify _ _ = errInvalidEndpoint
 
     errInvalidEndpoint :: a
     errInvalidEndpoint =
@@ -3113,20 +3532,24 @@ commandName = "cardano-wallet"
 
 -- | Run a command using the 'cardano-wallet' executable.
 cardanoWalletCLI
-    :: forall r m. (CmdResult r, MonadIO m)
+    :: forall r m
+     . (CmdResult r, MonadIO m)
     => [String]
     -> m r
 cardanoWalletCLI = liftIO . command [EchoStderr False] commandName
 
 generateMnemonicsViaCLI
-    :: forall r m. (CmdResult r, MonadIO m)
+    :: forall r m
+     . (CmdResult r, MonadIO m)
     => [String]
     -> m r
-generateMnemonicsViaCLI args = cardanoWalletCLI
-    (["recovery-phrase", "generate"] ++ args)
+generateMnemonicsViaCLI args =
+    cardanoWalletCLI
+        (["recovery-phrase", "generate"] ++ args)
 
 createWalletViaCLI
-    :: forall s m. (HasType (Port "wallet") s, MonadIO m)
+    :: forall s m
+     . (HasType (Port "wallet") s, MonadIO m)
     => s
     -> [String]
     -> String
@@ -3138,14 +3561,16 @@ createWalletViaCLI ctx args mnemonic secondFactor passphrase =
   where
     create = do
         let portArgs =
-                [ "--port", show (ctx ^. typed @(Port "wallet")) ]
+                ["--port", show (ctx ^. typed @(Port "wallet"))]
         let fullArgs =
-                [ "wallet", "create", "from-recovery-phrase", "from-genesis" ] ++ portArgs ++ args
+                ["wallet", "create", "from-recovery-phrase", "from-genesis"]
+                    ++ portArgs
+                    ++ args
         let process = proc' commandName fullArgs
-            inputs = mnemonic ++ secondFactor ++ unlines [ passphrase, passphrase ]
+            inputs = mnemonic ++ secondFactor ++ unlines [passphrase, passphrase]
         liftIO $ do
-          (ex, sout, serr) <- readCreateProcessWithExitCode process inputs
-          pure (ex, sout, T.pack serr)
+            (ex, sout, serr) <- readCreateProcessWithExitCode process inputs
+            pure (ex, sout, T.pack serr)
 
     free (ExitFailure _, _, _) = return ()
     free (ExitSuccess, output, _) = do
@@ -3154,21 +3579,25 @@ createWalletViaCLI ctx args mnemonic secondFactor passphrase =
         void (try @_ @SomeException (deleteWalletViaCLI @() ctx wid))
 
 createWalletFromPublicKeyViaCLI
-    :: forall s m.
-        ( HasType (Port "wallet") s
-
-        , MonadIO m
-        )
+    :: forall s m
+     . ( HasType (Port "wallet") s
+       , MonadIO m
+       )
     => s
     -> [String]
-        -- ^ NAME, [--address-pool-gap INT], ACCOUNT_PUBLIC_KEY
+    -- ^ NAME, [--address-pool-gap INT], ACCOUNT_PUBLIC_KEY
     -> ResourceT m (Exit, Stdout, Stderr)
 createWalletFromPublicKeyViaCLI ctx args = snd <$> allocate create free
   where
     create =
-        cardanoWalletCLI $
-        [ "wallet", "create", "from-public-key", "--port"
-        , show (ctx ^. typed @(Port "wallet"))] ++ args
+        cardanoWalletCLI
+            $ [ "wallet"
+              , "create"
+              , "from-public-key"
+              , "--port"
+              , show (ctx ^. typed @(Port "wallet"))
+              ]
+                ++ args
 
     free (Exit (ExitFailure _), _, _) = return ()
     free (Exit ExitSuccess, Stdout output, _) = do
@@ -3177,187 +3606,238 @@ createWalletFromPublicKeyViaCLI ctx args = snd <$> allocate create free
         void (try @_ @SomeException (deleteWalletViaCLI @() ctx wid))
 
 deleteWalletViaCLI
-    :: forall r s m.
-        ( CmdResult r
-
-        , HasType (Port "wallet") s
-        , MonadIO m
-        )
+    :: forall r s m
+     . ( CmdResult r
+       , HasType (Port "wallet") s
+       , MonadIO m
+       )
     => s
     -> String
     -> m r
-deleteWalletViaCLI ctx walId = cardanoWalletCLI
-    ["wallet", "delete", "--port", show (ctx ^. typed @(Port "wallet")), walId ]
+deleteWalletViaCLI ctx walId =
+    cardanoWalletCLI
+        [ "wallet"
+        , "delete"
+        , "--port"
+        , show (ctx ^. typed @(Port "wallet"))
+        , walId
+        ]
 
 getWalletViaCLI
-    :: forall r s m.
-        ( CmdResult r
-
-        , HasType (Port "wallet") s
-        , MonadIO m
-        )
+    :: forall r s m
+     . ( CmdResult r
+       , HasType (Port "wallet") s
+       , MonadIO m
+       )
     => s
     -> String
     -> m r
-getWalletViaCLI ctx walId = cardanoWalletCLI
-    ["wallet", "get", "--port", show (ctx ^. typed @(Port "wallet")) , walId ]
+getWalletViaCLI ctx walId =
+    cardanoWalletCLI
+        [ "wallet"
+        , "get"
+        , "--port"
+        , show (ctx ^. typed @(Port "wallet"))
+        , walId
+        ]
 
 getWalletUtxoStatisticsViaCLI
-    :: forall r s m.
-        ( CmdResult r
-
-        , HasType (Port "wallet") s
-        , MonadIO m)
+    :: forall r s m
+     . ( CmdResult r
+       , HasType (Port "wallet") s
+       , MonadIO m
+       )
     => s
     -> String
     -> m r
-getWalletUtxoStatisticsViaCLI ctx walId = cardanoWalletCLI
-    ["wallet", "utxo", "--port", show (ctx ^. typed @(Port "wallet")) , walId ]
+getWalletUtxoStatisticsViaCLI ctx walId =
+    cardanoWalletCLI
+        [ "wallet"
+        , "utxo"
+        , "--port"
+        , show (ctx ^. typed @(Port "wallet"))
+        , walId
+        ]
 
 getWalletUtxoSnapshotViaCLI
-    :: forall r s m.
-        ( CmdResult r
-        , HasType (Port "wallet") s
-        , MonadIO m
-        )
+    :: forall r s m
+     . ( CmdResult r
+       , HasType (Port "wallet") s
+       , MonadIO m
+       )
     => s
     -> String
     -> m r
-getWalletUtxoSnapshotViaCLI ctx walId = cardanoWalletCLI
-    [ "wallet"
-    , "utxo-snapshot"
-    , "--port"
-    , show (ctx ^. typed @(Port "wallet"))
-    , walId
-    ]
+getWalletUtxoSnapshotViaCLI ctx walId =
+    cardanoWalletCLI
+        [ "wallet"
+        , "utxo-snapshot"
+        , "--port"
+        , show (ctx ^. typed @(Port "wallet"))
+        , walId
+        ]
 
 createAddressViaCLI
-    :: forall s m. (HasType (Port "wallet") s, MonadIO m)
+    :: forall s m
+     . (HasType (Port "wallet") s, MonadIO m)
     => s
     -> [String]
-        -- ^ Args
+    -- ^ Args
     -> String
-        -- ^ Pass
+    -- ^ Pass
     -> m (ExitCode, Text, Text)
-        -- ^ (ExitCode, StdOut, StdErr)
+    -- ^ (ExitCode, StdOut, StdErr)
 createAddressViaCLI ctx args pass = do
     let execArgs =
-            [ "address", "create"
-            , "--port", show (ctx ^. typed @(Port "wallet"))
-            ] ++ args
+            [ "address"
+            , "create"
+            , "--port"
+            , show (ctx ^. typed @(Port "wallet"))
+            ]
+                ++ args
     let process = proc' commandName execArgs
     liftIO $ do
-      (ex, sout, serr) <- readCreateProcessWithExitCode process (pass <> "\n")
-      pure (ex, T.pack sout, T.pack serr)
+        (ex, sout, serr) <-
+            readCreateProcessWithExitCode process (pass <> "\n")
+        pure (ex, T.pack sout, T.pack serr)
 
 importAddressViaCLI
-    :: forall r s m. (CmdResult r, HasType (Port "wallet") s, MonadIO m)
+    :: forall r s m
+     . (CmdResult r, HasType (Port "wallet") s, MonadIO m)
     => s
     -> [String]
-        -- ^ Args
+    -- ^ Args
     -> m r
-        -- ^ (ExitCode, StdOut, StdErr)
-importAddressViaCLI ctx args = cardanoWalletCLI $
-    ["address", "import", "--port", show (ctx ^. typed @(Port "wallet"))] ++ args
+    -- ^ (ExitCode, StdOut, StdErr)
+importAddressViaCLI ctx args =
+    cardanoWalletCLI
+        $ ["address", "import", "--port", show (ctx ^. typed @(Port "wallet"))]
+            ++ args
 
 listAddressesViaCLI
-    :: forall r s m. (CmdResult r, HasType (Port "wallet") s, MonadIO m)
+    :: forall r s m
+     . (CmdResult r, HasType (Port "wallet") s, MonadIO m)
     => s
     -> [String]
     -> m r
-listAddressesViaCLI ctx args = cardanoWalletCLI $
-    ["address", "list", "--port", show (ctx ^. typed @(Port "wallet"))] ++ args
+listAddressesViaCLI ctx args =
+    cardanoWalletCLI
+        $ ["address", "list", "--port", show (ctx ^. typed @(Port "wallet"))]
+            ++ args
 
 listStakePoolsViaCLI
-    :: forall r s m. (CmdResult r, HasType (Port "wallet") s, MonadIO m)
+    :: forall r s m
+     . (CmdResult r, HasType (Port "wallet") s, MonadIO m)
     => s
     -> m r
-listStakePoolsViaCLI ctx = cardanoWalletCLI
-    ["stake-pool", "list", "--port", show (ctx ^. typed @(Port "wallet")) ]
+listStakePoolsViaCLI ctx =
+    cardanoWalletCLI
+        [ "stake-pool"
+        , "list"
+        , "--port"
+        , show (ctx ^. typed @(Port "wallet"))
+        ]
 
 listWalletsViaCLI
-    :: forall r s m.
-        ( CmdResult r
-
-        , HasType (Port "wallet") s
-        , MonadIO m
-        )
+    :: forall r s m
+     . ( CmdResult r
+       , HasType (Port "wallet") s
+       , MonadIO m
+       )
     => s
     -> m r
-listWalletsViaCLI ctx = cardanoWalletCLI
-    ["wallet", "list", "--port", show (ctx ^. typed @(Port "wallet")) ]
+listWalletsViaCLI ctx =
+    cardanoWalletCLI
+        ["wallet", "list", "--port", show (ctx ^. typed @(Port "wallet"))]
 
 updateWalletNameViaCLI
-    :: forall r s m.
-        ( CmdResult r
-
-        , HasType (Port "wallet") s
-        , MonadIO m
-        )
+    :: forall r s m
+     . ( CmdResult r
+       , HasType (Port "wallet") s
+       , MonadIO m
+       )
     => s
     -> [String]
     -> m r
-updateWalletNameViaCLI ctx args = cardanoWalletCLI
-    (["wallet", "update", "name", "--port", walletPort] ++ args)
+updateWalletNameViaCLI ctx args =
+    cardanoWalletCLI
+        (["wallet", "update", "name", "--port", walletPort] ++ args)
   where
     walletPort = show (ctx ^. typed @(Port "wallet"))
 
 updateWalletPassphraseViaCLI
-    :: forall s m. (HasType (Port "wallet") s, MonadIO m)
+    :: forall s m
+     . (HasType (Port "wallet") s, MonadIO m)
     => s
     -> String
-        -- ^ Wallet id
+    -- ^ Wallet id
     -> String
-        -- ^ Old passphrase
+    -- ^ Old passphrase
     -> String
-        -- ^ New passphrase
+    -- ^ New passphrase
     -> String
-        -- ^ New passphrase (repeated for confirmation)
+    -- ^ New passphrase (repeated for confirmation)
     -> m (ExitCode, Text, Text)
 updateWalletPassphraseViaCLI ctx wid ppOld ppNew ppNewConfirm = do
-    let process = proc' commandName
-            [ "wallet", "update", "passphrase"
-            , "--port", show (ctx ^. typed @(Port "wallet"))
-            , wid
-            ]
-        inputs = unlines [ ppOld
-                         , ppNew
-                         , ppNewConfirm
-                         ]
+    let process =
+            proc'
+                commandName
+                [ "wallet"
+                , "update"
+                , "passphrase"
+                , "--port"
+                , show (ctx ^. typed @(Port "wallet"))
+                , wid
+                ]
+        inputs =
+            unlines
+                [ ppOld
+                , ppNew
+                , ppNewConfirm
+                ]
     liftIO $ do
-      (ex, sout, serr) <- readCreateProcessWithExitCode process inputs
-      pure (ex, T.pack sout, T.pack serr)
+        (ex, sout, serr) <- readCreateProcessWithExitCode process inputs
+        pure (ex, T.pack sout, T.pack serr)
 
 updateWalletPassphraseWithMnemonicViaCLI
-    :: forall s m. (HasType (Port "wallet") s, MonadIO m)
+    :: forall s m
+     . (HasType (Port "wallet") s, MonadIO m)
     => s
     -> String
-        -- ^ Wallet id
+    -- ^ Wallet id
     -> [Text]
-        -- ^ Mnemonic
+    -- ^ Mnemonic
     -> String
-        -- ^ New passphrase
+    -- ^ New passphrase
     -> String
-        -- ^ New passphrase (repeated for confirmation)
+    -- ^ New passphrase (repeated for confirmation)
     -> m (ExitCode, Text, Text)
 updateWalletPassphraseWithMnemonicViaCLI ctx wid mnemonic ppNew ppNewConfirm = do
-    let process = proc' commandName
-            [ "wallet", "update", "passphrase"
-            , "--port", show (ctx ^. typed @(Port "wallet"))
-            , "--mnemonic"
-            , wid
-            ]
-        inputs = unlines [ T.unpack (T.unwords mnemonic)
-                         , ""
-                         , ppNew
-                         , ppNewConfirm
-                         ]
+    let process =
+            proc'
+                commandName
+                [ "wallet"
+                , "update"
+                , "passphrase"
+                , "--port"
+                , show (ctx ^. typed @(Port "wallet"))
+                , "--mnemonic"
+                , wid
+                ]
+        inputs =
+            unlines
+                [ T.unpack (T.unwords mnemonic)
+                , ""
+                , ppNew
+                , ppNewConfirm
+                ]
     liftIO $ do
-      (ex, sout, serr) <- readCreateProcessWithExitCode process inputs
-      pure (ex, T.pack sout, T.pack serr)
+        (ex, sout, serr) <- readCreateProcessWithExitCode process inputs
+        pure (ex, T.pack sout, T.pack serr)
 
 postTransactionViaCLI
-    :: forall s m. (HasType (Port "wallet") s, MonadIO m)
+    :: forall s m
+     . (HasType (Port "wallet") s, MonadIO m)
     => s
     -> String
     -> [String]
@@ -3369,71 +3849,91 @@ postTransactionViaCLI ctx passphrase args = do
             ["transaction", "create"] ++ portArgs ++ args
     let process = proc' commandName fullArgs
     liftIO $ do
-      (ex, sout, serr) <- readCreateProcessWithExitCode process (passphrase ++ "\n")
-      pure (ex, sout, T.pack serr)
+        (ex, sout, serr) <-
+            readCreateProcessWithExitCode process (passphrase ++ "\n")
+        pure (ex, sout, T.pack serr)
 
 postTransactionFeeViaCLI
-    :: forall r s m. (CmdResult r, HasType (Port "wallet") s, MonadIO m)
+    :: forall r s m
+     . (CmdResult r, HasType (Port "wallet") s, MonadIO m)
     => s
     -> [String]
     -> m r
-postTransactionFeeViaCLI ctx args = cardanoWalletCLI $ join
-        [ ["transaction", "fees"]
-        , ["--port", show (ctx ^. typed @(Port "wallet"))]
-        , args
-        ]
+postTransactionFeeViaCLI ctx args =
+    cardanoWalletCLI
+        $ join
+            [ ["transaction", "fees"]
+            , ["--port", show (ctx ^. typed @(Port "wallet"))]
+            , args
+            ]
 
 listTransactionsViaCLI
-    :: forall r s m. (CmdResult r, HasType (Port "wallet") s, MonadIO m)
+    :: forall r s m
+     . (CmdResult r, HasType (Port "wallet") s, MonadIO m)
     => s
     -> TxMetadataSchema
     -> [String]
     -> m r
-listTransactionsViaCLI ctx metadataSchema args = cardanoWalletCLI $ join
-    [ ["transaction", "list"]
-    , ["--port", show (ctx ^. typed @(Port "wallet"))]
-    , ["--simple-metadata" | toSimpleMetadataFlag metadataSchema]
-    , args
-    ]
+listTransactionsViaCLI ctx metadataSchema args =
+    cardanoWalletCLI
+        $ join
+            [ ["transaction", "list"]
+            , ["--port", show (ctx ^. typed @(Port "wallet"))]
+            , ["--simple-metadata" | toSimpleMetadataFlag metadataSchema]
+            , args
+            ]
 
 postExternalTransactionViaCLI
-    :: forall r s m. (CmdResult r, HasType (Port "wallet") s, MonadIO m)
+    :: forall r s m
+     . (CmdResult r, HasType (Port "wallet") s, MonadIO m)
     => s
     -> [String]
     -> m r
-postExternalTransactionViaCLI ctx args = cardanoWalletCLI $ join
-    [ ["transaction", "submit"]
-    , ["--port", show (ctx ^. typed @(Port "wallet"))]
-    , args
-    ]
+postExternalTransactionViaCLI ctx args =
+    cardanoWalletCLI
+        $ join
+            [ ["transaction", "submit"]
+            , ["--port", show (ctx ^. typed @(Port "wallet"))]
+            , args
+            ]
 
 deleteTransactionViaCLI
-    :: forall r s m. (CmdResult r, HasType (Port "wallet") s, MonadIO m)
+    :: forall r s m
+     . (CmdResult r, HasType (Port "wallet") s, MonadIO m)
     => s
     -> String
     -> String
     -> m r
-deleteTransactionViaCLI ctx wid tid = cardanoWalletCLI $ join
-    [ ["transaction", "forget"]
-    , ["--port", show (ctx ^. typed @(Port "wallet")), wid, tid]
-    ]
+deleteTransactionViaCLI ctx wid tid =
+    cardanoWalletCLI
+        $ join
+            [ ["transaction", "forget"]
+            , ["--port", show (ctx ^. typed @(Port "wallet")), wid, tid]
+            ]
 
 getTransactionViaCLI
-    :: forall r s m. (CmdResult r, HasType (Port "wallet") s, MonadIO m)
+    :: forall r s m
+     . (CmdResult r, HasType (Port "wallet") s, MonadIO m)
     => s
     -> String
     -> String
     -> TxMetadataSchema
     -> m r
-getTransactionViaCLI ctx wid tid metadataSchema = cardanoWalletCLI $ join
-    [ ["transaction", "get"]
-    , ["--port", show (ctx ^. typed @(Port "wallet")), wid, tid]
-    , ["--simple-metadata" | toSimpleMetadataFlag metadataSchema]
-    ]
+getTransactionViaCLI ctx wid tid metadataSchema =
+    cardanoWalletCLI
+        $ join
+            [ ["transaction", "get"]
+            , ["--port", show (ctx ^. typed @(Port "wallet")), wid, tid]
+            , ["--simple-metadata" | toSimpleMetadataFlag metadataSchema]
+            ]
 
 proc' :: FilePath -> [String] -> CreateProcess
-proc' cmd args = (proc cmd args)
-    { std_in = CreatePipe, std_out = CreatePipe, std_err = CreatePipe }
+proc' cmd args =
+    (proc cmd args)
+        { std_in = CreatePipe
+        , std_out = CreatePipe
+        , std_err = CreatePipe
+        }
 
 oneSecond :: Int
 oneSecond = 1_000 * oneMillisecond
@@ -3456,26 +3956,37 @@ for = flip map
 --
 rootPrvKeyFromMnemonics :: [Text] -> Text -> Text
 rootPrvKeyFromMnemonics mnemonic pass =
-    T.decodeUtf8 $ hex $ getKey $ Byron.generateKeyFromSeed seed
-        (preparePassphrase W.EncryptWithScrypt rawPassd)
- where
-     (Right seed) = mkSomeMnemonic @'[12] mnemonic
-     rawPassd = Passphrase $ BA.convert $ T.encodeUtf8 pass
+    T.decodeUtf8
+        $ hex
+        $ getKey
+        $ Byron.generateKeyFromSeed
+            seed
+            (preparePassphrase W.EncryptWithScrypt rawPassd)
+  where
+    (Right seed) = mkSomeMnemonic @'[12] mnemonic
+    rawPassd = Passphrase $ BA.convert $ T.encodeUtf8 pass
 
 --
 -- Helper for delegation statuses
 --
-getSlotParams :: MonadIO m => Context -> m (EpochNo, SlottingParameters)
+getSlotParams
+    :: MonadIO m => Context -> m (EpochNo, SlottingParameters)
 getSlotParams ctx = do
-    r1 <- liftIO $ request @ApiNetworkInformation ctx
-          Link.getNetworkInfo Default Empty
+    r1 <-
+        liftIO
+            $ request @ApiNetworkInformation
+                ctx
+                Link.getNetworkInfo
+                Default
+                Empty
     let ApiT currentEpoch =
-             view (#slotId . #epochNumber)
-            $ fromMaybe (error "getSlotParams: tip is Nothing")
-            $ getFromResponse #networkTip r1
+            view (#slotId . #epochNumber)
+                $ fromMaybe (error "getSlotParams: tip is Nothing")
+                $ getFromResponse #networkTip r1
 
-    let endpoint = ( "GET", "v2/network/parameters" )
-    r2 <- liftIO $ request @ApiNetworkParameters ctx endpoint Default Empty
+    let endpoint = ("GET", "v2/network/parameters")
+    r2 <-
+        liftIO $ request @ApiNetworkParameters ctx endpoint Default Empty
     let Quantity slotL = getFromResponse #slotLength r2
     let Quantity epochL = getFromResponse #epochLength r2
     let Quantity coeff = getFromResponse #activeSlotCoefficient r2
@@ -3497,7 +4008,8 @@ getTTLSlots
     -> NominalDiffTime
     -> m SlotNo
 getTTLSlots ctx dt = liftIO $ do
-    _slotLenWrong <- unSlotLength . getSlotLength . snd <$> getSlotParams ctx
+    _slotLenWrong <-
+        unSlotLength . getSlotLength . snd <$> getSlotParams ctx
     let slotLen = 0.2 -- fixme: this is the value from byron genesis
     pure $ SlotNo $ ceiling $ dt / slotLen
 
@@ -3506,14 +4018,15 @@ notDelegating
     :: [(Maybe (ApiT PoolId), EpochInfo)]
     -- ^ Pools to be joined & epoch at which the new delegation will become active
     -> ApiWalletDelegation
-notDelegating nexts = ApiWalletDelegation
-    { active = ApiWalletDelegationNext NotDelegating Nothing Nothing Nothing
-    , next = flip map nexts $ \(mpid, epochInfo) -> case mpid of
-        Nothing ->
-            ApiWalletDelegationNext NotDelegating Nothing Nothing (Just epochInfo)
-        Just pid ->
-            ApiWalletDelegationNext Delegating (Just pid) Nothing (Just epochInfo)
-    }
+notDelegating nexts =
+    ApiWalletDelegation
+        { active = ApiWalletDelegationNext NotDelegating Nothing Nothing Nothing
+        , next = flip map nexts $ \(mpid, epochInfo) -> case mpid of
+            Nothing ->
+                ApiWalletDelegationNext NotDelegating Nothing Nothing (Just epochInfo)
+            Just pid ->
+                ApiWalletDelegationNext Delegating (Just pid) Nothing (Just epochInfo)
+        }
 
 delegating
     :: ApiT PoolId
@@ -3521,9 +4034,11 @@ delegating
     -> [(Maybe (ApiT PoolId), EpochInfo)]
     -- ^ Pools to be joined & epoch at which the new delegation will become active
     -> ApiWalletDelegation
-delegating pidActive nexts = (notDelegating nexts)
-    { active = ApiWalletDelegationNext Delegating (Just pidActive) Nothing Nothing
-    }
+delegating pidActive nexts =
+    (notDelegating nexts)
+        { active =
+            ApiWalletDelegationNext Delegating (Just pidActive) Nothing Nothing
+        }
 
 onlyVoting
     :: ApiT DRep
@@ -3531,9 +4046,10 @@ onlyVoting
     -> [(Maybe (ApiT PoolId), EpochInfo)]
     -- ^ Pools to be joined & epoch at which the new delegation will become active
     -> ApiWalletDelegation
-onlyVoting drep nexts = (notDelegating nexts)
-    { active = ApiWalletDelegationNext Voting Nothing (Just drep) Nothing
-    }
+onlyVoting drep nexts =
+    (notDelegating nexts)
+        { active = ApiWalletDelegationNext Voting Nothing (Just drep) Nothing
+        }
 
 votingAndDelegating
     :: ApiT PoolId
@@ -3543,9 +4059,15 @@ votingAndDelegating
     -> [(Maybe (ApiT PoolId), EpochInfo)]
     -- ^ Pools to be joined & epoch at which the new delegation will become active
     -> ApiWalletDelegation
-votingAndDelegating pidActive drep nexts = (notDelegating nexts)
-    { active = ApiWalletDelegationNext VotingAndDelegating (Just pidActive) (Just drep) Nothing
-    }
+votingAndDelegating pidActive drep nexts =
+    (notDelegating nexts)
+        { active =
+            ApiWalletDelegationNext
+                VotingAndDelegating
+                (Just pidActive)
+                (Just drep)
+                Nothing
+        }
 
 getRetirementEpoch :: StakePool -> Maybe EpochNo
 getRetirementEpoch = fmap (view #epochNumber) . view #retirement
@@ -3569,11 +4091,11 @@ replaceStakeKey addr1 addr2 =
         (hrp1, (tag1, pay1, _stake1)) = decodeAddr addr1
         (hrp2, (tag2, _pay2, stake2)) = decodeAddr addr2
     in
-       if tag1 == tag2 && hrp1 == hrp2
-       then encodeAddr (hrp1, (tag1, pay1, stake2))
-       else error
-        "replaceStakeKey: hrp or tag mismatch between addresses"
-
+        if tag1 == tag2 && hrp1 == hrp2
+            then encodeAddr (hrp1, (tag1, pay1, stake2))
+            else
+                error
+                    "replaceStakeKey: hrp or tag mismatch between addresses"
   where
     decodeAddr
         :: ApiAddress n
@@ -3582,7 +4104,9 @@ replaceStakeKey addr1 addr2 =
         either
             (error . show)
             (second (splitAddr . fromJust . Bech32.dataPartToBytes))
-        . Bech32.decodeLenient . encodeAddress (sNetworkId @n) . apiAddress
+            . Bech32.decodeLenient
+            . encodeAddress (sNetworkId @n)
+            . apiAddress
       where
         splitAddr :: ByteString -> (ByteString, ByteString, ByteString)
         splitAddr whole =
@@ -3591,31 +4115,38 @@ replaceStakeKey addr1 addr2 =
                 (paymentKeyH, stakeKeyH) = BS.splitAt 28 rest
             in
                 case (BS.length tag, BS.length paymentKeyH, BS.length stakeKeyH) of
-                    (1,28,28) -> (tag, paymentKeyH, stakeKeyH)
-                    lengths   -> error $ mconcat
-                        [ "replaceStakeKey: unknown lengths "
-                        , show lengths
-                        ]
+                    (1, 28, 28) -> (tag, paymentKeyH, stakeKeyH)
+                    lengths ->
+                        error
+                            $ mconcat
+                                [ "replaceStakeKey: unknown lengths "
+                                , show lengths
+                                ]
     encodeAddr
-        :: (Bech32.HumanReadablePart, (ByteString, ByteString, ByteString) )
+        :: (Bech32.HumanReadablePart, (ByteString, ByteString, ByteString))
         -> ApiAddress n
     encodeAddr (hrp, (tag, pay, stake)) =
         let
             bytes = tag <> pay <> stake
             dp = Bech32.dataPartFromBytes bytes
-            addr = either (error . show) id $
-                decodeAddress (sNetworkId @n) $ Bech32.encodeLenient hrp dp
-        in ApiAddress addr
+            addr =
+                either (error . show) id
+                    $ decodeAddress (sNetworkId @n)
+                    $ Bech32.encodeLenient hrp dp
+        in
+            ApiAddress addr
 
 noConway :: MonadIO m => Context -> String -> m ()
 noConway ctx reason = liftIO $ do
-    when (_mainEra ctx >= ApiConway) $
-        pendingWith $ "CONWAY is not supported: " <> reason
+    when (_mainEra ctx >= ApiConway)
+        $ pendingWith
+        $ "CONWAY is not supported: " <> reason
 
 noBabbage :: MonadIO m => Context -> String -> m ()
 noBabbage ctx reason = liftIO $ do
-    when (_mainEra ctx == ApiBabbage) $
-        pendingWith $ "BABBAGE is not supported: " <> reason
+    when (_mainEra ctx == ApiBabbage)
+        $ pendingWith
+        $ "BABBAGE is not supported: " <> reason
 
 babbageOrConway :: Context -> a -> a -> a
 babbageOrConway ctx valBabbage valConway =
@@ -3624,7 +4155,8 @@ babbageOrConway ctx valBabbage valConway =
         _ -> valConway
 
 delegateToPool
-    :: forall n m. (HasSNetworkId n, MonadFail m, MonadUnliftIO m)
+    :: forall n m
+     . (HasSNetworkId n, MonadFail m, MonadUnliftIO m)
     => Context
     -> ResourceT m (ApiWallet, PoolId)
 delegateToPool ctx = do
@@ -3632,7 +4164,9 @@ delegateToPool ctx = do
     src <- fixtureWalletWith @n ctx [initialAmt, initialAmt]
     pool1 : _ <- map (view #id) <$> notRetiringPools ctx
 
-    let delegationJoin = Json [aesonQQ|{
+    let delegationJoin =
+            Json
+                [aesonQQ|{
             "delegations": [{
                 "join": {
                     "pool": #{ApiT pool1},
@@ -3640,27 +4174,40 @@ delegateToPool ctx = do
                 }
             }]
         }|]
-    rTx1 <- request @(ApiConstructTransaction n) ctx
-        (Link.createUnsignedTransaction @'Shelley src) Default delegationJoin
-    verify rTx1
+    rTx1 <-
+        request @(ApiConstructTransaction n)
+            ctx
+            (Link.createUnsignedTransaction @'Shelley src)
+            Default
+            delegationJoin
+    verify
+        rTx1
         [ expectResponseCode HTTP.status202
         ]
 
     let ApiSerialisedTransaction apiTx1 _ = getFromResponse #transaction rTx1
-    signedTx1 <- signTx ctx src apiTx1 [ expectResponseCode HTTP.status202 ]
+    signedTx1 <-
+        signTx ctx src apiTx1 [expectResponseCode HTTP.status202]
 
     submittedTx1 <- submitTxWithWid ctx src signedTx1
-    verify submittedTx1
+    verify
+        submittedTx1
         [ expectSuccess
         , expectResponseCode HTTP.status202
         ]
 
     eventually "Wallet has joined pool and deposit info persists" $ do
-        rJoin' <- request @(ApiTransaction n) ctx
-            (Link.getTransaction @'Shelley src
-                (getResponse submittedTx1))
-            Default Empty
-        verify rJoin'
+        rJoin' <-
+            request @(ApiTransaction n)
+                ctx
+                ( Link.getTransaction @'Shelley
+                    src
+                    (getResponse submittedTx1)
+                )
+                Default
+                Empty
+        verify
+            rJoin'
             [ expectResponseCode HTTP.status200
             , expectField #depositReturned (`shouldBe` ApiAmount 0)
             ]
@@ -3669,9 +4216,11 @@ delegateToPool ctx = do
 
     let getSrcWallet =
             let endpoint = Link.getWallet @'Shelley src
-             in request @ApiWallet ctx endpoint Default Empty
+            in  request @ApiWallet ctx endpoint Default Empty
     eventually "Wallet is delegating to pool1" $ do
-        getSrcWallet >>= flip verify
-            [ expectField #delegation (`shouldBe` delegating (ApiT pool1) [])
-            ]
+        getSrcWallet
+            >>= flip
+                verify
+                [ expectField #delegation (`shouldBe` delegating (ApiT pool1) [])
+                ]
     return (src, pool1)

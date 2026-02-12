@@ -13,9 +13,7 @@ module Cardano.Wallet.Primitive.Types.Tx.Gen
     , TxWithoutId (..)
     , txWithoutIdToTx
     )
-    where
-
-import Prelude
+where
 
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
@@ -60,11 +58,11 @@ import Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen
 import Data.Map.Strict
     ( Map
     )
-import Generics.SOP
-    ( NP (..)
-    )
 import GHC.Generics
     ( Generic
+    )
+import Generics.SOP
+    ( NP (..)
     )
 import Test.QuickCheck
     ( Gen
@@ -88,6 +86,7 @@ import Test.QuickCheck.Extra
     , (<:>)
     , (<@>)
     )
+import Prelude
 
 --------------------------------------------------------------------------------
 -- Transactions generated according to the size parameter
@@ -112,34 +111,36 @@ data TxWithoutId = TxWithoutId
     deriving (Eq, Generic, Ord, Show)
 
 genTxWithoutId :: Gen TxWithoutId
-genTxWithoutId = TxWithoutId
-    <$> liftArbitrary genCoinPositive
-    <*> listOf1 (liftArbitrary2 genTxIn (pure Nothing))
-    <*> listOf1 (liftArbitrary2 genTxIn (pure Nothing))
-    <*> listOf genTxOut
-    <*> liftArbitrary genTxOut
-    <*> liftArbitrary genNestedTxMetadata
-    <*> genMapWith genRewardAccount genCoinPositive
-    <*> liftArbitrary genTxScriptValidity
+genTxWithoutId =
+    TxWithoutId
+        <$> liftArbitrary genCoinPositive
+        <*> listOf1 (liftArbitrary2 genTxIn (pure Nothing))
+        <*> listOf1 (liftArbitrary2 genTxIn (pure Nothing))
+        <*> listOf genTxOut
+        <*> liftArbitrary genTxOut
+        <*> liftArbitrary genNestedTxMetadata
+        <*> genMapWith genRewardAccount genCoinPositive
+        <*> liftArbitrary genTxScriptValidity
 
 shrinkTxWithoutId :: TxWithoutId -> [TxWithoutId]
-shrinkTxWithoutId = genericRoundRobinShrink
-    <@> liftShrink shrinkCoinPositive
-    <:> shrinkList (liftShrink2 shrinkTxIn (liftShrink shrinkTxOut))
-    <:> shrinkList (liftShrink2 shrinkTxIn (liftShrink shrinkTxOut))
-    <:> shrinkList shrinkTxOut
-    <:> liftShrink shrinkTxOut
-    <:> liftShrink shrinkTxMetadata
-    <:> shrinkMapWith shrinkRewardAccount shrinkCoinPositive
-    <:> liftShrink shrinkTxScriptValidity
-    <:> Nil
+shrinkTxWithoutId =
+    genericRoundRobinShrink
+        <@> liftShrink shrinkCoinPositive
+        <:> shrinkList (liftShrink2 shrinkTxIn (liftShrink shrinkTxOut))
+        <:> shrinkList (liftShrink2 shrinkTxIn (liftShrink shrinkTxOut))
+        <:> shrinkList shrinkTxOut
+        <:> liftShrink shrinkTxOut
+        <:> liftShrink shrinkTxMetadata
+        <:> shrinkMapWith shrinkRewardAccount shrinkCoinPositive
+        <:> liftShrink shrinkTxScriptValidity
+        <:> Nil
 
 txWithoutIdToTx :: TxWithoutId -> Tx
-txWithoutIdToTx tx@TxWithoutId {..}
-    = Tx {txId = mockHash tx, txCBOR = Nothing, ..}
+txWithoutIdToTx tx@TxWithoutId{..} =
+    Tx{txId = mockHash tx, txCBOR = Nothing, ..}
 
 txToTxWithoutId :: Tx -> TxWithoutId
-txToTxWithoutId Tx {..} = TxWithoutId {..}
+txToTxWithoutId Tx{..} = TxWithoutId{..}
 
 genTxScriptValidity :: Gen TxScriptValidity
 genTxScriptValidity = genericArbitrary

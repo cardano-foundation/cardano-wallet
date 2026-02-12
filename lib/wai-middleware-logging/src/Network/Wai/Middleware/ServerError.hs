@@ -6,12 +6,9 @@
 --
 -- Middleware between Wai <-> Servant to accommodate raw error responses
 -- returned by servant. See also 'handleRawError'.
-
 module Network.Wai.Middleware.ServerError
     ( handleRawError
     ) where
-
-import Prelude
 
 import Control.Monad
     ( guard
@@ -36,6 +33,7 @@ import Servant.Server.Internal.ServerError
     ( ServerError (..)
     , responseServerError
     )
+import Prelude
 
 import qualified Data.Binary.Builder as Binary
 import qualified Data.ByteString.Char8 as B8
@@ -62,7 +60,9 @@ handleRawError
     -- error
     -> Middleware
 handleRawError adjust app req send =
-    app req (send . either (responseServerError . adjust req) id . eitherRawError)
+    app
+        req
+        (send . either (responseServerError . adjust req) id . eitherRawError)
 
 -- | Analyze whether a given error is a raw error thrown by Servant before
 -- reaching our application layer, or one from our application layer.
@@ -74,9 +74,10 @@ eitherRawError res =
         reason = B8.unpack (statusMessage status)
         headers = responseHeaders res
         body = responseBody res
-        maybeToEither = maybe
-            (Right res)
-            (Left . flip (ServerError code reason) headers)
+        maybeToEither =
+            maybe
+                (Right res)
+                (Left . flip (ServerError code reason) headers)
     in
         maybeToEither $ guard (code >= 400) *> body
 

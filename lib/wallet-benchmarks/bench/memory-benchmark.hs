@@ -3,10 +3,6 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-import Prelude hiding
-    ( takeWhile
-    )
-
 import Cardano.BM.ToTextTracer
     ( ToTextTracer (ToTextTracer)
     , withToTextTracer
@@ -88,6 +84,9 @@ import System.IO.Temp
 import Text.Read
     ( readMaybe
     )
+import Prelude hiding
+    ( takeWhile
+    )
 
 import qualified Cardano.Launcher as C
 import qualified Cardano.Launcher.Node as C
@@ -107,10 +106,30 @@ testBlockHeight = 7280
 
 testMnemonic :: [String]
 testMnemonic =
-    [ "slab","praise","suffer","rabbit","during","dream"
-    , "arch","harvest","culture","book","owner","loud"
-    , "wool","salon","table","animal","vivid","arrow"
-    , "dirt","divide","humble","tornado","solution","jungle"
+    [ "slab"
+    , "praise"
+    , "suffer"
+    , "rabbit"
+    , "during"
+    , "dream"
+    , "arch"
+    , "harvest"
+    , "culture"
+    , "book"
+    , "owner"
+    , "loud"
+    , "wool"
+    , "salon"
+    , "table"
+    , "animal"
+    , "vivid"
+    , "arrow"
+    , "dirt"
+    , "divide"
+    , "humble"
+    , "tornado"
+    , "solution"
+    , "jungle"
     ]
 
 {-----------------------------------------------------------------------------
@@ -118,41 +137,45 @@ testMnemonic =
 ------------------------------------------------------------------------------}
 
 data Config = Config
-  { nodeExe :: FilePath
-  , walletExe :: FilePath
-  , snapshot :: FilePath
-  , workingDir :: FilePath
-  }
+    { nodeExe :: FilePath
+    , walletExe :: FilePath
+    , snapshot :: FilePath
+    , workingDir :: FilePath
+    }
 
 configParser :: O.Parser Config
-configParser = Config
-    <$> O.strOption
-        ( O.long "node"
-        <> O.metavar "PATH"
-        <> O.help "Path to the cardano-node executable"
-        )
-    <*> O.strOption
-        ( O.long "wallet"
-        <> O.metavar "PATH"
-        <> O.help "Path to the cardano-wallet executable"
-        )
-    <*> O.strOption
-        ( O.long "snapshot"
-        <> O.metavar "PATH"
-        <> O.help "Path to the snapshot archive"
-        )
-    <*> O.strOption
-        ( O.long "work-dir"
-        <> O.metavar "PATH"
-        <> O.help "Path to the working directory"
-        )
+configParser =
+    Config
+        <$> O.strOption
+            ( O.long "node"
+                <> O.metavar "PATH"
+                <> O.help "Path to the cardano-node executable"
+            )
+        <*> O.strOption
+            ( O.long "wallet"
+                <> O.metavar "PATH"
+                <> O.help "Path to the cardano-wallet executable"
+            )
+        <*> O.strOption
+            ( O.long "snapshot"
+                <> O.metavar "PATH"
+                <> O.help "Path to the snapshot archive"
+            )
+        <*> O.strOption
+            ( O.long "work-dir"
+                <> O.metavar "PATH"
+                <> O.help "Path to the working directory"
+            )
 
 configInfo :: O.ParserInfo Config
-configInfo = O.info (configParser O.<**> O.helper) $ mconcat
-    [ O.fullDesc
-    , O.progDesc "Run the memory benchmark"
-    , O.header "memory-benchmark - a benchmark for cardano-wallet memory usage"
-    ]
+configInfo =
+    O.info (configParser O.<**> O.helper)
+        $ mconcat
+            [ O.fullDesc
+            , O.progDesc "Run the memory benchmark"
+            , O.header
+                "memory-benchmark - a benchmark for cardano-wallet memory usage"
+            ]
 
 newtype MemoryBenchLog = MemoryBenchLog Text
 
@@ -193,7 +216,7 @@ main = withUtf8 $ do
         liftIO $ waitUntilSynchronized tr wallet
         reporter <- newReporterFromEnv tr $ mkSemantic ["memory"]
         trace "Running pmap on the wallet process"
-        Pmap {pmapLines} <- liftIO $ pmap $ processHandle p
+        Pmap{pmapLines} <- liftIO $ pmap $ processHandle p
         let usage = highestMemoryUsageFor "cardano-wallet" pmapLines
         trace "Reporting the result"
         liftIO
@@ -209,9 +232,9 @@ highestMemoryUsageFor cmd =
         . map memory
         . filter (\l -> command l == cmd)
 
-waitUntilSynchronized :: Tracer IO Text  -> C.CardanoWalletConn -> IO ()
+waitUntilSynchronized
+    :: Tracer IO Text -> C.CardanoWalletConn -> IO ()
 waitUntilSynchronized tr wallet = do
-
     height <- getLatestBlockHeight tr wallet
 
     when (height < testBlockHeight) $ do
@@ -223,16 +246,18 @@ copyNodeSnapshot snapshot tmp = do
     copyFile snapshot tmp
     let dir = tmp </> takeBaseName testSnapshot
     decompress (tmp </> testSnapshot) tmp
-    pure $ BenchmarkConfig
-        { nodeConfigDir = dir </> "config"
-        , nodeDatabaseDir = dir </> "db-node"
-        , walletDatabaseDir = dir </> "db-wallet"
-        }
+    pure
+        $ BenchmarkConfig
+            { nodeConfigDir = dir </> "config"
+            , nodeDatabaseDir = dir </> "db-node"
+            , walletDatabaseDir = dir </> "db-wallet"
+            }
 
 {-----------------------------------------------------------------------------
     Cardano commands
 ------------------------------------------------------------------------------}
-getLatestBlockHeight :: Tracer IO Text -> C.CardanoWalletConn -> IO Int
+getLatestBlockHeight
+    :: Tracer IO Text -> C.CardanoWalletConn -> IO Int
 getLatestBlockHeight _tr wallet = do
     fmap (fromMaybe 0 . readMaybe)
         . flip S.readCreateProcess ""
@@ -247,13 +272,14 @@ curlGetCommand wallet path =
 
 createWallet :: C.CardanoWalletConn -> [String] -> IO ()
 createWallet wallet mnemonic =
-    curlPostJSON wallet "/wallets" $ unwords
-        [ "{ \"mnemonic_sentence\": " <> showMnemonic mnemonic <> ","
-        , "  \"passphrase\": \"Secure Passphrase\","
-        , "  \"name\": \"Memory Benchmark\","
-        , "  \"address_pool_gap\": 20"
-        , "}"
-        ]
+    curlPostJSON wallet "/wallets"
+        $ unwords
+            [ "{ \"mnemonic_sentence\": " <> showMnemonic mnemonic <> ","
+            , "  \"passphrase\": \"Secure Passphrase\","
+            , "  \"name\": \"Memory Benchmark\","
+            , "  \"address_pool_gap\": 20"
+            , "}"
+            ]
   where
     braces l r s = l <> s <> r
     showMnemonic =
@@ -263,9 +289,12 @@ curlPostJSON :: C.CardanoWalletConn -> String -> String -> IO ()
 curlPostJSON wallet path json =
     S.callProcess
         "curl"
-        [ "-X", "POST"
-        , "-d", json
-        , "-H", "Content-Type: application/json"
+        [ "-X"
+        , "POST"
+        , "-d"
+        , json
+        , "-H"
+        , "Content-Type: application/json"
         , walletURL wallet <> path
         ]
 
@@ -290,7 +319,9 @@ withCardanoWallet
     -> (C.CardanoWalletConn -> IO r)
     -> IO r
 withCardanoWallet tr workingDir walletExe BenchmarkConfig{..} node action = do
-    C.withCardanoWallet tr node
+    C.withCardanoWallet
+        tr
+        node
         C.CardanoWalletConfig
             { C.walletPort =
                 8060
@@ -316,7 +347,8 @@ withCardanoNode
     -> (C.CardanoNodeConn -> IO r)
     -> IO r
 withCardanoNode tr nodeExe BenchmarkConfig{..} action =
-    C.withCardanoNode tr
+    C.withCardanoNode
+        tr
         C.CardanoNodeConfig
             { C.nodeDir = nodeDatabaseDir
             , C.nodeConfigFile = nodeConfigDir </> "config.json"
@@ -346,7 +378,7 @@ requireExecutable :: FilePath -> String -> IO ()
 requireExecutable name cmd = S.callProcess name [cmd]
 
 copyFile :: FilePath -> FilePath -> IO ()
-copyFile source destination = S.callProcess "cp" [source,destination]
+copyFile source destination = S.callProcess "cp" [source, destination]
 
 decompress :: FilePath -> FilePath -> IO ()
 decompress source destination =

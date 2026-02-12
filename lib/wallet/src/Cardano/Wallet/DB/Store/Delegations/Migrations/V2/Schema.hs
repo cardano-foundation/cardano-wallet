@@ -27,8 +27,6 @@
 -- hand-written functions should be written in this module!
 module Cardano.Wallet.DB.Store.Delegations.Migrations.V2.Schema where
 
-import Prelude
-
 import Cardano.Pool.Types
     ( PoolId
     )
@@ -90,6 +88,7 @@ import Database.Persist.TH
 import GHC.Generics
     ( Generic (..)
     )
+import Prelude
 
 import qualified Data.Text.Encoding as T
 

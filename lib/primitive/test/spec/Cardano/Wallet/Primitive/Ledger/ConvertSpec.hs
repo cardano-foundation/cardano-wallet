@@ -7,8 +7,6 @@ module Cardano.Wallet.Primitive.Ledger.ConvertSpec
     ( spec
     ) where
 
-import Prelude
-
 import Cardano.Address.KeyHash
     ( KeyHash (..)
     , KeyRole (..)
@@ -72,7 +70,8 @@ import Data.Typeable
     , typeRep
     )
 import Test.Cardano.Ledger.Allegra.Arbitrary
-    ()
+    (
+    )
 import Test.Hspec
     ( Spec
     , describe
@@ -95,50 +94,54 @@ import Test.QuickCheck
     , vectorOf
     , (===)
     )
+import Prelude
 
 import qualified Data.ByteString as BS
 
 spec :: Spec
-spec = describe "Cardano.Wallet.Primitive.Ledger.ConvertSpec" $
+spec = describe "Cardano.Wallet.Primitive.Ledger.ConvertSpec"
+    $ modifyMaxSuccess (const 1000)
+    $ do
+        describe "Roundtrip conversions" $ do
+            ledgerRoundtrip $ Proxy @Coin
+            ledgerRoundtrip $ Proxy @TokenBundle
+            ledgerRoundtrip $ Proxy @AssetName
+            ledgerRoundtrip $ Proxy @TokenPolicyId
+            ledgerRoundtrip $ Proxy @TokenQuantity
+            ledgerRoundtrip $ Proxy @TxIn
 
-    modifyMaxSuccess (const 1000) $ do
+        describe
+            "Timelock roundtrips (toLedgerTimelockScript, toWalletScript)"
+            $ do
+                let ledger = toLedgerTimelockScript @BabbageEra
+                let wallet = toWalletScript (const Unknown)
 
-    describe "Roundtrip conversions" $ do
+                it "ledger . wallet . ledger == ledger" $ property $ \s -> do
+                    -- Ignore key role by doing one extra conversion
+                    ledger (wallet $ ledger s) === ledger s
 
-        ledgerRoundtrip $ Proxy @Coin
-        ledgerRoundtrip $ Proxy @TokenBundle
-        ledgerRoundtrip $ Proxy @AssetName
-        ledgerRoundtrip $ Proxy @TokenPolicyId
-        ledgerRoundtrip $ Proxy @TokenQuantity
-        ledgerRoundtrip $ Proxy @TxIn
-
-    describe "Timelock roundtrips (toLedgerTimelockScript, toWalletScript)" $ do
-        let ledger = toLedgerTimelockScript @BabbageEra
-        let wallet = toWalletScript (const Unknown)
-
-        it "ledger . wallet . ledger == ledger" $ property $ \s -> do
-            -- Ignore key role by doing one extra conversion
-            ledger (wallet $ ledger s) === ledger s
-
-        it "ledger . wallet == id" $ property $ \s -> do
-            ledger (wallet s) === s
+                it "ledger . wallet == id" $ property $ \s -> do
+                    ledger (wallet s) === s
 
 --------------------------------------------------------------------------------
 -- Utilities
 --------------------------------------------------------------------------------
 
 ledgerRoundtrip
-    :: forall w l. (Arbitrary w, Eq w, Show w, Typeable w, Convert w l)
+    :: forall w l
+     . (Arbitrary w, Eq w, Show w, Typeable w, Convert w l)
     => Proxy w
     -> Spec
-ledgerRoundtrip proxy = it title $
-    property $ \a -> toWallet (toLedger @w a) === a
+ledgerRoundtrip proxy = it title
+    $ property
+    $ \a -> toWallet (toLedger @w a) === a
   where
-    title = mconcat
-        [ "Can perform roundtrip conversion for values of type '"
-        , show (typeRep proxy)
-        , "'"
-        ]
+    title =
+        mconcat
+            [ "Can perform roundtrip conversion for values of type '"
+            , show (typeRep proxy)
+            , "'"
+            ]
 
 --------------------------------------------------------------------------------
 -- Arbitraries
@@ -156,11 +159,13 @@ instance Arbitrary TokenBundle where
 
 instance Arbitrary AssetName where
     arbitrary = genAssetNameLargeRange
-    -- No shrinking
+
+-- No shrinking
 
 instance Arbitrary TokenPolicyId where
     arbitrary = genTokenPolicyIdLargeRange
-    -- No shrinking
+
+-- No shrinking
 
 instance Arbitrary TokenQuantity where
     arbitrary = genTokenQuantityFullRange
@@ -178,11 +183,12 @@ instance Arbitrary (Script KeyHash) where
         genScript :: [a] -> Gen (Script a)
         genScript elems = scale (`div` 3) $ sized scriptTree
           where
-            scriptTree 0 = oneof
-                [ RequireSignatureOf <$> elements elems
-                , ActiveFromSlot <$> arbitrarySizedNatural
-                , ActiveUntilSlot <$> arbitrarySizedNatural
-                ]
+            scriptTree 0 =
+                oneof
+                    [ RequireSignatureOf <$> elements elems
+                    , ActiveFromSlot <$> arbitrarySizedNatural
+                    , ActiveUntilSlot <$> arbitrarySizedNatural
+                    ]
             scriptTree n = do
                 Positive m <- arbitrary
                 let n' = n `div` (m + 1)

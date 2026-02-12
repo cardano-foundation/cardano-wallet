@@ -10,8 +10,6 @@ module Cardano.Wallet.DB.Store.Transactions.TransactionInfo
     , mkTxCBOR
     ) where
 
-import Prelude
-
 import Cardano.Read.Ledger.Tx.CollateralInputs
     ( getEraCollateralInputs
     )
@@ -132,6 +130,7 @@ import Data.Generics.Internal.VL
 import Data.Quantity
     ( Quantity (..)
     )
+import Prelude
 
 import qualified Cardano.Wallet.DB.Sqlite.Schema as DB
 import qualified Cardano.Wallet.Primitive.Types as W
@@ -150,64 +149,72 @@ import qualified Data.Map.Strict as Map
 -- | Compute a high level view of a transaction known as 'TransactionInfo'
 -- from a 'TxMeta' and a 'TxRelation'.
 -- Assumes that these data refer to the same 'TxId', does /not/ check this.
-mkTransactionInfoFromRelation :: Monad m
+mkTransactionInfoFromRelation
+    :: Monad m
     => TimeInterpreter m
     -> W.BlockHeader
     -> TxRelation
     -> DecoratedTxIns
     -> DB.TxMeta
     -> m WT.TransactionInfo
-mkTransactionInfoFromRelation ti tip TxRelation{..}
-        decor meta@DB.TxMeta{..} = do
-    txTime <- interpretQuery ti . slotToUTCTime $ txMetaSlot
-    return
-        $ WT.TransactionInfo
-        { WT.txInfoId = getTxId txMetaTxId
-        , WT.txInfoCBOR = cbor >>= mkTxCBOR
-        , WT.txInfoFee = WC.Coin . fromIntegral <$> txMetaFee
-        , WT.txInfoInputs = mkTxIn <$> ins
-        , WT.txInfoCollateralInputs = mkTxCollateral <$> collateralIns
-        , WT.txInfoOutputs = fromTxOut <$> outs
-        , WT.txInfoCollateralOutput
-            = fromTxCollateralOut <$> collateralOuts
-        , WT.txInfoWithdrawals
-            = Map.fromList $ map mkTxWithdrawal withdrawals
-        , WT.txInfoMeta = mkTxMetaFromEntity meta
-        , WT.txInfoMetadata = txMetadata
-        , WT.txInfoDepth = Quantity
-              $ fromIntegral
-              $ if tipH > txMetaBlockHeight
-                  then tipH - txMetaBlockHeight
-                  else 0
-        , WT.txInfoTime = txTime
-        , WT.txInfoScriptValidity = txMetaScriptValidity <&> \case
-              False -> WT.TxScriptInvalid
-              True -> WT.TxScriptValid
-        }
-  where
-    tipH = getQuantity $ tip ^. #blockHeight
-    mkTxIn tx =
-        ( WT.TxIn
-          { inputId = getTxId (txInputSourceTxId tx)
-          , inputIx = txInputSourceIndex tx
-          }
-        , lookupTxOut (mkTxOutKey tx) decor
-        )
-    mkTxCollateral tx =
-        ( WT.TxIn
-          { inputId = getTxId (txCollateralSourceTxId tx)
-          , inputIx = txCollateralSourceIndex tx
-          }
-        , lookupTxOut (mkTxOutKeyCollateral tx) decor
-        )
-    mkTxWithdrawal w = (txWithdrawalAccount w, txWithdrawalAmount w)
+mkTransactionInfoFromRelation
+    ti
+    tip
+    TxRelation{..}
+    decor
+    meta@DB.TxMeta{..} = do
+        txTime <- interpretQuery ti . slotToUTCTime $ txMetaSlot
+        return
+            $ WT.TransactionInfo
+                { WT.txInfoId = getTxId txMetaTxId
+                , WT.txInfoCBOR = cbor >>= mkTxCBOR
+                , WT.txInfoFee = WC.Coin . fromIntegral <$> txMetaFee
+                , WT.txInfoInputs = mkTxIn <$> ins
+                , WT.txInfoCollateralInputs = mkTxCollateral <$> collateralIns
+                , WT.txInfoOutputs = fromTxOut <$> outs
+                , WT.txInfoCollateralOutput =
+                    fromTxCollateralOut <$> collateralOuts
+                , WT.txInfoWithdrawals =
+                    Map.fromList $ map mkTxWithdrawal withdrawals
+                , WT.txInfoMeta = mkTxMetaFromEntity meta
+                , WT.txInfoMetadata = txMetadata
+                , WT.txInfoDepth =
+                    Quantity
+                        $ fromIntegral
+                        $ if tipH > txMetaBlockHeight
+                            then tipH - txMetaBlockHeight
+                            else 0
+                , WT.txInfoTime = txTime
+                , WT.txInfoScriptValidity =
+                    txMetaScriptValidity <&> \case
+                        False -> WT.TxScriptInvalid
+                        True -> WT.TxScriptValid
+                }
+      where
+        tipH = getQuantity $ tip ^. #blockHeight
+        mkTxIn tx =
+            ( WT.TxIn
+                { inputId = getTxId (txInputSourceTxId tx)
+                , inputIx = txInputSourceIndex tx
+                }
+            , lookupTxOut (mkTxOutKey tx) decor
+            )
+        mkTxCollateral tx =
+            ( WT.TxIn
+                { inputId = getTxId (txCollateralSourceTxId tx)
+                , inputIx = txCollateralSourceIndex tx
+                }
+            , lookupTxOut (mkTxOutKeyCollateral tx) decor
+            )
+        mkTxWithdrawal w = (txWithdrawalAccount w, txWithdrawalAmount w)
 
 mkTxCBOR :: DB.CBOR -> Maybe TxCBOR
 mkTxCBOR = either (const Nothing) (Just . snd) . L.match txCBORPrism
 
 -- | Compute a high level view of a transaction known as 'TransactionInfo'
 -- from a CBOR and a slimmed down version of TxMeta
-mkTransactionInfoFromReadTx :: Monad m
+mkTransactionInfoFromReadTx
+    :: Monad m
     => TimeInterpreter m
     -> W.BlockHeader
     -> EraValue Read.Tx
@@ -219,39 +226,46 @@ mkTransactionInfoFromReadTx ti tip tx decor SubmissionMeta{..} status = do
     txTime <- interpretQuery ti . slotToUTCTime $ submissionMetaSlot
     return
         $ WT.TransactionInfo
-        { WT.txInfoId = W.Hash $ value getEraTxHash
-        , WT.txInfoCBOR = Just $ renderTxToCBOR tx
-        , WT.txInfoFee = value $ getFee . getEraFee
-        , WT.txInfoInputs = mkTxIn <$> value (getInputs . getEraInputs)
-        , WT.txInfoCollateralInputs = mkTxIn
-            <$> value (getCollateralInputs . getEraCollateralInputs)
-        , WT.txInfoOutputs = value (getOutputs . getEraOutputs)
-        , WT.txInfoCollateralOutput
-            = value (getCollateralOutputs . getEraCollateralOutputs)
-        , WT.txInfoWithdrawals = fold
-            $ value (getWithdrawals . getEraWithdrawals)
-        , WT.txInfoMeta = WT.TxMeta
-              { WT.status = status
-              , WT.direction = submissionMetaDirection
-              , WT.slotNo = submissionMetaSlot
-              , WT.blockHeight = submissionMetaHeight
-              , W.amount = submissionMetaAmount
-              , WT.expiry = fmap (SlotNo . getQuantity . invalidHereafter)
-                    $ value $ getValidity . getEraValidity
-              }
-        , WT.txInfoMetadata = value $ getMetadata . getEraMetadata
-        , WT.txInfoDepth = Quantity $ fromIntegral $
-            if tipH > height
-                  then tipH - height
-                  else 0
-        , WT.txInfoTime = txTime
-        , WT.txInfoScriptValidity
-            = value $ getScriptValidity . getEraScriptValidity
-        }
+            { WT.txInfoId = W.Hash $ value getEraTxHash
+            , WT.txInfoCBOR = Just $ renderTxToCBOR tx
+            , WT.txInfoFee = value $ getFee . getEraFee
+            , WT.txInfoInputs = mkTxIn <$> value (getInputs . getEraInputs)
+            , WT.txInfoCollateralInputs =
+                mkTxIn
+                    <$> value (getCollateralInputs . getEraCollateralInputs)
+            , WT.txInfoOutputs = value (getOutputs . getEraOutputs)
+            , WT.txInfoCollateralOutput =
+                value (getCollateralOutputs . getEraCollateralOutputs)
+            , WT.txInfoWithdrawals =
+                fold
+                    $ value (getWithdrawals . getEraWithdrawals)
+            , WT.txInfoMeta =
+                WT.TxMeta
+                    { WT.status = status
+                    , WT.direction = submissionMetaDirection
+                    , WT.slotNo = submissionMetaSlot
+                    , WT.blockHeight = submissionMetaHeight
+                    , W.amount = submissionMetaAmount
+                    , WT.expiry =
+                        fmap (SlotNo . getQuantity . invalidHereafter)
+                            $ value
+                            $ getValidity . getEraValidity
+                    }
+            , WT.txInfoMetadata = value $ getMetadata . getEraMetadata
+            , WT.txInfoDepth =
+                Quantity
+                    $ fromIntegral
+                    $ if tipH > height
+                        then tipH - height
+                        else 0
+            , WT.txInfoTime = txTime
+            , WT.txInfoScriptValidity =
+                value $ getScriptValidity . getEraScriptValidity
+            }
   where
     tipH = getQuantity $ tip ^. #blockHeight
 
-    value :: (forall era . IsEra era => Tx era -> a) -> a
+    value :: (forall era. IsEra era => Tx era -> a) -> a
     value f = applyEraFun f tx
 
     height = getQuantity submissionMetaHeight
@@ -259,9 +273,9 @@ mkTransactionInfoFromReadTx ti tip tx decor SubmissionMeta{..} status = do
     mkTxIn :: WT.TxIn -> (WT.TxIn, Maybe WT.TxOut)
     mkTxIn txIn =
         ( WT.TxIn
-          { inputId = WT.inputId txIn
-          , inputIx = WT.inputIx txIn
-          }
+            { inputId = WT.inputId txIn
+            , inputIx = WT.inputIx txIn
+            }
         , lookupTxOut (mkTxOutPrimitive txIn) decor
         )
 
