@@ -244,7 +244,8 @@ import Control.Arrow
     ( first
     )
 import Control.Monad
-    ( unless
+    ( forever
+    , unless
     , void
     , when
     )
@@ -318,6 +319,11 @@ import GHC.Conc
 import GHC.Generics
     ( Generic
     )
+import GHC.Stats
+    ( RTSStats (..)
+    , getRTSStats
+    , getRTSStatsEnabled
+    )
 import GHC.TypeLits
     ( KnownNat
     , Nat
@@ -373,15 +379,82 @@ import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics
 import qualified Cardano.Wallet.Read as Read
+import qualified Control.Exception as E
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
+import qualified Data.Text.IO as TIO
 import qualified Internal.Cardano.Write.Tx as Write
     ( PParamsInAnyRecentEra (PParamsInAnyRecentEra)
     )
+
+{-------------------------------------------------------------------------------
+                            Wallet RSS monitoring
+-------------------------------------------------------------------------------}
+
+-- | Read VmRSS (resident set size) from /proc/self/status in kB.
+-- Returns 'Nothing' on non-Linux or if parsing fails.
+readVmRssKb :: IO (Maybe Int)
+readVmRssKb = do
+    r <- E.try @E.IOException $ TIO.readFile "/proc/self/status"
+    pure $ case r of
+        Left _ -> Nothing
+        Right contents ->
+            let ls = filter ("VmRSS:" `T.isPrefixOf`) (T.lines contents)
+            in case ls of
+                (line : _) ->
+                    case filter (not . T.null) (T.words line) of
+                        [_, kb, _] -> case reads (T.unpack kb) of
+                            [(v, "")] -> Just v
+                            _ -> Nothing
+                        _ -> Nothing
+                _ -> Nothing
+
+-- | Run an IO action while sampling the process RSS every 10 seconds.
+-- Returns the peak RSS in kB alongside the action's result.
+withRssMonitor :: IO a -> IO (a, Maybe Int)
+withRssMonitor action = do
+    peakRef <- newTVarIO (0 :: Int)
+    sampler <- async $ forever $ do
+        mbRss <- readVmRssKb
+        case mbRss of
+            Just rss ->
+                atomically $ do
+                    current <- readTVar peakRef
+                    when (rss > current) $ writeTVar peakRef rss
+            Nothing -> pure ()
+        threadDelay 10_000_000 -- 10 seconds
+    result <- action
+    cancel sampler
+    peak <- readTVarIO peakRef
+    pure (result, if peak > 0 then Just peak else Nothing)
+
+-- | Report GHC RTS memory stats if available (-T or -s flag).
+reportRtsStats :: IO ()
+reportRtsStats = do
+    enabled <- getRTSStatsEnabled
+    when enabled $ do
+        stats <- getRTSStats
+        let toMb bytes =
+                showFFloat (Just 1)
+                    (fromIntegral bytes / (1024 * 1024 :: Double))
+                    " MB"
+        sayErr "=== GHC RTS Memory Stats ==="
+        sayErr
+            $ "  Max live bytes: "
+            <> T.pack (toMb (max_live_bytes stats))
+        sayErr
+            $ "  Max heap size:  "
+            <> T.pack (toMb (max_mem_in_use_bytes stats))
+        sayErr
+            $ "  GC copied bytes:"
+            <> T.pack (toMb (copied_bytes stats))
+        sayErr
+            $ "  Major GCs:      "
+            <> T.pack (show (major_gcs stats))
 
 hoursToMicroseconds :: Int -> Int
 hoursToMicroseconds = (* 3_600) . (* 1_000_000)
@@ -392,11 +465,34 @@ newtype NodeSyncTimeout = NodeSyncTimeout (Maybe Int)
 
 main :: IO ()
 main = withUtf8 $ do
-    r <- execBenchWithNode argsNetworkConfig $ \args ->
-        cardanoRestoreBench (argBenchName args)
-            $ NodeSyncTimeout
-            $ argNodeSyncTimeout args
-            <&> hoursToMicroseconds
+    r <- execBenchWithNode argsNetworkConfig
+        $ \args tr cfg conn -> do
+            ((), peakRssKb) <- withRssMonitor
+                $ cardanoRestoreBench (argBenchName args)
+                    ( NodeSyncTimeout
+                        $ argNodeSyncTimeout args
+                        <&> hoursToMicroseconds
+                    )
+                    tr
+                    cfg
+                    conn
+            sayErr ""
+            sayErr "=== Wallet Memory Report ==="
+            case peakRssKb of
+                Just kb ->
+                    let mb =
+                            showFFloat (Just 1)
+                                (fromIntegral kb / 1024 :: Double)
+                                ""
+                    in sayErr
+                        $ "  Wallet peak RSS: "
+                        <> T.pack mb
+                        <> " MB (self-reported from /proc/self/status)"
+                Nothing ->
+                    sayErr
+                        $ "  Wallet peak RSS: unavailable"
+                        <> " (not running on Linux?)"
+            reportRtsStats
     exitWith r
 
 {-------------------------------------------------------------------------------

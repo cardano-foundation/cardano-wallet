@@ -54,6 +54,29 @@ echo "+++ Results - $network"
 
 cat "$results"
 
+echo "+++ Memory Summary - $network"
+
+# time -v reports Maximum resident set size (kB) — this includes
+# all child processes (notably cardano-node which uses ~11 GB).
+time_v_rss=$(grep "Maximum resident set size" "$total_time" 2>/dev/null \
+    | awk '{print $NF}' || true)
+if [ -n "$time_v_rss" ]; then
+    time_v_rss_mb=$(awk "BEGIN {printf \"%.1f\", $time_v_rss / 1024}")
+    echo "  Total peak RSS (incl. cardano-node): ${time_v_rss_mb} MB  [from time -v]"
+fi
+
+# The wallet binary now self-reports its own RSS via /proc/self/status.
+wallet_rss=$(grep "Wallet peak RSS:" "$log" 2>/dev/null | head -1 || true)
+if [ -n "$wallet_rss" ]; then
+    echo "  $wallet_rss"
+fi
+
+# GHC RTS stats from the benchmark (requires -T RTS flag).
+rts_section=$(sed -n '/=== GHC RTS Memory Stats ===/,/^$/p' "$log" 2>/dev/null || true)
+if [ -n "$rts_section" ]; then
+    echo "$rts_section"
+fi
+
 mv restore.hp "$artifact_name".hp
 hp2pretty "$artifact_name".hp
 
