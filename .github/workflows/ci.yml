@@ -613,16 +613,17 @@ jobs:
         run: ${{ matrix.command }}
 
   attic-cache:
-    name: "Dev Shell Attic Cache"
+    name: "Attic Cache"
     needs: build-gate-quality
     runs-on: [self-hosted, linux, x86_64, cardano-wallet]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    timeout-minutes: 180
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/master')
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Push dev shell to Attic
+      - name: Push derivations to Attic
         env:
           ATTIC_TOKEN: ${{ secrets.ATTIC_TOKEN }}
           system: x86_64-linux
