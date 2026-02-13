@@ -1,5 +1,5 @@
 #! /usr/bin/env nix-shell
-#! nix-shell -i bash -p coreutils gnugrep gawk buildkite-agent
+#! nix-shell -i bash -p coreutils gnugrep gawk
 
 # shellcheck shell=bash
 
@@ -45,12 +45,6 @@ $bench +RTS -N2 -qg -A1m -I0 -T -M16G -RTS 2>&1 | tee $log
 #   -h    Generates a basic heap profile, in the file prog.hp.
 
 echo "--- Results"
-
-if [ -n "${BUILDKITE:-}" ]; then
-  echo "--- Upload"
-  buildkite-agent artifact upload $log
-
-fi
 
 if [ -z "$(cat $log)" ]; then
   echo "+++ Bad news"

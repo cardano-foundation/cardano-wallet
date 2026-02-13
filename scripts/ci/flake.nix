@@ -35,8 +35,6 @@
             pkgs.gnutar
             pkgs.gnupg
 
-            # Restore benchmark
-            pkgs.buildkite-agent
             pkgs.gawk
             pkgs.gnuplot
             pkgs.gnugrep

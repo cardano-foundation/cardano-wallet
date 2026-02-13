@@ -1,5 +1,5 @@
 #! /usr/bin/env nix-shell
-#! nix-shell -i bash -p coreutils gnugrep gawk buildkite-agent
+#! nix-shell -i bash -p coreutils gnugrep gawk
 # shellcheck shell=bash
 
 set -euo pipefail
@@ -47,15 +47,6 @@ echo "--- Results"
 
 grep -v INFO $log | awk '/All results/,EOF { print $0 }' >$results
 cat $results
-
-if [ -n "${BUILDKITE:-}" ]; then
-  echo "--- Upload"
-  buildkite-agent artifact upload $results
-
-  for file in *.json; do
-    buildkite-agent artifact upload "$file"
-  done
-fi
 
 if [ -z "$(cat $results)" ]; then
   echo "+++ Bad news"

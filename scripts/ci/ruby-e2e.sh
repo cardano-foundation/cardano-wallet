@@ -18,37 +18,14 @@ export CARDANO_NODE_CONFIGS
 TESTS_E2E_BINDIR=$(mktemp -d /tmp/bins-XXXXXX)
 export TESTS_E2E_BINDIR
 
-if [ -n "${BUILDKITE:-}" ]; then
-    CURRENT_VERSION=v2025-12-15
-    VERSION=$(buildkite-agent meta-data get "release-version" --default "$CURRENT_VERSION")
-    echo "VERSION=$VERSION"
-    if [ "$PLATFORM" = "linux" ]; then
-        cardano_wallet_dir="linux"
-        cardano_wallet_segment="cardano-wallet-$VERSION-linux64"
-    elif [ "$PLATFORM" = "macos-silicon" ]; then
-        cardano_wallet_dir="$PLATFORM"
-        cardano_wallet_segment="cardano-wallet-$VERSION-$PLATFORM"
-    else
-        echo "Unsupported platform: $PLATFORM"
+# link the binaries to the temp dir in a loop
+for binary in cardano-node cardano-wallet cardano-cli mithril-client; do
+    if ! command -v "$binary" > /dev/null; then
+        echo "$binary not found in PATH, you must provide it manually"
         exit 1
     fi
-    cardano_wallet_tar="result/$cardano_wallet_dir/$cardano_wallet_segment.tar.gz"
-
-    buildkite-agent artifact download "$cardano_wallet_tar" "."
-    tar xvzf "$cardano_wallet_tar"
-    cp -R "$cardano_wallet_segment"/* "$TESTS_E2E_BINDIR"
-    CARDANO_NODE_CONFIGS="$TESTS_E2E_BINDIR/configs/cardano"
-    export CARDANO_NODE_CONFIGS
-else
-    # link the binaries to the temp dir in a loop
-    for binary in cardano-node cardano-wallet cardano-cli mithril-client; do
-        if ! command -v "$binary" > /dev/null; then
-            echo "$binary not found in PATH, you must provide it manually"
-            exit 1
-        fi
-        ln -s "$(which "$binary")" "$TESTS_E2E_BINDIR/$binary"
-    done
-fi
+    ln -s "$(which "$binary")" "$TESTS_E2E_BINDIR/$binary"
+done
 
 ####################
 # Prefill the node db
