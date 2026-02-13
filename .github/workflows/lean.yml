@@ -8,6 +8,10 @@ on:
     paths: ['specifications/**.lean']
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
