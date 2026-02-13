@@ -7,7 +7,7 @@ default:
 
 # check that the code is formatted with fourmolu
 syntax:
-  scripts/buildkite/main/check-code-format.sh
+  scripts/ci/check-code-format.sh
 
 hlint:
   nix develop --command bash -c 'hlint lib'
@@ -56,7 +56,7 @@ wallet:
 
 # run a benchmark: api | latency | memory | db | restore
 bench target:
-  ./.buildkite/bench-"{{target}}".sh
+  ./scripts/ci/bench-"{{target}}".sh
 
 # run a local test cluster
 local-cluster:
@@ -228,7 +228,7 @@ ruby-e2e-linux:
     GENESIS_VERIFICATION_KEY=5b3132372c37332c3132342c3136312c362c3133372c3133312c3231332c3230372c3131372c3139382c38352c3137362c3139392c3136322c3234312c36382c3132332c3131392c3134352c31332c3233322c3234332c34392c3232392c322c3234392c3230352c3230352c33392c3233352c34345d \
     RUBY_TEST_DIR=test/e2e \
     PLATFORM=linux \
-    nix develop ./test/e2e -c./scripts/buildkite/main/ruby-e2e.sh
+    nix develop ./test/e2e -c./scripts/ci/ruby-e2e.sh
 
 ruby-e2e-macos:
     # export FIXTURE_DECRYPTION_KEY=....
@@ -237,4 +237,4 @@ ruby-e2e-macos:
     GENESIS_VERIFICATION_KEY=5b3132372c37332c3132342c3136312c362c3133372c3133312c3231332c3230372c3131372c3139382c38352c3137362c3139392c3136322c3234312c36382c3132332c3131392c3134352c31332c3233322c3234332c34392c3232392c322c3234392c3230352c3230352c33392c3233352c34345d \
     RUBY_TEST_DIR=test/e2e \
     PLATFORM=macos-silicon \
-    nix develop --system x86_64-darwin ./test/e2e -c ./scripts/buildkite/main/ruby-e2e.sh
+    nix develop --system x86_64-darwin ./test/e2e -c ./scripts/ci/ruby-e2e.sh

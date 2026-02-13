@@ -29,7 +29,7 @@ To bump to a new version:
 1. In `cardano-wallet/cabal.project`, update
    the dependency revisions to match your chosen version of
    `cardano-node/cabal.project`.
-2. Run `./nix/regenerate.sh` (or let Buildkite do it)
+2. Run `./nix/regenerate.sh` (or let CI do it)
 
 ### Jörmungandr
 

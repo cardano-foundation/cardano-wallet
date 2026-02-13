@@ -47,9 +47,7 @@ fi
 
 CARDANO_NODE_TAG=$(cardano-node version | head -n1 | awk '{print $2}')
 
-if [ -n "${BUILDKITE:-}" ]; then
-    BRANCH="$BUILDKITE_BRANCH"
-elif [ -n "${GITHUB_REF_NAME:-}" ]; then
+if [ -n "${GITHUB_REF_NAME:-}" ]; then
     BRANCH="$GITHUB_REF_NAME"
 else
     BRANCH="$LOCAL_BRANCH_NAME"
@@ -80,7 +78,7 @@ sed -i "s|WALLET_TAG=.*|WALLET_TAG=$NEW_CABAL_VERSION|g" README.md
 sed -i "s|WALLET_VERSION=.*|WALLET_VERSION=$NEW_GIT_TAG|g" README.md
 git commit -am "Update cardano-wallet version in README.md"
 
-sed -i "s|$OLD_GIT_TAG|$NEW_GIT_TAG|g" scripts/buildkite/main/ruby-e2e.sh
+sed -i "s|$OLD_GIT_TAG|$NEW_GIT_TAG|g" scripts/ci/ruby-e2e.sh
 git commit -am "Update cardano-wallet version in ruby-e2e.sh"
 
 sed -i "s|RELEASE_WALLET_TAG=.*|RELEASE_WALLET_TAG=$NEW_CABAL_VERSION|g" run/common/docker/run.sh
@@ -96,17 +94,6 @@ fi
 git remote get-url origin
 
 git push -f origin "$RELEASE_CANDIDATE_BRANCH"
-
-if [ -n "${BUILDKITE:-}" ]; then
-    buildkite-agent meta-data set "release-version" "$NEW_GIT_TAG"
-    buildkite-agent meta-data set "release-candidate-commit" "$RELEASE_COMMIT"
-    buildkite-agent meta-data set "release-candidate-branch" "$RELEASE_CANDIDATE_BRANCH"
-    buildkite-agent meta-data set "release-cabal-version" "$NEW_CABAL_VERSION"
-    buildkite-agent meta-data set "test-rc" "$TEST_RC"
-    buildkite-agent meta-data set "base-build" "$BUILDKITE_BUILD_ID"
-    buildkite-agent meta-data set "node-tag" "$CARDANO_NODE_TAG"
-    buildkite-agent meta-data set "last-release-date" "$LAST_RELEASE_DATE"
-fi
 
 if [ -n "${GITHUB_OUTPUT:-}" ]; then
     {

@@ -25,7 +25,7 @@ mkdir -p artifacts
      -f markup \
     > "artifacts/api-diff.md"
 
-# free the bin directory for buildkite to clean up
+# free the bin directory for CI to clean up
 chmod -R +w "$GOPATH"
 rm -rf "$GOPATH"
 rm -rf "$swagger_tmp"

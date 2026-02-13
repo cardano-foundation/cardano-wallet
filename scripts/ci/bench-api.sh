@@ -1,6 +1,5 @@
 #! /usr/bin/env nix-shell
-#! nix-shell -i bash -p coreutils gnugrep gawk buildkite-agent
-
+#! nix-shell -i bash -p coreutils gnugrep gawk
 # shellcheck shell=bash
 
 set -euo pipefail
@@ -10,18 +9,18 @@ set -euo pipefail
 # see also <https://stackoverflow.com/a/63751678>.
 export LC_ALL=C.UTF-8
 
-
-export TMPDIR="/$TMPDIR/bench/read-blocks"
+export TMPDIR="/$TMPDIR/bench/api"
 mkdir -p "$TMPDIR"
 
-log=read-blocks.log
-
+bench=api
+log=api.log
+results=api.txt
 
 echo "--- Build"
 nix --version
 
-nix build -L .#ci.benchmarks.read-blocks -o bench-read-blocks
-bench="./bench-read-blocks/bin/read-blocks"
+nix build -L .#ci.benchmarks.api -o bench-api
+bench="./bench-api/bin/api lib/benchmarks/data/api-bench"
 
 
 echo "--- Run benchmark"
@@ -46,13 +45,10 @@ $bench +RTS -N2 -qg -A1m -I0 -T -M16G -RTS 2>&1 | tee $log
 
 echo "--- Results"
 
-if [ -n "${BUILDKITE:-}" ]; then
-  echo "--- Upload"
-  buildkite-agent artifact upload $log
+grep -v INFO $log | awk '/All results/,EOF { print $0 }' >$results
+cat $results
 
-fi
-
-if [ -z "$(cat $log)" ]; then
+if [ -z "$(cat $results)" ]; then
   echo "+++ Bad news"
   echo "FAILED - Missing results" >/dev/stderr
   exit 1

@@ -145,7 +145,6 @@ Create a final commit that:
 - `cardano-numeric`
 - `std-gen-seed`
 - `crypto-primitives`
-- `cardano-wallet-buildkite`
 - `faucet`
 - `cardano-wallet-application-tls`
 

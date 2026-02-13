@@ -1,7 +1,0 @@
-# All CI has been migrated to GitHub Actions.
-# See .github/workflows/ for workflow definitions.
-# This file is kept as a placeholder until the Buildkite webhook is removed.
-
-steps:
-  - label: ":github: CI moved to GitHub Actions"
-    command: echo "All CI jobs have been migrated to GitHub Actions. See .github/workflows/"

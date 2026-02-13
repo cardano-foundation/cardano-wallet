@@ -1,5 +1,5 @@
 #! /usr/bin/env nix-shell
-#! nix-shell -i bash -p coreutils gnugrep gawk time haskellPackages.hp2pretty buildkite-agent
+#! nix-shell -i bash -p coreutils gnugrep gawk time haskellPackages.hp2pretty
 
 # shellcheck shell=bash
 
@@ -32,26 +32,8 @@ echo "------------------------ Nix call done ----------------------------------"
 
 echo "------------------------ Results ----------------------------------------"
 
-if [ -n "${BUILDKITE:-}" ]; then
-  echo "--- Upload logs"
-  buildkite-agent artifact upload $log
-  buildkite-agent artifact upload $error_log
-fi
-
 mv cardano-wallet.hp $artifact_name.hp
 hp2pretty $artifact_name.hp
-
-if [ -n "${BUILDKITE:-}" ]; then
-  echo "--- Upload heap profile"
-  buildkite-agent artifact upload $artifact_name.svg
-  buildkite-agent artifact upload $log
-  buildkite-agent artifact upload $error_log
-
-  echo "+++ Heap profile"
-  printf '\033]1338;url='"artifact://%s"';alt='"Heap profile"'\a\n' \
-    "$artifact_name.svg"
-
-fi
 
 echo "------------------------ Results done -----------------------------------"
 

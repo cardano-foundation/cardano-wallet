@@ -62,7 +62,7 @@ jobs:
         run: |
           mkdir -p "$TMPDIR"
           nix shell 'nixpkgs#coreutils' 'nixpkgs#gnugrep' 'nixpkgs#gawk' 'nixpkgs#time' 'nixpkgs#haskellPackages.hp2pretty' -c \
-            bash scripts/buildkite/main/bench-restore.sh \
+            bash scripts/ci/bench-restore.sh \
               mainnet ${{ matrix.bench }} $HOME/databases/node/${{ matrix.node-db }}
 
       - name: Upload artifacts

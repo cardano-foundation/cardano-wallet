@@ -63,7 +63,6 @@ packages:
   lib/application-tls
   lib/balance-tx
   lib/benchmarks
-  lib/buildkite
   lib/cardano-api-extra
   lib/coin-selection
   lib/crypto-primitives
@@ -192,9 +191,6 @@ cabal-lib-version: 3.6
 -- Enable specific tests in this repo
 
 test-show-details: direct
-
-package cardano-wallet-buildkite
-  tests: True
 
 package flaky-tests
   tests: True
