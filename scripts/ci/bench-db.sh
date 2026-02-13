@@ -12,7 +12,7 @@ mkdir -p $TMPDIR
 rm -rf $bench_name
 
 echo "--- Build"
-nix build -L .#ci.benchmarks.db -o $bench_name
+nix build --quiet .#ci.benchmarks.db -o $bench_name
 
 echo "+++ Run benchmark"
 

@@ -19,7 +19,7 @@ results=api.txt
 echo "--- Build"
 nix --version
 
-nix build -L .#ci.benchmarks.api -o bench-api
+nix build --quiet .#ci.benchmarks.api -o bench-api
 bench="./bench-api/bin/api lib/benchmarks/data/api-bench"
 
 

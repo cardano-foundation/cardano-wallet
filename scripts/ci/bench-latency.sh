@@ -4,7 +4,7 @@ set -euo pipefail
 
 echo "+++ Build & run latency benchmark"
 
-nix shell \
+nix shell --quiet \
   '.#local-cluster' \
   '.#cardano-node' \
   '.#cardano-wallet' \

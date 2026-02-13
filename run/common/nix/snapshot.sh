@@ -2,11 +2,11 @@
 # shellcheck shell=bash
 
 function mithril() {
-    nix shell 'github:input-output-hk/mithril?ref=2543.1-hotfix' --command mithril-client $@
+    nix shell --quiet 'github:input-output-hk/mithril?ref=2543.1-hotfix' --command mithril-client $@
 }
 
 function jq() {
-    nix shell 'nixpkgs#jq' --command jq $@
+    nix shell --quiet 'nixpkgs#jq' --command jq $@
 }
 
 set -euox pipefail

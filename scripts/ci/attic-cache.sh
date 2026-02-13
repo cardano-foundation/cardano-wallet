@@ -6,11 +6,11 @@ attic login adrestia https://attic.cf-app.org/ "$ATTIC_TOKEN"
 
 # Dev shell
 # shellcheck disable=SC2154
-nix build --log-format raw-with-logs ".#devShells.${system}.default.inputDerivation" -o dev-shell
+nix build --quiet ".#devShells.${system}.default.inputDerivation" -o dev-shell
 attic push adrestia dev-shell
 
 # Core runtime derivations (shared across CI, E2E, benchmarks, mithril-sync)
-nix build --log-format raw-with-logs \
+nix build --quiet \
   .#cardano-wallet \
   .#cardano-node \
   .#cardano-cli \
@@ -21,15 +21,15 @@ nix build --log-format raw-with-logs \
 attic push adrestia ci-core
 
 # Benchmarks
-nix build --log-format raw-with-logs .#ci.benchmarks.all -o benchmarks
+nix build --quiet .#ci.benchmarks.all -o benchmarks
 attic push adrestia benchmarks
 
 # Linux release artifacts
-nix build --log-format raw-with-logs .#ci.artifacts.linux64.release -o linux-release
+nix build --quiet .#ci.artifacts.linux64.release -o linux-release
 attic push adrestia linux-release
 
 # Windows cross-compiled release and test bundles
-nix build --log-format raw-with-logs \
+nix build --quiet \
   .#ci.artifacts.win64.release \
   .#ci.artifacts.win64.tests.wallet-unit \
   .#ci.artifacts.win64.tests.wallet-primitive \

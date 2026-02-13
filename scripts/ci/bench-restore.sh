@@ -20,7 +20,7 @@ export TMPDIR="$TMPDIR/bench/restore"
 mkdir -p "$TMPDIR"
 
 echo "--- Build"
-nix build -L .#ci.benchmarks.restore -o bench-restore
+nix build --quiet .#ci.benchmarks.restore -o bench-restore
 
 echo "--- Run benchmarks - $network"
 
