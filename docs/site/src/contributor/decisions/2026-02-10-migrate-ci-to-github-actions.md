@@ -56,3 +56,11 @@ The [2023 decision](2023-01-27-continuous-integration.md) chose Buildkite primar
 - Buildkite required separate account access and agent token management, creating a bus-factor risk for maintenance handover
 
 GitHub Actions eliminates these issues while retaining the self-hosted runner capability needed for platform-specific builds.
+
+## **References**
+
+- [#5105](https://github.com/cardano-foundation/cardano-wallet/pull/5105) — initial CI migration
+- [#5124](https://github.com/cardano-foundation/cardano-wallet/pull/5124) — build gates
+- [#5149](https://github.com/cardano-foundation/cardano-wallet/pull/5149) — restoration benchmarks
+- [#5153](https://github.com/cardano-foundation/cardano-wallet/pull/5153) — release automation
+- [#5168](https://github.com/cardano-foundation/cardano-wallet/pull/5168) — Attic cache
