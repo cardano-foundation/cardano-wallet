@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-set -euox pipefail
+set -euo pipefail
 
 attic login adrestia https://attic.cf-app.org/ "$ATTIC_TOKEN"
 
