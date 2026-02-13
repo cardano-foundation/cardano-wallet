@@ -76,30 +76,6 @@ fi
 mv restore.hp "$artifact_name".hp
 hp2pretty "$artifact_name".hp
 
-GNUPLOT_PROGRAM=$(
-  cat <<EOP
-set timefmt "%s";
-set format x "%Hh%Mm";
-set xdata time;
-
-set xlabel "time";
-set ylabel "block height";
-show xlabel;
-show ylabel;
-
-set terminal svg dynamic size 1200,700 background rgb 'white';
-set output "plot.svg";
-set title "Restoring wallets on $network";
-
-set key left top;
-
-FILES = system("ls -1 *.dat");
-LABEL = system("ls -1 *.dat");
-
-plot for [i=1:words(FILES)] word(FILES,i) u 1:2 title word(LABEL,i) noenhanced with lines
-EOP
-)
-
 if [ -z "$(cat "$results")" ]; then
   echo "+++ Bad news"
   echo "FAILED - Missing results" >/dev/stderr

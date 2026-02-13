@@ -264,9 +264,9 @@ configureContext (E2EConfig preprodMnemonics alreadyRunningWallet) action =
 
     setupLogSections :: PreprodSetupLog -> String
     setupLogSections WaitingForNodeConnection = "--- Waiting for node connection"
-    setupLogSections CreatingWallets          = "--- Creating wallets"
-    setupLogSections WaitingForWalletsToSync  = "--- Syncing wallets"
-    setupLogSections PreprodSetupReady        = "+++ Running tests"
+    setupLogSections CreatingWallets = "--- Creating wallets"
+    setupLogSections WaitingForWalletsToSync = "--- Syncing wallets"
+    setupLogSections PreprodSetupReady = "+++ Running tests"
 
 -- node configs ----------------------------------------------------------------
 
