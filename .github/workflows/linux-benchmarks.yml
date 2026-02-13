@@ -19,7 +19,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: Build all benchmark derivations
-        run: nix build -L .#ci.benchmarks.all .#local-cluster .#cardano-node .#cardano-wallet
+        run: nix build --quiet .#ci.benchmarks.all .#local-cluster .#cardano-node .#cardano-wallet
 
   benchmarks:
     name: "${{ matrix.name }}"
@@ -32,7 +32,7 @@ jobs:
         include:
           - name: "API Benchmark"
             command: |
-              nix shell 'nixpkgs#coreutils' 'nixpkgs#gnugrep' 'nixpkgs#gawk' -c \
+              nix shell --quiet 'nixpkgs#coreutils' 'nixpkgs#gnugrep' 'nixpkgs#gawk' -c \
                 bash scripts/ci/bench-api.sh
             timeout: 20
             artifacts: |
@@ -51,7 +51,7 @@ jobs:
 
           - name: "DB Benchmark"
             command: |
-              nix shell 'nixpkgs#coreutils' -c \
+              nix shell --quiet 'nixpkgs#coreutils' -c \
                 bash scripts/ci/bench-db.sh
             timeout: 50
             artifacts: |
@@ -61,7 +61,7 @@ jobs:
 
           - name: "Read-blocks Benchmark"
             command: |
-              nix shell 'nixpkgs#coreutils' 'nixpkgs#gnugrep' 'nixpkgs#gawk' -c \
+              nix shell --quiet 'nixpkgs#coreutils' 'nixpkgs#gnugrep' 'nixpkgs#gawk' -c \
                 bash scripts/ci/bench-read-blocks.sh
             timeout: 20
             artifacts: |
@@ -71,7 +71,7 @@ jobs:
 
           - name: "Memory Benchmark"
             command: |
-              nix shell 'nixpkgs#coreutils' 'nixpkgs#gnugrep' 'nixpkgs#gawk' 'nixpkgs#time' 'nixpkgs#haskellPackages.hp2pretty' -c \
+              nix shell --quiet 'nixpkgs#coreutils' 'nixpkgs#gnugrep' 'nixpkgs#gawk' 'nixpkgs#time' 'nixpkgs#haskellPackages.hp2pretty' -c \
                 bash scripts/ci/bench-memory.sh
             timeout: 20
             artifacts: |
@@ -124,7 +124,7 @@ jobs:
 
       - name: Run benchmark history
         run: |
-          nix shell .#benchmark-history 'nixpkgs#gh' -c \
+          nix shell --quiet .#benchmark-history 'nixpkgs#gh' -c \
             bash scripts/gha/benchmark-history.sh
 
       - name: Upload Benchmark History

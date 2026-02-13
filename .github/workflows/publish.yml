@@ -54,12 +54,12 @@ jobs:
             Source commit: ${{ github.sha }}
 
       - name: "❄ Install dependencies"
-        run: "nix develop .#docs --command mdbook --version"
+        run: "nix develop --quiet .#docs --command mdbook --version"
 
       - name: "📸 Build Documentation"
         run: |
           build_dir="$PUBLISH_DIR"
-          nix develop .#docs -c mdbook build -d "../../$build_dir" "docs/site"
+          nix develop --quiet .#docs -c mdbook build -d "../../$build_dir" "docs/site"
           ls -l "$build_dir"
           ./scripts/gh/update-docs.sh "$build_dir" ${{ steps.versions.outputs.tag }}
 

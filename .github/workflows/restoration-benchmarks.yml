@@ -29,7 +29,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: Build benchmark derivations
-        run: nix build -L .#ci.benchmarks.restore
+        run: nix build --quiet .#ci.benchmarks.restore
 
   restore:
     name: "Restore ${{ matrix.bench }}"
@@ -61,7 +61,7 @@ jobs:
       - name: Run restore benchmark
         run: |
           mkdir -p "$TMPDIR"
-          nix shell 'nixpkgs#coreutils' 'nixpkgs#gnugrep' 'nixpkgs#gawk' 'nixpkgs#time' 'nixpkgs#haskellPackages.hp2pretty' -c \
+          nix shell --quiet 'nixpkgs#coreutils' 'nixpkgs#gnugrep' 'nixpkgs#gawk' 'nixpkgs#time' 'nixpkgs#haskellPackages.hp2pretty' -c \
             bash scripts/ci/bench-restore.sh \
               mainnet ${{ matrix.bench }} $HOME/databases/node/${{ matrix.node-db }}
 
