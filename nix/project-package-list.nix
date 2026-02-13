@@ -9,7 +9,6 @@
   "cardano-wallet-application-tls"
   "cardano-wallet-benchmarks"
   "cardano-wallet-blackbox-benchmarks"
-  "cardano-wallet-buildkite"
   "cardano-wallet-application"
   "cardano-wallet-integration"
   "cardano-wallet-launcher"

@@ -89,7 +89,6 @@ node_modules
 package-lock.json
 package.json
 
-# buildkite artifacts testing
 artifacts
 cabal.project.freeze
 
