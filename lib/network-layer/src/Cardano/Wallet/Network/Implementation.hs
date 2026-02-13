@@ -176,8 +176,7 @@ import Control.Monad.Class.MonadST
     ( MonadST
     )
 import Control.Monad.Class.MonadThrow
-    ( MonadMask
-    , MonadThrow
+    ( MonadEvaluate
     )
 import Control.Monad.Class.MonadTimer
     ( MonadTimer
@@ -825,7 +824,7 @@ type WalletNodeToClientProtocols m =
 mkWalletClient
     :: forall m block
      . ( block ~ CardanoBlock (StandardCrypto)
-       , MonadThrow m
+       , MonadEvaluate m
        , MonadST m
        , MonadTimer m
        , MonadAsync m
@@ -860,7 +859,7 @@ mkWalletClient tr pipeliningStrategy follower cfg nodeToClientVer =
 mkFetchBlockClient
     :: forall m block
      . ( block ~ CardanoBlock (StandardCrypto)
-       , MonadThrow m
+       , MonadEvaluate m
        , MonadST m
        , MonadTimer m
        )
@@ -891,7 +890,12 @@ mkFetchBlockClient cfg blockQ nodeToClientVer =
 -- purposes of querying delegations and rewards.
 mkDelegationRewardsClient
     :: forall m
-     . (MonadST m, MonadTimer m, MonadIO m, MonadAsync m, MonadMask m)
+     . ( MonadST m
+       , MonadTimer m
+       , MonadIO m
+       , MonadAsync m
+       , MonadEvaluate m
+       )
     => Tracer m Log
     -- ^ Base trace for underlying protocols
     -> CodecConfig (CardanoBlock StandardCrypto)
@@ -934,7 +938,7 @@ mkWalletToNodeProtocols
        , MonadST m
        , MonadTimer m
        , MonadAsync m
-       , MonadMask m
+       , MonadEvaluate m
        )
     => Tracer m Log
     -- ^ Base trace for underlying protocols
