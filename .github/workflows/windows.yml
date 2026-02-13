@@ -22,7 +22,7 @@ jobs:
       - name: Cross-compile Windows release package
         run: |
           rm -rf ./result/*
-          nix build -L -o result/windows .#ci.artifacts.win64.release
+          nix build --quiet -o result/windows .#ci.artifacts.win64.release
 
       - name: Upload release artifact
         uses: actions/upload-artifact@v4
@@ -41,7 +41,7 @@ jobs:
 
       - name: Cross-compile all Windows test bundles
         run: >-
-          nix build --no-link -L
+          nix build --no-link --quiet
           .#ci.artifacts.win64.tests.wallet-unit
           .#ci.artifacts.win64.tests.wallet-primitive
           .#ci.artifacts.win64.tests.wallet-secrets
@@ -89,7 +89,7 @@ jobs:
           fetch-depth: 0
 
       - name: Build (from cache)
-        run: nix build .#ci.artifacts.win64.tests.${{ matrix.name }} -o result
+        run: nix build --quiet .#ci.artifacts.win64.tests.${{ matrix.name }} -o result
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

@@ -19,7 +19,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: Build derivations
-        run: nix build -L .#cardano-wallet .#cardano-node .#cardano-cli
+        run: nix build --quiet .#cardano-wallet .#cardano-node .#cardano-cli
 
   mithril-sync:
     name: "Mainnet Boot Sync with Mithril"

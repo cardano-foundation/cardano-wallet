@@ -22,7 +22,7 @@ echo "error_log: $error_log"
 echo "------------------------ Setup done -------------------------------------"
 
 echo "------------------------ Nix call ---------------------------------------"
-nix shell \
+nix shell --quiet \
     '.#ci.benchmarks.memory' \
     '.#cardano-node' \
     '.#cardano-wallet' \

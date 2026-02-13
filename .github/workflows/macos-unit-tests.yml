@@ -20,7 +20,7 @@ jobs:
           fetch-depth: 0
       - name: Build all test derivations
         run: >-
-          nix build -L
+          nix build --quiet
           .#unit-cardano-wallet-unit
           .#unit-cardano-numeric
           .#unit-cardano-balance-tx
@@ -54,116 +54,116 @@ jobs:
         include:
           - name: "cardano-wallet-application-tls"
             working-directory: lib/application-tls
-            command: nix run ../../.#unit-cardano-wallet-application-tls -- +RTS -M2G -s -RTS
+            command: nix run --quiet ../../.#unit-cardano-wallet-application-tls -- +RTS -M2G -s -RTS
 
           - name: "cardano-balance-tx"
             working-directory: lib/balance-tx
-            command: nix run ../../.#unit-cardano-balance-tx -- +RTS -M2G -s -RTS
+            command: nix run --quiet ../../.#unit-cardano-balance-tx -- +RTS -M2G -s -RTS
 
           - name: "cardano-numeric"
-            command: nix run .#unit-cardano-numeric -- +RTS -M2G -s -RTS
+            command: nix run --quiet .#unit-cardano-numeric -- +RTS -M2G -s -RTS
 
           - name: "cardano-wallet-blackbox-benchmarks"
             working-directory: lib/wallet-benchmarks
-            command: nix run ../../.#unit-cardano-wallet-blackbox-benchmarks -- +RTS -M2G -s -RTS
+            command: nix run --quiet ../../.#unit-cardano-wallet-blackbox-benchmarks -- +RTS -M2G -s -RTS
 
           - name: "cardano-wallet-launcher"
-            command: nix run .#unit-cardano-wallet-launcher -- +RTS -M2G -s -RTS
+            command: nix run --quiet .#unit-cardano-wallet-launcher -- +RTS -M2G -s -RTS
 
           - name: "cardano-wallet-network-layer"
-            command: nix run .#unit-cardano-wallet-network-layer -- +RTS -M2G -s -RTS
+            command: nix run --quiet .#unit-cardano-wallet-network-layer -- +RTS -M2G -s -RTS
 
           - name: "cardano-wallet-primitive"
             working-directory: lib/primitive
-            command: nix run ../../.#unit-cardano-wallet-primitive -- +RTS -M2G -s -RTS
+            command: nix run --quiet ../../.#unit-cardano-wallet-primitive -- +RTS -M2G -s -RTS
 
           - name: "cardano-wallet-secrets"
-            command: nix run .#unit-cardano-wallet-secrets -- +RTS -M2G -s -RTS
+            command: nix run --quiet .#unit-cardano-wallet-secrets -- +RTS -M2G -s -RTS
 
           - name: "cardano-wallet-test-utils"
-            command: nix run .#unit-cardano-wallet-test-utils -- +RTS -M2G -s -RTS
+            command: nix run --quiet .#unit-cardano-wallet-test-utils -- +RTS -M2G -s -RTS
 
           - name: "delta-chain"
-            command: nix run .#unit-delta-chain -- +RTS -M2G -s -RTS
+            command: nix run --quiet .#unit-delta-chain -- +RTS -M2G -s -RTS
 
           - name: "delta-store"
-            command: nix run .#unit-delta-store -- +RTS -M2G -s -RTS
+            command: nix run --quiet .#unit-delta-store -- +RTS -M2G -s -RTS
 
           - name: "delta-table"
-            command: nix run .#unit-delta-table -- +RTS -M2G -s -RTS
+            command: nix run --quiet .#unit-delta-table -- +RTS -M2G -s -RTS
 
           - name: "delta-types"
-            command: nix run .#unit-delta-types -- +RTS -M2G -s -RTS
+            command: nix run --quiet .#unit-delta-types -- +RTS -M2G -s -RTS
 
           - name: "std-gen-seed"
-            command: nix run .#unit-std-gen-seed -- +RTS -M2G -s -RTS
+            command: nix run --quiet .#unit-std-gen-seed -- +RTS -M2G -s -RTS
 
           - name: "wai-middleware-logging"
-            command: nix run .#unit-wai-middleware-logging -- +RTS -M2G -s -RTS
+            command: nix run --quiet .#unit-wai-middleware-logging -- +RTS -M2G -s -RTS
 
           - name: "wallet-unit / Byron + CLI"
             working-directory: lib/unit
             command: >-
-              nix shell ../../.#cardano-cli -c
-              nix run ../../.#unit-cardano-wallet-unit --
+              nix shell --quiet ../../.#cardano-cli -c
+              nix run --quiet ../../.#unit-cardano-wallet-unit --
               --match "/Cardano.Byron./"
               --match "/Cardano.CLI/"
               -j1 +RTS -M2G -s -RTS
 
           - name: "wallet-unit / DB.Sqlite + Pool"
             command: >-
-              nix shell .#cardano-cli -c
-              nix run .#unit-cardano-wallet-unit --
+              nix shell --quiet .#cardano-cli -c
+              nix run --quiet .#unit-cardano-wallet-unit --
               --match "/Cardano.DB./"
               --match "/Cardano.Pool./"
               -j1 +RTS -M2G -s -RTS
 
           - name: "wallet-unit / Address"
             command: >-
-              nix shell .#cardano-cli -c
-              nix run .#unit-cardano-wallet-unit --
+              nix shell --quiet .#cardano-cli -c
+              nix run --quiet .#unit-cardano-wallet-unit --
               --match "/Cardano.Wallet.Address./"
               -j1 +RTS -M2G -s -RTS
 
           - name: "wallet-unit / Api"
             command: >-
-              nix shell .#cardano-cli -c
-              nix run .#unit-cardano-wallet-unit --
+              nix shell --quiet .#cardano-cli -c
+              nix run --quiet .#unit-cardano-wallet-unit --
               --match "/Cardano.Wallet.Api./"
               -j1 +RTS -M2G -s -RTS
 
           - name: "wallet-unit / Balance"
             command: >-
-              nix shell .#cardano-cli -c
-              nix run .#unit-cardano-wallet-unit --
+              nix shell --quiet .#cardano-cli -c
+              nix run --quiet .#unit-cardano-wallet-unit --
               --match "/Cardano.Wallet.Balance./"
               -j1 +RTS -M2G -s -RTS
 
           - name: "wallet-unit / DB"
             command: >-
-              nix shell .#cardano-cli -c
-              nix run .#unit-cardano-wallet-unit --
+              nix shell --quiet .#cardano-cli -c
+              nix run --quiet .#unit-cardano-wallet-unit --
               --match "/Cardano.Wallet.DB./"
               -j1 +RTS -M2G -s -RTS
 
           - name: "wallet-unit / Primitive"
             command: >-
-              nix shell .#cardano-cli -c
-              nix run .#unit-cardano-wallet-unit --
+              nix shell --quiet .#cardano-cli -c
+              nix run --quiet .#unit-cardano-wallet-unit --
               --match "/Cardano.Wallet.Primitive./"
               -j1 +RTS -M2G -s -RTS
 
           - name: "wallet-unit / Shelley"
             command: >-
-              nix shell .#cardano-cli -c
-              nix run .#unit-cardano-wallet-unit --
+              nix shell --quiet .#cardano-cli -c
+              nix run --quiet .#unit-cardano-wallet-unit --
               --match "/Cardano.Wallet.Shelley./"
               -j1 +RTS -M2G -s -RTS
 
           - name: "wallet-unit / Other Wallet"
             command: >-
-              nix shell .#cardano-cli -c
-              nix run .#unit-cardano-wallet-unit --
+              nix shell --quiet .#cardano-cli -c
+              nix run --quiet .#unit-cardano-wallet-unit --
               --match "/Cardano.Wallet./"
               --skip "/Cardano.Wallet.Address./"
               --skip "/Cardano.Wallet.Api./"
@@ -175,8 +175,8 @@ jobs:
 
           - name: "wallet-unit / Control + Data"
             command: >-
-              nix shell .#cardano-cli -c
-              nix run .#unit-cardano-wallet-unit --
+              nix shell --quiet .#cardano-cli -c
+              nix run --quiet .#unit-cardano-wallet-unit --
               --match "/Control./"
               --match "/Data./"
               -j1 +RTS -M2G -s -RTS
@@ -205,4 +205,4 @@ jobs:
       - name: Run E2E tests
         env:
           HAL_E2E_PREPROD_MNEMONICS: ${{ secrets.HAL_E2E_PREPROD_MNEMONICS }}
-        run: nix shell .#cardano-node .#cardano-wallet .#e2e 'nixpkgs#gnutar' 'nixpkgs#p7zip' -c e2e
+        run: nix shell --quiet .#cardano-node .#cardano-wallet .#e2e 'nixpkgs#gnutar' 'nixpkgs#p7zip' -c e2e

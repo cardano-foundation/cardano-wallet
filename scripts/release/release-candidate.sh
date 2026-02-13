@@ -1,7 +1,7 @@
 #! /usr/bin/env -S nix shell '.#cardano-node' 'nixpkgs#gnused' --command bash
 # shellcheck shell=bash
 
-set -euox pipefail
+set -euo pipefail
 
 # date from git tag
 # example v2023-04-04 -> 2023-04-04

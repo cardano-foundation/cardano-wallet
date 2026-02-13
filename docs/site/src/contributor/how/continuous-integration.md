@@ -47,6 +47,23 @@ All CI for `cardano-wallet` runs on [GitHub Actions](https://github.com/cardano-
 | [`approve-docs.yml`](https://github.com/cardano-foundation/cardano-wallet/actions/workflows/approve-docs.yml) | PR target | Auto-approves docs-only PRs |
 | [`lean.yml`](https://github.com/cardano-foundation/cardano-wallet/actions/workflows/lean.yml) | push, PR | Lean specification checks (path-filtered to `specifications/`) |
 
+## Nix verbosity
+
+All `nix` commands in CI workflows must include the `--quiet` flag. This suppresses verbose build logs and warnings that clutter GitHub Actions output, making it easier to spot actual failures.
+
+```yaml
+# Good
+nix build --quiet .#cardano-wallet
+nix shell --quiet .#cardano-node -c cardano-node --version
+nix develop --quiet --command scripts/check.sh
+
+# Bad — missing --quiet
+nix build .#cardano-wallet
+nix build -L .#cardano-wallet
+```
+
+When adding or modifying workflow steps that invoke `nix`, always include `--quiet`.
+
 ## Self-hosted runners
 
 Several workflows run on self-hosted machines. The GHA runner service replaces the former Buildkite agent on these machines.

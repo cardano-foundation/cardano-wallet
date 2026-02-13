@@ -78,7 +78,7 @@ cleanup() {
 mithril() {
     # shellcheck disable=SC2048
     # shellcheck disable=SC2086
-    nix shell "github:input-output-hk/mithril?ref=2543.1-hotfix" -c $*
+    nix shell --quiet "github:input-output-hk/mithril?ref=2543.1-hotfix" -c $*
 }
 
 # Trap the cleanup function on exit

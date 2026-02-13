@@ -77,7 +77,7 @@ jobs:
           fetch-depth: 0
 
       - name: Build
-        run: nix build -L -o result .#${{ matrix.output }}
+        run: nix build --quiet -o result .#${{ matrix.output }}
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -100,10 +100,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LAST_RELEASE_DATE: ${{ needs.prepare.outputs.last-release-date }}
-        run: nix develop path:$RELEASE_SCRIPTS_DIR -c $RELEASE_SCRIPTS_DIR/make_changelog.sh
+        run: nix develop --quiet path:$RELEASE_SCRIPTS_DIR -c $RELEASE_SCRIPTS_DIR/make_changelog.sh
 
       - name: Generate API diff
-        run: nix develop path:$RELEASE_SCRIPTS_DIR -c $RELEASE_SCRIPTS_DIR/openapi-diff.sh
+        run: nix develop --quiet path:$RELEASE_SCRIPTS_DIR -c $RELEASE_SCRIPTS_DIR/openapi-diff.sh
 
       - name: Upload changelog artifacts
         uses: actions/upload-artifact@v4
@@ -169,7 +169,7 @@ jobs:
           path: artifacts/
 
       - name: Prepare release body
-        shell: nix shell nixpkgs#gettext -c bash -e {0}
+        shell: nix shell --quiet nixpkgs#gettext -c bash -e {0}
         run: |
           export CHANGES=$(cat artifacts/changes.md)
           export API_CHANGES=$(cat artifacts/api-diff.md)
@@ -178,11 +178,11 @@ jobs:
 
       - name: Delete existing release (nightly/test)
         if: env.IS_RELEASE == 'false'
-        shell: nix shell nixpkgs#gh -c bash -e {0}
+        shell: nix shell --quiet nixpkgs#gh -c bash -e {0}
         run: gh release delete "${{ steps.tag.outputs.tag }}" --yes || true
 
       - name: Create GitHub release
-        shell: nix shell nixpkgs#gh -c bash -e {0}
+        shell: nix shell --quiet nixpkgs#gh -c bash -e {0}
         run: |
           gh release create \
             -d \
@@ -196,7 +196,7 @@ jobs:
           path: build-artifacts/
 
       - name: Upload release artifacts
-        shell: nix shell nixpkgs#gh -c bash -e {0}
+        shell: nix shell --quiet nixpkgs#gh -c bash -e {0}
         run: |
           TAG="${{ steps.tag.outputs.tag }}"
           cd build-artifacts

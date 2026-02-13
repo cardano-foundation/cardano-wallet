@@ -20,7 +20,7 @@ log=read-blocks.log
 echo "--- Build"
 nix --version
 
-nix build -L .#ci.benchmarks.read-blocks -o bench-read-blocks
+nix build --quiet .#ci.benchmarks.read-blocks -o bench-read-blocks
 bench="./bench-read-blocks/bin/read-blocks"
 
 

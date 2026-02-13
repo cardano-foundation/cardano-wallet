@@ -18,7 +18,7 @@ jobs:
           fetch-depth: 0
       - name: Build derivations
         run: >-
-          nix build -L
+          nix build --quiet
           .#cardano-node .#cardano-cli
           .#cardano-wallet .#local-cluster
           .#packages.aarch64-darwin.integration-exe
@@ -44,8 +44,8 @@ jobs:
           mkdir -p integration-test-dir/cluster.logs
           export CLUSTER_LOGS_DIR_PATH=integration-test-dir/cluster.logs
           export INTEGRATION_TEST_DIR=integration-test-dir
-          nix shell .#cardano-node .#cardano-cli -c \
-            nix shell .#cardano-wallet .#local-cluster .#packages.aarch64-darwin.integration-exe \
+          nix shell --quiet .#cardano-node .#cardano-cli -c \
+            nix shell --quiet .#cardano-wallet .#local-cluster .#packages.aarch64-darwin.integration-exe \
               -c integration-exe -j6
 
       - name: Upload logs
