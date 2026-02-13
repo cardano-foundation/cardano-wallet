@@ -332,7 +332,7 @@ restoreBenchArgsParser envNetwork envConfigsDir envNodeDatabaseDir envNodeSocket
             <> maybe mempty value env
 
 -- Add fallback environment variables to parsed args. These are set by
--- `nix/haskell.nix` or `./buildkite/bench-restore.sh` or manually.
+-- `nix/haskell.nix` or `./scripts/ci/bench-restore.sh` or manually.
 getRestoreBenchArgsParser :: IO (Parser RestoreBenchArgs)
 getRestoreBenchArgsParser =
     restoreBenchArgsParser

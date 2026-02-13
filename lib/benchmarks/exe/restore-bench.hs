@@ -34,7 +34,7 @@
 --
 -- or
 -- @
---     $ ./.buildkite/bench-restore.sh shelley testnet
+--     $ ./scripts/ci/bench-restore.sh shelley testnet
 -- @
 --
 -- since it relies on lots of configuration most most easily retrieved with nix.

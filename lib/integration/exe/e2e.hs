@@ -260,13 +260,13 @@ configureContext (E2EConfig preprodMnemonics alreadyRunningWallet) action =
         ctx' <- setupPreprodWallets setupTr preprodMnemonics ctx
         return ctx'
 
-    setupTr = contramap setupAsBuildkiteSections stdoutTracer
+    setupTr = contramap setupLogSections stdoutTracer
 
-    setupAsBuildkiteSections :: PreprodSetupLog -> String
-    setupAsBuildkiteSections WaitingForNodeConnection = "--- Waiting for node connection"
-    setupAsBuildkiteSections CreatingWallets = "--- Creating wallets"
-    setupAsBuildkiteSections WaitingForWalletsToSync = "--- Syncing wallets"
-    setupAsBuildkiteSections PreprodSetupReady = "+++ Running tests"
+    setupLogSections :: PreprodSetupLog -> String
+    setupLogSections WaitingForNodeConnection = "--- Waiting for node connection"
+    setupLogSections CreatingWallets          = "--- Creating wallets"
+    setupLogSections WaitingForWalletsToSync  = "--- Syncing wallets"
+    setupLogSections PreprodSetupReady        = "+++ Running tests"
 
 -- node configs ----------------------------------------------------------------
 
