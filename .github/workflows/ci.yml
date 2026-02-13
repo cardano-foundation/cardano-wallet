@@ -577,13 +577,13 @@ jobs:
       matrix:
         include:
           - name: "Check Code Format"
-            command: nix develop --command scripts/buildkite/main/check-code-format.sh
+            command: nix develop --command scripts/ci/check-code-format.sh
 
           - name: "Check HLint"
             command: nix develop --command bash -c "echo +++ HLint ; hlint lib"
 
           - name: "Check Cabal Configure"
-            command: nix develop --command scripts/buildkite/check-haskell-nix-cabal.sh
+            command: nix develop --command scripts/ci/check-haskell-nix-cabal.sh
 
           - name: "Lint Bash Scripts"
             command: ./scripts/shellcheck.sh
@@ -592,7 +592,7 @@ jobs:
             command: nix develop --command scripts/enforce-eol.sh
 
           - name: "Validate Swagger"
-            command: nix develop path:./scripts/buildkite/main -c ./scripts/buildkite/main/validate-swagger.sh
+            command: nix develop path:./scripts/ci -c ./scripts/ci/validate-swagger.sh
 
           - name: "Print TODO List"
             command: nix develop --command scripts/todo-list.sh
@@ -601,7 +601,7 @@ jobs:
             command: nix develop --command bash -c "haskell-language-server lib/wallet/src/Cardano/Wallet.hs"
 
           - name: "Check git revision"
-            command: scripts/buildkite/main/git-revision.sh
+            command: scripts/ci/git-revision.sh
 
     steps:
       - name: Checkout
@@ -627,4 +627,4 @@ jobs:
         env:
           ATTIC_TOKEN: ${{ secrets.ATTIC_TOKEN }}
           system: x86_64-linux
-        run: nix develop path:./scripts/buildkite/main -c ./scripts/buildkite/main/attic-cache.sh
+        run: nix develop path:./scripts/ci -c ./scripts/ci/attic-cache.sh

@@ -33,7 +33,7 @@ jobs:
           - name: "API Benchmark"
             command: |
               nix shell 'nixpkgs#coreutils' 'nixpkgs#gnugrep' 'nixpkgs#gawk' -c \
-                bash scripts/buildkite/main/bench-api.sh
+                bash scripts/ci/bench-api.sh
             timeout: 20
             artifacts: |
               *.txt
@@ -43,7 +43,7 @@ jobs:
 
           - name: "Latency Benchmark"
             command: |
-              bash scripts/buildkite/main/bench-latency.sh
+              bash scripts/ci/bench-latency.sh
             timeout: 30
             artifacts: |
               *.csv
@@ -52,7 +52,7 @@ jobs:
           - name: "DB Benchmark"
             command: |
               nix shell 'nixpkgs#coreutils' -c \
-                bash scripts/buildkite/main/bench-db.sh
+                bash scripts/ci/bench-db.sh
             timeout: 50
             artifacts: |
               bench-db.*
@@ -62,7 +62,7 @@ jobs:
           - name: "Read-blocks Benchmark"
             command: |
               nix shell 'nixpkgs#coreutils' 'nixpkgs#gnugrep' 'nixpkgs#gawk' -c \
-                bash scripts/buildkite/main/bench-read-blocks.sh
+                bash scripts/ci/bench-read-blocks.sh
             timeout: 20
             artifacts: |
               *.log
@@ -72,7 +72,7 @@ jobs:
           - name: "Memory Benchmark"
             command: |
               nix shell 'nixpkgs#coreutils' 'nixpkgs#gnugrep' 'nixpkgs#gawk' 'nixpkgs#time' 'nixpkgs#haskellPackages.hp2pretty' -c \
-                bash scripts/buildkite/main/bench-memory.sh
+                bash scripts/ci/bench-memory.sh
             timeout: 20
             artifacts: |
               *.log
