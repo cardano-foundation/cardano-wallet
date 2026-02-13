@@ -15,7 +15,7 @@ To view the file online, use:
 
 ## Validating locally
 
-To validate from your local git working tree, use this command. It is the same as what [Buildkite](https://github.com/cardano-foundation/cardano-wallet/blob/master/.buildkite/pipeline.yml) runs.
+To validate from your local git working tree, use this command. It is the same as what CI runs.
 
     openapi-spec-validator --schema 3.0.0 specifications/api/swagger.yaml
 

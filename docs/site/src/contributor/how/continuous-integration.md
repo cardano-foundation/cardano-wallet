@@ -136,9 +136,9 @@ If the runner token expires or becomes invalid:
 
 Secrets are configured via:
 
-- `ATTIC_TOKEN` — from `/var/lib/buildkite-agent-hal-mac/env-attic-token`
-- `FIXTURE_DECRYPTION_KEY` — from `/var/lib/buildkite-agent-hal-mac/env-fixture-decryption-key`
-- `HAL_E2E_PREPROD_MNEMONICS` — from `/var/lib/buildkite-agent-hal-mac/env-hal-e2e-preprod-mnemonics`
+- `ATTIC_TOKEN` — from `/var/lib/gha-runner-hal-mac/env-attic-token`
+- `FIXTURE_DECRYPTION_KEY` — from `/var/lib/gha-runner-hal-mac/env-fixture-decryption-key`
+- `HAL_E2E_PREPROD_MNEMONICS` — from `/var/lib/gha-runner-hal-mac/env-hal-e2e-preprod-mnemonics`
 
 #### Troubleshooting
 
@@ -151,15 +151,15 @@ Secrets are configured via:
 
 The Attic cache job pushes build artifacts to the Attic cache server. If it fails:
 
-1. **Check Attic token** — The JWT token in `/var/lib/buildkite-agent-hal-mac/env-attic-token` may have expired. Decode it:
+1. **Check Attic token** — The JWT token in `/var/lib/gha-runner-hal-mac/env-attic-token` may have expired. Decode it:
    ```bash
-   cat /var/lib/buildkite-agent-hal-mac/env-attic-token | cut -d. -f2 | base64 -d
+   cat /var/lib/gha-runner-hal-mac/env-attic-token | cut -d. -f2 | base64 -d
    ```
    Look for the `exp` field (Unix timestamp).
 
 2. **Test Attic login**:
    ```bash
-   ATTIC_TOKEN=$(cat /var/lib/buildkite-agent-hal-mac/env-attic-token)
+   ATTIC_TOKEN=$(cat /var/lib/gha-runner-hal-mac/env-attic-token)
    nix-shell -p attic-client --run "attic login adrestia https://attic.cf-app.org/ $ATTIC_TOKEN"
    ```
 
