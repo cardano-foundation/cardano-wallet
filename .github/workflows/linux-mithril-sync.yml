@@ -5,6 +5,10 @@ on:
     branches: [master]
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     name: "Build wallet and node"
@@ -21,7 +25,7 @@ jobs:
     name: "Mainnet Boot Sync with Mithril"
     needs: build
     runs-on: [self-hosted, linux, x86_64, cardano-wallet]
-    timeout-minutes: 150
+    timeout-minutes: 250
     env:
       SUCCESS_STATUS: ready
       NODE_LOGS_FILE: ./logs/node.log
@@ -40,7 +44,7 @@ jobs:
           rm -rf logs databases
           mkdir -p logs
           ./snapshot.sh
-          ./run.sh sync 7200
+          ./run.sh sync 14400
 
       - name: Upload logs
         if: always()
