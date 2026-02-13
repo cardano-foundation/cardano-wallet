@@ -5,6 +5,7 @@
 | Started      | 2022-12-06 |
 | Decided      | 2023-01-27 |
 | Last amended | 2023-04-04 |
+| Superseded   | [2026-02-10 — Migrate CI to GitHub Actions](2026-02-10-migrate-ci-to-github-actions.md) |
 
 ## **Why**
 

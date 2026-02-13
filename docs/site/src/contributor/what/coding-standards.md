@@ -23,7 +23,7 @@ Each proposal should start with a section justifying the standard with rational 
         - [Exception 1: URLs in comments](#exception-1-urls-in-comments)
     - [Use only a single blank line between top-level definitions](#use-only-a-single-blank-line-between-top-level-definitions)
     - [Avoid Variable-Length Indentation](#avoid-variable-length-indentation)
-    - [Fourmolu is used to format code](#fourmolu-is-used-to-format-code)
+    - [Fourmolu is used for code formatting](#fourmolu-is-used-for-code-formatting)
   - [Haskell Practices](#haskell-practices)
     - [Favor `newtype` and tagged type over type-aliases](#favor-newtype-and-tagged-type-over-type-aliases)
     - [Language extensions are specified on top of each module](#language-extensions-are-specified-on-top-of-each-module)
@@ -322,58 +322,82 @@ data MyRecord = MyRecord
 </details>
 
 
-### Fourmolu is used to format code
+### Fourmolu is used for code formatting
 
-The project uses [Fourmolu](https://github.com/fourmolu/fourmolu) for code formatting,
-configured via the `fourmolu.yaml` file at the root of the project. Fourmolu handles
-all formatting including imports, language pragmas, and whitespace cleanup.
+Contributors should use [fourmolu](https://github.com/fourmolu/fourmolu) to format all Haskell source code. The configuration is in `fourmolu.yaml` at the root of the project. Run `fourmolu --mode inplace <file>` to format a file.
 
 Imports are automatically grouped by `import-grouping: by-qualified`:
 
 1. Unqualified imports
 2. Qualified imports
 
+> **Why**
+>
+> Automatic formatting eliminates time spent aligning code manually and
+> prevents formatting-related merge conflicts. Fourmolu handles all Haskell
+> source code (not just imports and pragmas), producing deterministic output.
+
 <details>
-  <summary>See example</summary>
+    <summary>See fourmolu.yaml configuration</summary>
 
-  ```hs
-  {-# LANGUAGE BangPatterns #-}
-  {-# LANGUAGE DataKinds #-}
-  {-# LANGUAGE DeriveGeneric #-}
-  {-# LANGUAGE DerivingStrategies #-}
-  {-# LANGUAGE FlexibleContexts #-}
-  {-# LANGUAGE TupleSections #-}
-  {-# LANGUAGE TypeApplications #-}
-  {-# LANGUAGE TypeFamilies #-}
+```yaml
+comma-style: leading
+function-arrows: leading
+import-export-style: leading
+haddock-style: single-line
+in-style: left-align
+indent-wheres: false
+indentation: 4
+let-style: auto
+newlines-between-decls: 1
+record-brace-space: false
+respectful: true
+single-constraint-parens: auto
+column-limit: 70
+```
+</details>
 
-  module Main where
+<details>
+    <summary>See import grouping example</summary>
 
-  import Control.Applicative
-      ( (<|>) )
-  import Control.Arrow
-      ( first )
-  import Control.Concurrent.MVar
-      ( modifyMVar_, newMVar, putMVar, readMVar, takeMVar )
-  import Crypto.Hash.Algorithms
-      ( Blake2b_224, Blake2b_256, SHA3_256, SHA512 (..) )
-  import Lens.Micro
-      ( at, (%~), (&), (.~), (^.) )
-  import Network.HTTP.Client
-      ( Manager
-      , defaultRequest
-      , httpLbs
-      , path
-      , port
-      , responseBody
-      , responseStatus
-      )
+```hs
+{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 
-  import qualified Codec.CBOR.Decoding as CBOR
-  import qualified Codec.CBOR.Encoding as CBOR
-  import qualified Codec.CBOR.Read as CBOR
-  import qualified Codec.CBOR.Write as CBOR
-  import qualified Crypto.Cipher.ChaChaPoly1305 as Poly
-  ```
+module Main where
+
+import Control.Applicative
+    ( (<|>) )
+import Control.Arrow
+    ( first )
+import Control.Concurrent.MVar
+    ( modifyMVar_, newMVar, putMVar, readMVar, takeMVar )
+import Crypto.Hash.Algorithms
+    ( Blake2b_224, Blake2b_256, SHA3_256, SHA512 (..) )
+import Lens.Micro
+    ( at, (%~), (&), (.~), (^.) )
+import Network.HTTP.Client
+    ( Manager
+    , defaultRequest
+    , httpLbs
+    , path
+    , port
+    , responseBody
+    , responseStatus
+    )
+
+import qualified Codec.CBOR.Decoding as CBOR
+import qualified Codec.CBOR.Encoding as CBOR
+import qualified Codec.CBOR.Read as CBOR
+import qualified Codec.CBOR.Write as CBOR
+import qualified Crypto.Cipher.ChaChaPoly1305 as Poly
+```
 </details>
 
 ## Haskell Practices
