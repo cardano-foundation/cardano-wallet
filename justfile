@@ -56,7 +56,7 @@ wallet:
 
 # run a benchmark: api | latency | memory | db | restore
 bench target:
-  ./.buildkite/bench-"{{target}}".sh
+  ./scripts/ci/bench-"{{target}}".sh
 
 # run a local test cluster
 local-cluster:
