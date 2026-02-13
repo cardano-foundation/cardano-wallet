@@ -210,7 +210,7 @@
 </li>
 <li><a href="#use-only-a-single-blank-line-between-top-level-definitions">Use only a single blank line between top-level definitions</a></li>
 <li><a href="#avoid-variable-length-indentation">Avoid Variable-Length Indentation</a></li>
-<li><a href="#fourmolu-is-used-to-format-code">Fourmolu is used to format code</a></li>
+<li><a href="#fourmolu-is-used-for-code-formatting">Fourmolu is used for code formatting</a></li>
 </ul>
 </li>
 <li><a href="#haskell-practices">Haskell Practices</a>
@@ -474,17 +474,38 @@ data MyRecord = MyRecord
     }
 </code></pre>
 </details>
-<h3 id="fourmolu-is-used-to-format-code"><a class="header" href="#fourmolu-is-used-to-format-code">Fourmolu is used to format code</a></h3>
-<p>The project uses <a href="https://github.com/fourmolu/fourmolu">Fourmolu</a> for code formatting,
-configured via the <code>fourmolu.yaml</code> file at the root of the project. Fourmolu handles
-all formatting including imports, language pragmas, and whitespace cleanup.</p>
+<h3 id="fourmolu-is-used-for-code-formatting"><a class="header" href="#fourmolu-is-used-for-code-formatting">Fourmolu is used for code formatting</a></h3>
+<p>Contributors should use <a href="https://github.com/fourmolu/fourmolu">fourmolu</a> to format all Haskell source code. The configuration is in <code>fourmolu.yaml</code> at the root of the project. Run <code>fourmolu --mode inplace &lt;file&gt;</code> to format a file.</p>
 <p>Imports are automatically grouped by <code>import-grouping: by-qualified</code>:</p>
 <ol>
 <li>Unqualified imports</li>
 <li>Qualified imports</li>
 </ol>
+<blockquote>
+<p><strong>Why</strong></p>
+<p>Automatic formatting eliminates time spent aligning code manually and
+prevents formatting-related merge conflicts. Fourmolu handles all Haskell
+source code (not just imports and pragmas), producing deterministic output.</p>
+</blockquote>
 <details>
-  <summary>See example</summary>
+    <summary>See fourmolu.yaml configuration</summary>
+<pre><code class="language-yaml">comma-style: leading
+function-arrows: leading
+import-export-style: leading
+haddock-style: single-line
+in-style: left-align
+indent-wheres: false
+indentation: 4
+let-style: auto
+newlines-between-decls: 1
+record-brace-space: false
+respectful: true
+single-constraint-parens: auto
+column-limit: 70
+</code></pre>
+</details>
+<details>
+    <summary>See import grouping example</summary>
 <pre><code class="language-hs">{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}

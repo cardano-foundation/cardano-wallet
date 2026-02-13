@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>2025-02-03 - Manage versions in Cabal - Cardano Wallet</title>
+        <title>2026-02-10 - Migrate CI to GitHub Actions - Cardano Wallet</title>
 
 
         <!-- Custom HTML head -->
@@ -178,50 +178,72 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="manage-dependencies-versions-in-cabal-files--ap"><a class="header" href="#manage-dependencies-versions-in-cabal-files--ap"><strong>Manage dependencies versions in Cabal files :: AP</strong></a></h1>
+                        <h1 id="migrate-ci-from-buildkite-to-github-actions"><a class="header" href="#migrate-ci-from-buildkite-to-github-actions"><strong>Migrate CI from Buildkite to GitHub Actions</strong></a></h1>
 <div class="table-wrapper"><table><thead><tr><th></th><th></th></tr></thead><tbody>
-<tr><td>Started</td><td>2025-02-03</td></tr>
-<tr><td>Decided</td><td></td></tr>
+<tr><td>Decided</td><td>2026-02-10</td></tr>
+<tr><td>Decided by</td><td>Paolo Veronelli</td></tr>
+<tr><td>Executed by</td><td>Paolo Veronelli</td></tr>
 </tbody></table>
 </div>
 <h2 id="why"><a class="header" href="#why"><strong>Why</strong></a></h2>
-<p>In order to increase the number of scenarios in which the cardano-wallet code could be useful, we want to be able to easily publish libraries such as <a href="https://github.com/cardano-foundation/cardano-wallet/blob/a9761ea150ac6d0d52b255098f3f38b3cf9a07b6/lib/coin-selection/cardano-coin-selection.cabal#L1">coin-selection</a> or <a href="https://github.com/cardano-foundation/cardano-wallet/blob/a9761ea150ac6d0d52b255098f3f38b3cf9a07b6/lib/balance-tx/cardano-balance-tx.cabal#L1">balance-tx</a> to <a href="https://github.com/IntersectMBO/cardano-haskell-packages">CHaP</a>, or even <a href="https://hackage.haskell.org">Hackage</a> whenever possible.</p>
-<p>Currently, the cardano-wallet codebase manages downstream constraints at the toplevel, in the <a href="https://github.com/cardano-foundation/cardano-wallet/blob/a9761ea150ac6d0d52b255098f3f38b3cf9a07b6/cabal.project#L174">cabal.project</a> file, following the constraints of the Cardnao libraries it depends on. While this is fine for an application, it does not work for publishing libraries because of the way Cabal and package repositories work.</p>
+<p>The Cardano Wallet project is entering maintenance-only mode and the Cardano Foundation is preparing for potential handover of maintenance to the community. The CI setup should be as accessible and self-contained as possible for any future maintainer.</p>
+<p>Buildkite requires self-hosted infrastructure, agent token management, and familiarity with a separate CI system. GitHub Actions is natively integrated with the repository, visible to all contributors, and does not require additional accounts or permissions beyond GitHub itself.</p>
 <h2 id="decision"><a class="header" href="#decision"><strong>Decision</strong></a></h2>
+<p>We migrate all CI workflows from <a href="https://buildkite.com">Buildkite</a> to <a href="https://github.com/cardano-foundation/cardano-wallet/actions">GitHub Actions</a>.</p>
+<p>This supersedes the <a href="2023-01-27-continuous-integration.html">2023-01-27 Continuous Integration</a> decision which chose Buildkite as the primary CI system.</p>
+<h3 id="goals"><a class="header" href="#goals">Goals</a></h3>
+<ol>
+<li><strong>Visibility</strong> — CI status, logs, and configuration are visible directly in the repository. No separate Buildkite account or dashboard is needed.</li>
+<li><strong>Standardisation</strong> — All workflows use the same system (GitHub Actions), eliminating the split between Buildkite and GitHub Actions that existed before.</li>
+<li><strong>Handover readiness</strong> — A future maintainer only needs GitHub access to operate, debug, and modify CI. No Buildkite organisation membership, agent tokens, or pipeline configuration is required.</li>
+<li><strong>Reduced operational burden</strong> — Agent token rotation, Buildkite webhook configuration, and Buildkite-specific hook scripts are no longer needed.</li>
+</ol>
+<h3 id="what-changed"><a class="header" href="#what-changed">What changed</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Before (Buildkite)</th><th>After (GitHub Actions)</th></tr></thead><tbody>
+<tr><td>Main build pipeline (<code>pipeline.yml</code>)</td><td><a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/ci.yml"><code>ci.yml</code></a></td></tr>
+<tr><td>Release pipeline (<code>release.yml</code>)</td><td><a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/release.yml"><code>release.yml</code></a></td></tr>
+<tr><td>Restoration benchmarks (<code>restoration-benchmarks.yml</code>)</td><td><a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/linux-benchmarks.yml"><code>linux-benchmarks.yml</code></a></td></tr>
+<tr><td>Windows unit tests (already GHA)</td><td><a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/windows.yml"><code>windows.yml</code></a></td></tr>
+<tr><td>—</td><td><a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/linux-e2e.yml"><code>linux-e2e.yml</code></a>, <a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/windows-e2e.yml"><code>windows-e2e.yml</code></a></td></tr>
+<tr><td>—</td><td><a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/macos-unit-tests.yml"><code>macos-unit-tests.yml</code></a>, <a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/macos-integration.yml"><code>macos-integration.yml</code></a></td></tr>
+<tr><td>—</td><td><a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/linux-mithril-sync.yml"><code>linux-mithril-sync.yml</code></a></td></tr>
+</tbody></table>
+</div>
+<p>Self-hosted runners (Windows, macOS) remain necessary for platform-specific tests. Runner setup documentation has moved from <code>.buildkite/README.md</code> to the <a href="../how/continuous-integration.html">Continuous Integration</a> docs page.</p>
+<h3 id="what-stays-the-same"><a class="header" href="#what-stays-the-same">What stays the same</a></h3>
 <ul>
-<li>We set version bounds constraints at the level of individual <code>.cabal</code> files instead of the <code>.project</code> file</li>
-<li>We update version bounds as needed, tracking upstream Cardano dependencies as they are released to <em>CHaP</em></li>
-<li>We publish useful libraries to CHaP regularly, tracking upstream dependencies</li>
-<li>We monitor the use of those libraries</li>
-</ul>
-<h2 id="details"><a class="header" href="#details"><strong>Details</strong></a></h2>
-<ul>
-<li>All components of the cardano-wallet are currently versioned using <code>0.yyyy.mm.dd</code> pattern. In order to ensure published libraries are deemed newer, we need to change their versioning scheme to the usual <code>1.x.y.z</code> (eg. following <a href="https://pvp.haskell.org">PVP</a>)</li>
-<li>We need to start from the bottom-up with <a href="https://github.com/cardano-foundation/cardano-wallet-agda/blob/f9709fafae2585f24f9833e71bf0b4de3023b3ed/lib/cardano-wallet-read/cardano-wallet-read.cabal#L1">cardano-wallet-read</a> package which lives in the cardano-wallet-agda repository</li>
-<li>User-facing libraries might depend on "technical" libraries which mostly expose implementation details. We nevertheless need to publish those packages to CHaP in order for Cabal resolution mechanism to work properly</li>
-<li>In order to limit the maintenance burden, version bound constraints should be set only on <em>public libraries</em>. Cabal will "naturally" propagate those constraints to other packages</li>
-<li>We acknowledge that defining good version constraints is a bit of a dark art, so our approach will be to start with a rather restrictive set and expand through <em>package revisions</em> as needed</li>
-<li>We don't invest time in automation and tooling initially, setting and managing bounds manually, until we reach a point where it's becoming overwhelming
-<ul>
-<li>It's expected this issue will crop up if and only if users start using those published packages and submit issues</li>
-<li>There exists some tools (<a href="https://github.com/phadej/cabal-extras">cabal-extras</a>, <a href="https://hackage.haskell.org/package/cabal-bounds">cabal-bounds</a>, <a href="https://cabal.readthedocs.io/en/3.4/cabal-package.html">cabal gen-bounds</a>, <code>cabal outdated</code>...) but perhaps another tool would be helpful for others</li>
-</ul>
-</li>
+<li>Self-hosted machines for Windows and macOS builds</li>
+<li>Nix-based build environment</li>
+<li>Attic binary cache for macOS</li>
+<li>Granularity model (post-commit, pre-merge, post-merge, dispatch)</li>
 </ul>
 <h2 id="rationale"><a class="header" href="#rationale"><strong>Rationale</strong></a></h2>
+<p>The <a href="2023-01-27-continuous-integration.html">2023 decision</a> chose Buildkite primarily because of its good nix cache support and artifact handling. Since then:</p>
 <ul>
-<li>This relates to a feature that's been <a href="https://github.com/cardano-foundation/cardano-wallet/issues/4411">requested by users</a></li>
+<li>GitHub Actions runners gained better nix support via community actions</li>
+<li>The Attic cache replaced the Buildkite-specific nix cache</li>
+<li>The split between Buildkite (Linux/macOS) and GitHub Actions (Windows) created maintenance overhead with two different CI configurations to maintain</li>
+<li>Buildkite required separate account access and agent token management, creating a bus-factor risk for maintenance handover</li>
+</ul>
+<p>GitHub Actions eliminates these issues while retaining the self-hosted runner capability needed for platform-specific builds.</p>
+<h2 id="references"><a class="header" href="#references"><strong>References</strong></a></h2>
+<ul>
+<li><a href="https://github.com/cardano-foundation/cardano-wallet/pull/5105">#5105</a> — initial CI migration</li>
+<li><a href="https://github.com/cardano-foundation/cardano-wallet/pull/5124">#5124</a> — build gates</li>
+<li><a href="https://github.com/cardano-foundation/cardano-wallet/pull/5149">#5149</a> — restoration benchmarks</li>
+<li><a href="https://github.com/cardano-foundation/cardano-wallet/pull/5153">#5153</a> — release automation</li>
+<li><a href="https://github.com/cardano-foundation/cardano-wallet/pull/5168">#5168</a> — Attic cache</li>
 </ul>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../../contributor/decisions/2026-02-10-migrate-ci-to-github-actions.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../../contributor/decisions/2026-02-12-fourmolu-migration.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="../../contributor/decisions/2024-12-03-document-with-code.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../../contributor/decisions/2025-02-03-dependency-versions.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -231,11 +253,11 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../../contributor/decisions/2026-02-10-migrate-ci-to-github-actions.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../../contributor/decisions/2026-02-12-fourmolu-migration.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="../../contributor/decisions/2024-12-03-document-with-code.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../../contributor/decisions/2025-02-03-dependency-versions.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>

@@ -193,17 +193,70 @@ configured with a global package-db which matches <code>cabal.project</code>. Th
 is defined in the <code>devShells.default</code> attribute of <code>flake.nix</code>.</p>
 <h2 id="nix-flake-lock"><a class="header" href="#nix-flake-lock">nix flake lock</a></h2>
 <p><a href="https://nixos.wiki/wiki/Flakes"><code>nix flake</code></a> manages the file <a href="https://github.com/cardano-foundation/cardano-wallet/blob/master/flake.lock"><code>flake.lock</code></a>.</p>
-<h2 id="updating-node-backends"><a class="header" href="#updating-node-backends">Updating node backends</a></h2>
-<h3 id="cardano-node-haskell-dependencies"><a class="header" href="#cardano-node-haskell-dependencies"><code>cardano-node</code> Haskell dependencies</a></h3>
-<p>To bump to a new version:</p>
+<h2 id="bumping-cardano-node"><a class="header" href="#bumping-cardano-node">Bumping cardano-node</a></h2>
+<p>This is the most involved dependency update. The cardano-wallet ecosystem depends on many Cardano Haskell libraries that must all be updated in lockstep.</p>
+<h3 id="overview"><a class="header" href="#overview">Overview</a></h3>
 <ol>
-<li>In <code>cardano-wallet/cabal.project</code>, update
-the dependency revisions to match your chosen version of
-<code>cardano-node/cabal.project</code>.</li>
-<li>Run <code>./nix/regenerate.sh</code> (or let CI do it)</li>
+<li>Choose the target cardano-node version (e.g. 10.2.0)</li>
+<li>Clone/checkout all Cardano dependency repos at matching tags</li>
+<li>Extract changelogs between current and target versions</li>
+<li>Align <code>flake.lock</code> CHaP with cardano-node's CHaP</li>
+<li>Freeze dependencies</li>
+<li>Determine sublibrary order (<code>cabal-plan topo</code>)</li>
+<li>Update <code>.cabal</code> files in topological order (one commit per sublibrary)</li>
+<li>Update <code>cabal.project</code> (index-state, source-repository-package)</li>
+<li>Update the cardano-node input in <code>flake.nix</code></li>
+<li>Final summary commit</li>
 </ol>
-<h3 id="jörmungandr"><a class="header" href="#jörmungandr">Jörmungandr</a></h3>
-<p>Follow the instructions in <a href="https://github.com/cardano-foundation/cardano-wallet/blob/master/nix/jormungandr.nix"><code>nix/jormungandr.nix</code></a>.</p>
+<h3 id="cardano-haskell-packages-chap"><a class="header" href="#cardano-haskell-packages-chap">Cardano Haskell Packages (CHaP)</a></h3>
+<p>CHaP is the custom Hackage repository for Cardano packages, hosted at <code>https://chap.intersectmbo.org/</code>. The <code>index-state</code> in <code>cabal.project</code> controls which package versions are visible:</p>
+<pre><code class="language-cabal">index-state:
+  , hackage.haskell.org 2025-01-01T23:24:19Z
+  , cardano-haskell-packages 2025-03-01T00:00:00Z
+</code></pre>
+<p><strong>Critical</strong>: use the same CHaP revision as cardano-node to avoid Windows cross-compilation failures (wine/iserv socket errors caused by transitive dependency mismatches).</p>
+<pre><code class="language-bash"># Get cardano-node's CHaP rev
+cd /code/cardano-node &amp;&amp; git checkout &lt;target-version&gt;
+cat flake.lock | jq '.nodes.CHaP.locked.rev'
+
+# Update cardano-wallet to use same CHaP
+nix flake update CHaP --override-input CHaP \
+  github:intersectmbo/cardano-haskell-packages/&lt;rev&gt;
+</code></pre>
+<h3 id="dependency-bounds"><a class="header" href="#dependency-bounds">Dependency bounds</a></h3>
+<p>Standard format for version bounds in <code>.cabal</code> files:</p>
+<pre><code class="language-cabal">build-depends:
+    aeson &gt;= 2.1.2.1 &amp;&amp; &lt; 2.2
+  , base &gt;= 4.18 &amp;&amp; &lt; 5
+  , cardano-api &gt;= 10.0 &amp;&amp; &lt; 10.1
+</code></pre>
+<p>Lower bound = exact version from freeze; upper bound = next minor version.</p>
+<h3 id="source-repository-packages"><a class="header" href="#source-repository-packages">Source repository packages</a></h3>
+<p>For packages not yet on CHaP or when you need a specific commit:</p>
+<pre><code class="language-cabal">source-repository-package
+    type: git
+    location: https://github.com/IntersectMBO/cardano-addresses
+    tag: 2bca06deaa60e54a5322ac757387d744bf043367
+    --sha256: 1y1mzfly7jac40b9g4xc078rcm5zqhc3xxv77kwxi10yph1jwq7z
+    subdir: command-line
+            core
+</code></pre>
+<p>Get the SHA256 with <code>nix flake prefetch github:owner/repo/commit-sha</code>.</p>
+<h2 id="chap-only-dependency-bump"><a class="header" href="#chap-only-dependency-bump">CHaP-only dependency bump</a></h2>
+<p>When a Cardano library updates on CHaP without a full cardano-node version bump:</p>
+<ol>
+<li>Bump the CHaP <code>index-state</code> in <code>cabal.project</code> to a timestamp that includes the new package version</li>
+<li>Update version bounds in affected <code>.cabal</code> files</li>
+<li>Build and test: <code>cabal build all -O0</code></li>
+</ol>
+<h2 id="ghc-bump"><a class="header" href="#ghc-bump">GHC bump</a></h2>
+<ol>
+<li>Update the <code>haskell.nix</code> pin in <code>flake.lock</code></li>
+<li>Set the compiler version in <code>flake.nix</code></li>
+<li>Fix build errors (imports, extensions, warnings-as-errors)</li>
+<li>Update the Windows cross-compilation overlay if needed</li>
+<li>Re-enable or disable tools that depend on GHC version (e.g. HLS, weeder)</li>
+</ol>
 
                     </main>
 

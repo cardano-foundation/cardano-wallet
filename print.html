@@ -4654,7 +4654,7 @@ EOF
 </li>
 <li><a href="contributor/what/coding-standards.html#use-only-a-single-blank-line-between-top-level-definitions">Use only a single blank line between top-level definitions</a></li>
 <li><a href="contributor/what/coding-standards.html#avoid-variable-length-indentation">Avoid Variable-Length Indentation</a></li>
-<li><a href="contributor/what/coding-standards.html#fourmolu-is-used-to-format-code">Fourmolu is used to format code</a></li>
+<li><a href="contributor/what/coding-standards.html#fourmolu-is-used-for-code-formatting">Fourmolu is used for code formatting</a></li>
 </ul>
 </li>
 <li><a href="contributor/what/coding-standards.html#haskell-practices">Haskell Practices</a>
@@ -4918,17 +4918,38 @@ data MyRecord = MyRecord
     }
 </code></pre>
 </details>
-<h3 id="fourmolu-is-used-to-format-code"><a class="header" href="#fourmolu-is-used-to-format-code">Fourmolu is used to format code</a></h3>
-<p>The project uses <a href="https://github.com/fourmolu/fourmolu">Fourmolu</a> for code formatting,
-configured via the <code>fourmolu.yaml</code> file at the root of the project. Fourmolu handles
-all formatting including imports, language pragmas, and whitespace cleanup.</p>
+<h3 id="fourmolu-is-used-for-code-formatting"><a class="header" href="#fourmolu-is-used-for-code-formatting">Fourmolu is used for code formatting</a></h3>
+<p>Contributors should use <a href="https://github.com/fourmolu/fourmolu">fourmolu</a> to format all Haskell source code. The configuration is in <code>fourmolu.yaml</code> at the root of the project. Run <code>fourmolu --mode inplace &lt;file&gt;</code> to format a file.</p>
 <p>Imports are automatically grouped by <code>import-grouping: by-qualified</code>:</p>
 <ol>
 <li>Unqualified imports</li>
 <li>Qualified imports</li>
 </ol>
+<blockquote>
+<p><strong>Why</strong></p>
+<p>Automatic formatting eliminates time spent aligning code manually and
+prevents formatting-related merge conflicts. Fourmolu handles all Haskell
+source code (not just imports and pragmas), producing deterministic output.</p>
+</blockquote>
 <details>
-  <summary>See example</summary>
+    <summary>See fourmolu.yaml configuration</summary>
+<pre><code class="language-yaml">comma-style: leading
+function-arrows: leading
+import-export-style: leading
+haddock-style: single-line
+in-style: left-align
+indent-wheres: false
+indentation: 4
+let-style: auto
+newlines-between-decls: 1
+record-brace-space: false
+respectful: true
+single-constraint-parens: auto
+column-limit: 70
+</code></pre>
+</details>
+<details>
+    <summary>See import grouping example</summary>
 <pre><code class="language-hs">{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
@@ -6976,17 +6997,70 @@ configured with a global package-db which matches <code>cabal.project</code>. Th
 is defined in the <code>devShells.default</code> attribute of <code>flake.nix</code>.</p>
 <h2 id="nix-flake-lock"><a class="header" href="#nix-flake-lock">nix flake lock</a></h2>
 <p><a href="https://nixos.wiki/wiki/Flakes"><code>nix flake</code></a> manages the file <a href="https://github.com/cardano-foundation/cardano-wallet/blob/master/flake.lock"><code>flake.lock</code></a>.</p>
-<h2 id="updating-node-backends"><a class="header" href="#updating-node-backends">Updating node backends</a></h2>
-<h3 id="cardano-node-haskell-dependencies"><a class="header" href="#cardano-node-haskell-dependencies"><code>cardano-node</code> Haskell dependencies</a></h3>
-<p>To bump to a new version:</p>
+<h2 id="bumping-cardano-node"><a class="header" href="#bumping-cardano-node">Bumping cardano-node</a></h2>
+<p>This is the most involved dependency update. The cardano-wallet ecosystem depends on many Cardano Haskell libraries that must all be updated in lockstep.</p>
+<h3 id="overview-10"><a class="header" href="#overview-10">Overview</a></h3>
 <ol>
-<li>In <code>cardano-wallet/cabal.project</code>, update
-the dependency revisions to match your chosen version of
-<code>cardano-node/cabal.project</code>.</li>
-<li>Run <code>./nix/regenerate.sh</code> (or let CI do it)</li>
+<li>Choose the target cardano-node version (e.g. 10.2.0)</li>
+<li>Clone/checkout all Cardano dependency repos at matching tags</li>
+<li>Extract changelogs between current and target versions</li>
+<li>Align <code>flake.lock</code> CHaP with cardano-node's CHaP</li>
+<li>Freeze dependencies</li>
+<li>Determine sublibrary order (<code>cabal-plan topo</code>)</li>
+<li>Update <code>.cabal</code> files in topological order (one commit per sublibrary)</li>
+<li>Update <code>cabal.project</code> (index-state, source-repository-package)</li>
+<li>Update the cardano-node input in <code>flake.nix</code></li>
+<li>Final summary commit</li>
 </ol>
-<h3 id="jörmungandr"><a class="header" href="#jörmungandr">Jörmungandr</a></h3>
-<p>Follow the instructions in <a href="https://github.com/cardano-foundation/cardano-wallet/blob/master/nix/jormungandr.nix"><code>nix/jormungandr.nix</code></a>.</p>
+<h3 id="cardano-haskell-packages-chap"><a class="header" href="#cardano-haskell-packages-chap">Cardano Haskell Packages (CHaP)</a></h3>
+<p>CHaP is the custom Hackage repository for Cardano packages, hosted at <code>https://chap.intersectmbo.org/</code>. The <code>index-state</code> in <code>cabal.project</code> controls which package versions are visible:</p>
+<pre><code class="language-cabal">index-state:
+  , hackage.haskell.org 2025-01-01T23:24:19Z
+  , cardano-haskell-packages 2025-03-01T00:00:00Z
+</code></pre>
+<p><strong>Critical</strong>: use the same CHaP revision as cardano-node to avoid Windows cross-compilation failures (wine/iserv socket errors caused by transitive dependency mismatches).</p>
+<pre><code class="language-bash"># Get cardano-node's CHaP rev
+cd /code/cardano-node &amp;&amp; git checkout &lt;target-version&gt;
+cat flake.lock | jq '.nodes.CHaP.locked.rev'
+
+# Update cardano-wallet to use same CHaP
+nix flake update CHaP --override-input CHaP \
+  github:intersectmbo/cardano-haskell-packages/&lt;rev&gt;
+</code></pre>
+<h3 id="dependency-bounds"><a class="header" href="#dependency-bounds">Dependency bounds</a></h3>
+<p>Standard format for version bounds in <code>.cabal</code> files:</p>
+<pre><code class="language-cabal">build-depends:
+    aeson &gt;= 2.1.2.1 &amp;&amp; &lt; 2.2
+  , base &gt;= 4.18 &amp;&amp; &lt; 5
+  , cardano-api &gt;= 10.0 &amp;&amp; &lt; 10.1
+</code></pre>
+<p>Lower bound = exact version from freeze; upper bound = next minor version.</p>
+<h3 id="source-repository-packages"><a class="header" href="#source-repository-packages">Source repository packages</a></h3>
+<p>For packages not yet on CHaP or when you need a specific commit:</p>
+<pre><code class="language-cabal">source-repository-package
+    type: git
+    location: https://github.com/IntersectMBO/cardano-addresses
+    tag: 2bca06deaa60e54a5322ac757387d744bf043367
+    --sha256: 1y1mzfly7jac40b9g4xc078rcm5zqhc3xxv77kwxi10yph1jwq7z
+    subdir: command-line
+            core
+</code></pre>
+<p>Get the SHA256 with <code>nix flake prefetch github:owner/repo/commit-sha</code>.</p>
+<h2 id="chap-only-dependency-bump"><a class="header" href="#chap-only-dependency-bump">CHaP-only dependency bump</a></h2>
+<p>When a Cardano library updates on CHaP without a full cardano-node version bump:</p>
+<ol>
+<li>Bump the CHaP <code>index-state</code> in <code>cabal.project</code> to a timestamp that includes the new package version</li>
+<li>Update version bounds in affected <code>.cabal</code> files</li>
+<li>Build and test: <code>cabal build all -O0</code></li>
+</ol>
+<h2 id="ghc-bump"><a class="header" href="#ghc-bump">GHC bump</a></h2>
+<ol>
+<li>Update the <code>haskell.nix</code> pin in <code>flake.lock</code></li>
+<li>Set the compiler version in <code>flake.nix</code></li>
+<li>Fix build errors (imports, extensions, warnings-as-errors)</li>
+<li>Update the Windows cross-compilation overlay if needed</li>
+<li>Re-enable or disable tools that depend on GHC version (e.g. HLS, weeder)</li>
+</ol>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="upgrading-the-ghc-version-of-cardano-wallet"><a class="header" href="#upgrading-the-ghc-version-of-cardano-wallet">Upgrading the GHC version of cardano-wallet</a></h1>
 <p>Here is a reference PR that upgrades to GHC 8.10.7: https://github.com/cardano-foundation/cardano-wallet/pull/2969</p>
 <p><strong>WARNING</strong>: Updating haskell.nix and/or GHC changes a lot of the build environment. You should expect to spend time fixing breakages.</p>
@@ -7042,16 +7116,106 @@ index 8bb80f7e99..8ac227a865 100644
 </code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="decisions-record"><a class="header" href="#decisions-record">Decisions Record</a></h1>
 <p>We keep in these documents a timestamped record of process related decisions.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="fourmolu-migration"><a class="header" href="#fourmolu-migration"><strong>Fourmolu Migration</strong></a></h1>
+<div class="table-wrapper"><table><thead><tr><th></th><th></th></tr></thead><tbody>
+<tr><td>Decided</td><td>2026-02-12</td></tr>
+<tr><td>Decided by</td><td>Paolo Veronelli</td></tr>
+</tbody></table>
+</div>
+<h2 id="why"><a class="header" href="#why"><strong>Why</strong></a></h2>
+<p>The project previously used <a href="https://github.com/haskell/stylish-haskell">stylish-haskell</a> for formatting imports and language pragmas. However, stylish-haskell only handled a narrow subset of formatting concerns — it did not format function definitions, type signatures, expressions, or any other code outside of imports and pragmas. This left most formatting decisions to manual convention enforcement.</p>
+<p><a href="https://github.com/fourmolu/fourmolu">Fourmolu</a> is a full-source Haskell formatter that handles all code, not just imports. Adopting it eliminates formatting discussions during code review and ensures consistent style across the entire codebase.</p>
+<h2 id="decision-1"><a class="header" href="#decision-1"><strong>Decision</strong></a></h2>
+<p>Replace stylish-haskell with fourmolu as the project's code formatter. Configuration is in <code>fourmolu.yaml</code> at the repository root.</p>
+<p>Key settings:</p>
+<pre><code class="language-yaml">comma-style: leading
+function-arrows: leading
+import-export-style: leading
+indentation: 4
+column-limit: 70
+haddock-style: single-line
+record-brace-space: false
+respectful: true
+</code></pre>
+<p>This supersedes the stylish-haskell section in <a href="contributor/decisions/../what/coding-standards.html">Coding Standards</a>.</p>
+<h2 id="rationale-1"><a class="header" href="#rationale-1"><strong>Rationale</strong></a></h2>
+<ul>
+<li><strong>Full coverage</strong>: fourmolu formats all Haskell source code, not just imports and pragmas</li>
+<li><strong>Deterministic</strong>: running <code>fourmolu --mode inplace</code> on any file produces canonical output, eliminating formatting debates</li>
+<li><strong>Leading style</strong>: the leading commas/arrows setting aligns with the project's existing variable-length indentation avoidance policy</li>
+<li><strong>70-character column limit</strong>: slightly narrower than the historical 80-character guideline, producing more readable diffs</li>
+</ul>
+<h2 id="references-2"><a class="header" href="#references-2"><strong>References</strong></a></h2>
+<ul>
+<li><a href="https://github.com/cardano-foundation/cardano-wallet/pull/5169">PR #5169</a> — initial fourmolu migration</li>
+<li><a href="https://fourmolu.github.io/fourmolu/config/current/">fourmolu configuration docs</a></li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="migrate-ci-from-buildkite-to-github-actions"><a class="header" href="#migrate-ci-from-buildkite-to-github-actions"><strong>Migrate CI from Buildkite to GitHub Actions</strong></a></h1>
+<div class="table-wrapper"><table><thead><tr><th></th><th></th></tr></thead><tbody>
+<tr><td>Decided</td><td>2026-02-10</td></tr>
+<tr><td>Decided by</td><td>Paolo Veronelli</td></tr>
+<tr><td>Executed by</td><td>Paolo Veronelli</td></tr>
+</tbody></table>
+</div>
+<h2 id="why-1"><a class="header" href="#why-1"><strong>Why</strong></a></h2>
+<p>The Cardano Wallet project is entering maintenance-only mode and the Cardano Foundation is preparing for potential handover of maintenance to the community. The CI setup should be as accessible and self-contained as possible for any future maintainer.</p>
+<p>Buildkite requires self-hosted infrastructure, agent token management, and familiarity with a separate CI system. GitHub Actions is natively integrated with the repository, visible to all contributors, and does not require additional accounts or permissions beyond GitHub itself.</p>
+<h2 id="decision-2"><a class="header" href="#decision-2"><strong>Decision</strong></a></h2>
+<p>We migrate all CI workflows from <a href="https://buildkite.com">Buildkite</a> to <a href="https://github.com/cardano-foundation/cardano-wallet/actions">GitHub Actions</a>.</p>
+<p>This supersedes the <a href="contributor/decisions/2023-01-27-continuous-integration.html">2023-01-27 Continuous Integration</a> decision which chose Buildkite as the primary CI system.</p>
+<h3 id="goals"><a class="header" href="#goals">Goals</a></h3>
+<ol>
+<li><strong>Visibility</strong> — CI status, logs, and configuration are visible directly in the repository. No separate Buildkite account or dashboard is needed.</li>
+<li><strong>Standardisation</strong> — All workflows use the same system (GitHub Actions), eliminating the split between Buildkite and GitHub Actions that existed before.</li>
+<li><strong>Handover readiness</strong> — A future maintainer only needs GitHub access to operate, debug, and modify CI. No Buildkite organisation membership, agent tokens, or pipeline configuration is required.</li>
+<li><strong>Reduced operational burden</strong> — Agent token rotation, Buildkite webhook configuration, and Buildkite-specific hook scripts are no longer needed.</li>
+</ol>
+<h3 id="what-changed"><a class="header" href="#what-changed">What changed</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Before (Buildkite)</th><th>After (GitHub Actions)</th></tr></thead><tbody>
+<tr><td>Main build pipeline (<code>pipeline.yml</code>)</td><td><a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/ci.yml"><code>ci.yml</code></a></td></tr>
+<tr><td>Release pipeline (<code>release.yml</code>)</td><td><a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/release.yml"><code>release.yml</code></a></td></tr>
+<tr><td>Restoration benchmarks (<code>restoration-benchmarks.yml</code>)</td><td><a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/linux-benchmarks.yml"><code>linux-benchmarks.yml</code></a></td></tr>
+<tr><td>Windows unit tests (already GHA)</td><td><a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/windows.yml"><code>windows.yml</code></a></td></tr>
+<tr><td>—</td><td><a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/linux-e2e.yml"><code>linux-e2e.yml</code></a>, <a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/windows-e2e.yml"><code>windows-e2e.yml</code></a></td></tr>
+<tr><td>—</td><td><a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/macos-unit-tests.yml"><code>macos-unit-tests.yml</code></a>, <a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/macos-integration.yml"><code>macos-integration.yml</code></a></td></tr>
+<tr><td>—</td><td><a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/linux-mithril-sync.yml"><code>linux-mithril-sync.yml</code></a></td></tr>
+</tbody></table>
+</div>
+<p>Self-hosted runners (Windows, macOS) remain necessary for platform-specific tests. Runner setup documentation has moved from <code>.buildkite/README.md</code> to the <a href="contributor/decisions/../how/continuous-integration.html">Continuous Integration</a> docs page.</p>
+<h3 id="what-stays-the-same"><a class="header" href="#what-stays-the-same">What stays the same</a></h3>
+<ul>
+<li>Self-hosted machines for Windows and macOS builds</li>
+<li>Nix-based build environment</li>
+<li>Attic binary cache for macOS</li>
+<li>Granularity model (post-commit, pre-merge, post-merge, dispatch)</li>
+</ul>
+<h2 id="rationale-2"><a class="header" href="#rationale-2"><strong>Rationale</strong></a></h2>
+<p>The <a href="contributor/decisions/2023-01-27-continuous-integration.html">2023 decision</a> chose Buildkite primarily because of its good nix cache support and artifact handling. Since then:</p>
+<ul>
+<li>GitHub Actions runners gained better nix support via community actions</li>
+<li>The Attic cache replaced the Buildkite-specific nix cache</li>
+<li>The split between Buildkite (Linux/macOS) and GitHub Actions (Windows) created maintenance overhead with two different CI configurations to maintain</li>
+<li>Buildkite required separate account access and agent token management, creating a bus-factor risk for maintenance handover</li>
+</ul>
+<p>GitHub Actions eliminates these issues while retaining the self-hosted runner capability needed for platform-specific builds.</p>
+<h2 id="references-3"><a class="header" href="#references-3"><strong>References</strong></a></h2>
+<ul>
+<li><a href="https://github.com/cardano-foundation/cardano-wallet/pull/5105">#5105</a> — initial CI migration</li>
+<li><a href="https://github.com/cardano-foundation/cardano-wallet/pull/5124">#5124</a> — build gates</li>
+<li><a href="https://github.com/cardano-foundation/cardano-wallet/pull/5149">#5149</a> — restoration benchmarks</li>
+<li><a href="https://github.com/cardano-foundation/cardano-wallet/pull/5153">#5153</a> — release automation</li>
+<li><a href="https://github.com/cardano-foundation/cardano-wallet/pull/5168">#5168</a> — Attic cache</li>
+</ul>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="manage-dependencies-versions-in-cabal-files--ap"><a class="header" href="#manage-dependencies-versions-in-cabal-files--ap"><strong>Manage dependencies versions in Cabal files :: AP</strong></a></h1>
 <div class="table-wrapper"><table><thead><tr><th></th><th></th></tr></thead><tbody>
 <tr><td>Started</td><td>2025-02-03</td></tr>
 <tr><td>Decided</td><td></td></tr>
 </tbody></table>
 </div>
-<h2 id="why"><a class="header" href="#why"><strong>Why</strong></a></h2>
+<h2 id="why-2"><a class="header" href="#why-2"><strong>Why</strong></a></h2>
 <p>In order to increase the number of scenarios in which the cardano-wallet code could be useful, we want to be able to easily publish libraries such as <a href="https://github.com/cardano-foundation/cardano-wallet/blob/a9761ea150ac6d0d52b255098f3f38b3cf9a07b6/lib/coin-selection/cardano-coin-selection.cabal#L1">coin-selection</a> or <a href="https://github.com/cardano-foundation/cardano-wallet/blob/a9761ea150ac6d0d52b255098f3f38b3cf9a07b6/lib/balance-tx/cardano-balance-tx.cabal#L1">balance-tx</a> to <a href="https://github.com/IntersectMBO/cardano-haskell-packages">CHaP</a>, or even <a href="https://hackage.haskell.org">Hackage</a> whenever possible.</p>
 <p>Currently, the cardano-wallet codebase manages downstream constraints at the toplevel, in the <a href="https://github.com/cardano-foundation/cardano-wallet/blob/a9761ea150ac6d0d52b255098f3f38b3cf9a07b6/cabal.project#L174">cabal.project</a> file, following the constraints of the Cardnao libraries it depends on. While this is fine for an application, it does not work for publishing libraries because of the way Cabal and package repositories work.</p>
-<h2 id="decision-1"><a class="header" href="#decision-1"><strong>Decision</strong></a></h2>
+<h2 id="decision-3"><a class="header" href="#decision-3"><strong>Decision</strong></a></h2>
 <ul>
 <li>We set version bounds constraints at the level of individual <code>.cabal</code> files instead of the <code>.project</code> file</li>
 <li>We update version bounds as needed, tracking upstream Cardano dependencies as they are released to <em>CHaP</em></li>
@@ -7072,7 +7236,7 @@ index 8bb80f7e99..8ac227a865 100644
 </ul>
 </li>
 </ul>
-<h2 id="rationale-1"><a class="header" href="#rationale-1"><strong>Rationale</strong></a></h2>
+<h2 id="rationale-3"><a class="header" href="#rationale-3"><strong>Rationale</strong></a></h2>
 <ul>
 <li>This relates to a feature that's been <a href="https://github.com/cardano-foundation/cardano-wallet/issues/4411">requested by users</a></li>
 </ul>
@@ -7082,7 +7246,7 @@ index 8bb80f7e99..8ac227a865 100644
 <tr><td>Decided</td><td>3 Dec 2024</td></tr>
 </tbody></table>
 </div>
-<h2 id="why-1"><a class="header" href="#why-1"><strong>Why</strong></a></h2>
+<h2 id="why-3"><a class="header" href="#why-3"><strong>Why</strong></a></h2>
 <p>When developing open-source projects, it helps if all the core “artifacts” related to the project are easily accessible along with the code:</p>
 <ul>
 <li>Links between various artifacts, between code and documents, or documents and code, are easier to add, verify, and maintain over time</li>
@@ -7091,7 +7255,7 @@ index 8bb80f7e99..8ac227a865 100644
 <li>Documents can be used as build resources to produce e.g. websites or PDFs, and conversely up-to-date code can be included in documents if needed</li>
 <li>Wannabe contributors have all the needed context to contribute more effectively</li>
 </ul>
-<h2 id="decision-2"><a class="header" href="#decision-2"><strong>Decision</strong></a></h2>
+<h2 id="decision-4"><a class="header" href="#decision-4"><strong>Decision</strong></a></h2>
 <p>Store all documents related to the team's <em>product</em> (roadmap, design documents, specifications) and <em>process</em> (Advice Process decisions, Logbook, Meeting minutes and recordings, etc.) to the relevant repository (ie. usually https://github.com/cardano-foundation/cardano-wallet).</p>
 <h2 id="details-1"><a class="header" href="#details-1"><strong>Details</strong></a></h2>
 <ul>
@@ -7110,7 +7274,7 @@ index 8bb80f7e99..8ac227a865 100644
 <li>Private documents will be kept in Google Docs</li>
 <li>Public documents that require some collaborative writing or editing process might live for a while in Google Docs or <a href="https://hackmd.io">https://hackmd.io</a>. The latter should be preferred as it ensures we stick to markdown format.</li>
 </ul>
-<h2 id="rationale-2"><a class="header" href="#rationale-2"><strong>Rationale</strong></a></h2>
+<h2 id="rationale-4"><a class="header" href="#rationale-4"><strong>Rationale</strong></a></h2>
 <p>The “Why” section already states a few benefits of keeping documents in the same place as the code the team is responsible for. The main rationale behind this proposal is to increase the visibility of the open source Cardano community on the work the HAL team is doing, in order to maximise the likelihood this work will be deemed relevant and important, increase or lower the barrier of entry for potential contribution, and more generally increase the level of transparency of our work.</p>
 <p>The original Advice Process’ rationale stated some requirements for documents storage which were valid and this proposal tries to stick with those:</p>
 <ul>
@@ -7131,9 +7295,9 @@ index 8bb80f7e99..8ac227a865 100644
 <tr><td>Decided</td><td>2024-03-23</td></tr>
 </tbody></table>
 </div>
-<h2 id="why-2"><a class="header" href="#why-2">Why</a></h2>
+<h2 id="why-4"><a class="header" href="#why-4">Why</a></h2>
 <p>The release v2023-07-18 of cardano-wallet highlighted the need to further automate the release process, and to clarify consistency between artifacts and tests. The release v2023-12-18 highlighted further gaps in test and dependency maintenance.</p>
-<h2 id="decision-3"><a class="header" href="#decision-3">Decision</a></h2>
+<h2 id="decision-5"><a class="header" href="#decision-5">Decision</a></h2>
 <ul>
 <li>We continue to use <strong>trunk-based development</strong>, where all code is merged into the master branch frequently, such that this branch is (almost) ready to be released at any point in time.</li>
 <li>A <strong>release</strong> is a collection of artifacts that have been tested together and will be published.
@@ -7154,9 +7318,9 @@ index 8bb80f7e99..8ac227a865 100644
 <tr><td>Decided</td><td>2023-07-28</td></tr>
 </tbody></table>
 </div>
-<h2 id="why-3"><a class="header" href="#why-3"><strong>Why</strong></a></h2>
+<h2 id="why-5"><a class="header" href="#why-5"><strong>Why</strong></a></h2>
 <p>As we have now moved to the Cardano Foundation, it’s an appropriate time to review how we operate as a team and see what improvements we can implement.</p>
-<h2 id="decision-4"><a class="header" href="#decision-4"><strong>Decision</strong></a></h2>
+<h2 id="decision-6"><a class="header" href="#decision-6"><strong>Decision</strong></a></h2>
 <ol>
 <li>Due to the distributed nature of the team, where possible and practical we will continue to favor asynchronous working.</li>
 <li>We will adopt a Kanban-esque approach to managing our workflow, therefore:
@@ -7188,11 +7352,12 @@ index 8bb80f7e99..8ac227a865 100644
 <tr><td>Started</td><td>2022-12-06</td></tr>
 <tr><td>Decided</td><td>2023-01-27</td></tr>
 <tr><td>Last amended</td><td>2023-04-04</td></tr>
+<tr><td>Superseded</td><td><a href="contributor/decisions/2026-02-10-migrate-ci-to-github-actions.html">2026-02-10 — Migrate CI to GitHub Actions</a></td></tr>
 </tbody></table>
 </div>
-<h2 id="why-4"><a class="header" href="#why-4"><strong>Why</strong></a></h2>
+<h2 id="why-6"><a class="header" href="#why-6"><strong>Why</strong></a></h2>
 <p>The sudden decommission of Hydra forces us to revisit our Continuous Integration (CI) setup.</p>
-<h2 id="decision-5"><a class="header" href="#decision-5"><strong>Decision</strong></a></h2>
+<h2 id="decision-7"><a class="header" href="#decision-7"><strong>Decision</strong></a></h2>
 <p>We predominantly rely on <a href="https://buildkite.com">Buildkite</a> as CI system.</p>
 <p>We build <strong>artifacts</strong> and run <strong>checks</strong> on them. Artifacts include compiled executables, but also the source code itself. Checks include unit and integration tests, but also source code linters. We specify our artifacts in `flake.nix`, and most of our checks, too.</p>
 <p>We perform these builds and checks with different <strong>granularity</strong> — in order to keep our computing resources within reasonable limits, we don’t automatically check everything on every commit. Instead, the granularities are:</p>
@@ -7271,7 +7436,7 @@ index 8bb80f7e99..8ac227a865 100644
 <li>Our tribes’ DevX/SRE resources can help teach us how to debug problems that arise</li>
 <li>Link to the <a href="https://input-output.atlassian.net/wiki/spaces/CI/pages/3528785931/SRE+Chapter">SRE Chapter of IOG</a></li>
 </ul>
-<h2 id="rationale-3"><a class="header" href="#rationale-3"><strong>Rationale</strong></a></h2>
+<h2 id="rationale-5"><a class="header" href="#rationale-5"><strong>Rationale</strong></a></h2>
 <h3 id="artifacts-and-checks"><a class="header" href="#artifacts-and-checks"><strong>Artifacts and checks</strong></a></h3>
 <p>The two main concerns of a CI pipeline are: building <strong>artifacts</strong> and running <strong>checks</strong>.</p>
 <p>The purpose of building an artifact is to produce, say, an executable or HTML. The purpose of running a check is to check that the artifact satisfies certain properties, e.g. all unit tests pass.</p>
@@ -7309,7 +7474,7 @@ index 8bb80f7e99..8ac227a865 100644
 <li>Con — no Windows machine</li>
 <li>Pro — No dependency on permission</li>
 </ul>
-<h2 id="references-2"><a class="header" href="#references-2"><strong>References</strong></a></h2>
+<h2 id="references-4"><a class="header" href="#references-4"><strong>References</strong></a></h2>
 <p>[1] G Kim, K Behr, G Spafford; <a href="https://www.goodreads.com/book/show/17255186-the-phoenix-project">The Phoenix Project</a>; IT Revolution Press (2013). A business novel about the DevOps movement: make the flow of work visible and automate it, to an extreme of, say, 30 releases per day.</p>
 <p>[2] <a href="https://github.com/input-output-hk/cicero#readme">Cicero on Github</a></p>
 <h1 id="scratchbook"><a class="header" href="#scratchbook"><strong>Scratchbook</strong></a></h1>
@@ -7325,15 +7490,15 @@ index 8bb80f7e99..8ac227a865 100644
 <tr><td>Decided</td><td>2022-10-14</td></tr>
 </tbody></table>
 </div>
-<h2 id="why-5"><a class="header" href="#why-5"><strong>Why</strong></a></h2>
+<h2 id="why-7"><a class="header" href="#why-7"><strong>Why</strong></a></h2>
 <p>We need to store our documents — such as decision records, design documents — somewhere, but there are a plethora of options: Google Docs, Confluence, Github, Custom wiki, … with various pros and cons. This decision records our current choice and its rationale.</p>
-<h2 id="decision-6"><a class="header" href="#decision-6"><strong>Decision</strong></a></h2>
+<h2 id="decision-8"><a class="header" href="#decision-8"><strong>Decision</strong></a></h2>
 <p>The entry point to our documentation is the Adrestia (Haskell) Team Dashboard on Google Docs. All other documents are hyperlinked from this dashboard.</p>
 <p>For documents that are not public, such as meeting minutes or Advice Process records, we use Google Docs.</p>
 <p>For documents that may eventually be public, such as design documentation or release checklists, we use Rodney’s HedgeDoc instance at <a href="https://md.adrestia.iohkdev.io/">https://md.adrestia.iohkdev.io/</a> . (As Rodney is no longer with us, I’m actually not happy with that state of affairs. Moritz Angerman has set up another instance at <a href="https://hd.devx.iog.io/">https://hd.devx.iog.io/</a> ).</p>
 <h2 id="details-4"><a class="header" href="#details-4"><strong>Details</strong></a></h2>
 <p>See Section “Decision”.</p>
-<h2 id="rationale-4"><a class="header" href="#rationale-4"><strong>Rationale</strong></a></h2>
+<h2 id="rationale-6"><a class="header" href="#rationale-6"><strong>Rationale</strong></a></h2>
 <p><strong>Making</strong> a <strong>decision</strong> — Document storage systems come with various trade-offs, and none seems to be perfect. The act of simply picking one system is at least as important as making sure that the pick is reasonable — we can’t even record our choice unless we have already made it! Thus, I (the decision maker) have decided to favor a speedy decision over an optimal one.</p>
 <p>What do we want out of a document storage system? Here is a list of features, in order of importance, and some thoughts as to how these are satisfied with my current decision.</p>
 <p><strong>Sharing</strong> and <strong>Access Control</strong> — We need to be able to share documents with team members, and maybe external parties. Also, we need to keep some types of documents internal to the company or team.</p>
