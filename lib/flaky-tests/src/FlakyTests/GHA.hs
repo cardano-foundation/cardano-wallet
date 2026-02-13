@@ -21,7 +21,6 @@ import Data.ByteString.Lazy
     )
 import Data.Maybe
     ( catMaybes
-    , mapMaybe
     )
 import Data.Proxy
     ( Proxy (..)
