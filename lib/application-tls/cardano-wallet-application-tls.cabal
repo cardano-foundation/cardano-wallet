@@ -38,26 +38,26 @@ library
   import:          language, opts-lib
   hs-source-dirs:  lib
   build-depends:
-    , aeson                    >=2
+    , aeson
     , base
     , base64-bytestring
     , bytestring
     , crypton
-    , crypton-asn1-encoding
-    , crypton-asn1-types
+    , asn1-encoding
+    , asn1-types
     , crypton-x509
     , crypton-x509-store
     , crypton-x509-validation
-    , data-default             >=0.8.0.0 && <0.9
+    , data-default
     , data-default-class
     , directory
     , exceptions
     , filepath
-    , ip                       >=1.7.4
+    , ip
     , text
-    , time-hourglass
+    , hourglass
     , tls
-    , warp-tls                 >=3.4.7
+    , warp-tls
     , wide-word
     , yaml
 
@@ -81,7 +81,7 @@ test-suite unit
     , crypton-x509
     , crypton-x509-store
     , crypton-x509-system
-    , data-default                    >=0.8.0.0 && <0.9
+    , data-default
     , directory
     , filepath
     , hspec

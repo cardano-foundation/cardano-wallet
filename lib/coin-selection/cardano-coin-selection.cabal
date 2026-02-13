@@ -38,23 +38,23 @@ library
   import:          language, opts-lib
   hs-source-dirs:  lib
   build-depends:
-    , base                       >=4.14    && <5
+    , base
     , cardano-numeric
     , cardano-wallet-primitive
     , cardano-wallet-test-utils
-    , containers                 >=0.5     && <0.8
-    , deepseq                    >=1.4.4   && <1.6
-    , exact-combinatorics        >=0.2     && <0.3
-    , generic-lens               >=2.2.2.0 && <2.3
-    , generics-sop               >=0.5.1.4 && <0.6
-    , int-cast                   >=0.2.0.0 && <0.3
-    , lattices                   >=2.2     && <2.3
-    , math-functions             >=0.3.4.4 && <0.4
-    , MonadRandom                >=0.6     && <0.7
-    , monoid-subclasses          >=1.2.5.1 && <1.3
-    , monoidmap                  >=0.0.1.6 && <0.1
-    , QuickCheck                 >=2.14    && <2.16
-    , transformers               >=0.6.1.0 && <0.7
+    , containers
+    , deepseq
+    , exact-combinatorics
+    , generic-lens
+    , generics-sop
+    , int-cast
+    , lattices
+    , math-functions
+    , MonadRandom
+    , monoid-subclasses
+    , monoidmap
+    , QuickCheck
+    , transformers
 
   exposed-modules:
     Cardano.CoinSelection
@@ -77,29 +77,29 @@ test-suite test
   main-is:            run-test-suite.hs
   build-depends:
     , base
-    , bytestring                 >=0.10.6  && <0.13
+    , bytestring
     , cardano-coin-selection
     , cardano-numeric
     , cardano-wallet-primitive
     , cardano-wallet-test-utils
     , containers
-    , fmt                        >=0.6.3   && <0.7
+    , fmt
     , generic-lens
     , generics-sop
-    , hspec                      >=2.11.0  && <2.12
+    , hspec
     , hspec-core
     , int-cast
     , lattices
     , MonadRandom
     , monoid-subclasses
-    , pretty-simple              >=4.1.2.0 && <4.2
+    , pretty-simple
     , QuickCheck
-    , quickcheck-classes         >=0.6.5   && <0.7
-    , quickcheck-quid            >=0.0.1.5 && <0.1
-    , safe                       >=0.3.19  && <0.4
-    , text                       >=1.2     && <2.2
-    , transformers               >=0.6.1.0 && <0.7
-    , with-utf8                  >=1.1.0   && <1.2
+    , quickcheck-classes
+    , quickcheck-quid
+    , safe
+    , text
+    , transformers
+    , with-utf8
 
   build-tool-depends: hspec-discover:hspec-discover
   other-modules:
@@ -123,7 +123,7 @@ benchmark utxo-index
     , cardano-wallet-test-utils
     , containers
     , deepseq
-    , format-numbers             >=0.1.0.1 && <0.2
+    , format-numbers
     , QuickCheck
-    , tasty-bench                >=0.4     && <0.5
+    , tasty-bench
     , text

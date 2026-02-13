@@ -66,56 +66,56 @@ library
   -- other-modules:
   -- other-extensions:
   build-depends:
-    , base                           >=4.14      && <5
-    , bytestring                     >=0.10.6    && <0.13
-    , cardano-api                    >=10.16.0.0 && <10.17
+    , base
+    , bytestring
+    , cardano-api
     , cardano-balance-tx
     , cardano-balance-tx:internal
-    , cardano-binary                 >=1.7.1.0   && <1.8
-    , cardano-crypto-class           ^>=2.2.3
-    , cardano-ledger-alonzo          >=1.13.0.0  && <1.14
-    , cardano-ledger-api             >=1.11.0.0  && <1.12
-    , cardano-ledger-babbage         >=1.11.0.0  && <1.12
-    , cardano-ledger-byron           >=1.1.0.0   && <1.2
-    , cardano-ledger-core            >=1.17.0.0  && <1.18
-    , cardano-ledger-mary            >=1.8.0.0   && <1.9
-    , cardano-ledger-shelley         >=1.16.0.0  && <1.17
-    , cardano-slotting               >=0.2.0.0   && <0.3
+    , cardano-binary
+    , cardano-crypto-class
+    , cardano-ledger-alonzo
+    , cardano-ledger-api
+    , cardano-ledger-babbage
+    , cardano-ledger-byron
+    , cardano-ledger-core
+    , cardano-ledger-mary
+    , cardano-ledger-shelley
+    , cardano-slotting
     , cardano-wallet-launcher
     , cardano-wallet-primitive
-    , cardano-wallet-read            >=1.0.0.0   && <1.1
-    , cborg                          >=0.2.1     && <0.3
-    , containers                     >=0.5       && <0.8
-    , contra-tracer                  >=0.1       && <0.3
-    , exceptions                     >=0.10.7    && <0.11
-    , fmt                            >=0.6.3     && <0.7
-    , io-classes                     >=1.5.0.0   && <1.9
-    , iohk-monitoring                >=0.2.0.0   && <0.3
+    , cardano-wallet-read
+    , cborg
+    , containers
+    , contra-tracer
+    , exceptions
+    , fmt
+    , io-classes
+    , iohk-monitoring
     , iohk-monitoring-extra
-    , network-mux                    >=0.6       && <0.10
-    , nothunks                       >=0.1.5     && <0.4
-    , ouroboros-consensus            >=0.27.0.0  && <0.28
-    , ouroboros-consensus-cardano    >=0.25.0.0  && <0.26
-    , ouroboros-consensus-diffusion  >=0.23.0.0  && <0.24
-    , ouroboros-consensus-protocol   >=0.12.0.0  && <0.13
-    , ouroboros-network              >=0.21.0.0  && <0.22
-    , ouroboros-network-api          >=0.14.0.0  && <0.15
-    , ouroboros-network-framework    >=0.18.0.0  && <0.19
-    , ouroboros-network-protocols    >=0.14.0.0  && <0.15
-    , parallel                       >=3.2.2     && <3.3
-    , retry                          >=0.9.3     && <0.10
-    , safe                           >=0.3.19    && <0.4
+    , network-mux
+    , nothunks
+    , ouroboros-consensus
+    , ouroboros-consensus-cardano
+    , ouroboros-consensus-diffusion
+    , ouroboros-consensus-protocol
+    , ouroboros-network
+    , ouroboros-network-api
+    , ouroboros-network-framework
+    , ouroboros-network-protocols
+    , parallel
+    , retry
+    , safe
     , singletons
-    , streaming                      >=0.2.4     && <0.3
-    , strict-stm
-    , text                           >=1.2       && <2.2
+    , streaming
+    , io-classes:strict-stm
+    , text
     , text-class
-    , time                           >=1.12.2    && <1.15
-    , transformers                   >=0.6.1.0   && <0.7
-    , typed-protocols                >=0.3.0.0   && <1.1
+    , time
+    , transformers
+    , typed-protocols
     , typed-protocols-stateful
-    , unliftio                       >=0.2.25    && <0.3
-    , unliftio-core                  >=0.1.1     && <0.3
+    , unliftio
+    , unliftio-core
 
 test-suite unit
   import:             language, opts-exe
@@ -129,9 +129,9 @@ test-suite unit
     , cardano-wallet-read
     , containers
     , contra-tracer
-    , hspec                         >=2.11.0  && <2.12
-    , io-classes                    >=1.5.0.0 && <1.9
-    , QuickCheck                    >=2.14    && <2.16
+    , hspec
+    , io-classes
+    , QuickCheck
     , text
     , transformers
 

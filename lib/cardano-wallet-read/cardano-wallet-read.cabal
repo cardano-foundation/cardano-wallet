@@ -158,41 +158,41 @@ library
     Cardano.Wallet.Read.Tx.Validity
 
   build-depends:
-    , base                          >=4.14     && <5
-    , bytestring                    >=0.10.6   && <0.13
-    , cardano-crypto                >=1.1.2    && <1.4
-    , cardano-crypto-class          >=2.2.3.0  && <2.3
-    , cardano-crypto-praos          >=2.2.0.0  && <2.3
-    , cardano-crypto-wrapper        >=1.5.1.3  && <1.7
-    , cardano-data                  >=1.2.3.1  && <1.3
-    , cardano-ledger-allegra        >=1.7.0.0  && <1.8
-    , cardano-ledger-alonzo         >=1.13.0.0 && <1.14
-    , cardano-ledger-api            >=1.11.0.0 && <1.12
-    , cardano-ledger-babbage        >=1.11.0.0 && <1.12
+    , base
+    , bytestring
+    , cardano-crypto
+    , cardano-crypto-class
+    , cardano-crypto-praos
+    , cardano-crypto-wrapper
+    , cardano-data
+    , cardano-ledger-allegra
+    , cardano-ledger-alonzo
+    , cardano-ledger-api
+    , cardano-ledger-babbage
     , cardano-ledger-binary
-    , cardano-ledger-byron          >=1.1.0.0  && <1.2
-    , cardano-ledger-conway         >=1.19.0.0 && <1.20
-    , cardano-ledger-core           >=1.17.0.0 && <1.18
-    , cardano-ledger-mary           >=1.8.0.0  && <1.9
-    , cardano-ledger-shelley        >=1.16.0.0 && <1.17
-    , cardano-protocol-tpraos       >=1.4.0.0  && <1.5
-    , cardano-strict-containers     >=0.1.3.0  && <0.2
-    , containers                    >=0.5      && <0.8
-    , deepseq                       >=1.4.4    && <1.6
-    , fmt                           >=0.6.3.0  && <0.7
-    , generics-sop                  >=0.5.1.4  && <0.6
-    , lens                          >=5.2.3    && <5.4
-    , memory                        >=0.18.0   && <0.19
-    , nothunks                      >=0.1.5    && <0.4
-    , operational                   >=0.2.4.2  && <0.3
-    , ouroboros-consensus           >=0.27.0.0 && <0.28
-    , ouroboros-consensus-cardano   >=0.25.0.0 && <0.26
-    , ouroboros-consensus-protocol  >=0.12.0.0 && <0.13
-    , ouroboros-network-api         >=0.14.0.0 && <0.15
-    , QuickCheck                    >=2.14     && <2.16.0
-    , text                          >=1.2      && <2.2
-    , time                          >=1.12.2   && <1.15
-    , transformers                  >=0.6.1.0  && <0.7
+    , cardano-ledger-byron
+    , cardano-ledger-conway
+    , cardano-ledger-core
+    , cardano-ledger-mary
+    , cardano-ledger-shelley
+    , cardano-protocol-tpraos
+    , cardano-strict-containers
+    , containers
+    , deepseq
+    , fmt
+    , generics-sop
+    , lens
+    , memory
+    , nothunks
+    , operational
+    , ouroboros-consensus
+    , ouroboros-consensus-cardano
+    , ouroboros-consensus-protocol
+    , ouroboros-network-api
+    , QuickCheck
+    , text
+    , time
+    , transformers
 
   hs-source-dirs:   haskell
   default-language: Haskell2010
@@ -218,12 +218,12 @@ test-suite test
   build-depends:
     , base
     , bytestring
-    , cardano-ledger-api   >=1.11.0.0 && <1.12
-    , cardano-ledger-core  >=1.17.0.0 && <1.18
-    , cardano-ledger-mary  >=1.8.0.0  && <1.9
+    , cardano-ledger-api
+    , cardano-ledger-core
+    , cardano-ledger-mary
     , cardano-wallet-read
-    , hspec                >=2.11.0   && <2.12
+    , hspec
     , lens
     , memory
-    , QuickCheck           >=2.14     && <2.16.0
-    , with-utf8            >=1.1.0.0  && <1.2
+    , QuickCheck
+    , with-utf8
