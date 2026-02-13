@@ -6000,7 +6000,7 @@ for the latest released version.</p>
 </li>
 </ul>
 <h2 id="validating-locally"><a class="header" href="#validating-locally">Validating locally</a></h2>
-<p>To validate from your local git working tree, use this command. It is the same as what <a href="https://github.com/cardano-foundation/cardano-wallet/blob/master/.buildkite/pipeline.yml">Buildkite</a> runs.</p>
+<p>To validate from your local git working tree, use this command. It is the same as what CI runs.</p>
 <pre><code>openapi-spec-validator --schema 3.0.0 specifications/api/swagger.yaml
 </code></pre>
 <p>If you don't have the validator tool installed, it is available within <code>nix-shell</code>.</p>
@@ -6638,9 +6638,9 @@ $ eog restore.svg
 <h4 id="environment-variables-1"><a class="header" href="#environment-variables-1">Environment variables</a></h4>
 <p>Secrets are configured via:</p>
 <ul>
-<li><code>ATTIC_TOKEN</code> — from <code>/var/lib/buildkite-agent-hal-mac/env-attic-token</code></li>
-<li><code>FIXTURE_DECRYPTION_KEY</code> — from <code>/var/lib/buildkite-agent-hal-mac/env-fixture-decryption-key</code></li>
-<li><code>HAL_E2E_PREPROD_MNEMONICS</code> — from <code>/var/lib/buildkite-agent-hal-mac/env-hal-e2e-preprod-mnemonics</code></li>
+<li><code>ATTIC_TOKEN</code> — from <code>/var/lib/gha-runner-hal-mac/env-attic-token</code></li>
+<li><code>FIXTURE_DECRYPTION_KEY</code> — from <code>/var/lib/gha-runner-hal-mac/env-fixture-decryption-key</code></li>
+<li><code>HAL_E2E_PREPROD_MNEMONICS</code> — from <code>/var/lib/gha-runner-hal-mac/env-hal-e2e-preprod-mnemonics</code></li>
 </ul>
 <h4 id="troubleshooting-2"><a class="header" href="#troubleshooting-2">Troubleshooting</a></h4>
 <ul>
@@ -6653,14 +6653,14 @@ $ eog restore.svg
 <p>The Attic cache job pushes build artifacts to the Attic cache server. If it fails:</p>
 <ol>
 <li>
-<p><strong>Check Attic token</strong> — The JWT token in <code>/var/lib/buildkite-agent-hal-mac/env-attic-token</code> may have expired. Decode it:</p>
-<pre><code class="language-bash">cat /var/lib/buildkite-agent-hal-mac/env-attic-token | cut -d. -f2 | base64 -d
+<p><strong>Check Attic token</strong> — The JWT token in <code>/var/lib/gha-runner-hal-mac/env-attic-token</code> may have expired. Decode it:</p>
+<pre><code class="language-bash">cat /var/lib/gha-runner-hal-mac/env-attic-token | cut -d. -f2 | base64 -d
 </code></pre>
 <p>Look for the <code>exp</code> field (Unix timestamp).</p>
 </li>
 <li>
 <p><strong>Test Attic login</strong>:</p>
-<pre><code class="language-bash">ATTIC_TOKEN=$(cat /var/lib/buildkite-agent-hal-mac/env-attic-token)
+<pre><code class="language-bash">ATTIC_TOKEN=$(cat /var/lib/gha-runner-hal-mac/env-attic-token)
 nix-shell -p attic-client --run "attic login adrestia https://attic.cf-app.org/ $ATTIC_TOKEN"
 </code></pre>
 </li>
@@ -6983,7 +6983,7 @@ is defined in the <code>devShells.default</code> attribute of <code>flake.nix</c
 <li>In <code>cardano-wallet/cabal.project</code>, update
 the dependency revisions to match your chosen version of
 <code>cardano-node/cabal.project</code>.</li>
-<li>Run <code>./nix/regenerate.sh</code> (or let Buildkite do it)</li>
+<li>Run <code>./nix/regenerate.sh</code> (or let CI do it)</li>
 </ol>
 <h3 id="jörmungandr"><a class="header" href="#jörmungandr">Jörmungandr</a></h3>
 <p>Follow the instructions in <a href="https://github.com/cardano-foundation/cardano-wallet/blob/master/nix/jormungandr.nix"><code>nix/jormungandr.nix</code></a>.</p>

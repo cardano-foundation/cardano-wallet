@@ -299,9 +299,9 @@
 <h4 id="environment-variables"><a class="header" href="#environment-variables">Environment variables</a></h4>
 <p>Secrets are configured via:</p>
 <ul>
-<li><code>ATTIC_TOKEN</code> — from <code>/var/lib/buildkite-agent-hal-mac/env-attic-token</code></li>
-<li><code>FIXTURE_DECRYPTION_KEY</code> — from <code>/var/lib/buildkite-agent-hal-mac/env-fixture-decryption-key</code></li>
-<li><code>HAL_E2E_PREPROD_MNEMONICS</code> — from <code>/var/lib/buildkite-agent-hal-mac/env-hal-e2e-preprod-mnemonics</code></li>
+<li><code>ATTIC_TOKEN</code> — from <code>/var/lib/gha-runner-hal-mac/env-attic-token</code></li>
+<li><code>FIXTURE_DECRYPTION_KEY</code> — from <code>/var/lib/gha-runner-hal-mac/env-fixture-decryption-key</code></li>
+<li><code>HAL_E2E_PREPROD_MNEMONICS</code> — from <code>/var/lib/gha-runner-hal-mac/env-hal-e2e-preprod-mnemonics</code></li>
 </ul>
 <h4 id="troubleshooting-1"><a class="header" href="#troubleshooting-1">Troubleshooting</a></h4>
 <ul>
@@ -314,14 +314,14 @@
 <p>The Attic cache job pushes build artifacts to the Attic cache server. If it fails:</p>
 <ol>
 <li>
-<p><strong>Check Attic token</strong> — The JWT token in <code>/var/lib/buildkite-agent-hal-mac/env-attic-token</code> may have expired. Decode it:</p>
-<pre><code class="language-bash">cat /var/lib/buildkite-agent-hal-mac/env-attic-token | cut -d. -f2 | base64 -d
+<p><strong>Check Attic token</strong> — The JWT token in <code>/var/lib/gha-runner-hal-mac/env-attic-token</code> may have expired. Decode it:</p>
+<pre><code class="language-bash">cat /var/lib/gha-runner-hal-mac/env-attic-token | cut -d. -f2 | base64 -d
 </code></pre>
 <p>Look for the <code>exp</code> field (Unix timestamp).</p>
 </li>
 <li>
 <p><strong>Test Attic login</strong>:</p>
-<pre><code class="language-bash">ATTIC_TOKEN=$(cat /var/lib/buildkite-agent-hal-mac/env-attic-token)
+<pre><code class="language-bash">ATTIC_TOKEN=$(cat /var/lib/gha-runner-hal-mac/env-attic-token)
 nix-shell -p attic-client --run "attic login adrestia https://attic.cf-app.org/ $ATTIC_TOKEN"
 </code></pre>
 </li>
