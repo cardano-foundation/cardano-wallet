@@ -6578,6 +6578,18 @@ $ eog restore.svg
 <tr><td><a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/lean.yml"><code>lean.yml</code></a></td><td>push, PR</td><td>Lean specification checks (path-filtered to <code>specifications/</code>)</td></tr>
 </tbody></table>
 </div>
+<h2 id="nix-verbosity"><a class="header" href="#nix-verbosity">Nix verbosity</a></h2>
+<p>All <code>nix</code> commands in CI workflows must include the <code>--quiet</code> flag. This suppresses verbose build logs and warnings that clutter GitHub Actions output, making it easier to spot actual failures.</p>
+<pre><code class="language-yaml"># Good
+nix build --quiet .#cardano-wallet
+nix shell --quiet .#cardano-node -c cardano-node --version
+nix develop --quiet --command scripts/check.sh
+
+# Bad — missing --quiet
+nix build .#cardano-wallet
+nix build -L .#cardano-wallet
+</code></pre>
+<p>When adding or modifying workflow steps that invoke <code>nix</code>, always include <code>--quiet</code>.</p>
 <h2 id="self-hosted-runners"><a class="header" href="#self-hosted-runners">Self-hosted runners</a></h2>
 <p>Several workflows run on self-hosted machines. The GHA runner service replaces the former Buildkite agent on these machines.</p>
 <h3 id="windows-machine"><a class="header" href="#windows-machine">Windows machine</a></h3>
