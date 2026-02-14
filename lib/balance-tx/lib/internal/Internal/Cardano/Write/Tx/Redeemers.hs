@@ -258,12 +258,18 @@ assignScriptRedeemers pparams timeTranslation utxo redeemers tx = do
     addScriptIntegrityHash ledgerTx =
         ledgerTx
             & (bodyTxL . scriptIntegrityHashTxBodyL)
-                .~ Alonzo.hashScriptIntegrity
-                    (Set.fromList $ Alonzo.getLanguageView pparams <$> langs)
-                    (Alonzo.txrdmrs wits)
-                    (Alonzo.txdats' wits)
+                .~ SJust
+                    ( Alonzo.hashScriptIntegrity
+                        ( Alonzo.ScriptIntegrity
+                            (Alonzo.txrdmrs wits)
+                            (Alonzo.txdats wits)
+                            ( Set.fromList
+                                $ Alonzo.getLanguageView pparams <$> langs
+                            )
+                        )
+                    )
       where
-        wits = Alonzo.wits ledgerTx
+        wits = view witsTxL ledgerTx
         langs =
             [ Alonzo.plutusScriptLanguage plutus
             | (_hash, script) <- Map.toList (Alonzo.txscripts wits)

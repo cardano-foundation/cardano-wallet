@@ -147,9 +147,7 @@ import Cardano.Address.Script
     )
 import Cardano.Api
     ( SerialiseAsCBOR (..)
-    )
-import Cardano.Api.Shelley
-    ( StakeAddress (..)
+    , StakeAddress (..)
     )
 import Cardano.BM.Tracing
     ( HasPrivacyAnnotation (..)
@@ -216,7 +214,8 @@ import Cardano.Wallet.Address.Derivation
     , stakeDerivationPath
     )
 import Cardano.Wallet.Address.Derivation.Byron
-    ( mkByronKeyFromMasterKey
+    ( ByronKey
+    , mkByronKeyFromMasterKey
     )
 import Cardano.Wallet.Address.Derivation.Icarus
     ( IcarusKey
@@ -289,13 +288,6 @@ import Cardano.Wallet.Address.MaybeLight
 import Cardano.Wallet.Address.States.IsOwned
     ( isOwned
     )
--- import Cardano.Wallet.Api.Http.Server.Handlers.NetworkInformation
---     ( getNetworkInformation
---     , makeApiBlockReference
---     , makeApiBlockReferenceFromHeader
---     , makeApiSlotReference
---     )
-
 import Cardano.Wallet.Api
     ( ApiLayer (..)
     , HasDBFactory
@@ -318,6 +310,13 @@ import Cardano.Wallet.Api.Http.Server.Handlers.MintBurn
     ( convertApiAssetMintBurn
     , getTxApiAssetMintBurn
     )
+-- import Cardano.Wallet.Api.Http.Server.Handlers.NetworkInformation
+--     ( getNetworkInformation
+--     , makeApiBlockReference
+--     , makeApiBlockReferenceFromHeader
+--     , makeApiSlotReference
+--     )
+
 import Cardano.Wallet.Api.Http.Server.Handlers.NetworkInformation
 import Cardano.Wallet.Api.Http.Server.Handlers.TxCBOR
     ( ParsedTxCBOR (..)
@@ -1686,9 +1685,10 @@ mkLegacyWallet ctx wid cp meta _ pending progress = do
             $ W.withRootKey @s db wid mempty Prelude.id (\_ _ -> pure ())
 
 postRandomWallet
-    :: forall ctx s n
+    :: forall ctx s k n
      . ( ctx ~ ApiLayer s
        , s ~ RndState n
+       , k ~ ByronKey
        )
     => ctx
     -> ByronWalletPostData '[12, 15, 18, 21, 24]

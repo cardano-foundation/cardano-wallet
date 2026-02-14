@@ -27,6 +27,9 @@ import Cardano.Wallet.Submissions.Submissions
 import Cardano.Wallet.Submissions.TxStatus
     ( HasTxId (..)
     )
+import Data.Foldable
+    ( Foldable (..)
+    )
 import Fmt
     ( Buildable (..)
     )

@@ -82,7 +82,7 @@ import Cardano.Wallet.Primitive.Types
     , DelegationCertificate (..)
     , GenesisParameters (..)
     , Slot
-    , SlotNo (..)
+    , SlotNo
     , SortOrder (..)
     , StakeKeyCertificate (..)
     , WalletMetadata (..)
@@ -334,9 +334,7 @@ mRollbackTo requested (Database wid wal txs) =
 
     -- \| Find nearest checkpoint's slot before or equal to 'requested'.
     findNearestPoint :: [Wallet s] -> SlotNo
-    findNearestPoint wals = case sortOn Down (mapMaybe fn wals) of
-        (x : _) -> x
-        [] -> error "findNearestPoint: no checkpoint before requested slot"
+    findNearestPoint = head . sortOn Down . mapMaybe fn
       where
         fn :: Wallet s -> Maybe SlotNo
         fn cp = if stip cp <= requested then Just (tip cp) else Nothing

@@ -317,8 +317,7 @@ import qualified Data.Set.NonEmpty as NESet
 import qualified Internal.Cardano.Write.Tx.Balance.CoinSelection as CoinSelection
 
 -- | Indicates a failure to select a sufficient amount of collateral.
-data ErrBalanceTxInsufficientCollateralError era
-    = ErrBalanceTxInsufficientCollateralError
+data ErrBalanceTxInsufficientCollateralError era = ErrBalanceTxInsufficientCollateralError
     { largestCombinationAvailable :: UTxO era
     -- ^ The largest available combination of pure ada UTxOs.
     , minimumCollateralAmount :: Coin
@@ -340,8 +339,7 @@ deriving instance
 --
 --  - the minimum ada quantity required for that change output; and
 --  - the marginal fee for including that output in the transaction.
-data ErrBalanceTxUnableToCreateChangeError
-    = ErrBalanceTxUnableToCreateChangeError
+data ErrBalanceTxUnableToCreateChangeError = ErrBalanceTxUnableToCreateChangeError
     { requiredCost :: !Coin
     -- ^ An estimate of the minimal fee required for this transaction to
     -- be considered valid.
@@ -1352,8 +1350,8 @@ updateTx tx extraContent = do
         -> RecentEra era
         -> Core.Script era
     toLedgerScript s = \case
-        RecentEraBabbage -> TimelockScript $ Convert.toLedgerTimelockScript s
-        RecentEraConway -> TimelockScript $ Convert.toLedgerTimelockScript s
+        RecentEraBabbage -> NativeScript $ Convert.toLedgerTimelockScript s
+        RecentEraConway -> NativeScript $ Convert.toLedgerTimelockScript s
 
 modifyShelleyTxBody
     :: forall era

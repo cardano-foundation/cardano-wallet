@@ -1308,9 +1308,6 @@ instance Arbitrary SlotParametersAndTimePoint where
 -- | Note, for functions which works with both an epoch length and a slot id,
 -- we need to make sure that the 'slotNumber' doesn't exceed the epoch length,
 -- otherwise, all computations get mixed up.
---
--- Also, we bound the total flatSlot value to avoid tests that iterate
--- flatSlot times from hanging (e.g., applyN (flatSlot slot) slotPred).
 instance {-# OVERLAPS #-} Arbitrary (EpochLength, SlotId) where
     shrink (a, b) =
         filter validSlotConfig $ zip (shrink a) (shrink b)
@@ -1318,11 +1315,8 @@ instance {-# OVERLAPS #-} Arbitrary (EpochLength, SlotId) where
         validSlotConfig (EpochLength ep, SlotId _ (SlotInEpoch sl)) = sl < ep
 
     arbitrary = do
-        -- Use a reasonable epoch length (1-1000) to keep flatSlot bounded
-        epochLength <- choose (1, 1000)
-        -- Bound epoch number so flatSlot stays under ~10000 iterations
-        let maxEpoch = 10000 `div` max 1 epochLength
-        ep <- unsafeEpochNo <$> choose (0, fromIntegral maxEpoch)
+        (EpochLength epochLength) <- arbitrary
+        ep <- unsafeEpochNo <$> choose (0, 1000)
         sl <- SlotInEpoch <$> choose (0, fromIntegral epochLength - 1)
         return (EpochLength epochLength, SlotId ep sl)
 

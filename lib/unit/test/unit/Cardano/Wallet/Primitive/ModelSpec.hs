@@ -314,9 +314,7 @@ spec :: Spec
 spec = do
     describe "Buildable instances examples" $ do
         let block = blockchain !! 1
-        let utxo = utxoFromTx $ case transactions block of
-                (t : _) -> t
-                [] -> error "expected transactions"
+        let utxo = utxoFromTx $ head $ transactions block
         it (show $ ShowFmt utxo) True
 
     describe "Compare Wallet impl. with Specification" $ do

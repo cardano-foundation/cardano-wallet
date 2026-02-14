@@ -396,15 +396,14 @@ prop_addressDiscoveryDoesNotChangeGapInvariance (CatalystSharedState accXPub' ac
             dTemplate'
     addr = AddressPool.addressFromIx (getAddrPool sharedState) keyIx
     (_, sharedState') = isShared @n (liftPaymentAddress @n addr) sharedState
-    mapOfConsecutiveUnused = case ( L.dropWhile (== Unused)
-                                        . L.map snd
-                                        . L.sortOn fst
-                                        . Map.elems
-                                        . AddressPool.addresses
-                                        $ getAddrPool sharedState'
-                                  ) of
-        (_ : rest) -> rest
-        [] -> error "mapOfConsecutiveUnused: empty after dropWhile"
+    mapOfConsecutiveUnused =
+        L.tail
+            . L.dropWhile (== Unused)
+            . L.map snd
+            . L.sortOn fst
+            . Map.elems
+            . AddressPool.addresses
+            $ getAddrPool sharedState'
 
 preconditions
     :: Index 'Soft 'CredFromScriptK
@@ -437,13 +436,11 @@ prop_oursUnexpectedPrefix
     -> UnexpectedPrefix
     -> Property
 prop_oursUnexpectedPrefix s prefix =
-    case knownAddresses s of
-        ((Address addr, _, _) : _) ->
-            let addr' = case BS.uncons addr of
-                    Just (_, rest) -> BS.cons (unWord8 prefix) rest
-                    Nothing -> error "prop_oursUnexpectedPrefix: address is empty"
-            in  first isJust (isOurs (Address addr') s) === (False, s)
-        [] -> error "expected known addresses"
+    let
+        (Address addr, _, _) = head $ knownAddresses s
+        addr' = BS.cons (unWord8 prefix) (BS.tail addr)
+    in
+        first isJust (isOurs (Address addr') s) === (False, s)
 
 {-------------------------------------------------------------------------------
                                 Arbitrary Instances

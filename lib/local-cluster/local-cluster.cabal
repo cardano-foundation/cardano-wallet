@@ -148,6 +148,7 @@ library
     , profunctors
     , QuickCheck
     , retry
+    , rio
     , servant
     , servant-client
     , servant-server

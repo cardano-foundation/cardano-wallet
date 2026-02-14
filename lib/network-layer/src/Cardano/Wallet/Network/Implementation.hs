@@ -38,9 +38,7 @@ import Cardano.Api
     , CardanoEra (..)
     , NodeToClientVersion (..)
     , SlotNo (..)
-    )
-import Cardano.Api.Shelley
-    ( toConsensusGenTx
+    , toConsensusGenTx
     )
 import Cardano.BM.Data.Severity
     ( Severity (..)
@@ -177,6 +175,8 @@ import Control.Monad.Class.MonadST
     )
 import Control.Monad.Class.MonadThrow
     ( MonadEvaluate
+    , MonadMask
+    , MonadThrow
     )
 import Control.Monad.Class.MonadTimer
     ( MonadTimer
@@ -267,6 +267,9 @@ import Network.Mux
     ( Error (..)
     , Mode (..)
     , WithBearer (..)
+    )
+import Network.Mux.Trace
+    ( nullTracers
     )
 import Ouroboros.Consensus.Cardano
     ( CardanoBlock
@@ -824,6 +827,7 @@ type WalletNodeToClientProtocols m =
 mkWalletClient
     :: forall m block
      . ( block ~ CardanoBlock (StandardCrypto)
+       , MonadThrow m
        , MonadEvaluate m
        , MonadST m
        , MonadTimer m
@@ -859,6 +863,7 @@ mkWalletClient tr pipeliningStrategy follower cfg nodeToClientVer =
 mkFetchBlockClient
     :: forall m block
      . ( block ~ CardanoBlock (StandardCrypto)
+       , MonadThrow m
        , MonadEvaluate m
        , MonadST m
        , MonadTimer m
@@ -894,6 +899,7 @@ mkDelegationRewardsClient
        , MonadTimer m
        , MonadIO m
        , MonadAsync m
+       , MonadMask m
        , MonadEvaluate m
        )
     => Tracer m Log
@@ -938,6 +944,7 @@ mkWalletToNodeProtocols
        , MonadST m
        , MonadTimer m
        , MonadAsync m
+       , MonadMask m
        , MonadEvaluate m
        )
     => Tracer m Log
@@ -1188,6 +1195,7 @@ codecConfig sp =
         ShelleyCodecConfig
         ShelleyCodecConfig
         ShelleyCodecConfig
+        ShelleyCodecConfig
 
 -- | A group of codecs which will deserialise block data.
 codecs
@@ -1244,7 +1252,7 @@ connectClient tr handlers client vData conn = withIOManager $ \manager ->
             ]
     tracers =
         NetworkConnectTracers
-            { nctMuxTracer = nullTracer
+            { nctMuxTracers = nullTracers
             , nctHandshakeTracer = contramap MsgHandshakeTracer tr
             }
 

@@ -249,7 +249,8 @@ import Data.Bifunctor
     ( first
     )
 import Data.Foldable
-    ( toList
+    ( foldl'
+    , toList
     )
 import Data.Functor.Classes
     ( Eq1
@@ -358,7 +359,6 @@ import qualified Control.Foldl as Foldl
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.List as L
-import qualified Data.List.NonEmpty as NE
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Test.QuickCheck as QC
@@ -1063,9 +1063,8 @@ genDBParams
        )
     => Gen (DBLayerParams s)
 genDBParams =
-    ( DBLayerParams . getInitialCheckpoint
-        <$> arbitrary
-    )
+    DBLayerParams
+        <$> (getInitialCheckpoint <$> arbitrary)
         <*> pure RestorationPointAtGenesis
         <*> arbitrary
         <*> fmap unGenTxHistory arbitrary
@@ -1160,12 +1159,7 @@ validateGenerators = describe "Validate generators & shrinkers" $ do
     sanityCheckShrink = \case
         [] -> pure ()
         [x] -> sanityCheckShrink (shrinker x)
-        xs ->
-            sanityCheckShrink
-                ( concatMap
-                    shrinker
-                    [NE.head (NE.fromList xs), NE.last (NE.fromList xs)]
-                )
+        xs -> sanityCheckShrink (concatMap shrinker [head xs, last xs])
 
 dbLayerUnused :: DBLayer m s
 dbLayerUnused = error "DBLayer not used during command generation"

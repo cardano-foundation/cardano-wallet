@@ -143,7 +143,7 @@ testMigrationDelegationsTable dbName = do
 generateDelegations :: Int -> SlotNo -> Gen [Delegations]
 generateDelegations n lslot = do
     indices <-
-        drop 1 . scanl (+) 0 . fmap getPositive <$> replicateM n arbitrary
+        tail . scanl (+) 0 . fmap getPositive <$> replicateM n arbitrary
     forM indices $ \i -> do
         let slot = lslot + i
         status <-

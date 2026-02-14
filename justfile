@@ -5,6 +5,14 @@ LC_ALL := 'C.UTF-8'
 default:
   @just --list
 
+# serve coin-selection docs locally
+docs-serve:
+  cd docs/coin-selection && mkdocs serve
+
+# build coin-selection docs (strict mode)
+docs-build:
+  cd docs/coin-selection && mkdocs build --strict
+
 # check that the code is formatted with fourmolu
 syntax:
   scripts/ci/check-code-format.sh

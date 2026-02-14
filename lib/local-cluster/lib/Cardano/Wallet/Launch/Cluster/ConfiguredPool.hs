@@ -24,11 +24,8 @@ import Cardano.Api
     , SerialiseAsBech32
     , SerialiseAsCBOR (..)
     , StakeKey
+    , StakePoolKey
     , VerificationKey
-    , runExceptT
-    )
-import Cardano.Api.Shelley
-    ( StakePoolKey
     , VrfKey
     )
 import Cardano.Binary
@@ -183,6 +180,7 @@ import qualified Data.ByteString.Lazy as BL
 import qualified Data.ListMap as ListMap
 import qualified Data.Set as Set
 import qualified Data.Text as T
+import qualified RIO
 
 -- | Represents the notion of a fully configured pool. All keys are known, but
 -- not necessarily exposed using this interface.
@@ -330,8 +328,7 @@ readFailVerificationKeyOrFile
     -> ClusterM (VerificationKey keyrole)
 readFailVerificationKeyOrFile (FileOf op) =
     liftIO
-        . fmap (either (error . show) id)
-        . runExceptT
+        $ RIO.runRIO ()
         $ readVerificationKeyOrFile
             (VerificationKeyFilePath $ File $ toFilePath op)
 

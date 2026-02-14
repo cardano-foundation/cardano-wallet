@@ -718,8 +718,7 @@ walletListTransactionsWithLimit wallet@(_, _, _) =
                         slotNoTime
                             $ SlotNo
                             $ f
-                            $ unSlotNo (NE.last (NE.fromList xs))
-                                - unSlotNo (NE.head (NE.fromList xs))
+                            $ unSlotNo (last xs) - unSlotNo (head xs)
                   in  monadicIO $ do
                         test Nothing Nothing Descending Down $ const True
                         test Nothing Nothing Ascending Identity $ const True
@@ -1707,8 +1706,8 @@ instance Arbitrary Tx where
 
 instance Arbitrary TxIn where
     arbitrary =
-        TxIn . Hash . B8.pack
-            <$> vector 32
+        TxIn
+            <$> (Hash . B8.pack <$> vector 32)
             <*> scale (`mod` 3) arbitrary
 
 instance Arbitrary TxOut where

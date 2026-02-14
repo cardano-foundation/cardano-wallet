@@ -371,9 +371,8 @@ mListRetiredPools epochNo = do
 
 mReadPoolLifeCycleStatus :: PoolId -> ModelOp PoolLifeCycleStatus
 mReadPoolLifeCycleStatus poolId =
-    ( determinePoolLifeCycleStatus . lookupLatestCertificate
-        <$> get #registrations
-    )
+    determinePoolLifeCycleStatus
+        <$> (lookupLatestCertificate <$> get #registrations)
         <*> (lookupLatestCertificate <$> get #retirements)
   where
     lookupLatestCertificate

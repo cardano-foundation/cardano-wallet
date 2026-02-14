@@ -90,8 +90,6 @@ import Cardano.Wallet.Address.Derivation.Shelley
 import Cardano.Wallet.Address.Encoding
     ( toHDPayloadAddress
     )
--- Removed: Cardano.Api.Error no longer exists, using show instead
-
 import Cardano.Wallet.Address.Keys.WalletKey
     ( getRawKey
     )
@@ -244,7 +242,8 @@ import qualified Cardano.Address.Script as CA
 import qualified Cardano.Address.Style.Shelley as CA
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Byron as Byron
-import qualified Cardano.Api.Shelley as Cardano
+import qualified Cardano.Api.Certificate as ApiCert
+import qualified Cardano.Api.Experimental.Certificate as ExpCert
 import qualified Cardano.Crypto as CC
 import qualified Cardano.Crypto.Hash.Class as Crypto
 import qualified Cardano.Crypto.Wallet as Crypto.HD
@@ -965,7 +964,7 @@ mkUnsignedTx
                                 in
                                     Cardano.TxCertificates shelleyEra
                                         $ OMap.fromList
-                                        $ certs
+                                        $ map certToLedger certs
                                         <&> (,ctx)
                             Just stakingScript ->
                                 let
@@ -983,7 +982,7 @@ mkUnsignedTx
                                 in
                                     Cardano.TxCertificates shelleyEra
                                         $ OMap.fromList
-                                        $ certs
+                                        $ map certToLedger certs
                                         <&> (,ctx)
                         , Cardano.txFee = Cardano.TxFeeExplicit shelleyEra fees
                         , Cardano.txValidityLowerBound =
@@ -1199,6 +1198,14 @@ mkShelleyWitness body key =
         Cardano.WitnessPaymentExtendedKey
             $ Cardano.PaymentExtendedSigningKey
             $ Crypto.HD.xPrvChangePass pwd BS.empty xprv
+
+certToLedger
+    :: Cardano.Certificate era
+    -> ExpCert.Certificate (Cardano.ShelleyLedgerEra era)
+certToLedger (ApiCert.ShelleyRelatedCertificate w txCert) =
+    Cardano.shelleyToBabbageEraConstraints w $ ExpCert.Certificate txCert
+certToLedger (ApiCert.ConwayCertificate w txCert) =
+    Cardano.conwayEraOnwardsConstraints w $ ExpCert.Certificate txCert
 
 mkByronWitness
     :: forall era

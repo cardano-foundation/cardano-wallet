@@ -487,29 +487,25 @@ prop_oursAreUsed
     :: SeqState 'Mainnet ShelleyKey
     -> Property
 prop_oursAreUsed s =
-    case knownAddresses s of
-        ((addr, status, _) : _) ->
-            let (True, s') = first isJust $ isOurs addr s
-            in  case knownAddresses s' of
-                    ((addr', status', _) : _) ->
-                        (status' == Used .&&. addr === addr')
-                            & label (show status)
-                            & counterexample (show (ShowFmt addr') <> ": " <> show status')
-                    [] -> error "expected known addresses after isOurs"
-        [] -> error "expected known addresses"
+    let
+        (addr, status, _) = head $ knownAddresses s
+        (True, s') = first isJust $ isOurs addr s
+        (addr', status', _) = head $ knownAddresses s'
+    in
+        (status' == Used .&&. addr === addr')
+            & label (show status)
+            & counterexample (show (ShowFmt addr') <> ": " <> show status')
 
 prop_oursUnexpectedPrefix
     :: SeqState 'Mainnet ShelleyKey
     -> UnexpectedPrefix
     -> Property
 prop_oursUnexpectedPrefix s prefix =
-    case knownAddresses s of
-        ((Address addr, _, _) : _) ->
-            let addr' = case BS.uncons addr of
-                    Just (_, rest) -> BS.cons (unWord8 prefix) rest
-                    Nothing -> error "prop_oursUnexpectedPrefix: address is empty"
-            in  first isJust (isOurs (Address addr') s) === (False, s)
-        [] -> error "expected known addresses"
+    let
+        (Address addr, _, _) = head $ knownAddresses s
+        addr' = BS.cons (unWord8 prefix) (BS.tail addr)
+    in
+        first isJust (isOurs (Address addr') s) === (False, s)
 
 {-------------------------------------------------------------------------------
                                  Helpers

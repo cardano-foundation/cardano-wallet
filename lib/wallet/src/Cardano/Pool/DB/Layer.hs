@@ -125,6 +125,9 @@ import Data.Functor
 import Data.Generics.Internal.VL.Lens
     ( view
     )
+import Data.List
+    ( foldl'
+    )
 import Data.Map.Strict
     ( Map
     )
