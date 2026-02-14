@@ -34,6 +34,9 @@ import Internal.Cardano.Write.Tx
     , Value
     , Version
     )
+import Internal.Cardano.Write.Tx.Balance.CoinSelection
+    ( fromCSTokenBundle
+    )
 import Prelude
 
 import qualified Cardano.Wallet.Primitive.Ledger.Convert as Convert
@@ -53,10 +56,11 @@ mkTokenBundleSizeAssessor
     :: IsRecentEra era
     => PParams era
     -> TokenBundleSizeAssessor
-mkTokenBundleSizeAssessor pp = TokenBundleSizeAssessor $ \tb ->
-    if computeTokenBundleSerializedLengthBytes tb ver > maxValSize
-        then TokenBundleSizeExceedsLimit
-        else TokenBundleSizeWithinLimit
+mkTokenBundleSizeAssessor pp = TokenBundleSizeAssessor $ \csBundle ->
+    let tb = fromCSTokenBundle csBundle
+    in  if computeTokenBundleSerializedLengthBytes tb ver > maxValSize
+            then TokenBundleSizeExceedsLimit
+            else TokenBundleSizeWithinLimit
   where
     maxValSize :: W.TxSize
     maxValSize = W.TxSize $ pp ^. ppMaxValSizeL
