@@ -25,7 +25,8 @@ import Data.Functor.Identity
     ( Identity (..)
     )
 import Data.List
-    ( sortOn
+    ( foldl'
+    , sortOn
     )
 import Data.Map
     ( Map

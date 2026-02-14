@@ -88,10 +88,8 @@ import Data.Typeable
 import Prelude
 
 import qualified Cardano.Api as CardanoApi
-import qualified Cardano.Api.Shelley as CardanoApi
 import qualified Cardano.Ledger.Alonzo.Core as Alonzo
 import qualified Cardano.Ledger.Api as Ledger
-import qualified Cardano.Ledger.Babbage.Tx as Babbage
 import qualified Cardano.Ledger.Babbage.TxBody as Babbage
 import qualified Cardano.Ledger.Core as Core
 import qualified Cardano.Ledger.Shelley.UTxO as Shelley
@@ -187,7 +185,6 @@ type RecentEraConstraints era =
     ( Core.Era era
     , Core.EraTx era
     , Core.Script era ~ AlonzoScript era
-    , Core.Tx era ~ Babbage.AlonzoTx era
     , Core.EraTxOut era
     , Core.EraTxCert era
     , Core.Value era ~ MaryValue
@@ -339,3 +336,5 @@ fromAnyCardanoEra = \case
         Just $ AnyRecentEra RecentEraBabbage
     CardanoApi.AnyCardanoEra CardanoApi.ConwayEra ->
         Just $ AnyRecentEra RecentEraConway
+    _ ->
+        Nothing

@@ -76,12 +76,13 @@ stakeDistribution coin =
 stakeDistr :: LSQ' (Maybe (Map PoolId Percentage))
 stakeDistr =
     shelleyBased
-        (fromPoolDistr <$> LSQry Shelley.GetStakeDistribution)
+        (fromPoolDistr <$> LSQry Shelley.GetStakeDistribution2)
 
 getNOpt :: LSQ' (Maybe Int)
 getNOpt =
     onAnyEra
         (pure Nothing)
+        (Just . optimumNumberOfPools <$> LSQry Shelley.GetCurrentPParams)
         (Just . optimumNumberOfPools <$> LSQry Shelley.GetCurrentPParams)
         (Just . optimumNumberOfPools <$> LSQry Shelley.GetCurrentPParams)
         (Just . optimumNumberOfPools <$> LSQry Shelley.GetCurrentPParams)

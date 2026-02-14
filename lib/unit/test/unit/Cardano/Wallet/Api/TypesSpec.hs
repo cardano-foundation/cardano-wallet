@@ -3442,7 +3442,6 @@ instance Typeable n => ToSchema (ApiDecodedTransaction n) where
         addDefinition
             =<< declareSchemaForDefinition "TransactionMetadataValueNoSchema"
         addDefinition =<< declareSchemaForDefinition "ScriptValue"
-        addDefinition =<< declareSchemaForDefinition "ScriptValueGeneral"
         declareSchemaForDefinition "ApiDecodedTransaction"
 
 instance ToSchema ApiBlockHeader where

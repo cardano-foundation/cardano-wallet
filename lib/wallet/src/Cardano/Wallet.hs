@@ -2268,6 +2268,8 @@ pparamsInRecentEra (Read.PParams pparams) =
         Read.Alonzo -> Write.InNonRecentEraAlonzo
         Read.Babbage -> Write.InRecentEraBabbage pparams
         Read.Conway -> Write.InRecentEraConway pparams
+        Read.Dijkstra ->
+            error "pparamsInRecentEra: DijkstraEra not yet supported"
 
 -- | Wallet-specific wrapped version of 'Write.balanceTx', made for the new tx
 -- workflow with Shelley- and Shared- wallet flavors.
