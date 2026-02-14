@@ -138,6 +138,7 @@ library
     Cardano.Wallet.Read.Tx.Gen.Babbage
     Cardano.Wallet.Read.Tx.Gen.Byron
     Cardano.Wallet.Read.Tx.Gen.Conway
+    Cardano.Wallet.Read.Tx.Gen.Dijkstra
     Cardano.Wallet.Read.Tx.Gen.Mary
     Cardano.Wallet.Read.Tx.Gen.Shelley
     Cardano.Wallet.Read.Tx.Gen.TxParameters
@@ -173,6 +174,7 @@ library
     , cardano-ledger-byron
     , cardano-ledger-conway
     , cardano-ledger-core
+    , cardano-ledger-dijkstra
     , cardano-ledger-mary
     , cardano-ledger-shelley
     , cardano-protocol-tpraos

@@ -2,62 +2,61 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Cardano.Wallet.Read.Tx.Gen.Babbage
-    ( mkBabbageTx
-    , exampleBabbageTx
-    , totalCollateral
-    , txouts
+module Cardano.Wallet.Read.Tx.Gen.Dijkstra
+    ( mkDijkstraTx
     )
 where
 
 import Cardano.Ledger.Alonzo
     ( AlonzoTxAuxData
     )
-import Cardano.Ledger.Api
-    ( Datum (NoDatum)
-    )
-import Cardano.Ledger.Api.Era
-    ( BabbageEra
-    )
-import Cardano.Ledger.Babbage.Tx
+import Cardano.Ledger.Alonzo.Tx
     ( AlonzoTx (AlonzoTx)
     , IsValid (..)
-    , Tx (MkBabbageTx)
+    , ScriptIntegrityHash
     )
-import Cardano.Ledger.Babbage.TxBody
-    ( ScriptIntegrityHash
-    , TxBody (BabbageTxBody)
+import Cardano.Ledger.Api
+    ( DijkstraEra
+    , Datum (NoDatum)
+    )
+import Cardano.Ledger.Api.Tx.In
+    ( TxIn
     )
 import Cardano.Ledger.Babbage.TxOut
     ( BabbageTxOut (BabbageTxOut)
-    )
-import Cardano.Ledger.Babbage.TxWits
-    ( AlonzoTxWits
     )
 import Cardano.Ledger.BaseTypes
     ( Network
     )
 import Cardano.Ledger.Binary
     ( Sized
-    , Version
     , mkSized
     , natVersion
     )
-import Cardano.Ledger.Coin
-    ( Coin
+import Cardano.Ledger.Conway.Governance
+    ( ProposalProcedure
+    , VotingProcedures (..)
+    )
+import Cardano.Ledger.Dijkstra.Tx
+    ( Tx (MkDijkstraTx)
+    )
+import Cardano.Ledger.Credential
+    ( Credential
+    )
+import Cardano.Ledger.Dijkstra.TxBody
+    ( TxBody (DijkstraTxBody)
+    )
+import Cardano.Ledger.Dijkstra.TxCert
+    ( DijkstraTxCert
     )
 import Cardano.Ledger.Hashes
     ( TxAuxDataHash
     )
 import Cardano.Ledger.Keys
-    ( KeyHash
-    , KeyRole (..)
+    ( KeyRole (..)
     )
 import Cardano.Ledger.Mary.Value
     ( MultiAsset
-    )
-import Cardano.Ledger.Shelley.API.Types
-    ( TxIn
     )
 import Cardano.Wallet.Read.Tx.Gen.Address
     ( decodeShelleyAddress
@@ -65,14 +64,15 @@ import Cardano.Wallet.Read.Tx.Gen.Address
 import Cardano.Wallet.Read.Tx.Gen.Allegra
     ( exampleValidity
     )
+import Cardano.Wallet.Read.Tx.Gen.Babbage
+    ( totalCollateral
+    )
 import Cardano.Wallet.Read.Tx.Gen.Mary
     ( mkMaryValue
     )
 import Cardano.Wallet.Read.Tx.Gen.Shelley
-    ( certs
-    , txfee
+    ( txfee
     , txins
-    , upd
     , wdrls
     )
 import Cardano.Wallet.Read.Tx.Gen.TxParameters
@@ -80,7 +80,6 @@ import Cardano.Wallet.Read.Tx.Gen.TxParameters
     , Index (..)
     , Lovelace (..)
     , TxParameters (..)
-    , exampleTxParameters
     )
 import Cardano.Wallet.Read.Tx.TxId
     ( TxId
@@ -93,7 +92,9 @@ import Data.List.NonEmpty
     )
 import Data.Maybe.Strict
     ( StrictMaybe (SNothing)
-    , maybeToStrictMaybe
+    )
+import Data.OSet.Strict
+    ( OSet
     )
 import Data.Sequence.Strict
     ( StrictSeq
@@ -106,62 +107,74 @@ import Prelude
 
 import Cardano.Ledger.Core qualified as L
 
-mkBabbageTx
+-- | Create a minimal Dijkstra era transaction from parameters.
+mkDijkstraTx
     :: TxParameters
-    -> L.Tx BabbageEra
-mkBabbageTx TxParameters{txInputs, txOutputs} =
-    MkBabbageTx $ AlonzoTx (body txInputs txOutputs) wits valid aux
+    -> L.Tx DijkstraEra
+mkDijkstraTx TxParameters{txInputs, txOutputs} =
+    MkDijkstraTx $ AlonzoTx (body txInputs txOutputs) wits valid aux
 
 valid :: IsValid
 valid = IsValid True
 
-wits :: AlonzoTxWits BabbageEra
+wits :: L.TxWits DijkstraEra
 wits = mempty
 
-aux :: StrictMaybe (AlonzoTxAuxData BabbageEra)
-aux = maybeToStrictMaybe Nothing
+aux :: StrictMaybe (AlonzoTxAuxData DijkstraEra)
+aux = SNothing
 
 body
     :: NonEmpty (Index, TxId)
     -> NonEmpty (Address, Lovelace)
-    -> TxBody BabbageEra
+    -> L.TxBody DijkstraEra
 body ins outs =
-    BabbageTxBody
+    DijkstraTxBody
         (txins ins)
         collateralIns
         referenceIns
-        (txouts (natVersion @7) outs)
+        (txouts outs)
         collateralReturn
         totalCollateral
         certs
         wdrls
         txfee
         exampleValidity
-        upd
-        whash
+        guards
         mint
         integrity
         auxhash
         network
-
-totalCollateral :: StrictMaybe Coin
-totalCollateral = SNothing
+        votingProcedures
+        proposalProcedures
+        mempty
+        mempty
 
 collateralReturn
-    :: StrictMaybe (Sized (BabbageTxOut BabbageEra))
+    :: StrictMaybe (Sized (BabbageTxOut DijkstraEra))
 collateralReturn = SNothing
+
+proposalProcedures :: OSet (ProposalProcedure DijkstraEra)
+proposalProcedures = mempty
+
+votingProcedures :: VotingProcedures DijkstraEra
+votingProcedures = VotingProcedures mempty
+
+guards :: OSet (Credential 'Guard)
+guards = mempty
+
+certs :: OSet (DijkstraTxCert DijkstraEra)
+certs = mempty
 
 referenceIns :: Set TxIn
 referenceIns = mempty
 
 txouts
-    :: Version
-    -> NonEmpty (Address, Lovelace)
-    -> StrictSeq (Sized (BabbageTxOut BabbageEra))
-txouts v xs = fromList $ do
+    :: NonEmpty (Address, Lovelace)
+    -> StrictSeq (Sized (BabbageTxOut DijkstraEra))
+txouts xs = fromList $ do
     (addr, Lovelace val) <- toList xs
     pure
-        $ mkSized v
+        $ mkSized (natVersion @12)
         $ BabbageTxOut
             (decodeShelleyAddress addr)
             (mkMaryValue val)
@@ -177,14 +190,8 @@ auxhash = SNothing
 integrity :: StrictMaybe ScriptIntegrityHash
 integrity = SNothing
 
-whash :: Set (KeyHash 'Witness)
-whash = mempty
-
 collateralIns :: Set TxIn
 collateralIns = mempty
 
 mint :: MultiAsset
 mint = mempty
-
-exampleBabbageTx :: L.Tx BabbageEra
-exampleBabbageTx = mkBabbageTx exampleTxParameters

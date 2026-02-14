@@ -89,3 +89,4 @@ fromLedgerTxId = case theEra :: Era era of
     Alonzo -> L.unTxId
     Babbage -> L.unTxId
     Conway -> L.unTxId
+    Dijkstra -> L.unTxId

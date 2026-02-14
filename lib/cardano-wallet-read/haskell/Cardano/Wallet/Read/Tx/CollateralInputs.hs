@@ -39,6 +39,7 @@ getCollateralInputs = case theEra :: Era era of
     Alonzo -> unCollateralInputs . L.getEraCollateralInputs
     Babbage -> unCollateralInputs . L.getEraCollateralInputs
     Conway -> unCollateralInputs . L.getEraCollateralInputs
+    Dijkstra -> unCollateralInputs . L.getEraCollateralInputs
 
 unCollateralInputs
     :: L.CollateralInputs era -> L.CollateralInputsType era

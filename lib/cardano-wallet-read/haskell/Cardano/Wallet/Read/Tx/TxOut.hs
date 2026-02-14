@@ -155,6 +155,7 @@ upgradeTxOutToBabbageOrLater :: TxOut -> TxOut
 upgradeTxOutToBabbageOrLater x@(TxOutC (EraValue (txout :: Output era))) =
     case theEra :: Era era of
         Conway -> x
+        Dijkstra -> x
         Babbage -> x
         _ -> case upgradeToOutputBabbage txout of
             Just output -> TxOutC (EraValue output)
@@ -295,6 +296,7 @@ withFoldableOutputs f = case theEra :: Era era of
     Alonzo -> \(Outputs x) -> f x
     Babbage -> \(Outputs x) -> f x
     Conway -> \(Outputs x) -> f x
+    Dijkstra -> \(Outputs x) -> f x
 
 -- Helper function: Treat the 'CollateralOutputs' as a 'StrictMaybe'.
 withMaybeCollateralOutputs
@@ -311,3 +313,4 @@ withMaybeCollateralOutputs f = case theEra :: Era era of
     Alonzo -> \(CollateralOutputs _) -> f SNothing
     Babbage -> \(CollateralOutputs x) -> f x
     Conway -> \(CollateralOutputs x) -> f x
+    Dijkstra -> \(CollateralOutputs x) -> f x

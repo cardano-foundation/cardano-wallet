@@ -52,6 +52,7 @@ getInputs = case theEra :: Era era of
     Alonzo -> unInputs . L.getEraInputs
     Babbage -> unInputs . L.getEraInputs
     Conway -> unInputs . L.getEraInputs
+    Dijkstra -> unInputs . L.getEraInputs
 
 {-# INLINE byronInputs #-}
 byronInputs :: L.Inputs Byron -> Set TxIn

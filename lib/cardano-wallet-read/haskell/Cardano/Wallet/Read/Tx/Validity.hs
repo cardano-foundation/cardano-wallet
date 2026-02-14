@@ -80,6 +80,7 @@ getValidityInterval = case theEra :: Era era of
     Alonzo -> onValidity id
     Babbage -> onValidity id
     Conway -> onValidity id
+    Dijkstra -> onValidity id
 
 -- Helper function for type inference.
 onValidity

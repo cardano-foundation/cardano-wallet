@@ -92,9 +92,7 @@ genValue :: Gen Value
 genValue = injectCoin . CoinC . getPositive <$> arbitrary
 
 genNonByronEra :: Gen (EraValue Era)
-genNonByronEra = case knownEras of
-    (_ : rest) -> elements rest
-    [] -> error "genNonByronEra: knownEras is empty"
+genNonByronEra = elements (drop 1 knownEras)
 
 genTxOut :: Gen TxOut
 genTxOut = do
@@ -117,6 +115,7 @@ mkBasicOutput addr value = case theEra :: Era era of
     Alonzo -> Output $ mkBasicTxOut addr (toMaryValue value)
     Babbage -> Output $ mkBasicTxOut addr (toMaryValue value)
     Conway -> Output $ mkBasicTxOut addr (toMaryValue value)
+    Dijkstra -> Output $ mkBasicTxOut addr (toMaryValue value)
 
 mkPaymentCred :: ByteString -> PaymentCredential
 mkPaymentCred =

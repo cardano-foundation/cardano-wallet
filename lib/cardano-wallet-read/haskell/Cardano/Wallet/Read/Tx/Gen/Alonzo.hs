@@ -10,14 +10,17 @@ where
 import Cardano.Ledger.Alonzo.Tx
     ( AlonzoTx (AlonzoTx)
     , IsValid (..)
+    , Tx (MkAlonzoTx)
     )
 import Cardano.Ledger.Alonzo.TxAuxData
     ( AlonzoTxAuxData
     )
 import Cardano.Ledger.Alonzo.TxBody
-    ( AlonzoTxBody (..)
-    , AlonzoTxOut (..)
-    , ScriptIntegrityHash
+    ( ScriptIntegrityHash
+    , TxBody (AlonzoTxBody)
+    )
+import Cardano.Ledger.Alonzo.TxOut
+    ( AlonzoTxOut (AlonzoTxOut)
     )
 import Cardano.Ledger.Alonzo.TxWits
     ( AlonzoTxWits
@@ -86,11 +89,13 @@ import Data.Set
     )
 import Prelude
 
+import Cardano.Ledger.Core qualified as L
+
 mkAlonzoTx
     :: TxParameters
-    -> AlonzoTx AlonzoEra
+    -> L.Tx AlonzoEra
 mkAlonzoTx TxParameters{txInputs, txOutputs} =
-    AlonzoTx (body txInputs txOutputs) wits valid aux
+    MkAlonzoTx $ AlonzoTx (body txInputs txOutputs) wits valid aux
 
 valid :: IsValid
 valid = IsValid True
@@ -104,7 +109,7 @@ aux = maybeToStrictMaybe Nothing
 body
     :: NonEmpty (Index, TxId)
     -> NonEmpty (Address, Lovelace)
-    -> AlonzoTxBody AlonzoEra
+    -> L.TxBody AlonzoEra
 body ins outs =
     AlonzoTxBody
         (txins ins)
@@ -147,5 +152,5 @@ collateralIns = mempty
 mint :: MultiAsset
 mint = mempty
 
-exampleAlonzoTx :: AlonzoTx AlonzoEra
+exampleAlonzoTx :: L.Tx AlonzoEra
 exampleAlonzoTx = mkAlonzoTx exampleTxParameters

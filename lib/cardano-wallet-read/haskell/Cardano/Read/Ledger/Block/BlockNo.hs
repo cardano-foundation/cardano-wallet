@@ -58,6 +58,7 @@ getEraBlockNo = case theEra @era of
     Alonzo -> \(BHeader h) -> k $ pHeaderBlock h
     Babbage -> \(BHeader h) -> k $ pHeaderBlock h
     Conway -> \(BHeader h) -> k $ pHeaderBlock h
+    Dijkstra -> \(BHeader h) -> k $ pHeaderBlock h
   where
     k = BlockNo . fromIntegral . O.unBlockNo
 

@@ -29,6 +29,7 @@ import Cardano.Read.Ledger.Eras
     , Babbage
     , Byron
     , Conway
+    , Dijkstra
     , Era (..)
     , IsEra (..)
     , Mary
@@ -58,6 +59,7 @@ type family TxIdType era where
     TxIdType Alonzo = SH.TxIn.TxId
     TxIdType Babbage = SH.TxIn.TxId
     TxIdType Conway = SH.TxIn.TxId
+    TxIdType Dijkstra = SH.TxIn.TxId
 
 -- | Era-indexed transaction ID wrapper.
 newtype TxId era = TxId {unTxId :: TxIdType era}
@@ -74,6 +76,7 @@ getEraTxId = case theEra :: Era era of
     Alonzo -> TxId . onTx shelleyTxId
     Babbage -> TxId . onTx shelleyTxId
     Conway -> TxId . onTx shelleyTxId
+    Dijkstra -> TxId . onTx shelleyTxId
 
 byronTxId :: BY.ATxAux a -> BY.TxId
 byronTxId = serializeCborHash . taTx

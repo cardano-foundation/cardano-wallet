@@ -43,6 +43,7 @@ getScriptValidity = case theEra :: Era era of
     Alonzo -> onScriptValidity id
     Babbage -> onScriptValidity id
     Conway -> onScriptValidity id
+    Dijkstra -> onScriptValidity id
   where
     trueValid = const (IsValid True)
 
