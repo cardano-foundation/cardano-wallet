@@ -249,8 +249,7 @@ import Data.Bifunctor
     ( first
     )
 import Data.Foldable
-    ( foldl'
-    , toList
+    ( toList
     )
 import Data.Functor.Classes
     ( Eq1

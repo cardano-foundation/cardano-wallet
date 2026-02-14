@@ -750,9 +750,6 @@ import Data.Generics.Product.Typed
 import Data.IntCast
     ( intCast
     )
-import Data.List
-    ( foldl'
-    )
 import Data.List.NonEmpty
     ( NonEmpty (..)
     )
