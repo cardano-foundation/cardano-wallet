@@ -38,6 +38,7 @@ import Cardano.Read.Ledger.Eras
     , Babbage
     , Byron
     , Conway
+    , Dijkstra
     , Era (..)
     , IsEra (..)
     , Mary
@@ -72,6 +73,8 @@ type family CollateralOutputsType era where
         StrictMaybe (BabbageTxOut Babbage)
     CollateralOutputsType Conway =
         StrictMaybe (BabbageTxOut Conway)
+    CollateralOutputsType Dijkstra =
+        StrictMaybe (BabbageTxOut Dijkstra)
 
 -- | Era-indexed collateral return output wrapper.
 newtype CollateralOutputs era = CollateralOutputs (CollateralOutputsType era)
@@ -95,6 +98,7 @@ getEraCollateralOutputs = case theEra @era of
     Alonzo -> \_ -> CollateralOutputs ()
     Babbage -> mkCollateralOutputs
     Conway -> mkCollateralOutputs
+    Dijkstra -> mkCollateralOutputs
   where
     mkCollateralOutputs = onTx $ \tx ->
         CollateralOutputs

@@ -66,6 +66,7 @@ getEraTxHash = case theEra @era of
     Alonzo -> mkShelleyHash
     Babbage -> mkShelleyHash
     Conway -> mkShelleyHash
+    Dijkstra -> mkShelleyHash
   where
     mkShelleyHash = onTx $ \tx -> shelleyTxHash tx
 

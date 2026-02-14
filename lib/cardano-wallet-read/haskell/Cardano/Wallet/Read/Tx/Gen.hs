@@ -26,6 +26,9 @@ import Cardano.Wallet.Read.Tx.Gen.Byron
 import Cardano.Wallet.Read.Tx.Gen.Conway
     ( mkConwayTx
     )
+import Cardano.Wallet.Read.Tx.Gen.Dijkstra
+    ( mkDijkstraTx
+    )
 import Cardano.Wallet.Read.Tx.Gen.Mary
     ( mkMaryTx
     )
@@ -47,5 +50,6 @@ mkTxEra = case theEra @era of
     Alonzo -> g mkAlonzoTx
     Babbage -> g mkBabbageTx
     Conway -> g mkConwayTx
+    Dijkstra -> g mkDijkstraTx
   where
     g f = Tx . f

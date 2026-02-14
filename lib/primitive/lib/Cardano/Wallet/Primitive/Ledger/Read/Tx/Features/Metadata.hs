@@ -16,6 +16,7 @@ module Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Metadata
     , fromAlonzoMetadata
     , fromBabbageMetadata
     , fromConwayMetadata
+    , fromDijkstraMetadata
     )
 where
 
@@ -39,6 +40,9 @@ import Cardano.Ledger.BaseTypes
     )
 import Cardano.Ledger.Conway
     ( ConwayEra
+    )
+import Cardano.Ledger.Dijkstra
+    ( DijkstraEra
     )
 import Cardano.Ledger.Mary
     ( MaryEra
@@ -65,8 +69,7 @@ import Data.Word
     )
 import Prelude
 
-import qualified Cardano.Api.Shelley as Cardano
-import qualified Cardano.Api.Shelley as CardanoAPI
+import qualified Cardano.Api.Tx as Cardano
 import qualified Cardano.Wallet.Primitive.Types.Tx.Tx as W
 
 {-# INLINEABLE getMetadata #-}
@@ -80,6 +83,7 @@ getMetadata = case theEra @era of
     Alonzo -> yesMetadata fromAlonzoMetadata
     Babbage -> yesMetadata fromBabbageMetadata
     Conway -> yesMetadata fromConwayMetadata
+    Dijkstra -> yesMetadata fromDijkstraMetadata
   where
     noMetadatas _ = Nothing
     yesMetadata f (Metadata s) = f <$> strictMaybeToMaybe s
@@ -105,6 +109,9 @@ fromBabbageMetadata (AlonzoTxAuxData md _timelock _plutus) = fromMetadata md
 fromConwayMetadata :: AlonzoTxAuxData ConwayEra -> W.TxMetadata
 fromConwayMetadata (AlonzoTxAuxData md _timelock _plutus) = fromMetadata md
 
+fromDijkstraMetadata :: AlonzoTxAuxData DijkstraEra -> W.TxMetadata
+fromDijkstraMetadata (AlonzoTxAuxData md _timelock _plutus) = fromMetadata md
+
 fromMetadata :: Map Word64 Metadatum -> W.TxMetadata
 fromMetadata =
-    Cardano.makeTransactionMetadata . CardanoAPI.fromShelleyMetadata
+    Cardano.makeTransactionMetadata . Cardano.fromShelleyMetadata

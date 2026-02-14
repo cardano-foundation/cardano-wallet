@@ -117,6 +117,7 @@ mkBasicOutput addr value = case theEra :: Era era of
     Alonzo -> Output $ mkBasicTxOut addr (toMaryValue value)
     Babbage -> Output $ mkBasicTxOut addr (toMaryValue value)
     Conway -> Output $ mkBasicTxOut addr (toMaryValue value)
+    Dijkstra -> Output $ mkBasicTxOut addr (toMaryValue value)
 
 mkPaymentCred :: ByteString -> PaymentCredential
 mkPaymentCred =

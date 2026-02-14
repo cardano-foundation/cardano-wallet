@@ -35,6 +35,7 @@ getFee = case theEra @era of
     Alonzo -> mkShelleyTxFee
     Babbage -> mkShelleyTxFee
     Conway -> mkShelleyTxFee
+    Dijkstra -> mkShelleyTxFee
 
 mkShelleyTxFee :: FeeType era ~ Coin => Fee era -> Maybe W.Coin
 mkShelleyTxFee (Fee c) = Just $ Ledger.toWalletCoin c

@@ -395,7 +395,7 @@ instance Malformed (BodyParam ApiWalletSignData) where
             { "metadata": null
             , "passphrase": #{wPassphrase}
             }|]
-                    , "Error in $.metadata: TxMetadataJsonToplevelNotMap"
+                    , "Error in $.metadata: The JSON metadata top level must be a map (JSON object) from word to value."
                     )
                 ,
                     ( Aeson.encode
@@ -2146,7 +2146,7 @@ instance Malformed (BodyParam (ApiConstructTransactionData ('Testnet pm))) where
                            )
                        ,
                            ( [aesonQQ|{ "metadata": "hello" }|]
-                           , "Error in $.metadata: TxMetadataJsonToplevelNotMap"
+                           , "Error in $.metadata: The JSON metadata top level must be a map (JSON object) from word to value."
                            )
                        ,
                            ( [aesonQQ|{ "withdrawal": "slef" }|]

@@ -10,6 +10,7 @@ module Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Outputs
     , fromAlonzoTxOut
     , fromBabbageTxOut
     , fromConwayTxOut
+    , fromDijkstraTxOut
     , fromCardanoValue
     , fromShelleyAddress
     , fromByronTxOut
@@ -34,6 +35,9 @@ import Cardano.Ledger.Babbage
     )
 import Cardano.Ledger.Conway
     ( ConwayEra
+    )
+import Cardano.Ledger.Dijkstra
+    ( DijkstraEra
     )
 import Cardano.Ledger.Mary
     ( MaryEra
@@ -68,7 +72,7 @@ import GHC.Stack
     )
 import Prelude
 
-import qualified Cardano.Api.Shelley as Cardano
+import qualified Cardano.Api as Cardano
 import qualified Cardano.Chain.UTxO as Byron
 import qualified Cardano.Ledger.Address as SL
 import qualified Cardano.Ledger.Alonzo as Alonzo
@@ -102,6 +106,7 @@ getOutputs = case theEra @era of
     Alonzo -> \(Outputs os) -> fromAlonzoTxOut <$> toList os
     Babbage -> \(Outputs os) -> fst . fromBabbageTxOut <$> toList os
     Conway -> \(Outputs os) -> fst . fromConwayTxOut <$> toList os
+    Dijkstra -> \(Outputs os) -> fst . fromDijkstraTxOut <$> toList os
 
 fromShelleyAddress :: SL.Addr -> W.Address
 fromShelleyAddress = W.Address . SL.serialiseAddr
@@ -142,6 +147,16 @@ fromConwayTxOut
     :: Babbage.BabbageTxOut ConwayEra
     -> (W.TxOut, Maybe (AlonzoScript Conway.ConwayEra))
 fromConwayTxOut (Babbage.BabbageTxOut addr value _datum refScript) =
+    ( W.TxOut (fromShelleyAddress addr) (toWalletTokenBundle value)
+    , case refScript of
+        SJust s -> Just s
+        SNothing -> Nothing
+    )
+
+fromDijkstraTxOut
+    :: Babbage.BabbageTxOut DijkstraEra
+    -> (W.TxOut, Maybe (AlonzoScript DijkstraEra))
+fromDijkstraTxOut (Babbage.BabbageTxOut addr value _datum refScript) =
     ( W.TxOut (fromShelleyAddress addr) (toWalletTokenBundle value)
     , case refScript of
         SJust s -> Just s

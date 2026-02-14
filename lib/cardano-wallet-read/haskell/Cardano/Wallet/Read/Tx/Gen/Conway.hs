@@ -22,11 +22,8 @@ import Cardano.Ledger.Api
 import Cardano.Ledger.Api.Tx.In
     ( TxIn
     )
-import Cardano.Ledger.Babbage
-    ( BabbageTxOut
-    )
-import Cardano.Ledger.Babbage.TxBody
-    ( BabbageTxOut (..)
+import Cardano.Ledger.Babbage.TxOut
+    ( BabbageTxOut (BabbageTxOut)
     )
 import Cardano.Ledger.BaseTypes
     ( Network
@@ -43,9 +40,10 @@ import Cardano.Ledger.Conway.Governance
     )
 import Cardano.Ledger.Conway.Tx
     ( AlonzoTx (AlonzoTx)
+    , Tx (MkConwayTx)
     )
 import Cardano.Ledger.Conway.TxBody
-    ( ConwayTxBody (..)
+    ( TxBody (ConwayTxBody)
     )
 import Cardano.Ledger.Conway.TxCert
     ( ConwayTxCert
@@ -111,11 +109,13 @@ import Data.Set
     )
 import Prelude
 
+import Cardano.Ledger.Core qualified as L
+
 mkConwayTx
     :: TxParameters
-    -> AlonzoTx ConwayEra
+    -> L.Tx ConwayEra
 mkConwayTx TxParameters{txInputs, txOutputs} =
-    AlonzoTx (body txInputs txOutputs) wits valid aux
+    MkConwayTx $ AlonzoTx (body txInputs txOutputs) wits valid aux
 
 valid :: IsValid
 valid = IsValid True
@@ -129,7 +129,7 @@ aux = SNothing
 body
     :: NonEmpty (Index, TxId)
     -> NonEmpty (Address, Lovelace)
-    -> ConwayTxBody ConwayEra
+    -> TxBody ConwayEra
 body ins outs =
     ConwayTxBody
         (txins ins)
@@ -200,5 +200,5 @@ collateralIns = mempty
 mint :: MultiAsset
 mint = mempty
 
-exampleConwayTx :: AlonzoTx ConwayEra
+exampleConwayTx :: L.Tx ConwayEra
 exampleConwayTx = mkConwayTx exampleTxParameters

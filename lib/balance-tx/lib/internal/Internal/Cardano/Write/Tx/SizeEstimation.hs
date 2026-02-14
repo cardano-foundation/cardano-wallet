@@ -157,10 +157,8 @@ estimateTxSize skeleton =
                 -- there cannot be missing payment script if there is
                 -- delegation script the latter is optional
                 if numberOf_ScriptVkeyWitnessesForPayment == 0
-                    then
-                        numberOf_Inputs
-                    else
-                        (numberOf_Inputs * numberOf_ScriptVkeyWitnessesForPayment)
+                    then numberOf_Inputs
+                    else (numberOf_Inputs * numberOf_ScriptVkeyWitnessesForPayment)
 
     numberOf_BootstrapWitnesses =
         case txWitnessTag of

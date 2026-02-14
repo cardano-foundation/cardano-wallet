@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
@@ -105,10 +106,9 @@ import Prelude
 import qualified Cardano.Address.KeyHash as CA
 import qualified Cardano.Address.Script as CA
 import qualified Cardano.Api as CardanoApi
-import qualified Cardano.Api.Shelley as CardanoApi
+import qualified Cardano.Api.Experimental.Certificate as Exp
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Api as Ledger
-import qualified Cardano.Ledger.Api.Tx.Cert as Conway
 import qualified Cardano.Ledger.Shelley.TxCert as Shelley
 import qualified Cardano.Wallet.Primitive.Ledger.Convert as Convert
 import qualified Cardano.Wallet.Primitive.Types.Tx.Constraints as W
@@ -201,8 +201,10 @@ estimateKeyWitnessCounts utxo tx timelockKeyWitCounts =
             _ -> 0
         txCerts = case CardanoApi.txCertificates txbodycontent of
             CardanoApi.TxCertificatesNone -> 0
-            CardanoApi.TxCertificates _ certs ->
-                sumVia estimateDelegSigningKeys $ fst <$> IsList.toList certs
+            CardanoApi.TxCertificates sbe certs ->
+                CardanoApi.shelleyBasedEraConstraints sbe
+                    $ sumVia estimateDelegSigningKeys
+                    $ fst <$> IsList.toList certs
         nonInputWits =
             numberOfShelleyWitnesses
                 $ fromIntegral
@@ -276,23 +278,14 @@ estimateKeyWitnessCounts utxo tx timelockKeyWitCounts =
         scriptsAvailableInBody = tx ^. witsTxL . scriptTxWitsL
 
     estimateDelegSigningKeys
-        :: CardanoApi.Certificate (CardanoApiEra era)
+        :: Exp.Certificate (CardanoApi.ShelleyLedgerEra (CardanoApiEra era))
         -> Integer
-    estimateDelegSigningKeys = \case
-        CardanoApi.ShelleyRelatedCertificate s2b shelleyCert ->
-            CardanoApi.shelleyToBabbageEraConstraints s2b
-                $ case shelleyCert of
-                    Shelley.RegTxCert _ -> 0
-                    Shelley.DelegStakeTxCert c _ -> estimateWitNumForCred c
-                    Shelley.UnRegTxCert c -> estimateWitNumForCred c
-                    _ -> 1
-        CardanoApi.ConwayCertificate conway conwayCert ->
-            CardanoApi.conwayEraOnwardsConstraints conway
-                $ case conwayCert of
-                    Conway.RegTxCert _ -> 0
-                    Conway.DelegStakeTxCert c _ -> estimateWitNumForCred c
-                    Conway.UnRegTxCert c -> estimateWitNumForCred c
-                    _ -> 1
+    estimateDelegSigningKeys (Exp.Certificate txCert) =
+        case txCert of
+            Shelley.RegTxCert _ -> 0
+            Shelley.DelegStakeTxCert c _ -> estimateWitNumForCred c
+            Shelley.UnRegTxCert c -> estimateWitNumForCred c
+            _ -> 1
       where
         -- Does not include the key witness needed for script credentials.
         -- They are accounted for separately in @scriptVkWitsUpperBound@.
@@ -308,7 +301,7 @@ estimateKeyWitnessCounts utxo tx timelockKeyWitCounts =
     toTimelockScript
         :: Ledger.Script era
         -> Maybe (Timelock era)
-    toTimelockScript (Alonzo.TimelockScript timelock) = Just timelock
+    toTimelockScript (Alonzo.NativeScript timelock) = Just timelock
     toTimelockScript (Alonzo.PlutusScript _) = Nothing
 
     hasScriptCred
@@ -382,8 +375,7 @@ estimateMinWitnessRequiredPerInput = \case
 optimumIfNotEmpty :: (Foldable t, Num p) => (t a -> p) -> t a -> p
 optimumIfNotEmpty f xs =
     if null xs
-        then
-            0
+        then 0
         else f xs
 
 estimateMaxWitnessRequiredPerInput :: CA.Script k -> Natural

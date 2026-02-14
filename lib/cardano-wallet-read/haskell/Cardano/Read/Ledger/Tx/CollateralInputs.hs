@@ -31,6 +31,7 @@ import Cardano.Read.Ledger.Eras
     , Babbage
     , Byron
     , Conway
+    , Dijkstra
     , Era (..)
     , IsEra (..)
     , Mary
@@ -63,6 +64,7 @@ type family CollateralInputsType era where
     CollateralInputsType Alonzo = Set TxIn
     CollateralInputsType Babbage = Set TxIn
     CollateralInputsType Conway = Set TxIn
+    CollateralInputsType Dijkstra = Set TxIn
 
 -- | Era-indexed collateral inputs wrapper.
 newtype CollateralInputs era = CollateralInputs (CollateralInputsType era)
@@ -85,6 +87,7 @@ getEraCollateralInputs = case theEra @era of
     Alonzo -> mkCollateralInputs
     Babbage -> mkCollateralInputs
     Conway -> mkCollateralInputs
+    Dijkstra -> mkCollateralInputs
   where
     mkCollateralInputs = onTx $ \tx ->
         CollateralInputs

@@ -6,5 +6,4 @@ Available options:
   -h,--help                Show this help text
 
 Available commands:
-  generate                 Generate a recovery phrase for a
-                           specified mnemonic size and language.
+  generate                 Generate an English recovery phrase

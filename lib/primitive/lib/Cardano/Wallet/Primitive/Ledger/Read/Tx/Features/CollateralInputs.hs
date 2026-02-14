@@ -35,6 +35,7 @@ getCollateralInputs = case theEra @era of
     Alonzo -> mkShelleyTxCollateralInputsIns
     Babbage -> mkShelleyTxCollateralInputsIns
     Conway -> mkShelleyTxCollateralInputsIns
+    Dijkstra -> mkShelleyTxCollateralInputsIns
 
 mkShelleyTxCollateralInputsIns
     :: (Foldable t, CollateralInputsType era ~ t SH.TxIn)

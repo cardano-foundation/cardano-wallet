@@ -1,5 +1,9 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
+{-# OPTIONS_GHC -Wno-deprecations #-}
+
+-- TODO: Migrate from deprecated Cardano.Api.Certificate to
+-- Cardano.Api.Experimental.Certificate
 
 -- |
 -- Copyright: © 2024 Cardano Foundation
@@ -53,7 +57,6 @@ import Prelude
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Ledger as Ledger
-import qualified Cardano.Api.Shelley as Cardano
 
 {-----------------------------------------------------------------------------
     Cardano.Certificate

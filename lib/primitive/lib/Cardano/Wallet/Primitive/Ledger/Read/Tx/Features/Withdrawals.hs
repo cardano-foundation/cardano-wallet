@@ -50,6 +50,7 @@ getWithdrawals = case theEra @era of
     Alonzo -> eraFromWithdrawals
     Babbage -> eraFromWithdrawals
     Conway -> eraFromWithdrawals
+    Dijkstra -> eraFromWithdrawals
   where
     eraFromWithdrawals (Withdrawals withdrawals) =
         Just $ fromLedgerWithdrawals withdrawals

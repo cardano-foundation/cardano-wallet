@@ -28,6 +28,7 @@ import Cardano.Read.Ledger.Eras
     , Babbage
     , Byron
     , Conway
+    , Dijkstra
     , Era (..)
     , IsEra (..)
     , Mary
@@ -62,6 +63,7 @@ type family ReferenceInputsType era where
     ReferenceInputsType Alonzo = ()
     ReferenceInputsType Babbage = Set SH.TxIn
     ReferenceInputsType Conway = Set SH.TxIn
+    ReferenceInputsType Dijkstra = Set SH.TxIn
 
 -- | Era-indexed reference inputs wrapper.
 newtype ReferenceInputs era = ReferenceInputs (ReferenceInputsType era)
@@ -84,6 +86,7 @@ getEraReferenceInputs = case theEra @era of
     Alonzo -> \_ -> ReferenceInputs ()
     Babbage -> referenceInputsBabbage
     Conway -> referenceInputsBabbage
+    Dijkstra -> referenceInputsBabbage
   where
     referenceInputsBabbage = onTx $ \tx ->
         ReferenceInputs $ tx ^. bodyTxL . referenceInputsTxBodyL

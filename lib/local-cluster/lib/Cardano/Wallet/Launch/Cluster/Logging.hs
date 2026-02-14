@@ -264,7 +264,7 @@ testMinSeverityFromEnv :: IO Severity
 testMinSeverityFromEnv =
     minSeverityFromEnv Notice "TESTS_TRACING_MIN_SEVERITY"
 
--- | Directory for extra logging. CI will set this environment variable
+-- | Directory for extra logging. Buildkite will set this environment variable
 -- and upload logs in it automatically.
 testLogDirFromEnv
     :: Maybe (RelDirOf "log-subdir")

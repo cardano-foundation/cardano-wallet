@@ -22,6 +22,7 @@ import Cardano.Read.Ledger.Eras
     , Babbage
     , Byron
     , Conway
+    , Dijkstra
     , Mary
     , Shelley
     )
@@ -50,6 +51,7 @@ type family ValueType era where
     ValueType Alonzo = MA.MaryValue
     ValueType Babbage = MA.MaryValue
     ValueType Conway = MA.MaryValue
+    ValueType Dijkstra = MA.MaryValue
 
 -- | Era-indexed value wrapper.
 newtype Value era = Value (ValueType era)

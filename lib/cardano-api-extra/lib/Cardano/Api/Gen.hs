@@ -133,7 +133,7 @@ import Cardano.Api
     , ByronAddr
     , ByronEra
     , CardanoEra (..)
-    , Certificate
+    , Certificate (..)
     , Convert (..)
     , ConwayEra
     , ConwayEraOnwards (..)
@@ -144,24 +144,28 @@ import Cardano.Api
     , ExecutionUnits (ExecutionUnits)
     , Featured (..)
     , HasTypeProxy (AsType)
-    , Hash
+    , Hash (..)
     , HashableScriptData
     , InAnyCardanoEra (..)
     , Key (..)
     , KeyWitness
     , KeyWitnessInCtx (KeyWitnessForSpending, KeyWitnessForStakeAddr)
+    , LedgerProtocolParameters (..)
     , MIRPot (..)
     , MaryEraOnwards (..)
     , NetworkId (..)
     , NetworkMagic (NetworkMagic)
     , PaymentCredential (..)
-    , PlutusScript
+    , PlutusScript (..)
+    , PlutusScriptOrReferenceInput (..)
     , PlutusScriptVersion
     , PolicyAssets (..)
     , PolicyId (PolicyId)
+    , PoolId
     , PraosNonce
     , ProtocolParametersUpdate (ProtocolParametersUpdate)
     , Quantity
+    , ReferenceScript (..)
     , Script (..)
     , ScriptData (..)
     , ScriptDatum (..)
@@ -182,17 +186,18 @@ import Cardano.Api
     , ShelleyToBabbageEra (..)
     , ShelleyWitnessSigningKey (..)
     , SimpleScript (..)
+    , SimpleScriptOrReferenceInput (..)
     , SlotNo (SlotNo)
     , StakeAddress
     , StakeAddressReference (NoStakeAddress, StakeAddressByValue)
     , StakeAddressRequirements (..)
-    , StakeCredential
+    , StakeCredential (..)
     , StakeDelegationRequirements (..)
-    , StakePoolMetadata
-    , StakePoolMetadataReference
-    , StakePoolParameters
+    , StakePoolMetadata (..)
+    , StakePoolMetadataReference (..)
+    , StakePoolParameters (..)
     , StakePoolRegistrationRequirements (..)
-    , StakePoolRelay
+    , StakePoolRelay (..)
     , StakePoolRetirementRequirements (..)
     , ToJSON
     , Tx
@@ -234,6 +239,7 @@ import Cardano.Api
     , collectTxBodyScriptWitnesses
     , conwayEraOnwardsConstraints
     , createTransactionBody
+    , deserialiseFromRawBytesHex
     , forEraMaybeEon
     , hashScript
     , languageOfScriptLanguageInEra
@@ -253,26 +259,13 @@ import Cardano.Api
     , mkTxVotingProcedures
     , scriptLanguageSupportedInEra
     , shelleyAddressInEra
+    , shelleyToBabbageEraConstraints
+    , toShelleyPoolParams
     , validateAndHashStakePoolMetadata
     )
 import Cardano.Api.Byron
     ( KeyWitness (ByronKeyWitness)
     , WitnessNetworkIdOrByronAddress (..)
-    )
-import Cardano.Api.Shelley
-    ( Hash (..)
-    , LedgerProtocolParameters (..)
-    , PlutusScript (..)
-    , PlutusScriptOrReferenceInput (..)
-    , PoolId
-    , ReferenceScript (..)
-    , SimpleScriptOrReferenceInput (..)
-    , StakeCredential (..)
-    , StakePoolMetadata (..)
-    , StakePoolMetadataReference (..)
-    , StakePoolParameters (..)
-    , StakePoolRelay (..)
-    , toShelleyPoolParams
     )
 import Cardano.Ledger.Api
     ( emptyPParams
@@ -404,8 +397,9 @@ import Test.QuickCheck.Instances.ByteString
 import Prelude
 
 import qualified Cardano.Api as Api
+import qualified Cardano.Api.Compatible.Certificate as Compat
+import qualified Cardano.Api.Experimental.Certificate as Exp
 import qualified Cardano.Api.Ledger as Ledger
-import qualified Cardano.Api.Shelley as ShelleyApi
 import qualified Cardano.Binary as CBOR
 import qualified Cardano.Crypto.Hash as Crypto
 import qualified Cardano.Crypto.Seed as Crypto
@@ -757,10 +751,13 @@ genAssetName :: Gen AssetName
 genAssetName =
     frequency
         -- mostly from a small number of choices, so we get plenty of repetition
-        [ (9, elements ["", "a", "b", "c"])
-        , (1, AssetName . fromString <$> (scale (min 32) (listOf genAlphaNum)))
-        , (1, AssetName . fromString <$> (vectorOf 1 genAlphaNum))
-        , (1, AssetName . fromString <$> (vectorOf 32 genAlphaNum))
+        [ (9, elements $ UnsafeAssetName <$> ["", "a", "b", "c"])
+        ,
+            ( 1
+            , UnsafeAssetName . fromString <$> (scale (min 32) (listOf genAlphaNum))
+            )
+        , (1, UnsafeAssetName . fromString <$> (vectorOf 1 genAlphaNum))
+        , (1, UnsafeAssetName . fromString <$> (vectorOf 32 genAlphaNum))
         ]
 
 genAlphaNum :: Gen Char
@@ -775,11 +772,20 @@ genPolicyId =
         --
         -- And because of the additional choice of asset name we repeat ourselves
         -- even more here.
-        [ (80, pure $ fromString ('a' : replicate 55 '0'))
-        , (18, elements [fromString (x : replicate 55 '0') | x <- ['a' .. 'c']])
+        [ (80, pure $ policyIdFromHex ('a' : replicate 55 '0'))
+        ,
+            ( 18
+            , elements [policyIdFromHex (x : replicate 55 '0') | x <- ['a' .. 'c']]
+            )
         , -- and some from the full range of the type
           (2, PolicyId <$> genScriptHash)
         ]
+  where
+    policyIdFromHex :: String -> PolicyId
+    policyIdFromHex s =
+        case deserialiseFromRawBytesHex (BS.pack (fromIntegral . fromEnum <$> s)) of
+            Right pid -> pid
+            Left e -> error $ "policyIdFromHex: " <> show e
 
 genAssetIdNoAda :: Gen AssetId
 genAssetIdNoAda = AssetId <$> genPolicyId <*> genAssetName
@@ -1214,11 +1220,11 @@ genUnsignedQuantity = do
 genTxOutValue :: CardanoEra era -> Gen (TxOutValue era)
 genTxOutValue era = case era of
     ConwayEra ->
-        TxOutValueShelleyBased ShelleyApi.ShelleyBasedEraConway
+        TxOutValueShelleyBased ShelleyBasedEraConway
             . Api.toLedgerValue @ConwayEra MaryEraOnwardsConway
             <$> genValueForTxOut
     BabbageEra ->
-        TxOutValueShelleyBased ShelleyApi.ShelleyBasedEraBabbage
+        TxOutValueShelleyBased ShelleyBasedEraBabbage
             . Api.toLedgerValue @BabbageEra MaryEraOnwardsBabbage
             <$> genValueForTxOut
     _ -> error "genTxOutValue: unsupported era"
@@ -1302,6 +1308,7 @@ genCostModel language = do
             PlutusV1 -> snd <$> V1.costModelParamsForTesting
             PlutusV2 -> snd <$> V2.costModelParamsForTesting
             PlutusV3 -> snd <$> V3.costModelParamsForTesting
+            PlutusV4 -> snd <$> V3.costModelParamsForTesting
 
     eCostModel <-
         Alonzo.mkCostModel language
@@ -1345,6 +1352,7 @@ protocolParametersForHashing = \case
     ShelleyBasedEraAlonzo -> LedgerProtocolParameters emptyPParams
     ShelleyBasedEraBabbage -> LedgerProtocolParameters emptyPParams
     ShelleyBasedEraConway -> LedgerProtocolParameters emptyPParams
+    ShelleyBasedEraDijkstra -> LedgerProtocolParameters emptyPParams
 
 genValidProtocolVersion :: Gen (Natural, Natural)
 genValidProtocolVersion = do
@@ -1549,107 +1557,55 @@ genStakePoolParameters =
         <*> liftArbitrary genStakePoolMetadataReference
 
 genTxCertificate
-    :: forall era. CardanoEra era -> Gen (Certificate era)
-genTxCertificate era =
-    oneof
-        [ mkStakeAddressRegistrationCertificate
-            <$> genCoin
-            <*> genStakeCredential
-        , mkStakeAddressUnregistrationCertificate
-            <$> genCoin
-            <*> genStakeCredential
-        , genStakeAddressPoolDelegationCertificate
-        , mkPoolRegistrationCertificate <$> genStakePoolParameters
-        , mkPoolRetirementCertificate
-            <$> genPoolId
-            <*> genEpochNo
-            -- MIR and Genesis Key Certs not generated, but not that important
-        ]
+    :: forall era
+     . ShelleyBasedEra era
+    -> Gen (Exp.Certificate (Api.ShelleyLedgerEra era))
+genTxCertificate sbe =
+    Api.shelleyBasedEraConstraints sbe
+        $ oneof
+            [ Compat.makeStakeAddressRegistrationCertificate
+                <$> genStakeRegistrationRequirements sbe
+            , Compat.makeStakeAddressUnregistrationCertificate
+                <$> genStakeCredential
+            , Compat.makeStakeAddressDelegationCertificate
+                <$> genStakeCredential
+                <*> genDelegatee sbe
+            , Compat.makeStakePoolRegistrationCertificate
+                . toShelleyPoolParams
+                <$> genStakePoolParameters
+            , Compat.makeStakePoolRetirementCertificate
+                <$> genPoolId
+                <*> genEpochNo
+            ]
   where
-    mkStakeAddressRegistrationCertificate
-        :: Lovelace -> StakeCredential -> Certificate era
-    mkStakeAddressRegistrationCertificate deposit cred = case era of
-        ConwayEra ->
-            makeStakeAddressRegistrationCertificate
-                $ StakeAddrRegistrationConway
-                    ConwayEraOnwardsConway
-                    deposit
-                    cred
-        BabbageEra ->
-            makeStakeAddressRegistrationCertificate
-                $ StakeAddrRegistrationPreConway
-                    ShelleyToBabbageEraBabbage
-                    cred
-        _ -> error "genTxCertificate: unsupported era"
+    genStakeRegistrationRequirements
+        :: ShelleyBasedEra era
+        -> Gen (Compat.StakeRegistrationRequirements era)
+    genStakeRegistrationRequirements = \case
+        ShelleyBasedEraShelley -> genStakeCredential
+        ShelleyBasedEraAllegra -> genStakeCredential
+        ShelleyBasedEraMary -> genStakeCredential
+        ShelleyBasedEraAlonzo -> genStakeCredential
+        ShelleyBasedEraBabbage -> genStakeCredential
+        ShelleyBasedEraConway ->
+            Compat.StakeCredentialAndDeposit
+                <$> genStakeCredential
+                <*> genCoin
+        ShelleyBasedEraDijkstra ->
+            Compat.StakeCredentialAndDeposit
+                <$> genStakeCredential
+                <*> genCoin
 
-    mkStakeAddressUnregistrationCertificate
-        :: Lovelace -> StakeCredential -> Certificate era
-    mkStakeAddressUnregistrationCertificate deposit cred = case era of
-        ConwayEra ->
-            makeStakeAddressUnregistrationCertificate
-                $ StakeAddrRegistrationConway
-                    ConwayEraOnwardsConway
-                    deposit
-                    cred
-        BabbageEra ->
-            makeStakeAddressUnregistrationCertificate
-                $ StakeAddrRegistrationPreConway
-                    ShelleyToBabbageEraBabbage
-                    cred
-        _ -> error "genTxCertificate: unsupported era"
-
-    genStakeAddressPoolDelegationCertificate
-        :: Gen (Certificate era)
-    genStakeAddressPoolDelegationCertificate = case era of
-        ConwayEra ->
-            makeStakeAddressDelegationCertificate
-                <$> ( ( StakeDelegationRequirementsConwayOnwards
-                            ConwayEraOnwardsConway
-                      )
-                        <$> genStakeCredential
-                        <*> genConwayDelegatee
-                    )
-        BabbageEra ->
-            makeStakeAddressDelegationCertificate
-                <$> ( ( StakeDelegationRequirementsPreConway
-                            ShelleyToBabbageEraBabbage
-                      )
-                        <$> genStakeCredential
-                        <*> genPoolId
-                    )
-        _ -> error "genTxCertificate: unsupported era"
-
-    mkPoolRegistrationCertificate
-        :: StakePoolParameters -> Certificate era
-    mkPoolRegistrationCertificate params = case era of
-        ConwayEra ->
-            makeStakePoolRegistrationCertificate
-                $ StakePoolRegistrationRequirementsConwayOnwards
-                    ConwayEraOnwardsConway
-                    (toShelleyPoolParams params)
-        BabbageEra ->
-            makeStakePoolRegistrationCertificate
-                $ StakePoolRegistrationRequirementsPreConway
-                    ShelleyToBabbageEraBabbage
-                    (toShelleyPoolParams params)
-        _ -> error "genTxCertificate: unsupported era"
-
-    mkPoolRetirementCertificate
-        :: PoolId -> EpochNo -> Certificate era
-    mkPoolRetirementCertificate p e = case era of
-        ConwayEra ->
-            makeStakePoolRetirementCertificate
-                $ StakePoolRetirementRequirementsConwayOnwards
-                    ConwayEraOnwardsConway
-                    p
-                    e
-        BabbageEra ->
-            makeStakePoolRetirementCertificate
-                $ StakePoolRetirementRequirementsPreConway
-                    ShelleyToBabbageEraBabbage
-                    p
-                    e
-        _ -> error "genTxCertificate: unsupported era"
+    genDelegatee
+        :: ShelleyBasedEra era -> Gen (Compat.Delegatee era)
+    genDelegatee = \case
+        ShelleyBasedEraShelley -> genPoolId
+        ShelleyBasedEraAllegra -> genPoolId
+        ShelleyBasedEraMary -> genPoolId
+        ShelleyBasedEraAlonzo -> genPoolId
+        ShelleyBasedEraBabbage -> genPoolId
+        ShelleyBasedEraConway -> genConwayDelegatee
+        ShelleyBasedEraDijkstra -> genConwayDelegatee
 
 genTxCertificates
     :: CardanoEra era -> Gen (TxCertificates BuildTx era)
@@ -1660,7 +1616,7 @@ genTxCertificates era = withEraWitness era $ \sbe -> do
                 <*> genWitnessStake era
         staking = BuildTxWith <$> oneof [pure Nothing, Just <$> stakingCore]
         stakingCertificate = do
-            cert <- genTxCertificate era
+            cert <- genTxCertificate sbe
             stake <- staking
             pure (cert, stake)
         certificates =
@@ -1802,7 +1758,7 @@ genMaybeFeaturedInEra f =
 genProposals
     :: forall era
      . ConwayEraOnwards era
-    -> Gen (ShelleyApi.TxProposalProcedures BuildTx era)
+    -> Gen (TxProposalProcedures BuildTx era)
 genProposals w =
     conwayEraOnwardsConstraints w
         $ pure
@@ -1810,7 +1766,7 @@ genProposals w =
 
 genVotingProcedures
     :: ConwayEraOnwards era
-    -> Gen (ShelleyApi.TxVotingProcedures BuildTx era)
+    -> Gen (TxVotingProcedures BuildTx era)
 genVotingProcedures w = conwayEraOnwardsConstraints w
     $ case mkTxVotingProcedures [] of
         Right vp -> pure vp

@@ -14,6 +14,7 @@ import Cardano.Api
     ( AnyCardanoEra (..)
     , CardanoEra (..)
     )
+import Prelude
 
 import qualified Cardano.Wallet.Read as Read
 
@@ -28,3 +29,4 @@ fromAnyCardanoEra (AnyCardanoEra era) =
         AlonzoEra -> Read.EraValue Read.Alonzo
         BabbageEra -> Read.EraValue Read.Babbage
         ConwayEra -> Read.EraValue Read.Conway
+        _ -> error "fromAnyCardanoEra: era not yet supported"

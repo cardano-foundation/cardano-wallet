@@ -75,6 +75,7 @@ protocolParams =
         (Read.PParams <$> LSQry Shelley.GetCurrentPParams)
         (Read.PParams <$> LSQry Shelley.GetCurrentPParams)
         (Read.PParams <$> LSQry Shelley.GetCurrentPParams)
+        (Read.PParams <$> LSQry Shelley.GetCurrentPParams)
   where
     fromByron = Read.PParams . Byron.adoptedProtocolParameters
 

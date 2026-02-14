@@ -67,6 +67,7 @@ fetchRewardAccounts accounts =
         shelleyQry
         shelleyQry
         shelleyQry
+        shelleyQry
   where
     byronValue :: Map W.RewardAccount W.Coin
     byronValue = Map.fromList . map (,W.Coin 0) $ Set.toList accounts
@@ -100,6 +101,7 @@ getStakeDelegDeposits
 getStakeDelegDeposits credentials =
     onAnyEra
         (pure byronValue)
+        (LSQry $ Shelley.GetStakeDelegDeposits credentials)
         (LSQry $ Shelley.GetStakeDelegDeposits credentials)
         (LSQry $ Shelley.GetStakeDelegDeposits credentials)
         (LSQry $ Shelley.GetStakeDelegDeposits credentials)
