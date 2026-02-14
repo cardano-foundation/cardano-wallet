@@ -720,6 +720,7 @@ import Data.Delta.Update
 import Data.Either
     ( partitionEithers
     )
+import qualified Data.Functor
 import Data.Either.Extra
     ( eitherToMaybe
     )
@@ -1432,7 +1433,7 @@ restoreBlocks ctx tr blocks nodeTip =
         -- However, this only works if the latest database checkpoint, `cp0`,
         -- does not change in the meantime.
         (filteredBlocks', cps') <-
-            liftIO $ NE.unzip <$> applyBlocks blocks cp0
+            liftIO $ Data.Functor.unzip <$> applyBlocks blocks cp0
         let cps = NE.map snd cps'
             filteredBlocks = concat filteredBlocks'
             slotPoolDelegations =
@@ -2267,6 +2268,8 @@ pparamsInRecentEra (Read.PParams pparams) =
         Read.Alonzo -> Write.InNonRecentEraAlonzo
         Read.Babbage -> Write.InRecentEraBabbage pparams
         Read.Conway -> Write.InRecentEraConway pparams
+        Read.Dijkstra ->
+            error "pparamsInRecentEra: DijkstraEra not yet supported"
 
 -- | Wallet-specific wrapped version of 'Write.balanceTx', made for the new tx
 -- workflow with Shelley- and Shared- wallet flavors.

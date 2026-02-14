@@ -41,9 +41,6 @@ import Control.Lens
     , (&)
     , (.~)
     )
-import Data.Foldable
-    ( Foldable (..)
-    )
 import Prelude
 
 import qualified Data.Map.Strict as Map

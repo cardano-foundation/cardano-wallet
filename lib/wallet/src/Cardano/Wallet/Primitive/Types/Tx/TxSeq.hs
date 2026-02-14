@@ -485,10 +485,10 @@ shrinkAssetIds :: TxSeq -> TxSeq
 shrinkAssetIds s = mapAssetIds toSimpleAssetId s
   where
     toSimpleAssetId :: AssetId -> AssetId
-    toSimpleAssetId =
-        mapToFunction
-            (head simpleAssetIds)
+    toSimpleAssetId = case simpleAssetIds of
+        (d : _) -> mapToFunction d
             (Map.fromList $ F.toList (assetIds s) `zip` simpleAssetIds)
+        [] -> id
 
 -- | Simplifies the set of transaction identifiers within a 'TxSeq'.
 --
@@ -498,10 +498,10 @@ shrinkTxIds :: TxSeq -> TxSeq
 shrinkTxIds s = mapTxIds toSimpleTxId s
   where
     toSimpleTxId :: Hash "Tx" -> Hash "Tx"
-    toSimpleTxId =
-        mapToFunction
-            (head simpleTxIds)
+    toSimpleTxId = case simpleTxIds of
+        (d : _) -> mapToFunction d
             (Map.fromList $ F.toList (txIds s) `zip` simpleTxIds)
+        [] -> id
 
 --------------------------------------------------------------------------------
 -- Internal interface

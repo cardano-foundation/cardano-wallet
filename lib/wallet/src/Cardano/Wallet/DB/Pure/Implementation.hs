@@ -334,7 +334,9 @@ mRollbackTo requested (Database wid wal txs) =
 
     -- \| Find nearest checkpoint's slot before or equal to 'requested'.
     findNearestPoint :: [Wallet s] -> SlotNo
-    findNearestPoint = head . sortOn Down . mapMaybe fn
+    findNearestPoint wallets = case sortOn Down (mapMaybe fn wallets) of
+        (x : _) -> x
+        [] -> error "findNearestPoint: no checkpoints"
       where
         fn :: Wallet s -> Maybe SlotNo
         fn cp = if stip cp <= requested then Just (tip cp) else Nothing

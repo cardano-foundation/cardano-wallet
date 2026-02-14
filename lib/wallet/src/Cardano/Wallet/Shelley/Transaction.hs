@@ -20,6 +20,10 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# OPTIONS_GHC -Wno-deprecations #-}
+
+-- TODO: Migrate from deprecated Cardano.Api.Certificate to
+-- Cardano.Api.Experimental.Certificate
 
 {- HLINT ignore "Use <$>" -}
 {- HLINT ignore "Use camelCase" -}
@@ -702,6 +706,8 @@ withRecentEraLedgerTx (InAnyCardanoEra era tx) f = case era of
         Nothing
     Cardano.ByronEra ->
         Nothing
+    Cardano.DijkstraEra ->
+        error "withRecentEraLedgerTx: DijkstraEra not yet supported"
 
 -- | Construct a standard unsigned transaction.
 --

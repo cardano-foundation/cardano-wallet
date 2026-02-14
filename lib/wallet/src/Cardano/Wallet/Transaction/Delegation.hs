@@ -1,5 +1,9 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
+{-# OPTIONS_GHC -Wno-deprecations #-}
+
+-- TODO: Migrate from deprecated Cardano.Api.Certificate to
+-- Cardano.Api.Experimental.Certificate
 
 -- |
 -- Copyright: © 2024 Cardano Foundation
