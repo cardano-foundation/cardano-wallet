@@ -690,6 +690,8 @@ withNodeNetworkLayerBase
                     AnyCardanoEra AlonzoEra -> InNonRecentEraAlonzo
                     AnyCardanoEra BabbageEra -> InRecentEraBabbage mempty
                     AnyCardanoEra ConwayEra -> InRecentEraConway mempty
+                    AnyCardanoEra DijkstraEra ->
+                        error "_getUTxOByTxIn: DijkstraEra not yet supported"
             | otherwise =
                 bracketQuery "getUTxOByTxIn" tr
                     $ queue `send` SomeLSQ (LSQ.getUTxOByTxIn ins)

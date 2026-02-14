@@ -1063,8 +1063,8 @@ genDBParams
        )
     => Gen (DBLayerParams s)
 genDBParams =
-    DBLayerParams
-        <$> (getInitialCheckpoint <$> arbitrary)
+    DBLayerParams . getInitialCheckpoint
+        <$> arbitrary
         <*> pure RestorationPointAtGenesis
         <*> arbitrary
         <*> fmap unGenTxHistory arbitrary

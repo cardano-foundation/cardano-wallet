@@ -1857,8 +1857,8 @@ instance Arbitrary StakePoolFlag where
 
 instance Arbitrary StakePoolMetrics where
     arbitrary =
-        StakePoolMetrics
-            <$> (Quantity . fromIntegral <$> choose (1 :: Integer, 1_000_000_000_000))
+        StakePoolMetrics . Quantity . fromIntegral
+            <$> choose (1 :: Integer, 1_000_000_000_000)
             <*> arbitrary
             <*> (choose (0.0, 5.0))
             <*> (Quantity . fromIntegral <$> choose (1 :: Integer, 22_600_000))
@@ -2445,8 +2445,8 @@ instance Arbitrary ApiTokenAmountFingerprint where
         name <- genAssetName
         policyid <- arbitrary
         let fingerprint = ApiT $ mkTokenFingerprint policyid name
-        ApiTokenAmountFingerprint (ApiT name)
-            <$> (fromIntegral <$> choose @Int (1, 10_000))
+        ApiTokenAmountFingerprint (ApiT name) . fromIntegral
+            <$> choose @Int (1, 10_000)
             <*> pure fingerprint
 
 instance Arbitrary ApiTokens where
@@ -2554,8 +2554,8 @@ instance HasSNetworkId n => Arbitrary (ApiMintBurnDataFromScript n) where
 
 instance HasSNetworkId n => Arbitrary (ApiMintBurnDataFromInput n) where
     arbitrary =
-        ApiMintBurnDataFromInput
-            <$> (ReferenceInput <$> arbitrary)
+        ApiMintBurnDataFromInput . ReferenceInput
+            <$> arbitrary
             <*> arbitrary
             <*> oneof
                 [ Just . ApiT <$> genAssetName

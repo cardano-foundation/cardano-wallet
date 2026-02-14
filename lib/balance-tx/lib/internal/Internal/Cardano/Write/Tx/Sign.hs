@@ -109,7 +109,6 @@ import qualified Cardano.Api as CardanoApi
 import qualified Cardano.Api.Experimental.Certificate as Exp
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Api as Ledger
-import qualified Cardano.Ledger.Api.Tx.Cert as Conway
 import qualified Cardano.Ledger.Shelley.TxCert as Shelley
 import qualified Cardano.Wallet.Primitive.Ledger.Convert as Convert
 import qualified Cardano.Wallet.Primitive.Types.Tx.Constraints as W
@@ -279,8 +278,7 @@ estimateKeyWitnessCounts utxo tx timelockKeyWitCounts =
         scriptsAvailableInBody = tx ^. witsTxL . scriptTxWitsL
 
     estimateDelegSigningKeys
-        :: CardanoApi.IsShelleyBasedEra (CardanoApiEra era)
-        => Exp.Certificate (CardanoApi.ShelleyLedgerEra (CardanoApiEra era))
+        :: Exp.Certificate (CardanoApi.ShelleyLedgerEra (CardanoApiEra era))
         -> Integer
     estimateDelegSigningKeys (Exp.Certificate txCert) =
         case txCert of

@@ -292,6 +292,7 @@ import qualified Cardano.Ledger.Credential as SL
 import qualified Cardano.Ledger.Dijkstra as Ledger.Dijkstra
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Ledger.Shelley.API as SLAPI
+import qualified Cardano.Ledger.State as Ledger
 import qualified Cardano.Protocol.TPraos.BHeader as SL
 import qualified Cardano.Slotting.Slot as Slotting
 import qualified Cardano.Wallet.Primitive.Ledger.Convert as Ledger
@@ -346,7 +347,6 @@ import qualified Ouroboros.Consensus.Protocol.Praos as Consensus
 import qualified Ouroboros.Consensus.Protocol.Praos.Header as Consensus
 import qualified Ouroboros.Consensus.Protocol.TPraos as Consensus
 import qualified Ouroboros.Consensus.Shelley.Ledger as O
-import qualified Ouroboros.Consensus.Shelley.Ledger.Query.Types as Consensus
 import qualified Ouroboros.Network.Block as O
 
 --------------------------------------------------------------------------------
@@ -781,14 +781,12 @@ fromPoolId :: SL.KeyHash 'SL.StakePool -> PoolId
 fromPoolId (SL.KeyHash x) = PoolId $ hashToBytes x
 
 fromPoolDistr
-    :: forall crypto
-     . ()
-    => Consensus.PoolDistr crypto
+    :: Ledger.PoolDistr
     -> Map PoolId Percentage
 fromPoolDistr =
-    Map.map (unsafeMkPercentage . Consensus.individualPoolStake)
+    Map.map (unsafeMkPercentage . Ledger.individualPoolStake)
         . Map.mapKeys fromPoolId
-        . Consensus.unPoolDistr
+        . Ledger.unPoolDistr
 
 -- NOTE: This function disregards results that are using staking keys
 fromNonMyopicMemberRewards

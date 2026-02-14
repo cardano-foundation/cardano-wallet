@@ -612,7 +612,7 @@ instance FromJSON BatchResponse where
     parseJSON = withObject "BatchResponse" $ \o -> do
         (xs :: [Value]) <- o .: "subjects"
         let maybeParseItem v = fmap Just (parseJSON v) <|> pure Nothing
-        BatchResponse <$> (catMaybes <$> mapM maybeParseItem xs)
+        BatchResponse . catMaybes <$> mapM maybeParseItem xs
 
 instance ToJSON Subject where
     toJSON = String . unSubject
@@ -652,8 +652,8 @@ instance
     => FromJSON (Property name)
     where
     parseJSON = withObject "Property value" $ \o ->
-        Property
-            <$> (validate <$> o .: "value")
+        Property . validate
+            <$> (o .: "value")
             <*> o .:? "signatures" .!= []
             <*> o .:? "sequenceNumber" .!= 0
       where
