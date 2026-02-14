@@ -44,7 +44,7 @@ executable cardano-wallet
   import:           language, opts-exe
   main-is:          cardano-wallet.hs
   hs-source-dirs:   app/shelley
-  build-depends:    base >=4.18.2.0 && <4.22
+  build-depends:    base
   default-language: Haskell2010
   build-depends:
     , base
@@ -56,9 +56,9 @@ executable cardano-wallet
     , cardano-wallet-launcher
     , cardano-wallet-network-layer
     , contra-tracer
-    , iohk-monitoring                     >=0.2.0.0 && <0.3
+    , iohk-monitoring
     , iohk-monitoring-extra
-    , lobemo-backend-ekg                  >=0.2.0.0 && <0.3
+    , lobemo-backend-ekg
     , network-uri
     , optparse-applicative
     , text
@@ -106,7 +106,7 @@ library
     , ansi-terminal
     , base
     , bytestring
-    , cardano-addresses               >=4.0.2   && <4.1
+    , cardano-addresses
     , cardano-wallet
     , cardano-wallet-api
     , cardano-wallet-application-tls
@@ -120,7 +120,7 @@ library
     , filepath
     , fmt
     , http-client
-    , iohk-monitoring                 >=0.2.0.0 && <0.3
+    , iohk-monitoring
     , iohk-monitoring-extra
     , network
     , ntp-client
