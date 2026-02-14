@@ -34,3 +34,7 @@ jobs:
         env:
           HAL_E2E_PREPROD_MNEMONICS: ${{ secrets.HAL_E2E_PREPROD_MNEMONICS }}
         run: nix shell --quiet .#cardano-node .#cardano-wallet .#e2e 'nixpkgs#gnutar' 'nixpkgs#p7zip' -c e2e
+
+      - name: Cleanup temp directories
+        if: always()
+        run: rm -rf /tmp/e2e-* /tmp/test-cluster*
