@@ -29,6 +29,7 @@ import Cardano.Read.Ledger.Eras
     , Babbage
     , Byron
     , Conway
+    , Dijkstra
     , Era (..)
     , IsEra (..)
     , Mary
@@ -64,6 +65,7 @@ type family BHeaderT era where
     BHeaderT Alonzo = TPraos.BHeader StandardCrypto
     BHeaderT Babbage = Header StandardCrypto
     BHeaderT Conway = Header StandardCrypto
+    BHeaderT Dijkstra = Header StandardCrypto
 
 -- | Era-indexed block header wrapper.
 newtype BHeader era = BHeader {unBHeader :: BHeaderT era}
@@ -84,3 +86,4 @@ getEraBHeader = case theEra :: Era era of
     Alonzo -> \(Block (O.ShelleyBlock block _)) -> BHeader $ bheader block
     Babbage -> \(Block (O.ShelleyBlock block _)) -> BHeader $ bheader block
     Conway -> \(Block (O.ShelleyBlock block _)) -> BHeader $ bheader block
+    Dijkstra -> \(Block (O.ShelleyBlock block _)) -> BHeader $ bheader block

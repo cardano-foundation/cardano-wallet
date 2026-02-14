@@ -19,17 +19,22 @@ import Cardano.Ledger.Api
 import Cardano.Ledger.Coin
     ( Coin (..)
     )
+import Cardano.Ledger.Mary
+    ( Tx (MkMaryTx)
+    )
 import Cardano.Ledger.Mary.TxBody
-    ( MaryTxBody (..)
+    ( TxBody (MaryTxBody)
     )
 import Cardano.Ledger.Mary.Value
     ( MaryValue (..)
     , MultiAsset
     )
 import Cardano.Ledger.Shelley.API.Types
-    ( ShelleyTx (ShelleyTx)
-    , ShelleyTxOut (ShelleyTxOut)
+    ( ShelleyTxOut (ShelleyTxOut)
     , StrictMaybe (..)
+    )
+import Cardano.Ledger.Shelley.Tx
+    ( ShelleyTx (ShelleyTx)
     )
 import Cardano.Wallet.Read.Tx.Gen.Address
     ( decodeShelleyAddress
@@ -68,11 +73,13 @@ import Data.Sequence.Strict
     )
 import Prelude
 
+import Cardano.Ledger.Core qualified as L
+
 mkMaryTx
     :: TxParameters
-    -> ShelleyTx MaryEra
+    -> L.Tx MaryEra
 mkMaryTx TxParameters{txInputs, txOutputs} =
-    ShelleyTx (body txInputs txOutputs) wits aux
+    MkMaryTx $ ShelleyTx (body txInputs txOutputs) wits aux
 
 aux :: StrictMaybe (AllegraTxAuxData MaryEra)
 aux = maybeToStrictMaybe Nothing
@@ -80,7 +87,7 @@ aux = maybeToStrictMaybe Nothing
 body
     :: NonEmpty (Index, TxId)
     -> NonEmpty (Address, Lovelace)
-    -> MaryTxBody MaryEra
+    -> L.TxBody MaryEra
 body ins outs =
     MaryTxBody
         (txins ins)
@@ -109,5 +116,5 @@ mkMaryValue lovelace = MaryValue (Coin lovelace) mempty
 validity :: ValidityInterval
 validity = ValidityInterval SNothing SNothing
 
-exampleMaryTx :: ShelleyTx MaryEra
+exampleMaryTx :: L.Tx MaryEra
 exampleMaryTx = mkMaryTx exampleTxParameters

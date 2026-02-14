@@ -25,6 +25,7 @@ import Cardano.Read.Ledger.Eras
     , Babbage
     , Byron
     , Conway
+    , Dijkstra
     , Era (..)
     , IsEra (..)
     , Mary
@@ -54,6 +55,7 @@ type family ScriptValidityType era where
     ScriptValidityType Alonzo = IsValid
     ScriptValidityType Babbage = IsValid
     ScriptValidityType Conway = IsValid
+    ScriptValidityType Dijkstra = IsValid
 
 -- | Era-indexed script validity tag wrapper.
 newtype ScriptValidity era = ScriptValidity (ScriptValidityType era)
@@ -76,5 +78,6 @@ getEraScriptValidity = case theEra @era of
     Alonzo -> alonzoScriptValidity
     Babbage -> alonzoScriptValidity
     Conway -> alonzoScriptValidity
+    Dijkstra -> alonzoScriptValidity
   where
     alonzoScriptValidity = onTx $ \tx -> ScriptValidity $ tx ^. isValidTxL

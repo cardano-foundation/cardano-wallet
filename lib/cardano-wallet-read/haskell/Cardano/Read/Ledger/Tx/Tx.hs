@@ -12,24 +12,20 @@ module Cardano.Read.Ledger.Tx.Tx
     , TxT
     ) where
 
-import Cardano.Ledger.Alonzo.Tx
-    ( AlonzoTx
-    )
-import Cardano.Ledger.Shelley.Tx
-    ( ShelleyTx
-    )
 import Cardano.Read.Ledger.Eras
     ( Allegra
     , Alonzo
     , Babbage
     , Byron
     , Conway
+    , Dijkstra
     , Mary
     , Shelley
     )
 import Prelude
 
 import Cardano.Chain.UTxO qualified as Byron
+import Cardano.Ledger.Core qualified as Core
 
 -- |
 -- Closed type family returning the ledger transaction type for each known era.
@@ -37,16 +33,16 @@ import Cardano.Chain.UTxO qualified as Byron
 -- The transaction type differs between eras:
 --
 -- * Byron uses 'ATxAux'
--- * Shelley through Mary use 'ShelleyTx'
--- * Alonzo and later use 'AlonzoTx'
+-- * Shelley and later use 'Core.Tx' from cardano-ledger-core
 type family TxT era where
     TxT Byron = Byron.ATxAux ()
-    TxT Shelley = ShelleyTx Shelley
-    TxT Allegra = ShelleyTx Allegra
-    TxT Mary = ShelleyTx Mary
-    TxT Alonzo = AlonzoTx Alonzo
-    TxT Babbage = AlonzoTx Babbage
-    TxT Conway = AlonzoTx Conway
+    TxT Shelley = Core.Tx Shelley
+    TxT Allegra = Core.Tx Allegra
+    TxT Mary = Core.Tx Mary
+    TxT Alonzo = Core.Tx Alonzo
+    TxT Babbage = Core.Tx Babbage
+    TxT Conway = Core.Tx Conway
+    TxT Dijkstra = Core.Tx Dijkstra
 
 -- |
 -- Era-indexed transaction wrapper.

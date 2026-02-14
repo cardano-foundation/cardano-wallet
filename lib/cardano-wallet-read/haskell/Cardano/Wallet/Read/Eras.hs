@@ -12,6 +12,7 @@ module Cardano.Wallet.Read.Eras
     , Babbage
     , Byron
     , Conway
+    , Dijkstra
     , Mary
     , Shelley
     , KnownEras
@@ -48,6 +49,7 @@ import Cardano.Read.Ledger.Eras
     , Babbage
     , Byron
     , Conway
+    , Dijkstra
     , Era (..)
     , IsEra (..)
     , KnownEras

@@ -7,12 +7,15 @@ module Cardano.Wallet.Read.Tx.Gen.Allegra
     )
 where
 
+import Cardano.Ledger.Allegra.Tx
+    ( Tx (MkAllegraTx)
+    )
 import Cardano.Ledger.Allegra.TxAuxData
     ( AllegraTxAuxData
     )
 import Cardano.Ledger.Allegra.TxBody
-    ( AllegraTxBody (..)
-    , StrictMaybe (..)
+    ( StrictMaybe (..)
+    , TxBody (AllegraTxBody)
     , ValidityInterval (..)
     )
 import Cardano.Ledger.Api
@@ -49,11 +52,13 @@ import Data.Maybe.Strict
     )
 import Prelude
 
+import Cardano.Ledger.Core qualified as L
+
 mkAllegraTx
     :: TxParameters
-    -> ShelleyTx AllegraEra
+    -> L.Tx AllegraEra
 mkAllegraTx TxParameters{txInputs, txOutputs} =
-    ShelleyTx (body txInputs txOutputs) wits aux
+    MkAllegraTx $ ShelleyTx (body txInputs txOutputs) wits aux
 
 aux :: StrictMaybe (AllegraTxAuxData AllegraEra)
 aux = maybeToStrictMaybe Nothing
@@ -61,7 +66,7 @@ aux = maybeToStrictMaybe Nothing
 body
     :: NonEmpty (Index, TxId)
     -> NonEmpty (Address, Lovelace)
-    -> AllegraTxBody AllegraEra
+    -> TxBody AllegraEra
 body ins outs =
     AllegraTxBody
         (txins ins)
@@ -76,5 +81,5 @@ body ins outs =
 exampleValidity :: ValidityInterval
 exampleValidity = ValidityInterval SNothing SNothing
 
-exampleAllegraTx :: ShelleyTx AllegraEra
+exampleAllegraTx :: L.Tx AllegraEra
 exampleAllegraTx = mkAllegraTx exampleTxParameters

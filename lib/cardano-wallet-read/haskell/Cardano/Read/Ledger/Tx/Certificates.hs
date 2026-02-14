@@ -23,6 +23,9 @@ import Cardano.Ledger.Api
 import Cardano.Ledger.Conway.TxCert
     ( ConwayTxCert
     )
+import Cardano.Ledger.Dijkstra.TxCert
+    ( DijkstraTxCert
+    )
 import Cardano.Ledger.Shelley.TxCert
     ( ShelleyTxCert
     )
@@ -32,6 +35,7 @@ import Cardano.Read.Ledger.Eras
     , Babbage
     , Byron
     , Conway
+    , Dijkstra
     , Era (..)
     , IsEra (..)
     , Mary
@@ -72,6 +76,8 @@ type family CertificatesType era where
         StrictSeq (ShelleyTxCert Babbage)
     CertificatesType Conway =
         StrictSeq (ConwayTxCert Conway)
+    CertificatesType Dijkstra =
+        StrictSeq (DijkstraTxCert Dijkstra)
 
 -- | Era-indexed stake certificates wrapper.
 newtype Certificates era = Certificates (CertificatesType era)
@@ -93,5 +99,6 @@ getEraCertificates = case theEra @era of
     Alonzo -> certificates
     Babbage -> certificates
     Conway -> certificates
+    Dijkstra -> certificates
   where
     certificates = onTx $ Certificates . view (bodyTxL . certsTxBodyL)
