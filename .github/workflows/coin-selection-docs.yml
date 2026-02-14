@@ -7,6 +7,11 @@ on:
       - "docs/coin-selection/**"
       - "lib/coin-selection/**"
 
+  pull_request:
+    paths:
+      - "docs/coin-selection/**"
+      - "lib/coin-selection/**"
+
   workflow_dispatch:
 
 concurrency:
@@ -37,6 +42,7 @@ jobs:
           path: docs/coin-selection/site
 
   deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     needs: build
     runs-on: ubuntu-latest
     environment:

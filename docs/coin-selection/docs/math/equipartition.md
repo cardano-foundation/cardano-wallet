@@ -23,7 +23,7 @@ The result is sorted in ascending order.
 
 ```haskell
 >>> equipartitionNatural 10 (() :| [(), ()])
-2 :| [3, 5]  -- actually: 3 :| [3, 4]
+3 :| [3, 4]
 
 >>> equipartitionNatural 7 (() :| [(), ()])
 2 :| [2, 3]
