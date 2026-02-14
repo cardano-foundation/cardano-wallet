@@ -9,6 +9,7 @@ module Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Scripts
     ( alonzoAnyExplicitScript
     , babbageAnyExplicitScript
     , conwayAnyExplicitScript
+    , dijkstraAnyExplicitScript
     )
 where
 
@@ -25,6 +26,9 @@ import Cardano.Ledger.Babbage
     )
 import Cardano.Ledger.Conway
     ( ConwayEra
+    )
+import Cardano.Ledger.Dijkstra
+    ( DijkstraEra
     )
 import Cardano.Ledger.Mary.Value
     ( PolicyID (..)
@@ -58,7 +62,7 @@ import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 alonzoAnyExplicitScript
     :: WitnessCountCtx -> AlonzoScript AlonzoEra -> AnyExplicitScript
 alonzoAnyExplicitScript witCtx = \case
-    Alonzo.TimelockScript script ->
+    Alonzo.NativeScript script ->
         NativeExplicitScript
             (toWalletScript (toKeyRole witCtx) script)
             ViaSpending
@@ -81,7 +85,7 @@ babbageAnyExplicitScript witCtx (scriptRef, scriptH, script) =
     (toWalletTokenPolicyId (PolicyID scriptH), toAnyScript script)
   where
     toAnyScript = \case
-        Alonzo.TimelockScript timelockScript ->
+        Alonzo.NativeScript timelockScript ->
             NativeExplicitScript
                 (toWalletScript (toKeyRole witCtx) timelockScript)
                 scriptRef
@@ -104,7 +108,7 @@ conwayAnyExplicitScript witCtx (scriptRef, scriptH, script) =
     (toWalletTokenPolicyId (PolicyID scriptH), toAnyScript script)
   where
     toAnyScript = \case
-        Alonzo.TimelockScript timelockScript ->
+        Alonzo.NativeScript timelockScript ->
             NativeExplicitScript
                 (toWalletScript (toKeyRole witCtx) timelockScript)
                 scriptRef
@@ -113,5 +117,28 @@ conwayAnyExplicitScript witCtx (scriptRef, scriptH, script) =
                 ( PlutusScriptInfo
                     (toPlutusScriptInfo @ConwayEra s)
                     (fromLedgerScriptHash $ hashScript @ConwayEra script)
+                )
+                scriptRef
+
+dijkstraAnyExplicitScript
+    :: WitnessCountCtx
+    -> ( ScriptReference
+       , ScriptHash
+       , AlonzoScript DijkstraEra
+       )
+    -> (TokenPolicyId, AnyExplicitScript)
+dijkstraAnyExplicitScript witCtx (scriptRef, scriptH, script) =
+    (toWalletTokenPolicyId (PolicyID scriptH), toAnyScript script)
+  where
+    toAnyScript = \case
+        Alonzo.NativeScript timelockScript ->
+            NativeExplicitScript
+                (toWalletScript (toKeyRole witCtx) timelockScript)
+                scriptRef
+        Alonzo.PlutusScript s ->
+            PlutusExplicitScript
+                ( PlutusScriptInfo
+                    (toPlutusScriptInfo @DijkstraEra s)
+                    (fromLedgerScriptHash $ hashScript @DijkstraEra script)
                 )
                 scriptRef

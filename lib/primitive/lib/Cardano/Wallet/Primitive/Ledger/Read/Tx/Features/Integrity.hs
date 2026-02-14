@@ -53,6 +53,7 @@ integrity = case theEra @era of
     Alonzo -> yesIntegrity
     Babbage -> yesIntegrity
     Conway -> yesIntegrity
+    Dijkstra -> yesIntegrity
   where
     noIntegrity = const Nothing
     yesIntegrity (Integrity es) = getIntegrity es

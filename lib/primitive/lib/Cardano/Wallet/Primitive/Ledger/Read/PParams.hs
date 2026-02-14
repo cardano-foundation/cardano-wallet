@@ -19,6 +19,7 @@ import Cardano.Wallet.Primitive.Ledger.Shelley
     , fromAlonzoPParams
     , fromBabbagePParams
     , fromConwayPParams
+    , fromDijkstraPParams
     , fromMaryPParams
     , fromShelleyPParams
     )
@@ -52,3 +53,4 @@ primitiveProtocolParameters eraBounds (Read.PParams pparams) =
         Read.Alonzo -> fromAlonzoPParams eraBounds pparams
         Read.Babbage -> fromBabbagePParams eraBounds pparams
         Read.Conway -> fromConwayPParams eraBounds pparams
+        Read.Dijkstra -> fromDijkstraPParams eraBounds pparams

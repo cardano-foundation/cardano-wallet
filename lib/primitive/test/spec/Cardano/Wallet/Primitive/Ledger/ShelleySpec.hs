@@ -571,8 +571,8 @@ instance Arbitrary SL.UnitInterval where
 
 instance Arbitrary SlotId where
     arbitrary =
-        SlotId . W.EpochNo . fromIntegral
-            <$> choose (0, 10 :: Word32)
+        SlotId
+            <$> (W.EpochNo . fromIntegral <$> choose (0, 10 :: Word32))
             <*> (W.SlotInEpoch <$> choose (0, 10))
 
 instance Arbitrary SomeMnemonic where

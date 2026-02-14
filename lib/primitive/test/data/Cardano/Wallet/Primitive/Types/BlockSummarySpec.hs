@@ -130,6 +130,8 @@ instance Arbitrary BlockEvents where
     arbitrary = do
         sl <- genSlotNo
         ht <- blockHeight <$> genBlockHeader sl
-        BlockEvents (At sl) ht . wholeList
-            <$> resize 2 (listOf1 genTx)
+        BlockEvents
+            (At sl)
+            ht
+            <$> (wholeList <$> resize 2 (listOf1 genTx))
             <*> pure (wholeList [])

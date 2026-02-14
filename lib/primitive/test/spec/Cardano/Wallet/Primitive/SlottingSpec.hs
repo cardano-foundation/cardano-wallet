@@ -107,7 +107,6 @@ import Ouroboros.Consensus.Config.SecurityParam
 import Test.Hspec
     ( Spec
     , describe
-    , expectationFailure
     , it
     , runIO
     , shouldBe
@@ -239,9 +238,9 @@ spec = do
 
                 res `shouldSatisfy` isLeft
                 case logs of
-                    [log1@(MsgInterpreterPastHorizon Nothing _ _)] -> do
+                    [log1@(MsgInterpreterPastHorizon Nothing _ _)] ->
                         getSeverityAnnotation log1 `shouldBe` Notice
-                    _ -> expectationFailure "Expected single MsgInterpreterPastHorizon log"
+                    _ -> fail "Expected single MsgInterpreterPastHorizon log"
 
             it "(neverFails \"because\" ti) logs failures as Error" $ do
                 (logs, res) <- captureLogging $ \tr -> do
@@ -253,9 +252,9 @@ spec = do
 
                 res `shouldSatisfy` isLeft
                 case logs of
-                    [log1@(MsgInterpreterPastHorizon (Just "because") _ _)] -> do
+                    [log1@(MsgInterpreterPastHorizon (Just "because") _ _)] ->
                         getSeverityAnnotation log1 `shouldBe` Error
-                    _ -> expectationFailure "Expected single MsgInterpreterPastHorizon log"
+                    _ -> fail "Expected single MsgInterpreterPastHorizon log"
 
             it "(unsafeExtendSafeZone ti) doesn't fail nor log" $ do
                 (logs, res) <- captureLogging $ \tr -> do
@@ -278,9 +277,9 @@ spec = do
 
                 res `shouldSatisfy` isLeft
                 case logs of
-                    [log1@(MsgInterpreterPastHorizon Nothing _ _)] -> do
+                    [log1@(MsgInterpreterPastHorizon Nothing _ _)] ->
                         getSeverityAnnotation log1 `shouldBe` Notice
-                    _ -> expectationFailure "Expected single MsgInterpreterPastHorizon log"
+                    _ -> fail "Expected single MsgInterpreterPastHorizon log"
   where
     forkInterpreter =
         let
