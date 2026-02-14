@@ -85,6 +85,10 @@ import Cardano.Wallet.Read
 import Cardano.Wallet.Read.Block.Gen.BlockParameters
     ( BlockParameters (..)
     )
+import Control.Lens
+    ( (&)
+    , (.~)
+    )
 import Data.Proxy
     ( Proxy (..)
     )
@@ -93,10 +97,6 @@ import Ouroboros.Consensus.Protocol.Praos.Header
     )
 import Ouroboros.Consensus.Protocol.TPraos
     ( TPraos
-    )
-import Control.Lens
-    ( (&)
-    , (.~)
     )
 import Prelude
 

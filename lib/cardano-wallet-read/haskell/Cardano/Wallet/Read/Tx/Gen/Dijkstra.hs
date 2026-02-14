@@ -16,8 +16,8 @@ import Cardano.Ledger.Alonzo.Tx
     , ScriptIntegrityHash
     )
 import Cardano.Ledger.Api
-    ( DijkstraEra
-    , Datum (NoDatum)
+    ( Datum (NoDatum)
+    , DijkstraEra
     )
 import Cardano.Ledger.Api.Tx.In
     ( TxIn
@@ -37,11 +37,11 @@ import Cardano.Ledger.Conway.Governance
     ( ProposalProcedure
     , VotingProcedures (..)
     )
-import Cardano.Ledger.Dijkstra.Tx
-    ( Tx (MkDijkstraTx)
-    )
 import Cardano.Ledger.Credential
     ( Credential
+    )
+import Cardano.Ledger.Dijkstra.Tx
+    ( Tx (MkDijkstraTx)
     )
 import Cardano.Ledger.Dijkstra.TxBody
     ( TxBody (DijkstraTxBody)
