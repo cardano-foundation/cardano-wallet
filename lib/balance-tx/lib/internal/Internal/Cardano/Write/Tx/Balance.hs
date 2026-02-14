@@ -223,7 +223,10 @@ import Internal.Cardano.Write.Tx.Balance.CoinSelection
     , UnableToConstructChangeError (..)
     , WalletSelectionContext
     , WalletUTxO (..)
+    , fromCSCoin
+    , fromCSTokenBundle
     , performSelection
+    , toCSTokenBundle
     , toExternalUTxOMap
     , toInternalUTxOMap
     )
@@ -268,6 +271,9 @@ import Prelude
 
 import qualified Cardano.Address.KeyHash as CA
 import qualified Cardano.Address.Script as CA
+import qualified Cardano.CoinSelection.Types.TokenBundle as CS
+    ( TokenBundle
+    )
 import qualified Cardano.CoinSelection.UTxOIndex as UTxOIndex
 import qualified Cardano.CoinSelection.UTxOSelection as UTxOSelection
 import qualified Cardano.Ledger.Core as Core
@@ -519,7 +525,10 @@ constructUTxOIndex availableUTxO =
     UTxOIndex{availableUTxO, availableUTxOIndex}
   where
     availableUTxOIndex =
-        UTxOIndex.fromMap $ toInternalUTxOMap $ toWalletUTxO availableUTxO
+        UTxOIndex.fromMap
+            $ Map.map toCSTokenBundle
+            $ toInternalUTxOMap
+            $ toWalletUTxO availableUTxO
 
 fromWalletUTxO
     :: forall era
@@ -632,8 +641,9 @@ balanceTx
                 pure
                     $ UTxOIndex.fromSequence (convertUTxO <$> Map.toList selectedUTxO)
           where
-            convertUTxO :: (TxIn, TxOut era) -> (WalletUTxO, W.TokenBundle)
-            convertUTxO (i, o) = (WalletUTxO (Convert.toWallet i) addr, bundle)
+            convertUTxO :: (TxIn, TxOut era) -> (WalletUTxO, CS.TokenBundle)
+            convertUTxO (i, o) =
+                (WalletUTxO (Convert.toWallet i) addr, toCSTokenBundle bundle)
               where
                 W.TxOut addr bundle = toWalletTxOut o
             maybeUnresolvedTxIns :: Maybe (NESet TxIn)
@@ -1092,14 +1102,17 @@ selectAssets
                   -- collateral is needed.
                   collateralRequirement
                 , outputsToCover = outs
-                , utxoAvailableForCollateral = UTxOSelection.availableMap utxoSelection
+                , utxoAvailableForCollateral =
+                    Map.map fromCSTokenBundle
+                        $ UTxOSelection.availableMap utxoSelection
                 , utxoAvailableForInputs = utxoSelection
                 , selectionStrategy = selectionStrategy
                 }
           where
             (balanceNegative, balancePositive) = splitSignedValue balance
             valueOfOutputs = F.foldMap' (view #tokens) outs
-            valueOfInputs = UTxOSelection.selectedBalance utxoSelection
+            valueOfInputs =
+                fromCSTokenBundle $ UTxOSelection.selectedBalance utxoSelection
 
         mkLedgerTxOut
             :: forall e
@@ -1410,18 +1423,23 @@ coinSelectionErrorToBalanceTxError = \case
                 ErrBalanceTxAssetsInsufficient
                     $ ErrBalanceTxAssetsInsufficientError
                         { available =
-                            Convert.toLedger (view #utxoBalanceAvailable e)
+                            Convert.toLedger
+                                $ fromCSTokenBundle (view #utxoBalanceAvailable e)
                         , required =
-                            Convert.toLedger (view #utxoBalanceRequired e)
+                            Convert.toLedger
+                                $ fromCSTokenBundle (view #utxoBalanceRequired e)
                         , shortfall =
-                            Convert.toLedger (view #utxoBalanceShortfall e)
+                            Convert.toLedger
+                                $ fromCSTokenBundle (view #utxoBalanceShortfall e)
                         }
             UnableToConstructChange
                 UnableToConstructChangeError{shortfall, requiredCost} ->
                     ErrBalanceTxUnableToCreateChange
                         ErrBalanceTxUnableToCreateChangeError
-                            { shortfall = Convert.toLedgerCoin shortfall
-                            , requiredCost = Convert.toLedgerCoin requiredCost
+                            { shortfall =
+                                Convert.toLedgerCoin (fromCSCoin shortfall)
+                            , requiredCost =
+                                Convert.toLedgerCoin (fromCSCoin requiredCost)
                             }
             EmptyUTxO ->
                 ErrBalanceTxUnableToCreateInput
@@ -1434,11 +1452,11 @@ coinSelectionErrorToBalanceTxError = \case
                 ErrBalanceTxInsufficientCollateralError
                     { largestCombinationAvailable =
                         largestCombinationAvailable
-                            & fmap W.TokenBundle.fromCoin
+                            & fmap (W.TokenBundle.fromCoin . fromCSCoin)
                             & toExternalUTxOMap
                             & fromWalletUTxO
                     , minimumCollateralAmount =
-                        Convert.toLedgerCoin minimumSelectionAmount
+                        Convert.toLedgerCoin (fromCSCoin minimumSelectionAmount)
                     }
 
 updateTxErrorToBalanceTxError :: ErrUpdateTx -> ErrBalanceTx era
@@ -1524,7 +1542,8 @@ validateTxOutputSize cs out@(address, bundle) = case sizeAssessment of
   where
     sizeAssessment :: TokenBundleSizeAssessment
     sizeAssessment =
-        (cs ^. (#tokenBundleSizeAssessor . #assessTokenBundleSize)) (snd out)
+        (cs ^. (#tokenBundleSizeAssessor . #assessTokenBundleSize))
+            (toCSTokenBundle $ snd out)
 
 -- | Validates the token quantities of a transaction output.
 --

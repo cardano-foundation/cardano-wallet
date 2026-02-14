@@ -7,6 +7,7 @@ module Internal.Cardano.Write.Tx.Balance.TokenBundleSizeSpec where
 
 import Cardano.CoinSelection.Size
     ( TokenBundleSizeAssessment (..)
+    , TokenBundleSizeAssessor (..)
     )
 import Cardano.Ledger.Api.Era
     ( eraProtVerLow
@@ -39,10 +40,11 @@ import Internal.Cardano.Write.Tx
     ( ProtVer (..)
     , Version
     )
+import Internal.Cardano.Write.Tx.Balance.CoinSelection
+    ( toCSTokenBundle
+    )
 import Internal.Cardano.Write.Tx.Balance.TokenBundleSize
-    ( TokenBundleSizeAssessor
-    , assessTokenBundleSize
-    , computeTokenBundleSerializedLengthBytes
+    ( computeTokenBundleSerializedLengthBytes
     , mkTokenBundleSizeAssessor
     )
 import Numeric.Natural
@@ -118,7 +120,7 @@ prop_assessTokenBundleSize_enlarge b1' b2' pp =
                 === TokenBundleSizeExceedsLimit
             ]
   where
-    assess = assessTokenBundleSize $ mkAssessorFromPParamsInRecentEra pp
+    assess = assessWalletTokenBundleSize $ mkAssessorFromPParamsInRecentEra pp
     b1 = unVariableSize1024 $ getBlind b1'
     b2 = unVariableSize16 $ getBlind b2'
 
@@ -139,7 +141,7 @@ prop_assessTokenBundleSize_shrink b1' b2' pp =
                 === TokenBundleSizeWithinLimit
             ]
   where
-    assess = assessTokenBundleSize $ mkAssessorFromPParamsInRecentEra pp
+    assess = assessWalletTokenBundleSize $ mkAssessorFromPParamsInRecentEra pp
     b1 = unVariableSize1024 $ getBlind b1'
     b2 = unVariableSize16 $ getBlind b2'
 
@@ -173,7 +175,7 @@ unit_assessTokenBundleSize_fixedSizeBundle
               , actualLengthBytes <= expectedMaxLengthBytes
               ]
       where
-        actualAssessment = assessTokenBundleSize assessor bundle
+        actualAssessment = assessWalletTokenBundleSize assessor bundle
         v = eraProtVerLow @Babbage
         actualLengthBytes = computeTokenBundleSerializedLengthBytes bundle v
         counterexampleText =
@@ -333,3 +335,11 @@ mkAssessorFromPParamsInRecentEra (InBabbage pp) =
     mkTokenBundleSizeAssessor pp
 mkAssessorFromPParamsInRecentEra (InConway pp) =
     mkTokenBundleSizeAssessor pp
+
+-- | Assess a wallet-typed TokenBundle using a TokenBundleSizeAssessor.
+assessWalletTokenBundleSize
+    :: TokenBundleSizeAssessor
+    -> W.TokenBundle
+    -> TokenBundleSizeAssessment
+assessWalletTokenBundleSize a =
+    assessTokenBundleSize a . toCSTokenBundle
