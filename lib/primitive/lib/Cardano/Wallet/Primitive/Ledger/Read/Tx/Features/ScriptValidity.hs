@@ -38,6 +38,7 @@ getScriptValidity = case theEra @era of
     Alonzo -> yesScriptValidity
     Babbage -> yesScriptValidity
     Conway -> yesScriptValidity
+    Dijkstra -> yesScriptValidity
   where
     noScriptValidity _ = Nothing
     yesScriptValidity (ScriptValidity (IsValid b))

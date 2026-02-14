@@ -16,6 +16,7 @@ module Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Mint
     , alonzoMint
     , babbageMint
     , conwayMint
+    , dijkstraMint
     , fromLedgerScriptHash
     )
 where
@@ -34,13 +35,16 @@ import Cardano.Ledger.Alonzo
     )
 import Cardano.Ledger.Alonzo.TxWits
     ( AlonzoTxWits
-    , txscripts'
+    , txscripts
     )
 import Cardano.Ledger.Babbage
     ( BabbageEra
     )
 import Cardano.Ledger.Conway
     ( ConwayEra
+    )
+import Cardano.Ledger.Dijkstra
+    ( DijkstraEra
     )
 import Cardano.Ledger.Mary
     ( MaryEra
@@ -113,7 +117,6 @@ import Data.Set
 import Prelude
 
 import qualified Cardano.Api as Cardano
-import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Core as Core
 import qualified Cardano.Ledger.Mary.Value as SL
@@ -139,6 +142,8 @@ mint = case theEra @era of
         babbageMint refInps mint' wits
     Conway -> \(Mint mint' :*: Witnesses wits :*: ReferenceInputs refInps) ->
         conwayMint refInps mint' wits
+    Dijkstra -> \(Mint mint' :*: Witnesses wits :*: ReferenceInputs refInps) ->
+        dijkstraMint refInps mint' wits
   where
     noMints = const (emptyTokenMapWithScripts, emptyTokenMapWithScripts)
 
@@ -152,7 +157,7 @@ alonzoMint
     :: MultiAsset
     -> AlonzoTxWits AlonzoEra
     -> (TokenMapWithScripts, TokenMapWithScripts)
-alonzoMint = yesMints $ fromAlonzoScriptMap . txscripts'
+alonzoMint = yesMints $ fromAlonzoScriptMap . txscripts
 
 babbageMint
     :: Set SL.TxIn
@@ -160,7 +165,7 @@ babbageMint
     -> AlonzoTxWits BabbageEra
     -> (TokenMapWithScripts, TokenMapWithScripts)
 babbageMint refInps val wits =
-    let (map1, map2) = yesMints (fromBabbageScriptMap . txscripts') val wits
+    let (map1, map2) = yesMints (fromBabbageScriptMap . txscripts) val wits
     in  ( useReferenceScriptIfNeeded refInps map1
         , useReferenceScriptIfNeeded refInps map2
         )
@@ -171,7 +176,18 @@ conwayMint
     -> AlonzoTxWits ConwayEra
     -> (TokenMapWithScripts, TokenMapWithScripts)
 conwayMint refInps val wits =
-    let (map1, map2) = yesMints (fromConwayScriptMap . txscripts') val wits
+    let (map1, map2) = yesMints (fromConwayScriptMap . txscripts) val wits
+    in  ( useReferenceScriptIfNeeded refInps map1
+        , useReferenceScriptIfNeeded refInps map2
+        )
+
+dijkstraMint
+    :: Set SL.TxIn
+    -> MultiAsset
+    -> AlonzoTxWits DijkstraEra
+    -> (TokenMapWithScripts, TokenMapWithScripts)
+dijkstraMint refInps val wits =
+    let (map1, map2) = yesMints (fromDijkstraScriptMap . txscripts) val wits
     in  ( useReferenceScriptIfNeeded refInps map1
         , useReferenceScriptIfNeeded refInps map2
         )
@@ -251,7 +267,7 @@ fromAlonzoScriptMap =
     Map.map toAnyScript
         . Map.mapKeys (toWalletTokenPolicyId . SL.PolicyID)
   where
-    toAnyScript (Alonzo.TimelockScript script) =
+    toAnyScript (Alonzo.NativeScript script) =
         NativeScript (toWalletScript (const Policy) script) ViaSpending
     toAnyScript s@(Alonzo.PlutusScript script) =
         PlutusScript
@@ -268,7 +284,7 @@ fromLedgerScriptToAnyScriptBabbage
     :: Core.Script BabbageEra -> AnyScript
 fromLedgerScriptToAnyScriptBabbage = toAnyScript
   where
-    toAnyScript (Alonzo.TimelockScript script) =
+    toAnyScript (Alonzo.NativeScript script) =
         NativeScript (toWalletScript (const Policy) script) ViaSpending
     toAnyScript s@(Alonzo.PlutusScript script) =
         PlutusScript
@@ -285,7 +301,7 @@ fromLedgerScriptToAnyScriptConway
     :: Core.Script ConwayEra -> AnyScript
 fromLedgerScriptToAnyScriptConway = toAnyScript
   where
-    toAnyScript (Alonzo.TimelockScript script) =
+    toAnyScript (Alonzo.NativeScript script) =
         NativeScript (toWalletScript (const Policy) script) ViaSpending
     toAnyScript s@(Alonzo.PlutusScript script) =
         PlutusScript
@@ -310,6 +326,30 @@ fromConwayScriptMap
     -> Map TokenPolicyId AnyScript
 fromConwayScriptMap =
     Map.map fromLedgerScriptToAnyScriptConway
+        . Map.mapKeys (toWalletTokenPolicyId . SL.PolicyID)
+
+fromLedgerScriptToAnyScriptDijkstra
+    :: Core.Script DijkstraEra -> AnyScript
+fromLedgerScriptToAnyScriptDijkstra = toAnyScript
+  where
+    toAnyScript (Alonzo.NativeScript script) =
+        NativeScript (toWalletScript (const Policy) script) ViaSpending
+    toAnyScript s@(Alonzo.PlutusScript script) =
+        PlutusScript
+            ( PlutusScriptInfo
+                (toPlutusScriptInfo @DijkstraEra script)
+                (hashDijkstraScript s)
+            )
+            ViaSpending
+    hashDijkstraScript =
+        fromLedgerScriptHash
+            . Core.hashScript @DijkstraEra
+
+fromDijkstraScriptMap
+    :: Map SL.ScriptHash (Core.Script DijkstraEra)
+    -> Map TokenPolicyId AnyScript
+fromDijkstraScriptMap =
+    Map.map fromLedgerScriptToAnyScriptDijkstra
         . Map.mapKeys (toWalletTokenPolicyId . SL.PolicyID)
 
 fromLedgerScriptHash :: SL.ScriptHash -> ScriptHash

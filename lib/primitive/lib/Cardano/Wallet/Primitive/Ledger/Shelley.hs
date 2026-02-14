@@ -63,6 +63,7 @@ module Cardano.Wallet.Primitive.Ledger.Shelley
     , fromAlonzoPParams
     , fromBabbagePParams
     , fromConwayPParams
+    , fromDijkstraPParams
     , fromLedgerExUnits
     , fromCardanoAddress
     , fromShelleyTxIn
@@ -112,11 +113,9 @@ import Cardano.Api
     , InAnyCardanoEra (..)
     , IsCardanoEra (..)
     , NetworkId
-    , TxInMode (..)
-    )
-import Cardano.Api.Shelley
-    ( ShelleyBasedEra (..)
+    , ShelleyBasedEra (..)
     , ShelleyGenesis (..)
+    , TxInMode (..)
     )
 import Cardano.Crypto.Hash.Class
     ( Hash (UnsafeHash)
@@ -145,25 +144,18 @@ import Cardano.Ledger.BaseTypes
     ( strictMaybeToMaybe
     , urlToText
     )
-import Cardano.Ledger.Binary
-    ( EncCBORGroup
-    )
-import Cardano.Ledger.Core
-    ( Era (..)
-    , TxSeq
-    )
 import Cardano.Ledger.Mary
     ( MaryEra
-    )
-import Cardano.Ledger.PoolParams
-    ( PoolMetadata (..)
-    , PoolParams (..)
     )
 import Cardano.Ledger.Shelley
     ( ShelleyEra
     )
 import Cardano.Ledger.Shelley.Genesis
     ( fromNominalDiffTimeMicro
+    )
+import Cardano.Ledger.State
+    ( PoolMetadata (..)
+    , PoolParams (..)
     )
 import Cardano.Read.Ledger.Tx.Hash
     ( fromShelleyTxId
@@ -287,7 +279,7 @@ import Ouroboros.Network.NodeToClient
 import Prelude
 
 import qualified Cardano.Api as Cardano
-import qualified Cardano.Api.Shelley as Cardano
+import qualified Cardano.Api.Compatible.Certificate as Cardano.Compat
 import qualified Cardano.Crypto.Hash as Crypto
 import qualified Cardano.Ledger.Address as SL
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
@@ -297,8 +289,10 @@ import qualified Cardano.Ledger.BaseTypes as SL
 import qualified Cardano.Ledger.Coin as Ledger
 import qualified Cardano.Ledger.Conway as Ledger.Conway
 import qualified Cardano.Ledger.Credential as SL
+import qualified Cardano.Ledger.Dijkstra as Ledger.Dijkstra
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Ledger.Shelley.API as SLAPI
+import qualified Cardano.Ledger.State as Ledger
 import qualified Cardano.Protocol.TPraos.BHeader as SL
 import qualified Cardano.Slotting.Slot as Slotting
 import qualified Cardano.Wallet.Primitive.Ledger.Convert as Ledger
@@ -353,7 +347,6 @@ import qualified Ouroboros.Consensus.Protocol.Praos as Consensus
 import qualified Ouroboros.Consensus.Protocol.Praos.Header as Consensus
 import qualified Ouroboros.Consensus.Protocol.TPraos as Consensus
 import qualified Ouroboros.Consensus.Shelley.Ledger as O
-import qualified Ouroboros.Consensus.Shelley.Ledger.Query.Types as Consensus
 import qualified Ouroboros.Network.Block as O
 
 --------------------------------------------------------------------------------
@@ -404,20 +397,17 @@ toCardanoHash (W.Hash bytes) =
     OneEraHash $ toShort bytes
 
 getProducer
-    :: (Era era, EncCBORGroup (TxSeq era))
-    => ShelleyBlock (Consensus.TPraos StandardCrypto) era -> PoolId
+    :: ShelleyBlock (Consensus.TPraos StandardCrypto) era -> PoolId
 getProducer (ShelleyBlock (SL.Block (SL.BHeader header _) _) _) =
     fromPoolKeyHash $ SL.hashKey (SL.bheaderVk header)
 
 getBabbageProducer
-    :: (Era era, EncCBORGroup (TxSeq era))
-    => ShelleyBlock (Consensus.Praos StandardCrypto) era -> PoolId
+    :: ShelleyBlock (Consensus.Praos StandardCrypto) era -> PoolId
 getBabbageProducer (ShelleyBlock (SL.Block (Consensus.Header header _) _) _) =
     fromPoolKeyHash $ SL.hashKey (Consensus.hbVk header)
 
 getConwayProducer
-    :: (Era era, EncCBORGroup (TxSeq era))
-    => ShelleyBlock (Consensus.Praos StandardCrypto) era -> PoolId
+    :: ShelleyBlock (Consensus.Praos StandardCrypto) era -> PoolId
 getConwayProducer (ShelleyBlock (SL.Block (Consensus.Header header _) _) _) =
     fromPoolKeyHash $ SL.hashKey (Consensus.hbVk header)
 
@@ -447,6 +437,7 @@ toCardanoEra = \case
     BlockAlonzo{} -> AnyCardanoEra AlonzoEra
     BlockBabbage{} -> AnyCardanoEra BabbageEra
     BlockConway{} -> AnyCardanoEra ConwayEra
+    _ -> error "toCardanoEra: era not yet supported"
 
 -- NOTE: Unsafe conversion from Natural -> Word16
 fromMaxSize :: Word32 -> Quantity "byte" Word16
@@ -573,6 +564,31 @@ fromBabbagePParams eraInfo pp =
             Just $ executionUnitPricesFromPParams pp
         }
 
+fromDijkstraPParams
+    :: HasCallStack
+    => W.EraInfo Bound
+    -> Ledger.PParams Ledger.Dijkstra.DijkstraEra
+    -> W.ProtocolParameters
+fromDijkstraPParams eraInfo pp =
+    W.ProtocolParameters
+        { decentralizationLevel =
+            W.fromFederationPercentage $ Percentage.fromRationalClipped 0
+        , txParameters =
+            txParametersFromPParams
+                (W.TokenBundleMaxSize $ W.TxSize $ pp ^. ppMaxValSizeL)
+                (fromLedgerExUnits (pp ^. ppMaxTxExUnitsL))
+                pp
+        , desiredNumberOfStakePools = desiredNumberOfStakePoolsFromPParams pp
+        , stakeKeyDeposit = stakeKeyDepositFromPParams pp
+        , eras = fromBoundToEpochNo <$> eraInfo
+        , maximumCollateralInputCount =
+            intCastMaybe (pp ^. ppMaxCollateralInputsL)
+                & fromMaybe
+                    (error "Maximum count of collateral inputs exceeds 2^16")
+        , minimumCollateralPercentage = pp ^. ppCollateralPercentageL
+        , executionUnitPrices = Just $ executionUnitPricesFromPParams pp
+        }
+
 fromConwayPParams
     :: HasCallStack
     => W.EraInfo Bound
@@ -602,7 +618,8 @@ fromConwayPParams eraInfo pp =
 -- protocol parameters.
 decentralizationLevelFromPParams
     :: (Ledger.EraPParams era, Ledger.ProtVerAtMost era 6)
-    => Ledger.PParams era -> W.DecentralizationLevel
+    => Ledger.PParams era
+    -> W.DecentralizationLevel
 decentralizationLevelFromPParams pp =
     W.fromFederationPercentage $ fromUnitInterval $ pp ^. ppDL
 
@@ -764,14 +781,12 @@ fromPoolId :: SL.KeyHash 'SL.StakePool -> PoolId
 fromPoolId (SL.KeyHash x) = PoolId $ hashToBytes x
 
 fromPoolDistr
-    :: forall crypto
-     . ()
-    => Consensus.PoolDistr crypto
+    :: Ledger.PoolDistr
     -> Map PoolId Percentage
 fromPoolDistr =
-    Map.map (unsafeMkPercentage . Consensus.individualPoolStake)
+    Map.map (unsafeMkPercentage . Ledger.individualPoolStake)
         . Map.mapKeys fromPoolId
-        . Consensus.unPoolDistr
+        . Ledger.unPoolDistr
 
 -- NOTE: This function disregards results that are using staking keys
 fromNonMyopicMemberRewards
@@ -820,9 +835,10 @@ cardanoCertKeysForWitnesses
     -> [W.RewardAccount]
 cardanoCertKeysForWitnesses = \case
     Cardano.TxCertificatesNone -> []
-    Cardano.TxCertificates _era certs ->
-        map toRewardAccount
-            $ mapMaybe (Cardano.selectStakeCredentialWitness . fst)
+    Cardano.TxCertificates sbe certs ->
+        Cardano.shelleyBasedEraConstraints sbe
+            $ map toRewardAccount
+            $ mapMaybe (Cardano.Compat.selectStakeCredentialWitness . fst)
             $ IsList.toList certs
   where
     toRewardAccount = fromStakeCredential . Cardano.toShelleyStakeCredential

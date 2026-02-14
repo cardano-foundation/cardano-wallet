@@ -68,7 +68,7 @@ import qualified Data.Text as T
 --              addresses. Genesis file needs to be passed explicitly when
 --              starting the application.
 data NetworkDiscriminant = Mainnet | Testnet Nat
-    deriving (Typeable)
+    deriving ()
 
 class NetworkDiscriminantCheck k where
     networkDiscriminantCheck :: SNetworkId n -> Word8 -> Bool
