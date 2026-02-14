@@ -1,0 +1,47 @@
+name: Deploy coin-selection docs
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "docs/coin-selection/**"
+      - "lib/coin-selection/**"
+
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - run: pip install mkdocs-material pymdown-extensions
+      - run: mkdocs build --strict
+        working-directory: docs/coin-selection
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/coin-selection/site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
