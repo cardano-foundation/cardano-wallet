@@ -1,7 +1,7 @@
 cabal-version:      3.6
 build-type:         Simple
 name:               delta-table
-version:            0.2025.12.15
+version:            0.2026.2.15
 synopsis:           Work with database tables using delta types.
 description:        Please see README.md
 homepage:           https://github.com/cardano-foundation/cardano-wallet

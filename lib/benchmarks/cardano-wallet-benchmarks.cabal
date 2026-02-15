@@ -1,6 +1,6 @@
 cabal-version: 3.0
 name:          cardano-wallet-benchmarks
-version:       2025.12.15
+version:       2026.2.15
 synopsis:      Benchmarks of the cardano-wallet.
 homepage:      https://github.com/cardano-foundation/cardano-wallet
 license:       Apache-2.0
