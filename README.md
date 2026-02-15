@@ -151,7 +151,7 @@ WALLET_DB=./my-databases/wallet-db
 NODE_DB=./my-databases/node-db
 NODE_SOCKET_DIR=/tmp/cardano-node-socket
 NODE_CONFIGS=./my-configs-i-just-copied-from-a-malicious-site
-WALLET_TAG=2025.12.15
+WALLET_TAG=2026.2.15
 
 ```
 
