@@ -98,6 +98,7 @@ library
     Cardano.Wallet.Read.Tx.Gen.Babbage
     Cardano.Wallet.Read.Tx.Gen.Byron
     Cardano.Wallet.Read.Tx.Gen.Conway
+    Cardano.Wallet.Read.Tx.Gen.Dijkstra
     Cardano.Wallet.Read.Tx.Gen.Mary
     Cardano.Wallet.Read.Tx.Gen.Shelley
     Cardano.Wallet.Read.Tx.Gen.TxParameters
@@ -118,8 +119,8 @@ library
     Cardano.Wallet.Read.Tx.Validity
 
   build-depends:
-    , base                          >=4.14     && <5
-    , bytestring                    >=0.10.6   && <0.13
+    , base
+    , bytestring
     , cardano-crypto
     , cardano-crypto-class
     , cardano-crypto-wrapper
@@ -132,6 +133,7 @@ library
     , cardano-ledger-byron
     , cardano-ledger-conway
     , cardano-ledger-core
+    , cardano-ledger-dijkstra
     , cardano-ledger-mary
     , cardano-ledger-read
     , cardano-ledger-shelley
@@ -177,8 +179,8 @@ test-suite test
     , cardano-ledger-mary
     , cardano-ledger-read
     , cardano-wallet-read
-    , hspec                >=2.11.0   && <2.12
+    , hspec
     , lens
     , memory
-    , QuickCheck           >=2.14     && <2.16.0
-    , with-utf8            >=1.1.0.0  && <1.2
+    , QuickCheck
+    , with-utf8

@@ -45,7 +45,7 @@ library
     , http-api-data
     , HUnit
     , int-cast
-    , iohk-monitoring       >=0.2.0.0 && <0.3
+    , iohk-monitoring
     , lattices
     , monoid-subclasses
     , optparse-applicative

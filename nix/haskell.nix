@@ -191,8 +191,6 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: set-git-rev: rewrite-l
               # Enable Haskell Program Coverage for all local libraries
               # and test suites.
               doCoverage = coverage;
-
-              ghcOptions = [];
             });
           }
 

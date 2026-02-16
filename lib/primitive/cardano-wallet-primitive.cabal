@@ -45,7 +45,7 @@ library
     , bech32-th
     , binary
     , bytestring
-    , cardano-addresses             >=4.0.2     && <4.1
+    , cardano-addresses
     , cardano-api
     , cardano-binary
     , cardano-crypto
@@ -60,6 +60,7 @@ library
     , cardano-ledger-byron
     , cardano-ledger-conway
     , cardano-ledger-core
+    , cardano-ledger-dijkstra
     , cardano-ledger-mary
     , cardano-ledger-read
     , cardano-ledger-shelley
@@ -85,7 +86,7 @@ library
     , generics-sop
     , hashable
     , int-cast
-    , iohk-monitoring               >=0.2.0.0   && <0.3
+    , iohk-monitoring
     , lattices
     , lens
     , memory
@@ -229,10 +230,10 @@ test-suite test
     , base58-bytestring
     , binary
     , bytestring
-    , cardano-addresses               >=4.0.2     && <4.1
+    , cardano-addresses
     , cardano-api
     , cardano-crypto-class
-    , cardano-ledger-allegra:testlib  >=1.7.0.0   && <1.8
+    , cardano-ledger-allegra:testlib
     , cardano-ledger-api
     , cardano-ledger-babbage
     , cardano-ledger-core
@@ -253,7 +254,7 @@ test-suite test
     , generic-lens
     , hspec
     , hspec-core
-    , iohk-monitoring                 >=0.2.0.0   && <0.3
+    , iohk-monitoring
     , lens
     , memory
     , ouroboros-consensus
