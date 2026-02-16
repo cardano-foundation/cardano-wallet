@@ -38,9 +38,6 @@ import Data.Data
 import Data.Hashable
     ( Hashable
     )
-import Data.Typeable
-    ( Typeable
-    )
 import GHC.Exts
     ( IsList (fromList, toList)
     )
@@ -63,7 +60,7 @@ import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as W
 newtype ApiWalletAssets = ApiWalletAssets
     { getApiWalletAssets :: [ApiWalletAsset]
     }
-    deriving (Data, Eq, Generic, Ord, Show, Typeable)
+    deriving (Data, Eq, Generic, Ord, Show)
     deriving newtype
         (Hashable, IsList, Semigroup, Monoid, FromJSON, ToJSON)
     deriving anyclass (NFData)

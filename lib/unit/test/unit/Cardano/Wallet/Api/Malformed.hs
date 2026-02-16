@@ -122,9 +122,6 @@ import Data.String
 import Data.Text
     ( Text
     )
-import Data.Typeable
-    ( Typeable
-    )
 import GHC.TypeLits
     ( Symbol
     )
@@ -146,14 +143,11 @@ newtype ExpectedError = ExpectedError String
     deriving newtype (IsString)
 
 newtype PathParam (t :: *) = PathParam Text
-    deriving (Typeable)
 
 newtype BodyParam (t :: *) = BodyParam ByteString
-    deriving (Typeable)
 
 newtype Header (headerName :: Symbol) (contentType :: *)
     = Header BS.ByteString
-    deriving (Typeable)
 
 --
 -- Class Declaration

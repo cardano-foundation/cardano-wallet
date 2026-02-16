@@ -13,9 +13,6 @@ where
 import Control.Monad.Fix
     ( fix
     )
-import Data.Typeable
-    ( Typeable
-    )
 import Lucid
     ( Html
     , renderBS
@@ -46,7 +43,7 @@ import qualified Data.ByteString.Lazy as BL
 import qualified Network.HTTP.Media as M
 
 -- | Imitate the Servant JSON and OctetStream implementations
-data EventStream deriving (Typeable)
+data EventStream
 
 instance Accept EventStream where
     contentType _ = "text" M.// "event-stream"

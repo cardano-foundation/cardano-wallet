@@ -844,12 +844,12 @@ data ApiAddressWithPath (n :: NetworkDiscriminant) = ApiAddressWithPath
     , state :: !(ApiT AddressState)
     , derivationPath :: NonEmpty (ApiT DerivationIndex)
     }
-    deriving (Eq, Generic, Show, Typeable)
+    deriving (Eq, Generic, Show)
     deriving (FromJSON, ToJSON) via DefaultRecord (ApiAddressWithPath n)
     deriving anyclass (NFData)
 
 newtype ApiCosignerIndex = ApiCosignerIndex Word8
-    deriving stock (Data, Eq, Generic, Show, Typeable)
+    deriving stock (Data, Eq, Generic, Show)
     deriving newtype (FromJSON, ToJSON)
     deriving anyclass (NFData)
 
@@ -864,7 +864,7 @@ data ApiCredential
 newtype ApiCredentialType = ApiCredentialType
     { unApiCredentialType :: CredentialType
     }
-    deriving (Data, Eq, Generic, Show, Typeable)
+    deriving (Data, Eq, Generic, Show)
     deriving (FromJSON, ToJSON) via DefaultSum CredentialType
     deriving anyclass (NFData)
 
@@ -895,14 +895,14 @@ data AnyAddress = AnyAddress
 data ApiSelectCoinsData (n :: NetworkDiscriminant)
     = ApiSelectForPayment (ApiSelectCoinsPayments n)
     | ApiSelectForDelegation ApiSelectCoinsAction
-    deriving (Eq, Generic, Show, Typeable)
+    deriving (Eq, Generic, Show)
 
 data ApiSelectCoinsPayments (n :: NetworkDiscriminant) = ApiSelectCoinsPayments
     { payments :: NonEmpty (ApiTxOutput n)
     , withdrawal :: !(Maybe ApiWithdrawalPostData)
     , metadata :: !(Maybe (ApiT TxMetadata))
     }
-    deriving (Eq, Generic, Show, Typeable)
+    deriving (Eq, Generic, Show)
     deriving
         (FromJSON, ToJSON)
         via DefaultRecord (ApiSelectCoinsPayments n)
@@ -929,7 +929,7 @@ data ApiCoinSelection (n :: NetworkDiscriminant) = ApiCoinSelection
     , depositsReturned :: ![ApiAmount]
     , metadata :: !(Maybe ApiBase64)
     }
-    deriving (Eq, Generic, Show, Typeable)
+    deriving (Eq, Generic, Show)
     deriving (FromJSON, ToJSON) via DefaultRecord (ApiCoinSelection n)
     deriving anyclass (NFData)
 
@@ -939,7 +939,7 @@ data ApiCoinSelectionChange (n :: NetworkDiscriminant) = ApiCoinSelectionChange
     , assets :: !ApiWalletAssets
     , derivationPath :: NonEmpty (ApiT DerivationIndex)
     }
-    deriving (Eq, Generic, Show, Typeable)
+    deriving (Eq, Generic, Show)
     deriving
         (FromJSON, ToJSON)
         via DefaultRecord (ApiCoinSelectionChange n)
@@ -950,7 +950,7 @@ data ApiCoinSelectionOutput (n :: NetworkDiscriminant) = ApiCoinSelectionOutput
     , amount :: !ApiAmount
     , assets :: !ApiWalletAssets
     }
-    deriving (Eq, Ord, Generic, Show, Typeable)
+    deriving (Eq, Ord, Generic, Show)
     deriving
         (FromJSON, ToJSON)
         via DefaultRecord (ApiCoinSelectionOutput n)
@@ -964,7 +964,7 @@ data ApiCoinSelectionCollateral (n :: NetworkDiscriminant)
     , derivationPath :: NonEmpty (ApiT DerivationIndex)
     , amount :: !ApiAmount
     }
-    deriving (Eq, Generic, Show, Typeable)
+    deriving (Eq, Generic, Show)
     deriving
         (FromJSON, ToJSON)
         via DefaultRecord (ApiCoinSelectionCollateral n)
@@ -1250,7 +1250,7 @@ data ApiConstructTransaction (n :: NetworkDiscriminant) = ApiConstructTransactio
     , coinSelection :: !(ApiCoinSelection n)
     , fee :: !ApiAmount
     }
-    deriving (Eq, Generic, Show, Typeable)
+    deriving (Eq, Generic, Show)
     deriving anyclass (NFData)
 
 -- | Index of the stake key.
@@ -1295,7 +1295,7 @@ data ApiConstructTransactionData (n :: NetworkDiscriminant)
     , referencePolicyScriptTemplate :: !(Maybe (ApiT (Script Cosigner)))
     , encoding :: !(Maybe ApiSealedTxEncoding)
     }
-    deriving (Eq, Generic, Show, Typeable)
+    deriving (Eq, Generic, Show)
     deriving
         (FromJSON, ToJSON)
         via DefaultRecord (ApiConstructTransactionData n)
@@ -1304,7 +1304,7 @@ data ApiConstructTransactionData (n :: NetworkDiscriminant)
 newtype ApiPaymentDestination (n :: NetworkDiscriminant)
     = -- | Pay amounts to one or more addresses.
       ApiPaymentAddresses (NonEmpty (AddressAmount (ApiAddressIdT n)))
-    deriving (Eq, Generic, Show, Typeable)
+    deriving (Eq, Generic, Show)
     deriving anyclass (NFData)
 
 -- | Times where transactions are valid.
@@ -1362,7 +1362,7 @@ data PostTransactionOldData (n :: NetworkDiscriminant) = PostTransactionOldData
     , metadata :: !(Maybe TxMetadataWithSchema)
     , timeToLive :: !(Maybe (Quantity "second" NominalDiffTime))
     }
-    deriving (Eq, Generic, Show, Typeable)
+    deriving (Eq, Generic, Show)
     deriving
         (FromJSON, ToJSON)
         via DefaultRecord (PostTransactionOldData n)
@@ -1375,7 +1375,7 @@ data PostTransactionFeeOldData (n :: NetworkDiscriminant)
     , metadata :: !(Maybe TxMetadataWithSchema)
     , timeToLive :: !(Maybe (Quantity "second" NominalDiffTime))
     }
-    deriving (Eq, Generic, Show, Typeable)
+    deriving (Eq, Generic, Show)
     deriving
         (FromJSON, ToJSON)
         via DefaultRecord (PostTransactionFeeOldData n)
@@ -1397,7 +1397,7 @@ data ApiExternalInput (n :: NetworkDiscriminant) = ApiExternalInput
     , assets :: !ApiWalletAssets
     , datum :: !(Maybe (ApiT Write.DatumHash))
     }
-    deriving (Eq, Generic, Show, Typeable)
+    deriving (Eq, Generic, Show)
     deriving (FromJSON, ToJSON) via DefaultRecord (ApiExternalInput n)
     deriving anyclass (NFData)
 
@@ -1591,7 +1591,7 @@ data ApiTransaction (n :: NetworkDiscriminant) = ApiTransaction
     , scriptIntegrity :: Maybe (ApiT (Hash "ScriptIntegrity"))
     , extraSignatures :: [ApiT (Hash "ExtraSignature")]
     }
-    deriving (Eq, Generic, Show, Typeable)
+    deriving (Eq, Generic, Show)
     deriving (FromJSON, ToJSON) via DefaultRecord (ApiTransaction n)
     deriving anyclass (NFData)
 
@@ -1621,14 +1621,14 @@ data ApiTxInput (n :: NetworkDiscriminant) = ApiTxInput
     { source :: !(Maybe (ApiTxOutput n))
     , input :: !(ApiT TxIn)
     }
-    deriving (Eq, Generic, Show, Typeable)
+    deriving (Eq, Generic, Show)
     deriving anyclass (NFData)
 
 data ApiTxCollateral (n :: NetworkDiscriminant) = ApiTxCollateral
     { source :: !(Maybe (AddressAmountNoAssets (ApiAddress n)))
     , input :: !(ApiT TxIn)
     }
-    deriving (Eq, Generic, Show, Typeable)
+    deriving (Eq, Generic, Show)
     deriving anyclass (NFData)
 
 data AddressAmountNoAssets addr = AddressAmountNoAssets
@@ -1752,7 +1752,7 @@ newtype ApiWalletMigrationPlanPostData (n :: NetworkDiscriminant)
     = ApiWalletMigrationPlanPostData
     { addresses :: NonEmpty (ApiAddress n)
     }
-    deriving (Eq, Generic, Typeable)
+    deriving (Eq, Generic)
     deriving
         (FromJSON, ToJSON)
         via DefaultRecord (ApiWalletMigrationPlanPostData n)
@@ -1764,7 +1764,7 @@ data ApiWalletMigrationPostData (n :: NetworkDiscriminant) (s :: Symbol)
     { passphrase :: !(ApiT (Passphrase s))
     , addresses :: !(NonEmpty (ApiAddress n))
     }
-    deriving (Eq, Generic, Show, Typeable)
+    deriving (Eq, Generic, Show)
     deriving
         (FromJSON, ToJSON)
         via DefaultRecord (ApiWalletMigrationPostData n s)
@@ -1773,7 +1773,7 @@ data ApiWalletMigrationPostData (n :: NetworkDiscriminant) (s :: Symbol)
 newtype ApiPutAddressesData (n :: NetworkDiscriminant) = ApiPutAddressesData
     { addresses :: [ApiAddress n]
     }
-    deriving (Eq, Generic, Typeable)
+    deriving (Eq, Generic)
     deriving (FromJSON, ToJSON) via DefaultRecord (ApiPutAddressesData n)
     deriving anyclass (NFData)
     deriving (Show) via (Quiet (ApiPutAddressesData n))
@@ -1794,7 +1794,7 @@ data ApiWalletMigrationPlan (n :: NetworkDiscriminant) = ApiWalletMigrationPlan
     , balanceLeftover :: ApiWalletMigrationBalance
     , balanceSelected :: ApiWalletMigrationBalance
     }
-    deriving (Eq, Generic, Show, Typeable)
+    deriving (Eq, Generic, Show)
     deriving
         (FromJSON, ToJSON)
         via DefaultRecord (ApiWalletMigrationPlan n)
@@ -3652,3 +3652,17 @@ instance FromJSON (ApiT (Script Cosigner)) where
     parseJSON = fmap ApiT . parseJSON
 instance ToJSON (ApiT (Script Cosigner)) where
     toJSON = toJSON . getApiT
+
+type instance ApiAddressT Aeson.Value = Aeson.Value
+type instance ApiStakeKeysT Aeson.Value = Aeson.Value
+type instance ApiAddressIdT Aeson.Value = Text
+type instance ApiCoinSelectionT Aeson.Value = Aeson.Value
+type instance ApiSelectCoinsDataT Aeson.Value = Aeson.Value
+type instance ApiTransactionT Aeson.Value = Aeson.Value
+type instance ApiConstructTransactionT Aeson.Value = Aeson.Value
+type instance ApiConstructTransactionDataT Aeson.Value = Aeson.Value
+type instance PostTransactionOldDataT Aeson.Value = Aeson.Value
+type instance PostTransactionFeeOldDataT Aeson.Value = Aeson.Value
+type instance ApiPutAddressesDataT Aeson.Value = Aeson.Value
+type instance ApiBalanceTransactionPostDataT Aeson.Value = Aeson.Value
+type instance ApiDecodedTransactionT Aeson.Value = Aeson.Value
