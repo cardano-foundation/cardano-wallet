@@ -13,7 +13,6 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
-{-# OPTIONS_GHC -Wno-orphans #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -59,7 +58,6 @@ import Cardano.Wallet.Api.Types
     , ApiBalanceTransactionPostDataT
     , ApiByronWallet
     , ApiBytesT (..)
-    , ApiCoinSelectionT
     , ApiConstructTransactionDataT
     , ApiConstructTransactionT
     , ApiDecodeTransactionPostData
@@ -71,10 +69,8 @@ import Cardano.Wallet.Api.Types
     , ApiPoolSpecifier
     , ApiPostRandomAddressData
     , ApiPutAddressesDataT
-    , ApiSelectCoinsDataT
     , ApiSerialisedTransaction (..)
     , ApiSignTransactionPostData
-    , ApiStakeKeysT
     , ApiT (..)
     , ApiTransactionT
     , ApiTxId (..)
@@ -484,21 +480,3 @@ networkClient =
             , networkParameters = _networkParameters
             , networkClock = _networkClock
             }
-
---
--- Type families
---
-
-type instance ApiAddressT Aeson.Value = Aeson.Value
-type instance ApiStakeKeysT Aeson.Value = Aeson.Value
-type instance ApiAddressIdT Aeson.Value = Text
-type instance ApiCoinSelectionT Aeson.Value = Aeson.Value
-type instance ApiSelectCoinsDataT Aeson.Value = Aeson.Value
-type instance ApiTransactionT Aeson.Value = Aeson.Value
-type instance ApiConstructTransactionT Aeson.Value = Aeson.Value
-type instance ApiConstructTransactionDataT Aeson.Value = Aeson.Value
-type instance PostTransactionOldDataT Aeson.Value = Aeson.Value
-type instance PostTransactionFeeOldDataT Aeson.Value = Aeson.Value
-type instance ApiPutAddressesDataT Aeson.Value = Aeson.Value
-type instance ApiBalanceTransactionPostDataT Aeson.Value = Aeson.Value
-type instance ApiDecodedTransactionT Aeson.Value = Aeson.Value

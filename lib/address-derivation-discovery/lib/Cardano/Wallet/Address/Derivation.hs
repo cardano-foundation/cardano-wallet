@@ -227,7 +227,7 @@ data Role
     = UtxoExternal
     | UtxoInternal
     | MutableAccount
-    deriving (Generic, Typeable, Show, Eq, Ord, Bounded)
+    deriving (Generic, Show, Eq, Ord, Bounded)
 
 instance NFData Role
 

@@ -108,9 +108,6 @@ import Data.Text
 import Data.Time.Clock
     ( UTCTime
     )
-import Data.Typeable
-    ( Typeable
-    )
 import Data.Word
     ( Word32
     )
@@ -259,7 +256,7 @@ data ApiErrorInfo
     | TranslationByronTxOutInContext
     | BalanceTxInlinePlutusV3ScriptNotSupportedInBabbage
     | UnsupportedEra !ApiErrorUnsupportedEra
-    deriving (Eq, Generic, Show, Data, Typeable)
+    deriving (Eq, Generic, Show, Data)
     deriving anyclass (NFData)
 
 instance FromJSON ApiErrorInfo where
@@ -284,7 +281,7 @@ data ApiErrorUnsupportedEra = ApiErrorUnsupportedEra
     , supportedEras :: !(Set ApiEra)
     -- ^ The set of eras that we currently support.
     }
-    deriving (Data, Eq, Generic, Show, Typeable)
+    deriving (Data, Eq, Generic, Show)
     deriving (FromJSON, ToJSON) via DefaultRecord ApiErrorUnsupportedEra
     deriving anyclass (NFData)
 
@@ -294,7 +291,7 @@ data ApiErrorSharedWalletNoSuchCosigner = ApiErrorSharedWalletNoSuchCosigner
     , credentialType
         :: !ApiCredentialType
     }
-    deriving (Data, Eq, Generic, Show, Typeable)
+    deriving (Data, Eq, Generic, Show)
     deriving
         (FromJSON, ToJSON)
         via DefaultRecord ApiErrorSharedWalletNoSuchCosigner
@@ -308,7 +305,7 @@ data ApiErrorTxOutputLovelaceInsufficient = ApiErrorTxOutputLovelaceInsufficient
     , txOutputLovelaceRequiredMinimum
         :: !ApiAmount
     }
-    deriving (Data, Eq, Generic, Show, Typeable)
+    deriving (Data, Eq, Generic, Show)
     deriving
         (FromJSON, ToJSON)
         via DefaultRecord ApiErrorTxOutputLovelaceInsufficient
@@ -327,7 +324,7 @@ data ApiErrorOutputTokenQuantityExceedsLimit
     , maxQuantity
         :: !TokenQuantity
     }
-    deriving (Data, Eq, Generic, Show, Typeable)
+    deriving (Data, Eq, Generic, Show)
     deriving
         (FromJSON, ToJSON)
         via DefaultRecord ApiErrorOutputTokenQuantityExceedsLimit
@@ -340,7 +337,7 @@ data ApiErrorOutputTokenBundleSizeExceedsLimit
     , bundleSize
         :: !Natural
     }
-    deriving (Data, Eq, Generic, Show, Typeable)
+    deriving (Data, Eq, Generic, Show)
     deriving
         (FromJSON, ToJSON)
         via DefaultRecord ApiErrorOutputTokenBundleSizeExceedsLimit
@@ -353,7 +350,7 @@ data ApiErrorBalanceTxUnderestimatedFee = ApiErrorBalanceTxUnderestimatedFee
     , candidateTxHex :: Text
     , candidateTxReadable :: Text
     }
-    deriving (Data, Eq, Generic, Show, Typeable)
+    deriving (Data, Eq, Generic, Show)
     deriving
         (FromJSON, ToJSON)
         via DefaultRecord ApiErrorBalanceTxUnderestimatedFee
@@ -363,7 +360,7 @@ data ApiErrorNodeNotYetInRecentEra = ApiErrorNodeNotYetInRecentEra
     { nodeEra :: ApiEra
     , supportedRecentEras :: Set ApiEra
     }
-    deriving (Data, Eq, Generic, Show, Typeable)
+    deriving (Data, Eq, Generic, Show)
     deriving
         (FromJSON, ToJSON)
         via DefaultRecord ApiErrorNodeNotYetInRecentEra
@@ -374,7 +371,7 @@ data ApiErrorMissingWitnessesInTransaction
     { expectedNumberOfKeyWits :: !Natural
     , detectedNumberOfKeyWits :: !Natural
     }
-    deriving (Data, Eq, Generic, Show, Typeable)
+    deriving (Data, Eq, Generic, Show)
     deriving
         (FromJSON, ToJSON)
         via DefaultRecord ApiErrorMissingWitnessesInTransaction
@@ -383,7 +380,7 @@ data ApiErrorMissingWitnessesInTransaction
 data ApiErrorNotEnoughMoney = ApiErrorNotEnoughMoney
     { shortfall :: !ApiErrorNotEnoughMoneyShortfall
     }
-    deriving (Data, Eq, Generic, Show, Typeable)
+    deriving (Data, Eq, Generic, Show)
     deriving (FromJSON, ToJSON) via DefaultRecord ApiErrorNotEnoughMoney
     deriving anyclass (NFData)
 
@@ -391,7 +388,7 @@ data ApiErrorNotEnoughMoneyShortfall = ApiErrorNotEnoughMoneyShortfall
     { ada :: !ApiAmount
     , assets :: !ApiWalletAssets
     }
-    deriving (Data, Eq, Generic, Show, Typeable)
+    deriving (Data, Eq, Generic, Show)
     deriving
         (FromJSON, ToJSON)
         via DefaultRecord ApiErrorNotEnoughMoneyShortfall
@@ -400,21 +397,21 @@ data ApiErrorNotEnoughMoneyShortfall = ApiErrorNotEnoughMoneyShortfall
 data ApiErrorNoSuchPool = ApiErrorNoSuchPool
     { poolId :: !PoolId
     }
-    deriving (Data, Eq, Generic, Show, Typeable)
+    deriving (Data, Eq, Generic, Show)
     deriving (FromJSON, ToJSON) via DefaultRecord ApiErrorNoSuchPool
     deriving anyclass (NFData)
 
 data ApiErrorNoSuchWallet = ApiErrorNoSuchWallet
     { walletId :: !(ApiT WalletId)
     }
-    deriving (Data, Eq, Generic, Show, Typeable)
+    deriving (Data, Eq, Generic, Show)
     deriving (FromJSON, ToJSON) via DefaultRecord ApiErrorNoSuchWallet
     deriving anyclass (NFData)
 
 data ApiErrorNoSuchTransaction = ApiErrorNoSuchTransaction
     { transactionId :: !(ApiT (Hash "Tx"))
     }
-    deriving (Data, Eq, Generic, Show, Typeable)
+    deriving (Data, Eq, Generic, Show)
     deriving
         (FromJSON, ToJSON)
         via DefaultRecord ApiErrorNoSuchTransaction
@@ -423,7 +420,7 @@ data ApiErrorNoSuchTransaction = ApiErrorNoSuchTransaction
 data ApiErrorTransactionAlreadyInLedger = ApiErrorTransactionAlreadyInLedger
     { transactionId :: !(ApiT (Hash "Tx"))
     }
-    deriving (Data, Eq, Generic, Show, Typeable)
+    deriving (Data, Eq, Generic, Show)
     deriving
         (FromJSON, ToJSON)
         via DefaultRecord ApiErrorTransactionAlreadyInLedger
@@ -433,7 +430,7 @@ data ApiErrorStartTimeLaterThanEndTime = ApiErrorStartTimeLaterThanEndTime
     { startTime :: UTCTime
     , endTime :: UTCTime
     }
-    deriving (Data, Eq, Generic, Show, Typeable)
+    deriving (Data, Eq, Generic, Show)
     deriving
         (FromJSON, ToJSON)
         via DefaultRecord ApiErrorStartTimeLaterThanEndTime
@@ -442,7 +439,7 @@ data ApiErrorStartTimeLaterThanEndTime = ApiErrorStartTimeLaterThanEndTime
 data ApiErrorWrongEncryptionPassphrase = ApiErrorWrongEncryptionPassphrase
     { walletId :: !(ApiT WalletId)
     }
-    deriving (Data, Eq, Generic, Show, Typeable)
+    deriving (Data, Eq, Generic, Show)
     deriving
         (FromJSON, ToJSON)
         via DefaultRecord ApiErrorWrongEncryptionPassphrase

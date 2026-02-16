@@ -26,7 +26,6 @@ import Data.Maybe
     )
 import Data.Typeable
     ( Proxy (..)
-    , Typeable
     )
 import GHC.Base
     ( Symbol
@@ -44,7 +43,7 @@ import Prelude
 --
 -- The number of items permitted in the array is dependent on the wrapped type.
 newtype ApiAsArray (s :: Symbol) a = ApiAsArray a
-    deriving (Eq, Generic, Show, Typeable)
+    deriving (Eq, Generic, Show)
     deriving newtype (Monoid, Semigroup)
     deriving anyclass (NFData)
 

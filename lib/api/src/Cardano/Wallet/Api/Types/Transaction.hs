@@ -136,9 +136,6 @@ import Data.Text
 import Data.Text.Class
     ( toText
     )
-import Data.Typeable
-    ( Typeable
-    )
 import Data.Word
     ( Word32
     , Word8
@@ -211,7 +208,7 @@ data ApiDecodedTransaction (n :: NetworkDiscriminant) = ApiDecodedTransaction
     , validityInterval :: Maybe ApiValidityIntervalExplicit
     , witnessCount :: ApiWitnessCount
     }
-    deriving (Eq, Generic, Show, Typeable)
+    deriving (Eq, Generic, Show)
     deriving
         (FromJSON, ToJSON)
         via DefaultRecord (ApiDecodedTransaction n)
@@ -231,7 +228,7 @@ data ApiWalletInput (n :: NetworkDiscriminant) = ApiWalletInput
     , amount :: ApiAmount
     , assets :: ApiWalletAssets
     }
-    deriving (Eq, Generic, Show, Typeable)
+    deriving (Eq, Generic, Show)
     deriving (FromJSON, ToJSON) via DefaultRecord (ApiWalletInput n)
     deriving anyclass (NFData)
 
@@ -255,7 +252,7 @@ mkApiWitnessCount WitnessCount{verificationKey, scripts, bootstrap} =
 data ApiTxInputGeneral (n :: NetworkDiscriminant)
     = ExternalInput (ApiT TxIn)
     | WalletInput (ApiWalletInput n)
-    deriving (Eq, Generic, Show, Typeable)
+    deriving (Eq, Generic, Show)
     deriving anyclass (NFData)
 
 instance HasSNetworkId n => FromJSON (ApiTxInputGeneral n) where
@@ -280,7 +277,7 @@ instance HasSNetworkId n => ToJSON (ApiTxInputGeneral n) where
     toJSON (WalletInput content) = toJSON content
 
 data ResourceContext = External | Our
-    deriving (Eq, Generic, Show, Typeable)
+    deriving (Eq, Generic, Show)
     deriving anyclass (NFData)
 
 data ApiWithdrawalGeneral (n :: NetworkDiscriminant) = ApiWithdrawalGeneral
@@ -297,7 +294,7 @@ data ApiWalletOutput (n :: NetworkDiscriminant) = ApiWalletOutput
     , assets :: ApiWalletAssets
     , derivationPath :: NonEmpty (ApiT DerivationIndex)
     }
-    deriving (Eq, Generic, Show, Typeable)
+    deriving (Eq, Generic, Show)
     deriving (FromJSON, ToJSON) via DefaultRecord (ApiWalletOutput n)
     deriving anyclass (NFData)
 
@@ -332,7 +329,7 @@ type ApiTxOutput n = AddressAmount (ApiAddress n)
 data ApiTxOutputGeneral (n :: NetworkDiscriminant)
     = ExternalOutput (ApiTxOutput n)
     | WalletOutput (ApiWalletOutput n)
-    deriving (Eq, Generic, Show, Typeable)
+    deriving (Eq, Generic, Show)
     deriving anyclass (NFData)
 
 instance HasSNetworkId n => FromJSON (ApiTxOutputGeneral n) where

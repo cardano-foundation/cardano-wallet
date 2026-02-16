@@ -37,9 +37,6 @@ import Data.Data
 import Data.Hashable
     ( Hashable
     )
-import Data.Typeable
-    ( Typeable
-    )
 import GHC.Generics
     ( Generic
     )
@@ -56,6 +53,6 @@ data ApiWalletAsset = ApiWalletAsset
     , assetName :: !(ApiT W.AssetName)
     , quantity :: !Natural
     }
-    deriving (Data, Eq, Generic, Hashable, Ord, Show, Typeable)
+    deriving (Data, Eq, Generic, Hashable, Ord, Show)
     deriving (FromJSON, ToJSON) via DefaultRecord ApiWalletAsset
     deriving anyclass (NFData)
