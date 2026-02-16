@@ -47,7 +47,11 @@ import Prelude
 
 import qualified Data.Map.Strict as Map
 
-data PlutusVersion = PlutusVersionV1 | PlutusVersionV2 | PlutusVersionV3
+data PlutusVersion
+    = PlutusVersionV1
+    | PlutusVersionV2
+    | PlutusVersionV3
+    | PlutusVersionV4
     deriving (Eq, Generic, Show)
     deriving anyclass (NFData)
 
@@ -55,19 +59,21 @@ instance ToText PlutusVersion where
     toText PlutusVersionV1 = "v1"
     toText PlutusVersionV2 = "v2"
     toText PlutusVersionV3 = "v3"
+    toText PlutusVersionV4 = "v4"
 
 instance FromText PlutusVersion where
     fromText txt = case txt of
         "v1" -> Right PlutusVersionV1
         "v2" -> Right PlutusVersionV2
         "v3" -> Right PlutusVersionV3
+        "v4" -> Right PlutusVersionV4
         _ ->
             Left
                 $ TextDecodingError
                 $ unwords
                     [ "I couldn't parse the given plutus version."
-                    , "I am expecting one of the words 'v1' or"
-                    , "'v2'."
+                    , "I am expecting one of the words 'v1', 'v2',"
+                    , "'v3' or 'v4'."
                     ]
 
 data PlutusScriptInfo = PlutusScriptInfo

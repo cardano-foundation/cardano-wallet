@@ -37,11 +37,13 @@ import Cardano.Wallet.Primitive.Ledger.Convert
 import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Outputs
     ( fromBabbageTxOut
     , fromConwayTxOut
+    , fromDijkstraTxOut
     )
 import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Scripts
     ( alonzoAnyExplicitScript
     , babbageAnyExplicitScript
     , conwayAnyExplicitScript
+    , dijkstraAnyExplicitScript
     )
 import Cardano.Wallet.Primitive.Types.AnyExplicitScripts
     ( AnyExplicitScript (..)
@@ -67,6 +69,7 @@ import Cardano.Wallet.Read
     , Alonzo
     , Babbage
     , Conway
+    , Dijkstra
     , Era (..)
     , IsEra (..)
     , Mary
@@ -107,6 +110,7 @@ getWitnessCount = case theEra @era of
     Alonzo -> alonzoWitnessCount . getEraWitnesses
     Babbage -> babbageWitnessCount
     Conway -> conwayWitnessCount
+    Dijkstra -> dijkstraWitnessCount
 
 addrWits :: L.EraTxWits era => L.TxWits era -> Word8
 addrWits w = fromIntegral $ Set.size $ w ^. addrTxWitsL
@@ -231,5 +235,48 @@ conwayWitnessCount tx witCtx =
             snd (fromConwayTxOut txout) <&> \script ->
                 ( ViaReferenceInput (ReferenceInput (TxIn txId' ix))
                 , hashScript @Conway script
+                , script
+                )
+
+dijkstraWitnessCount :: Tx Dijkstra -> WitnessCountCtx -> WitnessCount
+dijkstraWitnessCount tx witCtx =
+    mkAnyEraWitnessCount w
+        $ Map.elems
+        $ Map.union anyScriptsFromWits anyScriptsFromTxOuts
+  where
+    Outputs o = getEraOutputs tx
+    txId' = W.Hash $ getEraTxHash tx
+    Witnesses w = getEraWitnesses tx
+
+    anyScriptsFromWits :: Map TokenPolicyId AnyExplicitScript
+    anyScriptsFromWits =
+        Map.fromList
+            [ dijkstraAnyExplicitScript witCtx (ViaSpending, scriptH, script)
+            | (scriptH, script) <- Map.toList (w ^. scriptTxWitsL)
+            ]
+
+    anyScriptsFromTxOuts :: Map TokenPolicyId AnyExplicitScript
+    anyScriptsFromTxOuts =
+        Map.fromList
+            [ dijkstraAnyExplicitScript witCtx ledgerScript
+            | Just ledgerScript <-
+                zipWith
+                    scriptWithHashIx
+                    [0 ..]
+                    (o ^.. folded)
+            ]
+      where
+        scriptWithHashIx
+            :: Word32
+            -> BabbageTxOut Dijkstra
+            -> Maybe
+                ( ScriptReference
+                , ScriptHash
+                , AlonzoScript Dijkstra
+                )
+        scriptWithHashIx ix txout =
+            snd (fromDijkstraTxOut txout) <&> \script ->
+                ( ViaReferenceInput (ReferenceInput (TxIn txId' ix))
+                , hashScript @Dijkstra script
                 , script
                 )
