@@ -13,7 +13,8 @@ module Cardano.Read.Ledger.Tx.ExtraSigs
     ) where
 
 import Cardano.Ledger.Alonzo.TxBody
-    ( reqSignerHashesTxBodyL
+    ( reqSignerHashesTxBodyG
+    , reqSignerHashesTxBodyL
     )
 import Cardano.Ledger.Core
     ( bodyTxL
@@ -28,6 +29,7 @@ import Cardano.Read.Ledger.Eras
     , Babbage
     , Byron
     , Conway
+    , Dijkstra
     , Era (..)
     , IsEra (..)
     , Mary
@@ -60,6 +62,7 @@ type family ExtraSigsType era where
     ExtraSigsType Alonzo = Set (KeyHash 'Witness)
     ExtraSigsType Babbage = Set (KeyHash 'Witness)
     ExtraSigsType Conway = Set (KeyHash 'Witness)
+    ExtraSigsType Dijkstra = Set (KeyHash 'Witness)
 
 -- | Era-indexed required extra signers wrapper.
 newtype ExtraSigs era = ExtraSigs (ExtraSigsType era)
@@ -79,7 +82,11 @@ getEraExtraSigs = case theEra @era of
     Alonzo -> mkExtraSignatures
     Babbage -> mkExtraSignatures
     Conway -> mkExtraSignatures
+    Dijkstra -> mkExtraSignaturesDijkstra
   where
     mkExtraSignatures = onTx $ \tx ->
         ExtraSigs
             $ tx ^. bodyTxL . reqSignerHashesTxBodyL
+    mkExtraSignaturesDijkstra = onTx $ \tx ->
+        ExtraSigs
+            $ tx ^. bodyTxL . reqSignerHashesTxBodyG

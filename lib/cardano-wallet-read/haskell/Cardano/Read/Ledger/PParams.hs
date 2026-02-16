@@ -18,6 +18,7 @@ import Cardano.Read.Ledger.Eras
     , Babbage
     , Byron
     , Conway
+    , Dijkstra
     , Mary
     , Shelley
     )
@@ -44,6 +45,7 @@ type family PParamsType era where
     PParamsType Alonzo = SH.PParams Alonzo
     PParamsType Babbage = SH.PParams Babbage
     PParamsType Conway = SH.PParams Conway
+    PParamsType Dijkstra = SH.PParams Dijkstra
 
 -- | Era-indexed protocol parameters wrapper.
 newtype PParams era = PParams (PParamsType era)

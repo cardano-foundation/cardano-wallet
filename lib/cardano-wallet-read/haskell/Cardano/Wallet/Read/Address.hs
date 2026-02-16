@@ -65,6 +65,7 @@ fromEraCompactAddr = case theEra :: Era era of
     Alonzo -> onAddress id
     Babbage -> onAddress id
     Conway -> onAddress id
+    Dijkstra -> onAddress id
 
 -- Helper function for type inference.
 onAddress :: (L.CompactAddrType era -> t) -> L.CompactAddr era -> t

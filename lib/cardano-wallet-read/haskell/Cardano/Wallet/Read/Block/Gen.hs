@@ -40,5 +40,6 @@ mkBlockEra = case theEra @era of
     Alonzo -> g $ mkShelleyBlock (natVersion @6)
     Babbage -> g $ mkBabbageBlock (natVersion @7)
     Conway -> g $ mkBabbageBlock (natVersion @8)
+    Dijkstra -> g $ mkBabbageBlock (natVersion @12)
   where
     g f = Block . f

@@ -14,11 +14,9 @@ module Cardano.Read.Ledger.Block.Txs
     ( getEraTransactions
     ) where
 
-import Cardano.Ledger.Binary
-    ( EncCBOR
-    )
 import Cardano.Ledger.Core
-    ( EraSegWits (..)
+    ( EraBlockBody
+    , txSeqBlockBodyL
     )
 import Cardano.Read.Ledger.Block.Block
     ( Block (..)
@@ -32,11 +30,11 @@ import Cardano.Read.Ledger.Tx.Tx
     ( Tx (..)
     , TxT
     )
+import Control.Lens
+    ( (^.)
+    )
 import Data.Foldable
     ( toList
-    )
-import Ouroboros.Consensus.Shelley.Protocol.Abstract
-    ( ShelleyProtocolHeader
     )
 import Ouroboros.Consensus.Shelley.Protocol.Praos
     (
@@ -66,6 +64,7 @@ getEraTransactions = case theEra @era of
     Alonzo -> getTxs' getTxsFromBlockShelleyAndOn
     Babbage -> getTxs' getTxsFromBlockShelleyAndOn
     Conway -> getTxs' getTxsFromBlockShelleyAndOn
+    Dijkstra -> getTxs' getTxsFromBlockShelleyAndOn
   where
     getTxs' f (Block block) = Tx <$> f block
 
@@ -76,8 +75,8 @@ getTxsFromBlockByron block =
         Byron.ABOBBoundary _ -> []
 
 getTxsFromBlockShelleyAndOn
-    :: (EraSegWits era, EncCBOR (ShelleyProtocolHeader proto))
+    :: EraBlockBody era
     => O.ShelleyBlock proto era
     -> [Ledger.Tx era]
 getTxsFromBlockShelleyAndOn (O.ShelleyBlock (Shelley.Block _ txs) _) =
-    toList (fromTxSeq txs)
+    toList (txs ^. txSeqBlockBodyL)

@@ -48,16 +48,19 @@ import Cardano.Ledger.Keys
     ( KeyHash (..)
     )
 import Cardano.Ledger.Shelley.API.Types
-    ( ShelleyTx (ShelleyTx)
-    , ShelleyTxAuxData
-    , ShelleyTxBody (ShelleyTxBody)
+    ( ShelleyTxAuxData
     , ShelleyTxOut (ShelleyTxOut)
     , ShelleyTxWits
+    , TxBody (ShelleyTxBody)
     , TxIn (..)
     , Withdrawals (Withdrawals)
     )
 import Cardano.Ledger.Shelley.PParams
     ( Update
+    )
+import Cardano.Ledger.Shelley.Tx
+    ( ShelleyTx (ShelleyTx)
+    , Tx (MkShelleyTx)
     )
 import Cardano.Ledger.Shelley.TxCert
     ( ShelleyTxCert
@@ -109,9 +112,9 @@ import Data.Set qualified as Set
 
 mkShelleyTx
     :: TxParameters
-    -> ShelleyTx ShelleyEra
+    -> L.Tx ShelleyEra
 mkShelleyTx TxParameters{txInputs, txOutputs} =
-    ShelleyTx (body txInputs txOutputs) wits aux
+    MkShelleyTx $ ShelleyTx (body txInputs txOutputs) wits aux
 
 aux :: StrictMaybe (ShelleyTxAuxData ShelleyEra)
 aux = maybeToStrictMaybe Nothing
@@ -123,7 +126,7 @@ body
     :: HasCallStack
     => NonEmpty (Index, TxId)
     -> NonEmpty (Address, Lovelace)
-    -> ShelleyTxBody ShelleyEra
+    -> L.TxBody ShelleyEra
 body ins outs =
     ShelleyTxBody
         (txins ins)
@@ -187,5 +190,5 @@ mkShelleyInput (Index idx) txid =
         $ mkTxInPartial txid
         $ fromIntegral idx
 
-exampleShelleyTx :: ShelleyTx ShelleyEra
+exampleShelleyTx :: L.Tx ShelleyEra
 exampleShelleyTx = mkShelleyTx exampleTxParameters

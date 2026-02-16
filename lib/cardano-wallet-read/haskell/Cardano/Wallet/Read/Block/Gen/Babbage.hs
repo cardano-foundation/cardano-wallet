@@ -23,8 +23,7 @@ import Cardano.Ledger.BaseTypes
     ( ProtVer (..)
     )
 import Cardano.Ledger.Binary
-    ( EncCBOR
-    , Version
+    ( Version
     )
 import Cardano.Ledger.Keys
     ( VKey (..)
@@ -71,8 +70,7 @@ import Cardano.Ledger.Slot qualified as L
 import Ouroboros.Consensus.Shelley.Ledger qualified as O
 
 mkBabbageBlock
-    :: ( L.EraSegWits era
-       , EncCBOR (HeaderEra era)
+    :: ( L.EraBlockBody era
        , HeaderEra era ~ Header StandardCrypto
        , TxT cardano_era ~ L.Tx era
        )

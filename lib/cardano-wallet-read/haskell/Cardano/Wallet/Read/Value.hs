@@ -118,6 +118,7 @@ fromEraValue =
         Alonzo -> onValue id
         Babbage -> onValue id
         Conway -> onValue id
+        Dijkstra -> onValue id
 
 -- Helper function for type inference.
 onValue :: (L.ValueType era -> t) -> L.Value era -> t

@@ -23,6 +23,7 @@ import Cardano.Read.Ledger.Eras
     , Babbage
     , Byron
     , Conway
+    , Dijkstra
     , Era (..)
     , IsEra (..)
     , Mary
@@ -60,6 +61,7 @@ type family BlockT era where
     BlockT Alonzo = O.ShelleyBlock (TPraos O.StandardCrypto) Alonzo
     BlockT Babbage = O.ShelleyBlock (Praos O.StandardCrypto) Babbage
     BlockT Conway = O.ShelleyBlock (Praos O.StandardCrypto) Conway
+    BlockT Dijkstra = O.ShelleyBlock (Praos O.StandardCrypto) Dijkstra
 
 -- | Era-indexed block wrapper around the consensus block type.
 newtype Block era = Block {unBlock :: BlockT era}
@@ -78,6 +80,7 @@ fromConsensusBlock = \case
     O.BlockAlonzo block -> EraValue (Block block :: Block Alonzo)
     O.BlockBabbage block -> EraValue (Block block :: Block Babbage)
     O.BlockConway block -> EraValue (Block block :: Block Conway)
+    O.BlockDijkstra block -> EraValue (Block block :: Block Dijkstra)
 
 {-# INLINEABLE toConsensusBlock #-}
 
@@ -92,3 +95,4 @@ toConsensusBlock = case theEra :: Era era of
     Alonzo -> O.BlockAlonzo . unBlock
     Babbage -> O.BlockBabbage . unBlock
     Conway -> O.BlockConway . unBlock
+    Dijkstra -> O.BlockDijkstra . unBlock

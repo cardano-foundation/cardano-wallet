@@ -63,6 +63,7 @@ getEraSlotNo = case theEra @era of
     Alonzo -> \(BHeader h) -> fromLedgerSlotNo $ pHeaderSlot h
     Babbage -> \(BHeader h) -> fromLedgerSlotNo $ pHeaderSlot h
     Conway -> \(BHeader h) -> fromLedgerSlotNo $ pHeaderSlot h
+    Dijkstra -> \(BHeader h) -> fromLedgerSlotNo $ pHeaderSlot h
 
 -- |
 -- Slot number representing a time slot in the blockchain.

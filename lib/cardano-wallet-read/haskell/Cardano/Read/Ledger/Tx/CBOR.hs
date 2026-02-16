@@ -48,6 +48,7 @@ serializeTx = case era of
     Alonzo -> f (versionForEra era)
     Babbage -> f (versionForEra era)
     Conway -> f (versionForEra era)
+    Dijkstra -> f (versionForEra era)
   where
     era = theEra :: Era era
 
@@ -69,6 +70,7 @@ deserializeTx = case era of
     Alonzo -> decodeTx (versionForEra era) "AlonzoTx"
     Babbage -> decodeTx (versionForEra era) "BabbageTx"
     Conway -> decodeTx (versionForEra era) "ConwayTx"
+    Dijkstra -> decodeTx (versionForEra era) "DijkstraTx"
   where
     era = theEra :: Era era
     decodeTx protVer label =
@@ -86,3 +88,4 @@ versionForEra era = case era of
     Alonzo -> eraProtVerLow @era
     Babbage -> eraProtVerLow @era
     Conway -> eraProtVerLow @era
+    Dijkstra -> eraProtVerLow @era

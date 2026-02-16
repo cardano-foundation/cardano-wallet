@@ -20,6 +20,7 @@ module Cardano.Read.Ledger.Eras.KnownEras
     , Alonzo
     , Babbage
     , Conway
+    , Dijkstra
     ) where
 
 import Cardano.Ledger.Api
@@ -28,6 +29,7 @@ import Cardano.Ledger.Api
     , BabbageEra
     , ByronEra
     , ConwayEra
+    , DijkstraEra
     , MaryEra
     , ShelleyEra
     )
@@ -54,6 +56,9 @@ type Babbage = BabbageEra
 -- | The Conway era (governance).
 type Conway = ConwayEra
 
+-- | The Dijkstra era.
+type Dijkstra = DijkstraEra
+
 -- | Singleton type for eras.
 --
 -- This GADT provides a value-level representation of eras.
@@ -65,6 +70,7 @@ data Era era where
     Alonzo :: Era AlonzoEra
     Babbage :: Era BabbageEra
     Conway :: Era ConwayEra
+    Dijkstra :: Era DijkstraEra
 
 deriving instance Eq (Era era)
 deriving instance Show (Era era)
@@ -85,6 +91,7 @@ instance IsEra MaryEra where theEra = Mary
 instance IsEra AlonzoEra where theEra = Alonzo
 instance IsEra BabbageEra where theEra = Babbage
 instance IsEra ConwayEra where theEra = Conway
+instance IsEra DijkstraEra where theEra = Dijkstra
 
 -- | Type-level list of known eras, in chronological order.
 type KnownEras =
@@ -95,6 +102,7 @@ type KnownEras =
      , AlonzoEra
      , BabbageEra
      , ConwayEra
+     , DijkstraEra
      ]
 
 -- | Official numbering of the members of 'KnownEras'.
@@ -107,3 +115,4 @@ indexOfEra e = case e of
     Alonzo -> 4
     Babbage -> 5
     Conway -> 6
+    Dijkstra -> 7

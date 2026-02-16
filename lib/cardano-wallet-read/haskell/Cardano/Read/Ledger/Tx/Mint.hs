@@ -30,6 +30,7 @@ import Cardano.Read.Ledger.Eras
     , Babbage
     , Byron
     , Conway
+    , Dijkstra
     , Era (..)
     , IsEra (..)
     , Mary
@@ -59,6 +60,7 @@ type family MintType era where
     MintType Alonzo = MultiAsset
     MintType Babbage = MultiAsset
     MintType Conway = MultiAsset
+    MintType Dijkstra = MultiAsset
 
 -- | Era-indexed minting\/burning wrapper.
 newtype Mint era = Mint (MintType era)
@@ -78,5 +80,6 @@ getEraMint = case theEra @era of
     Alonzo -> mint
     Babbage -> mint
     Conway -> mint
+    Dijkstra -> mint
   where
     mint = onTx $ Mint . view (bodyTxL . mintTxBodyL)
