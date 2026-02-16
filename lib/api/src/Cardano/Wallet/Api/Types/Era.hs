@@ -65,6 +65,7 @@ import Text.Show
 import Prelude
     ( Bounded
     , Enum
+    , error
     )
 
 import qualified Cardano.Wallet.Read as Read
@@ -106,6 +107,8 @@ fromReadEra (Read.EraValue era) = case era of
     Read.Alonzo -> ApiAlonzo
     Read.Babbage -> ApiBabbage
     Read.Conway -> ApiConway
+    -- TODO: add ApiDijkstra once DijkstraEra is promoted to a RecentEra
+    Read.Dijkstra -> error "fromReadEra: DijkstraEra not yet supported"
 
 fromAnyCardanoEra :: AnyCardanoEra -> ApiEra
 fromAnyCardanoEra = \case
@@ -116,6 +119,8 @@ fromAnyCardanoEra = \case
     AnyCardanoEra AlonzoEra -> ApiAlonzo
     AnyCardanoEra BabbageEra -> ApiBabbage
     AnyCardanoEra ConwayEra -> ApiConway
+    -- TODO: add ApiDijkstra once DijkstraEra is promoted to a RecentEra
+    AnyCardanoEra DijkstraEra -> error "fromAnyCardanoEra: DijkstraEra not yet supported"
 
 toAnyCardanoEra :: ApiEra -> AnyCardanoEra
 toAnyCardanoEra = \case

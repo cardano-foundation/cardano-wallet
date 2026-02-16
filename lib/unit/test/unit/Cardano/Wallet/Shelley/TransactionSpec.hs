@@ -45,15 +45,13 @@ import Cardano.Api
     ( AnyCardanoEra (..)
     , CardanoEra (..)
     , InAnyCardanoEra (..)
+    , ShelleyLedgerEra
     )
 import Cardano.Api.Gen
     ( genTx
     , genTxBodyContent
     , genTxInEra
     , genWitnesses
-    )
-import Cardano.Api.Shelley
-    ( ShelleyLedgerEra
     )
 import Cardano.Mnemonic
     ( SomeMnemonic (SomeMnemonic)
@@ -342,7 +340,6 @@ import Prelude
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Ledger as L
-import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Crypto.Hash.Blake2b as Crypto
 import qualified Cardano.Crypto.Hash.Class as Crypto
 import qualified Cardano.Ledger.Coin as Ledger
@@ -1383,6 +1380,8 @@ unsafeWithShelleyBasedEra era a = case era of
         Cardano.shelleyBasedEraConstraints Cardano.ShelleyBasedEraBabbage a
     ConwayEra ->
         Cardano.shelleyBasedEraConstraints Cardano.ShelleyBasedEraConway a
+    DijkstraEra ->
+        error "unsafeWithShelleyBasedEra: DijkstraEra not yet supported"
 
 --------------------------------------------------------------------------------
 
@@ -1714,6 +1713,7 @@ withCardanoApiConstraints
 withCardanoApiConstraints e a = case e of
     Cardano.ConwayEra -> a
     Cardano.BabbageEra -> a
+    Cardano.DijkstraEra -> err
     Cardano.AlonzoEra -> err
     Cardano.MaryEra -> err
     Cardano.AllegraEra -> err

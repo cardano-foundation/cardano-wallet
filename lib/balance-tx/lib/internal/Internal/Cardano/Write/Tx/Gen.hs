@@ -34,6 +34,9 @@ import Cardano.Ledger.BaseTypes
     , ProtVer (..)
     , natVersion
     )
+import Cardano.Ledger.Coin
+    ( CompactForm (CompactCoin)
+    )
 import Cardano.Ledger.Conway.PParams
     ( ConwayPParams
     , DRepVotingThresholds (..)
@@ -156,7 +159,7 @@ mockPParams = case recentEra @era of
             , -- \^ Maximal block header size
               bppKeyDeposit = 2 * ada
             , -- \^ The amount of a key registration deposit
-              bppPoolDeposit = 500_000_000
+              bppPoolDeposit = CompactCoin 500_000_000
             , -- \^ The amount of a pool registration deposit
               bppEMax = EpochInterval 18
             , -- \^ Maximum number of epochs in the future a pool retirement is allowed to
@@ -171,7 +174,7 @@ mockPParams = case recentEra @era of
             , -- \^ Treasury expansion
               bppProtocolVersion = ProtVer (natVersion @6) 0
             , -- \^ Protocol version
-              bppMinPoolCost = 170_000_000
+              bppMinPoolCost = Coin 170_000_000
             , -- \^ Minimum Stake Pool Cost
               bppCoinsPerUTxOByte = CoinPerByte 4_310
             , -- \^ Cost in lovelace per byte of UTxO storage (instead of bppCoinsPerUTxOByte)

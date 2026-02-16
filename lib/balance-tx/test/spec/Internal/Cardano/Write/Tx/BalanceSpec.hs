@@ -434,7 +434,6 @@ import qualified Cardano.Address.Style.Shelley as Shelley
 import qualified Cardano.Api as CardanoApi
 import qualified Cardano.Api.Byron as ByronApi
 import qualified Cardano.Api.Gen as CardanoApi
-import qualified Cardano.Api.Shelley as CardanoApi
 import qualified Cardano.Chain.Common as Byron
 import qualified Cardano.Crypto as CC
 import qualified Cardano.Crypto.Hash.Class as Crypto
@@ -1600,6 +1599,8 @@ prop_balanceTxValid
                     succeedWithLabel "ProposalProceduresFieldNotSupported"
                 TreasuryDonationFieldNotSupported _ ->
                     succeedWithLabel "TreasuryDonationFieldNotSupported"
+                ReferenceInputsNotDisjointFromInputs _ ->
+                    succeedWithLabel "ReferenceInputsNotDisjointFromInputs"
 
         succeedWithLabel l = label l $ property True
 

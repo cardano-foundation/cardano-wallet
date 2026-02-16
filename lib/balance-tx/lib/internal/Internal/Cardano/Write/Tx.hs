@@ -34,8 +34,6 @@ module Internal.Cardano.Write.Tx
 
       -- ** Misc
     , StandardCrypto
-    , StandardBabbage
-    , StandardConway
 
       -- * PParams
     , PParams
@@ -217,14 +215,11 @@ import Numeric.Natural
     ( Natural
     )
 import Ouroboros.Consensus.Shelley.Eras
-    ( StandardBabbage
-    , StandardConway
-    , StandardCrypto
+    ( StandardCrypto
     )
 import Prelude
 
 import qualified Cardano.Api as CardanoApi
-import qualified Cardano.Api.Shelley as CardanoApi
 import qualified Cardano.Crypto.Hash.Class as Crypto
 import qualified Cardano.Ledger.Address as Ledger
 import qualified Cardano.Ledger.Alonzo.Core as Alonzo
@@ -381,8 +376,8 @@ recentEraToBabbageTxOut (TxOutInRecentEra addr val datum mscript) =
         :: AlonzoScript Conway
         -> Either ErrInvalidTxOutInEra (AlonzoScript Babbage)
     downgradeScript = \case
-        TimelockScript timelockEra ->
-            pure $ Alonzo.TimelockScript (translateTimelock timelockEra)
+        Alonzo.NativeScript timelockEra ->
+            pure $ Alonzo.NativeScript (translateTimelock timelockEra)
         PlutusScript s ->
             PlutusScript <$> downgradePlutusScript s
 

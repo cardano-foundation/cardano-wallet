@@ -54,3 +54,5 @@ getUTxOByTxIn ins =
         (pure InNonRecentEraAlonzo)
         (InRecentEraBabbage <$> LSQry (Shelley.GetUTxOByTxIn ins))
         (InRecentEraConway <$> LSQry (Shelley.GetUTxOByTxIn ins))
+        -- TODO: promote Dijkstra to a RecentEra
+        (error "getUTxOByTxIn: DijkstraEra not yet supported")

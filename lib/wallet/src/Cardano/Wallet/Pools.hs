@@ -767,6 +767,8 @@ monitorStakePools tr (NetworkParameters gp sp _pp) genesisPools nl DBLayer{..} =
             BlockAlonzo blk -> forEachShelleyBlock b' (getProducer blk)
             BlockBabbage blk -> forEachShelleyBlock b' (getBabbageProducer blk)
             BlockConway blk -> forEachShelleyBlock b' (getConwayProducer blk)
+            BlockDijkstra _ ->
+                error "forAllBlocks: DijkstraEra not yet supported"
           where
             b' = fromCardanoBlock getGenesisBlockHash c
 
