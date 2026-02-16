@@ -138,6 +138,7 @@ library
     Cardano.Wallet.Read.Tx.Gen.Babbage
     Cardano.Wallet.Read.Tx.Gen.Byron
     Cardano.Wallet.Read.Tx.Gen.Conway
+    Cardano.Wallet.Read.Tx.Gen.Dijkstra
     Cardano.Wallet.Read.Tx.Gen.Mary
     Cardano.Wallet.Read.Tx.Gen.Shelley
     Cardano.Wallet.Read.Tx.Gen.TxParameters
@@ -158,8 +159,8 @@ library
     Cardano.Wallet.Read.Tx.Validity
 
   build-depends:
-    , base                          >=4.14     && <5
-    , bytestring                    >=0.10.6   && <0.13
+    , base
+    , bytestring
     , cardano-crypto
     , cardano-crypto-class
     , cardano-crypto-praos
@@ -173,26 +174,27 @@ library
     , cardano-ledger-byron
     , cardano-ledger-conway
     , cardano-ledger-core
+    , cardano-ledger-dijkstra
     , cardano-ledger-mary
     , cardano-ledger-shelley
     , cardano-protocol-tpraos
     , cardano-strict-containers
-    , containers                    >=0.5      && <0.8
-    , deepseq                       >=1.4.4    && <1.6
-    , fmt                           >=0.6.3.0  && <0.7
-    , generics-sop                  >=0.5.1.4  && <0.6
-    , lens                          >=5.2.3    && <5.4
-    , memory                        >=0.18.0   && <0.19
-    , nothunks                      >=0.1.5    && <0.4
-    , operational                   >=0.2.4.2  && <0.3
+    , containers
+    , deepseq
+    , fmt
+    , generics-sop
+    , lens
+    , memory
+    , nothunks
+    , operational
     , ouroboros-consensus
     , ouroboros-consensus-cardano
     , ouroboros-consensus-protocol
     , ouroboros-network-api
-    , QuickCheck                    >=2.14     && <2.16.0
-    , text                          >=1.2      && <2.2
-    , time                          >=1.12.2   && <1.15
-    , transformers                  >=0.6.1.0  && <0.7
+    , QuickCheck
+    , text
+    , time
+    , transformers
 
   hs-source-dirs:   haskell
   default-language: Haskell2010
@@ -222,8 +224,8 @@ test-suite test
     , cardano-ledger-core
     , cardano-ledger-mary
     , cardano-wallet-read
-    , hspec                >=2.11.0   && <2.12
+    , hspec
     , lens
     , memory
-    , QuickCheck           >=2.14     && <2.16.0
-    , with-utf8            >=1.1.0.0  && <1.2
+    , QuickCheck
+    , with-utf8

@@ -50,9 +50,9 @@ library internal
   hs-source-dirs:  lib/internal
   visibility:      public
   build-depends:
-    , base                         >=4.14      && <5
-    , bytestring                   >=0.10.6    && <0.13
-    , cardano-addresses            >=4.0.2     && <4.1
+    , base
+    , bytestring
+    , cardano-addresses
     , cardano-api
     , cardano-coin-selection
     , cardano-crypto-class
@@ -69,25 +69,25 @@ library internal
     , cardano-strict-containers
     , cardano-wallet-primitive
     , cardano-wallet-test-utils
-    , cborg                        >=0.2.1     && <0.3
-    , containers                   >=0.5       && <0.8
-    , deepseq                      >=1.4.4     && <1.6
-    , fmt                          >=0.6.3     && <0.7
-    , generic-lens                 >=2.2.2.0   && <2.3
-    , groups                       >=0.5.3     && <0.6
-    , int-cast                     >=0.2.0.0   && <0.3
-    , lens                         >=5.2.3     && <5.4
-    , MonadRandom                  >=0.6       && <0.7
-    , monoid-subclasses            >=1.2.5.1   && <1.3
-    , nonempty-containers          >=0.3.4.5   && <0.4
+    , cborg
+    , containers
+    , deepseq
+    , fmt
+    , generic-lens
+    , groups
+    , int-cast
+    , lens
+    , MonadRandom
+    , monoid-subclasses
+    , nonempty-containers
     , ouroboros-consensus
     , ouroboros-consensus-cardano
-    , pretty-simple                >=4.1.2.0   && <4.2
-    , QuickCheck                   >=2.14      && <2.16.0
-    , serialise                    >=0.2.6.1   && <0.3
+    , pretty-simple
+    , QuickCheck
+    , serialise
     , std-gen-seed
-    , text                         >=1.2       && <2.2
-    , transformers                 >=0.6.1.0   && <0.7
+    , text
+    , transformers
 
   exposed-modules:
     Internal.Cardano.Write.Eras
@@ -115,7 +115,7 @@ test-suite test
     , address-derivation-discovery
     , base
     , bytestring
-    , cardano-addresses               >=4.0.2     && <4.1
+    , cardano-addresses
     , cardano-api
     , cardano-api-extra
     , cardano-balance-tx:internal
@@ -125,7 +125,7 @@ test-suite test
     , cardano-crypto-class
     , cardano-crypto-wrapper
     , cardano-ledger-alonzo
-    , cardano-ledger-alonzo-test      >=1.3.0.1   && <1.4
+    , cardano-ledger-alonzo:testlib
     , cardano-ledger-api
     , cardano-ledger-babbage
     , cardano-ledger-babbage:testlib
@@ -133,7 +133,7 @@ test-suite test
     , cardano-ledger-conway
     , cardano-ledger-conway:testlib
     , cardano-ledger-core
-    , cardano-ledger-mary:testlib     >=1.8.0.0   && <1.9
+    , cardano-ledger-mary:testlib
     , cardano-ledger-shelley
     , cardano-numeric
     , cardano-slotting
@@ -143,16 +143,16 @@ test-suite test
     , cardano-wallet-test-utils
     , cborg
     , containers
-    , data-default                    >=0.8.0.0   && <0.9
-    , directory                       >=1.3.8     && <1.4
-    , filepath                        >=1.4.300.1 && <1.6
-    , fmt                             >=0.6.3.0   && <0.7
+    , data-default
+    , directory
+    , filepath
+    , fmt
     , generic-lens
-    , generics-sop                    >=0.5.1.4   && <0.6
+    , generics-sop
     , groups
-    , hspec                           >=2.11.0    && <2.12
+    , hspec
     , hspec-core
-    , hspec-golden                    >=0.2.2     && <0.3
+    , hspec-golden
     , int-cast
     , lens
     , MonadRandom
@@ -161,14 +161,14 @@ test-suite test
     , ouroboros-consensus
     , ouroboros-consensus-cardano
     , ouroboros-network-api
-    , QuickCheck                      >=2.14      && <2.16
-    , quickcheck-classes              >=0.6.5     && <0.7
-    , sop-extras                      >=0.4.0.0   && <0.5
+    , QuickCheck
+    , quickcheck-classes
+    , sop-extras
     , std-gen-seed
     , text
-    , time                            >=1.12.2    && <1.15
+    , time
     , transformers
-    , with-utf8                       >=1.1.0     && <1.2
+    , with-utf8
 
   build-tool-depends: hspec-discover:hspec-discover
   other-modules:

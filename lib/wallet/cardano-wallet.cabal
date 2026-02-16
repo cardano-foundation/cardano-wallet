@@ -48,7 +48,7 @@ library
     , async
     , base
     , bytestring
-    , cardano-addresses             >=4.0.2     && <4.1
+    , cardano-addresses
     , cardano-api
     , cardano-balance-tx
     , cardano-balance-tx:internal
@@ -92,7 +92,7 @@ library
     , http-types
     , int-cast
     , io-classes
-    , iohk-monitoring               >=0.2.0.0   && <0.3
+    , iohk-monitoring
     , iohk-monitoring-extra
     , lens
     , list-transformer

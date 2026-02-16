@@ -39,7 +39,7 @@ library
     , bech32-th
     , binary
     , bytestring
-    , cardano-addresses             >=4.0.2     && <4.1
+    , cardano-addresses
     , cardano-api
     , cardano-balance-tx
     , cardano-balance-tx:internal
@@ -67,7 +67,7 @@ library
     , http-media
     , http-types
     , int-cast
-    , iohk-monitoring               >=0.2.0.0   && <0.3
+    , iohk-monitoring
     , memory
     , mtl
     , network-uri

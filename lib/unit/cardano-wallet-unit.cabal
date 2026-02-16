@@ -73,7 +73,7 @@ test-suite unit
     , bech32
     , bech32-th
     , bytestring
-    , cardano-addresses                   >=4.0.2     && <4.1
+    , cardano-addresses
     , cardano-api
     , cardano-api-extra
     , cardano-balance-tx
@@ -101,14 +101,14 @@ test-suite unit
     , containers
     , contra-tracer
     , crypto-primitives
-    , data-default                        >=0.8.0.0   && <0.9
+    , data-default
     , data-interval
     , deepseq
     , delta-store
     , delta-types
     , directory
     , either
-    , extra                               >=1.6.17
+    , extra
     , file-embed
     , filepath
     , fmt
@@ -117,8 +117,8 @@ test-suite unit
     , generic-lens
     , generics-sop
     , hedgehog-corpus
-    , hspec                               >=2.8.2
-    , hspec-core                          >=2.8.2
+    , hspec
+    , hspec-core
     , http-api-data
     , http-client
     , http-client-tls
@@ -127,7 +127,7 @@ test-suite unit
     , int-cast
     , io-classes
     , io-sim
-    , iohk-monitoring                     >=0.2.0.0   && <0.3
+    , iohk-monitoring
     , iohk-monitoring-extra
     , lattices
     , lens
@@ -153,7 +153,7 @@ test-suite unit
     , QuickCheck
     , quickcheck-classes
     , quickcheck-instances
-    , quickcheck-state-machine            >=0.6.0
+    , quickcheck-state-machine
     , random
     , regex-pcre-builtin
     , resourcet
@@ -162,7 +162,7 @@ test-suite unit
     , servant
     , servant-openapi3
     , servant-server
-    , si-timers
+    , io-classes:si-timers
     , sop-extras
     , splitmix
     , string-interpolate

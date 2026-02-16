@@ -46,7 +46,7 @@ library
     , bech32-th
     , binary
     , bytestring
-    , cardano-addresses            >=4.0.2    && <4.1
+    , cardano-addresses
     , cardano-crypto
     , cardano-crypto-class
     , cardano-ledger-api

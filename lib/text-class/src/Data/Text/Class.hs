@@ -250,7 +250,9 @@ data CaseStyle
 toTextFromBoundedEnum
     :: forall a
      . (Bounded a, Enum a, Show a)
-    => CaseStyle -> a -> Text
+    => CaseStyle
+    -> a
+    -> Text
 toTextFromBoundedEnum cs = T.pack . toCaseStyle cs . Casing.fromHumps . show
 
 -- | Parses the given text to a value, according to the specified 'CaseStyle'.
@@ -261,7 +263,9 @@ toTextFromBoundedEnum cs = T.pack . toCaseStyle cs . Casing.fromHumps . show
 fromTextToBoundedEnum
     :: forall a
      . (Bounded a, Enum a, Show a)
-    => CaseStyle -> Text -> Either TextDecodingError a
+    => CaseStyle
+    -> Text
+    -> Either TextDecodingError a
 fromTextToBoundedEnum cs t =
     case matchingValue of
         Just mv -> Right mv
