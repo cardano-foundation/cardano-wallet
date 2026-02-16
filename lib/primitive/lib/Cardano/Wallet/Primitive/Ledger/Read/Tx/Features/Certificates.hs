@@ -28,7 +28,8 @@ import Cardano.Ledger.Shelley.API
     , PoolParams (..)
     )
 import Cardano.Ledger.Shelley.TxCert
-    ( ShelleyTxCert
+    ( PoolCert (..)
+    , ShelleyTxCert
     )
 import Cardano.Read.Ledger.Tx.Certificates
     ( Certificates (..)
@@ -60,6 +61,7 @@ import Cardano.Wallet.Primitive.Types.StakePoolMetadata
     )
 import Cardano.Wallet.Read.Eras
     ( Conway
+    , Dijkstra
     , Era (..)
     , IsEra
     , theEra
@@ -87,6 +89,7 @@ import qualified Cardano.Ledger.BaseTypes as SL
 import qualified Cardano.Ledger.Conway.TxCert as Ledger
 import qualified Cardano.Ledger.Credential as SL
 import qualified Cardano.Ledger.DRep as Ledger
+import qualified Cardano.Ledger.Dijkstra.TxCert as Dijkstra
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Wallet.Primitive.Types.Certificates as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
@@ -109,14 +112,48 @@ getCertificates = case theEra @era of
     Alonzo -> mkShelleyCertsK
     Babbage -> mkShelleyCertsK
     Conway -> mkConwayCertsK
+    Dijkstra -> mkDijkstraCertsK
+
+mkDijkstraCertsK
+    :: Certificates Dijkstra
+    -> [W.Certificate]
+mkDijkstraCertsK (Certificates cs) = fromDijkstraCert <$> toList cs
 
 mkConwayCertsK
     :: Certificates Conway
     -> [W.Certificate]
 mkConwayCertsK (Certificates cs) = fromConwayCert <$> toList cs
 
+fromDijkstraCert
+    :: Dijkstra.DijkstraTxCert era
+    -> W.Certificate
+fromDijkstraCert = \case
+    Dijkstra.DijkstraTxCertDeleg delegCert -> case delegCert of
+        Dijkstra.DijkstraRegCert cred coin ->
+            mkRegisterKeyCertificate (Just $ fromLedgerCoin coin) cred
+        Dijkstra.DijkstraUnRegCert cred coin ->
+            mkDelegationNone (Just $ fromLedgerCoin coin) cred
+        Dijkstra.DijkstraDelegCert cred delegatee ->
+            mkDelegationVoting Nothing cred delegatee
+        Dijkstra.DijkstraRegDelegCert cred delegatee coin ->
+            mkDelegationVoting (Just $ fromLedgerCoin coin) cred delegatee
+    Dijkstra.DijkstraTxCertPool poolCert -> case poolCert of
+        RegPool pp -> mkPoolRegistrationCertificate pp
+        RetirePool pid en -> mkPoolRetirementCertificate pid en
+    Dijkstra.DijkstraTxCertGov govCert -> case govCert of
+        Ledger.ConwayAuthCommitteeHotKey _ _ ->
+            CertificateOther AuthCommitteeHotKey
+        Ledger.ConwayResignCommitteeColdKey _ _ ->
+            CertificateOther ResignCommitteeColdKey
+        Ledger.ConwayRegDRep{} ->
+            CertificateOther RegDRep
+        Ledger.ConwayUnRegDRep _ _ ->
+            CertificateOther UnRegDRep
+        Ledger.ConwayUpdateDRep{} ->
+            CertificateOther UpdateDRep
+
 fromConwayCert
-    :: Ledger.ConwayEraTxCert era
+    :: (Ledger.ConwayEraTxCert era, Ledger.ShelleyEraTxCert era)
     => Ledger.TxCert era
     -> W.Certificate
 fromConwayCert = \case
@@ -142,6 +179,7 @@ fromConwayCert = \case
         CertificateOther UnRegDRep
     Ledger.UpdateDRepTxCert{} ->
         CertificateOther UpdateDRep
+    _ -> CertificateOther W.GenesisCertificate
 
 fromLedgerCoin :: HasCallStack => SL.Coin -> W.Coin
 fromLedgerCoin (SL.Coin c) = Coin.unsafeFromIntegral c
@@ -239,7 +277,8 @@ fromShelleyCert
        , Ledger.ProtVerAtMost era 8
        , Ledger.TxCert era ~ ShelleyTxCert era
        )
-    => Ledger.TxCert era -> W.Certificate
+    => Ledger.TxCert era
+    -> W.Certificate
 fromShelleyCert = \case
     Ledger.DelegStakeTxCert delegator pool ->
         W.CertificateOfDelegation Nothing
@@ -253,6 +292,7 @@ fromShelleyCert = \case
     Ledger.RetirePoolTxCert pid en -> mkPoolRetirementCertificate pid en
     Ledger.GenesisDelegTxCert{} -> W.CertificateOther W.GenesisCertificate
     Ledger.MirTxCert _ -> W.CertificateOther W.MIRCertificate
+    _ -> W.CertificateOther W.GenesisCertificate
 
 fromPoolMetadata
     :: SL.PoolMetadata

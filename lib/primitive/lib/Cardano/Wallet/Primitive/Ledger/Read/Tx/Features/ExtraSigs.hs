@@ -52,6 +52,7 @@ extraSigs = case theEra @era of
     Alonzo -> yesExtraSigs
     Babbage -> yesExtraSigs
     Conway -> yesExtraSigs
+    Dijkstra -> yesExtraSigs
   where
     noExtraSigs = const []
     yesExtraSigs (ExtraSigs es) = getExtraSigs es

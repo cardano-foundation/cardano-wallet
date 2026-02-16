@@ -44,7 +44,7 @@ import Cardano.Api
     , anyCardanoEra
     , deserialiseFromCBOR
     )
-import Cardano.Api.Shelley
+import Cardano.Api.Tx
     ( Tx (ShelleyTx)
     )
 import Cardano.Binary
@@ -314,6 +314,7 @@ withinEra = (>=) `on` numberEra
         AlonzoEra -> 5
         BabbageEra -> 6
         ConwayEra -> 7
+        _ -> 8
 
 -- | Deserialise a transaction to construct a 'SealedTx'.
 sealedTxFromBytes :: ByteString -> Either DecoderError SealedTx

@@ -458,6 +458,7 @@ toWalletScript tokeyrole = \case
         ActiveUntilSlot $ fromIntegral slot
     Scripts.RequireTimeStart (SlotNo slot) ->
         ActiveFromSlot $ fromIntegral slot
+    _ -> error "toWalletScript: impossible"
 
 toWalletScriptFromShelley
     :: forall era
@@ -576,3 +577,4 @@ toPlutusScriptInfo script = case Alonzo.plutusScriptLanguage @era script of
     Ledger.PlutusV1 -> PlutusVersionV1
     Ledger.PlutusV2 -> PlutusVersionV2
     Ledger.PlutusV3 -> PlutusVersionV3
+    Ledger.PlutusV4 -> PlutusVersionV4
