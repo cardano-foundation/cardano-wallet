@@ -258,24 +258,29 @@ assignScriptRedeemers pparams timeTranslation utxo redeemers tx = do
     addScriptIntegrityHash ledgerTx =
         ledgerTx
             & (bodyTxL . scriptIntegrityHashTxBodyL)
-                .~ SJust
-                    ( Alonzo.hashScriptIntegrity
-                        ( Alonzo.ScriptIntegrity
-                            (Alonzo.txrdmrs wits)
-                            (Alonzo.txdats wits)
-                            ( Set.fromList
-                                $ Alonzo.getLanguageView pparams <$> langs
-                            )
-                        )
-                    )
+                .~ integrityHash
       where
         wits = view witsTxL ledgerTx
+        rdmrs = Alonzo.txrdmrs wits
+        dats = Alonzo.txdats wits
         langs =
             [ Alonzo.plutusScriptLanguage plutus
             | (_hash, script) <- Map.toList (Alonzo.txscripts wits)
             , (not . Ledger.isNativeScript @era) script
             , Just plutus <- [Alonzo.toPlutusScript script]
             ]
+        langViews =
+            Set.fromList
+                $ Alonzo.getLanguageView pparams <$> langs
+        integrityHash
+            | Map.null (view Alonzo.unRedeemersL rdmrs)
+            , Map.null (view Alonzo.unTxDatsL dats)
+            , Set.null langViews =
+                SNothing
+            | otherwise =
+                SJust
+                    $ Alonzo.hashScriptIntegrity
+                    $ Alonzo.ScriptIntegrity rdmrs dats langViews
 
 --
 -- The 'Redeemer' type
