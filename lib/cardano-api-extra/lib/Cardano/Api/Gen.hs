@@ -1331,7 +1331,7 @@ genCostModels = do
     pure $ Map.fromList costModels
   where
     plutusVersions :: [Language]
-    plutusVersions = [minBound .. maxBound]
+    plutusVersions = [PlutusV1, PlutusV2, PlutusV3]
 
     fromLanguage :: Language -> AnyPlutusScriptVersion
     fromLanguage = toEnum . fromEnum

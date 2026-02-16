@@ -698,8 +698,8 @@ spec_balanceTx era = describe "balanceTx" $ do
                 `shouldBe` Left
                     ( ErrBalanceTxMaxSizeLimitExceeded
                         { size = W.TxSize $ case era of
-                            RecentEraConway -> 28_232
-                            RecentEraBabbage -> 28_226
+                            RecentEraConway -> 28_267
+                            RecentEraBabbage -> 28_261
                         , maxSize = W.TxSize 16_384
                         }
                     )
