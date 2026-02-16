@@ -29,6 +29,7 @@ import Cardano.Ledger.BaseTypes
     )
 import Cardano.Ledger.Coin
     ( Coin (..)
+    , CompactForm (CompactCoin)
     )
 import Cardano.Ledger.Conway.PParams
     ( ConwayPParams
@@ -134,7 +135,7 @@ mockPParamsConway = Read.PParams $ unsafeWrap conwayPParams
             , -- \^ Maximal block header size
               bppKeyDeposit = ada 2
             , -- \^ The amount of a key registration deposit
-              bppPoolDeposit = lovelace 500_000_000
+              bppPoolDeposit = CompactCoin 500_000_000
             , -- \^ The amount of a pool registration deposit
               bppEMax = EpochInterval 18
             , -- \^ Maximum number of epochs in the future a pool retirement is allowed to
