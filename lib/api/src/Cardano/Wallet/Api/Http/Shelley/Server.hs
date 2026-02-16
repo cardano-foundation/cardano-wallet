@@ -147,9 +147,7 @@ import Cardano.Address.Script
     )
 import Cardano.Api
     ( SerialiseAsCBOR (..)
-    )
-import Cardano.Api.Shelley
-    ( StakeAddress (..)
+    , StakeAddress (..)
     )
 import Cardano.BM.Tracing
     ( HasPrivacyAnnotation (..)
@@ -321,6 +319,13 @@ import Cardano.Wallet.Api.Http.Server.Handlers.MintBurn
     ( convertApiAssetMintBurn
     , getTxApiAssetMintBurn
     )
+-- import Cardano.Wallet.Api.Http.Server.Handlers.NetworkInformation
+--     ( getNetworkInformation
+--     , makeApiBlockReference
+--     , makeApiBlockReferenceFromHeader
+--     , makeApiSlotReference
+--     )
+
 import Cardano.Wallet.Api.Http.Server.Handlers.NetworkInformation
 import Cardano.Wallet.Api.Http.Server.Handlers.TxCBOR
     ( ParsedTxCBOR (..)

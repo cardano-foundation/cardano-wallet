@@ -68,6 +68,7 @@ import Data.String.Interpolate
 import Data.Text
     ( Text
     )
+import Flat.Instances.Base ()
 import Text.Microstache
     ( compileMustacheText
     , renderMustache

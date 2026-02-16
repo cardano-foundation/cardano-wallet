@@ -24,6 +24,7 @@ import Cardano.Ledger.Api
     , AlonzoEra
     , BabbageEra
     , ConwayEra
+    , DijkstraEra
     , MaryEra
     , ShelleyEra
     )
@@ -36,6 +37,7 @@ import Cardano.Wallet.Read
     , Babbage
     , Byron
     , Conway
+    , Dijkstra
     , Mary
     , Shelley
     )
@@ -96,6 +98,7 @@ byronOrShelleyBased onByron onShelleyBased =
         onShelleyBased
         onShelleyBased
         onShelleyBased
+        onShelleyBased
 
 -- | Combine era-specific local state queries into an era-agnostic one.
 onAnyEra'
@@ -115,8 +118,12 @@ onAnyEra'
         m
         (f Babbage)
     -> LSQ (Shelley.ShelleyBlock (Praos StandardCrypto) Conway) m (f Conway)
+    -> LSQ
+        (Shelley.ShelleyBlock (Praos StandardCrypto) Dijkstra)
+        m
+        (f Dijkstra)
     -> LSQ (CardanoBlock StandardCrypto) m (Read.EraValue f)
-onAnyEra' a b c d e f g =
+onAnyEra' a b c d e f g h =
     onAnyEra
         (Read.EraValue <$> a)
         (Read.EraValue <$> b)
@@ -125,6 +132,7 @@ onAnyEra' a b c d e f g =
         (Read.EraValue <$> e)
         (Read.EraValue <$> f)
         (Read.EraValue <$> g)
+        (Read.EraValue <$> h)
 
 -- | Create a local state query specific to the each era.
 --
@@ -143,8 +151,9 @@ onAnyEra
     -> LSQ (Shelley.ShelleyBlock (TPraos StandardCrypto) AlonzoEra) m a
     -> LSQ (Shelley.ShelleyBlock (Praos StandardCrypto) BabbageEra) m a
     -> LSQ (Shelley.ShelleyBlock (Praos StandardCrypto) ConwayEra) m a
+    -> LSQ (Shelley.ShelleyBlock (Praos StandardCrypto) DijkstraEra) m a
     -> LSQ (CardanoBlock StandardCrypto) m a
-onAnyEra onByron onShelley onAllegra onMary onAlonzo onBabbage onConway =
+onAnyEra onByron onShelley onAllegra onMary onAlonzo onBabbage onConway onDijkstra =
     currentEra >>= \case
         AnyCardanoEra ByronEra -> mapQuery QueryIfCurrentByron onByron
         AnyCardanoEra ShelleyEra -> mapQuery QueryIfCurrentShelley onShelley
@@ -153,6 +162,7 @@ onAnyEra onByron onShelley onAllegra onMary onAlonzo onBabbage onConway =
         AnyCardanoEra AlonzoEra -> mapQuery QueryIfCurrentAlonzo onAlonzo
         AnyCardanoEra BabbageEra -> mapQuery QueryIfCurrentBabbage onBabbage
         AnyCardanoEra ConwayEra -> mapQuery QueryIfCurrentConway onConway
+        AnyCardanoEra DijkstraEra -> mapQuery QueryIfCurrentDijkstra onDijkstra
   where
     mapQuery
         :: ( forall footprint r
@@ -221,4 +231,5 @@ eraIndexToAnyCardanoEra index =
         4 -> AnyCardanoEra AlonzoEra
         5 -> AnyCardanoEra BabbageEra
         6 -> AnyCardanoEra ConwayEra
+        7 -> AnyCardanoEra DijkstraEra
         _ -> error "eraIndexToAnyCardanoEra: unknown era"

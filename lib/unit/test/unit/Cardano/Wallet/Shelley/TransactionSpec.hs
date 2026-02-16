@@ -45,6 +45,7 @@ import Cardano.Api
     ( AnyCardanoEra (..)
     , CardanoEra (..)
     , InAnyCardanoEra (..)
+    , ShelleyLedgerEra
     )
 import Cardano.Api.Gen
     ( genTx
@@ -1387,6 +1388,8 @@ unsafeWithShelleyBasedEra era a = case era of
         Cardano.shelleyBasedEraConstraints Cardano.ShelleyBasedEraBabbage a
     ConwayEra ->
         Cardano.shelleyBasedEraConstraints Cardano.ShelleyBasedEraConway a
+    DijkstraEra ->
+        error "unsafeWithShelleyBasedEra: DijkstraEra not yet supported"
 
 --------------------------------------------------------------------------------
 
@@ -1739,6 +1742,7 @@ withCardanoApiConstraints
 withCardanoApiConstraints e a = case e of
     Cardano.ConwayEra -> a
     Cardano.BabbageEra -> a
+    Cardano.DijkstraEra -> err
     Cardano.AlonzoEra -> err
     Cardano.MaryEra -> err
     Cardano.AllegraEra -> err
