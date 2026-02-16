@@ -54,6 +54,9 @@ import Cardano.BM.Extra
     , bracketTracer
     , produceTimings
     )
+import Cardano.Balance.Tx.Eras
+    ( MaybeInRecentEra (..)
+    )
 import Cardano.Launcher.Node
     ( CardanoNodeConn
     , nodeSocketFile
@@ -135,9 +138,6 @@ import Cardano.Wallet.Primitive.Types.StakePoolSummary
     )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..)
-    )
-import Cardano.Write.Eras
-    ( MaybeInRecentEra (..)
     )
 import Control.Concurrent.Class.MonadSTM
     ( MonadSTM

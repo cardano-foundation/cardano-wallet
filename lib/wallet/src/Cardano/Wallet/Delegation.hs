@@ -66,11 +66,11 @@ import Data.Set
     )
 import Prelude
 
+import qualified Cardano.Balance.Tx.Eras as Write
 import qualified Cardano.Wallet.DB.Store.Delegations.Layer as Dlgs
 import qualified Cardano.Wallet.DB.WalletState as WalletState
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Transaction as Tx
-import qualified Cardano.Write.Eras as Write
 import qualified Data.Set as Set
 
 -- | The data type that represents client's delegation request.

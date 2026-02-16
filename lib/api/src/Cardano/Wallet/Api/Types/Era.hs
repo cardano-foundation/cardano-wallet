@@ -67,8 +67,8 @@ import Prelude
     , Enum
     )
 
+import qualified Cardano.Balance.Tx.Eras as Write
 import qualified Cardano.Wallet.Read as Read
-import qualified Cardano.Write.Eras as Write
 import qualified Data.Aeson as Aeson
 import qualified Data.Set as Set
 

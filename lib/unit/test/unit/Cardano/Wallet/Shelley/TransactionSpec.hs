@@ -55,6 +55,24 @@ import Cardano.Api.Gen
 import Cardano.Api.Shelley
     ( ShelleyLedgerEra
     )
+import Cardano.Balance.Tx.Balance
+    ( ErrBalanceTx (..)
+    , ErrBalanceTxUnableToCreateChangeError (..)
+    )
+import Cardano.Balance.Tx.Eras
+    ( AnyRecentEra (..)
+    , CardanoApiEra
+    , IsRecentEra
+    , RecentEra (..)
+    , cardanoEraFromRecentEra
+    )
+import Cardano.Balance.Tx.Gen
+    ( mockPParams
+    )
+import Cardano.Balance.Tx.SizeEstimation
+    ( TxSkeleton (..)
+    , estimateTxSize
+    )
 import Cardano.Mnemonic
     ( SomeMnemonic (SomeMnemonic)
     )
@@ -138,11 +156,14 @@ import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
     , shrinkTokenBundleSmallRange
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicyId
-    ( TokenPolicyId
+    ( TokenPolicyId (UnsafeTokenPolicyId)
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicyId.Gen
     ( genTokenPolicyId
     , shrinkTokenPolicyId
+    )
+import Cardano.Wallet.Primitive.Types.TokenQuantity
+    ( TokenQuantity (..)
     )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..)
@@ -191,17 +212,6 @@ import Cardano.Wallet.Transaction
     )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex
-    )
-import Cardano.Write.Eras
-    ( AnyRecentEra (..)
-    , CardanoApiEra
-    , IsRecentEra
-    , RecentEra (..)
-    , cardanoEraFromRecentEra
-    )
-import Cardano.Write.Tx
-    ( ErrBalanceTx (..)
-    , ErrBalanceTxUnableToCreateChangeError (..)
     )
 import Control.Arrow
     ( first
@@ -275,13 +285,6 @@ import Fmt
     , (+||)
     , (||+)
     )
-import Internal.Cardano.Write.Tx.Gen
-    ( mockPParams
-    )
-import Internal.Cardano.Write.Tx.SizeEstimation
-    ( TxSkeleton (..)
-    , estimateTxSize
-    )
 import Numeric.Natural
     ( Natural
     )
@@ -343,6 +346,15 @@ import Prelude
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Ledger as L
 import qualified Cardano.Api.Shelley as Cardano
+import qualified Cardano.Balance.Tx.Eras as Write
+    ( Babbage
+    , CardanoApiEra
+    , IsRecentEra
+    , RecentEra (RecentEraBabbage, RecentEraConway)
+    , cardanoEraFromRecentEra
+    , shelleyBasedEraFromRecentEra
+    )
+import qualified Cardano.Balance.Tx.Primitive as BT
 import qualified Cardano.Crypto.Hash.Blake2b as Crypto
 import qualified Cardano.Crypto.Hash.Class as Crypto
 import qualified Cardano.Ledger.Coin as Ledger
@@ -351,14 +363,6 @@ import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
-import qualified Cardano.Write.Eras as Write
-    ( Babbage
-    , CardanoApiEra
-    , IsRecentEra
-    , RecentEra (RecentEraBabbage, RecentEraConway)
-    , cardanoEraFromRecentEra
-    , shelleyBasedEraFromRecentEra
-    )
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
@@ -1560,7 +1564,10 @@ instance Arbitrary MockSelection where
 --
 prop_txConstraints_txBaseSize :: Property
 prop_txConstraints_txBaseSize =
-    txBaseSize mockTxConstraints === estimateTxSize emptyTxSkeleton
+    txBaseSize mockTxConstraints
+        === fromBTTxSize (estimateTxSize emptyTxSkeleton)
+  where
+    fromBTTxSize (BT.TxSize n) = TxSize n
 
 -- Tests that using 'txConstraints' to estimate the size of a non-empty
 -- selection produces a result that is consistent with the result of using
@@ -1584,12 +1591,30 @@ prop_txConstraints_txSize mock =
             , txInputCount `mtimesDefault` txInputSize mockTxConstraints
             , F.foldMap (txOutputSize mockTxConstraints . tokens) txOutputs
             ]
+    fromBTTxSize (BT.TxSize n) = TxSize n
+    toBTTxOut (TxOut (Address a) b) =
+        BT.TxOut (BT.Address a) (toBTTokenBundle b)
+    toBTTokenBundle (TokenBundle.TokenBundle c tm) =
+        BT.TokenBundle (toBTCoin c) (toBTTokenMap tm)
+    toBTCoin (Coin n) = BT.Coin n
+    toBTTokenMap =
+        BT.fromFlatList
+            . fmap toBTEntry
+            . TokenMap.toFlatList
+    toBTEntry (AssetId (UnsafeTokenPolicyId (Hash pid)) (UnsafeAssetName an), q) =
+        ( BT.AssetId
+            (BT.UnsafeTokenPolicyId (BT.Hash pid))
+            (BT.UnsafeAssetName an)
+        , toBTTokenQuantity q
+        )
+    toBTTokenQuantity (TokenQuantity n) = BT.TokenQuantity n
     lowerBound =
-        estimateTxSize
-            emptyTxSkeleton
-                { txInputCount
-                , txOutputs
-                }
+        fromBTTxSize
+            $ estimateTxSize
+                emptyTxSkeleton
+                    { txInputCount
+                    , txOutputs = fmap toBTTxOut txOutputs
+                    }
     -- We allow a small amount of overestimation due to the slight variation in
     -- the marginal size of an input:
     upperBound = lowerBound <> txInputCount `mtimesDefault` TxSize 4

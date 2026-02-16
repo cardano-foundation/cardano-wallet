@@ -650,6 +650,11 @@ import "cardano-addresses" Codec.Binary.Encoding
 import Prelude
 
 import qualified Cardano.Address.Script as CA
+import qualified Cardano.Balance.Tx.Tx as Write
+    ( DatumHash
+    , datumHashFromBytes
+    , datumHashToBytes
+    )
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Address.Derivation as AD
 import qualified Cardano.Wallet.Api.Types.Amount as ApiAmount
@@ -672,11 +677,6 @@ import qualified Data.Map as Map
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.Read as T
-import qualified Internal.Cardano.Write.Tx as Write
-    ( DatumHash
-    , datumHashFromBytes
-    , datumHashToBytes
-    )
 
 {-------------------------------------------------------------------------------
                                Styles of Wallets

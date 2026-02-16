@@ -21,6 +21,9 @@ module Cardano.Wallet.DummyTarget.Primitive.Types
     , dummyNetworkLayer
     ) where
 
+import Cardano.Balance.Tx.Gen
+    ( mockPParams
+    )
 import Cardano.Wallet.Network
     ( NetworkLayer (..)
     )
@@ -85,14 +88,11 @@ import Data.Time.Clock.POSIX
 import GHC.Stack
     ( HasCallStack
     )
-import Internal.Cardano.Write.Tx.Gen
-    ( mockPParams
-    )
 import Prelude
 
-import qualified Cardano.Write.Eras as Write
+import qualified Cardano.Balance.Tx.Eras as Write
+import qualified Cardano.Balance.Tx.Tx as Write
 import qualified Data.ByteString.Char8 as B8
-import qualified Internal.Cardano.Write.Tx as Write
 
 {-----------------------------------------------------------------------------
     Dummy values

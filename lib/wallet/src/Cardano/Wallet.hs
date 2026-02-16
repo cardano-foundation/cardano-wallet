@@ -272,6 +272,25 @@ import Cardano.BM.Extra
     , resultSeverity
     , traceResult
     )
+import Cardano.Balance.Tx.Balance
+    ( ChangeAddressGen (..)
+    , ErrBalanceTx (..)
+    , ErrBalanceTxUnableToCreateChangeError (..)
+    , stakeCredentialsWithRefunds
+    )
+import Cardano.Balance.Tx.Eras
+    ( MaybeInRecentEra (..)
+    , recentEra
+    )
+import Cardano.Balance.Tx.SizeEstimation
+    ( TxWitnessTag (..)
+    )
+import Cardano.Balance.Tx.TimeTranslation
+    ( TimeTranslation
+    )
+import Cardano.Balance.Tx.Tx
+    ( toRecentEraGADT
+    )
 import Cardano.Crypto.Wallet
     ( toXPub
     )
@@ -631,15 +650,6 @@ import Cardano.Wallet.Transaction
 import Cardano.Wallet.Transaction.Built
     ( BuiltTx (..)
     )
-import Cardano.Write.Eras
-    ( MaybeInRecentEra (..)
-    , recentEra
-    )
-import Cardano.Write.Tx
-    ( ChangeAddressGen (..)
-    , ErrBalanceTx (..)
-    , ErrBalanceTxUnableToCreateChangeError (..)
-    )
 import Control.Arrow
     ( (>>>)
     )
@@ -809,18 +819,6 @@ import GHC.Stack
 import GHC.TypeNats
     ( Nat
     )
-import Internal.Cardano.Write.Tx
-    ( toRecentEraGADT
-    )
-import Internal.Cardano.Write.Tx.Balance
-    ( stakeCredentialsWithRefunds
-    )
-import Internal.Cardano.Write.Tx.SizeEstimation
-    ( TxWitnessTag (..)
-    )
-import Internal.Cardano.Write.Tx.TimeTranslation
-    ( TimeTranslation
-    )
 import Ouroboros.Consensus.Util.IOLike
     ( MonadMonotonicTime
     , Time
@@ -849,6 +847,36 @@ import qualified Cardano.Address.KeyHash as CA
 import qualified Cardano.Address.Script as CA
 import qualified Cardano.Address.Style.Shelley as CAShelley
 import qualified Cardano.Api as Cardano
+import qualified Cardano.Balance.Tx.Balance as Write
+    ( PartialTx (..)
+    , StakeKeyDepositLookup (..)
+    , UTxOAssumptions (..)
+    , UTxOIndex
+    , balanceTx
+    , constructUTxOIndex
+    )
+import qualified Cardano.Balance.Tx.Eras as Write
+    ( AnyRecentEra
+    , CardanoApiEra
+    , IsRecentEra (..)
+    , MaybeInRecentEra (..)
+    , RecentEra (..)
+    , cardanoEraFromRecentEra
+    )
+import qualified Cardano.Balance.Tx.Tx as Write
+    ( ErrInvalidTxOutInEra
+    , FeePerByte
+    , PParams
+    , PParamsInAnyRecentEra (PParamsInAnyRecentEra)
+    , Tx
+    , UTxO (UTxO)
+    , feeOfBytes
+    , forceUTxOToEra
+    , fromCardanoApiTx
+    , getFeePerByte
+    , stakeKeyDeposit
+    , toCardanoApiTx
+    )
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Ledger.Core as Ledger
 import qualified Cardano.Slotting.Slot as Slot
@@ -872,24 +900,6 @@ import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics
 import qualified Cardano.Wallet.Read as Read
-import qualified Cardano.Write.Eras as Write
-    ( AnyRecentEra
-    , CardanoApiEra
-    , IsRecentEra (..)
-    , MaybeInRecentEra (..)
-    , RecentEra (..)
-    , cardanoEraFromRecentEra
-    )
-import qualified Cardano.Write.Tx as Write
-    ( PartialTx (..)
-    , StakeKeyDepositLookup (..)
-    , Tx
-    , UTxO (UTxO)
-    , UTxOAssumptions (..)
-    , UTxOIndex
-    , balanceTx
-    , constructUTxOIndex
-    )
 import qualified Data.ByteArray as BA
 import qualified Data.Delta.Update as Delta
 import qualified Data.Foldable as F
@@ -899,18 +909,6 @@ import qualified Data.List.NonEmpty as NE
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Vector as V
-import qualified Internal.Cardano.Write.Tx as Write
-    ( ErrInvalidTxOutInEra
-    , FeePerByte
-    , PParams
-    , PParamsInAnyRecentEra (PParamsInAnyRecentEra)
-    , feeOfBytes
-    , forceUTxOToEra
-    , fromCardanoApiTx
-    , getFeePerByte
-    , stakeKeyDeposit
-    , toCardanoApiTx
-    )
 
 -- $Development
 -- __Naming Conventions__

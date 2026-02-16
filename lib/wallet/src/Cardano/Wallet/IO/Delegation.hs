@@ -131,11 +131,11 @@ import Data.Time.Clock
     )
 import Prelude
 
+import qualified Cardano.Balance.Tx.Tx as Write
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.Address.Discovery.Sequential as Seq
 import qualified Cardano.Wallet.Delegation as WD
 import qualified Cardano.Wallet.Transaction as Tx
-import qualified Internal.Cardano.Write.Tx as Write
 
 {-----------------------------------------------------------------------------
     Used by constructTransaction
