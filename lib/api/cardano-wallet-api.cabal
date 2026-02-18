@@ -47,6 +47,7 @@ library
     , cardano-crypto
     , cardano-ledger-api
     , cardano-ledger-core
+    , cardano-ledger-read
     , cardano-wallet
     , cardano-wallet-launcher
     , cardano-wallet-network-layer

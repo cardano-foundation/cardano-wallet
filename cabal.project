@@ -125,6 +125,18 @@ source-repository-package
 --------------------------------------------------------------------------------
 
 --------------------------------------------------------------------------------
+-- BEGIN cardano-ledger-read
+
+source-repository-package
+  type: git
+  location: https://github.com/cardano-foundation/cardano-ledger-read
+  tag: node-10.5.4
+  --sha256: 13bia5209p8ndy4sqkgywv0lns9lfic9fpvqw0rzh7vsfvi1q2ph
+
+-- END cardano-ledger-read
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
 -- BEGIN Constraints tweaking section
 
 allow-newer:

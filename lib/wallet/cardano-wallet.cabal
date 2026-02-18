@@ -60,6 +60,7 @@ library
     , cardano-ledger-api
     , cardano-ledger-byron
     , cardano-ledger-core
+    , cardano-ledger-read
     , cardano-slotting
     , cardano-strict-containers
     , cardano-wallet-launcher

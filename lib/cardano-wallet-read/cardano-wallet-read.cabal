@@ -81,41 +81,6 @@ flag release
 library
   import:           opts-lib, language
   exposed-modules:
-    Cardano.Read.Ledger
-    Cardano.Read.Ledger.Address
-    Cardano.Read.Ledger.Block.BHeader
-    Cardano.Read.Ledger.Block.Block
-    Cardano.Read.Ledger.Block.BlockNo
-    Cardano.Read.Ledger.Block.HeaderHash
-    Cardano.Read.Ledger.Block.SlotNo
-    Cardano.Read.Ledger.Block.Txs
-    Cardano.Read.Ledger.Eras
-    Cardano.Read.Ledger.Eras.EraValue
-    Cardano.Read.Ledger.Eras.KnownEras
-    Cardano.Read.Ledger.Hash
-    Cardano.Read.Ledger.PParams
-    Cardano.Read.Ledger.Tx.CBOR
-    Cardano.Read.Ledger.Tx.Certificates
-    Cardano.Read.Ledger.Tx.CollateralInputs
-    Cardano.Read.Ledger.Tx.CollateralOutputs
-    Cardano.Read.Ledger.Tx.Eras
-    Cardano.Read.Ledger.Tx.ExtraSigs
-    Cardano.Read.Ledger.Tx.Fee
-    Cardano.Read.Ledger.Tx.Hash
-    Cardano.Read.Ledger.Tx.Inputs
-    Cardano.Read.Ledger.Tx.Integrity
-    Cardano.Read.Ledger.Tx.Metadata
-    Cardano.Read.Ledger.Tx.Mint
-    Cardano.Read.Ledger.Tx.Output
-    Cardano.Read.Ledger.Tx.Outputs
-    Cardano.Read.Ledger.Tx.ReferenceInputs
-    Cardano.Read.Ledger.Tx.ScriptValidity
-    Cardano.Read.Ledger.Tx.Tx
-    Cardano.Read.Ledger.Tx.TxId
-    Cardano.Read.Ledger.Tx.Validity
-    Cardano.Read.Ledger.Tx.Withdrawals
-    Cardano.Read.Ledger.Tx.Witnesses
-    Cardano.Read.Ledger.Value
     Cardano.Wallet.Read
     Cardano.Wallet.Read.Address
     Cardano.Wallet.Read.Block
@@ -174,6 +139,7 @@ library
     , cardano-ledger-conway
     , cardano-ledger-core
     , cardano-ledger-mary
+    , cardano-ledger-read
     , cardano-ledger-shelley
     , cardano-protocol-tpraos
     , cardano-strict-containers
@@ -221,6 +187,7 @@ test-suite test
     , cardano-ledger-api
     , cardano-ledger-core
     , cardano-ledger-mary
+    , cardano-ledger-read
     , cardano-wallet-read
     , hspec                >=2.11.0   && <2.12
     , lens
