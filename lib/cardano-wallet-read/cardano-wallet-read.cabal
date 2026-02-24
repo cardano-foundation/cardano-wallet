@@ -84,12 +84,7 @@ library
     Cardano.Wallet.Read
     Cardano.Wallet.Read.Address
     Cardano.Wallet.Read.Block
-    Cardano.Wallet.Read.Block.Gen
-    Cardano.Wallet.Read.Block.Gen.Babbage
-    Cardano.Wallet.Read.Block.Gen.BlockParameters
     Cardano.Wallet.Read.Block.Gen.Build
-    Cardano.Wallet.Read.Block.Gen.Byron
-    Cardano.Wallet.Read.Block.Gen.Shelley
     Cardano.Wallet.Read.Chain
     Cardano.Wallet.Read.Eras
     Cardano.Wallet.Read.Hash
@@ -127,7 +122,6 @@ library
     , bytestring                    >=0.10.6   && <0.13
     , cardano-crypto
     , cardano-crypto-class
-    , cardano-crypto-praos
     , cardano-crypto-wrapper
     , cardano-data
     , cardano-ledger-allegra
@@ -141,20 +135,14 @@ library
     , cardano-ledger-mary
     , cardano-ledger-read
     , cardano-ledger-shelley
-    , cardano-protocol-tpraos
     , cardano-strict-containers
     , containers                    >=0.5      && <0.8
-    , deepseq                       >=1.4.4    && <1.6
     , fmt                           >=0.6.3.0  && <0.7
     , generics-sop                  >=0.5.1.4  && <0.6
     , lens                          >=5.2.3    && <5.4
     , memory                        >=0.18.0   && <0.19
     , nothunks                      >=0.1.5    && <0.4
     , operational                   >=0.2.4.2  && <0.3
-    , ouroboros-consensus
-    , ouroboros-consensus-cardano
-    , ouroboros-consensus-protocol
-    , ouroboros-network-api
     , QuickCheck                    >=2.14     && <2.16.0
     , text                          >=1.2      && <2.2
     , time                          >=1.12.2   && <1.15
