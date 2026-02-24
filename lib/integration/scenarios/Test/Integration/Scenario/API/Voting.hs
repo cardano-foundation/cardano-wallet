@@ -238,6 +238,7 @@ spec = describe "VOTING_TRANSACTIONS" $ do
 
     it "VOTING_01b - Can vote and revote after delegation" $ \ctx -> runResourceT $ do
         noBabbage ctx "voting supported in Conway onwards"
+        pendingWith "Node 10.6.2 ledger rule change: WithdrawalsNotInRewardsCERTS when delegation and voting are in separate transactions. See #5210"
         src <- fixtureWallet ctx
 
         pool1 : _pool2 : _ <- map (view #id) <$> notRetiringPools ctx

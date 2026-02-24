@@ -254,22 +254,7 @@ import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Byron as Byron
 import qualified Cardano.Api.Certificate as ApiCert
 import qualified Cardano.Api.Experimental.Certificate as ExpCert
-import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Balance.Tx.Eras as Write
-import qualified Cardano.Crypto as CC
-import qualified Cardano.Crypto.Hash.Class as Crypto
-import qualified Cardano.Crypto.Wallet as Crypto.HD
-import qualified Cardano.Ledger.Api as Ledger
-import qualified Cardano.Ledger.Keys.Bootstrap as SL
-import qualified Cardano.Wallet.Primitive.Ledger.Convert as Convert
-import qualified Cardano.Wallet.Primitive.Ledger.Shelley as Compatibility
-import qualified Cardano.Wallet.Primitive.Types.AssetId as AssetId
-import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
-    ( CardanoApiEra
-    , IsRecentEra (recentEra)
-    , RecentEra (RecentEraBabbage, RecentEraConway)
-    , shelleyBasedEraFromRecentEra
-    )
 import qualified Cardano.Balance.Tx.Primitive as BT
 import qualified Cardano.Balance.Tx.Sign as Write
     ( estimateMaxWitnessRequiredPerInput

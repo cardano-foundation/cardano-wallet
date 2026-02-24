@@ -53,9 +53,6 @@ import Cardano.Api.Gen
     , genTxInEra
     , genWitnesses
     )
-import Cardano.Api.Shelley
-    ( ShelleyLedgerEra
-    )
 import Cardano.Balance.Tx.Balance
     ( ErrBalanceTx (..)
     , ErrBalanceTxUnableToCreateChangeError (..)
@@ -346,7 +343,6 @@ import Prelude
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Ledger as L
-import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Balance.Tx.Eras as Write
     ( Babbage
     , CardanoApiEra
