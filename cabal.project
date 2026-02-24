@@ -61,7 +61,6 @@ packages:
   lib/application
   lib/application-extras
   lib/application-tls
-  lib/balance-tx
   lib/benchmarks
   lib/cardano-api-extra
   lib/crypto-primitives
@@ -134,6 +133,18 @@ source-repository-package
   --sha256: 07psh8fw7d6kgjr449qip5skphyg3y0wf6l0wqwjnwwnw0jgi9rs
 
 -- END cardano-ledger-read
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+-- BEGIN cardano-balance-tx
+
+source-repository-package
+  type: git
+  location: https://github.com/cardano-foundation/cardano-balance-transaction
+  tag: a069da87ad0ced93f1f9e66061f1e9228a881f59
+  --sha256: 1xsjcs1qsg8x1cnzw4zxh15ddjam7zrgi68h3b2ckj76ywlhh20f
+
+-- END cardano-balance-tx
 --------------------------------------------------------------------------------
 
 --------------------------------------------------------------------------------
@@ -258,9 +269,6 @@ package delta-types
   tests: True
 
 package delta-table
-  tests: True
-
-package cardano-balance-tx
   tests: True
 
 package cardano-coin-selection

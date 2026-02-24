@@ -8,6 +8,12 @@
 
 module Cardano.Wallet.Api.Http.Server.Error.AssignReedemers () where
 
+import Cardano.Balance.Tx.Balance
+    ( ErrAssignRedeemers (..)
+    )
+import Cardano.Balance.Tx.Eras
+    ( IsRecentEra (..)
+    )
 import Cardano.Wallet.Api.Http.Server.Error.IsServerError
     ( IsServerError (..)
     , apiError
@@ -15,14 +21,8 @@ import Cardano.Wallet.Api.Http.Server.Error.IsServerError
 import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..)
     )
-import Cardano.Write.Eras
-    ( IsRecentEra (..)
-    )
 import Fmt
     ( pretty
-    )
-import Internal.Cardano.Write.Tx.Balance
-    ( ErrAssignRedeemers (..)
     )
 import Servant.Server
     ( err400

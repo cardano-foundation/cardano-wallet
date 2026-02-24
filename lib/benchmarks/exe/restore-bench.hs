@@ -368,6 +368,9 @@ import UnliftIO.Exception
     )
 import Prelude
 
+import qualified Cardano.Balance.Tx.Tx as Write
+    ( PParamsInAnyRecentEra (PParamsInAnyRecentEra)
+    )
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.Address.Derivation.Byron as Byron
 import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
@@ -386,9 +389,6 @@ import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.IO as TIO
-import qualified Internal.Cardano.Write.Tx as Write
-    ( PParamsInAnyRecentEra (PParamsInAnyRecentEra)
-    )
 
 {-------------------------------------------------------------------------------
                             Wallet RSS monitoring

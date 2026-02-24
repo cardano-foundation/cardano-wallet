@@ -52,6 +52,9 @@ import Cardano.Api
 import Cardano.Api.Gen
     ( genAddressAnyWithNetworkId
     )
+import Cardano.Balance.Tx.Gen
+    ( genDatumHash
+    )
 import Cardano.Mnemonic
     ( CheckSumBits
     , ConsistentEntropy
@@ -588,9 +591,6 @@ import GHC.TypeLits
     ( KnownSymbol
     , natVal
     , symbolVal
-    )
-import Internal.Cardano.Write.Tx.Gen
-    ( genDatumHash
     )
 import Network.Ntp
     ( NtpStatusWithOffset (..)

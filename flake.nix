@@ -310,7 +310,6 @@
                 unit-cardano-wallet-launcher = project.hsPkgs.cardano-wallet-launcher.components.tests.unit;
                 unit-cardano-wallet-application-tls = project.hsPkgs.cardano-wallet-application-tls.components.tests.unit;
                 unit-cardano-numeric = project.hsPkgs.cardano-numeric.components.tests.unit;
-                unit-cardano-balance-tx = project.hsPkgs.cardano-balance-tx.components.tests.test;
                 unit-cardano-wallet-blackbox-benchmarks = project.hsPkgs.cardano-wallet-blackbox-benchmarks.components.tests.unit;
                 unit-delta-chain = project.hsPkgs.delta-chain.components.tests.unit;
                 unit-delta-store = project.hsPkgs.delta-store.components.tests.unit;
@@ -473,12 +472,6 @@
                     wallet-launcher = mkTest "wallet-launcher" windowsPackages.unit-cardano-wallet-launcher;
                     wallet-application-tls = mkTest "wallet-application-tls" windowsPackages.unit-cardano-wallet-application-tls;
                     cardano-numeric = mkTest "cardano-numeric" windowsPackages.unit-cardano-numeric;
-                    cardano-balance-tx = import ./nix/windows-test-exe.nix {
-                      inherit pkgs;
-                      name = "cardano-balance-tx";
-                      test = windowsPackages.unit-cardano-balance-tx;
-                      testDataDirs = [./lib/balance-tx/test/data];
-                    };
                     wallet-blackbox-benchmarks = import ./nix/windows-test-exe.nix {
                       inherit pkgs;
                       name = "wallet-blackbox-benchmarks";

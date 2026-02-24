@@ -29,6 +29,13 @@ import Cardano.Api
     ( AnyCardanoEra (..)
     , CardanoEra (..)
     )
+import Cardano.Balance.Tx.Balance
+    ( ErrBalanceTx (..)
+    , ErrBalanceTxAssetsInsufficientError (..)
+    )
+import Cardano.Balance.Tx.SizeEstimation
+    ( TxWitnessTag (..)
+    )
 import Cardano.Mnemonic
     ( SomeMnemonic (..)
     )
@@ -208,10 +215,6 @@ import Cardano.Wallet.Unsafe
 import Cardano.Wallet.Util
     ( HasCallStack
     )
-import Cardano.Write.Tx
-    ( ErrBalanceTx (..)
-    , ErrBalanceTxAssetsInsufficientError (..)
-    )
 import Control.DeepSeq
     ( NFData (..)
     )
@@ -325,9 +328,6 @@ import Data.Word
 import GHC.Generics
     ( Generic
     )
-import Internal.Cardano.Write.Tx.SizeEstimation
-    ( TxWitnessTag (..)
-    )
 import System.Random
     ( Random
     )
@@ -398,6 +398,10 @@ import UnliftIO.Concurrent
     )
 import Prelude
 
+import qualified Cardano.Balance.Tx.Eras as Write
+    ( AnyRecentEra (AnyRecentEra)
+    , RecentEra (RecentEraBabbage, RecentEraConway)
+    )
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.Address.Book as Sqlite
@@ -410,10 +414,6 @@ import qualified Cardano.Wallet.Read as Read
 import qualified Cardano.Wallet.Read.Hash as Hash
 import qualified Cardano.Wallet.Submissions.Submissions as Smbs
 import qualified Cardano.Wallet.Submissions.TxStatus as Sbms
-import qualified Cardano.Write.Eras as Write
-    ( AnyRecentEra (AnyRecentEra)
-    , RecentEra (RecentEraBabbage, RecentEraConway)
-    )
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8

@@ -74,6 +74,9 @@ import Cardano.Api
 import Cardano.Api.Extra
     (
     )
+import Cardano.Balance.Tx.SizeEstimation
+    ( TxWitnessTag
+    )
 import Cardano.Wallet.Address.Derivation
     ( Depth (..)
     , DerivationIndex
@@ -169,9 +172,6 @@ import Fmt
     )
 import GHC.Generics
     ( Generic
-    )
-import Internal.Cardano.Write.Tx.SizeEstimation
-    ( TxWitnessTag
     )
 import Prelude
 

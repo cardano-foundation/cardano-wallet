@@ -51,7 +51,6 @@ library
     , cardano-addresses             >=4.0.2     && <4.1
     , cardano-api
     , cardano-balance-tx
-    , cardano-balance-tx:internal
     , cardano-binary
     , cardano-crypto
     , cardano-crypto-class
