@@ -79,6 +79,7 @@ library
     , cardano-ledger-byron
     , cardano-ledger-core
     , cardano-ledger-mary
+    , cardano-ledger-read
     , cardano-ledger-shelley
     , cardano-slotting
     , cardano-wallet-launcher

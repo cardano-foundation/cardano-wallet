@@ -35,19 +35,18 @@ import Cardano.Ledger.Binary
 import Cardano.Read.Ledger.Block.BlockNo
     ( BlockNo (..)
     )
+import Cardano.Read.Ledger.Block.Gen
+    ( mkBlockEra
+    )
+import Cardano.Read.Ledger.Block.Gen.BlockParameters
+    ( BlockParameters (..)
+    )
 import Cardano.Read.Ledger.Block.SlotNo
     ( SlotNo (..)
     )
 import Cardano.Wallet.Read.Block
     ( ConsensusBlock
     , toConsensusBlock
-    )
-import Cardano.Wallet.Read.Block.Gen
-    ( mkBlockEra
-    )
-import Cardano.Wallet.Read.Block.Gen.BlockParameters
-    ( BlockParameters (..)
-    , txsL
     )
 import Cardano.Wallet.Read.Eras
     ( Era (..)
@@ -77,7 +76,9 @@ import Cardano.Wallet.Read.Tx.TxId
     , txIdFromHash
     )
 import Control.Lens
-    ( over
+    ( Lens'
+    , lens
+    , over
     , strict
     , view
     )
@@ -136,6 +137,9 @@ import Prelude
 
 import Cardano.Wallet.Read.Hash qualified as Hash
 import Data.ByteString.Char8 qualified as B8
+
+txsL :: Lens' (BlockParameters era) [Tx era]
+txsL = lens txs (\bp x -> bp{txs = x})
 
 -- | DSL for building a tx
 data TxBuild a where
