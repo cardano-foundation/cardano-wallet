@@ -42,6 +42,7 @@ jobs:
           .#unit-delta-chain .#unit-delta-store .#unit-delta-table
           .#unit-delta-types .#unit-std-gen-seed .#unit-wai-middleware-logging
           .#unit-benchmark-history
+          .#wallet-key-export .#wallet-key-export-test
 
   build-gate-artifacts:
     name: "Build Gate (Linux Artifacts)"
@@ -144,6 +145,11 @@ jobs:
 
           - name: "benchmark-history-test"
             command: nix run --quiet .#unit-benchmark-history -- +RTS -M2G -s -RTS
+
+          - name: "wallet-key-export-test"
+            command: >-
+              nix shell --quiet .#wallet-key-export -c
+              nix run --quiet .#wallet-key-export-test -- +RTS -M2G -s -RTS
 
           - name: "wallet-unit / Byron + CLI"
             working-directory: lib/unit

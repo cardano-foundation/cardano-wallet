@@ -1,9 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE GADTs #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
 
 -- |
 -- Copyright: © 2024 Cardano Foundation
@@ -45,6 +43,9 @@ import Control.Monad.Logger
 import Control.Monad.Reader
     ( runReaderT
     )
+import Control.Monad.Trans.Resource
+    ( runResourceT
+    )
 import Data.ByteString
     ( ByteString
     )
@@ -56,7 +57,6 @@ import Database.Persist.Sql
 import Database.Persist.Sqlite
     ( withSqliteConn
     )
-import Prelude
 import System.Environment
     ( getArgs
     )
@@ -66,13 +66,12 @@ import System.Exit
 import System.IO
     ( hFlush
     , hGetEcho
+    , hIsTerminalDevice
     , hSetEcho
     , stdin
     , stdout
     )
-import Control.Monad.Trans.Resource
-    ( runResourceT
-    )
+import Prelude
 
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString.Base16 as B16
@@ -162,12 +161,9 @@ readPrivateKey dbPath walletId = do
             . runNoLoggingT
             $ withSqliteConn (T.pack dbPath)
             $ runReaderT
-            $ do
-                rows <-
-                    rawSql
-                        "SELECT root, hash FROM private_key WHERE wallet_id = ?"
-                        [PersistText walletId]
-                pure rows
+            $ rawSql
+                "SELECT root, hash FROM private_key WHERE wallet_id = ?"
+                [PersistText walletId]
     case result of
         [(Single root, Single hash)] ->
             pure (T.encodeUtf8 root, T.encodeUtf8 hash)
@@ -182,13 +178,18 @@ readPrivateKey dbPath walletId = do
 
 promptPassphrase :: IO (Passphrase "user")
 promptPassphrase = do
-    putStr "Enter spending passphrase: "
-    hFlush stdout
-    echoWas <- hGetEcho stdin
-    hSetEcho stdin False
+    isTerm <- hIsTerminalDevice stdin
+    when isTerm $ do
+        putStr "Enter spending passphrase: "
+        hFlush stdout
+    oldEcho <-
+        if isTerm
+            then Just <$> (hGetEcho stdin <* hSetEcho stdin False)
+            else pure Nothing
     input <- TIO.getLine
-    hSetEcho stdin echoWas
-    putStrLn ""
+    case oldEcho of
+        Just e -> hSetEcho stdin e >> putStrLn ""
+        Nothing -> pure ()
     when (T.null input) $ do
         putStrLn "Error: empty passphrase"
         exitFailure
