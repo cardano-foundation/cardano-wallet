@@ -286,6 +286,25 @@ library mock-token-metadata
 
   exposed-modules: Cardano.Wallet.TokenMetadata.MockServer
 
+executable wallet-key-export
+  import:        language, opts-exe
+  main-is:       exe/wallet-key-export.hs
+  build-depends:
+    , address-derivation-discovery
+    , base
+    , base16-bytestring
+    , bytestring
+    , cardano-crypto
+    , cardano-wallet
+    , cardano-wallet-secrets
+    , memory
+    , monad-logger
+    , mtl
+    , persistent
+    , persistent-sqlite
+    , resourcet
+    , text
+
 -- Triggers this https://github.com/haskell/cabal/issues/6470
 -- if moved to an external library
 executable mock-token-metadata-server
