@@ -334,6 +334,7 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: set-git-rev: rewrite-l
               # Apply fully static options to our Haskell executables
               packages.cardano-wallet-benchmarks.components.benchmarks.restore = fullyStaticOptions;
               packages.cardano-wallet-application.components.exes.cardano-wallet = fullyStaticOptions;
+              packages.cardano-wallet.components.exes.wallet-key-export = fullyStaticOptions;
               packages.cardano-wallet-integration.components.tests.integration = fullyStaticOptions;
               packages.cardano-wallet-unit.components.tests.unit = fullyStaticOptions;
               packages.cardano-wallet-benchmarks.components.benchmarks.db = fullyStaticOptions;

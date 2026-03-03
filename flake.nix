@@ -280,7 +280,7 @@
                   backend = self.cardano-node;
                 };
                 # Local test cluster and mock metadata server
-                inherit (project.hsPkgs.cardano-wallet.components.exes) mock-token-metadata-server;
+                inherit (project.hsPkgs.cardano-wallet.components.exes) mock-token-metadata-server wallet-key-export;
                 inherit (project.hsPkgs.cardano-wallet-benchmarks.components.exes) benchmark-history;
                 inherit (project.hsPkgs.local-cluster.components.exes) local-cluster;
                 integration-exe = project.hsPkgs.cardano-wallet-integration.components.exes.integration-exe;
@@ -541,6 +541,7 @@
               };
             };
           imagePackages = mkPackages walletProject.projectCross.musl64;
+          staticPackages = mkPackages walletProject.projectCross.musl64;
         in
         rec {
 
@@ -558,6 +559,9 @@
             // rec {
               dockerImage = mkDockerImage true imagePackages;
               dockerTestImage = mkDockerImage false imagePackages;
+            }
+            // lib.optionalAttrs buildPlatform.isLinux {
+              wallet-key-export-static = staticPackages.wallet-key-export;
             }
             //
 
