@@ -56,6 +56,9 @@ import Cardano.Wallet.Primitive.Passphrase
     ( encryptPassphrase
     , preparePassphrase
     )
+import Cardano.Wallet.Primitive.Passphrase.Gen
+    ( genUserPassphrase
+    )
 import Cardano.Wallet.Primitive.Passphrase.Legacy
     ( encryptPassphraseTestingOnly
     )
@@ -107,12 +110,10 @@ import System.Process
 import Test.QuickCheck
     ( Gen
     , Property
-    , choose
     , counterexample
     , forAll
     , ioProperty
     , oneof
-    , vectorOf
     , withMaxSuccess
     , (.&&.)
     , (===)
@@ -149,13 +150,6 @@ main = do
         then putStrLn "All tests passed."
         else exitFailure
 
--- | Generate a user passphrase of 10–50 lowercase ASCII chars.
-genUserPassphrase :: Gen T.Text
-genUserPassphrase = do
-    n <- choose (10 :: Int, 50)
-    chars <- vectorOf n (choose ('a', 'z'))
-    pure $ T.pack chars
-
 -- | Generate a Shelley mnemonic (15 or 24 words).
 genShelleyMnemonic :: Gen SomeMnemonic
 genShelleyMnemonic =
@@ -191,10 +185,9 @@ prop_shelleyRoundtrip exe =
             <*> genUserPassphrase
             <*> genWalletId
         )
-        $ \(mnemonic, secondFactor, passphrase, wid) ->
+        $ \(mnemonic, secondFactor, userPass, wid) ->
             ioProperty $ do
-                let userPass = mkUserPass passphrase
-                    encPass =
+                let encPass =
                         preparePassphrase EncryptWithPBKDF2 userPass
                     key =
                         generateKeyFromSeed
@@ -218,7 +211,7 @@ prop_shelleyRoundtrip exe =
                     wid
                     rootHex
                     hashHex
-                    passphrase
+                    userPass
                     expected
 
 -- | Byron: Scrypt passphrase scheme with varied mnemonic sizes.
@@ -230,10 +223,9 @@ prop_byronRoundtrip exe =
             <*> genUserPassphrase
             <*> genWalletId
         )
-        $ \(mnemonic, passphrase, wid) ->
+        $ \(mnemonic, userPass, wid) ->
             ioProperty $ do
-                let userPass = mkUserPass passphrase
-                    encPass =
+                let encPass =
                         preparePassphrase EncryptWithScrypt userPass
                     key = Byron.generateKeyFromSeed mnemonic encPass
                 passHash <- encryptPassphraseTestingOnly 64 encPass
@@ -254,14 +246,16 @@ prop_byronRoundtrip exe =
                     wid
                     rootHex
                     hashHex
-                    passphrase
+                    userPass
                     expected
-
-mkUserPass :: T.Text -> Passphrase "user"
-mkUserPass t = Passphrase (BA.convert (T.encodeUtf8 t))
 
 emptyPass :: Passphrase "encryption"
 emptyPass = mempty
+
+-- | Convert a passphrase to text for piping to stdin.
+passphraseToText :: Passphrase "user" -> T.Text
+passphraseToText (Passphrase bytes) =
+    T.decodeUtf8 (BA.convert bytes)
 
 -- | Shared test logic: write key to temp DB, run the tool,
 -- compare output.
@@ -270,10 +264,10 @@ runExportTest
     -> WalletId
     -> BS.ByteString
     -> BS.ByteString
-    -> T.Text
+    -> Passphrase "user"
     -> BS.ByteString
     -> IO Property
-runExportTest exe wid rootHex hashHex passphrase expected =
+runExportTest exe wid rootHex hashHex userPass expected =
     withSystemTempFile "wallet-export-test.db"
         $ \dbPath handle -> do
             hClose handle
@@ -296,10 +290,11 @@ runExportTest exe wid rootHex hashHex passphrase expected =
                         $ False === True
                 Right () -> do
                     let widHex = T.unpack (toText wid)
+                        passText = passphraseToText userPass
                     (exitCode, stdout_, _stderr) <-
                         readCreateProcessWithExitCode
                             (proc exe [dbPath, widHex])
-                            (T.unpack passphrase ++ "\n")
+                            (T.unpack passText ++ "\n")
 
                     let extractedHex =
                             extractHexFromOutput stdout_
