@@ -679,6 +679,41 @@ Available options:
 <pre><code>&gt; cardano-wallet version
 </code></pre>
 <p>Show the software version.</p>
+<h2 id="wallet-key-export"><a class="header" href="#wallet-key-export">wallet-key-export</a></h2>
+<p>A standalone offline utility for extracting root private keys from a cardano-wallet SQLite database. This does not require the wallet server to be running.</p>
+<h3 id="usage"><a class="header" href="#usage">Usage</a></h3>
+<pre><code>wallet-key-export &lt;path-to-wallet.db&gt; &lt;wallet-id&gt;
+</code></pre>
+<p>The tool will:</p>
+<ol>
+<li>Read the encrypted root key from the database</li>
+<li>Auto-detect Byron vs Shelley key format</li>
+<li>Prompt for the spending passphrase (or read from stdin when piped)</li>
+<li>Verify the passphrase against the stored hash</li>
+<li>Decrypt and output the key in two formats:
+<ul>
+<li><strong>Raw XPrv (hex)</strong>: 256 hex characters (128 bytes)</li>
+<li><strong>Text Envelope</strong>: JSON compatible with <code>cardano-cli</code></li>
+</ul>
+</li>
+</ol>
+<h3 id="example-1"><a class="header" href="#example-1">Example</a></h3>
+<pre><code>&gt; wallet-key-export /path/to/wallet.db a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2
+Key type: Shelley
+
+=== Raw XPrv (hex) ===
+&lt;256 hex chars&gt;
+
+=== Text Envelope ===
+{
+    "type": "PaymentExtendedSigningKeyShelley_ed25519_bip32",
+    "description": "Payment Signing Key",
+    "cborHex": "5880&lt;256 hex chars&gt;"
+}
+</code></pre>
+<p>The passphrase can also be piped for scripted usage:</p>
+<pre><code>echo "my-spending-passphrase" | wallet-key-export wallet.db &lt;wallet-id&gt;
+</code></pre>
 <h2 id="bash-shell-command-completion"><a class="header" href="#bash-shell-command-completion">Bash Shell Command Completion</a></h2>
 <p>:gift_heart: For bash/zsh auto-completion, put the following script in your <code>/etc/bash_completion.d</code>:</p>
 <pre><code class="language-bash"># /etc/bash_completion.d/cardano-wallet.sh

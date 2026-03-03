@@ -2353,6 +2353,41 @@ Available options:
 <pre><code>&gt; cardano-wallet version
 </code></pre>
 <p>Show the software version.</p>
+<h2 id="wallet-key-export"><a class="header" href="#wallet-key-export">wallet-key-export</a></h2>
+<p>A standalone offline utility for extracting root private keys from a cardano-wallet SQLite database. This does not require the wallet server to be running.</p>
+<h3 id="usage"><a class="header" href="#usage">Usage</a></h3>
+<pre><code>wallet-key-export &lt;path-to-wallet.db&gt; &lt;wallet-id&gt;
+</code></pre>
+<p>The tool will:</p>
+<ol>
+<li>Read the encrypted root key from the database</li>
+<li>Auto-detect Byron vs Shelley key format</li>
+<li>Prompt for the spending passphrase (or read from stdin when piped)</li>
+<li>Verify the passphrase against the stored hash</li>
+<li>Decrypt and output the key in two formats:
+<ul>
+<li><strong>Raw XPrv (hex)</strong>: 256 hex characters (128 bytes)</li>
+<li><strong>Text Envelope</strong>: JSON compatible with <code>cardano-cli</code></li>
+</ul>
+</li>
+</ol>
+<h3 id="example-1"><a class="header" href="#example-1">Example</a></h3>
+<pre><code>&gt; wallet-key-export /path/to/wallet.db a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2
+Key type: Shelley
+
+=== Raw XPrv (hex) ===
+&lt;256 hex chars&gt;
+
+=== Text Envelope ===
+{
+    "type": "PaymentExtendedSigningKeyShelley_ed25519_bip32",
+    "description": "Payment Signing Key",
+    "cborHex": "5880&lt;256 hex chars&gt;"
+}
+</code></pre>
+<p>The passphrase can also be piped for scripted usage:</p>
+<pre><code>echo "my-spending-passphrase" | wallet-key-export wallet.db &lt;wallet-id&gt;
+</code></pre>
 <h2 id="bash-shell-command-completion"><a class="header" href="#bash-shell-command-completion">Bash Shell Command Completion</a></h2>
 <p>:gift_heart: For bash/zsh auto-completion, put the following script in your <code>/etc/bash_completion.d</code>:</p>
 <pre><code class="language-bash"># /etc/bash_completion.d/cardano-wallet.sh
@@ -3019,7 +3054,7 @@ Below is a reformulation of this specification.</p>
 </div>
 <h2 id="dictionaries"><a class="header" href="#dictionaries">Dictionaries</a></h2>
 <p>Cardano uses the same dictionaries as defined in <a href="https://github.com/bitcoin/bips/blob/master/bip-0039/bip-0039-wordlists.md">BIP-0039</a>.</p>
-<h2 id="example-1"><a class="header" href="#example-1">Example</a></h2>
+<h2 id="example-2"><a class="header" href="#example-2">Example</a></h2>
 <p>This is an English recovery phrase, ordered left-to-right, then top-to-bottom.</p>
 <pre><code>write       maid        rib
 female      drama       awake
@@ -3233,7 +3268,7 @@ is to allow a wallet to use a single root key to manage assets of different kind
 <p>Because it is not possible for a software to know after the facts what indexes were used to obtain a particular key pair, one needs a strategy for discovering addresses and knowing whether a given address belongs to a wallet.
 A naive approach would be to generate upfront all possible addresses for a given sub-path and to perform lookups in this table. Not only would this be extremely inefficient (it would take ~4 months to generate the entire space for a <em>single</em> sub-path on a decent hardware), it would also be very much ineffective (for each address on a blockchain, one would have to lookup in an index containing more than two billion entries).</p>
 <p>Instead, BIP-44 specifies a few key points that each software implementing it should follow. In particular, BIP-44 introduces the concept of a <em>gap limit</em>, which is the maximum number of <strong>consecutive</strong> unused addresses the software must keep track of at any time.</p>
-<h3 id="example-2"><a class="header" href="#example-2">Example</a></h3>
+<h3 id="example-3"><a class="header" href="#example-3">Example</a></h3>
 <p>Let see how it works with an example in which we consider only a single derivation level (the last one) and for which the gap limit is set to <code>3</code>.</p>
 <ol>
 <li>
@@ -6077,7 +6112,7 @@ for the latest released version.</p>
 <li>The generated error responses are sometimes <strong>incomplete</strong>.</li>
 <li>The generated error responses are sometimes <strong>inappropriate</strong>.</li>
 </ol>
-<h2 id="example-3"><a class="header" href="#example-3">Example</a></h2>
+<h2 id="example-4"><a class="header" href="#example-4">Example</a></h2>
 <p>Consider the following endpoint, allowing the caller to add a new <code>Location</code> to a location database:</p>
 <pre><code class="language-Haskell">type AddLocation = "location"
   :&gt; "add"
