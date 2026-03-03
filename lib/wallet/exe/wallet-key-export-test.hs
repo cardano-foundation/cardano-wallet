@@ -60,7 +60,8 @@ import Cardano.Wallet.Primitive.Passphrase.Gen
     ( genUserPassphrase
     )
 import Cardano.Wallet.Primitive.Passphrase.Legacy
-    ( encryptPassphraseTestingOnly
+    ( PassphraseHashLength
+    , encryptPassphraseTestingOnly
     )
 import Cardano.Wallet.Primitive.Passphrase.Types
     ( Passphrase (..)
@@ -111,12 +112,14 @@ import Test.QuickCheck
     ( Gen
     , Property
     , counterexample
+    , elements
     , forAll
     , ioProperty
     , oneof
     , withMaxSuccess
     , (.&&.)
     , (===)
+    , (==>)
     )
 import Test.QuickCheck.Test
     ( isSuccess
@@ -145,6 +148,7 @@ main = do
             quickCheckResult
             [ withMaxSuccess 20 $ prop_shelleyRoundtrip exe
             , withMaxSuccess 20 $ prop_byronRoundtrip exe
+            , withMaxSuccess 20 $ prop_wrongPassphrase exe
             ]
     if all isSuccess results
         then putStrLn "All tests passed."
@@ -166,6 +170,10 @@ genSecondFactor =
         , Just . SomeMnemonic <$> genMnemonic @9
         , Just . SomeMnemonic <$> genMnemonic @12
         ]
+
+-- | Generate a Scrypt hash length (32, 64, or 128 bytes).
+genScryptHashLength :: Gen PassphraseHashLength
+genScryptHashLength = elements [32, 64, 128]
 
 -- | Generate a Byron mnemonic (12 or 15 words).
 genByronMnemonic :: Gen SomeMnemonic
@@ -214,21 +222,24 @@ prop_shelleyRoundtrip exe =
                     userPass
                     expected
 
--- | Byron: Scrypt passphrase scheme with varied mnemonic sizes.
+-- | Byron: Scrypt passphrase scheme with varied mnemonic sizes
+-- and hash lengths.
 prop_byronRoundtrip :: FilePath -> Property
 prop_byronRoundtrip exe =
     forAll
-        ( (,,)
+        ( (,,,)
             <$> genByronMnemonic
             <*> genUserPassphrase
+            <*> genScryptHashLength
             <*> genWalletId
         )
-        $ \(mnemonic, userPass, wid) ->
+        $ \(mnemonic, userPass, hashLen, wid) ->
             ioProperty $ do
                 let encPass =
                         preparePassphrase EncryptWithScrypt userPass
                     key = Byron.generateKeyFromSeed mnemonic encPass
-                passHash <- encryptPassphraseTestingOnly 64 encPass
+                passHash <-
+                    encryptPassphraseTestingOnly hashLen encPass
                 let (rootHex, hashHex) =
                         serializeXPrv ByronKeyS (key, passHash)
                     xprv = getRawKey ByronKeyS key
@@ -248,6 +259,28 @@ prop_byronRoundtrip exe =
                     hashHex
                     userPass
                     expected
+
+-- | Wrong passphrase must cause the tool to exit with failure.
+prop_wrongPassphrase :: FilePath -> Property
+prop_wrongPassphrase exe =
+    forAll
+        ( (,,,)
+            <$> genShelleyMnemonic
+            <*> genUserPassphrase
+            <*> genUserPassphrase
+            <*> genWalletId
+        )
+        $ \(mnemonic, userPass, wrongPass, wid) ->
+            userPass /= wrongPass ==>
+                ioProperty $ do
+                    let encPass =
+                            preparePassphrase EncryptWithPBKDF2 userPass
+                        key =
+                            generateKeyFromSeed (mnemonic, Nothing) encPass
+                    (_, passHash) <- encryptPassphrase userPass
+                    let (rootHex, hashHex) =
+                            serializeXPrv ShelleyKeyS (key, passHash)
+                    runWrongPassTest exe wid rootHex hashHex wrongPass
 
 emptyPass :: Passphrase "encryption"
 emptyPass = mempty
@@ -306,6 +339,48 @@ runExportTest exe wid rootHex hashHex userPass expected =
                             ("exit: " <> show exitCode)
                         $ (exitCode === ExitSuccess)
                         .&&. (extractedHex === expected)
+
+-- | Test that a wrong passphrase causes the tool to fail.
+runWrongPassTest
+    :: FilePath
+    -> WalletId
+    -> BS.ByteString
+    -> BS.ByteString
+    -> Passphrase "user"
+    -> IO Property
+runWrongPassTest exe wid rootHex hashHex wrongPass =
+    withSystemTempFile "wallet-export-test.db"
+        $ \dbPath handle -> do
+            hClose handle
+            dbResult <-
+                withSqliteContextFile
+                    nullTracer
+                    dbPath
+                    noManualMigration
+                    migrateAll
+                    $ \db ->
+                        runQuery db $ do
+                            insertWallet wid
+                            insert_
+                                $ PrivateKey wid rootHex hashHex
+            case dbResult of
+                Left err ->
+                    pure
+                        $ counterexample
+                            ("DB migration error: " <> show err)
+                        $ False === True
+                Right () -> do
+                    let widHex = T.unpack (toText wid)
+                        passText = passphraseToText wrongPass
+                    (exitCode, stdout_, _stderr) <-
+                        readCreateProcessWithExitCode
+                            (proc exe [dbPath, widHex])
+                            (T.unpack passText ++ "\n")
+                    pure
+                        $ counterexample
+                            ("stdout: " <> stdout_)
+                        $ exitCode
+                            === ExitFailure 1
 
 -- | Extract the hex line from wallet-key-export output.
 -- Looks for the line after "=== Raw XPrv (hex) ===".
