@@ -280,7 +280,7 @@
                   backend = self.cardano-node;
                 };
                 # Local test cluster and mock metadata server
-                inherit (project.hsPkgs.cardano-wallet.components.exes) mock-token-metadata-server;
+                inherit (project.hsPkgs.cardano-wallet.components.exes) mock-token-metadata-server wallet-key-export;
                 inherit (project.hsPkgs.cardano-wallet-benchmarks.components.exes) benchmark-history;
                 inherit (project.hsPkgs.local-cluster.components.exes) local-cluster;
                 integration-exe = project.hsPkgs.cardano-wallet-integration.components.exes.integration-exe;
@@ -318,6 +318,7 @@
                 unit-std-gen-seed = project.hsPkgs.std-gen-seed.components.tests.unit;
                 unit-wai-middleware-logging = project.hsPkgs.wai-middleware-logging.components.tests.unit;
                 unit-benchmark-history = project.hsPkgs.cardano-wallet-benchmarks.components.tests.benchmark-history-test;
+                wallet-key-export-test = project.hsPkgs.cardano-wallet.components.tests.wallet-key-export-test;
 
                 # Combined project coverage report
                 testCoverageReport = coveredProject.projectCoverageReport;
@@ -541,6 +542,7 @@
               };
             };
           imagePackages = mkPackages walletProject.projectCross.musl64;
+          staticPackages = mkPackages walletProject.projectCross.musl64;
         in
         rec {
 
@@ -558,6 +560,9 @@
             // rec {
               dockerImage = mkDockerImage true imagePackages;
               dockerTestImage = mkDockerImage false imagePackages;
+            }
+            // lib.optionalAttrs buildPlatform.isLinux {
+              wallet-key-export-static = staticPackages.wallet-key-export;
             }
             //
 
@@ -589,6 +594,7 @@
                 };
               ci.artifacts = mkReleaseArtifacts walletProject // {
                 dockerImage = packages.dockerImage;
+                wallet-key-export-static = staticPackages.wallet-key-export;
               };
             };
 

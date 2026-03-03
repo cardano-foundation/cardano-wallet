@@ -718,6 +718,49 @@ Available options:
 
 Show the software version.
 
+## wallet-key-export
+
+A standalone offline utility for extracting root private keys from a cardano-wallet SQLite database. This does not require the wallet server to be running.
+
+### Usage
+
+```
+wallet-key-export <path-to-wallet.db> <wallet-id>
+```
+
+The tool will:
+
+1. Read the encrypted root key from the database
+2. Auto-detect Byron vs Shelley key format
+3. Prompt for the spending passphrase (or read from stdin when piped)
+4. Verify the passphrase against the stored hash
+5. Decrypt and output the key in two formats:
+   - **Raw XPrv (hex)**: 256 hex characters (128 bytes)
+   - **Text Envelope**: JSON compatible with `cardano-cli`
+
+### Example
+
+```
+> wallet-key-export /path/to/wallet.db a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2
+Key type: Shelley
+
+=== Raw XPrv (hex) ===
+<256 hex chars>
+
+=== Text Envelope ===
+{
+    "type": "PaymentExtendedSigningKeyShelley_ed25519_bip32",
+    "description": "Payment Signing Key",
+    "cborHex": "5880<256 hex chars>"
+}
+```
+
+The passphrase can also be piped for scripted usage:
+
+```
+echo "my-spending-passphrase" | wallet-key-export wallet.db <wallet-id>
+```
+
 
 ## Bash Shell Command Completion
 
