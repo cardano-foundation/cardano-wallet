@@ -55,6 +55,7 @@ jobs:
         run: >-
           nix build --quiet
           .#ci.artifacts.linux64.release .#dockerTestImage
+          .#ci.artifacts.wallet-key-export-static
 
 
   build-gate-quality:
@@ -374,6 +375,25 @@ jobs:
         with:
           name: linux-release-package
           path: result/linux/
+
+  artifacts-wallet-key-export:
+    name: "Build wallet-key-export (static)"
+    needs: build-gate-artifacts
+    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Build static binary
+        run: |
+          rm -rf ./result/*
+          nix build --quiet -o result/wallet-key-export .#ci.artifacts.wallet-key-export-static
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wallet-key-export-linux-static
+          path: result/wallet-key-export/bin/wallet-key-export
 
   artifacts-shell:
     name: "Evaluate Linux Shell"
