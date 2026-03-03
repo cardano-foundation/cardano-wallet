@@ -150,6 +150,8 @@ main = do
             , withMaxSuccess 20 $ prop_byronRoundtrip exe
             , withMaxSuccess 20 $ prop_wrongPassphrase exe
             , withMaxSuccess 20 $ prop_wrongPassphraseByron exe
+            , withMaxSuccess 20 $ prop_wrongSchemeShelley exe
+            , withMaxSuccess 20 $ prop_wrongSchemeByron exe
             ]
     if all isSuccess results
         then putStrLn "All tests passed."
@@ -316,6 +318,65 @@ prop_wrongPassphraseByron exe =
                         rootHex
                         hashHex
                         wrongPass
+
+-- | Correct passphrase but wrong scheme must fail.
+-- Shelley key stored with Scrypt hash: tool assumes PBKDF2, fails.
+prop_wrongSchemeShelley :: FilePath -> Property
+prop_wrongSchemeShelley exe =
+    forAll
+        ( (,,)
+            <$> genShelleyMnemonic
+            <*> genUserPassphrase
+            <*> genWalletId
+        )
+        $ \(mnemonic, userPass, wid) ->
+            ioProperty $ do
+                let encPass =
+                        preparePassphrase EncryptWithScrypt userPass
+                    key =
+                        generateKeyFromSeed
+                            (mnemonic, Nothing)
+                            encPass
+                passHash <-
+                    encryptPassphraseTestingOnly 64 encPass
+                let (rootHex, hashHex) =
+                        serializeXPrv ShelleyKeyS (key, passHash)
+                -- Tool detects Shelley, assumes PBKDF2, but hash
+                -- is Scrypt — should fail even with correct pass.
+                runWrongPassTest
+                    exe
+                    wid
+                    rootHex
+                    hashHex
+                    userPass
+
+-- | Correct passphrase but wrong scheme must fail.
+-- Byron key stored with PBKDF2 hash: tool assumes Scrypt, fails.
+prop_wrongSchemeByron :: FilePath -> Property
+prop_wrongSchemeByron exe =
+    forAll
+        ( (,,)
+            <$> genByronMnemonic
+            <*> genUserPassphrase
+            <*> genWalletId
+        )
+        $ \(mnemonic, userPass, wid) ->
+            ioProperty $ do
+                let encPass =
+                        preparePassphrase EncryptWithPBKDF2 userPass
+                    key =
+                        Byron.generateKeyFromSeed mnemonic encPass
+                (_, passHash) <- encryptPassphrase userPass
+                let (rootHex, hashHex) =
+                        serializeXPrv ByronKeyS (key, passHash)
+                -- Tool detects Byron, assumes Scrypt, but hash
+                -- is PBKDF2 — should fail even with correct pass.
+                runWrongPassTest
+                    exe
+                    wid
+                    rootHex
+                    hashHex
+                    userPass
 
 emptyPass :: Passphrase "encryption"
 emptyPass = mempty
