@@ -9,9 +9,9 @@
 -- License: Apache-2.0
 --
 -- E2E round-trip test for the wallet-key-export executable.
--- Generates a random Shelley root key, stores it in a temp SQLite DB,
--- runs wallet-key-export, and verifies the extracted hex matches
--- the expected decrypted XPrv.
+-- Generates random Shelley and Byron root keys, stores them in a temp
+-- SQLite DB, runs wallet-key-export, and verifies the extracted hex
+-- matches the expected decrypted XPrv.
 module Main (main) where
 
 import Cardano.Crypto.Wallet
@@ -55,6 +55,9 @@ import Cardano.Wallet.Gen
 import Cardano.Wallet.Primitive.Passphrase
     ( encryptPassphrase
     , preparePassphrase
+    )
+import Cardano.Wallet.Primitive.Passphrase.Legacy
+    ( encryptPassphraseTestingOnly
     )
 import Cardano.Wallet.Primitive.Passphrase.Types
     ( Passphrase (..)
@@ -119,7 +122,9 @@ import Test.QuickCheck.Test
     )
 import Prelude
 
+import qualified Cardano.Wallet.Address.Derivation.Byron as Byron
 import qualified Data.ByteArray as BA
+import qualified Data.ByteString as BS
 import qualified Data.ByteString.Base16 as B16
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Text as T
@@ -133,9 +138,13 @@ main = do
                 putStrLn "wallet-key-export not found in PATH"
                 exitFailure
             Just path -> pure path
-    result <-
-        quickCheckResult $ withMaxSuccess 20 $ prop_shelleyRoundtrip exe
-    if isSuccess result
+    results <-
+        mapM
+            quickCheckResult
+            [ withMaxSuccess 20 $ prop_shelleyRoundtrip exe
+            , withMaxSuccess 20 $ prop_byronRoundtrip exe
+            ]
+    if all isSuccess results
         then putStrLn "All tests passed."
         else exitFailure
 
@@ -146,8 +155,7 @@ genUserPassphrase = do
     chars <- vectorOf n (choose ('a', 'z'))
     pure $ T.pack chars
 
--- | Property: storing a Shelley root key in a SQLite DB and running
--- wallet-key-export recovers the same decrypted XPrv.
+-- | Shelley: PBKDF2 passphrase scheme.
 prop_shelleyRoundtrip :: FilePath -> Property
 prop_shelleyRoundtrip exe =
     forAll
@@ -157,22 +165,58 @@ prop_shelleyRoundtrip exe =
             <*> genWalletId
         )
         $ \(mnemonic, passText, wid) ->
-            ioProperty $ shelleyRoundtrip exe mnemonic passText wid
+            ioProperty $ do
+                let userPass = mkUserPass passText
+                    encPass = preparePassphrase EncryptWithPBKDF2 userPass
+                    key = generateKeyFromSeed (mnemonic, Nothing) encPass
+                (_, passHash) <- encryptPassphrase userPass
+                let (rootHex, hashHex) = serializeXPrv ShelleyKeyS (key, passHash)
+                    xprv = getRawKey ShelleyKeyS key
+                    expected =
+                        B16.encode
+                            (unXPrv (xPrvChangePass encPass emptyPass xprv))
+                runExportTest exe wid rootHex hashHex passText expected
 
-shelleyRoundtrip
-    :: FilePath -> SomeMnemonic -> T.Text -> WalletId -> IO Property
-shelleyRoundtrip exe mnemonic passText wid = do
-    let userPass =
-            Passphrase (BA.convert (T.encodeUtf8 passText))
-                :: Passphrase "user"
-        encPass = preparePassphrase EncryptWithPBKDF2 userPass
-        key = generateKeyFromSeed (mnemonic, Nothing) encPass
-    (_, passHash) <- encryptPassphrase userPass
-    let (rootHex, hashHex) = serializeXPrv ShelleyKeyS (key, passHash)
+-- | Byron: Scrypt passphrase scheme.
+prop_byronRoundtrip :: FilePath -> Property
+prop_byronRoundtrip exe =
+    forAll
+        ( (,,)
+            <$> (SomeMnemonic <$> genMnemonic @12)
+            <*> genUserPassphrase
+            <*> genWalletId
+        )
+        $ \(mnemonic, passText, wid) ->
+            ioProperty $ do
+                let userPass = mkUserPass passText
+                    encPass = preparePassphrase EncryptWithScrypt userPass
+                    key = Byron.generateKeyFromSeed mnemonic encPass
+                passHash <- encryptPassphraseTestingOnly 64 encPass
+                let (rootHex, hashHex) = serializeXPrv ByronKeyS (key, passHash)
+                    xprv = getRawKey ByronKeyS key
+                    expected =
+                        B16.encode
+                            (unXPrv (xPrvChangePass encPass emptyPass xprv))
+                runExportTest exe wid rootHex hashHex passText expected
 
+mkUserPass :: T.Text -> Passphrase "user"
+mkUserPass t = Passphrase (BA.convert (T.encodeUtf8 t))
+
+emptyPass :: Passphrase "encryption"
+emptyPass = mempty
+
+-- | Shared test logic: write key to temp DB, run the tool, compare output.
+runExportTest
+    :: FilePath
+    -> WalletId
+    -> BS.ByteString
+    -> BS.ByteString
+    -> T.Text
+    -> BS.ByteString
+    -> IO Property
+runExportTest exe wid rootHex hashHex passText expected =
     withSystemTempFile "wallet-export-test.db" $ \dbPath handle -> do
         hClose handle
-        -- Create schema and insert test data
         dbResult <-
             withSqliteContextFile
                 nullTracer
@@ -196,12 +240,6 @@ shelleyRoundtrip exe mnemonic passText wid = do
                         (T.unpack passText ++ "\n")
 
                 let extractedHex = extractHexFromOutput stdout_
-                    xprv = getRawKey ShelleyKeyS key
-                    emptyPass =
-                        mempty :: Passphrase "encryption"
-                    expected =
-                        B16.encode
-                            (unXPrv (xPrvChangePass encPass emptyPass xprv))
 
                 pure
                     $ counterexample ("stdout: " <> stdout_)
