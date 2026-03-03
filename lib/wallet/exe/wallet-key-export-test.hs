@@ -149,6 +149,7 @@ main = do
             [ withMaxSuccess 20 $ prop_shelleyRoundtrip exe
             , withMaxSuccess 20 $ prop_byronRoundtrip exe
             , withMaxSuccess 20 $ prop_wrongPassphrase exe
+            , withMaxSuccess 20 $ prop_wrongPassphraseByron exe
             ]
     if all isSuccess results
         then putStrLn "All tests passed."
@@ -281,6 +282,40 @@ prop_wrongPassphrase exe =
                     let (rootHex, hashHex) =
                             serializeXPrv ShelleyKeyS (key, passHash)
                     runWrongPassTest exe wid rootHex hashHex wrongPass
+
+-- | Wrong passphrase with Byron/Scrypt scheme.
+prop_wrongPassphraseByron :: FilePath -> Property
+prop_wrongPassphraseByron exe =
+    forAll
+        ( (,,,)
+            <$> genByronMnemonic
+            <*> genUserPassphrase
+            <*> genUserPassphrase
+            <*> genWalletId
+        )
+        $ \(mnemonic, userPass, wrongPass, wid) ->
+            userPass /= wrongPass ==>
+                ioProperty $ do
+                    let encPass =
+                            preparePassphrase
+                                EncryptWithScrypt
+                                userPass
+                        key =
+                            Byron.generateKeyFromSeed
+                                mnemonic
+                                encPass
+                    passHash <-
+                        encryptPassphraseTestingOnly 64 encPass
+                    let (rootHex, hashHex) =
+                            serializeXPrv
+                                ByronKeyS
+                                (key, passHash)
+                    runWrongPassTest
+                        exe
+                        wid
+                        rootHex
+                        hashHex
+                        wrongPass
 
 emptyPass :: Passphrase "encryption"
 emptyPass = mempty
