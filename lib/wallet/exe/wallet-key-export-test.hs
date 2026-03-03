@@ -5,7 +5,7 @@
 {-# LANGUAGE TypeApplications #-}
 
 -- |
--- Copyright: © 2024 Cardano Foundation
+-- Copyright: © 2026 Cardano Foundation
 -- License: Apache-2.0
 --
 -- E2E round-trip test for the wallet-key-export executable.
@@ -111,6 +111,7 @@ import Test.QuickCheck
     , counterexample
     , forAll
     , ioProperty
+    , oneof
     , vectorOf
     , withMaxSuccess
     , (.&&.)
@@ -155,49 +156,106 @@ genUserPassphrase = do
     chars <- vectorOf n (choose ('a', 'z'))
     pure $ T.pack chars
 
--- | Shelley: PBKDF2 passphrase scheme.
+-- | Generate a Shelley mnemonic (15 or 24 words).
+genShelleyMnemonic :: Gen SomeMnemonic
+genShelleyMnemonic =
+    oneof
+        [ SomeMnemonic <$> genMnemonic @15
+        , SomeMnemonic <$> genMnemonic @24
+        ]
+
+-- | Generate an optional second-factor mnemonic for Shelley.
+genSecondFactor :: Gen (Maybe SomeMnemonic)
+genSecondFactor =
+    oneof
+        [ pure Nothing
+        , Just . SomeMnemonic <$> genMnemonic @9
+        , Just . SomeMnemonic <$> genMnemonic @12
+        ]
+
+-- | Generate a Byron mnemonic (12 or 15 words).
+genByronMnemonic :: Gen SomeMnemonic
+genByronMnemonic =
+    oneof
+        [ SomeMnemonic <$> genMnemonic @12
+        , SomeMnemonic <$> genMnemonic @15
+        ]
+
+-- | Shelley: PBKDF2 passphrase scheme with optional second factor.
 prop_shelleyRoundtrip :: FilePath -> Property
 prop_shelleyRoundtrip exe =
     forAll
-        ( (,,)
-            <$> (SomeMnemonic <$> genMnemonic @12)
+        ( (,,,)
+            <$> genShelleyMnemonic
+            <*> genSecondFactor
             <*> genUserPassphrase
             <*> genWalletId
         )
-        $ \(mnemonic, passText, wid) ->
+        $ \(mnemonic, secondFactor, passphrase, wid) ->
             ioProperty $ do
-                let userPass = mkUserPass passText
-                    encPass = preparePassphrase EncryptWithPBKDF2 userPass
-                    key = generateKeyFromSeed (mnemonic, Nothing) encPass
+                let userPass = mkUserPass passphrase
+                    encPass =
+                        preparePassphrase EncryptWithPBKDF2 userPass
+                    key =
+                        generateKeyFromSeed
+                            (mnemonic, secondFactor)
+                            encPass
                 (_, passHash) <- encryptPassphrase userPass
-                let (rootHex, hashHex) = serializeXPrv ShelleyKeyS (key, passHash)
+                let (rootHex, hashHex) =
+                        serializeXPrv ShelleyKeyS (key, passHash)
                     xprv = getRawKey ShelleyKeyS key
                     expected =
                         B16.encode
-                            (unXPrv (xPrvChangePass encPass emptyPass xprv))
-                runExportTest exe wid rootHex hashHex passText expected
+                            ( unXPrv
+                                ( xPrvChangePass
+                                    encPass
+                                    emptyPass
+                                    xprv
+                                )
+                            )
+                runExportTest
+                    exe
+                    wid
+                    rootHex
+                    hashHex
+                    passphrase
+                    expected
 
--- | Byron: Scrypt passphrase scheme.
+-- | Byron: Scrypt passphrase scheme with varied mnemonic sizes.
 prop_byronRoundtrip :: FilePath -> Property
 prop_byronRoundtrip exe =
     forAll
         ( (,,)
-            <$> (SomeMnemonic <$> genMnemonic @12)
+            <$> genByronMnemonic
             <*> genUserPassphrase
             <*> genWalletId
         )
-        $ \(mnemonic, passText, wid) ->
+        $ \(mnemonic, passphrase, wid) ->
             ioProperty $ do
-                let userPass = mkUserPass passText
-                    encPass = preparePassphrase EncryptWithScrypt userPass
+                let userPass = mkUserPass passphrase
+                    encPass =
+                        preparePassphrase EncryptWithScrypt userPass
                     key = Byron.generateKeyFromSeed mnemonic encPass
                 passHash <- encryptPassphraseTestingOnly 64 encPass
-                let (rootHex, hashHex) = serializeXPrv ByronKeyS (key, passHash)
+                let (rootHex, hashHex) =
+                        serializeXPrv ByronKeyS (key, passHash)
                     xprv = getRawKey ByronKeyS key
                     expected =
                         B16.encode
-                            (unXPrv (xPrvChangePass encPass emptyPass xprv))
-                runExportTest exe wid rootHex hashHex passText expected
+                            ( unXPrv
+                                ( xPrvChangePass
+                                    encPass
+                                    emptyPass
+                                    xprv
+                                )
+                            )
+                runExportTest
+                    exe
+                    wid
+                    rootHex
+                    hashHex
+                    passphrase
+                    expected
 
 mkUserPass :: T.Text -> Passphrase "user"
 mkUserPass t = Passphrase (BA.convert (T.encodeUtf8 t))
@@ -205,7 +263,8 @@ mkUserPass t = Passphrase (BA.convert (T.encodeUtf8 t))
 emptyPass :: Passphrase "encryption"
 emptyPass = mempty
 
--- | Shared test logic: write key to temp DB, run the tool, compare output.
+-- | Shared test logic: write key to temp DB, run the tool,
+-- compare output.
 runExportTest
     :: FilePath
     -> WalletId
@@ -214,46 +273,57 @@ runExportTest
     -> T.Text
     -> BS.ByteString
     -> IO Property
-runExportTest exe wid rootHex hashHex passText expected =
-    withSystemTempFile "wallet-export-test.db" $ \dbPath handle -> do
-        hClose handle
-        dbResult <-
-            withSqliteContextFile
-                nullTracer
-                dbPath
-                noManualMigration
-                migrateAll
-                $ \db ->
-                    runQuery db $ do
-                        insertWallet wid
-                        insert_ $ PrivateKey wid rootHex hashHex
-        case dbResult of
-            Left err ->
-                pure
-                    $ counterexample ("DB migration error: " <> show err)
-                    $ False === True
-            Right () -> do
-                let widHex = T.unpack (toText wid)
-                (exitCode, stdout_, _stderr) <-
-                    readCreateProcessWithExitCode
-                        (proc exe [dbPath, widHex])
-                        (T.unpack passText ++ "\n")
+runExportTest exe wid rootHex hashHex passphrase expected =
+    withSystemTempFile "wallet-export-test.db"
+        $ \dbPath handle -> do
+            hClose handle
+            dbResult <-
+                withSqliteContextFile
+                    nullTracer
+                    dbPath
+                    noManualMigration
+                    migrateAll
+                    $ \db ->
+                        runQuery db $ do
+                            insertWallet wid
+                            insert_
+                                $ PrivateKey wid rootHex hashHex
+            case dbResult of
+                Left err ->
+                    pure
+                        $ counterexample
+                            ("DB migration error: " <> show err)
+                        $ False === True
+                Right () -> do
+                    let widHex = T.unpack (toText wid)
+                    (exitCode, stdout_, _stderr) <-
+                        readCreateProcessWithExitCode
+                            (proc exe [dbPath, widHex])
+                            (T.unpack passphrase ++ "\n")
 
-                let extractedHex = extractHexFromOutput stdout_
+                    let extractedHex =
+                            extractHexFromOutput stdout_
 
-                pure
-                    $ counterexample ("stdout: " <> stdout_)
-                    $ counterexample ("exit: " <> show exitCode)
-                    $ (exitCode === ExitSuccess)
-                    .&&. (extractedHex === expected)
+                    pure
+                        $ counterexample
+                            ("stdout: " <> stdout_)
+                        $ counterexample
+                            ("exit: " <> show exitCode)
+                        $ (exitCode === ExitSuccess)
+                        .&&. (extractedHex === expected)
 
 -- | Extract the hex line from wallet-key-export output.
 -- Looks for the line after "=== Raw XPrv (hex) ===".
 extractHexFromOutput :: String -> B8.ByteString
 extractHexFromOutput output =
-    case dropWhile (/= "=== Raw XPrv (hex) ===") (lines output) of
+    case dropWhile
+        (/= "=== Raw XPrv (hex) ===")
+        (lines output) of
         (_ : hexLine : _) -> B8.pack hexLine
-        _ -> error $ "Could not parse hex from output:\n" <> output
+        _ ->
+            error
+                $ "Could not parse hex from output:\n"
+                    <> output
 
 -- | Insert a wallet row to satisfy foreign key constraints.
 insertWallet :: WalletId -> SqlPersistT IO ()
@@ -262,11 +332,13 @@ insertWallet wid =
         $ Wallet
             { walId = wid
             , walName = "test-wallet"
-            , walCreationTime = posixSecondsToUTCTime 1506203091
+            , walCreationTime =
+                posixSecondsToUTCTime 1506203091
             , walPassphraseLastUpdatedAt = Nothing
             , walPassphraseScheme = Nothing
             , walGenesisHash = BlockId dummyHash
-            , walGenesisStart = posixSecondsToUTCTime 1506203091
+            , walGenesisStart =
+                posixSecondsToUTCTime 1506203091
             }
   where
     dummyHash =
