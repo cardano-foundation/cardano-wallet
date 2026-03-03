@@ -593,6 +593,7 @@
                 };
               ci.artifacts = mkReleaseArtifacts walletProject // {
                 dockerImage = packages.dockerImage;
+                wallet-key-export-static = staticPackages.wallet-key-export;
               };
             };
 
