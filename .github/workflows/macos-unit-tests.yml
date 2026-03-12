@@ -23,7 +23,6 @@ jobs:
           nix build --quiet
           .#unit-cardano-wallet-unit
           .#unit-cardano-numeric
-          .#unit-cardano-balance-tx
           .#unit-cardano-wallet-primitive
           .#unit-cardano-wallet-secrets
           .#unit-cardano-wallet-test-utils
@@ -55,10 +54,6 @@ jobs:
           - name: "cardano-wallet-application-tls"
             working-directory: lib/application-tls
             command: nix run --quiet ../../.#unit-cardano-wallet-application-tls -- +RTS -M2G -s -RTS
-
-          - name: "cardano-balance-tx"
-            working-directory: lib/balance-tx
-            command: nix run --quiet ../../.#unit-cardano-balance-tx -- +RTS -M2G -s -RTS
 
           - name: "cardano-numeric"
             command: nix run --quiet .#unit-cardano-numeric -- +RTS -M2G -s -RTS

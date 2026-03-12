@@ -29,6 +29,9 @@ module Cardano.Wallet.Network
 import Cardano.Api
     ( AnyCardanoEra
     )
+import Cardano.Balance.Tx.Eras
+    ( MaybeInRecentEra
+    )
 import Cardano.Slotting.Slot
     ( SlotNo (..)
     )
@@ -70,9 +73,6 @@ import Cardano.Wallet.Primitive.Types.StakePoolSummary
 import Cardano.Wallet.Primitive.Types.Tx.SealedTx
     ( SealedTx
     )
-import Cardano.Write.Eras
-    ( MaybeInRecentEra
-    )
 import Control.Monad.Trans.Except
     ( ExceptT (..)
     )
@@ -99,9 +99,9 @@ import GHC.Generics
     )
 import Prelude
 
+import qualified Cardano.Balance.Tx.Tx as Write
 import qualified Cardano.Wallet.Read as Read
 import qualified Data.Text as T
-import qualified Internal.Cardano.Write.Tx as Write
 
 {-----------------------------------------------------------------------------
     NetworkLayer

@@ -1,7 +1,6 @@
 [
   "address-derivation-discovery"
   "cardano-api-extra"
-  "cardano-balance-tx"
   "cardano-numeric"
   "cardano-wallet-api"
   "cardano-wallet-application-extras"

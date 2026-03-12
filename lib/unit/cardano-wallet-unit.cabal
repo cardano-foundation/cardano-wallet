@@ -46,7 +46,6 @@ library test-common
     , bytestring
     , cardano-api
     , cardano-balance-tx
-    , cardano-balance-tx:internal
     , cardano-wallet
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
@@ -77,7 +76,6 @@ test-suite unit
     , cardano-api
     , cardano-api-extra
     , cardano-balance-tx
-    , cardano-balance-tx:internal
     , cardano-crypto
     , cardano-crypto-class
     , cardano-ledger-alonzo

@@ -24,6 +24,10 @@ import Cardano.Address.KeyHash
 import Cardano.Address.Script
     ( Script (..)
     )
+import Cardano.Balance.Tx.Eras
+    ( CardanoApiEra
+    , RecentEra (..)
+    )
 import Cardano.Crypto.Hash.Class
     ( Hash (UnsafeHash)
     )
@@ -39,10 +43,6 @@ import Cardano.Wallet.Primitive.Types.Coin
     )
 import Cardano.Wallet.Transaction
     ( VotingAction (..)
-    )
-import Cardano.Write.Eras
-    ( CardanoApiEra
-    , RecentEra (..)
     )
 import Cryptography.Hash.Blake
     ( blake2b224

@@ -3,6 +3,10 @@ module Cardano.Wallet.Primitive.Slotting.TimeTranslation
     , toTimeTranslationPure
     ) where
 
+import Cardano.Balance.Tx.TimeTranslation
+    ( TimeTranslation
+    , timeTranslationFromEpochInfo
+    )
 import Cardano.Slotting.EpochInfo.API
     ( hoistEpochInfo
     )
@@ -19,10 +23,6 @@ import Control.Monad.Trans.Except
     )
 import Data.Functor.Identity
     ( Identity (runIdentity)
-    )
-import Internal.Cardano.Write.Tx.TimeTranslation
-    ( TimeTranslation
-    , timeTranslationFromEpochInfo
     )
 import UnliftIO.Exception
     ( throwIO
