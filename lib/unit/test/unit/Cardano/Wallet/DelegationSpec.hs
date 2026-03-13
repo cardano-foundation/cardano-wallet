@@ -104,10 +104,10 @@ import Test.QuickCheck.Arbitrary.Generic
     )
 import Prelude
 
+import qualified Cardano.Balance.Tx.Eras as Write
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.Delegation as WD
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
-import qualified Cardano.Write.Eras as Write
 import qualified Data.ByteString as BS
 import qualified Data.Set as Set
 

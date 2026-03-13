@@ -9,6 +9,9 @@ module Cardano.Wallet.Network.LocalStateQuery.UTxO
     ( getUTxOByTxIn
     ) where
 
+import Cardano.Balance.Tx.Eras
+    ( MaybeInRecentEra (..)
+    )
 import Cardano.Ledger.State
     ( UTxO
     )
@@ -20,9 +23,6 @@ import Cardano.Wallet.Network.Implementation.Ouroboros
     )
 import Cardano.Wallet.Network.LocalStateQuery.Extra
     ( onAnyEra
-    )
-import Cardano.Write.Eras
-    ( MaybeInRecentEra (..)
     )
 import Data.Set
     ( Set

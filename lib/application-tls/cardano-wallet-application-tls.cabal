@@ -43,8 +43,8 @@ library
     , base64-bytestring
     , bytestring
     , crypton
-    , asn1-encoding
-    , asn1-types
+    , crypton-asn1-encoding
+    , crypton-asn1-types
     , crypton-x509
     , crypton-x509-store
     , crypton-x509-validation
@@ -55,7 +55,7 @@ library
     , filepath
     , ip
     , text
-    , hourglass
+    , time-hourglass
     , tls
     , warp-tls
     , wide-word

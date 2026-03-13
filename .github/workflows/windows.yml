@@ -49,7 +49,6 @@ jobs:
           .#ci.artifacts.win64.tests.wallet-test-utils
           .#ci.artifacts.win64.tests.wallet-launcher
           .#ci.artifacts.win64.tests.cardano-numeric
-          .#ci.artifacts.win64.tests.cardano-balance-tx
           .#ci.artifacts.win64.tests.wallet-blackbox-benchmarks
           .#ci.artifacts.win64.tests.delta-chain
           .#ci.artifacts.win64.tests.delta-store
@@ -74,7 +73,6 @@ jobs:
           - name: wallet-launcher
           # wallet-application-tls: skipped pending #5110
           - name: cardano-numeric
-          - name: cardano-balance-tx
           - name: wallet-blackbox-benchmarks
           - name: delta-chain
           - name: delta-store
@@ -194,10 +192,6 @@ jobs:
 
           - name: "wallet-secrets"
             artifact: win-test-wallet-secrets
-            command: .\test.exe --color +RTS -M2G -s -N2 -RTS
-
-          - name: "cardano-balance-tx"
-            artifact: win-test-cardano-balance-tx
             command: .\test.exe --color +RTS -M2G -s -N2 -RTS
 
           # --- standalone suites (unit.exe) ---

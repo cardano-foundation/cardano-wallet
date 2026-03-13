@@ -153,6 +153,16 @@ import Cardano.BM.Tracing
     ( HasPrivacyAnnotation (..)
     , HasSeverityAnnotation (..)
     )
+-- import Cardano.Wallet.Api.Http.Server.Handlers.NetworkInformation
+--     ( getNetworkInformation
+--     , makeApiBlockReference
+--     , makeApiBlockReferenceFromHeader
+--     , makeApiSlotReference
+--     )
+
+import Cardano.Balance.Tx.Eras
+    ( AnyRecentEra (..)
+    )
 import Cardano.Mnemonic
     ( SomeMnemonic
     )
@@ -309,13 +319,6 @@ import Cardano.Wallet.Api.Http.Server.Handlers.MintBurn
     ( convertApiAssetMintBurn
     , getTxApiAssetMintBurn
     )
--- import Cardano.Wallet.Api.Http.Server.Handlers.NetworkInformation
---     ( getNetworkInformation
---     , makeApiBlockReference
---     , makeApiBlockReferenceFromHeader
---     , makeApiSlotReference
---     )
-
 import Cardano.Wallet.Api.Http.Server.Handlers.NetworkInformation
 import Cardano.Wallet.Api.Http.Server.Handlers.TxCBOR
     ( ParsedTxCBOR (..)
@@ -663,9 +666,6 @@ import Cardano.Wallet.Transaction
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT
     )
-import Cardano.Write.Eras
-    ( AnyRecentEra (..)
-    )
 import Control.Arrow
     ( second
     , (&&&)
@@ -839,6 +839,32 @@ import qualified Cardano.Address.KeyHash as CA
 import qualified Cardano.Address.Script as CA
 import qualified Cardano.Address.Style.Shelley as CA
 import qualified Cardano.Api as Cardano
+import qualified Cardano.Balance.Tx.Balance as Write
+    ( PartialTx (..)
+    , Redeemer (..)
+    , StakeKeyDepositLookup (..)
+    )
+import qualified Cardano.Balance.Tx.Eras as Write
+    ( IsRecentEra (recentEra)
+    , RecentEra
+    , cardanoEraFromRecentEra
+    )
+import qualified Cardano.Balance.Tx.Sign as Write
+    ( TimelockKeyWitnessCounts (..)
+    , estimateMinWitnessRequiredPerInput
+    )
+import qualified Cardano.Balance.Tx.Tx as Write
+    ( Datum (DatumHash, NoDatum)
+    , PParamsInAnyRecentEra (PParamsInAnyRecentEra)
+    , Tx
+    , TxIn
+    , TxOutInRecentEra (TxOutInRecentEra)
+    , fromCardanoApiTx
+    , getFeePerByte
+    , toCardanoApiTx
+    , utxoFromTxOutsInRecentEra
+    , pattern PolicyId
+    )
 import qualified Cardano.Ledger.Address as Ledger
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.Address.Derivation.Byron as Byron
@@ -873,17 +899,6 @@ import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Read as Read
 import qualified Cardano.Wallet.Read.Hash as Hash
 import qualified Cardano.Wallet.Registry as Registry
-import qualified Cardano.Write.Eras as Write
-    ( IsRecentEra (recentEra)
-    , RecentEra
-    , cardanoEraFromRecentEra
-    )
-import qualified Cardano.Write.Tx as Write
-    ( PartialTx (..)
-    , Redeemer (..)
-    , StakeKeyDepositLookup (..)
-    , TimelockKeyWitnessCounts (..)
-    )
 import qualified Control.Concurrent.Concierge as Concierge
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
@@ -893,21 +908,6 @@ import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
-import qualified Internal.Cardano.Write.Tx as Write
-    ( Datum (DatumHash, NoDatum)
-    , PParamsInAnyRecentEra (PParamsInAnyRecentEra)
-    , Tx
-    , TxIn
-    , TxOutInRecentEra (TxOutInRecentEra)
-    , fromCardanoApiTx
-    , getFeePerByte
-    , toCardanoApiTx
-    , utxoFromTxOutsInRecentEra
-    , pattern PolicyId
-    )
-import qualified Internal.Cardano.Write.Tx.Sign as Write
-    ( estimateMinWitnessRequiredPerInput
-    )
 import qualified Network.Ntp as Ntp
 
 {-------------------------------------------------------------------------------

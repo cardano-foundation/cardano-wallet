@@ -38,7 +38,6 @@ nix build --quiet \
   .#ci.artifacts.win64.tests.wallet-test-utils \
   .#ci.artifacts.win64.tests.wallet-launcher \
   .#ci.artifacts.win64.tests.cardano-numeric \
-  .#ci.artifacts.win64.tests.cardano-balance-tx \
   .#ci.artifacts.win64.tests.wallet-blackbox-benchmarks \
   .#ci.artifacts.win64.tests.delta-chain \
   .#ci.artifacts.win64.tests.delta-store \

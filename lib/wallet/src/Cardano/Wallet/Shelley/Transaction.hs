@@ -22,9 +22,6 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# OPTIONS_GHC -Wno-deprecations #-}
 
--- TODO: Migrate from deprecated Cardano.Api.Certificate to
--- Cardano.Api.Experimental.Certificate
-
 {- HLINT ignore "Use <$>" -}
 {- HLINT ignore "Use camelCase" -}
 
@@ -71,6 +68,14 @@ import Cardano.Api
     ( AnyCardanoEra (..)
     , InAnyCardanoEra (..)
     , NetworkId
+    )
+import Cardano.Balance.Tx.Eras
+    ( CardanoApiEra
+    , RecentEra (..)
+    )
+import Cardano.Balance.Tx.SizeEstimation
+    ( TxSkeleton (..)
+    , TxWitnessTag (..)
     )
 import Cardano.Binary
     ( serialize'
@@ -127,6 +132,9 @@ import Cardano.Wallet.Primitive.Types.Address
 import Cardano.Wallet.Primitive.Types.AssetId
     ( AssetId (..)
     )
+import Cardano.Wallet.Primitive.Types.AssetName
+    ( AssetName (UnsafeAssetName)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
@@ -138,6 +146,9 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
     )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( TokenMap
+    )
+import Cardano.Wallet.Primitive.Types.TokenPolicyId
+    ( TokenPolicyId (UnsafeTokenPolicyId)
     )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (TokenQuantity)
@@ -187,10 +198,6 @@ import Cardano.Wallet.Transaction.Delegation
 import Cardano.Wallet.Transaction.Voting
     ( certificateFromVotingAction
     )
-import Cardano.Write.Eras
-    ( CardanoApiEra
-    , RecentEra (..)
-    )
 import Control.Arrow
     ( left
     , second
@@ -231,12 +238,6 @@ import Data.Word
     ( Word64
     , Word8
     )
-import Internal.Cardano.Write.Tx.SizeEstimation
-    ( TxSkeleton (..)
-    , TxWitnessTag (..)
-    , estimateTxCost
-    , estimateTxSize
-    )
 import Ouroboros.Network.Block
     ( SlotNo
     )
@@ -248,29 +249,26 @@ import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Byron as Byron
 import qualified Cardano.Api.Certificate as ApiCert
 import qualified Cardano.Api.Experimental.Certificate as ExpCert
-import qualified Cardano.Crypto as CC
-import qualified Cardano.Crypto.Hash.Class as Crypto
-import qualified Cardano.Crypto.Wallet as Crypto.HD
-import qualified Cardano.Ledger.Api as Ledger
-import qualified Cardano.Ledger.Keys.Bootstrap as SL
-import qualified Cardano.Wallet.Primitive.Ledger.Convert as Convert
-import qualified Cardano.Wallet.Primitive.Ledger.Shelley as Compatibility
-import qualified Cardano.Wallet.Primitive.Types.AssetId as AssetId
-import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
-import qualified Cardano.Write.Eras as Write
+import qualified Cardano.Balance.Tx.Eras as Write
     ( CardanoApiEra
     , IsRecentEra (recentEra)
     , RecentEra (RecentEraBabbage, RecentEraConway)
     , shelleyBasedEraFromRecentEra
     )
-import qualified Data.ByteString as BS
-import qualified Data.Foldable as F
-import qualified Data.List as L
-import qualified Data.Map as Map
-import qualified Data.Map.Ordered.Strict as OMap
-import qualified Data.Set as Set
-import qualified Data.Text as T
-import qualified Internal.Cardano.Write.Tx as Write
+import qualified Cardano.Balance.Tx.Primitive as BT
+import qualified Cardano.Balance.Tx.Sign as Write
+    ( estimateMaxWitnessRequiredPerInput
+    )
+import qualified Cardano.Balance.Tx.SizeEstimation as BT
+    ( estimateTxCost
+    , estimateTxSize
+    )
+import qualified Cardano.Balance.Tx.SizeEstimation as Write
+    ( sizeOf_BootstrapWitnesses
+    , sizeOf_VKeyWitnesses
+    , sizeOf_Withdrawals
+    )
+import qualified Cardano.Balance.Tx.Tx as Write
     ( Coin
     , FeePerByte
     , PParams
@@ -283,14 +281,22 @@ import qualified Internal.Cardano.Write.Tx as Write
     , isBelowMinimumCoinForTxOut
     , toCardanoApiTx
     )
-import qualified Internal.Cardano.Write.Tx.Sign as Write
-    ( estimateMaxWitnessRequiredPerInput
-    )
-import qualified Internal.Cardano.Write.Tx.SizeEstimation as Write
-    ( sizeOf_BootstrapWitnesses
-    , sizeOf_VKeyWitnesses
-    , sizeOf_Withdrawals
-    )
+import qualified Cardano.Crypto as CC
+import qualified Cardano.Crypto.Hash.Class as Crypto
+import qualified Cardano.Crypto.Wallet as Crypto.HD
+import qualified Cardano.Ledger.Api as Ledger
+import qualified Cardano.Ledger.Keys.Bootstrap as SL
+import qualified Cardano.Wallet.Primitive.Ledger.Convert as Convert
+import qualified Cardano.Wallet.Primitive.Ledger.Shelley as Compatibility
+import qualified Cardano.Wallet.Primitive.Types.AssetId as AssetId
+import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
+import qualified Data.ByteString as BS
+import qualified Data.Foldable as F
+import qualified Data.List as L
+import qualified Data.Map as Map
+import qualified Data.Map.Ordered.Strict as OMap
+import qualified Data.Set as Set
+import qualified Data.Text as T
 
 -- | Type encapsulating what we need to know to add things -- payloads,
 -- certificates -- to a transaction.
@@ -1276,8 +1282,45 @@ txConstraints protocolParams witnessTag =
   where
     era = Write.recentEra @era
 
+    fromBTCoin :: BT.Coin -> Coin
+    fromBTCoin (BT.Coin n) = Coin n
+
+    fromBTTxSize :: BT.TxSize -> TxSize
+    fromBTTxSize (BT.TxSize n) = TxSize n
+
+    toBTTxOut :: TxOut -> BT.TxOut
+    toBTTxOut (TxOut (Address a) b) =
+        BT.TxOut (BT.Address a) (toBTTokenBundle b)
+
+    toBTTokenBundle :: TokenBundle -> BT.TokenBundle
+    toBTTokenBundle (TokenBundle c tm) =
+        BT.TokenBundle (toBTCoin c) (toBTTokenMap tm)
+      where
+        toBTCoin (Coin n) = BT.Coin n
+        toBTTokenMap =
+            BT.fromFlatList
+                . fmap toBTEntry
+                . TokenMap.toFlatList
+        toBTEntry
+            ( AssetId
+                    (UnsafeTokenPolicyId (Hash pid))
+                    (UnsafeAssetName an)
+                , TokenQuantity q
+                ) =
+                ( BT.AssetId
+                    (BT.UnsafeTokenPolicyId (BT.Hash pid))
+                    (BT.UnsafeAssetName an)
+                , BT.TokenQuantity q
+                )
+
+    estimateTxCost' :: Write.FeePerByte -> TxSkeleton -> Coin
+    estimateTxCost' fp = fromBTCoin . BT.estimateTxCost fp
+
+    estimateTxSize' :: TxSkeleton -> TxSize
+    estimateTxSize' = fromBTTxSize . BT.estimateTxSize
+
     txBaseCost =
-        constantTxFee <> estimateTxCost feePerByte empty
+        constantTxFee <> estimateTxCost' feePerByte empty
 
     constantTxFee =
         Convert.toWallet $ protocolParams ^. Ledger.ppMinFeeBL
@@ -1285,7 +1328,7 @@ txConstraints protocolParams witnessTag =
     feePerByte = Write.getFeePerByte protocolParams
 
     txBaseSize =
-        estimateTxSize empty
+        estimateTxSize' empty
 
     txInputCost =
         marginalCostOf empty{txInputCount = 1}
@@ -1294,10 +1337,10 @@ txConstraints protocolParams witnessTag =
         marginalSizeOf empty{txInputCount = 1}
 
     txOutputCost bundle =
-        marginalCostOf empty{txOutputs = [mkTxOut bundle]}
+        marginalCostOf empty{txOutputs = [toBTTxOut (mkTxOut bundle)]}
 
     txOutputSize bundle =
-        marginalSizeOf empty{txOutputs = [mkTxOut bundle]}
+        marginalSizeOf empty{txOutputs = [toBTTxOut (mkTxOut bundle)]}
 
     txOutputMaximumSize =
         (<>)
@@ -1341,14 +1384,14 @@ txConstraints protocolParams witnessTag =
     -- skeleton.
     marginalCostOf :: TxSkeleton -> Coin
     marginalCostOf skeleton =
-        estimateTxCost feePerByte skeleton
-            <\> estimateTxCost feePerByte empty
+        estimateTxCost' feePerByte skeleton
+            <\> estimateTxCost' feePerByte empty
 
     -- Computes the size difference between the given skeleton and an empty
     -- skeleton.
     marginalSizeOf :: TxSkeleton -> TxSize
     marginalSizeOf =
-        (<\> txBaseSize) . estimateTxSize
+        (<\> txBaseSize) . estimateTxSize'
 
     -- Constructs a real transaction output from a token bundle.
     mkTxOut :: TokenBundle -> TxOut
@@ -1402,8 +1445,9 @@ _txRewardWithdrawalSize
     -> TxSize
 _txRewardWithdrawalSize _ (Coin 0) = TxSize 0
 _txRewardWithdrawalSize witType _ =
-    Write.sizeOf_Withdrawals 1 <> wits
+    fromBTTxSize $ Write.sizeOf_Withdrawals 1 <> wits
   where
+    fromBTTxSize (BT.TxSize n) = TxSize n
     wits = case witType of
         Right TxWitnessByronUTxO ->
             Write.sizeOf_BootstrapWitnesses 1

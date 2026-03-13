@@ -30,6 +30,17 @@ where
 import Cardano.Address.Script
     ( Cosigner (..)
     )
+import Cardano.Balance.Tx.Balance
+    ( ErrAssignRedeemers (..)
+    , ErrBalanceTx (..)
+    , ErrBalanceTxInsufficientCollateralError (..)
+    , ErrBalanceTxInternalError (..)
+    , ErrBalanceTxOutputError (..)
+    , ErrBalanceTxOutputErrorInfo (..)
+    )
+import Cardano.Balance.Tx.Tx
+    ( KeyWitnessCounts (..)
+    )
 import Cardano.Ledger.Api
     ( coinTxOutL
     )
@@ -157,14 +168,6 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
 import Cardano.Wallet.Transaction
     ( ErrSignTx (..)
     )
-import Cardano.Write.Tx
-    ( ErrAssignRedeemers (..)
-    , ErrBalanceTx (..)
-    , ErrBalanceTxInsufficientCollateralError (..)
-    , ErrBalanceTxInternalError (..)
-    , ErrBalanceTxOutputError (..)
-    , ErrBalanceTxOutputErrorInfo (..)
-    )
 import Data.Generics.Internal.VL
     ( view
     , (^.)
@@ -194,9 +197,6 @@ import Fmt
     , listF
     , pretty
     )
-import Internal.Cardano.Write.Tx
-    ( KeyWitnessCounts (..)
-    )
 import Network.Wai
     ( Request (pathInfo)
     )
@@ -216,14 +216,18 @@ import Servant.Server
 import Prelude
 
 import qualified Cardano.Api as Cardano
+import qualified Cardano.Balance.Tx.Eras as Write
+    ( IsRecentEra (..)
+    )
+import qualified Cardano.Balance.Tx.Tx as Write
+    ( serializeTx
+    )
+import qualified Cardano.Balance.Tx.Tx as WriteTx
 import qualified Cardano.Wallet.Api.Types.Amount as ApiAmount
 import qualified Cardano.Wallet.Api.Types.Era as ApiEra
 import qualified Cardano.Wallet.Api.Types.WalletAssets as ApiWalletAssets
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
-import qualified Cardano.Write.Eras as Write
-    ( IsRecentEra (..)
-    )
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
@@ -231,10 +235,6 @@ import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
-import qualified Internal.Cardano.Write.Tx as Write
-    ( serializeTx
-    )
-import qualified Internal.Cardano.Write.Tx as WriteTx
 
 instance IsServerError WalletException where
     toServerError = \case
