@@ -138,6 +138,7 @@ import Prelude
 import Cardano.Wallet.Read.Hash qualified as Hash
 import Data.ByteString.Char8 qualified as B8
 
+-- | Lens for the 'txs' field of 'BlockParameters'.
 txsL :: Lens' (BlockParameters era) [Tx era]
 txsL = lens txs (\bp x -> bp{txs = x})
 
