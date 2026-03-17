@@ -124,6 +124,7 @@ test-suite unit
     , http-types
     , int-cast
     , io-classes
+    , io-classes:si-timers
     , io-sim
     , iohk-monitoring
     , iohk-monitoring-extra
@@ -160,7 +161,6 @@ test-suite unit
     , servant
     , servant-openapi3
     , servant-server
-    , io-classes:si-timers
     , sop-extras
     , splitmix
     , string-interpolate

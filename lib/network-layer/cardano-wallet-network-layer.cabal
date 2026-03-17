@@ -90,6 +90,7 @@ library
     , exceptions
     , fmt
     , io-classes
+    , io-classes:strict-stm
     , iohk-monitoring
     , iohk-monitoring-extra
     , network-mux
@@ -107,7 +108,6 @@ library
     , safe
     , singletons
     , streaming
-    , io-classes:strict-stm
     , text
     , text-class
     , time

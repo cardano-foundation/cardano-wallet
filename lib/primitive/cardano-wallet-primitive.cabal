@@ -61,7 +61,6 @@ library
     , cardano-ledger-conway
     , cardano-ledger-core
     , cardano-ledger-dijkstra
-    , cardano-ledger-read
     , cardano-ledger-mary
     , cardano-ledger-read
     , cardano-ledger-shelley

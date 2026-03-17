@@ -138,17 +138,17 @@ library
     , cardano-ledger-read
     , cardano-ledger-shelley
     , cardano-strict-containers
-    , containers                    >=0.5      && <0.8
-    , fmt                           >=0.6.3.0  && <0.7
-    , generics-sop                  >=0.5.1.4  && <0.6
-    , lens                          >=5.2.3    && <5.4
-    , memory                        >=0.18.0   && <0.19
-    , nothunks                      >=0.1.5    && <0.4
-    , operational                   >=0.2.4.2  && <0.3
-    , QuickCheck                    >=2.14     && <2.16.0
-    , text                          >=1.2      && <2.2
-    , time                          >=1.12.2   && <1.15
-    , transformers                  >=0.6.1.0  && <0.7
+    , containers                 >=0.5     && <0.8
+    , fmt                        >=0.6.3.0 && <0.7
+    , generics-sop               >=0.5.1.4 && <0.6
+    , lens                       >=5.2.3   && <5.4
+    , memory                     >=0.18.0  && <0.19
+    , nothunks                   >=0.1.5   && <0.4
+    , operational                >=0.2.4.2 && <0.3
+    , QuickCheck                 >=2.14    && <2.16.0
+    , text                       >=1.2     && <2.2
+    , time                       >=1.12.2  && <1.15
+    , transformers               >=0.6.1.0 && <0.7
 
   hs-source-dirs:   haskell
   default-language: Haskell2010
