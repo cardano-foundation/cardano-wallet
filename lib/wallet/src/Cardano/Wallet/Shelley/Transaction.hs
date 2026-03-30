@@ -20,6 +20,10 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# OPTIONS_GHC -Wno-deprecations #-}
+
+-- TODO: Migrate from deprecated Cardano.Api.Certificate to
+-- Cardano.Api.Experimental.Certificate
 
 {- HLINT ignore "Use <$>" -}
 {- HLINT ignore "Use camelCase" -}
@@ -248,13 +252,9 @@ import qualified Cardano.Address.Script as CA
 import qualified Cardano.Address.Style.Shelley as CA
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Byron as Byron
-import qualified Cardano.Api.Shelley as Cardano
+import qualified Cardano.Api.Certificate as ApiCert
+import qualified Cardano.Api.Experimental.Certificate as ExpCert
 import qualified Cardano.Balance.Tx.Eras as Write
-    ( CardanoApiEra
-    , IsRecentEra (recentEra)
-    , RecentEra (RecentEraBabbage, RecentEraConway)
-    , shelleyBasedEraFromRecentEra
-    )
 import qualified Cardano.Balance.Tx.Primitive as BT
 import qualified Cardano.Balance.Tx.Sign as Write
     ( estimateMaxWitnessRequiredPerInput
@@ -712,6 +712,8 @@ withRecentEraLedgerTx (InAnyCardanoEra era tx) f = case era of
         Nothing
     Cardano.ByronEra ->
         Nothing
+    Cardano.DijkstraEra ->
+        error "withRecentEraLedgerTx: DijkstraEra not yet supported"
 
 -- | Construct a standard unsigned transaction.
 --
@@ -974,7 +976,7 @@ mkUnsignedTx
                                 in
                                     Cardano.TxCertificates shelleyEra
                                         $ OMap.fromList
-                                        $ certs
+                                        $ map certToLedger certs
                                         <&> (,ctx)
                             Just stakingScript ->
                                 let
@@ -992,7 +994,7 @@ mkUnsignedTx
                                 in
                                     Cardano.TxCertificates shelleyEra
                                         $ OMap.fromList
-                                        $ certs
+                                        $ map certToLedger certs
                                         <&> (,ctx)
                         , Cardano.txFee = Cardano.TxFeeExplicit shelleyEra fees
                         , Cardano.txValidityLowerBound =
@@ -1208,6 +1210,14 @@ mkShelleyWitness body key =
         Cardano.WitnessPaymentExtendedKey
             $ Cardano.PaymentExtendedSigningKey
             $ Crypto.HD.xPrvChangePass pwd BS.empty xprv
+
+certToLedger
+    :: Cardano.Certificate era
+    -> ExpCert.Certificate (Cardano.ShelleyLedgerEra era)
+certToLedger (ApiCert.ShelleyRelatedCertificate w txCert) =
+    Cardano.shelleyToBabbageEraConstraints w $ ExpCert.Certificate txCert
+certToLedger (ApiCert.ConwayCertificate w txCert) =
+    Cardano.conwayEraOnwardsConstraints w $ ExpCert.Certificate txCert
 
 mkByronWitness
     :: forall era

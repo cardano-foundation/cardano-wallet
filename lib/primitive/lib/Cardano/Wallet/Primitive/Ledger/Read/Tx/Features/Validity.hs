@@ -50,6 +50,7 @@ getValidity = case theEra @era of
     Alonzo -> afterShelleyValidity
     Babbage -> afterShelleyValidity
     Conway -> afterShelleyValidity
+    Dijkstra -> afterShelleyValidity
   where
     afterShelleyValidity (Validity validity) =
         Just $ afterShelleyValidityInterval validity

@@ -66,7 +66,7 @@ library
     , hspec
     , http-client
     , http-types
-    , iohk-monitoring                       >=0.2.0.0 && <0.3
+    , iohk-monitoring
     , iohk-monitoring-extra
     , JuicyPixels
     , local-cluster
@@ -107,7 +107,7 @@ benchmark restore
     , aeson
     , base
     , bytestring
-    , cardano-addresses             >=4.0.2   && <4.1
+    , cardano-addresses
     , cardano-balance-tx
     , cardano-wallet
     , cardano-wallet-api
@@ -121,7 +121,7 @@ benchmark restore
     , crypto-primitives
     , filepath
     , fmt
-    , iohk-monitoring               >=0.2.0.0 && <0.3
+    , iohk-monitoring
     , iohk-monitoring-extra
     , optparse-applicative
     , say
@@ -140,7 +140,7 @@ benchmark latency
   build-depends:
     , aeson
     , base
-    , cardano-addresses                     >=4.0.2    && <4.1
+    , cardano-addresses
     , cardano-ledger-core
     , cardano-wallet
     , cardano-wallet-api
@@ -162,7 +162,7 @@ benchmark latency
     , hspec
     , http-client
     , http-types
-    , iohk-monitoring                       >=0.2.0.0  && <0.3
+    , iohk-monitoring
     , iohk-monitoring-extra
     , local-cluster
     , mtl
@@ -187,7 +187,7 @@ benchmark db
     , address-derivation-discovery
     , base
     , bytestring
-    , cardano-addresses                >=4.0.2     && <4.1
+    , cardano-addresses
     , cardano-api
     , cardano-crypto
     , cardano-wallet
@@ -209,7 +209,7 @@ benchmark db
     , filepath
     , fmt
     , foldl
-    , iohk-monitoring                  >=0.2.0.0   && <0.3
+    , iohk-monitoring
     , iohk-monitoring-extra
     , memory
     , mtl
@@ -241,7 +241,7 @@ benchmark api
     , containers
     , filepath
     , fmt
-    , iohk-monitoring                  >=0.2.0.0   && <0.3
+    , iohk-monitoring
     , iohk-monitoring-extra
     , mtl
     , say

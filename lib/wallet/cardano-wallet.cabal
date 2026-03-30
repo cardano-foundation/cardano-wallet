@@ -48,7 +48,7 @@ library
     , async
     , base
     , bytestring
-    , cardano-addresses             >=4.0.2     && <4.1
+    , cardano-addresses
     , cardano-api
     , cardano-balance-tx
     , cardano-binary
@@ -92,7 +92,7 @@ library
     , http-types
     , int-cast
     , io-classes
-    , iohk-monitoring               >=0.2.0.0   && <0.3
+    , iohk-monitoring
     , iohk-monitoring-extra
     , lens
     , list-transformer
@@ -306,9 +306,9 @@ executable wallet-key-export
     , text
 
 test-suite wallet-key-export-test
-  import:        language, opts-exe
-  type:          exitcode-stdio-1.0
-  main-is:       exe/wallet-key-export-test.hs
+  import:             language, opts-exe
+  type:               exitcode-stdio-1.0
+  main-is:            exe/wallet-key-export-test.hs
   build-depends:
     , address-derivation-discovery
     , base
@@ -331,8 +331,7 @@ test-suite wallet-key-export-test
     , text-class
     , time
 
-  build-tool-depends:
-    cardano-wallet:wallet-key-export
+  build-tool-depends: cardano-wallet:wallet-key-export
 
 -- Triggers this https://github.com/haskell/cabal/issues/6470
 -- if moved to an external library

@@ -45,7 +45,7 @@ library
     , delta-store
     , delta-types
     , io-classes
-    , Only           ==0.1
+    , Only
     , sqlite-simple
     , text
     , transformers

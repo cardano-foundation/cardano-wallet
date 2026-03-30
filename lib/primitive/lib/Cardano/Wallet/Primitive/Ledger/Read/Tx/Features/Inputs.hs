@@ -48,6 +48,7 @@ getInputs = case theEra @era of
     Alonzo -> mkShelleyTxInputsIns
     Babbage -> mkShelleyTxInputsIns
     Conway -> mkShelleyTxInputsIns
+    Dijkstra -> mkShelleyTxInputsIns
 
 fromShelleyTxIns :: Foldable t => t SH.TxIn -> [W.TxIn]
 fromShelleyTxIns ins = fromShelleyTxIn <$> toList ins

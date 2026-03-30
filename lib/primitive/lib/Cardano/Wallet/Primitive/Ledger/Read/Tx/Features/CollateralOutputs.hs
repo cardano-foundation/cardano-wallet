@@ -13,6 +13,9 @@ import Cardano.Ledger.Babbage
 import Cardano.Ledger.Conway
     ( ConwayEra
     )
+import Cardano.Ledger.Dijkstra
+    ( DijkstraEra
+    )
 import Cardano.Read.Ledger.Tx.CollateralOutputs
     ( CollateralOutputs (..)
     )
@@ -51,6 +54,8 @@ getCollateralOutputs = case theEra @era of
         fromBabbageTxOut <$> strictMaybeToMaybe mo
     Conway -> \(CollateralOutputs mo) ->
         fromConwayTxOut <$> strictMaybeToMaybe mo
+    Dijkstra -> \(CollateralOutputs mo) ->
+        fromDijkstraTxOut <$> strictMaybeToMaybe mo
 
 fromBabbageTxOut
     :: Babbage.BabbageTxOut BabbageEra
@@ -62,4 +67,10 @@ fromConwayTxOut
     :: Babbage.BabbageTxOut ConwayEra
     -> W.TxOut
 fromConwayTxOut (Babbage.BabbageTxOut addr value _datum _refScript) =
+    W.TxOut (fromShelleyAddress addr) (toWalletTokenBundle value)
+
+fromDijkstraTxOut
+    :: Babbage.BabbageTxOut DijkstraEra
+    -> W.TxOut
+fromDijkstraTxOut (Babbage.BabbageTxOut addr value _datum _refScript) =
     W.TxOut (fromShelleyAddress addr) (toWalletTokenBundle value)

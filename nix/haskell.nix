@@ -191,8 +191,6 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: set-git-rev: rewrite-l
               # Enable Haskell Program Coverage for all local libraries
               # and test suites.
               doCoverage = coverage;
-
-              ghcOptions = [];
             });
           }
 
@@ -295,8 +293,9 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: set-git-rev: rewrite-l
             packages.crypton-x509-system.postPatch = ''
               sed -i 's/Crypt32/crypt32/g' crypton-x509-system.cabal
             '';
-            # haskell.nix patch for streaming-commons is already applied in 0.2.3.1
-            packages.streaming-commons.patches = lib.mkForce [];
+            # haskell.nix patches streaming-commons < 0.2.3.1 for Windows
+            # header file casing (Share.h). Don't clear the patch until
+            # index-state is new enough to resolve 0.2.3.1.
           })
 
           # Build fixes for library dependencies

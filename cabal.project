@@ -53,7 +53,7 @@ index-state: 2026-01-29T00:00:00Z
 
 index-state:
   , hackage.haskell.org 2026-01-29T00:00:00Z
-  , cardano-haskell-packages 2026-02-05T12:58:40Z
+  , cardano-haskell-packages 2026-02-09T17:36:58Z
 
 packages:
   lib/address-derivation-discovery
@@ -129,8 +129,8 @@ source-repository-package
 source-repository-package
   type: git
   location: https://github.com/cardano-foundation/cardano-ledger-read
-  tag: 7b6adf7cc7a55e8bf6cc591e915598660124b286
-  --sha256: 07psh8fw7d6kgjr449qip5skphyg3y0wf6l0wqwjnwwnw0jgi9rs
+  tag: 0ce0e7a8a8c0e9e9073cec9407a9e851d05ed13d
+  --sha256: 0c32h8z0bldxn1215aj4i3brxl8vhk4v35by3hscw1dxcjm8kw70
 
 -- END cardano-ledger-read
 --------------------------------------------------------------------------------
@@ -141,8 +141,8 @@ source-repository-package
 source-repository-package
   type: git
   location: https://github.com/cardano-foundation/cardano-balance-transaction
-  tag: a069da87ad0ced93f1f9e66061f1e9228a881f59
-  --sha256: 1xsjcs1qsg8x1cnzw4zxh15ddjam7zrgi68h3b2ckj76ywlhh20f
+  tag: 98e7f4155451e357410e266dd6c754d58ead3b7f
+  --sha256: 1p8xhf4ly37lqs45663vk786k1mv8dzgji6wiz2s2ysn9zqq3kda
 
 -- END cardano-balance-tx
 --------------------------------------------------------------------------------
@@ -158,9 +158,7 @@ allow-newer:
   , plutus-core:cardano-crypto
   , cardano-wallet-read:cardano-crypto
   , cardano-ledger-byron-test:cardano-ledger-byron
-  , strict-stm:io-classes
   , cardano-cli:cardano-api
-  , si-timers:io-classes
   , hkd:base
 constraints:
     base >= 4.18.2.0 && < 5
@@ -181,39 +179,41 @@ constraints:
   , katip >= 0.8.7.4
 
 
-  -- Cardano Node dependencies:
-  , io-classes -asserts
-
-  -- Pinned cardano-ecosystem versions (node 10.5.4):
-  , cardano-api ==10.16.4.0
+  -- Cardano Node 10.6.2 dependencies:
+  , cardano-api ==10.23.0.0
   , cardano-binary ==1.7.2.0
+  , cardano-crypto ==1.2.0
   , cardano-crypto-class ==2.2.3.2
   , cardano-crypto-praos ==2.2.1.1
   , cardano-crypto-wrapper ==1.6.1.0
   , cardano-data ==1.2.4.1
-  , cardano-ledger-allegra ==1.7.0.0
-  , cardano-ledger-alonzo ==1.13.0.0
-  , cardano-ledger-api ==1.11.0.0
-  , cardano-ledger-babbage ==1.11.0.0
-  , cardano-ledger-byron ==1.1.0.0
-  , cardano-ledger-conway ==1.19.0.0
-  , cardano-ledger-core ==1.17.0.0
-  , cardano-ledger-mary ==1.8.0.0
-  , cardano-ledger-shelley ==1.16.0.0
-  , cardano-protocol-tpraos ==1.4.0.0
+  , cardano-ledger-allegra ==1.8.0.0
+  , cardano-ledger-alonzo ==1.14.0.0
+  , cardano-ledger-api ==1.12.1.0
+  , cardano-ledger-babbage ==1.12.0.0
+  , cardano-ledger-binary ==1.7.1.0
+  , cardano-ledger-byron ==1.2.0.0
+  , cardano-ledger-conway ==1.20.0.0
+  , cardano-ledger-core ==1.18.0.0
+  , cardano-ledger-mary ==1.9.0.0
+  , cardano-ledger-shelley ==1.17.0.0
+  , cardano-prelude ==0.2.1.0
+  , cardano-protocol-tpraos ==1.4.1.0
   , cardano-slotting ==0.2.0.1
   , cardano-strict-containers ==0.1.6.0
-  , ouroboros-consensus ==0.27.0.0
-  , ouroboros-consensus-cardano ==0.25.1.1
-  , ouroboros-consensus-diffusion ==0.23.1.0
-  , ouroboros-consensus-protocol ==0.12.0.0
-  , ouroboros-network ==0.21.6.1
-  , ouroboros-network-api ==0.14.2.0
-  , ouroboros-network-framework ==0.18.1.0
-  , ouroboros-network-protocols ==0.14.1.0
-  , plutus-core ==1.45.0.0
-  , plutus-ledger-api ==1.45.0.0
-  , plutus-tx ==1.45.0.0
+  , io-classes ==1.8.0.1
+  , io-classes -asserts
+  , ouroboros-consensus ==0.30.0.1
+  , ouroboros-consensus-cardano ==0.26.0.3
+  , ouroboros-consensus-diffusion ==0.26.0.0
+  , ouroboros-consensus-protocol ==0.13.0.0
+  , ouroboros-network ==0.22.6.0
+  , ouroboros-network-api ==0.16.0.0
+  , ouroboros-network-framework ==0.19.3.0
+  , ouroboros-network-protocols ==0.15.2.0
+  , plutus-core ==1.57.0.0
+  , plutus-ledger-api ==1.57.0.0
+  , plutus-tx ==1.57.0.0
 
 -- Related to: https://github.com/haskell/cabal/issues/8554
 if impl(ghc == 8.10.7)
@@ -345,14 +345,4 @@ package bitvec
    flags: -simd
 
 -- -------------------------------------------------------------------------
--- cardano-cli: Pin to specific version to avoid Nix package database conflicts
--- See: https://github.com/IntersectMBO/cardano-cli
-
-source-repository-package
-  type: git
-  location: https://github.com/IntersectMBO/cardano-cli
-  tag: cardano-cli-10.11.0.0
-  --sha256: sha256-pJkhKwmXVvE5aulIMUe7TtlI53h5t8y720Zn3EJ/YnU=
-  subdir:
-    cardano-cli
 

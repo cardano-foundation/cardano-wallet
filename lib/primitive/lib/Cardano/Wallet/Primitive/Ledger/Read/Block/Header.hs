@@ -103,6 +103,7 @@ primitiveHash = case theEra @era of
     Alonzo -> mkHashShelley
     Babbage -> mkHashShelley
     Conway -> mkHashShelley
+    Dijkstra -> mkHashShelley
   where
     mkHashShelley
         :: HeaderHashT era ~ ShelleyHash
@@ -125,6 +126,7 @@ primitivePrevHash gp = case theEra @era of
     Alonzo -> mkPrevHashShelley
     Babbage -> mkPrevHashShelley
     Conway -> mkPrevHashShelley
+    Dijkstra -> mkPrevHashShelley
   where
     mkPrevHashShelley
         :: (SL.PrevHash ~ PrevHeaderHashT era)
