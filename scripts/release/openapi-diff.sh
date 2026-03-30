@@ -8,7 +8,8 @@ GOPATH=$(mktemp -d)
 export GOPATH
 
 # go install is going to write unremovable stuff to the $GOPATH/bin directory
-go install github.com/oasdiff/oasdiff@latest
+# pinned: v1.12.4+ breaks on __origin__ duplicate keys injected by oasdiff/kin-openapi
+go install github.com/oasdiff/oasdiff@v1.11.11
 
 swagger_tmp=$(mktemp -d)
 swagger_file="specifications/api/swagger.yaml"
