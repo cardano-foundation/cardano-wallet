@@ -245,7 +245,7 @@ parseDays hm =
             return (d, v')
 
 parseHistory :: BL8.ByteString -> Either String History
-parseHistory r = foldMap rowToHarmonizedRow . toList . snd <$> decodeByName r
+parseHistory r = foldMap rowToHarmonizedRow . snd <$> decodeByName r
 
 -- | Render a harmonized history as a CSV file.
 renderHarmonizedHistoryCsv :: HarmonizedHistory -> (Header, [Row])

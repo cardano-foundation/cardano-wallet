@@ -17,7 +17,7 @@ data Cons e a where
 type ListOf e = Program (Cons e) ()
 
 listOf :: ListOf a -> [a]
-listOf = reverse . ($ []) . interpret
+listOf = reverse . flip interpret []
 
 interpret :: forall e. ListOf e -> [e] -> [e]
 interpret = eval . view

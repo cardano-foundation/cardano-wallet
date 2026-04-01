@@ -745,8 +745,7 @@ applyBlockEventsToUTxO BlockEvents{slot, blockHeight, transactions, delegations}
             , delegations = filter (ours s . dlgCertAccount) $ toList delegations
             }
     (rtxs1, du1, u1) =
-        L.foldl' applyOurTx (mempty, mempty, u0)
-            $ toList transactions
+        foldl' applyOurTx (mempty, mempty, u0) transactions
 
     applyOurTx
         :: ([(Tx, TxMeta)], DeltaUTxO, UTxO)

@@ -802,7 +802,7 @@ expectListSize
     -> m ()
 expectListSize l (_, res) = liftIO $ case res of
     Left e -> wantedSuccessButError e
-    Right xs -> length (toList xs) `shouldBe` l
+    Right xs -> length xs `shouldBe` l
 
 -- | Expects data list returned by the API to be of certain length
 expectListSizeSatisfy
@@ -812,7 +812,7 @@ expectListSizeSatisfy
     -> m ()
 expectListSizeSatisfy cond (_, res) = liftIO $ case res of
     Left e -> wantedSuccessButError e
-    Right xs -> length (toList xs) `shouldSatisfy` cond
+    Right xs -> length xs `shouldSatisfy` cond
 
 -- | Expects wallet UTxO statistics from the request to be equal to
 -- pre-calculated statistics.
