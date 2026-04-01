@@ -89,7 +89,7 @@ jobs:
 
   verify-windows:
     name: "Verify Windows"
-    runs-on: [self-hosted, Windows, x64, cardano-wallet-win]
+    runs-on: windows-latest
     steps:
       - name: Download and verify
         env:
