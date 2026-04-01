@@ -1,0 +1,168 @@
+name: Verify Release Assets
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to verify (e.g. v2026-03-31)'
+        required: true
+        type: string
+
+jobs:
+  verify-linux:
+    name: "Verify Linux"
+    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    steps:
+      - name: Download and verify
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          TAG="${{ inputs.tag }}"
+          WORKDIR=$(mktemp -d)
+          trap "rm -rf $WORKDIR" EXIT
+          cd "$WORKDIR"
+
+          echo "::group::Download linux asset"
+          gh release download "$TAG" \
+            --repo cardano-foundation/cardano-wallet \
+            --pattern "cardano-wallet-${TAG}-linux64.tar.gz"
+          echo "::endgroup::"
+
+          echo "::group::Extract and verify"
+          tar xzf "cardano-wallet-${TAG}-linux64.tar.gz"
+          WALLET=$(find . -name cardano-wallet -type f | head -1)
+          chmod +x "$WALLET"
+          echo "Binary: $WALLET"
+          VERSION=$("$WALLET" version 2>&1 || true)
+          echo "Output: $VERSION"
+          echo "::endgroup::"
+
+          echo "::group::Check version"
+          if echo "$VERSION" | grep -q "$TAG"; then
+            echo "Version check passed: contains $TAG"
+          else
+            echo "::error::Version output does not contain $TAG"
+            exit 1
+          fi
+          echo "::endgroup::"
+
+  verify-macos:
+    name: "Verify macOS Silicon"
+    runs-on: [self-hosted, macOS, ARM64, cardano-wallet]
+    steps:
+      - name: Download and verify
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          TAG="${{ inputs.tag }}"
+          WORKDIR=$(mktemp -d)
+          trap "rm -rf $WORKDIR" EXIT
+          cd "$WORKDIR"
+
+          echo "::group::Download macOS asset"
+          gh release download "$TAG" \
+            --repo cardano-foundation/cardano-wallet \
+            --pattern "cardano-wallet-${TAG}-macos-silicon.tar.gz"
+          echo "::endgroup::"
+
+          echo "::group::Extract and verify"
+          tar xzf "cardano-wallet-${TAG}-macos-silicon.tar.gz"
+          WALLET=$(find . -name cardano-wallet -type f | head -1)
+          chmod +x "$WALLET"
+          echo "Binary: $WALLET"
+          VERSION=$("$WALLET" version 2>&1 || true)
+          echo "Output: $VERSION"
+          echo "::endgroup::"
+
+          echo "::group::Check version"
+          if echo "$VERSION" | grep -q "$TAG"; then
+            echo "Version check passed: contains $TAG"
+          else
+            echo "::error::Version output does not contain $TAG"
+            exit 1
+          fi
+          echo "::endgroup::"
+
+  verify-windows:
+    name: "Verify Windows"
+    runs-on: [self-hosted, Windows, x64, cardano-wallet-win]
+    steps:
+      - name: Download and verify
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $TAG = "${{ inputs.tag }}"
+          $WORKDIR = New-TemporaryFile | ForEach-Object {
+            Remove-Item $_; New-Item -ItemType Directory -Path $_
+          }
+          try {
+            Set-Location $WORKDIR
+
+            Write-Host "::group::Download Windows asset"
+            gh release download $TAG `
+              --repo cardano-foundation/cardano-wallet `
+              --pattern "cardano-wallet.exe-${TAG}-win64.zip"
+            Write-Host "::endgroup::"
+
+            Write-Host "::group::Extract and verify"
+            Expand-Archive "cardano-wallet.exe-${TAG}-win64.zip" -DestinationPath .
+            $WALLET = Get-ChildItem -Recurse -Filter "cardano-wallet.exe" |
+              Select-Object -First 1 -ExpandProperty FullName
+            Write-Host "Binary: $WALLET"
+            $VERSION = & $WALLET version 2>&1 | Out-String
+            Write-Host "Output: $VERSION"
+            Write-Host "::endgroup::"
+
+            Write-Host "::group::Check version"
+            if ($VERSION -match [regex]::Escape($TAG)) {
+              Write-Host "Version check passed: contains $TAG"
+            } else {
+              Write-Host "::error::Version output does not contain $TAG"
+              exit 1
+            }
+            Write-Host "::endgroup::"
+          } finally {
+            Set-Location $env:GITHUB_WORKSPACE
+            Remove-Item -Recurse -Force $WORKDIR -ErrorAction SilentlyContinue
+          }
+
+  verify-docker:
+    name: "Verify Docker Image"
+    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    steps:
+      - name: Download and verify
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          TAG="${{ inputs.tag }}"
+          WORKDIR=$(mktemp -d)
+          trap "rm -rf $WORKDIR" EXIT
+          cd "$WORKDIR"
+
+          echo "::group::Download docker image"
+          gh release download "$TAG" \
+            --repo cardano-foundation/cardano-wallet \
+            --pattern "cardano-wallet-${TAG}-docker-image.tgz"
+          echo "::endgroup::"
+
+          echo "::group::Load and verify"
+          LOADED=$(docker load -i "cardano-wallet-${TAG}-docker-image.tgz" | grep "Loaded image" | sed 's/Loaded image: //')
+          echo "Loaded image: $LOADED"
+          VERSION=$(docker run --rm "$LOADED" version 2>&1 || true)
+          echo "Output: $VERSION"
+          docker rmi "$LOADED" || true
+          echo "::endgroup::"
+
+          echo "::group::Check version"
+          if echo "$VERSION" | grep -q "$TAG"; then
+            echo "Version check passed: contains $TAG"
+          else
+            echo "::error::Version output does not contain $TAG"
+            exit 1
+          fi
+          echo "::endgroup::"
