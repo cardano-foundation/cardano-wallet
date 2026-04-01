@@ -114,7 +114,7 @@
     };
     flake-utils.url = "github:numtide/flake-utils";
     iohkNix = {
-      url = "github:input-output-hk/iohk-nix?rev=911835056d2b48a9ae65b4e3a2925c88a320a6ab";
+      url = "github:input-output-hk/iohk-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     flake-compat = {
@@ -124,7 +124,7 @@
     customConfig.url = "github:input-output-hk/empty-flake";
     cardano-node-runtime.url = "github:IntersectMBO/cardano-node?ref=10.6.2";
     mithril = {
-      url = "github:input-output-hk/mithril?ref=2543.1-hotfix";
+      url = "github:input-output-hk/mithril?ref=2603.1";
       inputs.nixpkgs.follows = "nixpkgs-unstable";
       };
   };

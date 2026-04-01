@@ -46,7 +46,7 @@ in
         ++ lib.optionals makeZip [zip];
       checkInputs = with pkgs.buildPackages;
         [
-          ruby_3_1
+          ruby_3_3
           gnugrep
           gnused
         ]
