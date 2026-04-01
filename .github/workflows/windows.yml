@@ -98,7 +98,7 @@ jobs:
   unit-tests:
     name: ${{ matrix.name }}
     needs: upload-win-test
-    runs-on: [self-hosted, Windows, x64, cardano-wallet-win]
+    runs-on: windows-latest
     env:
       LOCAL_CLUSTER_CONFIGS: test\data\cluster-configs
     strategy:

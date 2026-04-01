@@ -29,7 +29,7 @@ jobs:
   e2e-tests:
     name: "Windows E2E Tests"
     needs: build-e2e
-    runs-on: [self-hosted, Windows, x64, cardano-wallet-win]
+    runs-on: windows-latest
     timeout-minutes: 120
     steps:
       - name: Checkout
