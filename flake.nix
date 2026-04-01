@@ -221,6 +221,7 @@
               (import ./nix/overlays/common-lib.nix)
               (import ./nix/overlays/basement.nix)
               (import ./nix/overlays/ghc-lib-parser.nix)
+              (import ./nix/overlays/mdbook-mermaid.nix)
               fix-crypton-x509
               overlay
             ];
