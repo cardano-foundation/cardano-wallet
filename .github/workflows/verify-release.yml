@@ -14,10 +14,11 @@ jobs:
     runs-on: [self-hosted, linux, x86_64, cardano-wallet]
     steps:
       - name: Download and verify
+        shell: nix shell --quiet nixpkgs#gh -c bash -e {0}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          set -euo pipefail
+          set -uo pipefail
           TAG="${{ inputs.tag }}"
           WORKDIR=$(mktemp -d)
           trap "rm -rf $WORKDIR" EXIT
@@ -52,10 +53,11 @@ jobs:
     runs-on: [self-hosted, macOS, ARM64, cardano-wallet]
     steps:
       - name: Download and verify
+        shell: nix shell --quiet nixpkgs#gh -c bash -e {0}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          set -euo pipefail
+          set -uo pipefail
           TAG="${{ inputs.tag }}"
           WORKDIR=$(mktemp -d)
           trap "rm -rf $WORKDIR" EXIT
@@ -135,10 +137,11 @@ jobs:
     runs-on: [self-hosted, linux, x86_64, cardano-wallet]
     steps:
       - name: Download and verify
+        shell: nix shell --quiet nixpkgs#gh -c bash -e {0}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          set -euo pipefail
+          set -uo pipefail
           TAG="${{ inputs.tag }}"
           WORKDIR=$(mktemp -d)
           trap "rm -rf $WORKDIR" EXIT
