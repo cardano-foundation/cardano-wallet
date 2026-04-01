@@ -489,9 +489,6 @@ import Data.Either.Combinators
 import Data.Either.Extra
     ( eitherToMaybe
     )
-import Data.Foldable
-    ( toList
-    )
 import Data.Function
     ( (&)
     )
