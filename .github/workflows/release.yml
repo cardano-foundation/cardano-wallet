@@ -180,9 +180,72 @@ jobs:
             exit 1
           fi
 
+  e2e-linux:
+    name: "E2E Linux"
+    if: inputs.release_type == 'release'
+    needs: [prepare, verify-artifacts]
+    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    timeout-minutes: 240
+    steps:
+      - name: Checkout release candidate
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.prepare.outputs.release-candidate-branch }}
+          fetch-depth: 0
+
+      - name: Run E2E tests
+        env:
+          HAL_E2E_PREPROD_MNEMONICS: ${{ secrets.HAL_E2E_PREPROD_MNEMONICS }}
+        run: nix shell --quiet .#cardano-node .#cardano-wallet .#e2e 'nixpkgs#gnutar' 'nixpkgs#p7zip' -c e2e
+
+      - name: Cleanup
+        if: always()
+        run: rm -rf /tmp/e2e-* /tmp/test-cluster*
+
+  build-e2e-windows:
+    name: "Build E2E Bundle (Windows)"
+    if: inputs.release_type == 'release'
+    needs: prepare
+    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    steps:
+      - name: Checkout release candidate
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.prepare.outputs.release-candidate-branch }}
+          fetch-depth: 0
+
+      - name: Cross-compile Windows E2E bundle
+        run: nix build --quiet .#ci.artifacts.win64.e2e -o result
+
+      - name: Upload E2E bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: win-e2e
+          path: result/
+
+  e2e-windows:
+    name: "E2E Windows"
+    if: inputs.release_type == 'release'
+    needs: [prepare, build-e2e-windows]
+    runs-on: windows-latest
+    timeout-minutes: 120
+    steps:
+      - name: Download E2E bundle
+        uses: actions/download-artifact@v8
+        with:
+          name: win-e2e
+          path: e2e-bundle/
+
+      - name: Run E2E tests
+        working-directory: e2e-bundle
+        env:
+          HAL_E2E_PREPROD_MNEMONICS: ${{ secrets.HAL_E2E_PREPROD_MNEMONICS }}
+        run: .\e2e.exe
+
   create-release:
     name: "Create ${{ inputs.release_type || 'nightly' }} Release"
-    needs: [prepare, build-artifacts, verify-artifacts, changelog]
+    needs: [prepare, build-artifacts, verify-artifacts, changelog, e2e-linux, e2e-windows]
+    if: ${{ !cancelled() && needs.prepare.result == 'success' && needs.build-artifacts.result == 'success' && needs.verify-artifacts.result == 'success' && needs.changelog.result == 'success' && (needs.e2e-linux.result == 'success' || needs.e2e-linux.result == 'skipped') && (needs.e2e-windows.result == 'success' || needs.e2e-windows.result == 'skipped') }}
     runs-on: [self-hosted, linux, x86_64, cardano-wallet]
     environment: ${{ (inputs.release_type == 'release' && github.ref == 'refs/heads/master') && 'release' || '' }}
     env:
