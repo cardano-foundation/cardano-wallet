@@ -13,7 +13,7 @@ jobs:
     runs-on: [self-hosted, linux, x86_64, cardano-wallet]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -21,7 +21,7 @@ jobs:
         run: nix build --quiet .#ci.artifacts.win64.e2e -o result
 
       - name: Upload E2E bundle
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: win-e2e
           path: result/
@@ -33,12 +33,12 @@ jobs:
     timeout-minutes: 120
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: Download E2E bundle
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: win-e2e
           path: e2e-bundle

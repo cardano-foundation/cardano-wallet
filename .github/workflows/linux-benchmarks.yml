@@ -15,7 +15,7 @@ jobs:
     runs-on: [self-hosted, linux, x86_64, cardano-wallet-bench]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: Build all benchmark derivations
@@ -87,7 +87,7 @@ jobs:
       BENCHMARK_CSV_FILE: ${{ github.workspace }}/${{ matrix.csv_file }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -98,7 +98,7 @@ jobs:
 
       - name: Upload artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ matrix.name }}
           path: ${{ matrix.artifacts }}
@@ -113,12 +113,12 @@ jobs:
       GH_TOKEN: ${{ github.token }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: Download current run artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           path: current-run-artifacts
 
@@ -128,7 +128,7 @@ jobs:
             bash scripts/gha/benchmark-history.sh
 
       - name: Upload Benchmark History
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: Benchmark History
           path: |

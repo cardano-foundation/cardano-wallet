@@ -15,7 +15,7 @@ jobs:
     runs-on: [self-hosted, linux, x86_64, cardano-wallet]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: Build derivations
@@ -34,7 +34,7 @@ jobs:
       NETWORK: mainnet
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -48,7 +48,7 @@ jobs:
 
       - name: Upload logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: mithril-sync-logs
           path: run/mainnet/nix/logs/
