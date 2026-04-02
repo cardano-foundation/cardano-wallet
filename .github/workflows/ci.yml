@@ -26,7 +26,7 @@ jobs:
     runs-on: [self-hosted, linux, x86_64, cardano-wallet]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: Build test and runtime derivations
@@ -49,7 +49,7 @@ jobs:
     runs-on: [self-hosted, linux, x86_64, cardano-wallet]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: Build release artifacts (musl static)
@@ -64,7 +64,7 @@ jobs:
     runs-on: [self-hosted, linux, x86_64, cardano-wallet]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: Build Windows cross-compiled artifacts
@@ -91,7 +91,7 @@ jobs:
     runs-on: [self-hosted, linux, x86_64, cardano-wallet]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: Build dev shell
@@ -107,7 +107,7 @@ jobs:
     runs-on: [self-hosted, linux, x86_64, cardano-wallet]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: Check nix version
@@ -260,7 +260,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -284,7 +284,7 @@ jobs:
       TESTS_RETRY_FAILED: 1
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -315,7 +315,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -368,7 +368,7 @@ jobs:
       NETWORK: ${{ matrix.network }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -396,7 +396,7 @@ jobs:
     runs-on: [self-hosted, linux, x86_64, cardano-wallet]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: Build release package
@@ -415,7 +415,7 @@ jobs:
     runs-on: [self-hosted, linux, x86_64, cardano-wallet]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: Build static binary
@@ -434,7 +434,7 @@ jobs:
     runs-on: [self-hosted, linux, x86_64, cardano-wallet]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: Evaluate shell
@@ -452,7 +452,7 @@ jobs:
       image-tag: ${{ steps.build.outputs.tag }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -496,7 +496,7 @@ jobs:
       USE_LOCAL_IMAGE: "true"
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -518,7 +518,7 @@ jobs:
     runs-on: [self-hosted, macOS, ARM64, cardano-wallet]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: Build all macOS derivations
@@ -544,7 +544,7 @@ jobs:
     runs-on: [self-hosted, macOS, ARM64, cardano-wallet]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: Check nix version
@@ -559,7 +559,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -585,7 +585,7 @@ jobs:
     runs-on: [self-hosted, macOS, ARM64, cardano-wallet]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: Build macOS Intel package
@@ -602,7 +602,7 @@ jobs:
     runs-on: [self-hosted, macOS, ARM64, cardano-wallet]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: Build macOS Silicon package
@@ -654,7 +654,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -669,7 +669,7 @@ jobs:
     if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/master')
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: Push derivations to Attic
