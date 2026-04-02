@@ -38,10 +38,22 @@ if [ "$OLD_GIT_TAG" == "$NEW_GIT_TAG" ]; then
     exit 1
 fi
 
-# Read actual cabal version from the source file, not from the tag.
-# The tag and cabal version can drift if a release was cut without
-# bumping the cabal files (e.g. v2026-03-31 shipped with 0.2025.12.15).
-OLD_CABAL_VERSION=$(grep -m1 '^version:' lib/wallet/cardano-wallet.cabal | awk '{print $2}' | sed 's/^0\.//')
+EXPECTED_CABAL_VERSION=$(tag_cabal_ver "$OLD_GIT_TAG")
+ACTUAL_CABAL_VERSION=$(grep -m1 '^version:' lib/wallet/cardano-wallet.cabal | awk '{print $2}' | sed 's/^0\.//')
+
+if [ "$EXPECTED_CABAL_VERSION" != "$ACTUAL_CABAL_VERSION" ]; then
+    echo "FATAL: cabal version drift detected!"
+    echo "  Last release tag:      $OLD_GIT_TAG"
+    echo "  Expected cabal version: $EXPECTED_CABAL_VERSION"
+    echo "  Actual cabal version:   $ACTUAL_CABAL_VERSION"
+    echo ""
+    echo "The release-candidate branch was not merged back to master"
+    echo "after the last release. Merge it first:"
+    echo "  gh pr create --base master --head release-candidate/$OLD_GIT_TAG"
+    exit 1
+fi
+
+OLD_CABAL_VERSION=$ACTUAL_CABAL_VERSION
 
 if [ "$OLD_CABAL_VERSION" == "$NEW_CABAL_VERSION" ]; then
     echo "Refusing to rewrite last release cabal version"
