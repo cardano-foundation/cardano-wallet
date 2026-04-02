@@ -299,7 +299,7 @@ jobs:
 
       - name: Upload logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: integration-test-logs
           path: integration-test-dir/
@@ -330,7 +330,7 @@ jobs:
 
       - name: Upload logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: local-cluster-logs
           path: local-cluster-logs/
@@ -381,7 +381,7 @@ jobs:
 
       - name: Upload logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: boot-sync-logs-${{ strategy.job-index }}
           path: ${{ matrix.dir }}/logs/
@@ -404,7 +404,7 @@ jobs:
           rm -rf ./result/*
           nix build --quiet -o result/linux .#ci.artifacts.linux64.release
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: linux-release-package
           path: result/linux/
@@ -423,7 +423,7 @@ jobs:
           rm -rf ./result/*
           nix build --quiet -o result/wallet-key-export .#ci.artifacts.wallet-key-export-static
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: wallet-key-export-linux-static
           path: result/wallet-key-export/bin/wallet-key-export
@@ -467,7 +467,7 @@ jobs:
           echo "Docker image tag: $tag"
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: docker-image
           path: artifacts/docker-image.tgz
@@ -574,7 +574,7 @@ jobs:
 
       - name: Upload logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: macos-local-cluster-logs
           path: local-cluster-logs/
@@ -591,7 +591,7 @@ jobs:
       - name: Build macOS Intel package
         run: nix build --quiet -o result/macos-intel .#packages.x86_64-darwin.ci.artifacts.macos-intel.release
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: macos-intel-package
           path: result/macos-intel/
@@ -608,7 +608,7 @@ jobs:
       - name: Build macOS Silicon package
         run: nix build --quiet -o result/macos-silicon .#packages.aarch64-darwin.ci.artifacts.macos-silicon.release
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: macos-silicon-package
           path: result/macos-silicon/
