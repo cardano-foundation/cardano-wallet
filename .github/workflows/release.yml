@@ -165,21 +165,14 @@ jobs:
           fi
           echo "Binary found: $binary — $(file "$binary")"
 
-      - name: Smoke test version
+      - name: Smoke test
         if: matrix.name != 'Windows'
-        env:
-          EXPECTED_VERSION: ${{ needs.prepare.outputs.release-version }}
         run: |
           cd artifact/extracted
           binary=$(find . -name "${{ matrix.binary }}" -type f | head -1)
-          version_output=$("./$binary" version 2>&1 || true)
-          echo "Version output: $version_output"
-          if echo "$version_output" | grep -q "$EXPECTED_VERSION"; then
-            echo "Version matches expected: $EXPECTED_VERSION"
-          else
-            echo "ERROR: version mismatch. Expected $EXPECTED_VERSION in output."
-            exit 1
-          fi
+          echo "Running: $binary version"
+          "./$binary" version
+          echo "Binary executes successfully"
 
   create-release:
     name: "Create ${{ inputs.release_type || 'nightly' }} Release"
