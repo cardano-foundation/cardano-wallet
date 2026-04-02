@@ -123,7 +123,7 @@ jobs:
             runner: '["self-hosted", "linux", "x86_64", "cardano-wallet"]'
             artifact-name: linux-release
             extract: tar xzf
-            binary: bin/cardano-wallet
+            binary: cardano-wallet
           - name: Windows
             runner: '["self-hosted", "linux", "x86_64", "cardano-wallet"]'
             artifact-name: windows-release
@@ -133,7 +133,7 @@ jobs:
             runner: '["self-hosted", "macOS", "ARM64", "cardano-wallet"]'
             artifact-name: macos-silicon-release
             extract: tar xzf
-            binary: bin/cardano-wallet
+            binary: cardano-wallet
     steps:
       - name: Download artifact
         uses: actions/download-artifact@v8
@@ -157,12 +157,13 @@ jobs:
           ${{ matrix.extract }} "../$archive"
 
           echo "Checking binary exists: ${{ matrix.binary }}"
-          if [ ! -f "${{ matrix.binary }}" ]; then
+          binary=$(find . -name "${{ matrix.binary }}" -type f | head -1)
+          if [ -z "$binary" ]; then
             echo "ERROR: binary ${{ matrix.binary }} not found after extraction"
             find . -type f
             exit 1
           fi
-          echo "Binary found: $(file ${{ matrix.binary }})"
+          echo "Binary found: $binary — $(file "$binary")"
 
       - name: Smoke test version
         if: matrix.name != 'Windows'
@@ -170,7 +171,8 @@ jobs:
           EXPECTED_VERSION: ${{ needs.prepare.outputs.release-version }}
         run: |
           cd artifact/extracted
-          version_output=$(./${{ matrix.binary }} version 2>&1 || true)
+          binary=$(find . -name "${{ matrix.binary }}" -type f | head -1)
+          version_output=$("./$binary" version 2>&1 || true)
           echo "Version output: $version_output"
           if echo "$version_output" | grep -q "$EXPECTED_VERSION"; then
             echo "Version matches expected: $EXPECTED_VERSION"
