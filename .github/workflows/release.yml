@@ -35,7 +35,7 @@ jobs:
       last-release-date: ${{ steps.rc.outputs.last-release-date }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -71,7 +71,7 @@ jobs:
             artifact-name: docker-image
     steps:
       - name: Checkout release candidate
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ needs.prepare.outputs.release-candidate-branch }}
           fetch-depth: 0
@@ -80,7 +80,7 @@ jobs:
         run: nix build --quiet -o result .#${{ matrix.output }}
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.artifact-name }}
           path: result
@@ -91,7 +91,7 @@ jobs:
     runs-on: [self-hosted, linux, x86_64, cardano-wallet]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ needs.prepare.outputs.release-candidate-branch }}
           fetch-depth: 0
@@ -106,7 +106,7 @@ jobs:
         run: nix develop --quiet path:$RELEASE_SCRIPTS_DIR -c $RELEASE_SCRIPTS_DIR/openapi-diff.sh
 
       - name: Upload changelog artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: release-notes
           path: artifacts/
@@ -126,7 +126,7 @@ jobs:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ needs.prepare.outputs.release-candidate-branch }}
           fetch-depth: 0
@@ -273,7 +273,7 @@ jobs:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Checkout gh-pages
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: gh-pages
           fetch-depth: 0
