@@ -38,7 +38,10 @@ if [ "$OLD_GIT_TAG" == "$NEW_GIT_TAG" ]; then
     exit 1
 fi
 
-OLD_CABAL_VERSION=$(tag_cabal_ver "$OLD_GIT_TAG")
+# Read actual cabal version from the source file, not from the tag.
+# The tag and cabal version can drift if a release was cut without
+# bumping the cabal files (e.g. v2026-03-31 shipped with 0.2025.12.15).
+OLD_CABAL_VERSION=$(grep -m1 '^version:' lib/wallet/cardano-wallet.cabal | awk '{print $2}' | sed 's/^0\.//')
 
 if [ "$OLD_CABAL_VERSION" == "$NEW_CABAL_VERSION" ]; then
     echo "Refusing to rewrite last release cabal version"
