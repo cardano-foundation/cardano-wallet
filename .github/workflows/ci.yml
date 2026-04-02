@@ -26,7 +26,7 @@ jobs:
     runs-on: [self-hosted, linux, x86_64, cardano-wallet]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: Build test and runtime derivations
@@ -49,7 +49,7 @@ jobs:
     runs-on: [self-hosted, linux, x86_64, cardano-wallet]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: Build release artifacts (musl static)
@@ -59,12 +59,39 @@ jobs:
           .#ci.artifacts.wallet-key-export-static
 
 
+  build-gate-windows:
+    name: "Build Gate (Windows)"
+    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Build Windows cross-compiled artifacts
+        run: >-
+          nix build --quiet
+          .#ci.artifacts.win64.release
+          .#ci.artifacts.win64.tests.wallet-unit
+          .#ci.artifacts.win64.tests.wallet-primitive
+          .#ci.artifacts.win64.tests.wallet-secrets
+          .#ci.artifacts.win64.tests.wallet-network-layer
+          .#ci.artifacts.win64.tests.wallet-test-utils
+          .#ci.artifacts.win64.tests.wallet-launcher
+          .#ci.artifacts.win64.tests.cardano-numeric
+          .#ci.artifacts.win64.tests.wallet-blackbox-benchmarks
+          .#ci.artifacts.win64.tests.delta-chain
+          .#ci.artifacts.win64.tests.delta-store
+          .#ci.artifacts.win64.tests.delta-table
+          .#ci.artifacts.win64.tests.delta-types
+          .#ci.artifacts.win64.tests.std-gen-seed
+          .#ci.artifacts.win64.tests.wai-middleware-logging
+
   build-gate-quality:
     name: "Build Gate (Dev Shell)"
     runs-on: [self-hosted, linux, x86_64, cardano-wallet]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: Build dev shell
@@ -80,7 +107,7 @@ jobs:
     runs-on: [self-hosted, linux, x86_64, cardano-wallet]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: Check nix version
@@ -233,7 +260,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -257,7 +284,7 @@ jobs:
       TESTS_RETRY_FAILED: 1
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -272,7 +299,7 @@ jobs:
 
       - name: Upload logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: integration-test-logs
           path: integration-test-dir/
@@ -288,7 +315,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -303,7 +330,7 @@ jobs:
 
       - name: Upload logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: local-cluster-logs
           path: local-cluster-logs/
@@ -341,7 +368,7 @@ jobs:
       NETWORK: ${{ matrix.network }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -354,7 +381,7 @@ jobs:
 
       - name: Upload logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: boot-sync-logs-${{ strategy.job-index }}
           path: ${{ matrix.dir }}/logs/
@@ -369,7 +396,7 @@ jobs:
     runs-on: [self-hosted, linux, x86_64, cardano-wallet]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: Build release package
@@ -377,7 +404,7 @@ jobs:
           rm -rf ./result/*
           nix build --quiet -o result/linux .#ci.artifacts.linux64.release
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: linux-release-package
           path: result/linux/
@@ -388,7 +415,7 @@ jobs:
     runs-on: [self-hosted, linux, x86_64, cardano-wallet]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: Build static binary
@@ -396,7 +423,7 @@ jobs:
           rm -rf ./result/*
           nix build --quiet -o result/wallet-key-export .#ci.artifacts.wallet-key-export-static
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: wallet-key-export-linux-static
           path: result/wallet-key-export/bin/wallet-key-export
@@ -407,7 +434,7 @@ jobs:
     runs-on: [self-hosted, linux, x86_64, cardano-wallet]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: Evaluate shell
@@ -425,7 +452,7 @@ jobs:
       image-tag: ${{ steps.build.outputs.tag }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -440,7 +467,7 @@ jobs:
           echo "Docker image tag: $tag"
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: docker-image
           path: artifacts/docker-image.tgz
@@ -469,7 +496,7 @@ jobs:
       USE_LOCAL_IMAGE: "true"
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -491,7 +518,7 @@ jobs:
     runs-on: [self-hosted, macOS, ARM64, cardano-wallet]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: Build all macOS derivations
@@ -517,7 +544,7 @@ jobs:
     runs-on: [self-hosted, macOS, ARM64, cardano-wallet]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: Check nix version
@@ -532,7 +559,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -547,7 +574,7 @@ jobs:
 
       - name: Upload logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: macos-local-cluster-logs
           path: local-cluster-logs/
@@ -558,13 +585,13 @@ jobs:
     runs-on: [self-hosted, macOS, ARM64, cardano-wallet]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: Build macOS Intel package
         run: nix build --quiet -o result/macos-intel .#packages.x86_64-darwin.ci.artifacts.macos-intel.release
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: macos-intel-package
           path: result/macos-intel/
@@ -575,13 +602,13 @@ jobs:
     runs-on: [self-hosted, macOS, ARM64, cardano-wallet]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: Build macOS Silicon package
         run: nix build --quiet -o result/macos-silicon .#packages.aarch64-darwin.ci.artifacts.macos-silicon.release
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: macos-silicon-package
           path: result/macos-silicon/
@@ -627,7 +654,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -636,13 +663,13 @@ jobs:
 
   attic-cache:
     name: "Attic Cache"
-    needs: build-gate-quality
+    needs: [build-gate-quality, build-gate-artifacts, build-gate-windows]
     runs-on: [self-hosted, linux, x86_64, cardano-wallet]
     timeout-minutes: 180
     if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/master')
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: Push derivations to Attic

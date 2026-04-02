@@ -148,7 +148,7 @@ fromEdge Edge{from, to, via} =
 -- appear in the list.
 fromEdges :: Ord node => [Edge node edge] -> Maybe (Chain node [edge])
 fromEdges [] = Nothing
-fromEdges (e : es) = ($ fromEdge' e) . foldr (<=<) Just $ map addEdge es
+fromEdges (e : es) = flip (foldr (<=<) Just) (fromEdge' e) $ map addEdge es
   where
     fromEdge' = fmap (: []) . fromEdge
 

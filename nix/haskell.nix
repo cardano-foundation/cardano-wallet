@@ -152,8 +152,8 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: set-git-rev: rewrite-l
           just
           pkg-config
           nixpkgs-recent.python3Packages.openapi-spec-validator
-          (ruby_3_1.withPackages (ps: [ ps.rake ps.thor ]))
-          rubyPackages_3_1.rubocop
+          (ruby_3_3.withPackages (ps: [ ps.rake ps.thor ]))
+          rubyPackages_3_3.rubocop
           sqlite-interactive
           curlFull
           jq
