@@ -326,9 +326,12 @@ jobs:
 
           image_file=$(find docker-image -type f | head -1)
           echo "Loading docker image from: $image_file ($(stat -c%s "$image_file") bytes)"
-          docker load -i "$image_file"
+          load_output=$(docker load -i "$image_file")
+          echo "$load_output"
 
-          LOADED_IMAGE="$REPO:$RELEASE_CABAL_VERSION"
+          # Extract actual image name from docker load output
+          LOADED_IMAGE=$(echo "$load_output" | grep -oP 'Loaded image: \K.*')
+          echo "Loaded image: $LOADED_IMAGE"
           docker tag "$LOADED_IMAGE" "$REPO:$TAG"
           docker push "$REPO:$TAG"
 
