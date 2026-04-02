@@ -636,7 +636,7 @@ jobs:
 
   attic-cache:
     name: "Attic Cache"
-    needs: build-gate-quality
+    needs: [build-gate-quality, build-gate-artifacts]
     runs-on: [self-hosted, linux, x86_64, cardano-wallet]
     timeout-minutes: 180
     if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/master')
