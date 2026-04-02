@@ -68,15 +68,15 @@ git branch -D "$RELEASE_CANDIDATE_BRANCH" || true
 git checkout -b "$RELEASE_CANDIDATE_BRANCH" || true
 
 sed -i "s|version: .*|version: $NEW_GIT_TAG|g" specifications/api/swagger.yaml
-git commit -m "Update wallet version in swagger.yaml" specifications/api/swagger.yaml
+git diff --quiet || git commit -m "Update wallet version in swagger.yaml" specifications/api/swagger.yaml
 
 git ls-files '*.cabal' | xargs sed -i "s|$OLD_CABAL_VERSION|$NEW_CABAL_VERSION|g"
-git commit -am "Update cardano-wallet version in *.cabal files"
+git diff --quiet || git commit -am "Update cardano-wallet version in *.cabal files"
 
 sed -i "s|NODE_TAG=.*|NODE_TAG=$CARDANO_NODE_TAG|g" README.md
 sed -i "s|WALLET_TAG=.*|WALLET_TAG=$NEW_CABAL_VERSION|g" README.md
 sed -i "s|WALLET_VERSION=.*|WALLET_VERSION=$NEW_GIT_TAG|g" README.md
-git commit -am "Update cardano-wallet version in README.md"
+git diff --quiet || git commit -am "Update cardano-wallet version in README.md"
 
 sed -i "s|$OLD_GIT_TAG|$NEW_GIT_TAG|g" scripts/ci/ruby-e2e.sh
 git diff --quiet || git commit -am "Update cardano-wallet version in ruby-e2e.sh"
