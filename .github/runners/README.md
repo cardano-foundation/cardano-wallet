@@ -4,7 +4,7 @@
 
 | Host | IP | Cores | RAM | OS | Runners | Labels |
 |---|---|---|---|---|---|---|
-| builder-new | 10.1.21.17 | 64 | 125GB | Linux x86_64 | 12 (`builder-new-{1..12}`) | `cardano-wallet` |
+| builder-new | 10.1.21.17 | 64 | 125GB | Linux x86_64 | 24 (`builder-new-{1..24}`) | `cardano-wallet` |
 | benchmark-new | 10.1.21.18 | 64 | 125GB | Linux x86_64 | 4 (`benchmark-new-{1..4}`) | `cardano-wallet-bench` |
 | cf-hal-mac | 10.1.21.14 | 10 | 32GB | macOS ARM64 | 4 (`mac-builder-{1..4}`) | `cardano-wallet-mac` |
 | cf-hal-win | 10.1.21.15 | - | - | Windows Server | 4 (`win-builder-{1..4}`) | `cardano-wallet-win` |
@@ -35,8 +35,8 @@ Run as `gha-runner`:
 
 ```bash
 REPO_URL="https://github.com/cardano-foundation/cardano-wallet"
-RUNNER_VERSION="2.322.0"  # check https://github.com/actions/runner/releases
-COUNT=12       # builder-new: 12, benchmark-new: 4
+RUNNER_VERSION="2.331.0"  # check https://github.com/actions/runner/releases
+COUNT=24       # builder-new: 24, benchmark-new: 4
 PREFIX="builder-new"  # or "benchmark-new"
 LABELS="self-hosted,linux,x86_64,cardano-wallet"  # or "...,cardano-wallet-bench"
 
@@ -70,7 +70,20 @@ for i in $(seq 1 $COUNT); do
 done
 ```
 
-### 5. Verify
+### 5. Memory limits (Linux)
+
+Prevent runaway jobs from OOM-killing other runners:
+
+```bash
+sudo mkdir -p /etc/systemd/system/gha-runner@.service.d
+cat <<EOF | sudo tee /etc/systemd/system/gha-runner@.service.d/memory-limit.conf
+[Service]
+MemoryMax=8G
+EOF
+sudo systemctl daemon-reload
+```
+
+### 6. Verify
 
 ```bash
 systemctl status gha-runner@{1..N}
@@ -121,6 +134,17 @@ Runner work directories grow over time. Set up a weekly cron:
 
 ```cron
 0 3 * * 0 find /home/gha-runner/actions-runner-*/_work -maxdepth 1 -mindepth 1 -mtime +7 -exec rm -rf {} +
+```
+
+### Attic watch-store (builder-new)
+
+`attic watch-store` runs as a systemd service and has a known memory leak.
+It is capped at 2G and auto-restarts on failure:
+
+```
+/etc/systemd/system/attic-watch-store.service.d/memory-limit.conf
+[Service]
+MemoryMax=2G
 ```
 
 ### Removing runners
