@@ -111,9 +111,141 @@ jobs:
           name: release-notes
           path: artifacts/
 
+  verify-artifacts:
+    name: "Verify ${{ matrix.name }}"
+    needs: [prepare, build-artifacts]
+    runs-on: ${{ fromJson(matrix.runner) }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux
+            runner: '["self-hosted", "linux", "x86_64", "cardano-wallet"]'
+            artifact-name: linux-release
+            extract: tar xzf
+            binary: cardano-wallet
+          - name: Windows
+            runner: '["self-hosted", "linux", "x86_64", "cardano-wallet"]'
+            artifact-name: windows-release
+            extract: unzip -o
+            binary: cardano-wallet.exe
+          - name: macOS Silicon
+            runner: '["self-hosted", "macOS", "ARM64", "cardano-wallet"]'
+            artifact-name: macos-silicon-release
+            extract: tar xzf
+            binary: cardano-wallet
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ matrix.artifact-name }}
+          path: artifact/
+
+      - name: Extract and verify
+        env:
+          EXPECTED_VERSION: ${{ needs.prepare.outputs.release-version }}
+        run: |
+          cd artifact
+          archive=$(find . -type f \( -name '*.tar.gz' -o -name '*.zip' \) | head -1)
+          if [ -z "$archive" ]; then
+            echo "ERROR: no archive found in artifact"
+            ls -laR .
+            exit 1
+          fi
+          echo "Extracting $archive"
+          mkdir -p extracted && cd extracted
+          ${{ matrix.extract }} "../$archive"
+
+          echo "Checking binary exists: ${{ matrix.binary }}"
+          binary=$(find . -name "${{ matrix.binary }}" -type f | head -1)
+          if [ -z "$binary" ]; then
+            echo "ERROR: binary ${{ matrix.binary }} not found after extraction"
+            find . -type f
+            exit 1
+          fi
+          echo "Binary found: $binary — $(file "$binary")"
+
+      - name: Smoke test
+        if: matrix.name != 'Windows'
+        env:
+          EXPECTED_VERSION: ${{ needs.prepare.outputs.release-version }}
+        run: |
+          cd artifact/extracted
+          binary=$(find . -name "${{ matrix.binary }}" -type f | head -1)
+          version_output=$("./$binary" version 2>&1)
+          echo "Version output: $version_output"
+          echo "Expected: $EXPECTED_VERSION"
+          if ! echo "$version_output" | grep -q "$EXPECTED_VERSION"; then
+            echo "ERROR: binary does not contain expected version $EXPECTED_VERSION"
+            exit 1
+          fi
+
+  e2e-linux:
+    name: "E2E Linux"
+    if: inputs.release_type == 'release'
+    needs: [prepare, verify-artifacts]
+    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    timeout-minutes: 240
+    steps:
+      - name: Checkout release candidate
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.prepare.outputs.release-candidate-branch }}
+          fetch-depth: 0
+
+      - name: Run E2E tests
+        env:
+          HAL_E2E_PREPROD_MNEMONICS: ${{ secrets.HAL_E2E_PREPROD_MNEMONICS }}
+        run: nix shell --quiet .#cardano-node .#cardano-wallet .#e2e 'nixpkgs#gnutar' 'nixpkgs#p7zip' -c e2e
+
+      - name: Cleanup
+        if: always()
+        run: rm -rf /tmp/e2e-* /tmp/test-cluster*
+
+  build-e2e-windows:
+    name: "Build E2E Bundle (Windows)"
+    if: inputs.release_type == 'release'
+    needs: prepare
+    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    steps:
+      - name: Checkout release candidate
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.prepare.outputs.release-candidate-branch }}
+          fetch-depth: 0
+
+      - name: Cross-compile Windows E2E bundle
+        run: nix build --quiet .#ci.artifacts.win64.e2e -o result
+
+      - name: Upload E2E bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: win-e2e
+          path: result/
+
+  e2e-windows:
+    name: "E2E Windows"
+    if: inputs.release_type == 'release'
+    needs: [prepare, build-e2e-windows]
+    runs-on: windows-latest
+    timeout-minutes: 120
+    steps:
+      - name: Download E2E bundle
+        uses: actions/download-artifact@v8
+        with:
+          name: win-e2e
+          path: e2e-bundle/
+
+      - name: Run E2E tests
+        working-directory: e2e-bundle
+        env:
+          HAL_E2E_PREPROD_MNEMONICS: ${{ secrets.HAL_E2E_PREPROD_MNEMONICS }}
+        run: .\e2e.exe
+
   create-release:
     name: "Create ${{ inputs.release_type || 'nightly' }} Release"
-    needs: [prepare, build-artifacts, changelog]
+    needs: [prepare, build-artifacts, verify-artifacts, changelog, e2e-linux, e2e-windows]
+    if: ${{ !cancelled() && needs.prepare.result == 'success' && needs.build-artifacts.result == 'success' && needs.verify-artifacts.result == 'success' && needs.changelog.result == 'success' && (needs.e2e-linux.result == 'success' || needs.e2e-linux.result == 'skipped') && (needs.e2e-windows.result == 'success' || needs.e2e-windows.result == 'skipped') }}
     runs-on: [self-hosted, linux, x86_64, cardano-wallet]
     environment: ${{ (inputs.release_type == 'release' && github.ref == 'refs/heads/master') && 'release' || '' }}
     env:
@@ -163,7 +295,7 @@ jobs:
           git push origin -f "$TAG"
 
       - name: Download release notes
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: release-notes
           path: artifacts/
@@ -191,7 +323,7 @@ jobs:
             "${{ steps.tag.outputs.tag }}"
 
       - name: Download all build artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: build-artifacts/
 
@@ -202,19 +334,29 @@ jobs:
           cd build-artifacts
 
           upload() {
-            local dir="$1" pattern="$2" label="$3"
+            local dir="$1" ext="$2" label="$3"
             [ -d "$dir" ] || return 0
             local file
-            file=$(find "$dir" $pattern | head -1)
-            if [ -n "$file" ]; then
-              gh release upload "$TAG" "$file#$label"
+            file=$(find "$dir" -type f -name "*.$ext" | head -1)
+            if [ -z "$file" ]; then
+              echo "ERROR: no .$ext file found in $dir" >&2
+              ls -laR "$dir" >&2
+              exit 1
             fi
+            echo "Uploading $file as $label"
+            gh release upload "$TAG" "$file#$label"
           }
 
-          upload linux-release          "-name '*.tar.gz'"  "cardano-wallet-$TAG-linux64.tar.gz"
-          upload windows-release        "-name '*.zip'"     "cardano-wallet.exe-$TAG-win64.zip"
-          upload macos-silicon-release   "-name '*.tar.gz'"  "cardano-wallet-$TAG-macos-silicon.tar.gz"
-          upload docker-image           "-type f"            "cardano-wallet-$TAG-docker-image.tgz"
+          upload linux-release          tar.gz  "cardano-wallet-$TAG-linux64.tar.gz"
+          upload windows-release        zip     "cardano-wallet.exe-$TAG-win64.zip"
+          upload macos-silicon-release   tar.gz  "cardano-wallet-$TAG-macos-silicon.tar.gz"
+
+          # Docker image has no extension
+          docker_file=$(find docker-image -type f | head -1)
+          if [ -n "$docker_file" ]; then
+            echo "Uploading $docker_file as cardano-wallet-$TAG-docker-image.tgz"
+            gh release upload "$TAG" "$docker_file#cardano-wallet-$TAG-docker-image.tgz"
+          fi
 
   push-docker:
     name: "Push Docker Image"
@@ -227,7 +369,7 @@ jobs:
       IS_RELEASE: ${{ inputs.release_type == 'release' && 'true' || 'false' }}
     steps:
       - name: Download Docker image
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: docker-image
           path: docker-image/
@@ -253,9 +395,12 @@ jobs:
 
           image_file=$(find docker-image -type f | head -1)
           echo "Loading docker image from: $image_file ($(stat -c%s "$image_file") bytes)"
-          docker load -i "$image_file"
+          load_output=$(docker load -i "$image_file")
+          echo "$load_output"
 
-          LOADED_IMAGE="$REPO:$RELEASE_CABAL_VERSION"
+          # Extract actual image name from docker load output
+          LOADED_IMAGE=$(echo "$load_output" | grep -oP 'Loaded image: \K.*')
+          echo "Loaded image: $LOADED_IMAGE"
           docker tag "$LOADED_IMAGE" "$REPO:$TAG"
           docker push "$REPO:$TAG"
 
