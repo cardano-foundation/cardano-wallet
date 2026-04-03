@@ -20,7 +20,7 @@ jobs:
       PR_NUMBER: ${{ github.event.pull_request.number }}
     steps:
       - name: "📥 Checkout repository"
-        uses: actions/checkout@v6.2.0
+        uses: actions/checkout@v6
 
       - name: "❄ Install Nix"
         uses: cachix/install-nix-action@v30

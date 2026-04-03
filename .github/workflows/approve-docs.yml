@@ -6,7 +6,7 @@ jobs:
     if: '${{ github.ref_protected }}'
     runs-on: [self-hosted, linux, x86_64, cardano-wallet]
     steps:
-      - uses: actions/checkout@v6.2.0
+      - uses: actions/checkout@v6
 
       - name: 'Check scope of PR'
         run: './scripts/gh/check-scope.sh scope'
