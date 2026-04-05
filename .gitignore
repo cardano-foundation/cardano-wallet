@@ -66,6 +66,7 @@ bench-wallet
 memory-time.txt
 memory.log
 memory
+!.specify/memory/
 memory.svg
 bench-restore
 restore-time.txt
