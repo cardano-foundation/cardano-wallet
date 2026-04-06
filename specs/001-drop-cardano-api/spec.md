@@ -5,30 +5,36 @@
 **Status**: Draft
 **Input**: User description: "Remove cardano-api dependency from cardano-wallet"
 
+## Context
+
+The `cardano-balance-transaction` and `cardano-coin-selection` libraries have already been extracted as standalone packages, removing two major consumers of cardano-api from the wallet's internal code. The remaining cardano-api usage spans 9 packages (71 imports across 45 files), concentrated in transaction construction, certificate handling, metadata types, and era GADTs.
+
+This spec covers the removal of all remaining cardano-api usage.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Wallet builds without cardano-api (Priority: P1)
 
-A developer building cardano-wallet from source no longer needs to compile the cardano-api package. The build dependency graph is shorter, compile times are reduced, and version constraint conflicts involving cardano-api are eliminated. The wallet produces identical artifacts (binaries, API responses, database state) as before the removal.
+A developer building cardano-wallet from source no longer needs to compile the cardano-api package. The build dependency graph is shorter, version constraint conflicts involving cardano-api are eliminated. The wallet produces identical artifacts as before the removal.
 
 **Why this priority**: This is the core goal. Every other story depends on the wallet successfully building and passing all tests without cardano-api in its dependency closure.
 
-**Independent Test**: Build the full project, run unit tests and integration tests. All existing tests pass with no behavioral changes. Verify `cardano-api` does not appear in the build plan output.
+**Independent Test**: Build the full project, run unit and integration tests. Verify `cardano-api` does not appear in the build plan output.
 
 **Acceptance Scenarios**:
 
 1. **Given** the wallet codebase with cardano-api removed from all .cabal files, **When** a developer builds all packages, **Then** the build succeeds with no compilation errors.
 2. **Given** a successfully built wallet, **When** the full unit test suite runs, **Then** all tests pass with the same results as the pre-removal baseline.
 3. **Given** a successfully built wallet, **When** the integration test suite runs against a local cluster, **Then** all tests pass across all supported eras (Babbage, Conway, Dijkstra).
-4. **Given** the built project, **When** the build plan is inspected, **Then** `cardano-api` does not appear anywhere in the transitive dependency closure of any wallet package.
+4. **Given** the built project, **When** the build plan is inspected, **Then** `cardano-api` does not appear in the transitive dependency closure of any wallet package.
 
 ---
 
 ### User Story 2 - Transaction lifecycle works identically (Priority: P1)
 
-A wallet user constructs, signs, and submits transactions through the REST API. The transaction lifecycle — from coin selection through to node submission and confirmation — behaves identically to the current implementation. Transaction metadata, certificates (delegation, voting, registration), and multi-asset minting all work unchanged.
+A wallet user constructs, signs, and submits transactions through the REST API. The full transaction lifecycle — coin selection, balancing, signing, submission, confirmation — behaves identically. Transaction metadata, certificates (delegation, voting, registration), and multi-asset minting all work unchanged.
 
-**Why this priority**: Transaction handling is the wallet's core function and the area most deeply entangled with cardano-api (SealedTx, TxBodyContent, toConsensusGenTx). Any regression here is a funds-at-risk issue.
+**Why this priority**: Transaction handling is the wallet's core function and the area most deeply entangled with cardano-api (SealedTx, TxBodyContent, toConsensusGenTx). Any regression is a funds-at-risk issue.
 
 **Independent Test**: Submit delegation, voting, and payment transactions with metadata on a local cluster. Verify transaction hashes, fees, and on-chain effects match expected values.
 
@@ -45,9 +51,9 @@ A wallet user constructs, signs, and submits transactions through the REST API. 
 
 External consumers of the wallet REST API (Daedalus, third-party integrations) receive identical JSON responses. No fields change names, types, or serialization formats. The OpenAPI specification remains unchanged.
 
-**Why this priority**: The REST API is the wallet's public contract. Any change to response formats would break downstream consumers.
+**Why this priority**: The REST API is the wallet's public contract. Any change to response formats breaks downstream consumers.
 
-**Independent Test**: Run the API golden tests. Compare API responses field-by-field against the pre-removal baseline for all transaction, address, and metadata endpoints.
+**Independent Test**: Run the API golden tests. Compare API responses against the pre-removal baseline for all transaction, address, and metadata endpoints.
 
 **Acceptance Scenarios**:
 
@@ -62,7 +68,7 @@ Existing wallet databases created by the current version can be read by the new 
 
 **Why this priority**: Users upgrading their wallet must not lose data or encounter corruption. Database compatibility is a hard constraint.
 
-**Independent Test**: Take a wallet database snapshot from the current version, start the new version against it, verify all data loads and displays correctly.
+**Independent Test**: Start the new version against a database snapshot from the current version, verify all data loads correctly.
 
 **Acceptance Scenarios**:
 
@@ -71,27 +77,43 @@ Existing wallet databases created by the current version can be read by the new 
 
 ---
 
-### User Story 5 - Reduced build complexity (Priority: P3)
+### User Story 5 - Test generators migrated (Priority: P2)
 
-The `cardano-api-extra` package is eliminated entirely. The total number of transitive dependencies decreases. Build times improve because cardano-api (and its own dependencies) no longer need compilation.
+Property-based tests that currently use `Cardano.Api.Gen` (from `cardano-api-extra`) work with replacement generators that produce identical value distributions. Test coverage does not regress.
 
-**Why this priority**: This is the motivating benefit of the removal — simpler builds, fewer version conflicts, faster CI.
+**Why this priority**: The `cardano-api-extra` package exists solely to extend cardano-api with test generators. It cannot be eliminated until the generators are replaced.
+
+**Independent Test**: Run all property-based tests. Verify they pass with the same confidence level and cover the same value space.
+
+**Acceptance Scenarios**:
+
+1. **Given** the wallet test suite, **When** property-based tests run with the replacement generators, **Then** all tests pass.
+2. **Given** the updated codebase, **When** the `cardano-api-extra` package directory is inspected, **Then** it no longer exists.
+
+---
+
+### User Story 6 - Reduced build complexity (Priority: P3)
+
+The total number of transitive dependencies decreases. Build times improve because cardano-api (and its own transitive dependencies) no longer need compilation.
+
+**Why this priority**: This is the motivating benefit — simpler builds, fewer version conflicts, faster CI.
 
 **Independent Test**: Compare dependency counts and CI build times before and after.
 
 **Acceptance Scenarios**:
 
-1. **Given** the updated codebase, **When** the cardano-api-extra package directory is inspected, **Then** it no longer exists.
-2. **Given** a clean build, **When** build time is measured, **Then** it is measurably shorter than the baseline.
+1. **Given** a clean build, **When** build time is measured, **Then** it is measurably shorter than the baseline.
+2. **Given** the build plan, **When** the transitive dependency count is measured, **Then** it is lower than the baseline.
 
 ---
 
 ### Edge Cases
 
 - What happens when deserializing a transaction from a pre-Shelley (Byron) era stored in the database?
-- How does the wallet handle a transaction CBOR blob that was serialized by the old cardano-api path — does the new deserialization path accept it?
+- How does the wallet handle a transaction CBOR blob serialized by the old cardano-api path — does the new deserialization path accept it?
 - What happens when a node returns era-specific error types during transaction submission?
-- How does cross-era transaction construction behave at era boundaries (e.g., a transaction constructed just before a hard fork)?
+- How does cross-era transaction construction behave at era boundaries (a transaction constructed just before a hard fork)?
+- What happens if an upstream `cardano-ledger-*` package does not expose an equivalent for a function currently accessed via cardano-api?
 
 ## Requirements *(mandatory)*
 
@@ -99,23 +121,25 @@ The `cardano-api-extra` package is eliminated entirely. The total number of tran
 
 - **FR-001**: The wallet MUST build and pass all tests without `cardano-api` in any package's build dependencies.
 - **FR-002**: The wallet MUST use `cardano-ledger-*` and `ouroboros-*` libraries directly for all types previously re-exported by cardano-api (SlotNo, ShelleyGenesis, NodeToClientVersion, era types).
-- **FR-003**: The wallet MUST provide its own CBOR serialization/deserialization replacing cardano-api's wrappers around ledger binary encoding.
-- **FR-004**: The wallet MUST unify its internal NetworkId type with the one previously imported from cardano-api, eliminating the dual-type bridge.
-- **FR-005**: The wallet MUST construct delegation, registration, and voting certificates directly via cardano-ledger, handling pre-Conway vs Conway format differences.
-- **FR-006**: The wallet MUST define its own TxMetadata type (or adopt a ledger equivalent) that is wire-compatible with the current JSON serialization used in the REST API and database.
-- **FR-007**: The wallet MUST replace SealedTx's internal use of cardano-api's era-indexed transaction type with a ledger-native transaction representation.
-- **FR-008**: The wallet MUST replace the cardano-api-based conversion to Ouroboros GenTx with a direct conversion from ledger Tx for transaction submission.
-- **FR-009**: The wallet MUST replace the TxBodyContent transaction builder with direct ledger transaction body construction.
-- **FR-010**: The `cardano-api-extra` package MUST be removed from the repository.
-- **FR-011**: The wallet's own era GADT system MUST fully replace cardano-api's AnyCardanoEra, CardanoEra, and InAnyCardanoEra types.
+- **FR-003**: The wallet MUST provide its own CBOR serialization/deserialization replacing cardano-api's wrappers (serialiseToCBOR, deserialiseFromCBOR, serialiseToRawBytes, deserialiseFromRawBytes, serialiseToBech32, deserialiseFromBech32).
+- **FR-004**: The wallet MUST unify its internal NetworkId type (in `Cardano.Wallet.Primitive.NetworkId`) with the one previously imported from cardano-api, eliminating the dual-type bridge and conversion functions.
+- **FR-005**: The wallet MUST construct delegation, registration, and voting certificates directly via `cardano-ledger` APIs, handling pre-Conway vs Conway certificate format differences currently managed by `Cardano.Api.Certificate`.
+- **FR-006**: The wallet MUST define its own TxMetadata and TxMetadataValue types (or adopt ledger equivalents) that are wire-compatible with the current JSON serialization used in the REST API and database. The TxMetadataJsonSchema-based conversion (metadataFromJson, metadataToJson) must be preserved.
+- **FR-007**: The wallet MUST replace SealedTx's internal use of `InAnyCardanoEra Cardano.Api.Tx` with a ledger-native transaction representation, preserving all existing serialization and submission behavior.
+- **FR-008**: The wallet MUST replace `toConsensusGenTx` with a direct conversion from ledger Tx to Ouroboros GenTx for transaction submission, preserving the multi-era hard fork combinator dispatch.
+- **FR-009**: The wallet MUST replace `TxBodyContent` / `createTransactionBody` with direct ledger transaction body construction, covering all current fields: inputs, outputs, fees, withdrawals, certificates, metadata, minting, validity intervals, and voting procedures.
+- **FR-010**: The `cardano-api-extra` package MUST be removed from the repository after its generators are replaced with wallet-native equivalents.
+- **FR-011**: The wallet's era GADT system (`cardano-wallet-read`) MUST fully replace cardano-api's `AnyCardanoEra`, `CardanoEra`, `InAnyCardanoEra`, `InAnyShelleyBasedEra`, `IsCardanoEra`, and `ShelleyBasedEra` types across all 45 files currently importing them.
 - **FR-012**: All existing benchmarks MUST continue to produce comparable results (no performance regressions beyond measurement noise).
+- **FR-013**: Byron-era transaction support (currently via `Cardano.Api.Byron`) MUST be preserved using direct ledger types.
 
 ### Key Entities
 
-- **SealedTx**: The wallet's canonical serialized transaction type. Currently wraps cardano-api's era-indexed Tx. Must be re-implemented around ledger-native Tx.
-- **TxMetadata / TxMetadataValue**: Transaction metadata types exposed in the REST API and persisted in SQLite. Must be inlined or replaced with a compatible definition.
-- **NetworkId**: Network identifier. Two versions currently coexist (wallet's own + cardano-api's). Must be unified.
-- **Era GADTs**: The type-level era representation system. cardano-wallet-read already has its own; the bridge to cardano-api's system must be removed.
+- **SealedTx**: The wallet's canonical serialized transaction type. Currently wraps `InAnyCardanoEra Cardano.Api.Tx`. Must be re-implemented around ledger-native Tx. Used in REST API, database, and submission layer.
+- **TxMetadata / TxMetadataValue**: Transaction metadata types exposed in the REST API and persisted in SQLite as JSON. Must be inlined or replaced with a compatible definition.
+- **NetworkId**: Network identifier. Two versions coexist (wallet's own in `Cardano.Wallet.Primitive.NetworkId` + cardano-api's). Must be unified to the wallet's own type.
+- **Era GADTs**: The type-level era representation. `cardano-wallet-read` has its own system; the bridge to cardano-api's era types must be removed.
+- **Cardano.Api.Gen generators**: QuickCheck generators for Cardano types used in property-based tests. Must be replaced with wallet-native generators.
 
 ## Success Criteria *(mandatory)*
 
@@ -125,15 +149,15 @@ The `cardano-api-extra` package is eliminated entirely. The total number of tran
 - **SC-002**: All existing unit tests pass without modification to test assertions (test infrastructure changes are acceptable).
 - **SC-003**: All existing integration tests pass across Babbage, Conway, and Dijkstra eras.
 - **SC-004**: REST API golden tests pass with no output differences.
-- **SC-005**: Database migration from a pre-removal wallet version completes without data loss.
-- **SC-006**: CI build time for a clean build decreases compared to the pre-removal baseline.
-- **SC-007**: The `cardano-api-extra` package directory no longer exists in the repository.
+- **SC-005**: A wallet database from the pre-removal version loads without errors or data loss.
+- **SC-006**: The `lib/cardano-api-extra` directory no longer exists in the repository.
+- **SC-007**: The total import count for `Cardano.Api` modules across the codebase is zero.
 
 ## Assumptions
 
 - The `cardano-ledger-*` and `ouroboros-*` packages expose sufficient public API surface to replace all functionality currently accessed through cardano-api. Where they don't, upstream contributions or local shims may be needed.
 - The `cardano-wallet-read` era system is mature enough to fully replace cardano-api's era GADTs without introducing new abstraction layers.
-- Database schema changes (if any) will use the existing persistent migration framework. No manual migration scripts are expected.
-- This removal can proceed incrementally (phase by phase) with each phase independently mergeable, rather than requiring a single atomic change.
-- The project remains in maintenance mode — this removal is a maintenance/infrastructure improvement, not a feature addition.
+- Database schema changes (if any) will use the existing persistent migration framework.
+- This removal can proceed incrementally — each phase independently mergeable — rather than requiring a single atomic change.
+- The standalone `cardano-balance-transaction` and `cardano-coin-selection` libraries (already extracted) do not re-introduce cardano-api into the wallet's transitive closure.
 - Cross-platform compatibility (Linux, Windows, macOS) is preserved throughout the migration.

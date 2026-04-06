@@ -31,6 +31,7 @@
 
 ## Notes
 
-- The spec references library names (cardano-api, cardano-ledger) because they are the domain entities being discussed, not implementation choices. The spec is about *removing* a dependency, so naming it is inherent to the problem statement.
-- FR-001 through FR-012 map cleanly to the 6 phases identified in the existing feasibility analysis.
-- All success criteria are verifiable through existing test infrastructure.
+- The spec references library names (cardano-api, cardano-ledger) because they are the domain entities being discussed, not implementation choices.
+- Context section documents the balance-tx and coin-selection extractions as completed prerequisites.
+- FR-001 through FR-013 cover all remaining usage areas: ledger re-exports, serialization, NetworkId, certificates, TxMetadata, SealedTx, toConsensusGenTx, TxBodyContent, cardano-api-extra, era GADTs, benchmarks, and Byron support.
+- Added User Story 5 (test generators) to cover the cardano-api-extra elimination path.
