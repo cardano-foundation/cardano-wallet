@@ -31,7 +31,7 @@
 
 ## Notes
 
-- The spec references library names (cardano-api, cardano-ledger) because they are the domain entities being discussed, not implementation choices.
-- Context section documents the balance-tx and coin-selection extractions as completed prerequisites.
-- FR-001 through FR-013 cover all remaining usage areas: ledger re-exports, serialization, NetworkId, certificates, TxMetadata, SealedTx, toConsensusGenTx, TxBodyContent, cardano-api-extra, era GADTs, benchmarks, and Byron support.
-- Added User Story 5 (test generators) to cover the cardano-api-extra elimination path.
+- US1 (upstream pin) is the critical gate — identified by analyzing the transitive dependency through `cardano-balance-transaction`
+- The spec documents the specific breaking API changes from the upstream removal (CardanoApiEra, toCardanoApiTx, fromCardanoApiTx) to ensure the plan accounts for cascading changes
+- SC-001 explicitly requires checking the transitive closure, not just direct dependencies
+- Assumption about byte-identical CBOR is critical for database compatibility (US5) — must be validated during planning
