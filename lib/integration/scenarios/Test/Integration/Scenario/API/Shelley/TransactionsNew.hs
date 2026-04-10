@@ -3970,7 +3970,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 UnsupportedEra
                     ( ApiErrorUnsupportedEra
                         { unsupportedEra = ApiMary
-                        , supportedEras = fromList [ApiBabbage, ApiConway]
+                        , supportedEras = fromList [ApiConway]
                         }
                     )
         decodeErrorInfo submittedMaryTxExternal `shouldBe` errInfo

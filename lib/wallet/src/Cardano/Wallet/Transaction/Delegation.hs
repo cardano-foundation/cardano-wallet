@@ -24,9 +24,11 @@ import Cardano.Address.KeyHash
 import Cardano.Address.Script
     ( Script (..)
     )
-import Cardano.Balance.Tx.Eras
+import Cardano.Api.Extra
     ( CardanoApiEra
-    , RecentEra (..)
+    )
+import Cardano.Balance.Tx.Eras
+    ( RecentEra (..)
     )
 import Cardano.Crypto.Hash.Class
     ( Hash (UnsafeHash)
@@ -40,9 +42,6 @@ import Cardano.Wallet.Primitive.Ledger.Shelley
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin
-    )
-import Cardano.Wallet.Primitive.Types.Pool
-    ( PoolId (..)
     )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
@@ -72,33 +71,6 @@ certificateFromDelegationAction
     -- ^ Delegation action that we plan to take
     -> [Cardano.Certificate (CardanoApiEra era)]
     -- ^ Certificates representing the action
-certificateFromDelegationAction RecentEraBabbage cred _ da = case da of
-    Join poolId ->
-        [ Cardano.makeStakeAddressDelegationCertificate
-            $ Cardano.StakeDelegationRequirementsPreConway
-                babbageWitness
-                (toCardanoStakeCredential cred)
-                (toCardanoPoolId poolId)
-        ]
-    JoinRegisteringKey poolId ->
-        [ Cardano.makeStakeAddressRegistrationCertificate
-            $ Cardano.StakeAddrRegistrationPreConway
-                babbageWitness
-                (toCardanoStakeCredential cred)
-        , Cardano.makeStakeAddressDelegationCertificate
-            $ Cardano.StakeDelegationRequirementsPreConway
-                babbageWitness
-                (toCardanoStakeCredential cred)
-                (toCardanoPoolId poolId)
-        ]
-    Quit ->
-        [ Cardano.makeStakeAddressUnregistrationCertificate
-            $ Cardano.StakeAddrRegistrationPreConway
-                babbageWitness
-                (toCardanoStakeCredential cred)
-        ]
-  where
-    babbageWitness = Cardano.ShelleyToBabbageEraBabbage
 certificateFromDelegationAction RecentEraConway cred depositM da =
     case (da, depositM) of
         (Join poolId, _) ->
@@ -137,6 +109,9 @@ certificateFromDelegationAction RecentEraConway cred depositM da =
                 \Conway era when registration is carried out (quitting)"
   where
     conwayWitness = Cardano.ConwayEraOnwardsConway
+certificateFromDelegationAction RecentEraDijkstra _cred _depositM _da =
+    error
+        "certificateFromDelegationAction: Dijkstra era not yet supported"
 
 {-----------------------------------------------------------------------------
     Cardano.StakeCredential
@@ -154,10 +129,6 @@ toCardanoStakeCredential = \case
             . Cardano.hashScript
             . Cardano.SimpleScript
             $ toCardanoSimpleScript script
-
-toCardanoPoolId :: PoolId -> Cardano.PoolId
-toCardanoPoolId (PoolId pid) =
-    Cardano.StakePoolKeyHash . Ledger.KeyHash . UnsafeHash $ toShort pid
 
 toHashStakeKey :: XPub -> Cardano.Hash Cardano.StakeKey
 toHashStakeKey =

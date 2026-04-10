@@ -114,26 +114,12 @@ import qualified Data.Set as Set
 spec :: Spec
 spec = describe "Cardano.Wallet.DelegationSpec" $ do
     describe "Join/Quit Stake pool properties" $ do
-        it "You can quit if you cannot join Babbage" $ do
-            property (prop_guardJoinQuit guardJoinBabbage)
         it "You can quit if you cannot join Conway" $ do
             property (prop_guardJoinQuit guardJoinConway)
-        it "You can join if you cannot quit Babbage" $ do
-            property (prop_guardQuitJoin guardJoinBabbage)
         it "You can join if you cannot quit Conway" $ do
             property (prop_guardQuitJoin guardJoinConway)
 
     describe "Join/Quit Stake pool unit mockEventSource" $ do
-        it "Cannot join A, when active = A in Babbage" $ do
-            let dlg = WalletDelegation{active = Delegating pidA, next = []}
-            WD.guardJoin
-                Write.RecentEraBabbage
-                knownPools
-                dlg
-                pidA
-                noRetirementPlanned
-                NotVotedYet
-                `shouldBe` Left (W.ErrAlreadyDelegating pidA)
         it "Can rejoin A, when active = A in Conway" $ do
             let dlg = WalletDelegation{active = Delegating pidA, next = []}
             WD.guardJoin
@@ -154,17 +140,6 @@ spec = describe "Cardano.Wallet.DelegationSpec" $ do
                 noRetirementPlanned
                 VotedSameAsBefore
                 `shouldBe` Left (W.ErrAlreadyDelegatingVoting pidA)
-        it "Cannot join A, when next = [A] in Babbage" $ do
-            let next1 = WalletDelegationNext (EpochNo 1) (Delegating pidA)
-            let dlg = WalletDelegation{active = NotDelegating, next = [next1]}
-            WD.guardJoin
-                Write.RecentEraBabbage
-                knownPools
-                dlg
-                pidA
-                noRetirementPlanned
-                NotVotedYet
-                `shouldBe` Left (W.ErrAlreadyDelegating pidA)
         it "Can join A, when next = [A] in Conway" $ do
             let next1 = WalletDelegationNext (EpochNo 1) (Delegating pidA)
             let dlg = WalletDelegation{active = NotDelegating, next = [next1]}
@@ -195,14 +170,6 @@ spec = describe "Cardano.Wallet.DelegationSpec" $ do
                         , next = [next1]
                         }
             WD.guardJoin
-                Write.RecentEraBabbage
-                knownPools
-                dlg
-                pidA
-                noRetirementPlanned
-                NotVotedYet
-                `shouldBe` Right ()
-            WD.guardJoin
                 Write.RecentEraConway
                 knownPools
                 dlg
@@ -218,22 +185,6 @@ spec = describe "Cardano.Wallet.DelegationSpec" $ do
                 noRetirementPlanned
                 VotedSameAsBefore
                 `shouldBe` Right ()
-        it "Cannot join A, when active = A, next = [B, A] in Babbage" $ do
-            let next1 = WalletDelegationNext (EpochNo 1) (Delegating pidB)
-            let next2 = WalletDelegationNext (EpochNo 2) (Delegating pidA)
-            let dlg =
-                    WalletDelegation
-                        { active = Delegating pidA
-                        , next = [next1, next2]
-                        }
-            WD.guardJoin
-                Write.RecentEraBabbage
-                knownPools
-                dlg
-                pidA
-                noRetirementPlanned
-                NotVotedYet
-                `shouldBe` Left (W.ErrAlreadyDelegating pidA)
         it "Can join A, when active = A, next = [B, A] in Conway" $ do
             let next1 = WalletDelegationNext (EpochNo 1) (Delegating pidB)
             let next2 = WalletDelegationNext (EpochNo 2) (Delegating pidA)
@@ -268,14 +219,6 @@ spec = describe "Cardano.Wallet.DelegationSpec" $ do
                 `shouldBe` Left (W.ErrAlreadyDelegatingVoting pidA)
         it "Cannot join when pool is unknown in any era" $ do
             let dlg = WalletDelegation{active = NotDelegating, next = []}
-            WD.guardJoin
-                Write.RecentEraBabbage
-                knownPools
-                dlg
-                pidUnknown
-                noRetirementPlanned
-                NotVotedYet
-                `shouldBe` Left (W.ErrNoSuchPool pidUnknown)
             WD.guardJoin
                 Write.RecentEraConway
                 knownPools
@@ -419,9 +362,6 @@ type GuardJoinFun =
     -> Maybe PoolRetirementEpochInfo
     -> VoteRequest
     -> Either ErrCannotJoin ()
-
-guardJoinBabbage :: GuardJoinFun
-guardJoinBabbage = WD.guardJoin Write.RecentEraBabbage
 
 guardJoinConway :: GuardJoinFun
 guardJoinConway = WD.guardJoin Write.RecentEraConway

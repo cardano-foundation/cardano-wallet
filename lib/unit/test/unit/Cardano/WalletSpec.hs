@@ -400,7 +400,7 @@ import Prelude
 
 import qualified Cardano.Balance.Tx.Eras as Write
     ( AnyRecentEra (AnyRecentEra)
-    , RecentEra (RecentEraBabbage, RecentEraConway)
+    , RecentEra (RecentEraConway, RecentEraDijkstra)
     )
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet as W
@@ -889,8 +889,8 @@ prop_calculateFeePercentiles
 instance Arbitrary Write.AnyRecentEra where
     arbitrary =
         elements
-            [ Write.AnyRecentEra Write.RecentEraBabbage
-            , Write.AnyRecentEra Write.RecentEraConway
+            [ Write.AnyRecentEra Write.RecentEraConway
+            , Write.AnyRecentEra Write.RecentEraDijkstra
             ]
 
 {-------------------------------------------------------------------------------
