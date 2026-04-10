@@ -47,6 +47,35 @@ All CI for `cardano-wallet` runs on [GitHub Actions](https://github.com/cardano-
 | [`approve-docs.yml`](https://github.com/cardano-foundation/cardano-wallet/actions/workflows/approve-docs.yml) | PR target | Auto-approves docs-only PRs |
 | [`lean.yml`](https://github.com/cardano-foundation/cardano-wallet/actions/workflows/lean.yml) | push, PR | Lean specification checks (path-filtered to `specifications/`) |
 
+## Benchmark History
+
+The benchmark history pipeline (`benchmark-history.sh`) automatically aggregates performance data from recent CI runs to track regressions over time. It produces CSV data and SVG charts that are uploaded as workflow artifacts.
+
+### Data collection
+
+The pipeline follows these steps to gather data:
+1. **Discovery**: Uses `gh run list` to find the last 6 months of successful `Linux Benchmarks` runs on the `master` branch.
+2. **Download**: For each unique day with a successful run, it downloads the CSV artifacts from the following benchmark jobs:
+   - API Benchmark
+   - Latency Benchmark
+   - DB Benchmark
+   - Read-blocks Benchmark
+   - Memory Benchmark
+3. **Aggregation**: Combines the downloaded CSVs with the results from the current run.
+
+### Checkpoint mechanism
+
+To avoid downloading hundreds of historical runs in every CI session, the pipeline uses a **checkpoint** system:
+- It attempts to download the `Benchmark History` artifact from the *most recent* successful run of the same workflow.
+- If found, it uses the `benchmark-history.csv` from that artifact as a starting point (`--checkpoint`).
+- Only runs newer than the checkpoint are downloaded and merged.
+
+### Artifact retention
+
+- **Historical data**: The aggregated `benchmark-history.csv` is the source of truth for all historical data.
+- **Charts**: SVG charts are regenerated on every successful `master` run, providing a visual representation of performance trends for each benchmark category.
+- **Retention**: GitHub Actions retains these artifacts according to the repository's retention policy (typically 90 days). The checkpoint mechanism ensures that data is preserved in the *latest* artifact even if the original individual run artifacts have expired.
+
 ## Nix verbosity
 
 All `nix` commands in CI workflows must include the `--quiet` flag. This suppresses verbose build logs and warnings that clutter GitHub Actions output, making it easier to spot actual failures.

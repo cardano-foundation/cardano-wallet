@@ -10,7 +10,7 @@ Even though the act of making a release frequently reveals **problems** in our *
 
 Unfortunately, releasing directly from the `master` branch is not quite practical for two reasons: a) secondary CI and b) administrative commits.
 
-Our [Continuous Integration](../decisions/2023-01-27-continuous-integration.md) can be grouped into two categories:
+Our [Continuous Integration](../decisions/2026-02-10-migrate-ci-to-github-actions.md) can be grouped into two categories:
 
 * Primary CI — gatekeeper for accepting pull requests to the `master` branch.
 * Secondary CI — gatekeeper for making releases.
@@ -64,7 +64,7 @@ The changelog is distilled from a sequence of pull requests as follows:
 
 ## **Release checklist**
 
-We use a **release checklist** in order to ensure that we do not miss creating, testing, or publishing any artifact. The focus of the checklist is for a human to **verify** that nothing has been missed — creating and testing the artifacts should be automated as much as possible by [Continuous Integration](../decisions/2023-01-27-continuous-integration.md).
+We use a **release checklist** in order to ensure that we do not miss creating, testing, or publishing any artifact. The focus of the checklist is for a human to **verify** that nothing has been missed — creating and testing the artifacts should be automated as much as possible by [Continuous Integration](../decisions/2026-02-10-migrate-ci-to-github-actions.md).
 
 (The work required to perform the release checklist, resulting in the publication of the release artifacts, is tracked in a ticketing system decided in our [HAL Workflow Review](../decisions/2023-07-28-workflow-review.md).)
 
@@ -102,7 +102,7 @@ We use the following **tools** to help automate the release process:
 
 ## **Trunk-based development**
 
-Experience, both by us ([Continuous Integration](../decisions/2023-01-27-continuous-integration.md)) and by others _Phoenix2013_[^2], _Google2020_[^3], indicates that trunk-based development is the way to go — the ability to release at any time ensures the ability to release in the first place. Even though problems with testing and dependency management frequently resurface, they do not grow so bad that they become intractable.
+Experience, both by us ([Continuous Integration](../decisions/2026-02-10-migrate-ci-to-github-actions.md)) and by others _Phoenix2013_[^2], _Google2020_[^3], indicates that trunk-based development is the way to go — the ability to release at any time ensures the ability to release in the first place. Even though problems with testing and dependency management frequently resurface, they do not grow so bad that they become intractable.
 
 ## **Bundling dependent executables**
 
