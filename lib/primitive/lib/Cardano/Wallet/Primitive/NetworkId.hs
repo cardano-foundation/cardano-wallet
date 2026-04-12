@@ -23,6 +23,7 @@ module Cardano.Wallet.Primitive.NetworkId
     , fromSNetworkId
     , withSNetworkId
     , networkIdVal
+    , networkIdToLedger
     )
 where
 
@@ -51,6 +52,7 @@ import GHC.TypeNats
 import Prelude
 
 import qualified Cardano.Api as Cardano
+import qualified Cardano.Ledger.BaseTypes as Ledger
 import qualified Data.Text as T
 
 {-------------------------------------------------------------------------------
@@ -138,6 +140,11 @@ networkIdVal (STestnet snat) = Cardano.Testnet networkMagic
   where
     networkMagic =
         Cardano.NetworkMagic . fromIntegral $ fromSNat snat
+
+-- | Convert a 'SNetworkId' to a ledger 'Network' value.
+networkIdToLedger :: SNetworkId n -> Ledger.Network
+networkIdToLedger SMainnet = Ledger.Mainnet
+networkIdToLedger (STestnet _) = Ledger.Testnet
 
 {-----------------------------------------------------------------------------
    conversions
