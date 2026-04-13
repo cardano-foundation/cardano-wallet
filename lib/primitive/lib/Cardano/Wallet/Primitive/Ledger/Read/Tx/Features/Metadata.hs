@@ -69,8 +69,8 @@ import Data.Word
     )
 import Prelude
 
-import qualified Cardano.Api.Tx as Cardano
 import qualified Cardano.Wallet.Primitive.Types.Tx.Tx as W
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxMetadata as W
 
 {-# INLINEABLE getMetadata #-}
 getMetadata
@@ -114,4 +114,4 @@ fromDijkstraMetadata (AlonzoTxAuxData md _timelock _plutus) = fromMetadata md
 
 fromMetadata :: Map Word64 Metadatum -> W.TxMetadata
 fromMetadata =
-    Cardano.makeTransactionMetadata . Cardano.fromShelleyMetadata
+    W.makeTransactionMetadata . W.fromShelleyMetadata

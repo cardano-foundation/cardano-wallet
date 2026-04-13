@@ -145,9 +145,6 @@ import Cardano.Address.Script
     , foldScript
     , validateScriptOfTemplate
     )
-import Cardano.Api
-    ( SerialiseAsCBOR (..)
-    )
 -- import Cardano.Wallet.Api.Http.Server.Handlers.NetworkInformation
 --     ( getNetworkInformation
 --     , makeApiBlockReference
@@ -174,6 +171,10 @@ import Cardano.BM.Tracing
     )
 import Cardano.Balance.Tx.Eras
     ( AnyRecentEra (..)
+    )
+import Cardano.Ledger.Binary
+    ( serialize'
+    , shelleyProtVer
     )
 import Cardano.Mnemonic
     ( SomeMnemonic
@@ -644,6 +645,10 @@ import Cardano.Wallet.Primitive.Types.Tx.TxIn
     )
 import Cardano.Wallet.Primitive.Types.Tx.TxMeta
     ( TxStatus (..)
+    )
+import Cardano.Wallet.Primitive.Types.Tx.TxMetadata
+    ( toShelleyMetadata
+    , unTxMetadata
     )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..)
@@ -2207,7 +2212,10 @@ selectCoins ctx@ApiLayer{..} argGenChange (ApiT walletId) body = do
                 , depositsTaken = maybeToList $ ApiAmount.fromCoin <$> deposit
                 , depositsReturned = maybeToList $ ApiAmount.fromCoin <$> refund
                 , metadata =
-                    ApiBytesT . serialiseToCBOR
+                    ApiBytesT
+                        . serialize' shelleyProtVer
+                        . toShelleyMetadata
+                        . unTxMetadata
                         <$> body ^? #metadata . traverse . #getApiT
                 }
 
@@ -5136,7 +5144,10 @@ mkApiCoinSelection deps refunds mDelCerts mVotingCerts metadata unsignedTx =
             ApiAmount.fromCoin
                 <$> refunds
         , metadata =
-            ApiBytesT . serialiseToCBOR
+            ApiBytesT
+                . serialize' shelleyProtVer
+                . toShelleyMetadata
+                . unTxMetadata
                 <$> metadata
         }
   where

@@ -159,6 +159,10 @@ import Cardano.Wallet.Primitive.Types.Tx.TxExtended
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn
     )
+import Cardano.Wallet.Primitive.Types.Tx.TxMetadata
+    ( toShelleyMetadata
+    , unTxMetadata
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..)
     )
@@ -453,7 +457,7 @@ buildLedgerTx era ttl network wdrl fee md certs outs cs =
     metadata :: Map Word64 Metadatum
     metadata = case md of
         Nothing -> Map.empty
-        Just m -> Cardano.toShelleyMetadata (Cardano.unTxMetadata m)
+        Just m -> toShelleyMetadata (unTxMetadata m)
 
 -- | Lower-level builder that takes already-converted
 -- types.
@@ -519,7 +523,7 @@ buildLedgerTxRaw
         metadata :: Map Word64 Metadatum
         metadata = case md of
             Nothing -> Map.empty
-            Just m -> Cardano.toShelleyMetadata (Cardano.unTxMetadata m)
+            Just m -> toShelleyMetadata (unTxMetadata m)
 
 -- | Convert a wallet 'TxOut' to a ledger 'TxOut'.
 toLedgerTxOut

@@ -9,12 +9,12 @@
 -- Module for orphans which would be too inconvenient to avoid.
 module Cardano.Wallet.Orphans where
 
-import Cardano.Api
-    ( TxMetadata (..)
-    , TxMetadataValue (..)
-    )
 import Cardano.Slotting.Slot
     ( SlotNo (..)
+    )
+import Cardano.Wallet.Primitive.Types.Tx.TxMetadata
+    ( TxMetadata (..)
+    , TxMetadataValue (..)
     )
 import Control.DeepSeq
     ( NFData (..)

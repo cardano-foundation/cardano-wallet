@@ -251,9 +251,6 @@ import Cardano.Address.KeyHash
 import Cardano.Address.Script
     ( Cosigner (..)
     )
-import Cardano.Api
-    ( serialiseToCBOR
-    )
 import Cardano.Api.Extra
     ( CardanoApiEra
     , cardanoApiEraConstraints
@@ -301,6 +298,10 @@ import Cardano.Ledger.Api
     ( EraTxBody (allInputsTxBodyF)
     , bodyTxL
     , feeTxBodyL
+    )
+import Cardano.Ledger.Binary
+    ( serialize'
+    , shelleyProtVer
     )
 import Cardano.Mnemonic
     ( SomeMnemonic
@@ -611,6 +612,9 @@ import Cardano.Wallet.Primitive.Types.Tx.TxMeta
     ( Direction (..)
     , TxMeta (..)
     , TxStatus (..)
+    )
+import Cardano.Wallet.Primitive.Types.Tx.TxMetadata
+    ( toShelleyMetadata
     )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..)
@@ -3809,7 +3813,9 @@ signMetadataWith ctx wid pwd (role_, ix) metadata =
                 $ BA.convert
                 $ CC.sign encPwd (getRawKey (keyFlavorFromState @s) addrK)
                 $ hash @ByteString @Blake2b_256
-                $ serialiseToCBOR metadata
+                $ serialize' shelleyProtVer
+                $ toShelleyMetadata
+                $ unTxMetadata metadata
   where
     db = ctx ^. dbLayer
 

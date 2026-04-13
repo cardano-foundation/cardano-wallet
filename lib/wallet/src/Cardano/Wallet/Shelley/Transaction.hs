@@ -183,6 +183,10 @@ import Cardano.Wallet.Primitive.Types.Tx.TxExtended
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..)
     )
+import Cardano.Wallet.Primitive.Types.Tx.TxMetadata
+    ( TxMetadata (..)
+    , toShelleyMetadata
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..)
     )
@@ -326,7 +330,7 @@ constructUnsignedTx
     :: forall era
      . Write.IsRecentEra era
     => Cardano.NetworkId
-    -> (Maybe Cardano.TxMetadata, [Cardano.Certificate (CardanoApiEra era)])
+    -> (Maybe TxMetadata, [Cardano.Certificate (CardanoApiEra era)])
     -> (Maybe SlotNo, SlotNo)
     -- ^ Slot at which the transaction will optionally start and expire.
     -> Withdrawal
@@ -885,7 +889,7 @@ mkUnsignedTx
      . Write.IsRecentEra era
     => (Maybe SlotNo, SlotNo)
     -> Either PreSelection (SelectionOf TxOut)
-    -> Maybe Cardano.TxMetadata
+    -> Maybe TxMetadata
     -> [(Cardano.StakeAddress, Write.Coin)]
     -> [Cardano.Certificate (CardanoApiEra era)]
     -> Write.Coin
@@ -1012,7 +1016,11 @@ mkUnsignedTx
                         , Cardano.txMetadata =
                             case md of
                                 Nothing -> Cardano.TxMetadataNone
-                                Just d -> Cardano.TxMetadataInEra shelleyEra d
+                                Just (TxMetadata d) ->
+                                    Cardano.TxMetadataInEra shelleyEra
+                                        $ Cardano.makeTransactionMetadata
+                                        $ Cardano.fromShelleyMetadata
+                                        $ toShelleyMetadata d
                         , Cardano.txAuxScripts =
                             Cardano.TxAuxScriptsNone
                         , Cardano.txUpdateProposal =

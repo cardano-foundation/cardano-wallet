@@ -209,6 +209,9 @@ import Cardano.Wallet.Primitive.Types.Tx.TxIn
 import Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen
     ( genTxIn
     )
+import Cardano.Wallet.Primitive.Types.Tx.TxMetadata
+    ( toShelleyMetadata
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..)
     )
@@ -1385,7 +1388,7 @@ makeShelleyTx era' testCase = case era' of
                   metadata = case md of
                     Nothing -> Map.empty
                     Just (TxMetadata m) ->
-                        Cardano.toShelleyMetadata m
+                        toShelleyMetadata m
                   baseTx =
                     mkLedgerTx
                         era''

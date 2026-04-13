@@ -15,7 +15,7 @@ module Cardano.Wallet.Primitive.Types.MetadataEncryption
     )
 where
 
-import Cardano.Api
+import Cardano.Wallet.Primitive.Types.Tx.TxMetadata
     ( TxMetadata (..)
     , TxMetadataValue (..)
     , metadataValueFromJsonNoSchema
