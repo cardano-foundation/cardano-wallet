@@ -239,6 +239,7 @@ library
     Cardano.Wallet.Shelley.Network
     Cardano.Wallet.Shelley.Transaction
     Cardano.Wallet.Shelley.Transaction.Build
+    Cardano.Wallet.Shelley.Transaction.Ledger
     Cardano.Wallet.Submissions.Operations
     Cardano.Wallet.Submissions.Primitives
     Cardano.Wallet.Submissions.Properties.Common
