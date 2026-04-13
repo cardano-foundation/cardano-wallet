@@ -15,8 +15,32 @@
 -- Transaction construction using ledger types directly,
 -- bypassing @Cardano.Api@.
 module Cardano.Wallet.Shelley.Transaction.Ledger
-    ( mkTransactionLedger
+    ( -- * Transaction construction
+      mkTransactionLedger
     , constructUnsignedTxLedger
+
+      -- * Signing
+    , signTransaction
+    -- TODO: mkShelleyWitness and mkByronWitness take
+    -- Cardano.TxBody and cannot be used with ledger types
+    -- directly. Signing is handled through signTransaction.
+
+      -- * Payload
+    , TxPayload (..)
+
+      -- * Constraints
+    , txConstraints
+
+      -- * Witness tags
+    , TxWitnessTag (..)
+    , txWitnessTagForKey
+
+      -- * Reward withdrawal cost estimation
+    , _txRewardWithdrawalCost
+    , _txRewardWithdrawalSize
+    -- TODO: mkUnsignedTransaction uses Cardano.NetworkId,
+    -- Cardano.Certificate, and other cardano-api types
+    -- pervasively. Needs a ledger-native rewrite.
     ) where
 
 import Cardano.Address.Derivation
@@ -31,6 +55,9 @@ import Cardano.Api.Extra
 import Cardano.Balance.Tx.Eras
     ( IsRecentEra
     , RecentEra (..)
+    )
+import Cardano.Balance.Tx.SizeEstimation
+    ( TxWitnessTag (..)
     )
 import Cardano.Ledger.Address
     ( Withdrawals (Withdrawals)
@@ -95,6 +122,10 @@ import Cardano.Wallet.Primitive.Types.Tx.TxOut
     )
 import Cardano.Wallet.Shelley.Transaction
     ( signTransaction
+    , txConstraints
+    , txWitnessTagForKey
+    , _txRewardWithdrawalCost
+    , _txRewardWithdrawalSize
     )
 import Cardano.Wallet.Shelley.Transaction.Build
     ( mkLedgerTx
@@ -154,6 +185,18 @@ import qualified Data.Foldable as F
 import qualified Data.Map.Strict as Map
 import qualified Data.Sequence.Strict as StrictSeq
 import qualified Data.Set as Set
+
+-- | Transaction payload using ledger types directly.
+--
+-- Replaces the cardano-api 'Cardano.Wallet.Shelley.Transaction.TxPayload'
+-- which uses @Cardano.TxMetadata@ and @Cardano.Certificate@.
+data TxPayload era = TxPayload
+    { _metadata :: Maybe TxMetadata
+    -- ^ User or application-defined metadata to be
+    -- included in the transaction.
+    , _certificates :: StrictSeq (TxCert era)
+    -- ^ Certificates to be included in the transaction.
+    }
 
 -- | Build and sign a transaction using ledger types
 -- directly.
