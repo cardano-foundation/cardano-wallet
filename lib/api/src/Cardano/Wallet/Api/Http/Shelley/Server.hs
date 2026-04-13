@@ -147,7 +147,6 @@ import Cardano.Address.Script
     )
 import Cardano.Api
     ( SerialiseAsCBOR (..)
-    , StakeAddress (..)
     )
 -- import Cardano.Wallet.Api.Http.Server.Handlers.NetworkInformation
 --     ( getNetworkInformation
@@ -537,6 +536,9 @@ import Cardano.Wallet.Primitive.Delegation.UTxO
 import Cardano.Wallet.Primitive.Ledger.Convert
     ( toLedger
     )
+import Cardano.Wallet.Primitive.Ledger.Shelley
+    ( toLedgerStakeCredential
+    )
 import Cardano.Wallet.Primitive.Model
     ( Wallet
     , availableBalance
@@ -549,6 +551,7 @@ import Cardano.Wallet.Primitive.Model
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId (..)
     , NetworkDiscriminantCheck
+    , networkIdToLedger
     )
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..)
@@ -5482,16 +5485,18 @@ fromExternalInput
         in
             (inp, out)
 
-fromApiRedeemer :: ApiRedeemer n -> Write.Redeemer
+fromApiRedeemer
+    :: forall n. HasSNetworkId n => ApiRedeemer n -> Write.Redeemer
 fromApiRedeemer = \case
     ApiRedeemerSpending (ApiBytesT bytes) (ApiT i) ->
         Write.RedeemerSpending bytes (toLedger i)
     ApiRedeemerMinting (ApiBytesT bytes) (ApiT p) ->
         Write.RedeemerMinting bytes (toLedger p)
-    ApiRedeemerRewarding (ApiBytesT bytes) (StakeAddress x y) ->
-        Write.RedeemerRewarding
-            bytes
-            (Ledger.AccountAddress x (Ledger.AccountId y))
+    ApiRedeemerRewarding (ApiBytesT bytes) acct ->
+        Write.RedeemerRewarding bytes
+            $ Ledger.AccountAddress
+                (networkIdToLedger (sNetworkId @n))
+                (Ledger.AccountId (toLedgerStakeCredential acct))
 
 sealWriteTx
     :: forall era. Write.IsRecentEra era => Write.Tx era -> W.SealedTx

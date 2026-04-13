@@ -44,11 +44,6 @@ import Cardano.Address.Script
     , ScriptTemplate (..)
     , ValidationLevel (..)
     )
-import Cardano.Api
-    ( StakeAddress
-    , deserialiseFromRawBytes
-    , proxyToAsType
-    )
 import Cardano.Api.Gen
     ( genAddressAnyWithNetworkId
     )
@@ -523,9 +518,6 @@ import Data.Data
     )
 import Data.Either
     ( lefts
-    )
-import Data.Either.Combinators
-    ( fromRight'
     )
 import Data.FileEmbed
     ( embedFile
@@ -2422,16 +2414,6 @@ instance HasSNetworkId n => Arbitrary (ApiDecodedTransaction n) where
             <*> arbitrary
             <*> arbitrary
             <*> arbitrary
-
-instance Arbitrary StakeAddress where
-    arbitrary = do
-        header <- elements [BS.singleton 241, BS.singleton 224]
-        payload <- BS.pack <$> vector 28
-        pure
-            $ fromRight'
-            $ deserialiseFromRawBytes
-                (proxyToAsType Proxy)
-                (header <> payload)
 
 instance Arbitrary ApiSealedTxEncoding where
     arbitrary = elements [HexEncoded, Base64Encoded]
