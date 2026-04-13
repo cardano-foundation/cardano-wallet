@@ -51,6 +51,7 @@ import Cardano.Api.Extra
     , cardanoApiEraConstraints
     , cardanoEraFromRecentEra
     , shelleyBasedEraFromRecentEra
+    , toCardanoApiTx
     )
 import Cardano.Api.Gen
     ( genTx
@@ -72,6 +73,25 @@ import Cardano.Balance.Tx.Gen
 import Cardano.Balance.Tx.SizeEstimation
     ( TxSkeleton (..)
     , estimateTxSize
+    )
+import Cardano.Ledger.Address
+    ( Withdrawals (..)
+    )
+import Cardano.Ledger.Allegra.Scripts
+    ( ValidityInterval (..)
+    )
+import Cardano.Ledger.Api
+    ( addrTxWitsL
+    , bodyTxL
+    , bootAddrTxWitsL
+    , eraProtVerLow
+    , witsTxL
+    )
+import Cardano.Ledger.BaseTypes
+    ( StrictMaybe (..)
+    )
+import Cardano.Ledger.Binary
+    ( serialize
     )
 import Cardano.Mnemonic
     ( SomeMnemonic (SomeMnemonic)
@@ -104,7 +124,9 @@ import Cardano.Wallet.Gen
     , genScript
     )
 import Cardano.Wallet.Primitive.Ledger.Convert
-    ( toLedgerCoin
+    ( Convert (..)
+    , toConwayTxOut
+    , toLedgerCoin
     )
 import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Integrity
     ( txIntegrity
@@ -197,13 +219,16 @@ import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..)
     )
 import Cardano.Wallet.Shelley.Transaction
-    ( mkByronWitness
-    , mkShelleyWitness
-    , mkUnsignedTx
+    ( mkShelleyWitness
     , newTransactionLayer
+    )
+import Cardano.Wallet.Shelley.Transaction.Build
+    ( mkLedgerTx
     )
 import Cardano.Wallet.Shelley.Transaction.Ledger
     ( TxWitnessTag (..)
+    , mkByronWitnessLedger
+    , mkShelleyWitnessLedger
     , txConstraints
     )
 import Cardano.Wallet.Transaction
@@ -217,6 +242,10 @@ import Cardano.Wallet.Unsafe
     )
 import Control.Arrow
     ( first
+    )
+import Control.Lens
+    ( (.~)
+    , (^.)
     )
 import Control.Monad
     ( replicateM
@@ -271,6 +300,9 @@ import Data.Quantity
     )
 import Data.Semigroup
     ( mtimesDefault
+    )
+import Data.Sequence.Strict
+    ( fromList
     )
 import Data.Type.Equality
     ( testEquality
@@ -363,6 +395,7 @@ import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
+import qualified Data.ByteString.Lazy as BL
 import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
@@ -1121,7 +1154,7 @@ binaryCalculationsSpec (AnyRecentEra era) =
 -- extended in this era.
 binaryCalculationsSpec'
     :: forall era
-     . Write.IsRecentEra era
+     . (Write.IsRecentEra era, era ~ Write.Conway)
     => RecentEra era -> Spec
 binaryCalculationsSpec' era = describe ("calculateBinary - " +|| era ||+ "") $ do
     describe "Byron witnesses - mainnet" $ do
@@ -1149,8 +1182,6 @@ binaryCalculationsSpec' era = describe ("calculateBinary - " +|| era ||+ "") $ d
             let binary = case era of
                     RecentEraConway ->
                         "84a400d901028182582000000000000000000000000000000000000000000000000000000000000000000001828258390101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101011a001e84808258390102020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202021a0078175c021a0001faa403191e46a102d90102818458200100000000000000000000000000000000000000000000000000000000000000584005dacf0a9cbb4b5429ca2a31187c71d07c51b1151042076c536308c105069be7d099ed1e0b4be87303c03e8ae02586fb568ad8556cb108c00b8e63bc2adbc6065820000000000000000000000000000000000000000000000000000000000000000041a0f5f6"
-                    RecentEraDijkstra ->
-                        error "unreachable: Dijkstra"
             calculateBinary net utxo outs chgs pairs `shouldBe` binary
 
         it "2 inputs, 3 outputs" $ do
@@ -1181,8 +1212,6 @@ binaryCalculationsSpec' era = describe ("calculateBinary - " +|| era ||+ "") $ d
             let binary = case era of
                     RecentEraConway ->
                         "84a400d901028282582000000000000000000000000000000000000000000000000000000000000000000082582000000000000000000000000000000000000000000000000000000000000000000101838258390102020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202021a005b8d808258390103030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303031a005b8d808258390104040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404041a007801e0021a0002102003191e46a102d9010282845820010000000000000000000000000000000000000000000000000000000000000058405257f6056570317ebd7a878f032932bdf7a0e9e43f27296a12e22dd5c92f1f08b27c95b182c68ce3b1ed6942f2a4cc63aac7a89530c6086aaa3913685f75060f5820000000000000000000000000000000000000000000000000000000000000000041a0845820130ae82201d7072e6fbfc0a1884fb54636554d14945b799125cf7ce38d477f515840b5b781d37d9a31dcbb000d92a461c3bc260e069c24d26d3996c6cadb03ae3ab518e8c7c19bd119fdcf112d4be101d20c7524065722ee0a25d97f31374fe9ef055820010101010101010101010101010101010101010101010101010101010101010141a0f5f6"
-                    RecentEraDijkstra ->
-                        error "unreachable: Dijkstra"
             calculateBinary net utxo outs chgs pairs `shouldBe` binary
 
     describe "Byron witnesses - testnet" $ do
@@ -1210,8 +1239,6 @@ binaryCalculationsSpec' era = describe ("calculateBinary - " +|| era ||+ "") $ d
             let binary = case era of
                     RecentEraConway ->
                         "84a400d901028182582000000000000000000000000000000000000000000000000000000000000000000001828258390101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101011a001e84808258390102020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202021a0078175c021a0001faa403191e46a102d90102818458200100000000000000000000000000000000000000000000000000000000000000584005dacf0a9cbb4b5429ca2a31187c71d07c51b1151042076c536308c105069be7d099ed1e0b4be87303c03e8ae02586fb568ad8556cb108c00b8e63bc2adbc6065820000000000000000000000000000000000000000000000000000000000000000044a1024100f5f6"
-                    RecentEraDijkstra ->
-                        error "unreachable: Dijkstra"
             calculateBinary net utxo outs chgs pairs `shouldBe` binary
 
         it "2 inputs, 3 outputs" $ do
@@ -1242,36 +1269,47 @@ binaryCalculationsSpec' era = describe ("calculateBinary - " +|| era ||+ "") $ d
             let binary = case era of
                     RecentEraConway ->
                         "84a400d901028282582000000000000000000000000000000000000000000000000000000000000000000082582000000000000000000000000000000000000000000000000000000000000000000101838258390102020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202021a005b8d808258390103030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303031a005b8d808258390104040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404041a007801e0021a0002102003191e46a102d9010282845820130ae82201d7072e6fbfc0a1884fb54636554d14945b799125cf7ce38d477f515840b5b781d37d9a31dcbb000d92a461c3bc260e069c24d26d3996c6cadb03ae3ab518e8c7c19bd119fdcf112d4be101d20c7524065722ee0a25d97f31374fe9ef055820010101010101010101010101010101010101010101010101010101010101010144a1024100845820010000000000000000000000000000000000000000000000000000000000000058405257f6056570317ebd7a878f032932bdf7a0e9e43f27296a12e22dd5c92f1f08b27c95b182c68ce3b1ed6942f2a4cc63aac7a89530c6086aaa3913685f75060f5820000000000000000000000000000000000000000000000000000000000000000044a1024100f5f6"
-                    RecentEraDijkstra ->
-                        error "unreachable: Dijkstra"
             calculateBinary net utxo outs chgs pairs `shouldBe` binary
   where
     slotNo = SlotNo 7_750
-    md = Nothing
     calculateBinary net utxo outs chgs pairs =
-        cardanoApiEraConstraints era $ hex (Cardano.serialiseToCBOR ledgerTx)
+        hex
+            $ BL.toStrict
+            $ serialize (eraProtVerLow @era) ledgerTx
       where
-        ledgerTx :: Cardano.Tx (CardanoApiEra era)
-        ledgerTx = Cardano.makeSignedTransaction addrWits unsigned
-        mkByronWitness' unsignedTx (_, (TxOut addr _)) =
-            mkByronWitness unsignedTx net addr
-        addrWits = zipWith (mkByronWitness' unsigned) inps pairs
+        ledgerTx =
+            baseTx
+                & witsTxL . bootAddrTxWitsL .~ Set.fromList byronWits
+        body = baseTx ^. bodyTxL
+        byronWits =
+            zipWith
+                ( \(_, TxOut addr _) xprv ->
+                    mkByronWitnessLedger
+                        era
+                        body
+                        net
+                        addr
+                        xprv
+                )
+                inps
+                pairs
         fee = toLedgerCoin $ selectionDelta cs
-        unsigned =
-            either (error . show) id
-                $ mkUnsignedTx
-                    (Nothing, slotNo)
-                    (Right cs)
-                    md
-                    mempty
-                    []
-                    fee
-                    TokenMap.empty
-                    TokenMap.empty
-                    Map.empty
-                    Map.empty
-                    Nothing
-                    Nothing
+        baseTx =
+            mkLedgerTx
+                era
+                (Set.fromList $ map (toLedger . fst) inps)
+                ( fromList
+                    $ map toConwayTxOut (outs <> chgs)
+                )
+                fee
+                ( ValidityInterval
+                    SNothing
+                    (SJust slotNo)
+                )
+                (Withdrawals Map.empty)
+                mempty
+                mempty
+                Map.empty
         cs =
             Selection
                 { inputs = NE.fromList inps
@@ -1318,45 +1356,69 @@ prop_sealedTxRecentEraRoundtrip
                     .||. encodingFromTheFuture (txEra) currentEra
 
 makeShelleyTx
-    :: Write.IsRecentEra era
-    => RecentEra era
+    :: RecentEra era
     -> DecodeSetup
     -> Cardano.Tx (CardanoApiEra era)
-makeShelleyTx era' testCase =
-    cardanoApiEraConstraints era'
-        $ let DecodeSetup utxo outs md slotNo pairs _netwk = testCase
-              inps = Map.toList $ unUTxO utxo
-              fee = toLedgerCoin $ selectionDelta cs
-              unsigned =
-                either (error . show) id
-                    $ mkUnsignedTx
-                        (Nothing, slotNo)
-                        (Right cs)
-                        md
-                        mempty
-                        []
+makeShelleyTx era' testCase = case era' of
+    Write.RecentEraConway -> go era'
+    Write.RecentEraDijkstra ->
+        error "makeShelleyTx: Dijkstra not yet supported"
+  where
+    go
+        :: forall e
+         . (Write.IsRecentEra e, e ~ Write.Conway)
+        => RecentEra e
+        -> Cardano.Tx (CardanoApiEra e)
+    go era'' =
+        cardanoApiEraConstraints era''
+            $ let DecodeSetup utxo outs md slotNo pairs _netwk =
+                    testCase
+                  inps = Map.toList $ unUTxO utxo
+                  fee = toLedgerCoin $ selectionDelta cs
+                  metadata = case md of
+                    Nothing -> Map.empty
+                    Just (TxMetadata m) ->
+                        Cardano.toShelleyMetadata m
+                  baseTx =
+                    mkLedgerTx
+                        era''
+                        ( Set.fromList
+                            $ map (toLedger . fst) inps
+                        )
+                        ( fromList
+                            $ map toConwayTxOut outs
+                        )
                         fee
-                        TokenMap.empty
-                        TokenMap.empty
-                        Map.empty
-                        Map.empty
-                        Nothing
-                        Nothing
-              addrWits =
-                map (mkShelleyWitness unsigned) pairs
-              cs =
-                Selection
-                    { inputs = NE.fromList inps
-                    , collateral = []
-                    , extraCoinSource = Coin 0
-                    , extraCoinSink = Coin 0
-                    , outputs = []
-                    , change = outs
-                    , -- TODO: [ADP-346]
-                      assetsToMint = TokenMap.empty
-                    , assetsToBurn = TokenMap.empty
-                    }
-          in  Cardano.makeSignedTransaction addrWits unsigned
+                        ( ValidityInterval
+                            SNothing
+                            (SJust slotNo)
+                        )
+                        (Withdrawals Map.empty)
+                        mempty
+                        mempty
+                        metadata
+                  body = baseTx ^. bodyTxL
+                  shelleyWits =
+                    map
+                        (mkShelleyWitnessLedger era'' body)
+                        pairs
+                  ledgerTx =
+                    baseTx
+                        & witsTxL . addrTxWitsL
+                            .~ Set.fromList shelleyWits
+                  cs =
+                    Selection
+                        { inputs = NE.fromList inps
+                        , collateral = []
+                        , extraCoinSource = Coin 0
+                        , extraCoinSink = Coin 0
+                        , outputs = []
+                        , change = outs
+                        , -- TODO: [ADP-346]
+                          assetsToMint = TokenMap.empty
+                        , assetsToBurn = TokenMap.empty
+                        }
+              in  toCardanoApiTx ledgerTx
 
 encodingFromTheFuture :: AnyRecentEra -> AnyCardanoEra -> Bool
 encodingFromTheFuture tx current = shelleyEraNum tx > eraNum current

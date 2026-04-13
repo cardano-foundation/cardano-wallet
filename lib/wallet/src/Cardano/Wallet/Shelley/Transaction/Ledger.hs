@@ -21,9 +21,8 @@ module Cardano.Wallet.Shelley.Transaction.Ledger
 
       -- * Signing
     , signTransaction
-    -- TODO: mkShelleyWitness and mkByronWitness take
-    -- Cardano.TxBody and cannot be used with ledger types
-    -- directly. Signing is handled through signTransaction.
+    , mkShelleyWitnessLedger
+    , mkByronWitnessLedger
 
       -- * Payload
     , TxPayload (..)
@@ -71,8 +70,14 @@ import Cardano.Balance.Tx.Eras
 import Cardano.Balance.Tx.SizeEstimation
     ( TxWitnessTag (..)
     )
+import Cardano.Crypto.DSIGN
+    ( SignedDSIGN (SignedDSIGN)
+    , rawDeserialiseSigDSIGN
+    , rawDeserialiseVerKeyDSIGN
+    )
 import Cardano.Crypto.Hash.Class
     ( Hash (UnsafeHash)
+    , hashToBytes
     )
 import Cardano.Ledger.Address
     ( Withdrawals (Withdrawals)
@@ -87,6 +92,21 @@ import Cardano.Ledger.BaseTypes
 import Cardano.Ledger.Core
     ( TxCert
     )
+import Cardano.Ledger.Hashes
+    ( EraIndependentTxBody
+    , HashAnnotated (hashAnnotated)
+    , extractHash
+    )
+import Cardano.Ledger.Keys
+    ( VKey (VKey)
+    )
+import Cardano.Ledger.Keys.Bootstrap
+    ( BootstrapWitness
+    , makeBootstrapWitness
+    )
+import Cardano.Ledger.Keys.WitVKey
+    ( WitVKey (WitVKey)
+    )
 import Cardano.Ledger.Metadata
     ( Metadatum
     )
@@ -96,6 +116,9 @@ import Cardano.Wallet.Address.Derivation
     )
 import Cardano.Wallet.Address.Derivation.Shelley
     ( toRewardAccountRaw
+    )
+import Cardano.Wallet.Address.Encoding
+    ( toHDPayloadAddress
     )
 import Cardano.Wallet.Flavor
     ( KeyFlavorS
@@ -193,10 +216,13 @@ import Ouroboros.Network.Block
 import Prelude
 
 import qualified Cardano.Api as Cardano
+import qualified Cardano.Api.Byron as Byron
 import qualified Cardano.Api.Certificate as ApiCert
 import qualified Cardano.Api.Experimental.Certificate as ExpCert
 import qualified Cardano.Balance.Tx.Eras as Write
 import qualified Cardano.Balance.Tx.Tx as Write
+import qualified Cardano.Crypto as CC
+import qualified Cardano.Crypto.Wallet as Crypto.HD
 import qualified Cardano.Ledger.Address as Ledger
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Api as LApi
@@ -211,6 +237,7 @@ import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.Tx.Tx as W
 import qualified Cardano.Wallet.Read as Read
+import qualified Data.ByteString as BS
 import qualified Data.Foldable as F
 import qualified Data.Map.Strict as Map
 import qualified Data.Sequence.Strict as StrictSeq
@@ -776,3 +803,78 @@ toLedgerStakeCred = \case
 -- | Convert a wallet 'Coin' to a ledger 'Coin'.
 toLedgerCoin :: Coin -> Ledger.Coin
 toLedgerCoin = toCardanoLovelace
+
+-- | Construct a Shelley-era key witness directly from
+-- ledger types, bypassing cardano-api.
+--
+-- Signs the transaction body hash with the extended
+-- private key and constructs a 'WitVKey'.
+mkShelleyWitnessLedger
+    :: forall era
+     . Write.IsRecentEra era
+    => RecentEra era
+    -> Write.TxBody era
+    -> (XPrv, Passphrase "encryption")
+    -> Keys.WitVKey Keys.Witness
+mkShelleyWitnessLedger _era body (xprv, pwd) =
+    WitVKey vkey sig
+  where
+    xprv' =
+        Crypto.HD.xPrvChangePass pwd BS.empty xprv
+    bodyHash =
+        hashToBytes
+            $ extractHash
+            $ hashAnnotated @_ @EraIndependentTxBody body
+    xsig =
+        Crypto.HD.sign
+            (BS.empty :: BS.ByteString)
+            xprv'
+            bodyHash
+    vkey =
+        case rawDeserialiseVerKeyDSIGN
+            (Crypto.HD.xpubPublicKey $ toXPub xprv') of
+            Just vk -> VKey vk
+            Nothing ->
+                error
+                    "mkShelleyWitnessLedger: \
+                    \invalid public key"
+    sig =
+        case rawDeserialiseSigDSIGN
+            (Crypto.HD.unXSignature xsig) of
+            Just s -> SignedDSIGN s
+            Nothing ->
+                error
+                    "mkShelleyWitnessLedger: \
+                    \invalid signature"
+
+-- | Construct a Byron bootstrap witness directly from
+-- ledger types, bypassing cardano-api.
+--
+-- Hashes the transaction body and creates a bootstrap
+-- witness with Byron address attributes.
+mkByronWitnessLedger
+    :: forall era
+     . Write.IsRecentEra era
+    => RecentEra era
+    -> Write.TxBody era
+    -> Cardano.NetworkId
+    -> Address
+    -> (XPrv, Passphrase "encryption")
+    -> BootstrapWitness
+mkByronWitnessLedger _era body net addr (xprv, pwd) =
+    makeBootstrapWitness txHash signingKey addrAttr
+  where
+    txHash =
+        extractHash $ hashAnnotated @_ @EraIndependentTxBody body
+    signingKey =
+        CC.SigningKey
+            $ Crypto.HD.xPrvChangePass pwd BS.empty xprv
+    addrAttr =
+        Byron.mkAttributes
+            $ Byron.AddrAttributes
+                (toHDPayloadAddress addr)
+                networkMagic
+    networkMagic = case net of
+        Cardano.Mainnet -> Byron.NetworkMainOrStage
+        Cardano.Testnet (Cardano.NetworkMagic m) ->
+            Byron.NetworkTestnet m

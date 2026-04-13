@@ -79,11 +79,15 @@ test-suite unit
     , cardano-crypto
     , cardano-crypto-class
     , cardano-diffusion:api
+    , cardano-ledger-allegra
     , cardano-ledger-alonzo
+    , cardano-ledger-api
     , cardano-ledger-babbage
+    , cardano-ledger-binary
     , cardano-ledger-core
     , cardano-ledger-shelley
     , cardano-slotting
+    , cardano-strict-containers
     , cardano-wallet
     , cardano-wallet-api
     , cardano-wallet-application
