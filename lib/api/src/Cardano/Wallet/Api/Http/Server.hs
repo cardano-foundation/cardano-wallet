@@ -23,9 +23,6 @@ import Cardano.Address.Script
     ( prettyErrValidateScript
     , validateScript
     )
-import Cardano.Api
-    ( NetworkId
-    )
 import Cardano.Pool.Metadata
     ( HealthCheckSMASH (NoSmashConfigured)
     , defaultManagerSettings
@@ -211,7 +208,8 @@ import Cardano.Wallet.Primitive.Ledger.Shelley
     )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId (..)
-    , networkIdVal
+    , NetworkId (..)
+    , fromSNetworkId
     )
 import Cardano.Wallet.Primitive.Types
     ( PoolMetadataSource (..)
@@ -268,7 +266,6 @@ import Prelude
 import qualified Cardano.Address.Derivation as CA
 import qualified Cardano.Address.KeyHash as CA
 import qualified Cardano.Address.Style.Shelley as CA
-import qualified Cardano.Api as Cardano
 import qualified Cardano.Wallet.Address.Derivation.Shared as Shared
 import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
 import qualified Data.Text as T
@@ -300,7 +297,7 @@ server byron icarus shelley multisig spl ntp blockchainSource =
         :<|> byronCoinSelections
         :<|> byronTransactions
         :<|> byronMigrations
-        :<|> network' (networkIdVal (sNetworkId @n))
+        :<|> network' (fromSNetworkId (sNetworkId @n))
         :<|> proxy
         :<|> settingS
         :<|> smash
@@ -344,7 +341,7 @@ server byron icarus shelley multisig spl ntp blockchainSource =
     addresses =
         listAddresses shelley (normalizeDelegationAddress @_ @ShelleyKey @n)
             :<|> (handler ApiAddressInspect . inspectAddress . unApiAddressInspectData)
-            :<|> (handler id . postAnyAddress (networkIdVal (sNetworkId @n)))
+            :<|> (handler id . postAnyAddress (fromSNetworkId (sNetworkId @n)))
       where
         toServerError :: TextDecodingError -> ServerError
         toServerError = apiError err400 BadRequest . T.pack . getTextDecodingError
@@ -802,8 +799,8 @@ postAnyAddress net addrData = do
     fromXPub = fromJust . CA.xpubFromBytes
     fromPub = fromJust . CA.pubFromBytes
     netTag = case net of
-        Cardano.Mainnet -> 1
-        _ -> 0
+        NMainnet -> 1
+        NTestnet _ -> 0
     spendingFrom cred = case cred of
         CredentialPubKey bytes ->
             CA.PaymentFromKey $ CA.liftPub $ fromPub bytes

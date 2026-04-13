@@ -11,8 +11,6 @@ module Cardano.Wallet.Api.ServerSpec (spec) where
 import Cardano.Api
     ( AnyCardanoEra (..)
     , CardanoEra (..)
-    , NetworkId (..)
-    , NetworkMagic (..)
     )
 import Cardano.BM.Trace
     ( nullTracer
@@ -46,6 +44,9 @@ import Cardano.Wallet.DummyTarget.Primitive.Types
     )
 import Cardano.Wallet.Network
     ( NetworkLayer (..)
+    )
+import Cardano.Wallet.Primitive.NetworkId
+    ( NetworkId (..)
     )
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException
@@ -237,7 +238,7 @@ networkInfoSpec = describe "getNetworkInformation" $ do
                 Right info <-
                     run
                         $ runHandler
-                        $ getNetworkInformation (Testnet $ NetworkMagic 1) nl Node
+                        $ getNetworkInformation (NTestnet 1) nl Node
 
                 --  0              20
                 --  *               |        *

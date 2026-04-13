@@ -42,7 +42,7 @@ import Cardano.Wallet.Pools
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId (..)
     , SNetworkId
-    , networkIdVal
+    , fromSNetworkId
     )
 import Cardano.Wallet.Primitive.Types
     ( WalletId
@@ -219,7 +219,7 @@ serveUI ul config _ alByron _alIcarus alShelley _alShared _spl _ntp bs =
     ok _ = renderHtml . rogerH @Text $ "ok"
     alert = renderHtml . alertH
     nl = netLayer alByron
-    nid = networkIdVal (sNetworkId @n)
+    nid = fromSNetworkId (sNetworkId @n)
     mode = case bs of
         NodeSource{} -> Node
     _ = networkInfoH

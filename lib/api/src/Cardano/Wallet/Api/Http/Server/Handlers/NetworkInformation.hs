@@ -11,11 +11,6 @@ module Cardano.Wallet.Api.Http.Server.Handlers.NetworkInformation
     )
 where
 
-import Cardano.Api
-    ( NetworkId
-    , toNetworkMagic
-    , unNetworkMagic
-    )
 import Cardano.Wallet.Api.Types
     ( ApiBlockInfo (..)
     , ApiBlockReference (..)
@@ -31,6 +26,9 @@ import Cardano.Wallet.Network
     )
 import Cardano.Wallet.Pools
     ( EpochInfo (..)
+    )
+import Cardano.Wallet.Primitive.NetworkId
+    ( NetworkId (..)
     )
 import Cardano.Wallet.Primitive.Slotting
     ( RelativeTime
@@ -48,6 +46,10 @@ import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , SlotId
     , SlotNo (..)
+    )
+import Cardano.Wallet.Primitive.Types.ProtocolMagic
+    ( ProtocolMagic (..)
+    , mainnetMagic
     )
 import Control.Monad.IO.Class
     ( liftIO
@@ -79,7 +81,6 @@ import Servant.Server
     )
 import Prelude
 
-import qualified Cardano.Api as Cardano
 import qualified Cardano.Wallet.Api.Types as Api
 import qualified Cardano.Wallet.Api.Types.Era as ApiEra
 import qualified Cardano.Wallet.Read as Read
@@ -121,10 +122,15 @@ getNetworkInformation
                 , Api.networkInfo =
                     Api.ApiNetworkInfo
                         ( case nid of
-                            Cardano.Mainnet -> "mainnet"
-                            Cardano.Testnet _ -> "testnet"
+                            NMainnet -> "mainnet"
+                            NTestnet _ -> "testnet"
                         )
-                        (fromIntegral $ unNetworkMagic $ toNetworkMagic nid)
+                        ( case nid of
+                            NMainnet ->
+                                fromIntegral
+                                    $ getProtocolMagic mainnetMagic
+                            NTestnet magic -> fromIntegral magic
+                        )
                 , Api.walletMode = mode
                 }
       where
