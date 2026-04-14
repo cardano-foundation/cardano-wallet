@@ -22,7 +22,7 @@ jobs:
   e2e:
     name: "Run E2E Tests"
     needs: build
-    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    runs-on: [self-hosted, linux, x86_64, cardano-wallet, high-memory]
     timeout-minutes: 240
     steps:
       - name: Checkout
