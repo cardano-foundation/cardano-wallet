@@ -7,6 +7,7 @@
 -- Convert from Cardano.Api to Cardano.Wallet.Read.
 module Cardano.Wallet.Primitive.Ledger.Read.Eras
     ( fromAnyCardanoEra
+    , toAnyCardanoEra
     )
 where
 
@@ -14,7 +15,6 @@ import Cardano.Api
     ( AnyCardanoEra (..)
     , CardanoEra (..)
     )
-import Prelude
 
 import qualified Cardano.Wallet.Read as Read
 
@@ -29,4 +29,17 @@ fromAnyCardanoEra (AnyCardanoEra era) =
         AlonzoEra -> Read.EraValue Read.Alonzo
         BabbageEra -> Read.EraValue Read.Babbage
         ConwayEra -> Read.EraValue Read.Conway
-        _ -> error "fromAnyCardanoEra: era not yet supported"
+        DijkstraEra -> Read.EraValue Read.Dijkstra
+
+-- | Convert an era from 'Read' to 'Cardano.Api'.
+toAnyCardanoEra :: Read.EraValue Read.Era -> AnyCardanoEra
+toAnyCardanoEra (Read.EraValue era) =
+    case era of
+        Read.Byron -> AnyCardanoEra ByronEra
+        Read.Shelley -> AnyCardanoEra ShelleyEra
+        Read.Allegra -> AnyCardanoEra AllegraEra
+        Read.Mary -> AnyCardanoEra MaryEra
+        Read.Alonzo -> AnyCardanoEra AlonzoEra
+        Read.Babbage -> AnyCardanoEra BabbageEra
+        Read.Conway -> AnyCardanoEra ConwayEra
+        Read.Dijkstra -> AnyCardanoEra DijkstraEra

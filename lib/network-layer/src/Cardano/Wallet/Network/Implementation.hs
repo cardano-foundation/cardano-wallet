@@ -554,7 +554,7 @@ withNodeNetworkLayerBase
                 ( STM IO (Tip (CardanoBlock StandardCrypto))
                 , TMVar IO NetworkParams
                 , TMVar IO (CardanoInterpreter StandardCrypto)
-                , TMVar IO AnyCardanoEra
+                , TMVar IO (Read.EraValue Read.Era)
                 , TQueue
                     IO
                     ( LocalTxSubmissionCmd
@@ -653,7 +653,7 @@ withNodeNetworkLayerBase
             preferredEra <- liftIO readCurrentEra
             case unsealShelleyTx preferredEra tx of
                 Left (UnsealedTxInUnsupportedEra era) ->
-                    throwE $ ErrPostTxEraUnsupported (fromAnyCardanoEra era)
+                    throwE $ ErrPostTxEraUnsupported era
                 Right tx' -> do
                     let cmd = CmdSubmitTx . toConsensusGenTx $ tx'
                     liftIO (send txSubmissionQueue cmd) >>= \case
@@ -683,14 +683,14 @@ withNodeNetworkLayerBase
         _getUTxOByTxIn queue readCachedEra ins
             | ins == mempty =
                 readCachedEra <&> \case
-                    AnyCardanoEra ByronEra -> InNonRecentEraByron
-                    AnyCardanoEra ShelleyEra -> InNonRecentEraShelley
-                    AnyCardanoEra AllegraEra -> InNonRecentEraAllegra
-                    AnyCardanoEra MaryEra -> InNonRecentEraMary
-                    AnyCardanoEra AlonzoEra -> InNonRecentEraAlonzo
-                    AnyCardanoEra BabbageEra -> InNonRecentEraBabbage
-                    AnyCardanoEra ConwayEra -> InRecentEraConway mempty
-                    AnyCardanoEra DijkstraEra ->
+                    Read.EraValue Read.Byron -> InNonRecentEraByron
+                    Read.EraValue Read.Shelley -> InNonRecentEraShelley
+                    Read.EraValue Read.Allegra -> InNonRecentEraAllegra
+                    Read.EraValue Read.Mary -> InNonRecentEraMary
+                    Read.EraValue Read.Alonzo -> InNonRecentEraAlonzo
+                    Read.EraValue Read.Babbage -> InNonRecentEraBabbage
+                    Read.EraValue Read.Conway -> InRecentEraConway mempty
+                    Read.EraValue Read.Dijkstra ->
                         InRecentEraDijkstra mempty
             | otherwise =
                 bracketQuery "getUTxOByTxIn" tr
@@ -957,7 +957,7 @@ mkWalletToNodeProtocols
     -- ^ Notifier callback for when parameters for tip change.
     -> (CardanoInterpreter StandardCrypto -> m ())
     -- ^ Notifier callback for when time interpreter is updated.
-    -> (AnyCardanoEra -> m ())
+    -> (Read.EraValue Read.Era -> m ())
     -- ^ Notifier callback for when the era is updated
     -> TQueue
         m
@@ -1015,7 +1015,7 @@ mkWalletToNodeProtocols
                 (pparams, int, e) <- localStateQueryQ `send` (SomeLSQ qry)
                 onPParamsUpdate' pparams
                 onInterpreterUpdate int
-                onEraUpdate e
+                onEraUpdate (fromAnyCardanoEra e)
 
         link =<< async (observeForever (readTVar tipVar) onTipUpdate)
 

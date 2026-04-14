@@ -8,10 +8,6 @@
 
 module Cardano.Wallet.Api.ServerSpec (spec) where
 
-import Cardano.Api
-    ( AnyCardanoEra (..)
-    , CardanoEra (..)
-    )
 import Cardano.BM.Trace
     ( nullTracer
     )
@@ -268,7 +264,7 @@ networkInfoSpec = describe "getNetworkInformation" $ do
         -> NetworkLayer IO Block
     mockNetworkLayer sl ti relativeTime =
         dummyNetworkLayer
-            { currentNodeEra = pure $ AnyCardanoEra MaryEra
+            { currentNodeEra = pure $ Read.EraValue Read.Mary
             , currentNodeTip =
                 pure
                     $ Read.BlockTip

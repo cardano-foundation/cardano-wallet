@@ -257,7 +257,6 @@ import Cardano.Api
 import Cardano.Api.Extra
     ( CardanoApiEra
     , cardanoApiEraConstraints
-    , cardanoEraFromRecentEra
     , inAnyCardanoEra
     , toCardanoApiTx
     )
@@ -2140,7 +2139,7 @@ signTransaction
     => KeyFlavorS k
     -> TransactionLayer k ktype SealedTx
     -- ^ The way to interact with the wallet backend
-    -> Cardano.AnyCardanoEra
+    -> Read.EraValue Read.Era
     -- ^ Preferred latest era
     -> WitnessCountCtx
     -> (Address -> Maybe (k ktype XPrv, Passphrase "encryption"))
@@ -2616,10 +2615,9 @@ buildAndSignTransactionPure
       where
         era = recentEra @era
         wF = walletFlavor @s
-        anyCardanoEra =
-            cardanoApiEraConstraints era
-                $ Cardano.AnyCardanoEra
-                $ cardanoEraFromRecentEra era
+        anyCardanoEra = case era of
+            Write.RecentEraConway -> Read.EraValue Read.Conway
+            Write.RecentEraDijkstra -> Read.EraValue Read.Dijkstra
 
 buildTransaction
     :: forall s era

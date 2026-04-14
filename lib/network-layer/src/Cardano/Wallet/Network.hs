@@ -26,9 +26,6 @@ module Cardano.Wallet.Network
     , updateStats
     ) where
 
-import Cardano.Api
-    ( AnyCardanoEra
-    )
 import Cardano.Balance.Tx.Eras
     ( MaybeInRecentEra
     )
@@ -127,7 +124,7 @@ data NetworkLayer m block = NetworkLayer
         :: m Read.ChainTip
     -- ^ Get the current tip from the chain producer
     , currentNodeEra
-        :: m AnyCardanoEra
+        :: m (Read.EraValue Read.Era)
     -- ^ Get the era the node is currently in.
     , currentPParams
         :: m (Read.EraValue Read.PParams)

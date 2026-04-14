@@ -69,8 +69,7 @@ import Cardano.Address.Script
     , toScriptHash
     )
 import Cardano.Api
-    ( AnyCardanoEra (..)
-    , InAnyCardanoEra (..)
+    ( InAnyCardanoEra (..)
     , NetworkId
     )
 -- Removed: Cardano.Api.Error no longer exists, using show instead
@@ -292,9 +291,11 @@ import qualified Cardano.Crypto.Wallet as Crypto.HD
 import qualified Cardano.Ledger.Api as Ledger
 import qualified Cardano.Ledger.Keys.Bootstrap as SL
 import qualified Cardano.Wallet.Primitive.Ledger.Convert as Convert
+import qualified Cardano.Wallet.Primitive.Ledger.Read.Eras as Eras
 import qualified Cardano.Wallet.Primitive.Ledger.Shelley as Compatibility
 import qualified Cardano.Wallet.Primitive.Types.AssetId as AssetId
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
+import qualified Cardano.Wallet.Read as Read
 import qualified Data.ByteString as BS
 import qualified Data.Foldable as F
 import qualified Data.List as L
@@ -672,7 +673,7 @@ newTransactionLayer keyF networkId =
                     sealedTxFromCardano
                         $ fromMaybe errNonRecentEra
                         $ withRecentEraLedgerTx
-                            (cardanoTxIdeallyNoLaterThan era sealedTx)
+                            (cardanoTxIdeallyNoLaterThan (Eras.toAnyCardanoEra era) sealedTx)
                         $ \ledgerTx ->
                             signTransaction
                                 keyF
@@ -860,11 +861,13 @@ mkUnsignedTransaction networkId stakeCred ctx selection = do
                 refScriptM
 
 _decodeSealedTx
-    :: AnyCardanoEra
+    :: Read.EraValue Read.Era
     -> SealedTx
     -> TxExtended
 _decodeSealedTx preferredLatestEra sealedTx =
-    case cardanoTxIdeallyNoLaterThan preferredLatestEra sealedTx of
+    case cardanoTxIdeallyNoLaterThan
+        (Eras.toAnyCardanoEra preferredLatestEra)
+        sealedTx of
         Cardano.InAnyCardanoEra _ tx ->
             fromCardanoTx tx
 

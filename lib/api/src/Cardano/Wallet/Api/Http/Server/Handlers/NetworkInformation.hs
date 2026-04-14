@@ -118,7 +118,7 @@ getNetworkInformation
                 , Api.nextEpoch = snd <$> nowInfo
                 , Api.nodeTip = apiNodeTip
                 , Api.networkTip = fst <$> nowInfo
-                , Api.nodeEra = ApiEra.fromAnyCardanoEra nodeEra
+                , Api.nodeEra = ApiEra.fromReadEra nodeEra
                 , Api.networkInfo =
                     Api.ApiNetworkInfo
                         ( case nid of
