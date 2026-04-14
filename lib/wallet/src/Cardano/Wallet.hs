@@ -633,7 +633,9 @@ import Cardano.Wallet.Shelley.Transaction
     , _txRewardWithdrawalCost
     )
 import Cardano.Wallet.Shelley.Transaction.Ledger
-    ( constructUnsignedTxLedger
+    ( certificateFromDelegationActionLedger
+    , certificateFromVotingActionLedger
+    , constructUnsignedTxLedger
     )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
@@ -2702,12 +2704,47 @@ buildTransactionPure
     preSelection
     txCtx =
         do
+            let era = Write.recentEra @era
+                network =
+                    networkIdToLedger
+                        (sNetworkId @(NetworkOf s))
+                stakeXPub =
+                    case walletFlavor @s of
+                        ShelleyWallet ->
+                            getRawKey
+                                (keyFlavorFromState @s)
+                                $ Seq.rewardAccountKey
+                                    (getState wallet)
+                        _ ->
+                            error
+                                "buildTransactionPure: \
+                                \non-shelley wallet"
+                depositM = view #txDeposit txCtx
+                delegCerts =
+                    case view #txDelegationAction txCtx of
+                        Nothing -> []
+                        Just action ->
+                            certificateFromDelegationActionLedger
+                                era
+                                (Left stakeXPub)
+                                depositM
+                                action
+                votingCerts =
+                    case view #txVotingAction txCtx of
+                        Nothing -> []
+                        Just action ->
+                            certificateFromVotingActionLedger
+                                era
+                                (Left stakeXPub)
+                                depositM
+                                action
+                allCerts = L.nub $ delegCerts <> votingCerts
             unsignedTx <-
                 withExceptT (Right . ErrConstructTxBody) . except
                     $ constructUnsignedTxLedger
-                        (Write.recentEra @era)
-                        (networkIdToLedger (sNetworkId @(NetworkOf s)))
-                        (view #txMetadata txCtx, [])
+                        era
+                        network
+                        (view #txMetadata txCtx, allCerts)
                         (txValidityInterval txCtx)
                         (view #txWithdrawal txCtx)
                         (Left preSelection)
@@ -3471,12 +3508,47 @@ transactionFee
             evaluate
                 $ utxoIndexFromWalletUTxO
                 $ availableUTxO mempty wallet
+        let era = Write.recentEra @era
+            network =
+                networkIdToLedger
+                    (sNetworkId @(NetworkOf s))
+            stakeXPub =
+                case walletFlavor @s of
+                    ShelleyWallet ->
+                        getRawKey
+                            (keyFlavorFromState @s)
+                            $ Seq.rewardAccountKey
+                                (getState wallet)
+                    _ ->
+                        error
+                            "transactionFee: \
+                            \non-shelley wallet"
+            depositM = view #txDeposit txCtx
+            delegCerts =
+                case view #txDelegationAction txCtx of
+                    Nothing -> []
+                    Just action ->
+                        certificateFromDelegationActionLedger
+                            era
+                            (Left stakeXPub)
+                            depositM
+                            action
+            votingCerts =
+                case view #txVotingAction txCtx of
+                    Nothing -> []
+                    Just action ->
+                        certificateFromVotingActionLedger
+                            era
+                            (Left stakeXPub)
+                            depositM
+                            action
+            allCerts = L.nub $ delegCerts <> votingCerts
         unsignedTx <-
             wrapErrMkTransaction
                 $ constructUnsignedTxLedger
-                    (Write.recentEra @era)
-                    (networkIdToLedger (sNetworkId @(NetworkOf s)))
-                    (view #txMetadata txCtx, [])
+                    era
+                    network
+                    (view #txMetadata txCtx, allCerts)
                     (txValidityInterval txCtx)
                     (view #txWithdrawal txCtx)
                     (Left preSelection)

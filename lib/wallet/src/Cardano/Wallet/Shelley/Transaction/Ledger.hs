@@ -59,8 +59,7 @@ import Cardano.Address.Script
     ( Script (..)
     )
 import Cardano.Api.Extra
-    ( CardanoApiEra
-    , cardanoApiEraConstraints
+    ( cardanoApiEraConstraints
     , toCardanoApiTx
     )
 import Cardano.Balance.Tx.Eras
@@ -217,8 +216,6 @@ import Prelude
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Byron as Byron
-import qualified Cardano.Api.Certificate as ApiCert
-import qualified Cardano.Api.Experimental.Certificate as ExpCert
 import qualified Cardano.Balance.Tx.Eras as Write
 import qualified Cardano.Balance.Tx.Tx as Write
 import qualified Cardano.Crypto as CC
@@ -377,9 +374,8 @@ constructUnsignedTxLedger
     => RecentEra era
     -> Network
     -> ( Maybe TxMetadata
-       , [Cardano.Certificate (CardanoApiEra era)]
+       , [TxCert era]
        )
-    -- TODO: replace Cardano.Certificate with ledger TxCert
     -> (Maybe SlotNo, SlotNo)
     -> Withdrawal
     -> Either PreSelection (SelectionOf TxOut)
@@ -388,13 +384,12 @@ constructUnsignedTxLedger
 constructUnsignedTxLedger
     era
     network
-    (md, certs)
+    (md, lCerts)
     ttl
     wdrl
     cs
     fee = do
         outs <- extractValidatedOutputs cs
-        let lCerts = ledgerCertsFromApi era certs
         Right
             $ buildLedgerTxRaw
                 era
@@ -406,19 +401,6 @@ constructUnsignedTxLedger
                 lCerts
                 outs
                 cs
-
--- | Convert cardano-api certificates to ledger 'TxCert',
--- pattern-matching on the era to prove the type equality
--- @ShelleyLedgerEra (CardanoApiEra era) ~ era@.
-ledgerCertsFromApi
-    :: RecentEra era
-    -> [Cardano.Certificate (CardanoApiEra era)]
-    -> [TxCert era]
-ledgerCertsFromApi RecentEraConway certs =
-    map (unCert . certToLedger) certs
-ledgerCertsFromApi RecentEraDijkstra _ =
-    error
-        "ledgerCertsFromApi: Dijkstra not yet supported"
 
 -- | Convert wallet/context types and call 'mkLedgerTx'.
 buildLedgerTx
@@ -590,25 +572,6 @@ mkRewardAccount network acct =
         (Ledger.AccountId (toLedgerStakeCredential acct))
 
 -- | Convert a cardano-api 'Certificate' to the underlying
--- ledger certificate newtype.
---
--- Temporary bridge until certificate construction itself
--- produces ledger certs directly.
-certToLedger
-    :: Cardano.Certificate era
-    -> ExpCert.Certificate (Cardano.ShelleyLedgerEra era)
-certToLedger (ApiCert.ShelleyRelatedCertificate w c) =
-    Cardano.shelleyToBabbageEraConstraints w
-        $ ExpCert.Certificate c
-certToLedger (ApiCert.ConwayCertificate w c) =
-    Cardano.conwayEraOnwardsConstraints w
-        $ ExpCert.Certificate c
-
--- | Unwrap a 'Certificate' newtype to get the underlying
--- 'TxCert'.
-unCert :: ExpCert.Certificate era -> TxCert era
-unCert (ExpCert.Certificate c) = c
-
 -- | Seal a ledger 'Tx' into a 'SealedTx' by going through
 -- cardano-api serialisation.
 --
