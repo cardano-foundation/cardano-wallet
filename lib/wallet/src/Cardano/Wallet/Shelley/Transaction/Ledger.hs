@@ -38,6 +38,10 @@ module Cardano.Wallet.Shelley.Transaction.Ledger
       -- * Reward withdrawal cost estimation
     , _txRewardWithdrawalCost
     , _txRewardWithdrawalSize
+
+      -- * Ledger-native certificates
+    , certificateFromDelegationActionLedger
+    , certificateFromVotingActionLedger
     -- TODO: mkUnsignedTransaction uses Cardano.NetworkId,
     -- Cardano.Certificate, and other cardano-api types
     -- pervasively. Needs a ledger-native rewrite.
@@ -45,7 +49,15 @@ module Cardano.Wallet.Shelley.Transaction.Ledger
 
 import Cardano.Address.Derivation
     ( XPrv
+    , XPub
     , toXPub
+    , xpubPublicKey
+    )
+import Cardano.Address.KeyHash
+    ( KeyHash (..)
+    )
+import Cardano.Address.Script
+    ( Script (..)
     )
 import Cardano.Api.Extra
     ( CardanoApiEra
@@ -58,6 +70,9 @@ import Cardano.Balance.Tx.Eras
     )
 import Cardano.Balance.Tx.SizeEstimation
     ( TxWitnessTag (..)
+    )
+import Cardano.Crypto.Hash.Class
+    ( Hash (UnsafeHash)
     )
 import Cardano.Ledger.Address
     ( Withdrawals (Withdrawals)
@@ -87,6 +102,8 @@ import Cardano.Wallet.Flavor
     )
 import Cardano.Wallet.Primitive.Ledger.Convert
     ( Convert (toLedger)
+    , toLedgerDelegatee
+    , toLedgerTimelockScript
     )
 import Cardano.Wallet.Primitive.Ledger.Read.Tx.TxExtended
     ( getTxExtended
@@ -100,6 +117,9 @@ import Cardano.Wallet.Primitive.Passphrase
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address
+    )
+import Cardano.Wallet.Primitive.Types.Coin
+    ( Coin
     )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx
@@ -131,21 +151,26 @@ import Cardano.Wallet.Shelley.Transaction.Build
     ( mkLedgerTx
     )
 import Cardano.Wallet.Transaction
-    ( ErrMkTransaction (..)
+    ( DelegationAction (..)
+    , ErrMkTransaction (..)
     , ErrMkTransactionOutputTokenQuantityExceedsLimitError (..)
     , PreSelection (..)
     , SelectionOf (..)
     , TransactionCtx (..)
+    , VotingAction (..)
     , Withdrawal (..)
     , WitnessCountCtx (..)
     , selectionDelta
     )
-import Cardano.Wallet.Transaction.Delegation
-    ( certificateFromDelegationAction
-    )
 import Control.Monad
     ( forM_
     , when
+    )
+import Cryptography.Hash.Blake
+    ( blake2b224
+    )
+import Data.ByteString.Short
+    ( toShort
     )
 import Data.Generics.Internal.VL.Lens
     ( view
@@ -173,7 +198,12 @@ import qualified Cardano.Api.Experimental.Certificate as ExpCert
 import qualified Cardano.Balance.Tx.Eras as Write
 import qualified Cardano.Balance.Tx.Tx as Write
 import qualified Cardano.Ledger.Address as Ledger
+import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
+import qualified Cardano.Ledger.Api as LApi
 import qualified Cardano.Ledger.Coin as Ledger
+import qualified Cardano.Ledger.Conway.TxCert as Conway
+import qualified Cardano.Ledger.Credential as Cred
+import qualified Cardano.Ledger.Keys as Keys
 import qualified Cardano.Ledger.TxIn as Ledger
 import qualified Cardano.Wallet.Primitive.Ledger.Convert as Convert
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
@@ -231,19 +261,18 @@ mkTransactionLedger
         let wdrl = view #txWithdrawal ctx
         let delta = selectionDelta cs
         let md = view #txMetadata ctx
-        let certs =
+        let ledgerCerts =
                 case view #txDelegationAction ctx of
                     Nothing -> []
                     Just action ->
                         let stakeXPub =
                                 toXPub $ fst stakeCreds
-                        in  certificateFromDelegationAction
+                        in  certificateFromDelegationActionLedger
                                 era
                                 (Left stakeXPub)
                                 (view #txDeposit ctx)
                                 action
         outs <- extractValidatedOutputs (Right cs)
-        let apiCerts = ledgerCertsFromApi era certs
         let ledgerTx =
                 buildLedgerTx
                     era
@@ -252,7 +281,7 @@ mkTransactionLedger
                     wdrl
                     delta
                     md
-                    apiCerts
+                    ledgerCerts
                     outs
                     cs
         let signed =
@@ -613,3 +642,137 @@ extractValidatedOutputs sel =
                                 , quantityMaxBound =
                                     txOutMaxTokenQuantity
                                 }
+
+{--------------------------------------------------------------
+    Ledger-native certificates
+--------------------------------------------------------------}
+
+-- | Build ledger delegation certificates directly,
+-- without going through cardano-api.
+certificateFromDelegationActionLedger
+    :: RecentEra era
+    -> Either XPub (Script KeyHash)
+    -> Maybe Coin
+    -> DelegationAction
+    -> [TxCert era]
+certificateFromDelegationActionLedger
+    RecentEraConway
+    cred
+    depositM
+    da =
+        case (da, depositM) of
+            (Join poolId, _) ->
+                [ Conway.mkDelegTxCert
+                    (toLedgerStakeCred cred)
+                    ( toLedgerDelegatee
+                        (Just poolId)
+                        Nothing
+                    )
+                ]
+            (JoinRegisteringKey poolId, Just deposit) ->
+                [ Conway.mkRegDepositTxCert
+                    (toLedgerStakeCred cred)
+                    (toLedgerCoin deposit)
+                , Conway.mkDelegTxCert
+                    (toLedgerStakeCred cred)
+                    ( toLedgerDelegatee
+                        (Just poolId)
+                        Nothing
+                    )
+                ]
+            (JoinRegisteringKey _, Nothing) ->
+                error
+                    "certificateFromDelegationAction\
+                    \Ledger: deposit required in \
+                    \Conway era for registration \
+                    \(joining)"
+            (Quit, Just deposit) ->
+                [ Conway.mkUnRegDepositTxCert
+                    (toLedgerStakeCred cred)
+                    (toLedgerCoin deposit)
+                ]
+            (Quit, Nothing) ->
+                error
+                    "certificateFromDelegationAction\
+                    \Ledger: deposit required in \
+                    \Conway era for registration \
+                    \(quitting)"
+certificateFromDelegationActionLedger
+    RecentEraDijkstra
+    _
+    _
+    _ =
+        error
+            "certificateFromDelegationAction\
+            \Ledger: Dijkstra not yet supported"
+
+-- | Build ledger voting certificates directly,
+-- without going through cardano-api.
+certificateFromVotingActionLedger
+    :: RecentEra era
+    -> Either XPub (Script KeyHash)
+    -> Maybe Coin
+    -> VotingAction
+    -> [TxCert era]
+certificateFromVotingActionLedger
+    RecentEraConway
+    cred
+    depositM
+    va =
+        case (va, depositM) of
+            (Vote action, _) ->
+                [ Conway.mkDelegTxCert
+                    (toLedgerStakeCred cred)
+                    ( toLedgerDelegatee
+                        Nothing
+                        (Just action)
+                    )
+                ]
+            (VoteRegisteringKey action, Just deposit) ->
+                [ Conway.mkRegDepositTxCert
+                    (toLedgerStakeCred cred)
+                    (toLedgerCoin deposit)
+                , Conway.mkDelegTxCert
+                    (toLedgerStakeCred cred)
+                    ( toLedgerDelegatee
+                        Nothing
+                        (Just action)
+                    )
+                ]
+            (VoteRegisteringKey _, Nothing) ->
+                error
+                    "certificateFromVotingAction\
+                    \Ledger: deposit required in \
+                    \Conway era for registration"
+certificateFromVotingActionLedger
+    RecentEraDijkstra
+    _
+    _
+    _ =
+        error
+            "certificateFromVotingAction\
+            \Ledger: Dijkstra not yet supported"
+
+-- | Build a ledger 'StakeCredential' from an XPub
+-- or script, without cardano-api.
+toLedgerStakeCred
+    :: Either XPub (Script KeyHash)
+    -> Cred.StakeCredential
+toLedgerStakeCred = \case
+    Left xpub ->
+        Cred.KeyHashObj
+            . Keys.KeyHash
+            . UnsafeHash
+            . toShort
+            . blake2b224
+            $ xpubPublicKey xpub
+    Right script ->
+        Cred.ScriptHashObj
+            $ LApi.hashScript
+                @LApi.ConwayEra
+            $ Alonzo.NativeScript
+            $ toLedgerTimelockScript script
+
+-- | Convert a wallet 'Coin' to a ledger 'Coin'.
+toLedgerCoin :: Coin -> Ledger.Coin
+toLedgerCoin = toCardanoLovelace

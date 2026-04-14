@@ -56,8 +56,10 @@ library
     , cardano-crypto-class
     , cardano-crypto-wrapper
     , cardano-ledger-allegra
+    , cardano-ledger-alonzo
     , cardano-ledger-api
     , cardano-ledger-byron
+    , cardano-ledger-conway
     , cardano-ledger-core
     , cardano-ledger-mary
     , cardano-ledger-read
