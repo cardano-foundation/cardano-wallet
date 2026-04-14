@@ -258,7 +258,6 @@ import Cardano.Api.Extra
     ( CardanoApiEra
     , cardanoApiEraConstraints
     , cardanoEraFromRecentEra
-    , fromCardanoApiTx
     , inAnyCardanoEra
     , toCardanoApiTx
     )
@@ -495,6 +494,7 @@ import Cardano.Wallet.Primitive.Model
     )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId (..)
+    , networkIdToLedger
     , networkIdVal
     )
 import Cardano.Wallet.Primitive.Passphrase
@@ -632,6 +632,9 @@ import Cardano.Wallet.Shelley.Transaction
     , txConstraints
     , txWitnessTagForKey
     , _txRewardWithdrawalCost
+    )
+import Cardano.Wallet.Shelley.Transaction.Ledger
+    ( constructUnsignedTxLedger
     )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
@@ -2701,13 +2704,16 @@ buildTransactionPure
     preSelection
     txCtx =
         do
-            unsignedTxBody <-
+            unsignedTx <-
                 withExceptT (Right . ErrConstructTxBody) . except
-                    $ mkUnsignedTransaction
-                        (networkIdVal $ sNetworkId @(NetworkOf s))
-                        (Left $ unsafeShelleyOnlyGetRewardXPub @s (getState wallet))
-                        txCtx
+                    $ constructUnsignedTxLedger
+                        (Write.recentEra @era)
+                        (networkIdToLedger (sNetworkId @(NetworkOf s)))
+                        (view #txMetadata txCtx, [])
+                        (txValidityInterval txCtx)
+                        (view #txWithdrawal txCtx)
                         (Left preSelection)
+                        (Coin 0)
             let utxoIndex :: Write.UTxOIndex era
                 utxoIndex = utxoIndexFromWalletUTxO utxo
             withExceptT Left
@@ -2719,7 +2725,7 @@ buildTransactionPure
                     changeAddrGen
                     (getState wallet)
                     Write.PartialTx
-                        { tx = fromCardanoApiTx (Cardano.Tx unsignedTxBody [])
+                        { tx = unsignedTx
                         , extraUTxO = Write.UTxO mempty
                         , redeemers = []
                         , timelockKeyWitnessCounts = mempty
@@ -2735,22 +2741,6 @@ buildTransactionPure
 -- make 'buildAndSignTransactionPure' partial instead.
 --
 -- https://cardanofoundation.atlassian.net/browse/ADP-2933
-
-unsafeShelleyOnlyGetRewardXPub
-    :: forall s
-     . WalletFlavor s
-    => s -> XPub
-unsafeShelleyOnlyGetRewardXPub walletState =
-    case walletFlavor @s of
-        ShelleyWallet ->
-            getRawKey (keyFlavorFromState @s)
-                $ Seq.rewardAccountKey walletState
-        _ ->
-            error
-                $ unwords
-                    [ "buildAndSignTransactionPure:"
-                    , "can't delegate using non-shelley wallet"
-                    ]
 
 -- | Produce witnesses and construct a transaction from a given selection.
 --
@@ -3483,18 +3473,21 @@ transactionFee
             evaluate
                 $ utxoIndexFromWalletUTxO
                 $ availableUTxO mempty wallet
-        unsignedTxBody <-
+        unsignedTx <-
             wrapErrMkTransaction
-                $ mkUnsignedTransaction
-                    (networkIdVal $ sNetworkId @(NetworkOf s))
-                    (Left $ unsafeShelleyOnlyGetRewardXPub @s (getState wallet))
-                    txCtx
+                $ constructUnsignedTxLedger
+                    (Write.recentEra @era)
+                    (networkIdToLedger (sNetworkId @(NetworkOf s)))
+                    (view #txMetadata txCtx, [])
+                    (txValidityInterval txCtx)
+                    (view #txWithdrawal txCtx)
                     (Left preSelection)
+                    (Coin 0)
 
         let ptx :: Write.PartialTx era
             ptx =
                 Write.PartialTx
-                    { tx = fromCardanoApiTx (Cardano.Tx unsignedTxBody [])
+                    { tx = unsignedTx
                     , extraUTxO = Write.UTxO mempty
                     , redeemers = []
                     , timelockKeyWitnessCounts = mempty
