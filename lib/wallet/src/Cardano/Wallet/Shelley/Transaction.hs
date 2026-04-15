@@ -74,9 +74,15 @@ import Cardano.Api
     )
 -- Removed: Cardano.Api.Error no longer exists, using show instead
 
-import Cardano.Balance.Tx.Eras
+import Cardano.Api.Extra
     ( CardanoApiEra
-    , RecentEra (..)
+    , cardanoApiEraConstraints
+    , fromCardanoApiTx
+    , shelleyBasedEraFromRecentEra
+    , toCardanoApiTx
+    )
+import Cardano.Balance.Tx.Eras
+    ( RecentEra (..)
     )
 import Cardano.Balance.Tx.SizeEstimation
     ( TxSkeleton (..)
@@ -276,10 +282,8 @@ import qualified Cardano.Balance.Tx.Tx as Write
     , TxOut
     , computeMinimumCoinForTxOut
     , feeOfBytes
-    , fromCardanoApiTx
     , getFeePerByte
     , isBelowMinimumCoinForTxOut
-    , toCardanoApiTx
     )
 import qualified Cardano.Crypto as CC
 import qualified Cardano.Crypto.Hash.Class as Crypto
@@ -338,7 +342,7 @@ constructUnsignedTx
     -- ^ Delegation script
     -> Maybe (Script KeyHash)
     -- ^ Reference script
-    -> Either ErrMkTransaction (Cardano.TxBody (Write.CardanoApiEra era))
+    -> Either ErrMkTransaction (Cardano.TxBody (CardanoApiEra era))
 constructUnsignedTx
     networkId
     (md, certs)
@@ -412,7 +416,7 @@ mkTransaction era networkId keyF stakeCreds addrResolver ctx cs = do
             Nothing
     let signed :: Cardano.Tx (CardanoApiEra era)
         signed =
-            Write.toCardanoApiTx
+            toCardanoApiTx
                 $ signTransaction
                     keyF
                     networkId
@@ -423,13 +427,14 @@ mkTransaction era networkId keyF stakeCreds addrResolver ctx cs = do
                     (const Nothing)
                     addrResolver
                     inputResolver
-                    (Write.fromCardanoApiTx $ Cardano.Tx unsigned [])
+                    (fromCardanoApiTx $ Cardano.Tx unsigned [])
     let withResolvedInputs tx =
             tx{resolvedInputs = second Just <$> F.toList (view #inputs cs)}
-    Right
-        ( withResolvedInputs $ walletTx $ fromCardanoTx signed
-        , sealedTxFromCardano' signed
-        )
+    cardanoApiEraConstraints era
+        $ Right
+            ( withResolvedInputs $ walletTx $ fromCardanoTx signed
+            , sealedTxFromCardano' signed
+            )
   where
     inputResolver :: TxIn -> Maybe Address
     inputResolver i =
@@ -482,9 +487,9 @@ signTransaction
     resolveAddress
     resolveInput
     txToSign =
-        Write.fromCardanoApiTx $ Cardano.makeSignedTransaction wits' body
+        fromCardanoApiTx $ Cardano.makeSignedTransaction wits' body
       where
-        Cardano.Tx body wits = Write.toCardanoApiTx txToSign
+        Cardano.Tx body wits = toCardanoApiTx txToSign
 
         wits' =
             mconcat
@@ -691,17 +696,12 @@ withRecentEraLedgerTx (InAnyCardanoEra era tx) f = case era of
     Cardano.ConwayEra ->
         Just
             . InAnyCardanoEra era
-            . Write.toCardanoApiTx
+            . toCardanoApiTx
             . f
-            . Write.fromCardanoApiTx
+            . fromCardanoApiTx
             $ tx
     Cardano.BabbageEra ->
-        Just
-            . InAnyCardanoEra era
-            . Write.toCardanoApiTx
-            . f
-            . Write.fromCardanoApiTx
-            $ tx
+        Nothing
     Cardano.AlonzoEra ->
         Nothing
     Cardano.MaryEra ->
@@ -891,7 +891,7 @@ mkUnsignedTx
     -> Map TxIn (Script KeyHash)
     -> Maybe (Script KeyHash)
     -> Maybe (Script KeyHash)
-    -> Either ErrMkTransaction (Cardano.TxBody (Write.CardanoApiEra era))
+    -> Either ErrMkTransaction (Cardano.TxBody (CardanoApiEra era))
 mkUnsignedTx
     ttl
     cs
@@ -1101,14 +1101,15 @@ mkUnsignedTx
         scriptWitsSupported
             :: Cardano.ScriptLanguageInEra
                 Cardano.SimpleScript'
-                (Write.CardanoApiEra era)
+                (CardanoApiEra era)
         scriptWitsSupported = case era of
-            RecentEraBabbage -> Cardano.SimpleScriptInBabbage
             RecentEraConway -> Cardano.SimpleScriptInConway
+            RecentEraDijkstra ->
+                error "scriptWitsSupported: Dijkstra era not yet supported"
 
         toScriptWitness
             :: Script KeyHash
-            -> Cardano.ScriptWitness witctx (Write.CardanoApiEra era)
+            -> Cardano.ScriptWitness witctx (CardanoApiEra era)
         toScriptWitness script =
             Cardano.SimpleScriptWitness
                 scriptWitsSupported
@@ -1145,22 +1146,25 @@ mkUnsignedTx
                 Cardano.BuildTxWith
                     $ Cardano.KeyWitness Cardano.KeyWitnessForSpending
 
-        shelleyEra = Write.shelleyBasedEraFromRecentEra era
+        shelleyEra = shelleyBasedEraFromRecentEra era
 
         allegraOnwards :: Cardano.AllegraEraOnwards (CardanoApiEra era)
         allegraOnwards = case era of
-            RecentEraBabbage -> Cardano.AllegraEraOnwardsBabbage
             RecentEraConway -> Cardano.AllegraEraOnwardsConway
+            RecentEraDijkstra ->
+                error "allegraOnwards: Dijkstra era not yet supported"
 
         maryOnwards :: Cardano.MaryEraOnwards (CardanoApiEra era)
         maryOnwards = case era of
-            RecentEraBabbage -> Cardano.MaryEraOnwardsBabbage
             RecentEraConway -> Cardano.MaryEraOnwardsConway
+            RecentEraDijkstra ->
+                error "maryOnwards: Dijkstra era not yet supported"
 
         babbageOnwards :: Cardano.BabbageEraOnwards (CardanoApiEra era)
         babbageOnwards = case era of
-            RecentEraBabbage -> Cardano.BabbageEraOnwardsBabbage
             RecentEraConway -> Cardano.BabbageEraOnwardsConway
+            RecentEraDijkstra ->
+                error "babbageOnwards: Dijkstra era not yet supported"
 
 -- TODO: ADP-2257
 -- cardano-node does not allow to construct tx without inputs at this moment.
@@ -1169,18 +1173,22 @@ dummyInput :: TxIn
 dummyInput = TxIn (Hash $ BS.replicate 32 0) 999
 
 removeDummyInput
-    :: Write.IsRecentEra era
+    :: forall era
+     . Write.IsRecentEra era
     => Cardano.TxBody (CardanoApiEra era)
     -> Cardano.TxBody (CardanoApiEra era)
-removeDummyInput = \case
-    Cardano.ShelleyTxBody era body scripts scriptData aux val ->
-        Cardano.ShelleyTxBody
-            era
-            (over inputsTxBodyL (Set.delete (toLedger dummyInput)) body)
-            scripts
-            scriptData
-            aux
-            val
+removeDummyInput = case Write.recentEra @era of
+    RecentEraConway -> \case
+        Cardano.ShelleyTxBody sbe body scripts scriptData aux val ->
+            Cardano.ShelleyTxBody
+                sbe
+                (over inputsTxBodyL (Set.delete (toLedger dummyInput)) body)
+                scripts
+                scriptData
+                aux
+                val
+    RecentEraDijkstra ->
+        error "removeDummyInput: Dijkstra era not yet supported"
 
 mkWithdrawals
     :: NetworkId
@@ -1205,7 +1213,7 @@ mkShelleyWitness body key =
     Cardano.makeShelleyKeyWitness shelleyBasedEra body (unencrypt key)
   where
     shelleyBasedEra =
-        Write.shelleyBasedEraFromRecentEra (Write.recentEra @era)
+        shelleyBasedEraFromRecentEra (Write.recentEra @era)
     unencrypt (xprv, pwd) =
         Cardano.WitnessPaymentExtendedKey
             $ Cardano.PaymentExtendedSigningKey
@@ -1244,8 +1252,9 @@ mkByronWitness
       where
         era = Write.recentEra @era
         txHash = case era of
-            RecentEraBabbage -> Crypto.castHash $ Crypto.hashWith serialize' body
             RecentEraConway -> Crypto.castHash $ Crypto.hashWith serialize' body
+            RecentEraDijkstra ->
+                error "mkByronWitness: Dijkstra era not yet supported"
 
         unencrypt (xprv, pwd) =
             CC.SigningKey
@@ -1415,8 +1424,9 @@ txConstraints protocolParams witnessTag =
         -> Write.TxOut era
     mkLedgerTxOut address bundle =
         case era of
-            Write.RecentEraBabbage -> Convert.toBabbageTxOut txOut
             Write.RecentEraConway -> Convert.toConwayTxOut txOut
+            Write.RecentEraDijkstra ->
+                error "mkLedgerTxOut: Dijkstra era not yet supported"
       where
         txOut = TxOut address bundle
 

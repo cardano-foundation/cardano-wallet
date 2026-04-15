@@ -255,7 +255,12 @@ import Cardano.Api
     ( serialiseToCBOR
     )
 import Cardano.Api.Extra
-    ( inAnyCardanoEra
+    ( CardanoApiEra
+    , cardanoApiEraConstraints
+    , cardanoEraFromRecentEra
+    , fromCardanoApiTx
+    , inAnyCardanoEra
+    , toCardanoApiTx
     )
 import Cardano.BM.Data.Severity
     ( Severity (..)
@@ -857,11 +862,9 @@ import qualified Cardano.Balance.Tx.Balance as Write
     )
 import qualified Cardano.Balance.Tx.Eras as Write
     ( AnyRecentEra
-    , CardanoApiEra
     , IsRecentEra (..)
     , MaybeInRecentEra (..)
     , RecentEra (..)
-    , cardanoEraFromRecentEra
     )
 import qualified Cardano.Balance.Tx.Tx as Write
     ( ErrInvalidTxOutInEra
@@ -872,10 +875,8 @@ import qualified Cardano.Balance.Tx.Tx as Write
     , UTxO (UTxO)
     , feeOfBytes
     , forceUTxOToEra
-    , fromCardanoApiTx
     , getFeePerByte
     , stakeKeyDeposit
-    , toCardanoApiTx
     )
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Ledger.Core as Ledger
@@ -2047,44 +2048,46 @@ buildCoinSelectionForTransaction
     depositRefund
     delegationAction
     tx =
-        CoinSelection
-            { inputs = resolveInput . fromCardanoTxIn . fst =<< txIns
-            , outputs = paymentOutputs
-            , change = do
-                out <-
-                    -- NOTE: We assume that the change outputs are always
-                    -- at the end of the list. This is true for the current
-                    -- 'balanceTx' implementation, but may not
-                    -- be true for other implementations.
-                    drop (length paymentOutputs) $ fromCardanoTxOut <$> txOuts
-                let address = out ^. #address
-                derivationPath <-
-                    maybeToList $ fst $ isOurs address (getState wallet)
-                pure
-                    TxChange
-                        { address
-                        , amount = out ^. #tokens . #coin
-                        , assets = out ^. #tokens . #tokens
-                        , derivationPath
-                        }
-            , collateral =
-                resolveInput . fromCardanoTxIn
-                    =<< case txInsCollateral of
-                        Cardano.TxInsCollateralNone -> []
-                        Cardano.TxInsCollateral _supported is -> is
-            , withdrawals =
-                fromCardanoWdrls txWithdrawals
-                    <&> \(acct, coin) -> (acct, coin, rewardAcctPath)
-            , delegationAction = (,rewardAcctPath) <$> delegationAction
-            , deposit =
-                case delegationAction of
-                    Just (JoinRegisteringKey _poolId) -> Just depositRefund
-                    _ -> Nothing
-            , refund =
-                case delegationAction of
-                    Just Quit -> Just depositRefund
-                    _ -> Nothing
-            }
+        cardanoApiEraConstraints
+            (Write.recentEra @era)
+            CoinSelection
+                { inputs = resolveInput . fromCardanoTxIn . fst =<< txIns
+                , outputs = paymentOutputs
+                , change = do
+                    out <-
+                        -- NOTE: We assume that the change outputs are always
+                        -- at the end of the list. This is true for the current
+                        -- 'balanceTx' implementation, but may not
+                        -- be true for other implementations.
+                        drop (length paymentOutputs) $ fromCardanoTxOut <$> txOuts
+                    let address = out ^. #address
+                    derivationPath <-
+                        maybeToList $ fst $ isOurs address (getState wallet)
+                    pure
+                        TxChange
+                            { address
+                            , amount = out ^. #tokens . #coin
+                            , assets = out ^. #tokens . #tokens
+                            , derivationPath
+                            }
+                , collateral =
+                    resolveInput . fromCardanoTxIn
+                        =<< case txInsCollateral of
+                            Cardano.TxInsCollateralNone -> []
+                            Cardano.TxInsCollateral _supported is -> is
+                , withdrawals =
+                    fromCardanoWdrls txWithdrawals
+                        <&> \(acct, coin) -> (acct, coin, rewardAcctPath)
+                , delegationAction = (,rewardAcctPath) <$> delegationAction
+                , deposit =
+                    case delegationAction of
+                        Just (JoinRegisteringKey _poolId) -> Just depositRefund
+                        _ -> Nothing
+                , refund =
+                    case delegationAction of
+                        Just Quit -> Just depositRefund
+                        _ -> Nothing
+                }
       where
         Cardano.TxBodyContent
             { txIns
@@ -2094,7 +2097,7 @@ buildCoinSelectionForTransaction
             } =
                 Cardano.getTxBodyContent
                     $ Cardano.getTxBody
-                    $ Write.toCardanoApiTx tx
+                    $ toCardanoApiTx tx
 
         resolveInput txIn = do
             (txOut, derivationPath) <- maybeToList (lookupTxIn wallet txIn)
@@ -2226,7 +2229,9 @@ type MakeRewardAccountBuilder k =
 
 data ErrWriteTxEra
     = -- | Node is not synced enough or on an unsupported testnet in an older era.
-      ErrNodeNotYetInRecentEra Cardano.AnyCardanoEra
+      ErrNodeNotYetInRecentEra String
+    | -- | The node is in a recent era that the wallet does not yet support.
+      ErrEraNotYetSupported String
     | -- | The provided partial tx is not deserialisable as a tx in the era of the
       -- node.
       --
@@ -2249,7 +2254,13 @@ readNodeTipStateForTxWrite netLayer = do
             throwIO
                 $ ExceptionWriteTxEra
                 $ ErrNodeNotYetInRecentEra nopp
-        Right pp -> pure (pp, timeTranslation)
+        Right pp@(Write.PParamsInAnyRecentEra era _) ->
+            case era of
+                Write.RecentEraDijkstra ->
+                    throwIO
+                        $ ExceptionWriteTxEra
+                        $ ErrEraNotYetSupported "Dijkstra"
+                _ -> pure (pp, timeTranslation)
 
 -- | Filter protocol parameters for recent eras.
 pparamsInRecentEra
@@ -2264,10 +2275,9 @@ pparamsInRecentEra (Read.PParams pparams) =
         Read.Allegra -> Write.InNonRecentEraAllegra
         Read.Mary -> Write.InNonRecentEraMary
         Read.Alonzo -> Write.InNonRecentEraAlonzo
-        Read.Babbage -> Write.InRecentEraBabbage pparams
+        Read.Babbage -> Write.InNonRecentEraBabbage
         Read.Conway -> Write.InRecentEraConway pparams
-        Read.Dijkstra ->
-            error "pparamsInRecentEra: DijkstraEra not yet supported"
+        Read.Dijkstra -> Write.InRecentEraDijkstra pparams
 
 -- | Wallet-specific wrapped version of 'Write.balanceTx', made for the new tx
 -- workflow with Shelley- and Shared- wallet flavors.
@@ -2341,7 +2351,11 @@ balanceTx wrk pp timeTranslation partialTx = do
         -> IO (Write.UTxO era)
     forceUTxOToEra = \case
         InRecentEraConway utxo -> hoist $ Write.forceUTxOToEra utxo
-        InRecentEraBabbage utxo -> hoist $ Write.forceUTxOToEra utxo
+        InRecentEraDijkstra _ ->
+            throwIO
+                $ ExceptionWriteTxEra
+                $ ErrEraNotYetSupported "Dijkstra"
+        InNonRecentEraBabbage -> impossibleRollback
         InNonRecentEraAlonzo -> impossibleRollback
         InNonRecentEraMary -> impossibleRollback
         InNonRecentEraAllegra -> impossibleRollback
@@ -2518,11 +2532,11 @@ buildAndSignTransactionPure
     txLayer
     changeAddrGen
     preSelection
-    txCtx = do
+    txCtx = cardanoApiEraConstraints (Write.recentEra @era) $ do
         wallet <- get
         (unsignedBalancedTx, updatedWalletState) <-
             lift
-                $ first Write.toCardanoApiTx
+                $ first toCardanoApiTx
                     <$> buildTransactionPure @s
                         wallet
                         timeTranslation
@@ -2599,7 +2613,10 @@ buildAndSignTransactionPure
       where
         era = recentEra @era
         wF = walletFlavor @s
-        anyCardanoEra = Cardano.AnyCardanoEra $ Write.cardanoEraFromRecentEra era
+        anyCardanoEra =
+            cardanoApiEraConstraints era
+                $ Cardano.AnyCardanoEra
+                $ cardanoEraFromRecentEra era
 
 buildTransaction
     :: forall s era
@@ -2702,7 +2719,7 @@ buildTransactionPure
                     changeAddrGen
                     (getState wallet)
                     Write.PartialTx
-                        { tx = Write.fromCardanoApiTx (Cardano.Tx unsignedTxBody [])
+                        { tx = fromCardanoApiTx (Cardano.Tx unsignedTxBody [])
                         , extraUTxO = Write.UTxO mempty
                         , redeemers = []
                         , timelockKeyWitnessCounts = mempty
@@ -2815,7 +2832,7 @@ constructTransaction
     -> DBLayer IO (SeqState n ShelleyKey)
     -> TransactionCtx
     -> PreSelection
-    -> ExceptT ErrConstructTx IO (Cardano.TxBody (Write.CardanoApiEra era))
+    -> ExceptT ErrConstructTx IO (Cardano.TxBody (CardanoApiEra era))
 constructTransaction era db txCtx preSel = do
     (_, xpub, _) <- lift $ readRewardAccount db
     when (containsSelfWithdrawal (txCtx ^. #txWithdrawal))
@@ -2834,7 +2851,7 @@ constructUnbalancedSharedTransaction
     -> DBLayer IO (SharedState n SharedKey)
     -> TransactionCtx
     -> PreSelection
-    -> ExceptT ErrConstructTx IO (Cardano.TxBody (Write.CardanoApiEra era))
+    -> ExceptT ErrConstructTx IO (Cardano.TxBody (CardanoApiEra era))
 constructUnbalancedSharedTransaction era db txCtx sel =
     db & \DBLayer{..} -> do
         cp <- lift $ atomically readCheckpoint
@@ -3477,7 +3494,7 @@ transactionFee
         let ptx :: Write.PartialTx era
             ptx =
                 Write.PartialTx
-                    { tx = Write.fromCardanoApiTx (Cardano.Tx unsignedTxBody [])
+                    { tx = fromCardanoApiTx (Cardano.Tx unsignedTxBody [])
                     , extraUTxO = Write.UTxO mempty
                     , redeemers = []
                     , timelockKeyWitnessCounts = mempty
@@ -3970,8 +3987,9 @@ utxoIndexFromWalletUTxO
 utxoIndexFromWalletUTxO utxo =
     Write.constructUTxOIndex
         $ case Write.recentEra :: Write.RecentEra era of
-            Write.RecentEraBabbage -> Convert.toLedgerUTxOBabbage utxo
             Write.RecentEraConway -> Convert.toLedgerUTxOConway utxo
+            Write.RecentEraDijkstra ->
+                error "utxoIndexFromWalletUTxO: Dijkstra era not yet supported"
 
 {-------------------------------------------------------------------------------
                                    Errors

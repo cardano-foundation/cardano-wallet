@@ -215,7 +215,6 @@ import Servant.Server
     )
 import Prelude
 
-import qualified Cardano.Api as Cardano
 import qualified Cardano.Balance.Tx.Eras as Write
     ( IsRecentEra (..)
     )
@@ -593,21 +592,48 @@ instance IsServerError ErrGetPolicyId where
 
 instance IsServerError ErrWriteTxEra where
     toServerError = \case
-        ErrNodeNotYetInRecentEra (Cardano.AnyCardanoEra era) ->
+        ErrNodeNotYetInRecentEra eraName ->
             apiError err403 (NodeNotYetInRecentEra info)
                 $ T.unwords
                     [ "This operation requires the node to be synchronised to a"
                     , "recent era, but the node is currently only synchronised to the"
-                    , showT era
+                    , T.pack eraName
                     , "era. Please wait until the node is fully synchronised and"
                     , "try again."
                     ]
           where
             info =
                 ApiErrorNodeNotYetInRecentEra
-                    { nodeEra = ApiEra.fromAnyCardanoEra $ Cardano.AnyCardanoEra era
+                    { nodeEra = eraNameToApiEra eraName
                     , supportedRecentEras = ApiEra.allRecentEras
                     }
+            eraNameToApiEra :: String -> ApiEra.ApiEra
+            eraNameToApiEra "Byron" = ApiEra.ApiByron
+            eraNameToApiEra "Shelley" = ApiEra.ApiShelley
+            eraNameToApiEra "Allegra" = ApiEra.ApiAllegra
+            eraNameToApiEra "Mary" = ApiEra.ApiMary
+            eraNameToApiEra "Alonzo" = ApiEra.ApiAlonzo
+            eraNameToApiEra "Babbage" = ApiEra.ApiBabbage
+            eraNameToApiEra x =
+                error
+                    $ "eraNameToApiEra: unknown era " <> x
+        ErrEraNotYetSupported eraName ->
+            apiError err403 (NodeNotYetInRecentEra info)
+                $ T.unwords
+                    [ "The node is in the"
+                    , T.pack eraName
+                    , "era, which is not yet supported by this"
+                    , "wallet version. Please upgrade the wallet."
+                    ]
+          where
+            info =
+                ApiErrorNodeNotYetInRecentEra
+                    { nodeEra = eraNameToApiEra eraName
+                    , supportedRecentEras = ApiEra.allRecentEras
+                    }
+            eraNameToApiEra :: String -> ApiEra.ApiEra
+            eraNameToApiEra "Dijkstra" = ApiEra.ApiConway
+            eraNameToApiEra _ = ApiEra.ApiConway
         ErrPartialTxNotInNodeEra nodeEra ->
             apiError err403 TxNotInNodeEra
                 $ T.unwords
@@ -1410,8 +1436,8 @@ instance IsServerError (Request, ServerError) where
 
 instance IsServerError WriteTx.ErrInvalidTxOutInEra where
     toServerError = \case
-        WriteTx.InlinePlutusV3ScriptNotSupportedInBabbage ->
+        WriteTx.InlinePlutusV4ScriptNotSupportedInConway ->
             apiError
                 err400
-                BalanceTxInlinePlutusV3ScriptNotSupportedInBabbage
-                "Plutus V3 scripts are not supported in the Babbage era."
+                BalanceTxInlinePlutusV4ScriptNotSupportedInConway
+                "Plutus V4 scripts are not supported in the Conway era."

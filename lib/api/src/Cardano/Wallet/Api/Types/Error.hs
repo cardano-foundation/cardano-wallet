@@ -255,6 +255,7 @@ data ApiErrorInfo
     | BlockHeaderNotFound
     | TranslationByronTxOutInContext
     | BalanceTxInlinePlutusV3ScriptNotSupportedInBabbage
+    | BalanceTxInlinePlutusV4ScriptNotSupportedInConway
     | UnsupportedEra !ApiErrorUnsupportedEra
     deriving (Eq, Generic, Show, Data)
     deriving anyclass (NFData)

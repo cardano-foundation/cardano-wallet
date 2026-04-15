@@ -24,9 +24,11 @@ import Cardano.Address.KeyHash
 import Cardano.Address.Script
     ( Script (..)
     )
-import Cardano.Balance.Tx.Eras
+import Cardano.Api.Extra
     ( CardanoApiEra
-    , RecentEra (..)
+    )
+import Cardano.Balance.Tx.Eras
+    ( RecentEra (..)
     )
 import Cardano.Crypto.Hash.Class
     ( Hash (UnsafeHash)
@@ -69,8 +71,6 @@ certificateFromVotingAction
     -- ^ Voting action in Conway era onwards
     -> [Cardano.Certificate (CardanoApiEra era)]
     -- ^ Certificates representing the voting action
-certificateFromVotingAction RecentEraBabbage _cred _depositM _va =
-    []
 certificateFromVotingAction RecentEraConway cred depositM va =
     case (va, depositM) of
         (Vote action, _) ->
@@ -98,6 +98,8 @@ certificateFromVotingAction RecentEraConway cred depositM va =
                 \Conway era when registration is carried out"
   where
     conwayWitness = Cardano.ConwayEraOnwardsConway
+certificateFromVotingAction RecentEraDijkstra _cred _depositM _va =
+    error "certificateFromVotingAction: Dijkstra era not yet supported"
 
 {-----------------------------------------------------------------------------
     Cardano.StakeCredential

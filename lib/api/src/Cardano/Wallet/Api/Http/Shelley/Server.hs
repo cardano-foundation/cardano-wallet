@@ -149,10 +149,6 @@ import Cardano.Api
     ( SerialiseAsCBOR (..)
     , StakeAddress (..)
     )
-import Cardano.BM.Tracing
-    ( HasPrivacyAnnotation (..)
-    , HasSeverityAnnotation (..)
-    )
 -- import Cardano.Wallet.Api.Http.Server.Handlers.NetworkInformation
 --     ( getNetworkInformation
 --     , makeApiBlockReference
@@ -160,6 +156,23 @@ import Cardano.BM.Tracing
 --     , makeApiSlotReference
 --     )
 
+-- import Cardano.Wallet.Api.Http.Server.Handlers.NetworkInformation
+--     ( getNetworkInformation
+--     , makeApiBlockReference
+--     , makeApiBlockReferenceFromHeader
+--     , makeApiSlotReference
+--     )
+
+import Cardano.Api.Extra
+    ( cardanoApiEraConstraints
+    , cardanoEraFromRecentEra
+    , fromCardanoApiTx
+    , toCardanoApiTx
+    )
+import Cardano.BM.Tracing
+    ( HasPrivacyAnnotation (..)
+    , HasSeverityAnnotation (..)
+    )
 import Cardano.Balance.Tx.Eras
     ( AnyRecentEra (..)
     )
@@ -319,13 +332,6 @@ import Cardano.Wallet.Api.Http.Server.Handlers.MintBurn
     ( convertApiAssetMintBurn
     , getTxApiAssetMintBurn
     )
--- import Cardano.Wallet.Api.Http.Server.Handlers.NetworkInformation
---     ( getNetworkInformation
---     , makeApiBlockReference
---     , makeApiBlockReferenceFromHeader
---     , makeApiSlotReference
---     )
-
 import Cardano.Wallet.Api.Http.Server.Handlers.NetworkInformation
 import Cardano.Wallet.Api.Http.Server.Handlers.TxCBOR
     ( ParsedTxCBOR (..)
@@ -854,7 +860,6 @@ import qualified Cardano.Balance.Tx.Balance as Write
 import qualified Cardano.Balance.Tx.Eras as Write
     ( IsRecentEra (recentEra)
     , RecentEra
-    , cardanoEraFromRecentEra
     )
 import qualified Cardano.Balance.Tx.Sign as Write
     ( TimelockKeyWitnessCounts (..)
@@ -866,9 +871,7 @@ import qualified Cardano.Balance.Tx.Tx as Write
     , Tx
     , TxIn
     , TxOutInRecentEra (TxOutInRecentEra)
-    , fromCardanoApiTx
     , getFeePerByte
-    , toCardanoApiTx
     , utxoFromTxOutsInRecentEra
     , pattern PolicyId
     )
@@ -3079,7 +3082,7 @@ constructTransaction api knownPools poolStatus apiWalletId body = do
                     pp
                     timeTranslation
                     Write.PartialTx
-                        { tx = Write.fromCardanoApiTx $ Cardano.Tx unbalancedTx []
+                        { tx = fromCardanoApiTx $ Cardano.Tx unbalancedTx []
                         , extraUTxO = mempty
                         , redeemers = mempty
                         , stakeKeyDeposits = Write.StakeKeyDepositMap mempty
@@ -3552,7 +3555,7 @@ constructSharedTransaction
                                 timeTranslation
                                 Write.PartialTx
                                     { tx =
-                                        Write.fromCardanoApiTx
+                                        fromCardanoApiTx
                                             $ Cardano.Tx unbalancedTx []
                                     , extraUTxO = mempty
                                     , redeemers = mempty
@@ -3773,7 +3776,7 @@ balanceTransaction ctx (ApiT wid) body = do
         :: Write.IsRecentEra era
         => Write.RecentEra era
         -> Handler (Write.PartialTx era)
-    parsePartialTx era = do
+    parsePartialTx era = cardanoApiEraConstraints era $ do
         let mExternalUTxO =
                 Write.utxoFromTxOutsInRecentEra
                     $ map fromExternalInput
@@ -3787,7 +3790,7 @@ balanceTransaction ctx (ApiT wid) body = do
                     $ AnyRecentEra era
                 )
                 pure
-                . cardanoTxInExactEra (Write.cardanoEraFromRecentEra era)
+                . cardanoTxInExactEra (cardanoEraFromRecentEra era)
                 . getApiT
                 $ body ^. #transaction
 
@@ -3795,7 +3798,7 @@ balanceTransaction ctx (ApiT wid) body = do
             Right externalUTxO ->
                 pure
                     $ Write.PartialTx
-                        (Write.fromCardanoApiTx tx)
+                        (fromCardanoApiTx tx)
                         externalUTxO
                         (fromApiRedeemer <$> body ^. #redeemers)
                         (Write.StakeKeyDepositMap mempty)
@@ -5491,12 +5494,13 @@ fromApiRedeemer = \case
 sealWriteTx
     :: forall era. Write.IsRecentEra era => Write.Tx era -> W.SealedTx
 sealWriteTx =
-    W.sealedTxFromCardano
-        . Cardano.InAnyCardanoEra cardanoEra
-        . Write.toCardanoApiTx
+    cardanoApiEraConstraints era'
+        $ W.sealedTxFromCardano
+            . Cardano.InAnyCardanoEra cardanoEra
+            . toCardanoApiTx
   where
-    cardanoEra =
-        Write.cardanoEraFromRecentEra (Write.recentEra :: Write.RecentEra era)
+    era' = Write.recentEra :: Write.RecentEra era
+    cardanoEra = cardanoEraFromRecentEra era'
 
 toApiSerialisedTransaction
     :: Write.IsRecentEra era

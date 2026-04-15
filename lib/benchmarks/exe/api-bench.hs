@@ -707,7 +707,7 @@ mockNetworkLayer =
             pure
                 $ Read.EraValue
                     ( Read.PParams dummyLedgerProtocolParameters
-                        :: Read.PParams Read.Babbage
+                        :: Read.PParams Read.Conway
                     )
         , currentProtocolParameters = pure dummyProtocolParameters
         , currentNodeEra = pure $ Cardano.anyCardanoEra Cardano.BabbageEra

@@ -129,7 +129,6 @@ joinStakePoolDelegationAction
                         then Tx.Join poolId
                         else Tx.JoinRegisteringKey poolId
                     , case era of
-                        Write.RecentEraBabbage -> Nothing
                         Write.RecentEraConway ->
                             if not stakeKeyIsRegistered
                                 then
@@ -140,6 +139,10 @@ joinStakePoolDelegationAction
                                             Just $ Tx.Vote Abstain
                                         else
                                             Nothing
+                        Write.RecentEraDijkstra ->
+                            error
+                                "joinStakePoolDelegationAction: \
+                                \Dijkstra era not yet supported"
                     )
       where
         stakeKeyIsRegistered =
@@ -178,8 +181,6 @@ guardJoin era knownPools delegation pid mRetirementEpochInfo votedTheSameM = do
   where
     WalletDelegation{active, next} = delegation
     eraVotingLogic = case (era, votedTheSameM) of
-        (Write.RecentEraBabbage, _) ->
-            Left (ErrAlreadyDelegating pid)
         (Write.RecentEraConway, NotVotedYet) ->
             pure ()
         (Write.RecentEraConway, NotVotedThisTime) ->
@@ -188,6 +189,8 @@ guardJoin era knownPools delegation pid mRetirementEpochInfo votedTheSameM = do
             Left (ErrAlreadyDelegatingVoting pid)
         (Write.RecentEraConway, VotedDifferently) ->
             pure ()
+        (Write.RecentEraDijkstra, _) ->
+            error "guardJoin: Dijkstra era not yet supported"
 
 {-----------------------------------------------------------------------------
     Quit stake pool
@@ -272,10 +275,10 @@ joinDRepVotingAction era targetDRep dlg stakeKeyIsRegistered = do
         :: Write.IsRecentEra era
         => Write.RecentEra era
         -> Either ErrCannotVote ()
-    guardEraIsConway Write.RecentEraBabbage =
-        Left ErrWrongEra
     guardEraIsConway Write.RecentEraConway =
         Right ()
+    guardEraIsConway Write.RecentEraDijkstra =
+        error "guardEraIsConway: Dijkstra era not yet supported"
 
     votingAction =
         if stakeKeyIsRegistered

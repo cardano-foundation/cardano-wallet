@@ -50,6 +50,9 @@ import Data.Function
 import Data.List
     ( drop
     )
+import Data.Maybe
+    ( Maybe (..)
+    )
 import Data.Ord
     ( Ord
     )
@@ -135,9 +138,14 @@ toAnyCardanoEra = \case
 -- | The complete set of recent eras.
 allRecentEras :: Set ApiEra
 allRecentEras =
-    Set.map fromAnyRecentEra Write.allRecentEras
+    Set.fromList
+        [ era
+        | x <- Set.toList Write.allRecentEras
+        , Just era <- [fromAnyRecentEra x]
+        ]
 
-fromAnyRecentEra :: Write.AnyRecentEra -> ApiEra
+fromAnyRecentEra :: Write.AnyRecentEra -> Maybe ApiEra
 fromAnyRecentEra = \case
-    Write.AnyRecentEra Write.RecentEraBabbage -> ApiBabbage
-    Write.AnyRecentEra Write.RecentEraConway -> ApiConway
+    Write.AnyRecentEra Write.RecentEraConway -> Just ApiConway
+    -- TODO: add ApiDijkstra once DijkstraEra is fully supported
+    Write.AnyRecentEra Write.RecentEraDijkstra -> Nothing
