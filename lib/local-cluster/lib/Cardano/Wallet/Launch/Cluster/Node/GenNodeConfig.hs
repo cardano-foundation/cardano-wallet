@@ -123,7 +123,8 @@ genNodeConfig nodeSegment name genesisFiles clusterEra logCfg = do
 
     let LogFileConfig severity mExtraLogFile extraSev = logCfg
 
-        GenesisRecord byronFile shelleyFile alonzoFile conwayFile = genesisFiles
+        GenesisRecord byronFile shelleyFile alonzoFile conwayFile dijkstraFile =
+            genesisFiles
 
         scribes =
             let
@@ -151,6 +152,7 @@ genNodeConfig nodeSegment name genesisFiles clusterEra logCfg = do
                 & setFilePath "ShelleyGenesisFile" shelleyFile
                 & setFilePath "AlonzoGenesisFile" alonzoFile
                 & setFilePath "ConwayGenesisFile" conwayFile
+                & setFilePath "DijkstraGenesisFile" dijkstraFile
                 & removeGenesisHashes
                 & setHardFork "ShelleyHardFork"
                 & setHardFork "AllegraHardFork"
@@ -186,7 +188,7 @@ genNodeConfig nodeSegment name genesisFiles clusterEra logCfg = do
 
 controlExperimental :: ClusterEra -> ChangeValue
 controlExperimental = \case
-    _ -> setExperimental False
+    _ -> setExperimental True
 
 setExperimental :: Bool -> ChangeValue
 setExperimental enabled value =
@@ -232,3 +234,4 @@ removeGenesisHashes value =
         & atKey "ShelleyGenesisHash" .~ Nothing
         & atKey "AlonzoGenesisHash" .~ Nothing
         & atKey "ConwayGenesisHash" .~ Nothing
+        & atKey "DijkstraGenesisHash" .~ Nothing

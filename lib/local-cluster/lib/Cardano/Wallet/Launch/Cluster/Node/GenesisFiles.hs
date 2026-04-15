@@ -139,18 +139,19 @@ data GenesisRecord f = GenesisRecord
     , shelleyGenesis :: f "genesis-shelley"
     , alonzoGenesis :: f "genesis-alonzo"
     , conwayGenesis :: f "genesis-conway"
+    , dijkstraGenesis :: f "genesis-dijkstra"
     }
     deriving stock (Generic)
 
 instance FFunctor GenesisRecord where ffmap = ffmapDefault
 instance FFoldable GenesisRecord where ffoldMap = ffoldMapDefault
 instance FTraversable GenesisRecord where
-    ftraverse f (GenesisRecord a b c d) =
-        GenesisRecord <$> f a <*> f b <*> f c <*> f d
+    ftraverse f (GenesisRecord a b c d e) =
+        GenesisRecord <$> f a <*> f b <*> f c <*> f d <*> f e
 
 instance FZip GenesisRecord where
-    fzipWith f (GenesisRecord a b c d) (GenesisRecord a' b' c' d') =
-        GenesisRecord (f a a') (f b b') (f c c') (f d d')
+    fzipWith f (GenesisRecord a b c d e) (GenesisRecord a' b' c' d' e') =
+        GenesisRecord (f a a') (f b b') (f c c') (f d d') (f e e')
 
 deriving stock instance Show (GenesisRecord FileOf)
 
@@ -189,6 +190,7 @@ mkGenesisFiles (DirOf d) =
         , shelleyGenesis = mkFile "shelley"
         , alonzoGenesis = mkFile "alonzo"
         , conwayGenesis = mkFile "conway"
+        , dijkstraGenesis = mkFile "dijkstra"
         }
   where
     mkFile :: String -> FileOf x
@@ -261,7 +263,7 @@ generateGenesis initialFunds genesisMods = do
                     -- based on the protocol version rather than just the era,
                     -- so we need to set it to a realisitic value.
                     & ppProtocolVersionL
-                        .~ Ledger.ProtVer (natVersion @8) 0
+                        .~ Ledger.ProtVer (natVersion @10) 0
                     -- Sensible pool & reward parameters:
                     & ppNOptL
                         .~ 3
@@ -325,4 +327,5 @@ generateGenesis initialFunds genesisMods = do
                     $ \_ -> toJSON shelleyGenesisData
                 , alonzoGenesis = Const id
                 , conwayGenesis = Const id
+                , dijkstraGenesis = Const id
                 }
