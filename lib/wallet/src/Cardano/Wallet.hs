@@ -2230,6 +2230,8 @@ type MakeRewardAccountBuilder k =
 data ErrWriteTxEra
     = -- | Node is not synced enough or on an unsupported testnet in an older era.
       ErrNodeNotYetInRecentEra String
+    | -- | The node is in a recent era that the wallet does not yet support.
+      ErrEraNotYetSupported String
     | -- | The provided partial tx is not deserialisable as a tx in the era of the
       -- node.
       --
@@ -2252,7 +2254,13 @@ readNodeTipStateForTxWrite netLayer = do
             throwIO
                 $ ExceptionWriteTxEra
                 $ ErrNodeNotYetInRecentEra nopp
-        Right pp -> pure (pp, timeTranslation)
+        Right pp@(Write.PParamsInAnyRecentEra era _) ->
+            case era of
+                Write.RecentEraDijkstra ->
+                    throwIO
+                        $ ExceptionWriteTxEra
+                        $ ErrEraNotYetSupported "Dijkstra"
+                _ -> pure (pp, timeTranslation)
 
 -- | Filter protocol parameters for recent eras.
 pparamsInRecentEra
@@ -2343,7 +2351,10 @@ balanceTx wrk pp timeTranslation partialTx = do
         -> IO (Write.UTxO era)
     forceUTxOToEra = \case
         InRecentEraConway utxo -> hoist $ Write.forceUTxOToEra utxo
-        InRecentEraDijkstra utxo -> hoist $ Write.forceUTxOToEra utxo
+        InRecentEraDijkstra _ ->
+            throwIO
+                $ ExceptionWriteTxEra
+                $ ErrEraNotYetSupported "Dijkstra"
         InNonRecentEraBabbage -> impossibleRollback
         InNonRecentEraAlonzo -> impossibleRollback
         InNonRecentEraMary -> impossibleRollback

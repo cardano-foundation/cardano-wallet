@@ -617,6 +617,23 @@ instance IsServerError ErrWriteTxEra where
             eraNameToApiEra x =
                 error
                     $ "eraNameToApiEra: unknown era " <> x
+        ErrEraNotYetSupported eraName ->
+            apiError err403 (NodeNotYetInRecentEra info)
+                $ T.unwords
+                    [ "The node is in the"
+                    , T.pack eraName
+                    , "era, which is not yet supported by this"
+                    , "wallet version. Please upgrade the wallet."
+                    ]
+          where
+            info =
+                ApiErrorNodeNotYetInRecentEra
+                    { nodeEra = eraNameToApiEra eraName
+                    , supportedRecentEras = ApiEra.allRecentEras
+                    }
+            eraNameToApiEra :: String -> ApiEra.ApiEra
+            eraNameToApiEra "Dijkstra" = ApiEra.ApiConway
+            eraNameToApiEra _ = ApiEra.ApiConway
         ErrPartialTxNotInNodeEra nodeEra ->
             apiError err403 TxNotInNodeEra
                 $ T.unwords
@@ -1422,5 +1439,5 @@ instance IsServerError WriteTx.ErrInvalidTxOutInEra where
         WriteTx.InlinePlutusV4ScriptNotSupportedInConway ->
             apiError
                 err400
-                BalanceTxInlinePlutusV3ScriptNotSupportedInBabbage
+                BalanceTxInlinePlutusV4ScriptNotSupportedInConway
                 "Plutus V4 scripts are not supported in the Conway era."
