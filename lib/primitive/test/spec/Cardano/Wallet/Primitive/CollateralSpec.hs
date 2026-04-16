@@ -617,8 +617,8 @@ isValidAddress (Address addrBytes) =
             :: Maybe (L.Addr)
         )
         || isJust
-            ( L.deserialiseRewardAccount addrBytes
-                :: Maybe (L.RewardAccount)
+            ( L.deserialiseAccountAddress addrBytes
+                :: Maybe (L.AccountAddress)
             )
 
 -- To be extra sure, we also test addressSuitableForCollateral with some golden
@@ -818,7 +818,7 @@ shelleyEnterprisePaymentAddrGolden =
 genByronAddr :: Gen (L.Addr)
 genByronAddr = L.AddrBootstrap <$> arbitrary
 
-genStakeAddr :: Gen (L.RewardAccount)
+genStakeAddr :: Gen (L.AccountAddress)
 genStakeAddr = arbitrary
 
 -- Some helper functions
@@ -826,8 +826,8 @@ genStakeAddr = arbitrary
 asAddress :: L.Addr -> Address
 asAddress = Address . L.serialiseAddr
 
-asStakeAddress :: L.RewardAccount -> Address
-asStakeAddress = Address . L.serialiseRewardAccount
+asStakeAddress :: L.AccountAddress -> Address
+asStakeAddress = Address . L.serialiseAccountAddress
 
 runGetMaybe :: B.Get a -> BL.ByteString -> Maybe a
 runGetMaybe parser x =

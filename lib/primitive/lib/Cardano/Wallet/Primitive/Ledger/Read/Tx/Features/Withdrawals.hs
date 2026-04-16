@@ -56,9 +56,10 @@ getWithdrawals = case theEra @era of
         Just $ fromLedgerWithdrawals withdrawals
 
 fromLedgerWithdrawals
-    :: Map Ledger.RewardAccount Ledger.Coin -> Map RewardAccount W.Coin
+    :: Map Ledger.AccountAddress Ledger.Coin -> Map RewardAccount W.Coin
 fromLedgerWithdrawals withdrawals =
     Map.fromList
         [ (Certificates.fromStakeCredential cred, Ledger.toWalletCoin coin)
-        | (Ledger.RewardAccount _network cred, coin) <- Map.toList withdrawals
+        | (Ledger.AccountAddress _network (Ledger.AccountId cred), coin) <-
+            Map.toList withdrawals
         ]

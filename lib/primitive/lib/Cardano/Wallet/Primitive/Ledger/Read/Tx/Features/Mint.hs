@@ -332,8 +332,12 @@ fromLedgerScriptToAnyScriptDijkstra
     :: Core.Script DijkstraEra -> AnyScript
 fromLedgerScriptToAnyScriptDijkstra = toAnyScript
   where
-    toAnyScript (Alonzo.NativeScript script) =
-        NativeScript (toWalletScript (const Policy) script) ViaSpending
+    -- TODO: Dijkstra era uses DijkstraNativeScript, not Timelock.
+    -- toWalletScript needs adaptation for the new NativeScript type.
+    toAnyScript (Alonzo.NativeScript _script) =
+        NativeScript
+            (error "TODO: DijkstraNativeScript conversion")
+            ViaSpending
     toAnyScript s@(Alonzo.PlutusScript script) =
         PlutusScript
             ( PlutusScriptInfo
