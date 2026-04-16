@@ -1,0 +1,6 @@
+packages: .
+
+index-state: 2024-01-03T15:04:34Z
+
+constraints:
+  multi-except ==2.0.0
