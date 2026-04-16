@@ -30,7 +30,7 @@
     ...
   }: {
     name = "cardano-deposit-wallet";
-    compiler-nix-name = "ghc9122";
+    compiler-nix-name = "ghc9123";
     inherit src;
     shell = shell {inherit pkgs;};
     modules = [];
