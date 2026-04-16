@@ -184,7 +184,7 @@ jobs:
     name: "E2E Linux"
     if: inputs.release_type == 'release'
     needs: [prepare, verify-artifacts]
-    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    runs-on: [self-hosted, linux, x86_64, cardano-wallet, high-memory]
     timeout-minutes: 240
     steps:
       - name: Checkout release candidate
@@ -228,7 +228,7 @@ jobs:
     if: inputs.release_type == 'release'
     needs: [prepare, build-e2e-windows]
     runs-on: windows-latest
-    timeout-minutes: 120
+    timeout-minutes: 240
     steps:
       - name: Download E2E bundle
         uses: actions/download-artifact@v8
