@@ -15,7 +15,10 @@ module Cardano.Wallet.Network.LocalStateQuery.RewardAccount
     ) where
 
 import Cardano.Ledger.Credential
-    ( StakeCredential
+    ( Credential
+    )
+import Cardano.Ledger.Keys
+    ( Staking
     )
 import Cardano.Wallet.Network.Implementation.Ouroboros
     ( LSQ (..)
@@ -43,7 +46,7 @@ import Prelude
 
 import qualified Cardano.Ledger.Coin as Ledger
 import qualified Cardano.Ledger.Credential as SL
-import qualified Cardano.Ledger.Shelley.API as SL
+import qualified Cardano.Ledger.Keys as SL
 import qualified Cardano.Wallet.Primitive.Ledger.Convert as Ledger
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
@@ -85,9 +88,9 @@ fetchRewardAccounts accounts =
 
     fromBalanceResult
         :: ( Map
-                (SL.Credential 'SL.Staking)
-                (SL.KeyHash 'SL.StakePool)
-           , Map (SL.Credential 'SL.Staking) Ledger.Coin
+                (SL.Credential SL.Staking)
+                (SL.KeyHash SL.StakePool)
+           , Map (SL.Credential SL.Staking) Ledger.Coin
            )
         -> Map W.RewardAccount W.Coin
     fromBalanceResult (_, rewardAccounts) =
@@ -96,8 +99,8 @@ fetchRewardAccounts accounts =
         )
 
 getStakeDelegDeposits
-    :: Set StakeCredential
-    -> LSQ' (Map StakeCredential Ledger.Coin)
+    :: Set (Credential Staking)
+    -> LSQ' (Map (Credential Staking) Ledger.Coin)
 getStakeDelegDeposits credentials =
     onAnyEra
         (pure byronValue)
@@ -109,5 +112,5 @@ getStakeDelegDeposits credentials =
         (LSQry $ Shelley.GetStakeDelegDeposits credentials)
         (LSQry $ Shelley.GetStakeDelegDeposits credentials)
   where
-    byronValue :: Map StakeCredential Ledger.Coin
+    byronValue :: Map (Credential Staking) Ledger.Coin
     byronValue = Map.fromList . map (,Ledger.Coin 0) $ Set.toList credentials

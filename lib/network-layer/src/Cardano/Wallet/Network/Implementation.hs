@@ -62,6 +62,18 @@ import Cardano.Launcher.Node
 import Cardano.Ledger.Core
     ( txIdTx
     )
+import Cardano.Network.NodeToClient
+    ( ConnectionId (..)
+    , Handshake
+    , LocalAddress
+    , NetworkConnectTracers (..)
+    , NodeToClientProtocols (..)
+    , NodeToClientVersionData
+    , connectTo
+    , localSnocket
+    , nodeToClientProtocols
+    , withIOManager
+    )
 import Cardano.Wallet.Network
     ( ChainFollowLog (..)
     , ChainFollower
@@ -326,18 +338,6 @@ import Ouroboros.Network.Mux
     , OuroborosApplicationWithMinimalCtx
     , RunMiniProtocol (..)
     , RunMiniProtocolWithMinimalCtx
-    )
-import Ouroboros.Network.NodeToClient
-    ( ConnectionId (..)
-    , Handshake
-    , LocalAddress
-    , NetworkConnectTracers (..)
-    , NodeToClientProtocols (..)
-    , NodeToClientVersionData
-    , connectTo
-    , localSnocket
-    , nodeToClientProtocols
-    , withIOManager
     )
 import Ouroboros.Network.Protocol.ChainSync.Client
     ( chainSyncClientPeer
