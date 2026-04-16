@@ -291,10 +291,11 @@ networkInfoSpec = describe "getNetworkInformation" $ do
         let
             start = HF.initBound
             end =
-                HF.Bound
-                    (RelativeTime 20)
-                    (SlotNo 20)
-                    (EpochNo 1)
+                (HF.initBound)
+                    { HF.boundTime = RelativeTime 20
+                    , HF.boundSlot = SlotNo 20
+                    , HF.boundEpoch = EpochNo 1
+                    }
 
             era1Params =
                 HF.defaultEraParams (SecurityParam $ unsafeNonZero 2) (mkSlotLength 1)

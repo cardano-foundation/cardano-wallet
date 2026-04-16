@@ -78,6 +78,7 @@ test-suite unit
     , cardano-balance-tx
     , cardano-crypto
     , cardano-crypto-class
+    , cardano-diffusion:api
     , cardano-ledger-alonzo
     , cardano-ledger-babbage
     , cardano-ledger-core
@@ -143,7 +144,6 @@ test-suite unit
     , openapi3
     , optparse-applicative
     , ouroboros-consensus
-    , ouroboros-network
     , ouroboros-network:api
     , pathtype
     , persistent

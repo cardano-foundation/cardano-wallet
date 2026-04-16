@@ -18,6 +18,9 @@ import Cardano.Launcher.Node
     , isWindows
     , mkWindowsPipeName
     )
+import Cardano.Network.NodeToClient.Version
+    ( NodeToClientVersionData
+    )
 import Cardano.Wallet.Launch.Cluster
     ( ClusterEra (..)
     , ClusterLog (..)
@@ -88,9 +91,6 @@ import Fmt
     ( build
     , fmt
     , indentF
-    )
-import Ouroboros.Network.NodeToClient
-    ( NodeToClientVersionData
     )
 import System.Directory
     ( removePathForcibly
