@@ -68,7 +68,7 @@ library
     , int-cast
     , lens
     , memory
-    , ouroboros-consensus-cardano
+    , ouroboros-consensus:cardano
     , QuickCheck
     , quiet
     , random

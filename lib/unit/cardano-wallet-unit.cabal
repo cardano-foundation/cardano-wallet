@@ -144,7 +144,7 @@ test-suite unit
     , optparse-applicative
     , ouroboros-consensus
     , ouroboros-network
-    , ouroboros-network-api
+    , ouroboros-network:api
     , pathtype
     , persistent
     , persistent-sqlite
