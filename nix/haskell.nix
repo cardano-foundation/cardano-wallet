@@ -110,6 +110,18 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: set-git-rev: rewrite-l
       shell = {
         name = "cardano-wallet-shell${lib.optionalString config.profiling "-profiled"}";
         packages = ps: builtins.attrValues (haskellLib.selectProjectPackages ps);
+        # haskell.nix does not register sublibraries in the shell's
+        # GHC package database (issue #1662). Add them explicitly so
+        # that cabal build inside nix develop can resolve them.
+        additional = hsPkgs: with hsPkgs; [
+          ouroboros-consensus.components.sublibs.cardano
+          ouroboros-consensus.components.sublibs.protocol
+          ouroboros-consensus.components.sublibs.diffusion
+          ouroboros-network.components.sublibs.api
+          ouroboros-network.components.sublibs.framework
+          ouroboros-network.components.sublibs.protocols
+          cardano-diffusion.components.sublibs.api
+        ];
         tools = {
           cabal = { index-state = indexState; };
           # cabal-fmt doesn't support base-4.20 (GHC 9.10) yet
@@ -134,7 +146,7 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: set-git-rev: rewrite-l
             version = "latest";
           };
         };
-        withHoogle = true;
+        withHoogle = false;
         nativeBuildInputs = (with buildProject.hsPkgs; [
           # Wrap cardano-cli/node to only expose binaries, not Haskell libraries
           # This prevents GHC package database pollution with conflicting versions
@@ -151,6 +163,14 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: set-git-rev: rewrite-l
         ]) ++ (with pkgs.buildPackages.buildPackages; [
           just
           pkg-config
+          # ouroboros-consensus 1.0.0.0 consolidated all sublibraries
+          # (lmdb, lsm, cardano, protocol, diffusion) into one package.
+          # haskell.nix resolves ALL sublibraries even though the wallet
+          # only uses {cardano} and {protocol}. The lmdb and lsm
+          # sublibraries require these system C libraries for plan
+          # resolution — they are NOT linked into the wallet binary.
+          lmdb
+          liburing
           nixpkgs-recent.python3Packages.openapi-spec-validator
           (ruby_3_3.withPackages (ps: [ ps.rake ps.thor ]))
           rubyPackages_3_3.rubocop
@@ -174,7 +194,29 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: set-git-rev: rewrite-l
           # rather than buildPackages.buildPackages where it doesn't propagate.
           pkgs.haskellPackages.hlint
         ];
-        shellHook = "export LOCAL_CLUSTER_CONFIGS=${localClusterConfigs}";
+        shellHook =
+          let
+            localCHaPRepo = pkgs.haskell-nix.mkLocalHackageRepo {
+              name = "cardano-haskell-packages";
+              index = CHaP + "/01-index.tar.gz";
+            };
+          in ''
+          export LOCAL_CLUSTER_CONFIGS=${localClusterConfigs}
+
+          # Work around haskell.nix issue #1662: sublibraries are not
+          # registered correctly in the shell's GHC package database.
+          # Override active-repositories so cabal resolves packages from
+          # the local CHaP repo instead of from the installed package db.
+          if [ ! -f cabal.project.local ] || ! grep -q cardano-haskell-packages-local cabal.project.local 2>/dev/null; then
+            mkdir -p ~/.cache/cabal/packages/cardano-haskell-packages-local
+            cat > cabal.project.local << 'EOF'
+          repository cardano-haskell-packages-local
+            url: file://${localCHaPRepo}
+            secure: False
+          EOF
+            cabal update cardano-haskell-packages-local 2>/dev/null || true
+          fi
+        '';
       };
 
       inputMap = { "https://chap.intersectmbo.org/" = CHaP; };
@@ -201,6 +243,8 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: set-git-rev: rewrite-l
             in
             {
               reinstallableLibGhc = true;
+
+
 
               packages.cardano-wallet-unit.components.tests = {
                 unit.build-tools = cardanoNodeExes;
