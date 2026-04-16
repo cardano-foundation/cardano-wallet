@@ -1,7 +1,8 @@
 name: Local Cluster Stress Test
 
 on:
-  workflow_dispatch:
+  push:
+    branches: [chore/bump-node-10.7.1]
 
 jobs:
   local-cluster:
