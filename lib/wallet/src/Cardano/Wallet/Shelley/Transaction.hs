@@ -1354,7 +1354,7 @@ txConstraints protocolParams witnessTag =
     txOutputMaximumSize =
         (<>)
             (txOutputSize mempty)
-            (TxSize (protocolParams ^. Ledger.ppMaxValSizeL))
+            (TxSize (fromIntegral $ protocolParams ^. Ledger.ppMaxValSizeL))
 
     txOutputMaximumTokenQuantity =
         TokenQuantity $ fromIntegral $ maxBound @Word64
