@@ -143,7 +143,6 @@ library
     , OddWord
     , openapi3
     , optparse-applicative
-    , ouroboros-network
     , ouroboros-network:api
     , pathtype
     , profunctors
@@ -235,6 +234,7 @@ common test-common
     , bytestring
     , cardano-addresses
     , cardano-binary
+    , cardano-diffusion:api
     , cardano-ledger-alonzo
     , cardano-ledger-babbage
     , cardano-ledger-byron
@@ -259,7 +259,7 @@ common test-common
     , mtl
     , openapi3
     , ouroboros-consensus:cardano
-    , ouroboros-network
+    , ouroboros-network:api
     , pathtype
     , QuickCheck
     , streaming

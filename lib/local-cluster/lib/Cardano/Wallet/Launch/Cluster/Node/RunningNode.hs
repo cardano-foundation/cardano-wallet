@@ -11,7 +11,7 @@ import Cardano.Launcher.Node
 import Cardano.Ledger.Shelley.API
     ( ShelleyGenesis
     )
-import Ouroboros.Network.NodeToClient
+import Cardano.Network.NodeToClient.Version
     ( NodeToClientVersionData
     )
 import Prelude
