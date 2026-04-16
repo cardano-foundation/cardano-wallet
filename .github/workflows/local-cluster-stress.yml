@@ -1,0 +1,35 @@
+name: Local Cluster Stress Test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  local-cluster:
+    name: "Local Cluster Run ${{ matrix.run }}"
+    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        run: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Run tests
+        env:
+          LOCAL_CLUSTER_CONFIGS: lib/local-cluster/test/data/cluster-configs
+          CLUSTER_LOGS_DIR_PATH: local-cluster-logs
+        run: |
+          mkdir -p local-cluster-logs
+          nix shell --quiet .#local-cluster .#test-local-cluster-exe .#cardano-cli .#cardano-node .#cardano-wallet \
+            -c test-local-cluster-exe
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: local-cluster-logs-run-${{ matrix.run }}
+          path: local-cluster-logs/
