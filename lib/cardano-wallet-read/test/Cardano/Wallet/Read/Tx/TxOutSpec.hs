@@ -16,11 +16,11 @@ import Cardano.Ledger.BaseTypes
     )
 import Cardano.Ledger.Credential
     ( Credential (KeyHashObj)
-    , PaymentCredential
     , StakeReference (StakeRefNull)
     )
 import Cardano.Ledger.Keys
     ( KeyHash (KeyHash)
+    , Payment
     )
 import Cardano.Read.Ledger.Tx.Output
     ( Output (..)
@@ -119,12 +119,12 @@ mkBasicOutput addr value = case theEra :: Era era of
     Conway -> Output $ mkBasicTxOut addr (toMaryValue value)
     Dijkstra -> Output $ mkBasicTxOut addr (toMaryValue value)
 
-mkPaymentCred :: ByteString -> PaymentCredential
+mkPaymentCred :: ByteString -> Credential Payment
 mkPaymentCred =
     KeyHashObj
         . KeyHash
         . fromMaybe (error "paymentCred: invalid hex length")
         . hashFromBytesAsHex
 
-mkAddr :: PaymentCredential -> Addr
+mkAddr :: Credential Payment -> Addr
 mkAddr x = Addr Mainnet x StakeRefNull

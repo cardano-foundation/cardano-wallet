@@ -77,7 +77,7 @@ import Cardano.Ledger.Core qualified as L
 
 mkMaryTx
     :: TxParameters
-    -> L.Tx MaryEra
+    -> L.Tx L.TopTx MaryEra
 mkMaryTx TxParameters{txInputs, txOutputs} =
     MkMaryTx $ ShelleyTx (body txInputs txOutputs) wits aux
 
@@ -87,7 +87,7 @@ aux = maybeToStrictMaybe Nothing
 body
     :: NonEmpty (Index, TxId)
     -> NonEmpty (Address, Lovelace)
-    -> L.TxBody MaryEra
+    -> L.TxBody L.TopTx MaryEra
 body ins outs =
     MaryTxBody
         (txins ins)
@@ -116,5 +116,5 @@ mkMaryValue lovelace = MaryValue (Coin lovelace) mempty
 validity :: ValidityInterval
 validity = ValidityInterval SNothing SNothing
 
-exampleMaryTx :: L.Tx MaryEra
+exampleMaryTx :: L.Tx L.TopTx MaryEra
 exampleMaryTx = mkMaryTx exampleTxParameters

@@ -21,13 +21,13 @@ import Cardano.Ledger.Coin
     )
 import Cardano.Ledger.Credential
     ( Credential (KeyHashObj)
-    , PaymentCredential
     , Ptr (Ptr)
     , SlotNo32 (..)
     , StakeReference (StakeRefPtr)
     )
 import Cardano.Ledger.Keys
     ( KeyHash (KeyHash)
+    , Payment
     )
 import Cardano.Ledger.Val
     ( inject
@@ -99,12 +99,12 @@ addrNullPtr =
   where
     nullPtr = Ptr (SlotNo32 0) (TxIx 0) (CertIx 0)
 
-paymentCred :: PaymentCredential
+paymentCred :: Credential Payment
 paymentCred =
     mkPaymentCred
         "6505f8fa4e47723170d3e60bbc30d6ec406f368b1c84e1f75b0a8cba"
 
-mkPaymentCred :: ByteString -> PaymentCredential
+mkPaymentCred :: ByteString -> Credential Payment
 mkPaymentCred =
     KeyHashObj
         . KeyHash
