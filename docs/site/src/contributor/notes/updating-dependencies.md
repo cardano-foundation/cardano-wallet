@@ -26,16 +26,46 @@ This is the most involved dependency update. The cardano-wallet ecosystem depend
 
 ### Overview
 
-1. Choose the target cardano-node version (e.g. 10.2.0)
-2. Clone/checkout all Cardano dependency repos at matching tags
-3. Extract changelogs between current and target versions
-4. Align `flake.lock` CHaP with cardano-node's CHaP
-5. Freeze dependencies
-6. Determine sublibrary order (`cabal-plan topo`)
-7. Update `.cabal` files in topological order (one commit per sublibrary)
-8. Update `cabal.project` (index-state, source-repository-package)
-9. Update the cardano-node input in `flake.nix`
-10. Final summary commit
+1. Choose the target cardano-node version (e.g. 10.7.0)
+2. Clone the target cardano-node tag and freeze its dependencies (`cabal freeze`)
+3. Align `flake.lock` CHaP with cardano-node's CHaP
+4. Update `cabal.project` index-state, constraints, and source-repository-package pins
+5. Bump upstream source-repository-packages (cardano-ledger-read, cardano-balance-tx) if they depend on changed packages
+6. Handle package consolidation (replace absorbed packages with sublibrary syntax in `.cabal` files)
+7. Determine sublibrary order (`cabal-plan topo`)
+8. Create the commit layout before making any code changes. Use `cabal-plan topo` to get the sublibrary order, then create one empty stgit patch per sublibrary:
+   ```bash
+   stg new -m "fix: adapt cardano-numeric to 10.7.0"
+   stg new -m "fix: adapt text-class to 10.7.0"
+   stg new -m "fix: adapt cardano-wallet-launcher to 10.7.0"
+   # ... one per sublibrary in topological order
+   ```
+   This defines where each library's changes will go. Work proceeds by going to each patch (`stg goto`), making changes, and refreshing (`stg refresh`).
+9. Build each sublibrary in topological order (one commit per sublibrary). Each commit must pass the full quality gate before moving to the next:
+   - `fourmolu --mode check` on changed `.hs` files — formatting
+   - `hlint` on changed `.hs` files — linting
+   - `cabal-fmt -i` on changed `.cabal` files — cabal formatting
+   - `nix build --quiet .#<target>` for each affected flake output — **this is the authoritative build check**. Do NOT rely on `cabal build` alone; cabal's incremental build caches compiled modules and misses errors in unchanged-but-transitively-affected files. The nix build compiles from scratch every time and matches CI exactly.
+
+   The nix build targets grow as you fix more libraries. At each patch, include only the targets that are fixed so far:
+   ```bash
+   # After fixing cardano-wallet-primitive:
+   nix build --quiet .#unit-cardano-wallet-primitive
+   # After fixing all libraries:
+   nix build --quiet .#cardano-wallet .#local-cluster .#integration-exe \
+     .#test-local-cluster-exe .#unit-cardano-wallet-unit \
+     .#unit-cardano-numeric .#unit-cardano-wallet-primitive \
+     .#unit-cardano-wallet-secrets .#unit-cardano-wallet-test-utils \
+     .#unit-cardano-wallet-launcher .#unit-cardano-wallet-network-layer \
+     .#unit-cardano-wallet-application-tls \
+     .#unit-cardano-wallet-blackbox-benchmarks .#unit-delta-chain \
+     .#unit-delta-store .#unit-delta-table .#unit-delta-types \
+     .#unit-std-gen-seed .#unit-wai-middleware-logging \
+     .#unit-benchmark-history .#wallet-key-export .#wallet-key-export-test
+   ```
+10. Update the cardano-node-runtime input in `flake.nix`
+11. Update local cluster configs (genesis files, node config) for the new node version
+12. Run integration tests and E2E tests
 
 ### Cardano Haskell Packages (CHaP)
 
@@ -87,6 +117,43 @@ source-repository-package
 ```
 
 Get the SHA256 with `nix flake prefetch github:owner/repo/commit-sha`.
+Then convert to nix32: `nix hash convert --to nix32 'sha256-xxx='`.
+
+### Package consolidation
+
+When upstream packages are absorbed into parent packages (e.g. ouroboros-consensus 1.0.0.0 absorbing ouroboros-consensus-cardano), downstream `.cabal` files must replace the old package names with sublibrary syntax using curly braces:
+
+```cabal
+-- Before (standalone packages):
+build-depends:
+    ouroboros-consensus
+  , ouroboros-consensus-cardano
+  , ouroboros-consensus-protocol
+  , ouroboros-network
+  , ouroboros-network-api
+  , ouroboros-network-framework
+
+-- After (sublibraries):
+build-depends:
+    ouroboros-consensus:{ouroboros-consensus, cardano, protocol}
+  , ouroboros-network:{ouroboros-network, api, framework}
+```
+
+The syntax is `package:{sublib1, sublib2}` with curly braces. Multiple sublibraries from the same package can be grouped. The main library must be listed explicitly (e.g. `ouroboros-consensus` inside the braces).
+
+**Import paths do not change** — the sublibraries re-export from the same module paths as before.
+
+haskell.nix handles this syntax natively via Cabal 3.0+.
+
+When packages are consolidated, their transitive dependencies may also need explicit constraints in `cabal.project` (e.g. `typed-protocols`, `network-mux`, `fs-api`).
+
+### Local cluster configs
+
+When bumping to a new node version, check if the local cluster configs need updating:
+
+- New era genesis files (e.g. `dijkstra-genesis.json`) must be added to `lib/local-cluster/test/data/cluster-configs/` and wired through `GenesisFiles.hs` and `GenNodeConfig.hs`
+- The shelley genesis `ppProtocolVersionL` must be high enough for the node's `cardanoProtocolVersion` — otherwise forged blocks are rejected with `HeaderProtVerTooHigh`
+- `ExperimentalHardForksEnabled` may need to be toggled depending on the node version
 
 ## CHaP-only dependency bump
 
