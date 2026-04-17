@@ -141,8 +141,8 @@ source-repository-package
 source-repository-package
   type: git
   location: https://github.com/cardano-foundation/cardano-balance-transaction
-  tag: 284ae5b735737a8a1c583322247bc50ea24b35b9
-  --sha256: 05kjb1bhm7634sxwambd1a0s02v9797xg3g19pdm828dz2ycrrcz
+  tag: 5d69cc9bd47062b363929c877b83f0ab96369583
+  --sha256: 1mbbnq4i6sjyk6v6y1srhy42ybl9lb21yi39ifklsdpq1q84hzkz
 
 -- END cardano-balance-tx
 --------------------------------------------------------------------------------
