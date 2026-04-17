@@ -208,6 +208,9 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: set-git-rev: rewrite-l
           # Override active-repositories so cabal resolves packages from
           # the local CHaP repo instead of from the installed package db.
           if [ ! -f cabal.project.local ] || ! grep -q cardano-haskell-packages-local cabal.project.local 2>/dev/null; then
+            # Clear stale cache to prevent cabal from trying to download
+            # packages from the local repo (it only has the index, not tarballs)
+            rm -rf ~/.cache/cabal/packages/cardano-haskell-packages-local
             mkdir -p ~/.cache/cabal/packages/cardano-haskell-packages-local
             cat > cabal.project.local << 'EOF'
           repository cardano-haskell-packages-local
