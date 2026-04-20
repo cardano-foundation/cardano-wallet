@@ -224,6 +224,12 @@ haskell-nix.cabalProject' [
             # Pull from top-level pkgs where the ghc-lib-parser overlay applies,
             # rather than buildPackages.buildPackages where it doesn't propagate.
             pkgs.haskellPackages.hlint
+            # Canonical formatters pinned for both devs and CI.
+            pkgs.nixfmt-rfc-style
+            # cabal-fmt can't live under `shell.tools` because it doesn't
+            # support base-4.20 (GHC 9.10) yet. The binary itself builds
+            # fine against nixpkgs' default base.
+            pkgs.haskellPackages.cabal-fmt
           ];
         shellHook =
           let
