@@ -40,6 +40,8 @@ jobs:
           fetch-depth: 0
 
       - name: Run integration tests
+        env:
+          TMPDIR: ${{ runner.temp }}
         run: |
           mkdir -p integration-test-dir/cluster.logs
           export CLUSTER_LOGS_DIR_PATH=integration-test-dir/cluster.logs
