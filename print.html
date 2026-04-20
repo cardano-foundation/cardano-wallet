@@ -7048,16 +7048,69 @@ is defined in the <code>devShells.default</code> attribute of <code>flake.nix</c
 <p>This is the most involved dependency update. The cardano-wallet ecosystem depends on many Cardano Haskell libraries that must all be updated in lockstep.</p>
 <h3 id="overview-10"><a class="header" href="#overview-10">Overview</a></h3>
 <ol>
-<li>Choose the target cardano-node version (e.g. 10.2.0)</li>
-<li>Clone/checkout all Cardano dependency repos at matching tags</li>
-<li>Extract changelogs between current and target versions</li>
-<li>Align <code>flake.lock</code> CHaP with cardano-node's CHaP</li>
-<li>Freeze dependencies</li>
-<li>Determine sublibrary order (<code>cabal-plan topo</code>)</li>
-<li>Update <code>.cabal</code> files in topological order (one commit per sublibrary)</li>
-<li>Update <code>cabal.project</code> (index-state, source-repository-package)</li>
-<li>Update the cardano-node input in <code>flake.nix</code></li>
-<li>Final summary commit</li>
+<li>
+<p>Choose the target cardano-node version (e.g. 10.7.0)</p>
+</li>
+<li>
+<p>Clone the target cardano-node tag and freeze its dependencies (<code>cabal freeze</code>)</p>
+</li>
+<li>
+<p>Align <code>flake.lock</code> CHaP with cardano-node's CHaP</p>
+</li>
+<li>
+<p>Update <code>cabal.project</code> index-state, constraints, and source-repository-package pins</p>
+</li>
+<li>
+<p>Bump upstream source-repository-packages (cardano-ledger-read, cardano-balance-tx) if they depend on changed packages</p>
+</li>
+<li>
+<p>Handle package consolidation (replace absorbed packages with sublibrary syntax in <code>.cabal</code> files)</p>
+</li>
+<li>
+<p>Determine sublibrary order (<code>cabal-plan topo</code>)</p>
+</li>
+<li>
+<p>Create the commit layout before making any code changes. Use <code>cabal-plan topo</code> to get the sublibrary order, then create one empty stgit patch per sublibrary:</p>
+<pre><code class="language-bash">stg new -m "fix: adapt cardano-numeric to 10.7.0"
+stg new -m "fix: adapt text-class to 10.7.0"
+stg new -m "fix: adapt cardano-wallet-launcher to 10.7.0"
+# ... one per sublibrary in topological order
+</code></pre>
+<p>This defines where each library's changes will go. Work proceeds by going to each patch (<code>stg goto</code>), making changes, and refreshing (<code>stg refresh</code>).</p>
+</li>
+<li>
+<p>Build each sublibrary in topological order (one commit per sublibrary). Each commit must pass the full quality gate before moving to the next:</p>
+<ul>
+<li><code>fourmolu --mode check</code> on changed <code>.hs</code> files — formatting</li>
+<li><code>hlint</code> on changed <code>.hs</code> files — linting</li>
+<li><code>cabal-fmt -i</code> on changed <code>.cabal</code> files — cabal formatting</li>
+<li><code>nix build --quiet .#&lt;target&gt;</code> for each affected flake output — <strong>this is the authoritative build check</strong>. Do NOT rely on <code>cabal build</code> alone; cabal's incremental build caches compiled modules and misses errors in unchanged-but-transitively-affected files. The nix build compiles from scratch every time and matches CI exactly.</li>
+</ul>
+<p>The nix build targets grow as you fix more libraries. At each patch, include only the targets that are fixed so far:</p>
+<pre><code class="language-bash"># After fixing cardano-wallet-primitive:
+nix build --quiet .#unit-cardano-wallet-primitive
+# After fixing all libraries:
+nix build --quiet .#cardano-wallet .#local-cluster .#integration-exe \
+  .#test-local-cluster-exe .#unit-cardano-wallet-unit \
+  .#unit-cardano-numeric .#unit-cardano-wallet-primitive \
+  .#unit-cardano-wallet-secrets .#unit-cardano-wallet-test-utils \
+  .#unit-cardano-wallet-launcher .#unit-cardano-wallet-network-layer \
+  .#unit-cardano-wallet-application-tls \
+  .#unit-cardano-wallet-blackbox-benchmarks .#unit-delta-chain \
+  .#unit-delta-store .#unit-delta-table .#unit-delta-types \
+  .#unit-std-gen-seed .#unit-wai-middleware-logging \
+  .#unit-benchmark-history .#wallet-key-export .#wallet-key-export-test
+</code></pre>
+</li>
+<li>
+<p>Update the cardano-node-runtime input in <code>flake.nix</code></p>
+</li>
+<li>
+<p>Update local cluster configs (genesis files, node config) for the new node version</p>
+</li>
+<li>
+<p>Run integration tests and E2E tests</p>
+</li>
 </ol>
 <h3 id="cardano-haskell-packages-chap"><a class="header" href="#cardano-haskell-packages-chap">Cardano Haskell Packages (CHaP)</a></h3>
 <p>CHaP is the custom Hackage repository for Cardano packages, hosted at <code>https://chap.intersectmbo.org/</code>. The <code>index-state</code> in <code>cabal.project</code> controls which package versions are visible:</p>
@@ -7092,7 +7145,35 @@ nix flake update CHaP --override-input CHaP \
     subdir: command-line
             core
 </code></pre>
-<p>Get the SHA256 with <code>nix flake prefetch github:owner/repo/commit-sha</code>.</p>
+<p>Get the SHA256 with <code>nix flake prefetch github:owner/repo/commit-sha</code>.
+Then convert to nix32: <code>nix hash convert --to nix32 'sha256-xxx='</code>.</p>
+<h3 id="package-consolidation"><a class="header" href="#package-consolidation">Package consolidation</a></h3>
+<p>When upstream packages are absorbed into parent packages (e.g. ouroboros-consensus 1.0.0.0 absorbing ouroboros-consensus-cardano), downstream <code>.cabal</code> files must replace the old package names with sublibrary syntax using curly braces:</p>
+<pre><code class="language-cabal">-- Before (standalone packages):
+build-depends:
+    ouroboros-consensus
+  , ouroboros-consensus-cardano
+  , ouroboros-consensus-protocol
+  , ouroboros-network
+  , ouroboros-network-api
+  , ouroboros-network-framework
+
+-- After (sublibraries):
+build-depends:
+    ouroboros-consensus:{ouroboros-consensus, cardano, protocol}
+  , ouroboros-network:{ouroboros-network, api, framework}
+</code></pre>
+<p>The syntax is <code>package:{sublib1, sublib2}</code> with curly braces. Multiple sublibraries from the same package can be grouped. The main library must be listed explicitly (e.g. <code>ouroboros-consensus</code> inside the braces).</p>
+<p><strong>Import paths do not change</strong> — the sublibraries re-export from the same module paths as before.</p>
+<p>haskell.nix handles this syntax natively via Cabal 3.0+.</p>
+<p>When packages are consolidated, their transitive dependencies may also need explicit constraints in <code>cabal.project</code> (e.g. <code>typed-protocols</code>, <code>network-mux</code>, <code>fs-api</code>).</p>
+<h3 id="local-cluster-configs"><a class="header" href="#local-cluster-configs">Local cluster configs</a></h3>
+<p>When bumping to a new node version, check if the local cluster configs need updating:</p>
+<ul>
+<li>New era genesis files (e.g. <code>dijkstra-genesis.json</code>) must be added to <code>lib/local-cluster/test/data/cluster-configs/</code> and wired through <code>GenesisFiles.hs</code> and <code>GenNodeConfig.hs</code></li>
+<li>The shelley genesis <code>ppProtocolVersionL</code> must be high enough for the node's <code>cardanoProtocolVersion</code> — otherwise forged blocks are rejected with <code>HeaderProtVerTooHigh</code></li>
+<li><code>ExperimentalHardForksEnabled</code> may need to be toggled depending on the node version</li>
+</ul>
 <h2 id="chap-only-dependency-bump"><a class="header" href="#chap-only-dependency-bump">CHaP-only dependency bump</a></h2>
 <p>When a Cardano library updates on CHaP without a full cardano-node version bump:</p>
 <ol>
