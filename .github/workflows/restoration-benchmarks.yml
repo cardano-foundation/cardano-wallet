@@ -50,7 +50,6 @@ jobs:
             node-db: mainnet-4
     env:
       LC_ALL: C.UTF-8
-      TMPDIR: /tmp/gha-bench
       TO_TIP_TIMEOUT: ${{ inputs.to-tip-timeout }}
     steps:
       - name: Checkout
@@ -59,8 +58,9 @@ jobs:
           fetch-depth: 0
 
       - name: Run restore benchmark
+        env:
+          TMPDIR: ${{ runner.temp }}
         run: |
-          mkdir -p "$TMPDIR"
           nix shell --quiet 'nixpkgs#coreutils' 'nixpkgs#gnugrep' 'nixpkgs#gawk' 'nixpkgs#time' 'nixpkgs#haskellPackages.hp2pretty' -c \
             bash scripts/ci/bench-restore.sh \
               mainnet ${{ matrix.bench }} $HOME/databases/node/${{ matrix.node-db }}

@@ -196,11 +196,8 @@ jobs:
       - name: Run E2E tests
         env:
           HAL_E2E_PREPROD_MNEMONICS: ${{ secrets.HAL_E2E_PREPROD_MNEMONICS }}
+          TMPDIR: ${{ runner.temp }}
         run: nix shell --quiet .#cardano-node .#cardano-wallet .#e2e 'nixpkgs#gnutar' 'nixpkgs#p7zip' -c e2e
-
-      - name: Cleanup
-        if: always()
-        run: rm -rf /tmp/e2e-* /tmp/test-cluster*
 
   build-e2e-windows:
     name: "Build E2E Bundle (Windows)"
