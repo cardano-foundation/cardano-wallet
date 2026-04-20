@@ -21,5 +21,16 @@ When creating a pull request, please make sure that your code adheres
 to our [coding
 standards](https://github.com/input-output-hk/adrestia/blob/master/docs/code/Coding-Standards.md).
 
+**Formatting.** Haskell, Cabal and Nix files have canonical formatters
+(`fourmolu`, `cabal-fmt`, `nixfmt`) pinned in the dev shell and
+enforced by CI. Run `just fmt` before every push.
+
+**No drive-by reformatting.** A style change and a semantic change
+must not share a commit, and typically must not share a PR. Pull
+requests that reformat files beyond what they meaningfully change —
+or that switch formatters — will be rejected. See the [coding
+standards](https://cardano-foundation.github.io/cardano-wallet/contributor/what/coding-standards)
+for details.
+
 For more information, please consult our [Contributor
 Manual](https://cardano-foundation.github.io/cardano-wallet/contributor).

@@ -24,6 +24,9 @@ Each proposal should start with a section justifying the standard with rational 
     - [Use only a single blank line between top-level definitions](#use-only-a-single-blank-line-between-top-level-definitions)
     - [Avoid Variable-Length Indentation](#avoid-variable-length-indentation)
     - [Fourmolu is used for code formatting](#fourmolu-is-used-for-code-formatting)
+    - [Nixfmt is used for \*.nix formatting](#nixfmt-is-used-for-nix-formatting)
+    - [No drive-by reformatting](#no-drive-by-reformatting)
+    - [Run every formatter with `just fmt`](#run-every-formatter-with-just-fmt)
   - [Haskell Practices](#haskell-practices)
     - [Favor `newtype` and tagged type over type-aliases](#favor-newtype-and-tagged-type-over-type-aliases)
     - [Language extensions are specified on top of each module](#language-extensions-are-specified-on-top-of-each-module)
@@ -356,6 +359,44 @@ single-constraint-parens: auto
 column-limit: 70
 ```
 </details>
+
+### Nixfmt is used for \*.nix formatting
+
+All `*.nix` files in this repository are formatted with
+[`nixfmt`](https://github.com/NixOS/nixfmt) (RFC style). The binary is
+pinned via `nix/haskell.nix` so every contributor and every CI job use
+the exact same version. The format is checked in CI by
+`scripts/ci/check-code-format.sh`.
+
+There is no secondary formatter. Do not introduce
+[`alejandra`](https://github.com/kamadorueda/alejandra),
+`nixpkgs-fmt`, or any other tool.
+
+### No drive-by reformatting
+
+Pull requests that reformat files unrelated to their stated purpose
+will be rejected. A semantic change and a style change must never
+share a commit — and typically must not share a PR.
+
+> **Why**
+>
+> Mixed diffs destroy reviewability, pollute `git blame`, and make
+> reverts unsafe. When the whole tree is already formatted to a
+> canonical style, a drive-by reformat is pure noise.
+
+If you believe the canonical formatter itself should change, open an
+issue first. Do not change formatters as part of a feature or fix PR.
+
+### Run every formatter with `just fmt`
+
+```
+just fmt        # format *.hs, *.cabal and *.nix in place
+just check-fmt  # run the exact CI format check locally
+```
+
+Both recipes rely on tools pinned in the dev shell (`nix develop`);
+running them outside the shell will use whatever happens to be on your
+`$PATH` and is not guaranteed to match CI.
 
 <details>
     <summary>See import grouping example</summary>
