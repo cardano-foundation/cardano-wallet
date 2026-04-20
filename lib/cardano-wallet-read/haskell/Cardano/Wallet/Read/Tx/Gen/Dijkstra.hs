@@ -1,6 +1,5 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE TypeApplications #-}
 
 module Cardano.Wallet.Read.Tx.Gen.Dijkstra
     ( mkDijkstraTx
@@ -53,7 +52,8 @@ import Cardano.Ledger.Hashes
     ( TxAuxDataHash
     )
 import Cardano.Ledger.Keys
-    ( KeyRole (..)
+    ( Guard
+    , KeyRole (..)
     )
 import Cardano.Ledger.Mary.Value
     ( MultiAsset
@@ -110,9 +110,9 @@ import Cardano.Ledger.Core qualified as L
 -- | Create a minimal Dijkstra era transaction from parameters.
 mkDijkstraTx
     :: TxParameters
-    -> L.Tx DijkstraEra
+    -> L.Tx L.TopTx DijkstraEra
 mkDijkstraTx TxParameters{txInputs, txOutputs} =
-    MkDijkstraTx $ AlonzoTx (body txInputs txOutputs) wits valid aux
+    error "TODO: adapt to DijkstraTx API changes in ledger-core 1.19"
 
 valid :: IsValid
 valid = IsValid True
@@ -126,8 +126,12 @@ aux = SNothing
 body
     :: NonEmpty (Index, TxId)
     -> NonEmpty (Address, Lovelace)
-    -> L.TxBody DijkstraEra
-body ins outs =
+    -> L.TxBody L.TopTx DijkstraEra
+body _ _ = error "TODO: adapt DijkstraTxBody to ledger-core 1.19"
+
+{- TODO: The DijkstraTxBody constructor changed in ledger-core 1.19
+   (now takes SubTx, DirectDeposits, AccountBalanceIntervals).
+_old_body ins outs =
     DijkstraTxBody
         (txins ins)
         collateralIns
@@ -159,7 +163,7 @@ proposalProcedures = mempty
 votingProcedures :: VotingProcedures DijkstraEra
 votingProcedures = VotingProcedures mempty
 
-guards :: OSet (Credential 'Guard)
+guards :: OSet (Credential Guard)
 guards = mempty
 
 certs :: OSet (DijkstraTxCert DijkstraEra)
@@ -195,3 +199,4 @@ collateralIns = mempty
 
 mint :: MultiAsset
 mint = mempty
+-}

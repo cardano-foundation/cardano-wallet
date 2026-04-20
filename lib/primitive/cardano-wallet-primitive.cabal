@@ -52,6 +52,7 @@ library
     , cardano-crypto-class
     , cardano-crypto-wrapper
     , cardano-data
+    , cardano-diffusion:api
     , cardano-ledger-allegra
     , cardano-ledger-alonzo
     , cardano-ledger-api
@@ -97,10 +98,11 @@ library
     , nothunks
     , OddWord
     , ouroboros-consensus
-    , ouroboros-consensus-cardano
-    , ouroboros-consensus-protocol
+    , ouroboros-consensus:cardano
+    , ouroboros-consensus:protocol
     , ouroboros-network
-    , ouroboros-network-api
+    , ouroboros-network:api
+    , ouroboros-network:framework
     , pretty-simple
     , QuickCheck
     , quiet
@@ -258,8 +260,8 @@ test-suite test
     , lens
     , memory
     , ouroboros-consensus
-    , ouroboros-consensus-cardano
-    , ouroboros-network-api
+    , ouroboros-consensus:cardano
+    , ouroboros-network:api
     , QuickCheck
     , quickcheck-classes
     , quickcheck-instances

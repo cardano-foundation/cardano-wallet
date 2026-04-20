@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
@@ -176,7 +177,9 @@ import qualified Cardano.Ledger.Hashes as Ledger
 import qualified Cardano.Ledger.Shelley.API as Ledger
 import qualified Codec.CBOR.Read as CBOR
 import qualified Data.Aeson as Aeson
+import qualified Data.Array.Byte as BA
 import qualified Data.ByteString.Lazy as BL
+import qualified Data.ByteString.Short as SBS
 import qualified Data.ListMap as ListMap
 import qualified Data.Set as Set
 import qualified Data.Text as T
@@ -335,7 +338,7 @@ readFailVerificationKeyOrFile (FileOf op) =
 stakePoolIdFromOperatorVerKey
     :: HasCallStack
     => FileOf "op-pub"
-    -> ClusterM (Ledger.KeyHash 'Ledger.StakePool)
+    -> ClusterM (Ledger.KeyHash Ledger.StakePool)
 stakePoolIdFromOperatorVerKey opPub = do
     stakePoolVerKey <- readFailVerificationKeyOrFile @StakePoolKey opPub
     let bytes = serialiseToCBOR $ verificationKeyHash stakePoolVerKey
@@ -346,7 +349,7 @@ stakePoolIdFromOperatorVerKey opPub = do
 poolVrfFromFile
     :: HasCallStack
     => FileOf "vrf-pub"
-    -> ClusterM (Ledger.VRFVerKeyHash 'Ledger.StakePoolVRF)
+    -> ClusterM (Ledger.VRFVerKeyHash Ledger.StakePoolVRF)
 poolVrfFromFile vrfPub = do
     stakePoolVerKey <- readFailVerificationKeyOrFile @VrfKey vrfPub
     let bytes = serialiseToCBOR $ verificationKeyHash stakePoolVerKey
@@ -357,7 +360,7 @@ poolVrfFromFile vrfPub = do
 stakingKeyHashFromFile
     :: HasCallStack
     => FileOf "stake-pub"
-    -> ClusterM (Ledger.KeyHash 'Ledger.Staking)
+    -> ClusterM (Ledger.KeyHash Ledger.Staking)
 stakingKeyHashFromFile stakePub = do
     stakePoolVerKey <- readFailVerificationKeyOrFile @StakeKey stakePub
     let bytes = serialiseToCBOR $ verificationKeyHash stakePoolVerKey
@@ -474,24 +477,28 @@ configurePool metadataServer recipe = do
             pledgeAddr <- stakingAddrFromVkFile ownerPub
 
             let params =
-                    Ledger.PoolParams
-                        { ppId = poolId
-                        , ppVrf = vrf
-                        , ppPledge = Ledger.Coin $ intCast pledgeAmt
-                        , ppCost = Ledger.Coin 0
-                        , ppMargin = unsafeUnitInterval 0.1
-                        , ppRewardAccount =
-                            Ledger.RewardAccount Testnet
+                    Ledger.StakePoolParams
+                        { sppId = poolId
+                        , sppVrf = vrf
+                        , sppPledge = Ledger.Coin $ intCast pledgeAmt
+                        , sppCost = Ledger.Coin 0
+                        , sppMargin = unsafeUnitInterval 0.1
+                        , sppAccountAddress =
+                            Ledger.AccountAddress Testnet
+                                $ Ledger.AccountId
                                 $ Ledger.KeyHashObj stakePubHash
-                        , ppOwners = Set.fromList [stakePubHash]
-                        , ppRelays = mempty
-                        , ppMetadata =
+                        , sppOwners = Set.fromList [stakePubHash]
+                        , sppRelays = mempty
+                        , sppMetadata =
                             SJust
                                 $ Ledger.PoolMetadata
                                     ( fromMaybe (error "invalid url (too long)")
                                         $ textToUrl 128 metadataUrl
                                     )
-                                    (blake2b256 (BL.toStrict metadataBytes))
+                                    ( let bs = blake2b256 (BL.toStrict metadataBytes)
+                                          !(SBS.SBS ba) = SBS.toShort bs
+                                      in  BA.ByteArray ba
+                                    )
                         }
             let updateStaking sgs =
                     sgs

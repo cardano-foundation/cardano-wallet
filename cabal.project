@@ -49,11 +49,11 @@ repository cardano-haskell-packages
     d4a35cd3121aa00d18544bb0ac01c3e1691d618f462c46129271bccf39f7e8ee
 
 -- repeating the index-state for hackage to work around hackage.nix parsing limitation
-index-state: 2026-02-17T10:15:41Z
+index-state: 2026-03-26T20:21:33Z
 
 index-state:
-  , hackage.haskell.org 2026-02-17T10:15:41Z
-  , cardano-haskell-packages 2026-03-23T18:21:55Z
+  , hackage.haskell.org 2026-03-26T20:21:33Z
+  , cardano-haskell-packages 2026-04-14T21:25:56Z
 
 packages:
   lib/address-derivation-discovery
@@ -129,8 +129,8 @@ source-repository-package
 source-repository-package
   type: git
   location: https://github.com/cardano-foundation/cardano-ledger-read
-  tag: 0ce0e7a8a8c0e9e9073cec9407a9e851d05ed13d
-  --sha256: 0c32h8z0bldxn1215aj4i3brxl8vhk4v35by3hscw1dxcjm8kw70
+  tag: cc9ca75f4b14967c714af502b50f7eee44d7a53c
+  --sha256: 1arsxznk4702v7sf2xnjs69jr0jdagkgf8cj3gz9cyqhjrzv27f5
 
 -- END cardano-ledger-read
 --------------------------------------------------------------------------------
@@ -141,8 +141,8 @@ source-repository-package
 source-repository-package
   type: git
   location: https://github.com/cardano-foundation/cardano-balance-transaction
-  tag: 964e8a232f492ce52a157e0b678af6881c35d184
-  --sha256: 0ndsj3q7v7qdiq2y24ily2hpyrmhzjmqgk49vsbncii7vyh7vy9v
+  tag: 5d69cc9bd47062b363929c877b83f0ab96369583
+  --sha256: 1mbbnq4i6sjyk6v6y1srhy42ybl9lb21yi39ifklsdpq1q84hzkz
 
 -- END cardano-balance-tx
 --------------------------------------------------------------------------------
@@ -158,6 +158,11 @@ allow-newer:
   , plutus-core:cardano-crypto
   , cardano-wallet-read:cardano-crypto
   , cardano-ledger-byron-test:cardano-ledger-byron
+  , cardano-coin-selection:random
+  -- cardano-lmdb 0.4.0.3 CHaP revision relaxes base bound for
+  -- GHC 9.12 but the revision is not visible at CHaP index-state
+  -- 2026-03-23. Pulled in transitively by ouroboros-consensus.
+  , cardano-lmdb:base
   , cardano-cli:cardano-api
   , hkd:base
 constraints:
@@ -179,41 +184,43 @@ constraints:
   , katip >= 0.8.7.4
 
 
-  -- Cardano Node 10.6.3 dependencies:
-  , cardano-api ==10.23.0.0
-  , cardano-binary ==1.7.2.0
+  -- Cardano Node 10.7.1 dependencies:
+  , cardano-api ==10.26.0.0
+  , cardano-binary ==1.8.0.0
   , cardano-crypto ==1.3.0
-  , cardano-crypto-class ==2.2.3.2
-  , cardano-crypto-praos ==2.2.1.1
-  , cardano-crypto-wrapper ==1.6.1.0
-  , cardano-data ==1.2.4.1
-  , cardano-ledger-allegra ==1.8.0.0
-  , cardano-ledger-alonzo ==1.14.0.0
-  , cardano-ledger-api ==1.12.1.0
-  , cardano-ledger-babbage ==1.12.0.0
-  , cardano-ledger-binary ==1.7.1.0
-  , cardano-ledger-byron ==1.2.0.0
-  , cardano-ledger-conway ==1.20.0.0
-  , cardano-ledger-core ==1.18.0.0
-  , cardano-ledger-mary ==1.9.0.0
-  , cardano-ledger-shelley ==1.17.0.0
-  , cardano-prelude ==0.2.1.0
-  , cardano-protocol-tpraos ==1.4.1.0
-  , cardano-slotting ==0.2.0.1
+  , cardano-crypto-class ==2.3.2.0
+  , cardano-crypto-praos ==2.2.2.0
+  , cardano-crypto-wrapper ==1.7.0.0
+  , cardano-data ==1.3.0.0
+  , cardano-ledger-allegra ==1.9.0.0
+  , cardano-ledger-alonzo ==1.15.0.1
+  , cardano-ledger-api ==1.13.0.0
+  , cardano-ledger-babbage ==1.13.0.0
+  , cardano-ledger-binary ==1.8.1.0
+  , cardano-ledger-byron ==1.3.0.0
+  , cardano-ledger-conway ==1.22.0.0
+  , cardano-ledger-core ==1.20.0.0
+  , cardano-ledger-mary ==1.10.0.0
+  , cardano-ledger-shelley ==1.18.1.0
+  , cardano-prelude ==0.2.2.0
+  , cardano-protocol-tpraos ==1.5.0.0
+  , cardano-slotting ==0.2.1.0
   , cardano-strict-containers ==0.1.6.0
+  , cardano-diffusion ==1.0.0.0
   , io-classes ==1.8.0.1
   , io-classes -asserts
-  , ouroboros-consensus ==0.30.0.1
-  , ouroboros-consensus-cardano ==0.26.0.3
-  , ouroboros-consensus-diffusion ==0.26.0.0
-  , ouroboros-consensus-protocol ==0.13.0.0
-  , ouroboros-network ==0.22.6.0
-  , ouroboros-network-api ==0.16.0.0
-  , ouroboros-network-framework ==0.19.3.0
-  , ouroboros-network-protocols ==0.15.2.0
-  , plutus-core ==1.57.0.0
-  , plutus-ledger-api ==1.57.0.0
-  , plutus-tx ==1.57.0.0
+  , ouroboros-consensus ==3.0.1.0
+  , ouroboros-network ==1.1.0.0
+  , typed-protocols ==1.2.0.0
+  , network-mux ==0.10.1.0
+  , io-sim ==1.8.0.1
+  , cardano-ledger-dijkstra ==0.2.0.1
+  , small-steps ==1.1.3.0
+  , vector-map ==1.2.0.0
+  , mempack ==0.2.1.0
+  , plutus-core ==1.61.0.0
+  , plutus-ledger-api ==1.61.0.0
+  , plutus-tx ==1.61.0.0
 
 -- Related to: https://github.com/haskell/cabal/issues/8554
 if impl(ghc == 8.10.7)

@@ -127,13 +127,14 @@ dijkstraAnyExplicitScript
        , AlonzoScript DijkstraEra
        )
     -> (TokenPolicyId, AnyExplicitScript)
-dijkstraAnyExplicitScript witCtx (scriptRef, scriptH, script) =
+dijkstraAnyExplicitScript _witCtx (scriptRef, scriptH, script) =
     (toWalletTokenPolicyId (PolicyID scriptH), toAnyScript script)
   where
     toAnyScript = \case
-        Alonzo.NativeScript timelockScript ->
+        -- TODO: Dijkstra era uses DijkstraNativeScript, not Timelock
+        Alonzo.NativeScript _timelockScript ->
             NativeExplicitScript
-                (toWalletScript (toKeyRole witCtx) timelockScript)
+                (error "TODO: DijkstraNativeScript conversion")
                 scriptRef
         Alonzo.PlutusScript s ->
             PlutusExplicitScript

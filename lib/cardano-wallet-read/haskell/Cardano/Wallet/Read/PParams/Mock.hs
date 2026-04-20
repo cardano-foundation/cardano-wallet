@@ -19,7 +19,6 @@ import Cardano.Ledger.Alonzo.PParams
     )
 import Cardano.Ledger.Babbage.PParams
     ( BabbagePParams (..)
-    , CoinPerByte (..)
     )
 import Cardano.Ledger.BaseTypes
     ( BoundedRational (..)
@@ -29,6 +28,7 @@ import Cardano.Ledger.BaseTypes
     )
 import Cardano.Ledger.Coin
     ( Coin (..)
+    , CoinPerByte (..)
     , CompactForm (CompactCoin)
     )
 import Cardano.Ledger.Conway.PParams
@@ -123,9 +123,9 @@ mockPParamsConway = Read.PParams $ unsafeWrap conwayPParams
     babbagePParams :: BabbagePParams Identity Babbage
     babbagePParams =
         BabbagePParams
-            { bppMinFeeA = lovelace 44
+            { bppTxFeePerByte = CoinPerByte (CompactCoin 44)
             , -- \^ The linear factor for the minimum fee calculation
-              bppMinFeeB = lovelace 155_381
+              bppTxFeeFixed = CompactCoin 155_381
             , -- \^ The constant factor for the minimum fee calculation
               bppMaxBBSize = 100_000
             , -- \^ Maximal block body size
@@ -133,7 +133,7 @@ mockPParamsConway = Read.PParams $ unsafeWrap conwayPParams
             , -- \^ Maximal transaction size
               bppMaxBHSize = 1_100
             , -- \^ Maximal block header size
-              bppKeyDeposit = ada 2
+              bppKeyDeposit = CompactCoin 2_000_000
             , -- \^ The amount of a key registration deposit
               bppPoolDeposit = CompactCoin 500_000_000
             , -- \^ The amount of a pool registration deposit
@@ -150,9 +150,9 @@ mockPParamsConway = Read.PParams $ unsafeWrap conwayPParams
             , -- \^ Treasury expansion
               bppProtocolVersion = ProtVer (natVersion @6) 0
             , -- \^ Protocol version
-              bppMinPoolCost = lovelace 170_000_000
+              bppMinPoolCost = CompactCoin 170_000_000
             , -- \^ Minimum Stake Pool Cost
-              bppCoinsPerUTxOByte = CoinPerByte (lovelace 4_310)
+              bppCoinsPerUTxOByte = CoinPerByte (CompactCoin 4_310)
             , -- \^ Cost in lovelace per byte of UTxO storage (instead of bppCoinsPerUTxOByte)
               bppCostModels = babbageCostModels
             , -- \^ Cost models for non-native script languages

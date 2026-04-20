@@ -24,6 +24,9 @@ import Cardano.Launcher.Node
     ( cardanoNodeConn
     , nodeSocketFile
     )
+import Cardano.Network.NodeToClient.Version
+    ( NodeToClientVersionData (..)
+    )
 import Cardano.Wallet.Launch.Cluster.Http.Monitor.OpenApi
     ( monitorStateSchema
     , observationSchema
@@ -67,9 +70,6 @@ import GHC.Generics
     )
 import Ouroboros.Network.Magic
     ( NetworkMagic (..)
-    )
-import Ouroboros.Network.NodeToClient
-    ( NodeToClientVersionData (..)
     )
 import Servant
     ( Post

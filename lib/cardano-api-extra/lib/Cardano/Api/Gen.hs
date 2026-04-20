@@ -1676,11 +1676,11 @@ genProtocolParametersUpdate = do
     protocolUpdateMaxBlockExUnits <-
         liftArbitrary genExecutionUnits
     protocolUpdateMaxValueSize <-
-        liftArbitrary genNat
+        liftArbitrary arbitrary
     protocolUpdateCollateralPercent <-
-        liftArbitrary genNat
+        liftArbitrary arbitrary
     protocolUpdateMaxCollateralInputs <-
-        liftArbitrary genNat
+        liftArbitrary arbitrary
 
     pure
         $ ProtocolParametersUpdate

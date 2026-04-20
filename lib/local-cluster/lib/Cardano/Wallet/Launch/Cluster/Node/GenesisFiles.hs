@@ -29,8 +29,6 @@ import Cardano.Ledger.Api
     , ppMaxBBSizeL
     , ppMaxBHSizeL
     , ppMaxTxSizeL
-    , ppMinFeeAL
-    , ppMinFeeBL
     , ppMinPoolCostL
     , ppMinUTxOValueL
     , ppNOptL
@@ -38,6 +36,8 @@ import Cardano.Ledger.Api
     , ppProtocolVersionL
     , ppRhoL
     , ppTauL
+    , ppTxFeeFixedL
+    , ppTxFeePerByteL
     )
 import Cardano.Ledger.BaseTypes
     ( EpochInterval (..)
@@ -45,6 +45,12 @@ import Cardano.Ledger.BaseTypes
     , Network (Testnet)
     , natVersion
     , unsafeNonZero
+    )
+import Cardano.Ledger.Coin
+    ( CoinPerByte (..)
+    )
+import Cardano.Ledger.Compactible
+    ( toCompact
     )
 import Cardano.Ledger.Shelley.API
     ( ShelleyGenesis (..)
@@ -111,7 +117,8 @@ import Data.IntCast
     ( intCast
     )
 import Data.Maybe
-    ( fromMaybe
+    ( fromJust
+    , fromMaybe
     )
 import Data.Time.Clock
     ( addUTCTime
@@ -239,9 +246,10 @@ generateGenesis initialFunds genesisMods = do
         let
             sgProtocolParams =
                 Ledger.emptyPParams
-                    & ppMinFeeAL
-                        .~ Ledger.Coin 100
-                    & ppMinFeeBL
+                    & ppTxFeePerByteL
+                        .~ CoinPerByte
+                            (fromJust $ toCompact (Ledger.Coin 100))
+                    & ppTxFeeFixedL
                         .~ Ledger.Coin 100_000
                     & ppMinUTxOValueL
                         .~ Ledger.Coin 1_000_000

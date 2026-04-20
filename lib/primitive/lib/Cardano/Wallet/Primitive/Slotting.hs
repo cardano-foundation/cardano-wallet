@@ -7,6 +7,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE Rank2Types #-}
 
@@ -184,6 +185,9 @@ import Ouroboros.Consensus.BlockchainTime.WallClock.Types
     )
 import Ouroboros.Consensus.HardFork.History.EpochInfo
     ( interpreterToEpochInfo
+    )
+import Ouroboros.Consensus.HardFork.History.EraParams
+    ( pattern NoPerasEnabled
     )
 import Ouroboros.Consensus.HardFork.History.Qry
     ( Expr (..)
@@ -538,7 +542,7 @@ instance ToText TimeInterpreterLog where
         endF (HF.EraEnd b) = boundF b
         endF (HF.EraUnbounded) = "<unbounded>"
 
-        boundF (HF.Bound _time _slot epoch) =
+        boundF (HF.Bound _time _slot epoch _) =
             mconcat
                 [ build $ show epoch
                 ]
@@ -576,7 +580,7 @@ mkSingleEraInterpreter start sp =
         }
   where
     int = mkInterpreter summary
-    summary = neverForksSummary sz len win
+    summary = neverForksSummary sz len win NoPerasEnabled
     win = GenesisWindow 0
     sz =
         Cardano.EpochSize

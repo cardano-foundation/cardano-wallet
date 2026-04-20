@@ -290,11 +290,13 @@ spec = do
                     (RelativeTime 20)
                     (SlotNo 20)
                     (Cardano.EpochNo 1)
+                    HF.NoPerasEnabled
             t2 =
                 HF.Bound
                     (RelativeTime 40)
                     (SlotNo 40)
                     (Cardano.EpochNo 2)
+                    HF.NoPerasEnabled
 
             era1Params =
                 HF.defaultEraParams (SecurityParam (unsafeNonZero 2)) (mkSlotLength 1)

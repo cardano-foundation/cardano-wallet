@@ -22,6 +22,9 @@ import Cardano.Chain.Genesis
     ( GenesisData (..)
     , readGenesisData
     )
+import Cardano.Network.NodeToClient.Version
+    ( NodeToClientVersionData (..)
+    )
 import Cardano.Wallet.Primitive.NetworkId
     ( NetworkId (..)
     )
@@ -37,9 +40,6 @@ import Control.Monad.Trans.Except
     )
 import Ouroboros.Network.Magic
     ( NetworkMagic (..)
-    )
-import Ouroboros.Network.NodeToClient
-    ( NodeToClientVersionData (..)
     )
 import Prelude
 

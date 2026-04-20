@@ -317,7 +317,7 @@ protocolParametersFromPP eraInfo pp =
         , executionUnitPrices = Nothing
         }
   where
-    fromBound (Bound _relTime _slotNo (O.EpochNo e)) =
+    fromBound (Bound _relTime _slotNo (O.EpochNo e) _) =
         W.EpochNo $ fromIntegral e
 
 -- | Convert non AVVM balances to genesis UTxO.

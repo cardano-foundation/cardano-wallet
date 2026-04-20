@@ -108,6 +108,7 @@ library
     , cardano-binary
     , cardano-cli
     , cardano-data
+    , cardano-diffusion:api
     , cardano-ledger-api
     , cardano-ledger-core
     , cardano-ledger-shelley
@@ -142,8 +143,7 @@ library
     , OddWord
     , openapi3
     , optparse-applicative
-    , ouroboros-network
-    , ouroboros-network-api
+    , ouroboros-network:api
     , pathtype
     , profunctors
     , QuickCheck
@@ -234,6 +234,7 @@ common test-common
     , bytestring
     , cardano-addresses
     , cardano-binary
+    , cardano-diffusion:api
     , cardano-ledger-alonzo
     , cardano-ledger-babbage
     , cardano-ledger-byron
@@ -257,8 +258,8 @@ common test-common
     , local-cluster:local-cluster-process
     , mtl
     , openapi3
-    , ouroboros-consensus-cardano
-    , ouroboros-network
+    , ouroboros-consensus:cardano
+    , ouroboros-network:api
     , pathtype
     , QuickCheck
     , streaming

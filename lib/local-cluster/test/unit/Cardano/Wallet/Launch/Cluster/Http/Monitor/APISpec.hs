@@ -17,6 +17,9 @@ import Cardano.Launcher.Node
 import Cardano.Ledger.Shelley.Genesis
     ( ShelleyGenesis
     )
+import Cardano.Network.NodeToClient.Version
+    ( NodeToClientVersionData (..)
+    )
 import Cardano.Wallet.Launch.Cluster
     ( RunningNode (..)
     )
@@ -62,9 +65,6 @@ import Data.Time
     )
 import Ouroboros.Network.Magic
     ( NetworkMagic (..)
-    )
-import Ouroboros.Network.NodeToClient
-    ( NodeToClientVersionData (..)
     )
 import Test.Hspec
     ( Expectation

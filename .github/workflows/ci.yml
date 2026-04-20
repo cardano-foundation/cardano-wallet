@@ -647,7 +647,7 @@ jobs:
             command: nix develop --quiet --command scripts/todo-list.sh
 
           - name: "Check HLS Works"
-            command: nix develop --quiet --command bash -c "haskell-language-server lib/wallet/src/Cardano/Wallet.hs"
+            command: nix develop --quiet --command bash -c "rm -f cabal.project.local; haskell-language-server lib/wallet/src/Cardano/Wallet.hs"
 
           - name: "Check git revision"
             command: scripts/ci/git-revision.sh

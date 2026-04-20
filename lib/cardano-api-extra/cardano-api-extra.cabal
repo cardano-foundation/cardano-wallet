@@ -44,10 +44,10 @@ library
     , cardano-api
     , cardano-binary
     , cardano-crypto-class
-    , cardano-crypto-test
+    , cardano-crypto-wrapper:testlib
     , cardano-ledger-alonzo
     , cardano-ledger-api
-    , cardano-ledger-byron-test
+    , cardano-ledger-byron:testlib
     , cardano-ledger-conway:testlib
     , cardano-ledger-core
     , cardano-ledger-core:testlib

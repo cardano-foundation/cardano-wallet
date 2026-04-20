@@ -5489,7 +5489,9 @@ fromApiRedeemer = \case
     ApiRedeemerMinting (ApiBytesT bytes) (ApiT p) ->
         Write.RedeemerMinting bytes (toLedger p)
     ApiRedeemerRewarding (ApiBytesT bytes) (StakeAddress x y) ->
-        Write.RedeemerRewarding bytes (Ledger.RewardAccount x y)
+        Write.RedeemerRewarding
+            bytes
+            (Ledger.AccountAddress x (Ledger.AccountId y))
 
 sealWriteTx
     :: forall era. Write.IsRecentEra era => Write.Tx era -> W.SealedTx

@@ -50,7 +50,8 @@ import Cardano.Ledger.Hashes
     ( TxAuxDataHash
     )
 import Cardano.Ledger.Keys
-    ( KeyHash
+    ( Guard
+    , KeyHash
     , KeyRole (..)
     )
 import Cardano.Ledger.Mary.Value
@@ -108,7 +109,7 @@ import Cardano.Ledger.Core qualified as L
 
 mkBabbageTx
     :: TxParameters
-    -> L.Tx BabbageEra
+    -> L.Tx L.TopTx BabbageEra
 mkBabbageTx TxParameters{txInputs, txOutputs} =
     MkBabbageTx $ AlonzoTx (body txInputs txOutputs) wits valid aux
 
@@ -124,7 +125,7 @@ aux = maybeToStrictMaybe Nothing
 body
     :: NonEmpty (Index, TxId)
     -> NonEmpty (Address, Lovelace)
-    -> TxBody BabbageEra
+    -> TxBody L.TopTx BabbageEra
 body ins outs =
     BabbageTxBody
         (txins ins)
@@ -177,7 +178,7 @@ auxhash = SNothing
 integrity :: StrictMaybe ScriptIntegrityHash
 integrity = SNothing
 
-whash :: Set (KeyHash 'Witness)
+whash :: Set (KeyHash Guard)
 whash = mempty
 
 collateralIns :: Set TxIn
@@ -186,5 +187,5 @@ collateralIns = mempty
 mint :: MultiAsset
 mint = mempty
 
-exampleBabbageTx :: L.Tx BabbageEra
+exampleBabbageTx :: L.Tx L.TopTx BabbageEra
 exampleBabbageTx = mkBabbageTx exampleTxParameters

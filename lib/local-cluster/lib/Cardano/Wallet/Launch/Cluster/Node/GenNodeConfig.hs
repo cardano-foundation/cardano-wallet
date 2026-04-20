@@ -21,6 +21,9 @@ import Cardano.BM.Data.Severity
 import Cardano.Ledger.Shelley.API
     ( ShelleyGenesis (..)
     )
+import Cardano.Network.NodeToClient.Version
+    ( NodeToClientVersionData (..)
+    )
 import Cardano.Wallet.Launch.Cluster.Aeson
     ( ChangeValue
     )
@@ -85,9 +88,6 @@ import Data.Tagged
     )
 import Ouroboros.Network.Magic
     ( NetworkMagic (..)
-    )
-import Ouroboros.Network.NodeToClient
-    ( NodeToClientVersionData (..)
     )
 import System.Path
     ( RelDir

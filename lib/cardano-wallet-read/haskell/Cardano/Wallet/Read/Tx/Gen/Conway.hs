@@ -55,7 +55,8 @@ import Cardano.Ledger.Hashes
     ( TxAuxDataHash
     )
 import Cardano.Ledger.Keys
-    ( KeyHash
+    ( Guard
+    , KeyHash
     , KeyRole (..)
     )
 import Cardano.Ledger.Mary.Value
@@ -113,7 +114,7 @@ import Cardano.Ledger.Core qualified as L
 
 mkConwayTx
     :: TxParameters
-    -> L.Tx ConwayEra
+    -> L.Tx L.TopTx ConwayEra
 mkConwayTx TxParameters{txInputs, txOutputs} =
     MkConwayTx $ AlonzoTx (body txInputs txOutputs) wits valid aux
 
@@ -129,7 +130,7 @@ aux = SNothing
 body
     :: NonEmpty (Index, TxId)
     -> NonEmpty (Address, Lovelace)
-    -> TxBody ConwayEra
+    -> TxBody L.TopTx ConwayEra
 body ins outs =
     ConwayTxBody
         (txins ins)
@@ -162,7 +163,7 @@ proposalProcedures = mempty
 votingProcedures :: VotingProcedures ConwayEra
 votingProcedures = VotingProcedures mempty
 
-witnesses :: Set (KeyHash 'Witness)
+witnesses :: Set (KeyHash Guard)
 witnesses = mempty
 
 certs :: OSet (ConwayTxCert ConwayEra)
@@ -200,5 +201,5 @@ collateralIns = mempty
 mint :: MultiAsset
 mint = mempty
 
-exampleConwayTx :: L.Tx ConwayEra
+exampleConwayTx :: L.Tx L.TopTx ConwayEra
 exampleConwayTx = mkConwayTx exampleTxParameters
