@@ -3,11 +3,27 @@
   lib,
   pkgs,
   ...
-}: let
+}:
+let
   cfg = config.services.cardano-wallet;
-  inherit (lib) mkIf mkEnableOption mkOption types;
-  logLevels = ["DEBUG" "INFO" "NOTICE" "WARNING" "ERROR" "CRITICAL" "ALERT" "EMERGENCY"];
-in {
+  inherit (lib)
+    mkIf
+    mkEnableOption
+    mkOption
+    types
+    ;
+  logLevels = [
+    "DEBUG"
+    "INFO"
+    "NOTICE"
+    "WARNING"
+    "ERROR"
+    "CRITICAL"
+    "ALERT"
+    "EMERGENCY"
+  ];
+in
+{
   options.services.cardano-wallet = {
     enable = mkEnableOption "Cardano Wallet service";
 
@@ -37,43 +53,48 @@ in {
           "\"$CARDANO_NODE_SOCKET_PATH\""
           "--pool-metadata-fetching"
           (
-            if (cfg.poolMetadataFetching.enable)
-            then
-              (
-                if cfg.poolMetadataFetching.smashUrl != null
-                then cfg.poolMetadataFetching.smashUrl
-                else "direct"
-              )
-            else "none"
+            if (cfg.poolMetadataFetching.enable) then
+              (if cfg.poolMetadataFetching.smashUrl != null then cfg.poolMetadataFetching.smashUrl else "direct")
+            else
+              "none"
           )
           "--${cfg.walletMode}"
         ]
-        ++ lib.optional (cfg.walletMode != "mainnet")
-        (lib.escapeShellArg cfg.genesisFile)
-        ++ lib.optionals (cfg.tokenMetadataServer != null)
-        ["--token-metadata-server" cfg.tokenMetadataServer]
-        ++ lib.optionals (cfg.database != null)
-        ["--database" "\"$STATE_DIRECTORY\""]
-        ++ lib.mapAttrsToList
-        (name: level: "--trace-${name}=${level}")
-        cfg.trace
+        ++ lib.optional (cfg.walletMode != "mainnet") (lib.escapeShellArg cfg.genesisFile)
+        ++ lib.optionals (cfg.tokenMetadataServer != null) [
+          "--token-metadata-server"
+          cfg.tokenMetadataServer
+        ]
+        ++ lib.optionals (cfg.database != null) [
+          "--database"
+          "\"$STATE_DIRECTORY\""
+        ]
+        ++ lib.mapAttrsToList (name: level: "--trace-${name}=${level}") cfg.trace
       );
     };
 
     command = mkOption {
       type = types.str;
       internal = true;
-      default = lib.concatStringsSep " " ([
+      default = lib.concatStringsSep " " (
+        [
           "${cfg.package}/bin/${cfg.package.exeName}"
           "serve"
           cfg.serverArgs
         ]
-        ++ lib.optionals (cfg.rtsOpts != "") ["+RTS" cfg.rtsOpts "-RTS"]);
+        ++ lib.optionals (cfg.rtsOpts != "") [
+          "+RTS"
+          cfg.rtsOpts
+          "-RTS"
+        ]
+      );
     };
 
     package = mkOption {
       type = types.package;
-      default = ((import ../.. {}).legacyPackages.${pkgs.system}).hsPkgs.cardano-wallet-application.components.exes.cardano-wallet;
+      default =
+        ((import ../.. { }).legacyPackages.${pkgs.system})
+        .hsPkgs.cardano-wallet-application.components.exes.cardano-wallet;
       description = "Package for the cardano wallet executable.";
     };
 
@@ -98,11 +119,14 @@ in {
     nodeSocket = mkOption {
       type = types.str;
       default = "/run/cardano-node/node.socket";
-      description = ''Cardano-Node local communication socket path.'';
+      description = "Cardano-Node local communication socket path.";
     };
 
     walletMode = mkOption {
-      type = types.enum ["mainnet" "testnet"];
+      type = types.enum [
+        "mainnet"
+        "testnet"
+      ];
       default = "mainnet";
       description = "Which mode to start wallet in: --mainnet or --testnet";
     };
@@ -110,7 +134,8 @@ in {
     database = mkOption {
       type = types.nullOr types.str;
       default = "cardano-wallet";
-      description = ''        Directory (under /var/lib/) for storing wallets.
+      description = ''
+        Directory (under /var/lib/) for storing wallets.
                 Run in-memory if null.
                 Default to 'cardano-wallet'.
       '';
@@ -137,7 +162,9 @@ in {
           };
         };
       };
-      default = {enable = false;};
+      default = {
+        enable = false;
+      };
       example = {
         enable = true;
         smashUrl = "https://smash.cardano-mainnet.iohk.io";
@@ -163,8 +190,8 @@ in {
     };
 
     trace = mkOption {
-      type = types.attrsOf (types.enum (logLevels ++ ["off"]));
-      default = {};
+      type = types.attrsOf (types.enum (logLevels ++ [ "off" ]));
+      default = { };
       description = ''
         For each tracer, minimum severity for a message to be logged, or
         "off" to disable the tracer".
@@ -186,7 +213,8 @@ in {
     assertions = [
       {
         assertion = (cfg.walletMode == "mainnet") == (cfg.genesisFile == null);
-        message = ''          The option services.cardano-wallet.genesisFile must be set
+        message = ''
+          The option services.cardano-wallet.genesisFile must be set
                   if, and only if, services.cardano-wallet.walletMode is not \"mainnet\".
         '';
       }
@@ -198,7 +226,7 @@ in {
 
     systemd.services.cardano-wallet = {
       description = "cardano-wallet daemon";
-      wantedBy = ["multi-user.target"];
+      wantedBy = [ "multi-user.target" ];
 
       serviceConfig = {
         DynamicUser = true;

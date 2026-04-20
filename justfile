@@ -9,6 +9,21 @@ default:
 syntax:
   scripts/ci/check-code-format.sh
 
+# format every Haskell, Cabal and Nix file the CI format check covers
+fmt:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  echo "+++ fourmolu"
+  fourmolu --mode inplace $(git ls-files -- '*.hs')
+  echo "+++ cabal-fmt"
+  find lib -name '*.cabal' -exec cabal-fmt -i {} \;
+  echo "+++ nixfmt"
+  nixfmt $(git ls-files -- '*.nix')
+
+# verify formatting matches CI (runs the exact CI script)
+check-fmt:
+  scripts/ci/check-code-format.sh
+
 hlint:
   nix develop --command bash -c 'hlint lib'
 

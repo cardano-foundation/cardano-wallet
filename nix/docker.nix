@@ -18,7 +18,7 @@
   # The main contents of the image: cardano-wallet executables
   exes,
   # Executables to include in the image as a base layer: node and utilities
-  base ? [],
+  base ? [ ],
   # Other things to include in the image.
   iana-etc,
   cacert,
@@ -30,7 +30,8 @@
   # Used to generate the docker image names
   repoName ? "cardanofoundation/cardano-wallet",
   tag,
-}: let
+}:
+let
   defaultPort = "8090";
   dataDir = "/data";
 
@@ -50,10 +51,7 @@
     exec /bin/cardano-wallet "$@"
   '';
 
-  haveGlibcLocales =
-    glibcLocales
-    != null
-    && stdenv.hostPlatform.libc == "glibc";
+  haveGlibcLocales = glibcLocales != null && stdenv.hostPlatform.libc == "glibc";
 
   # Config file needed for container/host resolution.
   nsswitch-conf = writeTextFile {
@@ -68,17 +66,16 @@
     name = "${repoName}-env";
     copyToRoot = buildEnv {
       name = "${repoName}-env-packages";
-      paths =
-        [
-          iana-etc
-          cacert
-          nsswitch-conf
-          bashInteractive
-          coreutils
-          gnugrep
-          findutils
-        ]
-        ++ lib.optional haveGlibcLocales glibcLocales;
+      paths = [
+        iana-etc
+        cacert
+        nsswitch-conf
+        bashInteractive
+        coreutils
+        gnugrep
+        findutils
+      ]
+      ++ lib.optional haveGlibcLocales glibcLocales;
     };
     # set up /tmp (override with TMPDIR variable)
     extraCommands = "mkdir -m 0777 tmp";
@@ -96,7 +93,7 @@
     fromImage = envImage;
     copyToRoot = buildEnv {
       name = "${repoName}-base-packages";
-      paths = base ++ [nodeConfigs];
+      paths = base ++ [ nodeConfigs ];
     };
   };
 
@@ -108,18 +105,18 @@
     fromImage = baseImage;
     copyToRoot = buildEnv {
       name = "${repoName}-main-packages";
-      paths = exes ++ [startScript];
+      paths = exes ++ [ startScript ];
     };
     config = {
-      EntryPoint = ["start-cardano-wallet"];
+      EntryPoint = [ "start-cardano-wallet" ];
       ExposedPorts = {
-        "${defaultPort}/tcp" = {}; # wallet api
+        "${defaultPort}/tcp" = { }; # wallet api
       };
-      Volume = [dataDir];
+      Volume = [ dataDir ];
     };
   };
 in
-  mainImage
-  // {
-    inherit tag;
-  }
+mainImage
+// {
+  inherit tag;
+}

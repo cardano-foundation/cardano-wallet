@@ -14,4 +14,9 @@ echo "+++ Check code format: cabal-fmt"
 
 find lib -name '*.cabal' -exec cabal-fmt -i {} \;
 
+echo "+++ Check code format: nixfmt"
+
+# shellcheck disable=SC2046
+nixfmt $(git ls-files -- '*.nix')
+
 git diff --exit-code

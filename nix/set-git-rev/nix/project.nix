@@ -3,44 +3,58 @@
   src,
   haskell-nix,
   ...
-}: let
-  shell = {pkgs, ...}: {
-    tools = {
-      cabal = {index-state = indexState;};
-      cabal-fmt = {index-state = indexState;};
-      haskell-language-server = {index-state = indexState;};
-      hoogle = {index-state = indexState;};
+}:
+let
+  shell =
+    { pkgs, ... }:
+    {
+      tools = {
+        cabal = {
+          index-state = indexState;
+        };
+        cabal-fmt = {
+          index-state = indexState;
+        };
+        haskell-language-server = {
+          index-state = indexState;
+        };
+        hoogle = {
+          index-state = indexState;
+        };
+      };
+      withHoogle = true;
+      buildInputs = [
+        pkgs.just
+        pkgs.gitAndTools.git
+        pkgs.haskellPackages.fourmolu
+        pkgs.haskellPackages.ghcid
+        pkgs.haskellPackages.hlint
+      ];
+      shellHook = ''
+        echo "Entering shell for set-git-rev development"
+      '';
     };
-    withHoogle = true;
-    buildInputs = [
-      pkgs.just
-      pkgs.gitAndTools.git
-      pkgs.haskellPackages.fourmolu
-      pkgs.haskellPackages.ghcid
-      pkgs.haskellPackages.hlint
-    ];
-    shellHook = ''
-      echo "Entering shell for set-git-rev development"
-    '';
-  };
 
-  mkProject = ctx @ {
-    lib,
-    pkgs,
-    ...
-  }: {
-    name = "cardano-deposit-wallet";
-    compiler-nix-name = "ghc9123";
-    inherit src;
-    shell = shell {inherit pkgs;};
-    modules = [];
-  };
+  mkProject =
+    ctx@{
+      lib,
+      pkgs,
+      ...
+    }:
+    {
+      name = "cardano-deposit-wallet";
+      compiler-nix-name = "ghc9123";
+      inherit src;
+      shell = shell { inherit pkgs; };
+      modules = [ ];
+    };
   project = haskell-nix.cabalProject' mkProject;
   packages = {
     inherit project;
     default = packages.project.hsPkgs.set-git-rev.components.exes.set-git-rev;
   };
-in {
+in
+{
   inherit packages;
   devShell = project.shell;
 }

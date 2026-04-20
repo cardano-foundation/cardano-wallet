@@ -13,29 +13,28 @@
   set-git-rev ? null, # set-git-rev tool derivation
   gitrev ? null, # git revision string to stamp into binaries
 }:
-with pkgs.lib; let
+with pkgs.lib;
+let
   drv = pkgs.stdenv.mkDerivation rec {
     name = "${exe.exeName}-${version}";
     version = exe.identifier.version;
-    phases = ["installPhase"];
-    installPhase =
-      ''
-        cp -RL ${exe} $out
-      ''
-      + (optionalString (set-git-rev != null && gitrev != null) ''
-        chmod +w $out/bin/*
-        ${set-git-rev}/bin/set-git-rev "${gitrev}" $out/bin/*
-      '')
-      + (optionalString (pkgs.stdenv.hostPlatform.isWindows && backend != null) ''
-        # fixme: remove this
-        cp -RvL ${backend.deployments} $out/deployments
-      '');
+    phases = [ "installPhase" ];
+    installPhase = ''
+      cp -RL ${exe} $out
+    ''
+    + (optionalString (set-git-rev != null && gitrev != null) ''
+      chmod +w $out/bin/*
+      ${set-git-rev}/bin/set-git-rev "${gitrev}" $out/bin/*
+    '')
+    + (optionalString (pkgs.stdenv.hostPlatform.isWindows && backend != null) ''
+      # fixme: remove this
+      cp -RvL ${backend.deployments} $out/deployments
+    '');
     meta.platforms = platforms.all;
-    passthru =
-      {
-        exePath = drv + "/bin/cardano-wallet";
-      }
-      // (optionalAttrs (backend != null) {inherit backend;});
+    passthru = {
+      exePath = drv + "/bin/cardano-wallet";
+    }
+    // (optionalAttrs (backend != null) { inherit backend; });
   };
 in
-  drv
+drv
