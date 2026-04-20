@@ -218,6 +218,36 @@
 <tr><td><a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/lean.yml"><code>lean.yml</code></a></td><td>push, PR</td><td>Lean specification checks (path-filtered to <code>specifications/</code>)</td></tr>
 </tbody></table>
 </div>
+<h2 id="benchmark-history"><a class="header" href="#benchmark-history">Benchmark History</a></h2>
+<p>The benchmark history pipeline (<code>benchmark-history.sh</code>) automatically aggregates performance data from recent CI runs to track regressions over time. It produces CSV data and SVG charts that are uploaded as workflow artifacts.</p>
+<h3 id="data-collection"><a class="header" href="#data-collection">Data collection</a></h3>
+<p>The pipeline follows these steps to gather data:</p>
+<ol>
+<li><strong>Discovery</strong>: Uses <code>gh run list</code> to find the last 6 months of successful <code>Linux Benchmarks</code> runs on the <code>master</code> branch.</li>
+<li><strong>Download</strong>: For each unique day with a successful run, it downloads the CSV artifacts from the following benchmark jobs:
+<ul>
+<li>API Benchmark</li>
+<li>Latency Benchmark</li>
+<li>DB Benchmark</li>
+<li>Read-blocks Benchmark</li>
+<li>Memory Benchmark</li>
+</ul>
+</li>
+<li><strong>Aggregation</strong>: Combines the downloaded CSVs with the results from the current run.</li>
+</ol>
+<h3 id="checkpoint-mechanism"><a class="header" href="#checkpoint-mechanism">Checkpoint mechanism</a></h3>
+<p>To avoid downloading hundreds of historical runs in every CI session, the pipeline uses a <strong>checkpoint</strong> system:</p>
+<ul>
+<li>It attempts to download the <code>Benchmark History</code> artifact from the <em>most recent</em> successful run of the same workflow.</li>
+<li>If found, it uses the <code>benchmark-history.csv</code> from that artifact as a starting point (<code>--checkpoint</code>).</li>
+<li>Only runs newer than the checkpoint are downloaded and merged.</li>
+</ul>
+<h3 id="artifact-retention"><a class="header" href="#artifact-retention">Artifact retention</a></h3>
+<ul>
+<li><strong>Historical data</strong>: The aggregated <code>benchmark-history.csv</code> is the source of truth for all historical data.</li>
+<li><strong>Charts</strong>: SVG charts are regenerated on every successful <code>master</code> run, providing a visual representation of performance trends for each benchmark category.</li>
+<li><strong>Retention</strong>: GitHub Actions retains these artifacts according to the repository's retention policy (typically 90 days). The checkpoint mechanism ensures that data is preserved in the <em>latest</em> artifact even if the original individual run artifacts have expired.</li>
+</ul>
 <h2 id="nix-verbosity"><a class="header" href="#nix-verbosity">Nix verbosity</a></h2>
 <p>All <code>nix</code> commands in CI workflows must include the <code>--quiet</code> flag. This suppresses verbose build logs and warnings that clutter GitHub Actions output, making it easier to spot actual failures.</p>
 <pre><code class="language-yaml"># Good

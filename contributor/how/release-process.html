@@ -184,7 +184,7 @@
 <p>Even though the act of making a release frequently reveals <strong>problems</strong> in our <strong>testing</strong> and <strong>dependency</strong> infrastructure, solving these problems is <strong>not in scope</strong> for the present decision — they need their own decisions.</p>
 <h2 id="release-candidate-branches"><a class="header" href="#release-candidate-branches"><strong>Release candidate branches</strong></a></h2>
 <p>Unfortunately, releasing directly from the <code>master</code> branch is not quite practical for two reasons: a) secondary CI and b) administrative commits.</p>
-<p>Our <a href="../decisions/2023-01-27-continuous-integration.html">Continuous Integration</a> can be grouped into two categories:</p>
+<p>Our <a href="../decisions/2026-02-10-migrate-ci-to-github-actions.html">Continuous Integration</a> can be grouped into two categories:</p>
 <ul>
 <li>Primary CI — gatekeeper for accepting pull requests to the <code>master</code> branch.</li>
 <li>Secondary CI — gatekeeper for making releases.</li>
@@ -234,7 +234,7 @@
 <li>Amend the <strong>description</strong> of the change to give more context.</li>
 </ul>
 <h2 id="release-checklist"><a class="header" href="#release-checklist"><strong>Release checklist</strong></a></h2>
-<p>We use a <strong>release checklist</strong> in order to ensure that we do not miss creating, testing, or publishing any artifact. The focus of the checklist is for a human to <strong>verify</strong> that nothing has been missed — creating and testing the artifacts should be automated as much as possible by <a href="../decisions/2023-01-27-continuous-integration.html">Continuous Integration</a>.</p>
+<p>We use a <strong>release checklist</strong> in order to ensure that we do not miss creating, testing, or publishing any artifact. The focus of the checklist is for a human to <strong>verify</strong> that nothing has been missed — creating and testing the artifacts should be automated as much as possible by <a href="../decisions/2026-02-10-migrate-ci-to-github-actions.html">Continuous Integration</a>.</p>
 <p>(The work required to perform the release checklist, resulting in the publication of the release artifacts, is tracked in a ticketing system decided in our <a href="../decisions/2023-07-28-workflow-review.html">HAL Workflow Review</a>.)</p>
 <p>The release checklist is subject to updates as the environment changes. Here, we only specify the <strong>general outline</strong> of the release checklist:</p>
 <ol>
@@ -276,7 +276,7 @@
 </div>
 <h1 id="rationale"><a class="header" href="#rationale"><strong>Rationale</strong></a></h1>
 <h2 id="trunk-based-development-1"><a class="header" href="#trunk-based-development-1"><strong>Trunk-based development</strong></a></h2>
-<p>Experience, both by us (<a href="../decisions/2023-01-27-continuous-integration.html">Continuous Integration</a>) and by others <em>Phoenix2013</em><sup class="footnote-reference" id="fr-2-1"><a href="#footnote-2">1</a></sup>, <em>Google2020</em><sup class="footnote-reference" id="fr-3-1"><a href="#footnote-3">2</a></sup>, indicates that trunk-based development is the way to go — the ability to release at any time ensures the ability to release in the first place. Even though problems with testing and dependency management frequently resurface, they do not grow so bad that they become intractable.</p>
+<p>Experience, both by us (<a href="../decisions/2026-02-10-migrate-ci-to-github-actions.html">Continuous Integration</a>) and by others <em>Phoenix2013</em><sup class="footnote-reference" id="fr-2-1"><a href="#footnote-2">1</a></sup>, <em>Google2020</em><sup class="footnote-reference" id="fr-3-1"><a href="#footnote-3">2</a></sup>, indicates that trunk-based development is the way to go — the ability to release at any time ensures the ability to release in the first place. Even though problems with testing and dependency management frequently resurface, they do not grow so bad that they become intractable.</p>
 <h2 id="bundling-dependent-executables"><a class="header" href="#bundling-dependent-executables"><strong>Bundling dependent executables</strong></a></h2>
 <p>We bundle both the <code>cardano-wallet</code> executable, but also dependent executables such as <code>cardano-node</code> or <code>carano-address</code> in our compressed archive that is released. I believe that this is worth doing for several reasons:</p>
 <ul>
