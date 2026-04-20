@@ -9,9 +9,8 @@
 # because overlays don't propagate through buildPackages chains.
 final: prev: {
   haskell = prev.haskell // {
-    packageOverrides = final.lib.composeExtensions
-      (prev.haskell.packageOverrides or (_: _: {}))
-      (hfinal: hprev: {
+    packageOverrides = final.lib.composeExtensions (prev.haskell.packageOverrides or (_: _: { })) (
+      hfinal: hprev: {
         ghc-lib-parser = final.haskell.lib.compose.overrideCabal (drv: {
           postPatch = (drv.postPatch or "") + ''
             if [ -f compiler/cbits/genSym.c ] \
@@ -21,6 +20,7 @@ final: prev: {
             fi
           '';
         }) hprev.ghc-lib-parser;
-      });
+      }
+    );
   };
 }

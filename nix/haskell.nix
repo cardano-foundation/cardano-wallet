@@ -1,38 +1,49 @@
 ############################################################################
 # Builds Haskell packages with Haskell.nix
 ############################################################################
-CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: set-git-rev: rewrite-libs: haskell-nix.cabalProject' [
-  ({ lib, pkgs, buildProject, ... }: {
-    options = {
-      gitrev = lib.mkOption {
-        type = lib.types.str;
-        description = "Git revision of sources";
-        default = "0000000000000000000000000000000000000000";
-      };
-      profiling = lib.mkOption {
-        type = lib.types.bool;
-        description = "Enable profiling";
-        default = false;
-      };
-      coverage = lib.mkOption {
-        type = lib.types.bool;
-        description = "Enable Haskell Program Coverage for cardano-wallet libraries and test suites.";
-        default = false;
-      };
-      cacheTestFailures = lib.mkOption {
-        type = lib.types.bool;
-        description = ''If false, prevent check results from being cached on `nix build`'';
-        default = true;
-      };
+CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: set-git-rev: rewrite-libs:
+haskell-nix.cabalProject' [
+  (
+    {
+      lib,
+      pkgs,
+      buildProject,
+      ...
+    }:
+    {
+      options = {
+        gitrev = lib.mkOption {
+          type = lib.types.str;
+          description = "Git revision of sources";
+          default = "0000000000000000000000000000000000000000";
+        };
+        profiling = lib.mkOption {
+          type = lib.types.bool;
+          description = "Enable profiling";
+          default = false;
+        };
+        coverage = lib.mkOption {
+          type = lib.types.bool;
+          description = "Enable Haskell Program Coverage for cardano-wallet libraries and test suites.";
+          default = false;
+        };
+        cacheTestFailures = lib.mkOption {
+          type = lib.types.bool;
+          description = "If false, prevent check results from being cached on `nix build`";
+          default = true;
+        };
 
-    };
-  })
-  ({ pkgs
-   , lib
-   , config
-   , buildProject
-   , ...
-   }:
+      };
+    }
+  )
+  (
+    {
+      pkgs,
+      lib,
+      config,
+      buildProject,
+      ...
+    }:
 
     let
       inherit (pkgs) stdenv;
@@ -54,11 +65,19 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: set-git-rev: rewrite-l
       # setGitRev is a postInstall script to stamp executables with
       # version info. It uses the "gitrev" option.
       setGitRevPostInstall = ''
-         ${set-git-rev}/bin/set-git-rev "${config.gitrev}" $out/bin/*
-        '';
+        ${set-git-rev}/bin/set-git-rev "${config.gitrev}" $out/bin/*
+      '';
 
       rewriteLibsPostInstall = lib.optionalString (pkgs.stdenv.hostPlatform.isDarwin) ''
-        export PATH=$PATH:${lib.makeBinPath (with pkgs.buildPackages; [ binutils nix ])}
+        export PATH=$PATH:${
+          lib.makeBinPath (
+            with pkgs.buildPackages;
+            [
+              binutils
+              nix
+            ]
+          )
+        }
         ${rewrite-libs}/bin/rewrite-libs $out/bin $out/bin/*
       '';
 
@@ -97,7 +116,8 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: set-git-rev: rewrite-l
 
       localClusterConfigs = config.src + /lib/local-cluster/test/data/cluster-configs;
 
-    in {
+    in
+    {
       name = "cardano-wallet";
       compiler-nix-name = "ghc9123";
 
@@ -113,17 +133,20 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: set-git-rev: rewrite-l
         # haskell.nix does not register sublibraries in the shell's
         # GHC package database (issue #1662). Add them explicitly so
         # that cabal build inside nix develop can resolve them.
-        additional = hsPkgs: with hsPkgs; [
-          ouroboros-consensus.components.sublibs.cardano
-          ouroboros-consensus.components.sublibs.protocol
-          ouroboros-consensus.components.sublibs.diffusion
-          ouroboros-network.components.sublibs.api
-          ouroboros-network.components.sublibs.framework
-          ouroboros-network.components.sublibs.protocols
-          cardano-diffusion.components.sublibs.api
-        ];
+        additional =
+          hsPkgs: with hsPkgs; [
+            ouroboros-consensus.components.sublibs.cardano
+            ouroboros-consensus.components.sublibs.protocol
+            ouroboros-consensus.components.sublibs.diffusion
+            ouroboros-network.components.sublibs.api
+            ouroboros-network.components.sublibs.framework
+            ouroboros-network.components.sublibs.protocols
+            cardano-diffusion.components.sublibs.api
+          ];
         tools = {
-          cabal = { index-state = indexState; };
+          cabal = {
+            index-state = indexState;
+          };
           # cabal-fmt doesn't support base-4.20 (GHC 9.10) yet
           # cabal-fmt = { index-state = indexState; };
           haskell-language-server = {
@@ -131,15 +154,17 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: set-git-rev: rewrite-l
             version = "latest";
             # Patch ghc-lib-parser genSym.c: atomic_inc64 → atomic_inc
             # (upstream bug in 9.8.5.20250214)
-            modules = [{
-              packages.ghc-lib-parser.postPatch = ''
-                if [ -f compiler/cbits/genSym.c ] \
-                    && grep -q 'atomic_inc64' compiler/cbits/genSym.c; then
-                  substituteInPlace compiler/cbits/genSym.c \
-                    --replace-fail 'atomic_inc64' 'atomic_inc'
-                fi
-              '';
-            }];
+            modules = [
+              {
+                packages.ghc-lib-parser.postPatch = ''
+                  if [ -f compiler/cbits/genSym.c ] \
+                      && grep -q 'atomic_inc64' compiler/cbits/genSym.c; then
+                    substituteInPlace compiler/cbits/genSym.c \
+                      --replace-fail 'atomic_inc64' 'atomic_inc'
+                  fi
+                '';
+              }
+            ];
           };
           hoogle = {
             index-state = indexState;
@@ -147,85 +172,95 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: set-git-rev: rewrite-l
           };
         };
         withHoogle = true;
-        nativeBuildInputs = (with buildProject.hsPkgs; [
-          # Wrap cardano-cli/node to only expose binaries, not Haskell libraries
-          # This prevents GHC package database pollution with conflicting versions
-          (pkgs.runCommand "cardano-cli-bin" {} ''
-            mkdir -p $out/bin
-            ln -s ${nodePkgs.cardano-cli}/bin/cardano-cli $out/bin/
-          '')
-          (pkgs.runCommand "cardano-node-bin" {} ''
-            mkdir -p $out/bin
-            ln -s ${nodePkgs.cardano-node}/bin/cardano-node $out/bin/
-          '')
-          cardano-addresses.components.exes.cardano-address
-          bech32.components.exes.bech32
-        ]) ++ (with pkgs.buildPackages.buildPackages; [
-          just
-          pkg-config
-          # ouroboros-consensus 1.0.0.0 consolidated all sublibraries
-          # (lmdb, lsm, cardano, protocol, diffusion) into one package.
-          # haskell.nix resolves ALL sublibraries even though the wallet
-          # only uses {cardano} and {protocol}. The lmdb and lsm
-          # sublibraries require these system C libraries for plan
-          # resolution — they are NOT linked into the wallet binary.
-          lmdb
-          liburing
-          nixpkgs-recent.python3Packages.openapi-spec-validator
-          (ruby_3_3.withPackages (ps: [ ps.rake ps.thor ]))
-          rubyPackages_3_3.rubocop
-          sqlite-interactive
-          curlFull
-          jq
-          yq
-          mdbook
-          haskellPackages.ghcid
-          haskellPackages.hp2pretty
-          haskellPackages.lentil
-          haskellPackages.markdown-unlit
-          haskellPackages.pretty-simple
-          haskellPackages.weeder
-          mithrilPkgs.mithril-client-cli
-        ]) ++ [
-          # fourmolu from nixpkgs-recent (>= 0.17) for import-grouping support.
-          nixpkgs-recent.haskellPackages.fourmolu
-          # hlint depends on ghc-lib-parser which needs patching.
-          # Pull from top-level pkgs where the ghc-lib-parser overlay applies,
-          # rather than buildPackages.buildPackages where it doesn't propagate.
-          pkgs.haskellPackages.hlint
-        ];
+        nativeBuildInputs =
+          (with buildProject.hsPkgs; [
+            # Wrap cardano-cli/node to only expose binaries, not Haskell libraries
+            # This prevents GHC package database pollution with conflicting versions
+            (pkgs.runCommand "cardano-cli-bin" { } ''
+              mkdir -p $out/bin
+              ln -s ${nodePkgs.cardano-cli}/bin/cardano-cli $out/bin/
+            '')
+            (pkgs.runCommand "cardano-node-bin" { } ''
+              mkdir -p $out/bin
+              ln -s ${nodePkgs.cardano-node}/bin/cardano-node $out/bin/
+            '')
+            cardano-addresses.components.exes.cardano-address
+            bech32.components.exes.bech32
+          ])
+          ++ (with pkgs.buildPackages.buildPackages; [
+            just
+            pkg-config
+            # ouroboros-consensus 1.0.0.0 consolidated all sublibraries
+            # (lmdb, lsm, cardano, protocol, diffusion) into one package.
+            # haskell.nix resolves ALL sublibraries even though the wallet
+            # only uses {cardano} and {protocol}. The lmdb and lsm
+            # sublibraries require these system C libraries for plan
+            # resolution — they are NOT linked into the wallet binary.
+            lmdb
+            liburing
+            nixpkgs-recent.python3Packages.openapi-spec-validator
+            (ruby_3_3.withPackages (ps: [
+              ps.rake
+              ps.thor
+            ]))
+            rubyPackages_3_3.rubocop
+            sqlite-interactive
+            curlFull
+            jq
+            yq
+            mdbook
+            haskellPackages.ghcid
+            haskellPackages.hp2pretty
+            haskellPackages.lentil
+            haskellPackages.markdown-unlit
+            haskellPackages.pretty-simple
+            haskellPackages.weeder
+            mithrilPkgs.mithril-client-cli
+          ])
+          ++ [
+            # fourmolu from nixpkgs-recent (>= 0.17) for import-grouping support.
+            nixpkgs-recent.haskellPackages.fourmolu
+            # hlint depends on ghc-lib-parser which needs patching.
+            # Pull from top-level pkgs where the ghc-lib-parser overlay applies,
+            # rather than buildPackages.buildPackages where it doesn't propagate.
+            pkgs.haskellPackages.hlint
+          ];
         shellHook =
           let
             localCHaPRepo = pkgs.haskell-nix.mkLocalHackageRepo {
               name = "cardano-haskell-packages";
               index = CHaP + "/01-index.tar.gz";
             };
-          in ''
-          export LOCAL_CLUSTER_CONFIGS=${localClusterConfigs}
+          in
+          ''
+            export LOCAL_CLUSTER_CONFIGS=${localClusterConfigs}
 
-          # Work around haskell.nix issue #1662: sublibraries are not
-          # registered correctly in the shell's GHC package database.
-          # Override active-repositories so cabal resolves packages from
-          # the local CHaP repo instead of from the installed package db.
-          # Clear stale cache to prevent cabal from trying to download
-          # packages from the local repo (it only has the index, not tarballs)
-          rm -rf ~/.cache/cabal/packages/cardano-haskell-packages-local
-          if [ ! -f cabal.project.local ] || ! grep -q cardano-haskell-packages-local cabal.project.local 2>/dev/null; then
-            mkdir -p ~/.cache/cabal/packages/cardano-haskell-packages-local
-            cat > cabal.project.local << 'EOF'
-          repository cardano-haskell-packages-local
-            url: file://${localCHaPRepo}
-            secure: False
-          EOF
-            cabal update cardano-haskell-packages-local 2>/dev/null || true
-          fi
-        '';
+            # Work around haskell.nix issue #1662: sublibraries are not
+            # registered correctly in the shell's GHC package database.
+            # Override active-repositories so cabal resolves packages from
+            # the local CHaP repo instead of from the installed package db.
+            # Clear stale cache to prevent cabal from trying to download
+            # packages from the local repo (it only has the index, not tarballs)
+            rm -rf ~/.cache/cabal/packages/cardano-haskell-packages-local
+            if [ ! -f cabal.project.local ] || ! grep -q cardano-haskell-packages-local cabal.project.local 2>/dev/null; then
+              mkdir -p ~/.cache/cabal/packages/cardano-haskell-packages-local
+              cat > cabal.project.local << 'EOF'
+            repository cardano-haskell-packages-local
+              url: file://${localCHaPRepo}
+              secure: False
+            EOF
+              cabal update cardano-haskell-packages-local 2>/dev/null || true
+            fi
+          '';
       };
 
-      inputMap = { "https://chap.intersectmbo.org/" = CHaP; };
+      inputMap = {
+        "https://chap.intersectmbo.org/" = CHaP;
+      };
 
       modules =
-        let inherit (config) src coverage profiling;
+        let
+          inherit (config) src coverage profiling;
         in
         [
           {
@@ -240,24 +275,29 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: set-git-rev: rewrite-l
           }
 
           # Provide configuration and dependencies to cardano-wallet components
-          ({ config, pkgs, ... }:
+          (
+            { config, pkgs, ... }:
             let
-              cardanoNodeExes = [ nodePkgs.cardano-cli nodePkgs.cardano-node ];
+              cardanoNodeExes = [
+                nodePkgs.cardano-cli
+                nodePkgs.cardano-node
+              ];
             in
             {
               reinstallableLibGhc = true;
 
-
-
               packages.cardano-wallet-unit.components.tests = {
                 unit.build-tools = cardanoNodeExes;
-                unit.preCheck = noCacheTestFailuresCookie + ''
+                unit.preCheck =
+                  noCacheTestFailuresCookie
+                  + ''
                     export LOCAL_CLUSTER_CONFIGS=${localClusterConfigs}
-                  '' + lib.optionalString stdenv.isDarwin ''
+                  ''
+                  + lib.optionalString stdenv.isDarwin ''
                     # cardano-node socket path becomes too long otherwise
                     export TMPDIR=/tmp
                   '';
-                  };
+              };
 
               packages.cardano-wallet-integration.components.tests = {
                 # NOTE:
@@ -272,42 +312,47 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: set-git-rev: rewrite-l
               # Add node backend to the PATH of the latency benchmarks, and
               # set the source tree as its working directory.
               packages.cardano-wallet-benchmarks.components.benchmarks.latency =
-                lib.optionalAttrs (!stdenv.hostPlatform.isWindows) {
-                  build-tools = [ pkgs.buildPackages.makeWrapper ];
-                  postInstall = ''
-                    wrapProgram $out/bin/* \
-                      --run "cd ${srcAll}/lib/wallet" \
-                      --add-flags --cluster-configs="${localClusterConfigs}" \
-                      --prefix PATH : ${lib.makeBinPath cardanoNodeExes}
-                  '';
-                };
+                lib.optionalAttrs (!stdenv.hostPlatform.isWindows)
+                  {
+                    build-tools = [ pkgs.buildPackages.makeWrapper ];
+                    postInstall = ''
+                      wrapProgram $out/bin/* \
+                        --run "cd ${srcAll}/lib/wallet" \
+                        --add-flags --cluster-configs="${localClusterConfigs}" \
+                        --prefix PATH : ${lib.makeBinPath cardanoNodeExes}
+                    '';
+                  };
 
               # Add cardano-node to the PATH of the byroon restore benchmark.
               # cardano-node will want to write logs to a subdirectory of the working directory.
               # We don't `cd $src` because of that.
               packages.cardano-wallet-benchmarks.components.benchmarks.restore =
-                lib.optionalAttrs (!stdenv.hostPlatform.isWindows) {
-                  build-tools = [ pkgs.buildPackages.makeWrapper ];
-                  postInstall = ''
-                    wrapProgram $out/bin/restore \
-                      --set CARDANO_NODE_CONFIGS ${pkgs.cardano-node-deployments} \
-                      --prefix PATH : ${lib.makeBinPath cardanoNodeExes}
-                  '';
-                };
+                lib.optionalAttrs (!stdenv.hostPlatform.isWindows)
+                  {
+                    build-tools = [ pkgs.buildPackages.makeWrapper ];
+                    postInstall = ''
+                      wrapProgram $out/bin/restore \
+                        --set CARDANO_NODE_CONFIGS ${pkgs.cardano-node-deployments} \
+                        --prefix PATH : ${lib.makeBinPath cardanoNodeExes}
+                    '';
+                  };
 
               packages.cardano-wallet.components.exes.local-cluster = {
-                  build-tools = [ pkgs.buildPackages.makeWrapper ];
-                  postInstall = ''
-                    wrapProgram $out/bin/* \
-                      --add-flags --cluster-configs="${localClusterConfigs}" \
-                      --prefix PATH : ${lib.makeBinPath cardanoNodeExes}
-                  '';
-                };
+                build-tools = [ pkgs.buildPackages.makeWrapper ];
+                postInstall = ''
+                  wrapProgram $out/bin/* \
+                    --add-flags --cluster-configs="${localClusterConfigs}" \
+                    --prefix PATH : ${lib.makeBinPath cardanoNodeExes}
+                '';
+              };
 
               # Add shell completions for main executables.
-              packages.cardano-wallet-application.components.exes.cardano-wallet.postInstall = optparseCompletionPostInstall + rewriteLibsPostInstall + stripBinariesPostInstall;
-              packages.cardano-wallet.components.exes.cardano-wallet.postInstall = optparseCompletionPostInstall + rewriteLibsPostInstall + stripBinariesPostInstall;
-            })
+              packages.cardano-wallet-application.components.exes.cardano-wallet.postInstall =
+                optparseCompletionPostInstall + rewriteLibsPostInstall + stripBinariesPostInstall;
+              packages.cardano-wallet.components.exes.cardano-wallet.postInstall =
+                optparseCompletionPostInstall + rewriteLibsPostInstall + stripBinariesPostInstall;
+            }
+          )
 
           # Provide the swagger file in an environment variable for
           # tests because it is located outside of the Cabal package
@@ -318,32 +363,59 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: set-git-rev: rewrite-l
             '';
           }
 
-          ({ lib, pkgs, ... }: {
-            # Use our forked libsodium from iohk-nix crypto overlay.
-            packages.plutus-tx.components.library.pkgconfig = lib.mkForce [ [ pkgs.libsodium-vrf pkgs.secp256k1 ] ];
-            packages.byron-spec-ledger.components.library.pkgconfig = lib.mkForce [ [ pkgs.libsodium-vrf pkgs.secp256k1 ] ];
-            packages.cardano-crypto-praos.components.library.pkgconfig = lib.mkForce [ [ pkgs.libsodium-vrf pkgs.secp256k1 ] ];
-            packages.cardano-crypto-class.components.library.pkgconfig = lib.mkForce [ [ pkgs.libsodium-vrf pkgs.secp256k1 pkgs.libblst ] ];
-          })
+          (
+            { lib, pkgs, ... }:
+            {
+              # Use our forked libsodium from iohk-nix crypto overlay.
+              packages.plutus-tx.components.library.pkgconfig = lib.mkForce [
+                [
+                  pkgs.libsodium-vrf
+                  pkgs.secp256k1
+                ]
+              ];
+              packages.byron-spec-ledger.components.library.pkgconfig = lib.mkForce [
+                [
+                  pkgs.libsodium-vrf
+                  pkgs.secp256k1
+                ]
+              ];
+              packages.cardano-crypto-praos.components.library.pkgconfig = lib.mkForce [
+                [
+                  pkgs.libsodium-vrf
+                  pkgs.secp256k1
+                ]
+              ];
+              packages.cardano-crypto-class.components.library.pkgconfig = lib.mkForce [
+                [
+                  pkgs.libsodium-vrf
+                  pkgs.secp256k1
+                  pkgs.libblst
+                ]
+              ];
+            }
+          )
 
           # Windows cross-compilation fixes (from cardano-node)
-          ({ lib, pkgs, ... }: lib.mkIf pkgs.stdenv.hostPlatform.isWindows {
-            packages.unix-compat.postPatch = ''
-              sed -i 's/msvcrt//g' unix-compat.cabal
-            '';
-            packages.unix-time.postPatch = ''
-              sed -i 's/mingwex//g' unix-time.cabal
-            '';
-            # haskell.nix patch for crypton-x509-system is outdated for 1.8.0
-            # Clear their patch and apply the fix via postPatch
-            packages.crypton-x509-system.patches = lib.mkForce [];
-            packages.crypton-x509-system.postPatch = ''
-              sed -i 's/Crypt32/crypt32/g' crypton-x509-system.cabal
-            '';
-            # haskell.nix patches streaming-commons < 0.2.3.1 for Windows
-            # header file casing (Share.h). Don't clear the patch until
-            # index-state is new enough to resolve 0.2.3.1.
-          })
+          (
+            { lib, pkgs, ... }:
+            lib.mkIf pkgs.stdenv.hostPlatform.isWindows {
+              packages.unix-compat.postPatch = ''
+                sed -i 's/msvcrt//g' unix-compat.cabal
+              '';
+              packages.unix-time.postPatch = ''
+                sed -i 's/mingwex//g' unix-time.cabal
+              '';
+              # haskell.nix patch for crypton-x509-system is outdated for 1.8.0
+              # Clear their patch and apply the fix via postPatch
+              packages.crypton-x509-system.patches = lib.mkForce [ ];
+              packages.crypton-x509-system.postPatch = ''
+                sed -i 's/Crypt32/crypt32/g' crypton-x509-system.cabal
+              '';
+              # haskell.nix patches streaming-commons < 0.2.3.1 for Windows
+              # header file casing (Share.h). Don't clear the patch until
+              # index-state is new enough to resolve 0.2.3.1.
+            }
+          )
 
           # Build fixes for library dependencies
           {
@@ -367,7 +439,13 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: set-git-rev: rewrite-l
           # Musl libc fully static build
           (lib.optionalAttrs stdenv.hostPlatform.isMusl (
             let
-              staticLibs = with pkgs; [ zlib openssl libffi gmp6 pkgs.secp256k1 ];
+              staticLibs = with pkgs; [
+                zlib
+                openssl
+                libffi
+                gmp6
+                pkgs.secp256k1
+              ];
 
               # Module options which add GHC flags and libraries for a fully static build
               fullyStaticOptions = {
@@ -399,5 +477,6 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: set-git-rev: rewrite-l
           }
 
         ];
-    })
+    }
+  )
 ]

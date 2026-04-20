@@ -12,36 +12,42 @@
   project,
   customConfigs,
 }:
-with project.pkgs; let
-  mkScript = envConfig: let
-    service = evalService {
-      inherit pkgs customConfigs;
-      serviceName = "cardano-wallet";
-      modules = [
-        ./nixos/cardano-wallet-service.nix
-        ({config, ...}: {
-          services.cardano-wallet = let
-            cfg = config.services.cardano-wallet;
-          in {
-            package = lib.mkDefault project.hsPkgs.cardano-wallet-application.components.exes.cardano-wallet;
-            walletMode = lib.mkDefault ({mainnet = "mainnet";}.${envConfig.name} or "testnet");
-            genesisFile =
-              lib.mkIf (cfg.walletMode != "mainnet")
-              (lib.mkDefault envConfig.nodeConfig.ByronGenesisFile);
-            database = lib.mkDefault null;
-            nodeSocket = lib.mkDefault "";
-            poolMetadataFetching = lib.mkDefault {
-              enable = lib.mkDefault true;
-              smashUrl =
-                lib.mkIf (envConfig ? smashUrl)
-                (lib.mkDefault envConfig.smashUrl);
-            };
-            tokenMetadataServer = lib.mkIf (envConfig ? metadataUrl) (lib.mkDefault envConfig.metadataUrl);
-          };
-        })
-      ];
-    };
-  in
+with project.pkgs;
+let
+  mkScript =
+    envConfig:
+    let
+      service = evalService {
+        inherit pkgs customConfigs;
+        serviceName = "cardano-wallet";
+        modules = [
+          ./nixos/cardano-wallet-service.nix
+          (
+            { config, ... }:
+            {
+              services.cardano-wallet =
+                let
+                  cfg = config.services.cardano-wallet;
+                in
+                {
+                  package = lib.mkDefault project.hsPkgs.cardano-wallet-application.components.exes.cardano-wallet;
+                  walletMode = lib.mkDefault ({ mainnet = "mainnet"; }.${envConfig.name} or "testnet");
+                  genesisFile = lib.mkIf (cfg.walletMode != "mainnet") (
+                    lib.mkDefault envConfig.nodeConfig.ByronGenesisFile
+                  );
+                  database = lib.mkDefault null;
+                  nodeSocket = lib.mkDefault "";
+                  poolMetadataFetching = lib.mkDefault {
+                    enable = lib.mkDefault true;
+                    smashUrl = lib.mkIf (envConfig ? smashUrl) (lib.mkDefault envConfig.smashUrl);
+                  };
+                  tokenMetadataServer = lib.mkIf (envConfig ? metadataUrl) (lib.mkDefault envConfig.metadataUrl);
+                };
+            }
+          )
+        ];
+      };
+    in
     writeScriptBin "cardano-wallet-${envConfig.name}" ''
       #!${pkgs.runtimeShell}
       set -euo pipefail
@@ -71,18 +77,20 @@ with project.pkgs; let
     tree
   ];
 in
-  cardanoLib.forEnvironments (environment:
-    lib.recurseIntoAttrs (
-      let
-        wallet = mkScript environment;
-      in
-        {
-          inherit wallet;
-        }
-        // lib.optionalAttrs stdenv.buildPlatform.isLinux {
-          wallet-debug = pkgs.symlinkJoin {
-            inherit (wallet) name;
-            paths = [wallet] ++ debugDeps;
-          };
-        }
-    ))
+cardanoLib.forEnvironments (
+  environment:
+  lib.recurseIntoAttrs (
+    let
+      wallet = mkScript environment;
+    in
+    {
+      inherit wallet;
+    }
+    // lib.optionalAttrs stdenv.buildPlatform.isLinux {
+      wallet-debug = pkgs.symlinkJoin {
+        inherit (wallet) name;
+        paths = [ wallet ] ++ debugDeps;
+      };
+    }
+  )
+)

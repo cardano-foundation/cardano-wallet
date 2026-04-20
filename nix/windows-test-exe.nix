@@ -9,10 +9,10 @@
   pkgs,
   test,
   name,
-  extraPkgs ? [],
-  testDataDirs ? [],
+  extraPkgs ? [ ],
+  testDataDirs ? [ ],
 }:
-pkgs.runCommand "win-test-${name}" {} ''
+pkgs.runCommand "win-test-${name}" { } ''
   mkdir -p $out
   cp -RL ${test}/bin/* $out/
   ${pkgs.lib.concatMapStringsSep "\n" (pkg: ''

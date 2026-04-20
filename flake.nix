@@ -126,7 +126,7 @@
     mithril = {
       url = "github:input-output-hk/mithril?ref=2603.1";
       inputs.nixpkgs.follows = "nixpkgs-unstable";
-      };
+    };
   };
 
   outputs =
@@ -169,16 +169,23 @@
             {
               packages =
                 { }
-                // pkgs.lib.optionalAttrs (pkgs.stdenv.hostPlatform.isDarwin && !pkgs.stdenv.cc.nativeLibc && options.packages ? crypton-x509-system) {
-                  # Workaround for broken nixpkgs darwin.security_tool in
-                  # Mojave. This mirrors the workaround in nixpkgs
-                  # haskellPackages.
-                  #
-                  # ref:
-                  # https://github.com/NixOS/nixpkgs/pull/47676
-                  # https://github.com/NixOS/nixpkgs/issues/45042
-                  crypton-x509-system.components.library.preBuild = "substituteInPlace System/X509/MacOS.hs --replace security /usr/bin/security";
-                };
+                //
+                  pkgs.lib.optionalAttrs
+                    (
+                      pkgs.stdenv.hostPlatform.isDarwin
+                      && !pkgs.stdenv.cc.nativeLibc
+                      && options.packages ? crypton-x509-system
+                    )
+                    {
+                      # Workaround for broken nixpkgs darwin.security_tool in
+                      # Mojave. This mirrors the workaround in nixpkgs
+                      # haskellPackages.
+                      #
+                      # ref:
+                      # https://github.com/NixOS/nixpkgs/pull/47676
+                      # https://github.com/NixOS/nixpkgs/issues/45042
+                      crypton-x509-system.components.library.preBuild = "substituteInPlace System/X509/MacOS.hs --replace security /usr/bin/security";
+                    };
             };
         in
         {
@@ -281,7 +288,10 @@
                   backend = self.cardano-node;
                 };
                 # Local test cluster and mock metadata server
-                inherit (project.hsPkgs.cardano-wallet.components.exes) mock-token-metadata-server wallet-key-export;
+                inherit (project.hsPkgs.cardano-wallet.components.exes)
+                  mock-token-metadata-server
+                  wallet-key-export
+                  ;
                 inherit (project.hsPkgs.cardano-wallet-benchmarks.components.exes) benchmark-history;
                 inherit (project.hsPkgs.local-cluster.components.exes) local-cluster;
                 integration-exe = project.hsPkgs.cardano-wallet-integration.components.exes.integration-exe;
@@ -306,19 +316,23 @@
                 unit-cardano-wallet-unit = project.hsPkgs.cardano-wallet-unit.components.tests.unit;
                 unit-cardano-wallet-primitive = project.hsPkgs.cardano-wallet-primitive.components.tests.test;
                 unit-cardano-wallet-secrets = project.hsPkgs.cardano-wallet-secrets.components.tests.test;
-                unit-cardano-wallet-network-layer = project.hsPkgs.cardano-wallet-network-layer.components.tests.unit;
+                unit-cardano-wallet-network-layer =
+                  project.hsPkgs.cardano-wallet-network-layer.components.tests.unit;
                 unit-cardano-wallet-test-utils = project.hsPkgs.cardano-wallet-test-utils.components.tests.unit;
                 unit-cardano-wallet-launcher = project.hsPkgs.cardano-wallet-launcher.components.tests.unit;
-                unit-cardano-wallet-application-tls = project.hsPkgs.cardano-wallet-application-tls.components.tests.unit;
+                unit-cardano-wallet-application-tls =
+                  project.hsPkgs.cardano-wallet-application-tls.components.tests.unit;
                 unit-cardano-numeric = project.hsPkgs.cardano-numeric.components.tests.unit;
-                unit-cardano-wallet-blackbox-benchmarks = project.hsPkgs.cardano-wallet-blackbox-benchmarks.components.tests.unit;
+                unit-cardano-wallet-blackbox-benchmarks =
+                  project.hsPkgs.cardano-wallet-blackbox-benchmarks.components.tests.unit;
                 unit-delta-chain = project.hsPkgs.delta-chain.components.tests.unit;
                 unit-delta-store = project.hsPkgs.delta-store.components.tests.unit;
                 unit-delta-table = project.hsPkgs.delta-table.components.tests.unit;
                 unit-delta-types = project.hsPkgs.delta-types.components.tests.unit;
                 unit-std-gen-seed = project.hsPkgs.std-gen-seed.components.tests.unit;
                 unit-wai-middleware-logging = project.hsPkgs.wai-middleware-logging.components.tests.unit;
-                unit-benchmark-history = project.hsPkgs.cardano-wallet-benchmarks.components.tests.benchmark-history-test;
+                unit-benchmark-history =
+                  project.hsPkgs.cardano-wallet-benchmarks.components.tests.benchmark-history-test;
                 wallet-key-export-test = project.hsPkgs.cardano-wallet.components.tests.wallet-key-export-test;
 
                 # Combined project coverage report
@@ -446,47 +460,50 @@
                     format = "zip";
                   };
                   # Per-test-exe bundles for Windows CI.
-                  tests = let
-                    mkTest = name: test:
-                      import ./nix/windows-test-exe.nix {
-                        inherit pkgs test name;
+                  tests =
+                    let
+                      mkTest =
+                        name: test:
+                        import ./nix/windows-test-exe.nix {
+                          inherit pkgs test name;
+                        };
+                    in
+                    {
+                      wallet-unit = import ./nix/windows-test-exe.nix {
+                        inherit pkgs;
+                        name = "wallet-unit";
+                        test = windowsPackages.unit-cardano-wallet-unit;
+                        extraPkgs = [ windowsPackages.cardano-cli ];
+                        testDataDirs = [
+                          ./lib/unit/test/data
+                          ./lib/local-cluster/test/data
+                        ];
                       };
-                  in {
-                    wallet-unit = import ./nix/windows-test-exe.nix {
-                      inherit pkgs;
-                      name = "wallet-unit";
-                      test = windowsPackages.unit-cardano-wallet-unit;
-                      extraPkgs = [windowsPackages.cardano-cli];
-                      testDataDirs = [
-                        ./lib/unit/test/data
-                        ./lib/local-cluster/test/data
-                      ];
+                      wallet-primitive = import ./nix/windows-test-exe.nix {
+                        inherit pkgs;
+                        name = "wallet-primitive";
+                        test = windowsPackages.unit-cardano-wallet-primitive;
+                        testDataDirs = [ ./lib/primitive/test/data ];
+                      };
+                      wallet-secrets = mkTest "wallet-secrets" windowsPackages.unit-cardano-wallet-secrets;
+                      wallet-network-layer = mkTest "wallet-network-layer" windowsPackages.unit-cardano-wallet-network-layer;
+                      wallet-test-utils = mkTest "wallet-test-utils" windowsPackages.unit-cardano-wallet-test-utils;
+                      wallet-launcher = mkTest "wallet-launcher" windowsPackages.unit-cardano-wallet-launcher;
+                      wallet-application-tls = mkTest "wallet-application-tls" windowsPackages.unit-cardano-wallet-application-tls;
+                      cardano-numeric = mkTest "cardano-numeric" windowsPackages.unit-cardano-numeric;
+                      wallet-blackbox-benchmarks = import ./nix/windows-test-exe.nix {
+                        inherit pkgs;
+                        name = "wallet-blackbox-benchmarks";
+                        test = windowsPackages.unit-cardano-wallet-blackbox-benchmarks;
+                        testDataDirs = [ ./lib/wallet-benchmarks/test/data ];
+                      };
+                      delta-chain = mkTest "delta-chain" windowsPackages.unit-delta-chain;
+                      delta-store = mkTest "delta-store" windowsPackages.unit-delta-store;
+                      delta-table = mkTest "delta-table" windowsPackages.unit-delta-table;
+                      delta-types = mkTest "delta-types" windowsPackages.unit-delta-types;
+                      std-gen-seed = mkTest "std-gen-seed" windowsPackages.unit-std-gen-seed;
+                      wai-middleware-logging = mkTest "wai-middleware-logging" windowsPackages.unit-wai-middleware-logging;
                     };
-                    wallet-primitive = import ./nix/windows-test-exe.nix {
-                      inherit pkgs;
-                      name = "wallet-primitive";
-                      test = windowsPackages.unit-cardano-wallet-primitive;
-                      testDataDirs = [./lib/primitive/test/data];
-                    };
-                    wallet-secrets = mkTest "wallet-secrets" windowsPackages.unit-cardano-wallet-secrets;
-                    wallet-network-layer = mkTest "wallet-network-layer" windowsPackages.unit-cardano-wallet-network-layer;
-                    wallet-test-utils = mkTest "wallet-test-utils" windowsPackages.unit-cardano-wallet-test-utils;
-                    wallet-launcher = mkTest "wallet-launcher" windowsPackages.unit-cardano-wallet-launcher;
-                    wallet-application-tls = mkTest "wallet-application-tls" windowsPackages.unit-cardano-wallet-application-tls;
-                    cardano-numeric = mkTest "cardano-numeric" windowsPackages.unit-cardano-numeric;
-                    wallet-blackbox-benchmarks = import ./nix/windows-test-exe.nix {
-                      inherit pkgs;
-                      name = "wallet-blackbox-benchmarks";
-                      test = windowsPackages.unit-cardano-wallet-blackbox-benchmarks;
-                      testDataDirs = [./lib/wallet-benchmarks/test/data];
-                    };
-                    delta-chain = mkTest "delta-chain" windowsPackages.unit-delta-chain;
-                    delta-store = mkTest "delta-store" windowsPackages.unit-delta-store;
-                    delta-table = mkTest "delta-table" windowsPackages.unit-delta-table;
-                    delta-types = mkTest "delta-types" windowsPackages.unit-delta-types;
-                    std-gen-seed = mkTest "std-gen-seed" windowsPackages.unit-std-gen-seed;
-                    wai-middleware-logging = mkTest "wai-middleware-logging" windowsPackages.unit-wai-middleware-logging;
-                  };
                   e2e = import ./nix/windows-test-exe.nix {
                     inherit pkgs;
                     name = "e2e";

@@ -14,16 +14,26 @@
 {
   system ? builtins.currentSystem,
   crossSystem ? null,
-  config ? {},
-  project ? import ../default.nix {inherit system crossSystem config;},
+  config ? { },
+  project ? import ../default.nix { inherit system crossSystem config; },
   pkgs ? project.pkgs,
-}: let
+}:
+let
   name = "cardano-wallet-${project.version}-migration-tests-win64";
-  migration-tests = import ./migration-tests.nix {inherit system crossSystem config pkgs;};
+  migration-tests = import ./migration-tests.nix {
+    inherit
+      system
+      crossSystem
+      config
+      pkgs
+      ;
+  };
 in
-  pkgs.buildPackages.runCommand name {
-    nativeBuildInputs = [pkgs.buildPackages.zip];
-  } ''
+pkgs.buildPackages.runCommand name
+  {
+    nativeBuildInputs = [ pkgs.buildPackages.zip ];
+  }
+  ''
     mkdir -p $out/nix-support
     cd ${migration-tests}
     zip -r $out/${name}.zip .
