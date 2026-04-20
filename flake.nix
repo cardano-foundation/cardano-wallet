@@ -544,6 +544,10 @@
             };
           imagePackages = mkPackages walletProject.projectCross.musl64;
           staticPackages = mkPackages walletProject.projectCross.musl64;
+          windowsPackages = mkPackages walletProject.projectCross.ucrt64 // {
+            cardano-cli = cardano-node-runtime.hydraJobs.x86_64-linux.windows.cardano-cli;
+            cardano-node = cardano-node-runtime.hydraJobs.x86_64-linux.windows.cardano-node;
+          };
         in
         rec {
 
@@ -564,6 +568,7 @@
             }
             // lib.optionalAttrs buildPlatform.isLinux {
               wallet-key-export-static = staticPackages.wallet-key-export;
+              inherit staticPackages windowsPackages;
             }
             //
 
