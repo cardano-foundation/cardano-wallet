@@ -211,6 +211,9 @@
 <li><a href="#use-only-a-single-blank-line-between-top-level-definitions">Use only a single blank line between top-level definitions</a></li>
 <li><a href="#avoid-variable-length-indentation">Avoid Variable-Length Indentation</a></li>
 <li><a href="#fourmolu-is-used-for-code-formatting">Fourmolu is used for code formatting</a></li>
+<li><a href="#nixfmt-is-used-for-nix-formatting">Nixfmt is used for *.nix formatting</a></li>
+<li><a href="#no-drive-by-reformatting">No drive-by reformatting</a></li>
+<li><a href="#run-every-formatter-with-just-fmt">Run every formatter with <code>just fmt</code></a></li>
 </ul>
 </li>
 <li><a href="#haskell-practices">Haskell Practices</a>
@@ -504,6 +507,34 @@ single-constraint-parens: auto
 column-limit: 70
 </code></pre>
 </details>
+<h3 id="nixfmt-is-used-for-nix-formatting"><a class="header" href="#nixfmt-is-used-for-nix-formatting">Nixfmt is used for *.nix formatting</a></h3>
+<p>All <code>*.nix</code> files in this repository are formatted with
+<a href="https://github.com/NixOS/nixfmt"><code>nixfmt</code></a> (RFC style). The binary is
+pinned via <code>nix/haskell.nix</code> so every contributor and every CI job use
+the exact same version. The format is checked in CI by
+<code>scripts/ci/check-code-format.sh</code>.</p>
+<p>There is no secondary formatter. Do not introduce
+<a href="https://github.com/kamadorueda/alejandra"><code>alejandra</code></a>,
+<code>nixpkgs-fmt</code>, or any other tool.</p>
+<h3 id="no-drive-by-reformatting"><a class="header" href="#no-drive-by-reformatting">No drive-by reformatting</a></h3>
+<p>Pull requests that reformat files unrelated to their stated purpose
+will be rejected. A semantic change and a style change must never
+share a commit — and typically must not share a PR.</p>
+<blockquote>
+<p><strong>Why</strong></p>
+<p>Mixed diffs destroy reviewability, pollute <code>git blame</code>, and make
+reverts unsafe. When the whole tree is already formatted to a
+canonical style, a drive-by reformat is pure noise.</p>
+</blockquote>
+<p>If you believe the canonical formatter itself should change, open an
+issue first. Do not change formatters as part of a feature or fix PR.</p>
+<h3 id="run-every-formatter-with-just-fmt"><a class="header" href="#run-every-formatter-with-just-fmt">Run every formatter with <code>just fmt</code></a></h3>
+<pre><code>just fmt        # format *.hs, *.cabal and *.nix in place
+just check-fmt  # run the exact CI format check locally
+</code></pre>
+<p>Both recipes rely on tools pinned in the dev shell (<code>nix develop</code>);
+running them outside the shell will use whatever happens to be on your
+<code>$PATH</code> and is not guaranteed to match CI.</p>
 <details>
     <summary>See import grouping example</summary>
 <pre><code class="language-hs">{-# LANGUAGE BangPatterns #-}
