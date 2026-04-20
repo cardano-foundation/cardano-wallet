@@ -99,7 +99,7 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: set-git-rev: rewrite-l
 
     in {
       name = "cardano-wallet";
-      compiler-nix-name = "ghc9122";
+      compiler-nix-name = "ghc9123";
 
       src = haskellLib.cleanSourceWith {
         name = "cardano-wallet-src";
@@ -146,7 +146,7 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: set-git-rev: rewrite-l
             version = "latest";
           };
         };
-        withHoogle = false;
+        withHoogle = true;
         nativeBuildInputs = (with buildProject.hsPkgs; [
           # Wrap cardano-cli/node to only expose binaries, not Haskell libraries
           # This prevents GHC package database pollution with conflicting versions
