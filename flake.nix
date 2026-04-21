@@ -371,7 +371,7 @@
               # See scripts/release/release-candidate.sh `tag_cabal_ver` for the inverse.
               releaseTag =
                 let
-                  parts = builtins.splitString "." version;
+                  parts = lib.splitString "." version;
                   pad = s: if builtins.stringLength s < 2 then "0" + s else s;
                   year = builtins.elemAt parts 0;
                   month = pad (builtins.elemAt parts 1);
