@@ -367,6 +367,17 @@
                 cardano-wallet
                 local-cluster
               ];
+              # Convert cabal version "YYYY.M.D" back to release tag "vYYYY-MM-DD".
+              # See scripts/release/release-candidate.sh `tag_cabal_ver` for the inverse.
+              releaseTag =
+                let
+                  parts = builtins.splitString "." version;
+                  pad = s: if builtins.stringLength s < 2 then "0" + s else s;
+                  year = builtins.elemAt parts 0;
+                  month = pad (builtins.elemAt parts 1);
+                  day = pad (builtins.elemAt parts 2);
+                in
+                "v${year}-${month}-${day}";
             in
 
             pkgs.callPackage ./nix/docker.nix {
@@ -383,7 +394,7 @@
                   }
                 ])
               ];
-              tag = if isRelease then version else revision;
+              tag = if isRelease then releaseTag else revision;
             };
 
           mkDevShells = project: rec {
