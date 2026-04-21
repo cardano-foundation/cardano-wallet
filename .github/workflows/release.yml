@@ -348,11 +348,14 @@ jobs:
           upload windows-release        zip     "cardano-wallet.exe-$TAG-win64.zip"
           upload macos-silicon-release   tar.gz  "cardano-wallet-$TAG-macos-silicon.tar.gz"
 
-          # Docker image has no extension
+          # Docker image has no extension; rename before upload so the asset
+          # name (not just its display label) matches the expected pattern.
           docker_file=$(find docker-image -type f | head -1)
           if [ -n "$docker_file" ]; then
-            echo "Uploading $docker_file as cardano-wallet-$TAG-docker-image.tgz"
-            gh release upload "$TAG" "$docker_file#cardano-wallet-$TAG-docker-image.tgz"
+            target="cardano-wallet-$TAG-docker-image.tgz"
+            cp "$docker_file" "$target"
+            echo "Uploading $target"
+            gh release upload "$TAG" "$target"
           fi
 
   push-docker:
