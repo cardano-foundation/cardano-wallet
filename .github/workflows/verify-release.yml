@@ -4,9 +4,25 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Release tag to verify (e.g. v2026-03-31)'
+        description: 'Release tag to verify (e.g. v2026-03-31, nightly, test)'
         required: true
         type: string
+      expected-version:
+        description: 'Version string expected in binary output (defaults to tag). Set this when tag is nightly/test.'
+        required: false
+        type: string
+        default: ''
+  workflow_call:
+    inputs:
+      tag:
+        description: 'Release tag to verify (e.g. v2026-03-31, nightly, test)'
+        required: true
+        type: string
+      expected-version:
+        description: 'Version string expected in binary output (defaults to tag). Set this when tag is nightly/test.'
+        required: false
+        type: string
+        default: ''
 
 jobs:
   verify-linux:
@@ -20,6 +36,8 @@ jobs:
         run: |
           set -uo pipefail
           TAG="${{ inputs.tag }}"
+          EXPECTED="${{ inputs.expected-version }}"
+          EXPECTED="${EXPECTED:-$TAG}"
           WORKDIR=$(mktemp -d)
           trap "rm -rf $WORKDIR" EXIT
           cd "$WORKDIR"
@@ -40,10 +58,10 @@ jobs:
           echo "::endgroup::"
 
           echo "::group::Check version"
-          if echo "$VERSION" | grep -q "$TAG"; then
-            echo "Version check passed: contains $TAG"
+          if echo "$VERSION" | grep -q "$EXPECTED"; then
+            echo "Version check passed: contains $EXPECTED"
           else
-            echo "::error::Version output does not contain $TAG"
+            echo "::error::Version output does not contain $EXPECTED"
             exit 1
           fi
           echo "::endgroup::"
@@ -59,6 +77,8 @@ jobs:
         run: |
           set -uo pipefail
           TAG="${{ inputs.tag }}"
+          EXPECTED="${{ inputs.expected-version }}"
+          EXPECTED="${EXPECTED:-$TAG}"
           WORKDIR=$(mktemp -d)
           trap "rm -rf $WORKDIR" EXIT
           cd "$WORKDIR"
@@ -79,10 +99,10 @@ jobs:
           echo "::endgroup::"
 
           echo "::group::Check version"
-          if echo "$VERSION" | grep -q "$TAG"; then
-            echo "Version check passed: contains $TAG"
+          if echo "$VERSION" | grep -q "$EXPECTED"; then
+            echo "Version check passed: contains $EXPECTED"
           else
-            echo "::error::Version output does not contain $TAG"
+            echo "::error::Version output does not contain $EXPECTED"
             exit 1
           fi
           echo "::endgroup::"
@@ -98,6 +118,8 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           $TAG = "${{ inputs.tag }}"
+          $EXPECTED = "${{ inputs.expected-version }}"
+          if ([string]::IsNullOrEmpty($EXPECTED)) { $EXPECTED = $TAG }
           $WORKDIR = New-TemporaryFile | ForEach-Object {
             Remove-Item $_; New-Item -ItemType Directory -Path $_
           }
@@ -120,10 +142,10 @@ jobs:
             Write-Host "::endgroup::"
 
             Write-Host "::group::Check version"
-            if ($VERSION -match [regex]::Escape($TAG)) {
-              Write-Host "Version check passed: contains $TAG"
+            if ($VERSION -match [regex]::Escape($EXPECTED)) {
+              Write-Host "Version check passed: contains $EXPECTED"
             } else {
-              Write-Host "::error::Version output does not contain $TAG"
+              Write-Host "::error::Version output does not contain $EXPECTED"
               exit 1
             }
             Write-Host "::endgroup::"
@@ -143,6 +165,8 @@ jobs:
         run: |
           set -uo pipefail
           TAG="${{ inputs.tag }}"
+          EXPECTED="${{ inputs.expected-version }}"
+          EXPECTED="${EXPECTED:-$TAG}"
           WORKDIR=$(mktemp -d)
           trap "rm -rf $WORKDIR" EXIT
           cd "$WORKDIR"
@@ -162,10 +186,10 @@ jobs:
           echo "::endgroup::"
 
           echo "::group::Check version"
-          if echo "$VERSION" | grep -q "$TAG"; then
-            echo "Version check passed: contains $TAG"
+          if echo "$VERSION" | grep -q "$EXPECTED"; then
+            echo "Version check passed: contains $EXPECTED"
           else
-            echo "::error::Version output does not contain $TAG"
+            echo "::error::Version output does not contain $EXPECTED"
             exit 1
           fi
           echo "::endgroup::"

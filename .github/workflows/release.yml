@@ -245,6 +245,8 @@ jobs:
     if: ${{ !cancelled() && needs.prepare.result == 'success' && needs.build-artifacts.result == 'success' && needs.verify-artifacts.result == 'success' && needs.changelog.result == 'success' && (needs.e2e-linux.result == 'success' || needs.e2e-linux.result == 'skipped') && (needs.e2e-windows.result == 'success' || needs.e2e-windows.result == 'skipped') }}
     runs-on: [self-hosted, linux, x86_64, cardano-wallet]
     environment: ${{ (inputs.release_type == 'release' && github.ref == 'refs/heads/master') && 'release' || '' }}
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
     env:
       RELEASE_VERSION: ${{ needs.prepare.outputs.release-version }}
       RELEASE_CANDIDATE_COMMIT: ${{ needs.prepare.outputs.release-candidate-commit }}
@@ -348,16 +350,45 @@ jobs:
           upload windows-release        zip     "cardano-wallet.exe-$TAG-win64.zip"
           upload macos-silicon-release   tar.gz  "cardano-wallet-$TAG-macos-silicon.tar.gz"
 
-          # Docker image has no extension
+          # Docker image has no extension; rename before upload so the asset
+          # name (not just its display label) matches the expected pattern.
           docker_file=$(find docker-image -type f | head -1)
           if [ -n "$docker_file" ]; then
-            echo "Uploading $docker_file as cardano-wallet-$TAG-docker-image.tgz"
-            gh release upload "$TAG" "$docker_file#cardano-wallet-$TAG-docker-image.tgz"
+            target="cardano-wallet-$TAG-docker-image.tgz"
+            cp "$docker_file" "$target"
+            echo "Uploading $target"
+            gh release upload "$TAG" "$target"
           fi
+
+  verify-assets:
+    name: "Verify Published Assets"
+    needs: [prepare, create-release]
+    uses: ./.github/workflows/verify-release.yml
+    with:
+      tag: ${{ needs.create-release.outputs.tag }}
+      expected-version: ${{ needs.prepare.outputs.release-version }}
+    secrets: inherit
+
+  publish-release:
+    name: "Publish Release"
+    needs: [prepare, create-release, verify-assets]
+    if: ${{ needs.verify-assets.result == 'success' }}
+    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Un-draft release
+        shell: nix shell --quiet nixpkgs#gh -c bash -e {0}
+        run: |
+          TAG="${{ needs.create-release.outputs.tag }}"
+          echo "Publishing release $TAG"
+          gh release edit "$TAG" \
+            --repo cardano-foundation/cardano-wallet \
+            --draft=false
 
   push-docker:
     name: "Push Docker Image"
-    needs: [prepare, create-release]
+    needs: [prepare, create-release, publish-release]
     runs-on: [self-hosted, linux, x86_64, cardano-wallet]
     env:
       RELEASE_VERSION: ${{ needs.prepare.outputs.release-version }}
@@ -409,7 +440,7 @@ jobs:
   update-docs:
     name: "Update Documentation Links"
     if: inputs.release_type == 'release'
-    needs: [prepare, create-release]
+    needs: [prepare, create-release, publish-release]
     runs-on: [self-hosted, linux, x86_64, cardano-wallet]
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
