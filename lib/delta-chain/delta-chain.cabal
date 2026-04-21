@@ -1,7 +1,7 @@
 cabal-version:      3.6
 build-type:         Simple
 name:               delta-chain
-version:            0.2026.4.3
+version:            0.2026.4.17
 synopsis:
   Example for storing a chain in a database, using delta types.
 
