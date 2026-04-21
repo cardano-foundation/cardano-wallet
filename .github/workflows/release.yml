@@ -363,6 +363,10 @@ jobs:
   verify-assets:
     name: "Verify Published Assets"
     needs: [prepare, create-release]
+    # Explicit `if:` overrides the default `success()` filter, which
+    # would otherwise skip this job because e2e-linux/e2e-windows are
+    # skipped on nightly runs.
+    if: ${{ !cancelled() && needs.create-release.result == 'success' }}
     uses: ./.github/workflows/verify-release.yml
     with:
       tag: ${{ needs.create-release.outputs.tag }}
@@ -372,7 +376,7 @@ jobs:
   publish-release:
     name: "Publish Release"
     needs: [prepare, create-release, verify-assets]
-    if: ${{ needs.verify-assets.result == 'success' }}
+    if: ${{ !cancelled() && needs.verify-assets.result == 'success' }}
     runs-on: [self-hosted, linux, x86_64, cardano-wallet]
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -389,6 +393,7 @@ jobs:
   push-docker:
     name: "Push Docker Image"
     needs: [prepare, create-release, publish-release]
+    if: ${{ !cancelled() && needs.publish-release.result == 'success' }}
     runs-on: [self-hosted, linux, x86_64, cardano-wallet]
     env:
       RELEASE_VERSION: ${{ needs.prepare.outputs.release-version }}
@@ -439,8 +444,8 @@ jobs:
 
   update-docs:
     name: "Update Documentation Links"
-    if: inputs.release_type == 'release'
     needs: [prepare, create-release, publish-release]
+    if: ${{ !cancelled() && inputs.release_type == 'release' && needs.publish-release.result == 'success' }}
     runs-on: [self-hosted, linux, x86_64, cardano-wallet]
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -45,11 +45,11 @@ jobs:
           echo "::group::Download linux asset"
           gh release download "$TAG" \
             --repo cardano-foundation/cardano-wallet \
-            --pattern "cardano-wallet-${TAG}-linux64.tar.gz"
+            --pattern "cardano-wallet-${EXPECTED}-linux64.tar.gz"
           echo "::endgroup::"
 
           echo "::group::Extract and verify"
-          tar xzf "cardano-wallet-${TAG}-linux64.tar.gz"
+          tar xzf "cardano-wallet-${EXPECTED}-linux64.tar.gz"
           WALLET=$(find . -name cardano-wallet -type f | head -1)
           chmod +x "$WALLET"
           echo "Binary: $WALLET"
@@ -86,11 +86,11 @@ jobs:
           echo "::group::Download macOS asset"
           gh release download "$TAG" \
             --repo cardano-foundation/cardano-wallet \
-            --pattern "cardano-wallet-${TAG}-macos-silicon.tar.gz"
+            --pattern "cardano-wallet-${EXPECTED}-macos-silicon.tar.gz"
           echo "::endgroup::"
 
           echo "::group::Extract and verify"
-          tar xzf "cardano-wallet-${TAG}-macos-silicon.tar.gz"
+          tar xzf "cardano-wallet-${EXPECTED}-macos-silicon.tar.gz"
           WALLET=$(find . -name cardano-wallet -type f | head -1)
           chmod +x "$WALLET"
           echo "Binary: $WALLET"
@@ -129,11 +129,11 @@ jobs:
             Write-Host "::group::Download Windows asset"
             gh release download $TAG `
               --repo cardano-foundation/cardano-wallet `
-              --pattern "cardano-wallet.exe-${TAG}-win64.zip"
+              --pattern "cardano-wallet.exe-${EXPECTED}-win64.zip"
             Write-Host "::endgroup::"
 
             Write-Host "::group::Extract and verify"
-            Expand-Archive "cardano-wallet.exe-${TAG}-win64.zip" -DestinationPath .
+            Expand-Archive "cardano-wallet.exe-${EXPECTED}-win64.zip" -DestinationPath .
             $WALLET = Get-ChildItem -Recurse -Filter "cardano-wallet.exe" |
               Select-Object -First 1 -ExpandProperty FullName
             Write-Host "Binary: $WALLET"
