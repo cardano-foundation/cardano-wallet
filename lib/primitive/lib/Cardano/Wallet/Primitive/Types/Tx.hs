@@ -26,7 +26,7 @@ module Cardano.Wallet.Primitive.Types.Tx
     , ScriptWitnessIndex (..)
 
       -- * Serialisation
-    , SealedTx (serialisedTx)
+    , SealedTx (serialisedTx, unsafeReadTx)
     , cardanoTxIdeallyNoLaterThan
     , cardanoTxInExactEra
     , sealedTxFromBytes
