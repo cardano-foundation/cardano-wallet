@@ -254,7 +254,6 @@ import Cardano.Address.Script
 import Cardano.Api.Extra
     ( CardanoApiEra
     , cardanoApiEraConstraints
-    , inAnyCardanoEra
     , toCardanoApiTx
     )
 import Cardano.BM.Data.Severity
@@ -596,7 +595,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxId
     , TxMetadata (..)
     , UnsignedTx (..)
-    , sealedTxFromCardano
     )
 import Cardano.Wallet.Primitive.Types.Tx.TransactionInfo
     ( TransactionInfo (..)
@@ -640,6 +638,7 @@ import Cardano.Wallet.Shelley.Transaction.Ledger
     ( certificateFromDelegationActionLedger
     , certificateFromVotingActionLedger
     , constructUnsignedTxLedger
+    , sealWriteTx
     )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
@@ -2544,15 +2543,14 @@ buildAndSignTransactionPure
         wallet <- get
         (unsignedBalancedTx, updatedWalletState) <-
             lift
-                $ first toCardanoApiTx
-                    <$> buildTransactionPure @s
-                        wallet
-                        timeTranslation
-                        utxoIndex
-                        changeAddrGen
-                        pp
-                        preSelection
-                        txCtx
+                $ buildTransactionPure @s
+                    wallet
+                    timeTranslation
+                    utxoIndex
+                    changeAddrGen
+                    pp
+                    preSelection
+                    txCtx
         put wallet{getState = updatedWalletState}
 
         let mExternalRewardAccount = case view #txWithdrawal txCtx of
@@ -2573,7 +2571,7 @@ buildAndSignTransactionPure
                     (RootCredentials rootKey passphrase)
                     (wallet ^. #utxo)
                     Nothing
-                    (sealedTxFromCardano $ inAnyCardanoEra unsignedBalancedTx)
+                    (sealWriteTx (Write.recentEra @era) unsignedBalancedTx)
 
             tx = walletTx $ decodeTx txLayer anyCardanoEra signedTx
 
