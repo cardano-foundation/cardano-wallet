@@ -1436,10 +1436,8 @@ encodingFromTheFuture tx current = shelleyEraNum tx > eraNum current
 compareOnCBOR
     :: Cardano.IsShelleyBasedEra era
     => Cardano.Tx era -> SealedTx -> Property
-compareOnCBOR b sealed = case cardanoTx sealed of
-    InAnyCardanoEra era a ->
-        unsafeWithShelleyBasedEra era
-            $ Cardano.serialiseToCBOR a ==== Cardano.serialiseToCBOR b
+compareOnCBOR b sealed =
+    serialisedTx sealed ==== Cardano.serialiseToCBOR b
 
 unsafeWithShelleyBasedEra
     :: Cardano.CardanoEra era
