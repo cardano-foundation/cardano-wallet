@@ -193,7 +193,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxMetadata (..)
     , TxMetadataValue (..)
     , TxScriptValidity (..)
-    , cardanoTxIdeallyNoLaterThan
     )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..)
@@ -372,19 +371,22 @@ import Prelude
 import qualified Cardano.Address.KeyHash as CA
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Ledger.Keys as Ledger
+import qualified Cardano.Read.Ledger.Tx.Metadata as Meta
+    ( getEraMetadata
+    )
 import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Cardano.Wallet.Api.Types.Amount as ApiAmount
-import qualified Cardano.Wallet.Api.Types.Era as ApiEra
-    ( toAnyCardanoEra
-    )
 import qualified Cardano.Wallet.Api.Types.WalletAssets as ApiWalletAssets
+import qualified Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Metadata as Meta
+    ( getMetadata
+    )
 import qualified Cardano.Wallet.Primitive.Types.AssetName as AssetName
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxMetadata as W
-    ( fromShelleyMetadata
-    , metadataValueToJsonNoSchema
+    ( metadataValueToJsonNoSchema
     )
+import qualified Cardano.Wallet.Read as Read
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString.Lazy as BL
@@ -480,10 +482,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let ApiSerialisedTransaction apiTx _ = getFromResponse #transaction rTx
         signedTx <- signTx ctx wa apiTx [expectResponseCode HTTP.status202]
 
-        let era = ApiEra.toAnyCardanoEra $ _mainEra ctx
-        let tx =
-                cardanoTxIdeallyNoLaterThan era
-                    $ getApiT (signedTx ^. #serialisedTxSealed)
+        let tx = getApiT (signedTx ^. #serialisedTxSealed)
         case getMetadataFromTx tx of
             Nothing -> error "Tx doesn't include metadata"
             Just m -> case Map.lookup 1 m of
@@ -554,10 +553,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             let ApiSerialisedTransaction apiTx _ = getFromResponse #transaction rTx
             signedTx <- signTx ctx wa apiTx [expectResponseCode HTTP.status202]
 
-            let era = ApiEra.toAnyCardanoEra $ _mainEra ctx
-            let tx =
-                    cardanoTxIdeallyNoLaterThan era
-                        $ getApiT (signedTx ^. #serialisedTxSealed)
+            let tx = getApiT (signedTx ^. #serialisedTxSealed)
             case getMetadataFromTx tx of
                 Nothing -> error "Tx doesn't include metadata"
                 Just m -> case Map.lookup 1 m of
@@ -713,10 +709,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 ]
             let ApiSerialisedTransaction apiTx _ = getFromResponse #transaction rTx
             signedTx <- signTx ctx wa apiTx [expectResponseCode HTTP.status202]
-            let era = ApiEra.toAnyCardanoEra $ _mainEra ctx
-            let tx =
-                    cardanoTxIdeallyNoLaterThan era
-                        $ getApiT (signedTx ^. #serialisedTxSealed)
+            let tx = getApiT (signedTx ^. #serialisedTxSealed)
 
             let extractTxt (TxMetaText txt) = txt
                 extractTxt _ =
@@ -6728,18 +6721,14 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
     toBase64 = T.decodeUtf8 . convertToBase Base64
 
-    -- Check for the presence of metadata on signed transaction
+    -- Check for the presence of metadata on signed transaction.
+    -- Ledger-native: does not round-trip through cardano-api.
     getMetadataFromTx
-        :: InAnyCardanoEra Cardano.Tx
+        :: SealedTx
         -> Maybe (Map.Map Word64 TxMetadataValue)
-    getMetadataFromTx (InAnyCardanoEra _ tx) =
-        Cardano.getTxBody tx
-            & \body ->
-                Cardano.txMetadata (Cardano.getTxBodyContent body) & \case
-                    Cardano.TxMetadataNone ->
-                        Nothing
-                    Cardano.TxMetadataInEra _ (Cardano.TxMetadata m) ->
-                        Just (W.fromShelleyMetadata (Cardano.toShelleyMetadata m))
+    getMetadataFromTx sealed = case unsafeReadTx sealed of
+        Read.EraValue (readTx :: Read.Tx era) ->
+            unTxMetadata <$> Meta.getMetadata (Meta.getEraMetadata readTx)
 
     -- Construct a JSON payment request for the given quantity of lovelace.
     mkTxPayload
@@ -7379,10 +7368,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             ]
         let ApiSerialisedTransaction apiTx _ = getFromResponse #transaction rTx
         signedTx <- signTx ctx wa apiTx [expectResponseCode HTTP.status202]
-        let era = ApiEra.toAnyCardanoEra $ _mainEra ctx
-        let tx =
-                cardanoTxIdeallyNoLaterThan era
-                    $ getApiT (signedTx ^. #serialisedTxSealed)
+        let tx = getApiT (signedTx ^. #serialisedTxSealed)
 
         let extractTxt (TxMetaText txt) = txt
             extractTxt _ =
