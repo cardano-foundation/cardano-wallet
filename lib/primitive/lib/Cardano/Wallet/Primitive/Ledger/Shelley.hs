@@ -41,7 +41,6 @@ module Cardano.Wallet.Primitive.Ledger.Shelley
 
       -- * Conversions
     , toCardanoHash
-    , unsealShelleyTx
     , toCardanoTxId
     , toCardanoTxIn
     , fromCardanoTxIn
@@ -94,9 +93,6 @@ module Cardano.Wallet.Primitive.Ledger.Shelley
     , interval0
     , interval1
     , numberOfTransactionsInBlock
-
-      -- * Errors
-    , UnsealException (..)
     ) where
 
 import Cardano.Address.KeyHash
@@ -116,7 +112,6 @@ import Cardano.Api
     , NetworkId
     , ShelleyBasedEra (..)
     , ShelleyGenesis (..)
-    , TxInMode (..)
     )
 import Cardano.Crypto.Hash.Class
     ( Hash (UnsafeHash)
@@ -304,7 +299,6 @@ import qualified Cardano.Ledger.State as Ledger
 import qualified Cardano.Protocol.TPraos.BHeader as SL
 import qualified Cardano.Slotting.Slot as Slotting
 import qualified Cardano.Wallet.Primitive.Ledger.Convert as Ledger
-import qualified Cardano.Wallet.Primitive.Ledger.Read.Eras as Eras
 import qualified Cardano.Wallet.Primitive.Slotting as W
 import qualified Cardano.Wallet.Primitive.Types.Address as W
 import qualified Cardano.Wallet.Primitive.Types.AssetId as W
@@ -329,10 +323,6 @@ import qualified Cardano.Wallet.Primitive.Types.TokenBundleMaxSize as W
 import qualified Cardano.Wallet.Primitive.Types.TokenPolicyId as W
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.Constraints as W
-import qualified Cardano.Wallet.Primitive.Types.Tx.SealedTx as W
-    ( SealedTx
-    , cardanoTxIdeallyNoLaterThan
-    )
 import qualified Cardano.Wallet.Primitive.Types.Tx.Tx as W
     ( Tx (..)
     )
@@ -1118,28 +1108,6 @@ rewardAccountFromAddress (W.Address bytes) = refToAccount . ref =<< parseAddr by
     refToAccount (SL.StakeRefBase cred) = Just $ fromStakeCredential cred
     refToAccount (SL.StakeRefPtr _) = Nothing
     refToAccount SL.StakeRefNull = Nothing
-
-newtype UnsealException
-    = UnsealedTxInUnsupportedEra (Read.EraValue Read.Era)
-
--- | Converts 'SealedTx' to something that can be submitted with the
--- 'Cardano.Api' local tx submission client.
-unsealShelleyTx
-    :: Read.EraValue Read.Era
-    -- ^ Preferred latest era (see 'ideallyNoLaterThan')
-    -> W.SealedTx
-    -> Either UnsealException TxInMode
-unsealShelleyTx era wtx =
-    case W.cardanoTxIdeallyNoLaterThan (Eras.toAnyCardanoEra era) wtx of
-        Cardano.InAnyCardanoEra BabbageEra tx ->
-            Right $ TxInMode ShelleyBasedEraBabbage tx
-        Cardano.InAnyCardanoEra ConwayEra tx ->
-            Right $ TxInMode ShelleyBasedEraConway tx
-        Cardano.InAnyCardanoEra unsupportedEra _ ->
-            Left
-                $ UnsealedTxInUnsupportedEra
-                $ Eras.fromAnyCardanoEra
-                $ AnyCardanoEra unsupportedEra
 
 instance
     (forall era. IsCardanoEra era => Show (thing era))
