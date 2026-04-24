@@ -19,7 +19,6 @@ module Cardano.Wallet.Primitive.Types.Tx.SealedTx
     ( -- * Types
       SealedTx (serialisedTx, unsafeReadTx)
     , cardanoTxIdeallyNoLaterThan
-    , cardanoTxInExactEra
     , sealedTxFromBytes
     , sealedTxFromBytes'
     , sealedTxFromCardano
@@ -84,9 +83,6 @@ import Data.ByteArray
     )
 import Data.ByteString
     ( ByteString
-    )
-import Data.Data
-    ( Proxy (..)
     )
 import Data.Either
     ( partitionEithers
@@ -191,25 +187,6 @@ cardanoTxIdeallyNoLaterThan maxEra stx =
                         $ "cardanoTxIdeallyNoLaterThan: "
                         +|| e
                         ||+ ""
-
--- | Re-deserialises the bytes of the 'SealedTx' as a
--- transaction in the provided era, and that era only.
-cardanoTxInExactEra
-    :: forall era
-     . Cardano.IsShelleyBasedEra era
-    => CardanoEra era
-    -> SealedTx
-    -> Maybe (Cardano.Tx era)
-cardanoTxInExactEra _ tx =
-    eitherToMaybe
-        $ deserialiseFromCBOR
-            ( Cardano.AsTx
-                (Cardano.proxyToAsType $ Proxy @era)
-            )
-        $ serialisedTx tx
-  where
-    eitherToMaybe :: Either a b -> Maybe b
-    eitherToMaybe = either (const Nothing) Just
 
 -- | Temporary: reconstructs cardano-api TxBody from
 -- bytes. Will be removed when callers migrate.
