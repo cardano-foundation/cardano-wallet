@@ -86,10 +86,11 @@ import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
     )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxMetadata (..)
+    ( SealedTx
+    , TxMetadata (..)
     , TxMetadataValue (..)
     , TxScriptValidity (..)
-    , cardanoTxIdeallyNoLaterThan
+    , unsafeReadTx
     )
 import Cardano.Wallet.Primitive.Types.Tx.TxMeta
     ( Direction (..)
@@ -117,9 +118,6 @@ import Data.Aeson
 import Data.Either.Combinators
     ( swapEither
     )
-import Data.Function
-    ( (&)
-    )
 import Data.Generics.Internal.VL.Lens
     ( view
     , (^.)
@@ -141,6 +139,9 @@ import Data.Time.Clock
 import Data.Time.Utils
     ( utcTimePred
     , utcTimeSucc
+    )
+import Data.Word
+    ( Word64
     )
 import Numeric.Natural
     ( Natural
@@ -215,12 +216,15 @@ import Prelude
 
 import qualified Cardano.Address.KeyHash as CA
 import qualified Cardano.Address.Style.Shelley as CA
-import qualified Cardano.Api as Cardano
 import qualified Cardano.Faucet.Mnemonics as Mnemonics
-import qualified Cardano.Wallet.Api.Link as Link
-import qualified Cardano.Wallet.Api.Types.Era as ApiEra
-    ( toAnyCardanoEra
+import qualified Cardano.Read.Ledger.Tx.Metadata as Meta
+    ( getEraMetadata
     )
+import qualified Cardano.Wallet.Api.Link as Link
+import qualified Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Metadata as Meta
+    ( getMetadata
+    )
+import qualified Cardano.Wallet.Read as Read
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.List.NonEmpty as NE
@@ -234,6 +238,15 @@ data TestCase a = TestCase
     { query :: T.Text
     , assertions :: [(HTTP.Status, Either RequestException a) -> IO ()]
     }
+
+-- Check for the presence of metadata on a serialized transaction.
+-- Ledger-native: does not round-trip through cardano-api.
+getMetadataFromTx
+    :: SealedTx
+    -> Maybe (Map.Map Word64 TxMetadataValue)
+getMetadataFromTx sealed = case unsafeReadTx sealed of
+    Read.EraValue (readTx :: Read.Tx era) ->
+        unTxMetadata <$> Meta.getMetadata (Meta.getEraMetadata readTx)
 
 spec
     :: forall n
@@ -519,24 +532,12 @@ spec = describe "SHARED_TRANSACTIONS" $ do
 
             -- checking metadata before signing via directly inspecting serialized
             -- tx
-            let getMetadata (Cardano.InAnyCardanoEra _ tx) =
-                    Cardano.getTxBody tx
-                        & \body ->
-                            Cardano.txMetadata (Cardano.getTxBodyContent body) & \case
-                                Cardano.TxMetadataNone ->
-                                    Nothing
-                                Cardano.TxMetadataInEra _ (Cardano.TxMetadata m) ->
-                                    Just m
-
-            let era = ApiEra.toAnyCardanoEra $ _mainEra ctx
-            let txbinary1 =
-                    cardanoTxIdeallyNoLaterThan era
-                        $ getApiT (txCbor1 ^. #serialisedTxSealed)
-            case getMetadata txbinary1 of
+            let txbinary1 = getApiT (txCbor1 ^. #serialisedTxSealed)
+            case getMetadataFromTx txbinary1 of
                 Nothing -> error "Tx doesn't include metadata"
                 Just m -> case Map.lookup 1 m of
                     Nothing -> error "Tx doesn't include metadata"
-                    Just (Cardano.TxMetaText "hello") -> pure ()
+                    Just (TxMetaText "hello") -> pure ()
                     Just _ -> error "Tx metadata incorrect"
 
             let (ApiSerialisedTransaction apiTx _) =
@@ -555,14 +556,12 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             verify rDecodedTx2 decodedExpectations
 
             -- checking metadata after signing via directly inspecting serialized tx
-            let txbinary2 =
-                    cardanoTxIdeallyNoLaterThan era
-                        $ getApiT (signedTx ^. #serialisedTxSealed)
-            case getMetadata txbinary2 of
+            let txbinary2 = getApiT (signedTx ^. #serialisedTxSealed)
+            case getMetadataFromTx txbinary2 of
                 Nothing -> error "Tx doesn't include metadata"
                 Just m -> case Map.lookup 1 m of
                     Nothing -> error "Tx doesn't include metadata"
-                    Just (Cardano.TxMetaText "hello") -> pure ()
+                    Just (TxMetaText "hello") -> pure ()
                     Just _ -> error "Tx metadata incorrect"
 
             -- Submit tx
