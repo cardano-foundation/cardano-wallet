@@ -29,6 +29,7 @@ module Cardano.Wallet.Primitive.Types.Tx.SealedTx
     , SerialisedTx (..)
     , getSealedTxBody
     , getSealedTxWitnesses
+    , sealedTxWitnessCount
     , persistSealedTx
     , unPersistSealedTx
 
@@ -48,6 +49,11 @@ import Cardano.Api
 import Cardano.Api.Tx
     ( Tx (ShelleyTx)
     )
+import Cardano.Ledger.Api
+    ( addrTxWitsL
+    , bootAddrTxWitsL
+    , witsTxL
+    )
 import Cardano.Ledger.Binary
     ( DecoderError
     )
@@ -64,9 +70,11 @@ import Cardano.Wallet.Read.Eras
     , Babbage
     , Conway
     , Dijkstra
+    , Era (..)
     , IsEra
     , Mary
     , Shelley
+    , theEra
     )
 import Cardano.Wallet.Util
     ( HasCallStack
@@ -75,6 +83,9 @@ import Cardano.Wallet.Util
 import Control.DeepSeq
     ( NFData (..)
     , deepseq
+    )
+import Control.Lens
+    ( (^.)
     )
 import Data.Bifunctor
     ( first
@@ -110,6 +121,7 @@ import qualified Cardano.Api as Cardano
 import qualified Cardano.Wallet.Read as Read
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
+import qualified Data.Set as Set
 import qualified Data.Text as T
 
 -- | 'SealedTx' is a transaction for any hard fork era,
@@ -224,6 +236,30 @@ getSealedTxWitnesses stx =
                 $ "getSealedTxWitnesses: "
                 +|| e
                 ||+ ""
+
+-- | Total number of key witnesses (VKey + bootstrap) in
+-- a 'SealedTx'. Ledger-native: does not round-trip
+-- through cardano-api.
+--
+-- Equivalent of @length (getSealedTxWitnesses stx)@ for
+-- the wallet's fee / witness-count accounting. Byron txs
+-- are counted as 0 — the wallet does not construct Byron
+-- txs through 'SealedTx'.
+sealedTxWitnessCount :: SealedTx -> Int
+sealedTxWitnessCount stx = case unsafeReadTx stx of
+    EraValue (Read.Tx tx :: Read.Tx era) -> case theEra @era of
+        Byron -> 0
+        Shelley -> countLedgerTxWits tx
+        Allegra -> countLedgerTxWits tx
+        Mary -> countLedgerTxWits tx
+        Alonzo -> countLedgerTxWits tx
+        Babbage -> countLedgerTxWits tx
+        Conway -> countLedgerTxWits tx
+        Dijkstra -> countLedgerTxWits tx
+  where
+    countLedgerTxWits tx =
+        Set.size (tx ^. witsTxL . addrTxWitsL)
+            + Set.size (tx ^. witsTxL . bootAddrTxWitsL)
 
 -- | Convert a cardano-api 'Tx' to 'EraValue Read.Tx'.
 cardanoApiTxToReadTx

@@ -632,11 +632,13 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( Tx (..)
     , TxChange (..)
     , UnsignedTx (..)
-    , getSealedTxWitnesses
     , serialisedTx
     )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( txMintBurnMaxTokenQuantity
+    )
+import Cardano.Wallet.Primitive.Types.Tx.SealedTx
+    ( sealedTxWitnessCount
     )
 import Cardano.Wallet.Primitive.Types.Tx.TransactionInfo
     ( TransactionInfo
@@ -4052,7 +4054,7 @@ submitTransaction ctx apiw@(ApiT wid) apitx = do
                 $ L.nubBy samePaymentKey
                 $ filter isInpOurs
                 $ (apiDecoded ^. #inputs) ++ (apiDecoded ^. #collateral)
-    let totalNumberOfWits = length $ getSealedTxWitnesses sealedTx
+    let totalNumberOfWits = sealedTxWitnessCount sealedTx
 
     when (countJoinsQuits (apiDecoded ^. #certificates) > 1)
         $ liftHandler
@@ -4218,7 +4220,7 @@ submitSharedTransaction ctx apiw@(ApiT wid) apitx = do
                     $ L.nubBy samePaymentKey
                     $ filter isInpOurs
                     $ (apiDecoded ^. #inputs) ++ (apiDecoded ^. #collateral)
-        let totalNumberOfWits = length $ getSealedTxWitnesses sealedTx
+        let totalNumberOfWits = sealedTxWitnessCount sealedTx
         let paymentWitsRequired =
                 fromIntegral pWitsPerInput * witsRequiredForInputs
         let allWitsRequired =
