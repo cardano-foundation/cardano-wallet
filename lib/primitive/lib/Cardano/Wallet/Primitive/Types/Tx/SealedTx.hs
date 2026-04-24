@@ -24,6 +24,7 @@ module Cardano.Wallet.Primitive.Types.Tx.SealedTx
     , sealedTxFromCardano
     , sealedTxFromCardano'
     , sealedTxFromCardanoBody
+    , sealedTxFromLedgerTx
     , unsafeSealedTxFromBytes
     , SerialisedTx (..)
     , getSealedTxBody
@@ -52,6 +53,7 @@ import Cardano.Ledger.Binary
     )
 import Cardano.Read.Ledger.Tx.CBOR
     ( deserializeTx
+    , serializeTx
     )
 import Cardano.Wallet.Read
     ( EraValue (..)
@@ -410,6 +412,16 @@ withinEra = (>=) `on` numberEra
         BabbageEra -> 6
         ConwayEra -> 7
         _ -> 8
+
+-- | Construct a 'SealedTx' from a ledger-native
+-- 'Read.Tx'. Serialises to CBOR via ledger-read;
+-- bypasses cardano-api entirely.
+sealedTxFromLedgerTx
+    :: forall era
+     . Read.IsEra era
+    => Read.Tx era -> SealedTx
+sealedTxFromLedgerTx tx =
+    SealedTx True (EraValue tx) (BL.toStrict (serializeTx tx))
 
 -- | Deserialise a transaction to construct a
 -- 'SealedTx'.
