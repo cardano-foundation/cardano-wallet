@@ -7125,30 +7125,12 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         \f2d40e61a300010481d879800581840000d8798082191a221a019d6038\
         \f5f6"
 
-    -- TODO: This function should really not exist, but instead, it should be
-    -- possible to construct a transaction from the API with additional required
-    -- signers!
-    -- TODO: remove no-unused-imports pragma once this function is fixed.
+    -- TODO ADP-3077: this should not exist — the API should be able to
+    -- construct a transaction with additional required signers directly.
+    -- When this is implemented, do it ledger-native on 'Read.Tx era' via
+    -- 'reqSignerHashesTxBodyL', restricted to Alonzo-and-later eras.
     addRequiredSigners :: SealedTx -> [XPub] -> SealedTx
     addRequiredSigners _tx _vks = error "TODO: ADP-3077 fix addRequiredSigners"
-
-    {-
-        case getSealedTxBody tx of
-            InAnyCardanoEra AlonzoEra (Cardano.ShelleyTxBody a body b c d e) ->
-                let body' = body
-                        { Alonzo.reqSignerHashes = Set.fromList $ hashKey <$> vks
-                        }
-                 in sealedTxFromCardanoBody (Cardano.ShelleyTxBody a body' b c d e
-            _ -> tx
-      where
-        hashKey :: forall kd. XPub -> Ledger.KeyHash kd StandardCrypto
-        hashKey =
-            Ledger.hashKey
-            . Ledger.VKey
-            . fromJust
-            . rawDeserialiseVerKeyDSIGN
-            . xpubPublicKey
-    -}
 
     fromTextEnvelope cborHex =
         let textEnvelope =
