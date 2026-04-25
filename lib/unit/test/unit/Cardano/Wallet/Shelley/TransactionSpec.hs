@@ -1061,6 +1061,9 @@ decodeSealedTxSpec = describe "SealedTx serialisation/deserialisation" $ do
         sealedTx `shouldSatisfy` isRight
 
     prop "roundtrip for Shelley witnesses" prop_sealedTxRecentEraRoundtrip
+    prop
+        "default decoder roundtrips recent era transactions"
+        prop_sealedTxDefaultRecentEraRoundtrip
   where
     byteString =
         mconcat
@@ -1323,6 +1326,18 @@ prop_sealedTxRecentEraRoundtrip
                         sealedTxB
                     ]
                     .||. encodingFromTheFuture (txEra) currentEra
+
+prop_sealedTxDefaultRecentEraRoundtrip
+    :: Pretty DecodeSetup
+    -> Property
+prop_sealedTxDefaultRecentEraRoundtrip (Pretty tc) =
+    cardanoApiEraConstraints RecentEraConway
+        $ let tx = makeShelleyTx RecentEraConway tc
+              txBytes = Cardano.serialiseToCBOR tx
+          in  either
+                (\e -> counterexample (show e) False)
+                (compareOnCBOR tx)
+                (sealedTxFromBytes txBytes)
 
 makeShelleyTx
     :: Write.IsRecentEra era

@@ -166,6 +166,7 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..)
     , Tx (..)
+    , sealedTxFromBytes'
     , sealedTxFromLedgerTx
     )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
@@ -622,7 +623,7 @@ newTransactionLayer
 newTransactionLayer keyF networkId =
     TransactionLayer
         { addVkWitnesses =
-            \_era
+            \preferredLatestEra
              witCountCtx
              stakeCreds
              policyCreds
@@ -668,7 +669,7 @@ newTransactionLayer keyF networkId =
                                     ]
 
                     fromMaybe errNonRecentEra
-                        $ withSealedTxRecentEra sealedTx
+                        $ withSealedTxRecentEra preferredLatestEra sealedTx
                         $ \era' ledgerTx ->
                             sealRecentTx era'
                                 $ signTransaction
@@ -687,19 +688,33 @@ newTransactionLayer keyF networkId =
         }
 
 withSealedTxRecentEra
-    :: SealedTx
+    :: Read.EraValue Read.Era
+    -> SealedTx
     -> ( forall era
           . Write.IsRecentEra era => RecentEra era -> Write.Tx era -> a
        )
     -> Maybe a
-withSealedTxRecentEra sealedTx f = case unsafeReadTx sealedTx of
-    Read.EraValue (Read.Tx tx :: Read.Tx era) -> case Read.theEra @era of
-        Read.Conway ->
-            Just $ f RecentEraConway tx
-        Read.Dijkstra ->
-            Just $ f RecentEraDijkstra tx
-        _ ->
-            Nothing
+withSealedTxRecentEra preferredLatestEra sealedTx f =
+    case readSealedTxIdeallyNoLaterThan preferredLatestEra sealedTx of
+        Read.EraValue (Read.Tx tx :: Read.Tx era) -> case Read.theEra @era of
+            Read.Conway ->
+                Just $ f RecentEraConway tx
+            Read.Dijkstra ->
+                Just $ f RecentEraDijkstra tx
+            _ ->
+                Nothing
+
+readSealedTxIdeallyNoLaterThan
+    :: Read.EraValue Read.Era
+    -> SealedTx
+    -> Read.EraValue Read.Tx
+readSealedTxIdeallyNoLaterThan preferredLatestEra sealedTx =
+    unsafeReadTx
+        $ fromMaybe sealedTx
+        $ either (const Nothing) Just
+        $ sealedTxFromBytes'
+            preferredLatestEra
+            (serialisedTx sealedTx)
 
 txExtendedFromRecentTx
     :: RecentEra era
@@ -868,8 +883,8 @@ _decodeSealedTx
     :: Read.EraValue Read.Era
     -> SealedTx
     -> TxExtended
-_decodeSealedTx _preferredLatestEra sealedTx =
-    case unsafeReadTx sealedTx of
+_decodeSealedTx preferredLatestEra sealedTx =
+    case readSealedTxIdeallyNoLaterThan preferredLatestEra sealedTx of
         Read.EraValue tx -> getTxExtended tx
 
 -- FIXME: Make this a Allegra or Shelley transaction depending on the era we're
