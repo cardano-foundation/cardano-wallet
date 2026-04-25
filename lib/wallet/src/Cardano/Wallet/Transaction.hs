@@ -68,9 +68,6 @@ import Cardano.Address.Script
     ( Script (..)
     , ScriptTemplate
     )
-import Cardano.Api
-    ( AnyCardanoEra
-    )
 import Cardano.Api.Extra
     (
     )
@@ -177,12 +174,13 @@ import Prelude
 
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
+import qualified Cardano.Wallet.Read as Read
 import qualified Data.Foldable as F
 import qualified Data.Map.Strict as Map
 
 data TransactionLayer (k :: Depth -> Type -> Type) ktype tx = TransactionLayer
     { addVkWitnesses
-        :: AnyCardanoEra
+        :: Read.EraValue Read.Era
         -- Preferred latest era
         -> WitnessCountCtx
         -> [(XPrv, Passphrase "encryption")]
@@ -203,7 +201,7 @@ data TransactionLayer (k :: Depth -> Type -> Type) ktype tx = TransactionLayer
     -- If inputs can't be resolved, they are simply skipped, hence why this
     -- function cannot fail.
     , decodeTx
-        :: AnyCardanoEra
+        :: Read.EraValue Read.Era
         -> tx
         -> TxExtended
     -- ^ Decode an externally-created transaction.
@@ -371,7 +369,7 @@ data ErrMkTransaction
         ErrMkTransactionOutputTokenQuantityExceedsLimitError
     | -- | Should never happen, means that that we have programmatically provided
       -- an invalid era.
-      ErrMkTransactionInvalidEra AnyCardanoEra
+      ErrMkTransactionInvalidEra (Read.EraValue Read.Era)
     | ErrMkTransactionJoinStakePool ErrCannotJoin
     | ErrMkTransactionQuitStakePool ErrCannotQuit
     | ErrMkTransactionIncorrectTTL PastHorizonException

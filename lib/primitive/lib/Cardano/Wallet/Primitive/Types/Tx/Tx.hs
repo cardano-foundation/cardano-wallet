@@ -39,8 +39,6 @@ module Cardano.Wallet.Primitive.Types.Tx.Tx
 
 import Cardano.Api
     ( ScriptWitnessIndex (..)
-    , TxMetadata (..)
-    , TxMetadataValue (..)
     )
 import Cardano.Wallet.Orphans
     (
@@ -57,6 +55,10 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxId
     , TxIn (..)
+    )
+import Cardano.Wallet.Primitive.Types.Tx.TxMetadata
+    ( TxMetadata (..)
+    , TxMetadataValue (..)
     )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..)

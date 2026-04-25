@@ -251,14 +251,9 @@ import Cardano.Address.KeyHash
 import Cardano.Address.Script
     ( Cosigner (..)
     )
-import Cardano.Api
-    ( serialiseToCBOR
-    )
 import Cardano.Api.Extra
     ( CardanoApiEra
     , cardanoApiEraConstraints
-    , cardanoEraFromRecentEra
-    , fromCardanoApiTx
     , inAnyCardanoEra
     , toCardanoApiTx
     )
@@ -303,6 +298,10 @@ import Cardano.Ledger.Api
     ( EraTxBody (allInputsTxBodyF)
     , bodyTxL
     , feeTxBodyL
+    )
+import Cardano.Ledger.Binary
+    ( serialize'
+    , shelleyProtVer
     )
 import Cardano.Mnemonic
     ( SomeMnemonic
@@ -496,6 +495,7 @@ import Cardano.Wallet.Primitive.Model
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId (..)
     , networkIdVal
+    , sNetworkIdToLedger
     )
 import Cardano.Wallet.Primitive.Passphrase
     ( ErrWrongPassphrase (..)
@@ -613,6 +613,9 @@ import Cardano.Wallet.Primitive.Types.Tx.TxMeta
     , TxMeta (..)
     , TxStatus (..)
     )
+import Cardano.Wallet.Primitive.Types.Tx.TxMetadata
+    ( toShelleyMetadata
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..)
     )
@@ -632,6 +635,11 @@ import Cardano.Wallet.Shelley.Transaction
     , txConstraints
     , txWitnessTagForKey
     , _txRewardWithdrawalCost
+    )
+import Cardano.Wallet.Shelley.Transaction.Ledger
+    ( certificateFromDelegationActionLedger
+    , certificateFromVotingActionLedger
+    , constructUnsignedTxLedger
     )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
@@ -2137,7 +2145,7 @@ signTransaction
     => KeyFlavorS k
     -> TransactionLayer k ktype SealedTx
     -- ^ The way to interact with the wallet backend
-    -> Cardano.AnyCardanoEra
+    -> Read.EraValue Read.Era
     -- ^ Preferred latest era
     -> WitnessCountCtx
     -> (Address -> Maybe (k ktype XPrv, Passphrase "encryption"))
@@ -2613,10 +2621,9 @@ buildAndSignTransactionPure
       where
         era = recentEra @era
         wF = walletFlavor @s
-        anyCardanoEra =
-            cardanoApiEraConstraints era
-                $ Cardano.AnyCardanoEra
-                $ cardanoEraFromRecentEra era
+        anyCardanoEra = case era of
+            Write.RecentEraConway -> Read.EraValue Read.Conway
+            Write.RecentEraDijkstra -> Read.EraValue Read.Dijkstra
 
 buildTransaction
     :: forall s era
@@ -2701,13 +2708,51 @@ buildTransactionPure
     preSelection
     txCtx =
         do
-            unsignedTxBody <-
+            let era = Write.recentEra @era
+                network =
+                    sNetworkIdToLedger
+                        (sNetworkId @(NetworkOf s))
+                stakeXPub =
+                    case walletFlavor @s of
+                        ShelleyWallet ->
+                            getRawKey
+                                (keyFlavorFromState @s)
+                                $ Seq.rewardAccountKey
+                                    (getState wallet)
+                        _ ->
+                            error
+                                "buildTransactionPure: \
+                                \non-shelley wallet"
+                depositM = view #txDeposit txCtx
+                delegCerts =
+                    case view #txDelegationAction txCtx of
+                        Nothing -> []
+                        Just action ->
+                            certificateFromDelegationActionLedger
+                                era
+                                (Left stakeXPub)
+                                depositM
+                                action
+                votingCerts =
+                    case view #txVotingAction txCtx of
+                        Nothing -> []
+                        Just action ->
+                            certificateFromVotingActionLedger
+                                era
+                                (Left stakeXPub)
+                                depositM
+                                action
+                allCerts = L.nub $ delegCerts <> votingCerts
+            unsignedTx <-
                 withExceptT (Right . ErrConstructTxBody) . except
-                    $ mkUnsignedTransaction
-                        (networkIdVal $ sNetworkId @(NetworkOf s))
-                        (Left $ unsafeShelleyOnlyGetRewardXPub @s (getState wallet))
-                        txCtx
+                    $ constructUnsignedTxLedger
+                        era
+                        network
+                        (view #txMetadata txCtx, allCerts)
+                        (txValidityInterval txCtx)
+                        (view #txWithdrawal txCtx)
                         (Left preSelection)
+                        (Coin 0)
             let utxoIndex :: Write.UTxOIndex era
                 utxoIndex = utxoIndexFromWalletUTxO utxo
             withExceptT Left
@@ -2719,7 +2764,7 @@ buildTransactionPure
                     changeAddrGen
                     (getState wallet)
                     Write.PartialTx
-                        { tx = fromCardanoApiTx (Cardano.Tx unsignedTxBody [])
+                        { tx = unsignedTx
                         , extraUTxO = Write.UTxO mempty
                         , redeemers = []
                         , timelockKeyWitnessCounts = mempty
@@ -2735,22 +2780,6 @@ buildTransactionPure
 -- make 'buildAndSignTransactionPure' partial instead.
 --
 -- https://cardanofoundation.atlassian.net/browse/ADP-2933
-
-unsafeShelleyOnlyGetRewardXPub
-    :: forall s
-     . WalletFlavor s
-    => s -> XPub
-unsafeShelleyOnlyGetRewardXPub walletState =
-    case walletFlavor @s of
-        ShelleyWallet ->
-            getRawKey (keyFlavorFromState @s)
-                $ Seq.rewardAccountKey walletState
-        _ ->
-            error
-                $ unwords
-                    [ "buildAndSignTransactionPure:"
-                    , "can't delegate using non-shelley wallet"
-                    ]
 
 -- | Produce witnesses and construct a transaction from a given selection.
 --
@@ -3483,18 +3512,56 @@ transactionFee
             evaluate
                 $ utxoIndexFromWalletUTxO
                 $ availableUTxO mempty wallet
-        unsignedTxBody <-
+        let era = Write.recentEra @era
+            network =
+                sNetworkIdToLedger
+                    (sNetworkId @(NetworkOf s))
+            stakeXPub =
+                case walletFlavor @s of
+                    ShelleyWallet ->
+                        getRawKey
+                            (keyFlavorFromState @s)
+                            $ Seq.rewardAccountKey
+                                (getState wallet)
+                    _ ->
+                        error
+                            "transactionFee: \
+                            \non-shelley wallet"
+            depositM = view #txDeposit txCtx
+            delegCerts =
+                case view #txDelegationAction txCtx of
+                    Nothing -> []
+                    Just action ->
+                        certificateFromDelegationActionLedger
+                            era
+                            (Left stakeXPub)
+                            depositM
+                            action
+            votingCerts =
+                case view #txVotingAction txCtx of
+                    Nothing -> []
+                    Just action ->
+                        certificateFromVotingActionLedger
+                            era
+                            (Left stakeXPub)
+                            depositM
+                            action
+            allCerts = L.nub $ delegCerts <> votingCerts
+        unsignedTx <-
             wrapErrMkTransaction
-                $ mkUnsignedTransaction
-                    (networkIdVal $ sNetworkId @(NetworkOf s))
-                    (Left $ unsafeShelleyOnlyGetRewardXPub @s (getState wallet))
-                    txCtx
+                $ constructUnsignedTxLedger
+                    era
+                    network
+                    (view #txMetadata txCtx, allCerts)
+                    (txValidityInterval txCtx)
+                    (view #txWithdrawal txCtx)
                     (Left preSelection)
+                    (Coin 0)
 
         let ptx :: Write.PartialTx era
             ptx =
                 Write.PartialTx
-                    { tx = fromCardanoApiTx (Cardano.Tx unsignedTxBody [])
+                    { tx = unsignedTx
                     , extraUTxO = Write.UTxO mempty
                     , redeemers = []
                     , timelockKeyWitnessCounts = mempty
@@ -3746,7 +3813,9 @@ signMetadataWith ctx wid pwd (role_, ix) metadata =
                 $ BA.convert
                 $ CC.sign encPwd (getRawKey (keyFlavorFromState @s) addrK)
                 $ hash @ByteString @Blake2b_256
-                $ serialiseToCBOR metadata
+                $ serialize' shelleyProtVer
+                $ toShelleyMetadata
+                $ unTxMetadata metadata
   where
     db = ctx ^. dbLayer
 

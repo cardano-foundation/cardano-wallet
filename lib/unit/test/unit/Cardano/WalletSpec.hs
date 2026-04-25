@@ -25,10 +25,6 @@ module Cardano.WalletSpec
 import Cardano.Address.Derivation
     ( XPrv
     )
-import Cardano.Api
-    ( AnyCardanoEra (..)
-    , CardanoEra (..)
-    )
 import Cardano.Balance.Tx.Balance
     ( ErrBalanceTx (..)
     , ErrBalanceTxAssetsInsufficientError (..)
@@ -1586,7 +1582,7 @@ mockNetworkLayer =
         { currentNodeTip =
             pure dummyTip
         , currentNodeEra =
-            pure (AnyCardanoEra AllegraEra)
+            pure (Read.EraValue Read.Allegra)
         , currentProtocolParameters =
             pure (protocolParameters dummyNetworkParameters)
         , timeInterpreter = dummyTimeInterpreter

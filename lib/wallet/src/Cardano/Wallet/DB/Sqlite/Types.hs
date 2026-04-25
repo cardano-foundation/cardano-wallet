@@ -25,11 +25,6 @@ import Cardano.Address.Script
     , Script
     , ScriptHash (..)
     )
-import Cardano.Api
-    ( TxMetadataJsonSchema (..)
-    , metadataFromJson
-    , metadataToJson
-    )
 import Cardano.Pool.Types
     ( PoolId
     )
@@ -107,6 +102,11 @@ import Cardano.Wallet.Primitive.Types.Tx.Tx
 import Cardano.Wallet.Primitive.Types.Tx.TxMeta
     ( Direction (..)
     , TxStatus (..)
+    )
+import Cardano.Wallet.Primitive.Types.Tx.TxMetadata
+    ( TxMetadataJsonSchema (..)
+    , metadataFromJson
+    , metadataToJson
     )
 import Control.Arrow
     ( left
