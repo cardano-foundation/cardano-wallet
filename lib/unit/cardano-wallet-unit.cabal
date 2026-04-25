@@ -79,11 +79,15 @@ test-suite unit
     , cardano-crypto
     , cardano-crypto-class
     , cardano-diffusion:api
+    , cardano-ledger-allegra
     , cardano-ledger-alonzo
+    , cardano-ledger-api
     , cardano-ledger-babbage
+    , cardano-ledger-binary
     , cardano-ledger-core
     , cardano-ledger-shelley
     , cardano-slotting
+    , cardano-strict-containers
     , cardano-wallet
     , cardano-wallet-api
     , cardano-wallet-application
@@ -249,6 +253,7 @@ test-suite unit
     Cardano.Wallet.Shelley.CompatibilitySpec
     Cardano.Wallet.Shelley.LaunchSpec
     Cardano.Wallet.Shelley.NetworkSpec
+    Cardano.Wallet.Shelley.TransactionLedgerSpec
     Cardano.Wallet.Shelley.TransactionSpec
     Cardano.Wallet.Submissions.Gen
     Cardano.Wallet.Submissions.OperationsSpec

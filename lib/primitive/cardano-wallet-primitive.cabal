@@ -40,7 +40,9 @@ library
   build-depends:
     , aeson
     , array
+    , attoparsec
     , base
+    , base16-bytestring
     , bech32
     , bech32-th
     , binary
@@ -204,6 +206,7 @@ library
     Cardano.Wallet.Primitive.Types.Tx.TxExtended
     Cardano.Wallet.Primitive.Types.Tx.TxIn
     Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen
+    Cardano.Wallet.Primitive.Types.Tx.TxMetadata
     Cardano.Wallet.Primitive.Types.Tx.TxOut
     Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen
     Cardano.Wallet.Primitive.Types.TxParameters

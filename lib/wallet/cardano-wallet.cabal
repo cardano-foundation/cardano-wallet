@@ -56,9 +56,12 @@ library
     , cardano-crypto-class
     , cardano-crypto-wrapper
     , cardano-ledger-allegra
+    , cardano-ledger-alonzo
     , cardano-ledger-api
     , cardano-ledger-byron
+    , cardano-ledger-conway
     , cardano-ledger-core
+    , cardano-ledger-mary
     , cardano-ledger-read
     , cardano-slotting
     , cardano-strict-containers
@@ -237,6 +240,8 @@ library
     Cardano.Wallet.Shelley.BlockchainSource
     Cardano.Wallet.Shelley.Network
     Cardano.Wallet.Shelley.Transaction
+    Cardano.Wallet.Shelley.Transaction.Build
+    Cardano.Wallet.Shelley.Transaction.Ledger
     Cardano.Wallet.Submissions.Operations
     Cardano.Wallet.Submissions.Primitives
     Cardano.Wallet.Submissions.Properties.Common

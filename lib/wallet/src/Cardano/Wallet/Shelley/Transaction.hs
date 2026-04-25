@@ -48,6 +48,7 @@ module Cardano.Wallet.Shelley.Transaction
     , mkByronWitness
     , mkShelleyWitness
     , mkUnsignedTx
+    , signTransaction
     , _txRewardWithdrawalCost
     , _txRewardWithdrawalSize
     , txWitnessTagForKey
