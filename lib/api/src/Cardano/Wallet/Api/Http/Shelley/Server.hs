@@ -552,7 +552,7 @@ import Cardano.Wallet.Primitive.Model
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId (..)
     , NetworkDiscriminantCheck
-    , networkIdToLedger
+    , sNetworkIdToLedger
     )
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..)
@@ -5506,7 +5506,7 @@ fromApiRedeemer = \case
     ApiRedeemerRewarding (ApiBytesT bytes) acct ->
         Write.RedeemerRewarding bytes
             $ Ledger.AccountAddress
-                (networkIdToLedger (sNetworkId @n))
+                (sNetworkIdToLedger (sNetworkId @n))
                 (Ledger.AccountId (toLedgerStakeCredential acct))
 
 sealWriteTx

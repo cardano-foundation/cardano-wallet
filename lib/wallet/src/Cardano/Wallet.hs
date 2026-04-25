@@ -494,8 +494,8 @@ import Cardano.Wallet.Primitive.Model
     )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId (..)
-    , networkIdToLedger
     , networkIdVal
+    , sNetworkIdToLedger
     )
 import Cardano.Wallet.Primitive.Passphrase
     ( ErrWrongPassphrase (..)
@@ -2710,7 +2710,7 @@ buildTransactionPure
         do
             let era = Write.recentEra @era
                 network =
-                    networkIdToLedger
+                    sNetworkIdToLedger
                         (sNetworkId @(NetworkOf s))
                 stakeXPub =
                     case walletFlavor @s of
@@ -3514,7 +3514,7 @@ transactionFee
                 $ availableUTxO mempty wallet
         let era = Write.recentEra @era
             network =
-                networkIdToLedger
+                sNetworkIdToLedger
                     (sNetworkId @(NetworkOf s))
             stakeXPub =
                 case walletFlavor @s of
