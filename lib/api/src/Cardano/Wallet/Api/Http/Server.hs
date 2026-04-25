@@ -208,8 +208,9 @@ import Cardano.Wallet.Primitive.Ledger.Shelley
     )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId (..)
-    , NetworkId (..)
+    , NetworkId
     , fromSNetworkId
+    , networkIdToLedger
     )
 import Cardano.Wallet.Primitive.Types
     ( PoolMetadataSource (..)
@@ -266,6 +267,7 @@ import Prelude
 import qualified Cardano.Address.Derivation as CA
 import qualified Cardano.Address.KeyHash as CA
 import qualified Cardano.Address.Style.Shelley as CA
+import qualified Cardano.Ledger.BaseTypes as Ledger
 import qualified Cardano.Wallet.Address.Derivation.Shared as Shared
 import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
 import qualified Data.Text as T
@@ -798,9 +800,8 @@ postAnyAddress net addrData = do
   where
     fromXPub = fromJust . CA.xpubFromBytes
     fromPub = fromJust . CA.pubFromBytes
-    netTag = case net of
-        NMainnet -> 1
-        NTestnet _ -> 0
+    netTag =
+        toInteger $ Ledger.networkToWord8 $ networkIdToLedger net
     spendingFrom cred = case cred of
         CredentialPubKey bytes ->
             CA.PaymentFromKey $ CA.liftPub $ fromPub bytes

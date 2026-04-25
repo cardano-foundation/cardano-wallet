@@ -36,6 +36,10 @@ Where `LedgerTx era` wraps `Ledger.Tx (CardanoLedgerEra era)` using the wallet-r
 - `TxMetadata`: `Map Word64 TxMetadataValue`
 - `TxMetadataValue`: ADT with constructors `TxMetaMap`, `TxMetaList`, `TxMetaNumber`, `TxMetaBytes`, `TxMetaText`
 
+Ledger also provides `Cardano.Ledger.Metadata.Metadatum`. The wallet type
+keeps the existing constructor names and JSON schema helpers for REST API and
+database compatibility, with conversion functions to and from the ledger type.
+
 **Validation rules**:
 - Byte strings limited to 64 bytes per chunk
 - Text strings limited to 64 bytes UTF-8 encoded per chunk
@@ -47,7 +51,12 @@ Where `LedgerTx era` wraps `Ledger.Tx (CardanoLedgerEra era)` using the wallet-r
 
 **Location**: `lib/primitive/lib/Cardano/Wallet/Primitive/NetworkId.hs`
 
-**Change**: Remove `networkIdVal :: SNetworkId n -> Cardano.NetworkId` conversion. Add `networkIdToLedger :: SNetworkId n -> Ledger.Network` for the few places that need a ledger-level network value.
+**Change**: Remove `networkIdVal :: SNetworkId n -> Cardano.NetworkId` conversion once all remaining cardano-api consumers migrate. Add `networkIdToLedger :: NetworkId -> Ledger.Network` and `sNetworkIdToLedger :: SNetworkId n -> Ledger.Network` for the places that only need a ledger-level, magic-free network value.
+
+The wallet `NetworkId` remains the value-level type where testnet magic is
+needed. Ledger `Network` distinguishes mainnet from testnet, but does not carry
+the testnet magic required by network information, local cluster setup, and
+Byron witness construction.
 
 ### Era types (unchanged, bridge removed)
 

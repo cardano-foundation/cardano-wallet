@@ -28,7 +28,7 @@ Each task adds new code. Nothing is removed or changed. Dual paths coexist.
 
 - [ ] T007 [P] Create wallet-owned `TxMetadata`/`TxMetadataValue` in new module `lib/primitive/lib/Cardano/Wallet/Primitive/Types/Tx/TxMetadata.hs` with JSON schema conversion ported from cardano-api (FR-007)
 - [ ] T008 [P] Add ledger-native constructor path to `SealedTx` (`EraValue LedgerTx` + CBOR) alongside existing `InAnyCardanoEra Cardano.Api.Tx` in `lib/primitive/lib/Cardano/Wallet/Primitive/Types/Tx/SealedTx.hs` (FR-008)
-- [ ] T009 [P] Add `networkIdToLedger :: SNetworkId n -> Ledger.Network` in `lib/primitive/lib/Cardano/Wallet/Primitive/NetworkId.hs` alongside existing `networkIdVal` (FR-005)
+- [ ] T009 [P] Add `networkIdToLedger :: NetworkId -> Ledger.Network` and `sNetworkIdToLedger :: SNetworkId n -> Ledger.Network` in `lib/primitive/lib/Cardano/Wallet/Primitive/NetworkId.hs` alongside existing `networkIdVal` (FR-005)
 - [ ] T010 [P] Add direct `cardano-ledger-api` certificate helper functions alongside `Cardano.Api.Certificate` usage in `lib/wallet/` and `lib/api/` (FR-006)
 - [ ] T011 [P] Add `mkShelleyTx` + `HardForkGenTx` submission helpers alongside `toConsensusGenTx` in `lib/network-layer/` (FR-009)
 - [ ] T012 [P] Add ledger-native tx body construction helpers alongside `TxBodyContent`/`createTransactionBody` in `lib/wallet/src/Cardano/Wallet/Shelley/Transaction.hs` (FR-010)
@@ -69,7 +69,7 @@ Replace `AnyCardanoEra`, `CardanoEra`, `InAnyCardanoEra`, `ShelleyBasedEra`, `Is
 - [ ] T026 Switch `SealedTx` consumers in `lib/wallet/` (FR-008)
 - [ ] T027 Switch `SealedTx` consumers in `lib/api/` and `lib/network-layer/` (FR-008)
 - [ ] T028 Switch `TxMetadata` consumers from `Cardano.Api.TxMetadata` to wallet-owned type — `lib/primitive/`, `lib/api/` (FR-007)
-- [ ] T029 Switch `NetworkId` consumers from `networkIdVal` to `networkIdToLedger` (FR-005)
+- [ ] T029 Switch `NetworkId` consumers that do not need testnet magic from `networkIdVal` to `networkIdToLedger` (FR-005)
 - [ ] T030 Switch CBOR serialization from `serialiseToCBOR`/`deserialiseFromCBOR` to `cardano-ledger-binary` across all call sites (FR-004)
 - [ ] T031 Switch bech32 serialization to direct `bech32` library (FR-004)
 

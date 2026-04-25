@@ -25,7 +25,7 @@
 
 **Decision**: Inline `TxMetadata` and `TxMetadataValue` as wallet-owned types in `Cardano.Wallet.Primitive.Types.Tx.TxMetadata`. Port the JSON schema conversion functions (`metadataFromJson`, `metadataToJson`, `TxMetadataJsonSchema`) from cardano-api source.
 
-**Rationale**: The types are simple ADTs (map of Word64 to values). The JSON conversion is ~200 lines of pure Haskell. The ledger has `Metadata` but with different JSON serialization. Inlining preserves wire compatibility exactly.
+**Rationale**: The types are simple ADTs (map of Word64 to values). The JSON conversion is ~200 lines of pure Haskell. The ledger has `Cardano.Ledger.Metadata.Metadatum`, but with different JSON serialization and constructor names. Inlining preserves wire compatibility exactly while conversion functions bridge to ledger metadata at transaction construction and decoding boundaries.
 
 **Alternatives considered**:
 - Using ledger `Metadata` directly — rejected, different JSON format would break REST API contract.
@@ -65,9 +65,9 @@
 
 ## Decision: NetworkId unification
 
-**Decision**: Remove `networkIdVal :: SNetworkId n -> Cardano.NetworkId` conversion. All call sites switch to `Cardano.Wallet.Primitive.NetworkId.SNetworkId` or the value-level `NetworkId` directly. Where ouroboros/ledger need a `Network` value, convert via `Ledger.Mainnet`/`Ledger.Testnet`.
+**Decision**: Remove `networkIdVal :: SNetworkId n -> Cardano.NetworkId` conversion once all remaining cardano-api consumers migrate. All call sites switch to `Cardano.Wallet.Primitive.NetworkId.SNetworkId` or the value-level `NetworkId` directly. Where ouroboros/ledger need a magic-free `Network` value, convert via `networkIdToLedger` / `sNetworkIdToLedger`.
 
-**Rationale**: The wallet's `NetworkId` already carries all needed information. The conversion to `Cardano.Api.NetworkId` was only needed because other cardano-api functions required it. Once those functions are replaced, the conversion is dead code.
+**Rationale**: The wallet's `NetworkId` still carries testnet magic, which `Ledger.Network` intentionally does not. `Ledger.Network` is the right type for ledger-facing code paths that only need the mainnet/testnet bit; wallet configuration, network information, and Byron witness construction still need the magic-bearing wallet type. The conversion to `Cardano.Api.NetworkId` was only needed because other cardano-api functions required it. Once those functions are replaced, the conversion is dead code.
 
 **Alternatives considered**: None.
 

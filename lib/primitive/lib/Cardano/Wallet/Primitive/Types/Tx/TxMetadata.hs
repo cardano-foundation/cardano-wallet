@@ -5,8 +5,13 @@
 -- Copyright: 2018-2022 IOHK, 2023 Cardano Foundation
 -- License: Apache-2.0
 --
--- Metadata embedded in transactions. Wallet-owned copy of types and
--- JSON conversion originally from @cardano-api@.
+-- Metadata embedded in transactions. Wallet-owned copy of the
+-- @cardano-api@ surface.
+--
+-- The ledger already provides 'Cardano.Ledger.Metadata.Metadatum';
+-- this module converts to and from it below. It keeps the wallet-facing
+-- constructors and JSON schema helpers while the API and tests still use
+-- the old @cardano-api@ metadata shape.
 module Cardano.Wallet.Primitive.Types.Tx.TxMetadata
     ( -- * Types
       TxMetadata (..)

@@ -49,7 +49,7 @@ Additive-only commits. Nothing is removed. The codebase temporarily has dual pat
 
 - Wallet-owned `TxMetadata`/`TxMetadataValue` module (new file, not imported yet)
 - Ledger-native `SealedTx` constructor (new constructor alongside old one)
-- `networkIdToLedger` function (alongside existing `networkIdVal`)
+- `networkIdToLedger` / `sNetworkIdToLedger` functions (alongside existing `networkIdVal`)
 - Direct `cardano-ledger-api` certificate constructors (new helper functions)
 - `mkShelleyTx` + `HardForkGenTx` submission helpers (alongside `toConsensusGenTx`)
 - Ledger-native tx body construction helpers (alongside `TxBodyContent`)

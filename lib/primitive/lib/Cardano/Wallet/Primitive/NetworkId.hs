@@ -24,6 +24,7 @@ module Cardano.Wallet.Primitive.NetworkId
     , withSNetworkId
     , networkIdVal
     , networkIdToLedger
+    , sNetworkIdToLedger
     )
 where
 
@@ -79,6 +80,10 @@ class NetworkDiscriminantCheck k where
     Value level network discrimination
 ------------------------------------------------------------------------------}
 
+-- | Value-level network identifier used where the wallet still needs the
+-- testnet magic. The ledger 'Ledger.Network' only distinguishes mainnet from
+-- testnet, so use 'networkIdToLedger' at ledger boundaries that do not need
+-- the magic.
 data NetworkId
     = NMainnet
     | NTestnet Natural
@@ -141,10 +146,14 @@ networkIdVal (STestnet snat) = Cardano.Testnet networkMagic
     networkMagic =
         Cardano.NetworkMagic . fromIntegral $ fromSNat snat
 
+-- | Project a wallet 'NetworkId' to the ledger's magic-free 'Ledger.Network'.
+networkIdToLedger :: NetworkId -> Ledger.Network
+networkIdToLedger NMainnet = Ledger.Mainnet
+networkIdToLedger (NTestnet _) = Ledger.Testnet
+
 -- | Convert a 'SNetworkId' to a ledger 'Network' value.
-networkIdToLedger :: SNetworkId n -> Ledger.Network
-networkIdToLedger SMainnet = Ledger.Mainnet
-networkIdToLedger (STestnet _) = Ledger.Testnet
+sNetworkIdToLedger :: SNetworkId n -> Ledger.Network
+sNetworkIdToLedger = networkIdToLedger . fromSNetworkId
 
 {-----------------------------------------------------------------------------
    conversions

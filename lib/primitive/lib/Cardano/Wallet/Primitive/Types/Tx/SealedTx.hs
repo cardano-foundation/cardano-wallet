@@ -305,7 +305,7 @@ sealedTxFromCardanoBody =
     mk body = Cardano.Tx body []
 
 -- | Try to deserialize bytes into 'EraValue Read.Tx',
--- trying Conway first, then older eras.
+-- trying the newest ledger era first, then older eras.
 readTxFromBytes
     :: AnyCardanoEra
     -> ByteString
@@ -315,7 +315,9 @@ readTxFromBytes maxEra bs =
         $ map snd
         $ filter
             (withinEra maxEra . fst)
-            [ tryEra @Conway
+            [ tryEra @Dijkstra
+                (AnyCardanoEra DijkstraEra)
+            , tryEra @Conway
                 (AnyCardanoEra ConwayEra)
             , tryEra @Babbage
                 (AnyCardanoEra BabbageEra)
@@ -357,6 +359,10 @@ readTxFromBytes maxEra bs =
 --
 -- Temporary: kept for functions that still need
 -- cardano-api types. Will be removed.
+--
+-- Dijkstra is intentionally absent here because the wallet's
+-- temporary 'CardanoApiEra' bridge does not support it. The
+-- ledger-native 'readTxFromBytes' path above already tries Dijkstra.
 cardanoTxFromBytes
     :: AnyCardanoEra
     -> ByteString
