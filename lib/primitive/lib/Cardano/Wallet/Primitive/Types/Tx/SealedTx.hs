@@ -261,7 +261,7 @@ sealedTxFromLedgerTx tx =
 -- 'SealedTx'.
 sealedTxFromBytes
     :: ByteString -> Either DecoderError SealedTx
-sealedTxFromBytes = sealedTxFromBytes' (EraValue Dijkstra)
+sealedTxFromBytes = sealedTxFromBytes' (EraValue Conway)
 
 -- | Deserialise a transaction to construct a
 -- 'SealedTx'.
