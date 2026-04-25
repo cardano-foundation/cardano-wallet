@@ -69,14 +69,12 @@ import Cardano.Address.Script
     , toScriptHash
     )
 import Cardano.Api
-    ( InAnyCardanoEra (..)
-    , NetworkId
+    ( NetworkId
     )
 -- Removed: Cardano.Api.Error no longer exists, using show instead
 
 import Cardano.Api.Extra
     ( CardanoApiEra
-    , cardanoApiEraConstraints
     , fromCardanoApiTx
     , shelleyBasedEraFromRecentEra
     , toCardanoApiTx
@@ -121,6 +119,7 @@ import Cardano.Wallet.Primitive.Ledger.Convert
     )
 import Cardano.Wallet.Primitive.Ledger.Read.Tx.TxExtended
     ( fromCardanoTx
+    , getTxExtended
     )
 import Cardano.Wallet.Primitive.Ledger.Shelley
     ( cardanoCertKeysForWitnesses
@@ -167,9 +166,7 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..)
     , Tx (..)
-    , cardanoTxIdeallyNoLaterThan
-    , sealedTxFromCardano
-    , sealedTxFromCardano'
+    , sealedTxFromLedgerTx
     )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TxConstraints (..)
@@ -295,7 +292,6 @@ import qualified Cardano.Crypto.Wallet as Crypto.HD
 import qualified Cardano.Ledger.Api as Ledger
 import qualified Cardano.Ledger.Keys.Bootstrap as SL
 import qualified Cardano.Wallet.Primitive.Ledger.Convert as Convert
-import qualified Cardano.Wallet.Primitive.Ledger.Read.Eras as Eras
 import qualified Cardano.Wallet.Primitive.Ledger.Shelley as Compatibility
 import qualified Cardano.Wallet.Primitive.Types.AssetId as AssetId
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
@@ -420,27 +416,24 @@ mkTransaction era networkId keyF stakeCreds addrResolver ctx cs = do
             Map.empty
             Nothing
             Nothing
-    let signed :: Cardano.Tx (CardanoApiEra era)
-        signed =
-            toCardanoApiTx
-                $ signTransaction
-                    keyF
-                    networkId
-                    AnyWitnessCountCtx
-                    acctResolver
-                    (const Nothing)
-                    Nothing
-                    (const Nothing)
-                    addrResolver
-                    inputResolver
-                    (fromCardanoApiTx $ Cardano.Tx unsigned [])
+    let signed =
+            signTransaction
+                keyF
+                networkId
+                AnyWitnessCountCtx
+                acctResolver
+                (const Nothing)
+                Nothing
+                (const Nothing)
+                addrResolver
+                inputResolver
+                (fromCardanoApiTx $ Cardano.Tx unsigned [])
     let withResolvedInputs tx =
             tx{resolvedInputs = second Just <$> F.toList (view #inputs cs)}
-    cardanoApiEraConstraints era
-        $ Right
-            ( withResolvedInputs $ walletTx $ fromCardanoTx signed
-            , sealedTxFromCardano' signed
-            )
+    Right
+        ( withResolvedInputs $ walletTx $ txExtendedFromRecentTx era signed
+        , sealRecentTx era signed
+        )
   where
     inputResolver :: TxIn -> Maybe Address
     inputResolver i =
@@ -629,7 +622,7 @@ newTransactionLayer
 newTransactionLayer keyF networkId =
     TransactionLayer
         { addVkWitnesses =
-            \era
+            \_era
              witCountCtx
              stakeCreds
              policyCreds
@@ -674,52 +667,59 @@ newTransactionLayer keyF networkId =
                                     , "transaction from a non-recent era."
                                     ]
 
-                    sealedTxFromCardano
-                        $ fromMaybe errNonRecentEra
-                        $ withRecentEraLedgerTx
-                            (cardanoTxIdeallyNoLaterThan (Eras.toAnyCardanoEra era) sealedTx)
-                        $ \ledgerTx ->
-                            signTransaction
-                                keyF
-                                networkId
-                                witCountCtx
-                                acctResolver
-                                policyResolver
-                                policyKeyM
-                                stakingScriptResolver
-                                addressResolver
-                                inputResolver
-                                ledgerTx
+                    fromMaybe errNonRecentEra
+                        $ withSealedTxRecentEra sealedTx
+                        $ \era' ledgerTx ->
+                            sealRecentTx era'
+                                $ signTransaction
+                                    keyF
+                                    networkId
+                                    witCountCtx
+                                    acctResolver
+                                    policyResolver
+                                    policyKeyM
+                                    stakingScriptResolver
+                                    addressResolver
+                                    inputResolver
+                                    ledgerTx
         , decodeTx = _decodeSealedTx
         , transactionWitnessTag = txWitnessTagForKey keyF
         }
 
-withRecentEraLedgerTx
-    :: InAnyCardanoEra Cardano.Tx
-    -> (forall era. Write.IsRecentEra era => Write.Tx era -> Write.Tx era)
-    -> Maybe (InAnyCardanoEra Cardano.Tx)
-withRecentEraLedgerTx (InAnyCardanoEra era tx) f = case era of
-    Cardano.ConwayEra ->
-        Just
-            . InAnyCardanoEra era
-            . toCardanoApiTx
-            . f
-            . fromCardanoApiTx
-            $ tx
-    Cardano.BabbageEra ->
-        Nothing
-    Cardano.AlonzoEra ->
-        Nothing
-    Cardano.MaryEra ->
-        Nothing
-    Cardano.AllegraEra ->
-        Nothing
-    Cardano.ShelleyEra ->
-        Nothing
-    Cardano.ByronEra ->
-        Nothing
-    Cardano.DijkstraEra ->
-        error "withRecentEraLedgerTx: DijkstraEra not yet supported"
+withSealedTxRecentEra
+    :: SealedTx
+    -> ( forall era
+          . Write.IsRecentEra era => RecentEra era -> Write.Tx era -> a
+       )
+    -> Maybe a
+withSealedTxRecentEra sealedTx f = case unsafeReadTx sealedTx of
+    Read.EraValue (Read.Tx tx :: Read.Tx era) -> case Read.theEra @era of
+        Read.Conway ->
+            Just $ f RecentEraConway tx
+        Read.Dijkstra ->
+            Just $ f RecentEraDijkstra tx
+        _ ->
+            Nothing
+
+txExtendedFromRecentTx
+    :: RecentEra era
+    -> Write.Tx era
+    -> TxExtended
+txExtendedFromRecentTx era tx = case era of
+    RecentEraConway ->
+        getTxExtended (Read.Tx tx :: Read.Tx Read.Conway)
+    RecentEraDijkstra ->
+        getTxExtended (Read.Tx tx :: Read.Tx Read.Dijkstra)
+
+sealRecentTx
+    :: RecentEra era
+    -> Write.Tx era
+    -> SealedTx
+sealRecentTx era tx = case era of
+    RecentEraConway ->
+        sealedTxFromLedgerTx (Read.Tx tx :: Read.Tx Read.Conway)
+    RecentEraDijkstra ->
+        sealedTxFromLedgerTx (Read.Tx tx :: Read.Tx Read.Dijkstra)
 
 -- | Construct a standard unsigned transaction.
 --
@@ -868,12 +868,9 @@ _decodeSealedTx
     :: Read.EraValue Read.Era
     -> SealedTx
     -> TxExtended
-_decodeSealedTx preferredLatestEra sealedTx =
-    case cardanoTxIdeallyNoLaterThan
-        (Eras.toAnyCardanoEra preferredLatestEra)
-        sealedTx of
-        Cardano.InAnyCardanoEra _ tx ->
-            fromCardanoTx tx
+_decodeSealedTx _preferredLatestEra sealedTx =
+    case unsafeReadTx sealedTx of
+        Read.EraValue tx -> getTxExtended tx
 
 -- FIXME: Make this a Allegra or Shelley transaction depending on the era we're
 -- in. However, quoting Duncan:
