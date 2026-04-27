@@ -1,6 +1,6 @@
 cabal-version:   3.4
 name:            cardano-wallet-application
-version:         2026.4.17
+version:         2026.4.27
 synopsis:        cardano-wallet executable
 
 -- description:
