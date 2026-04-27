@@ -161,9 +161,7 @@ import Cardano.Address.Script
 
 import Cardano.Api.Extra
     ( cardanoApiEraConstraints
-    , cardanoEraFromRecentEra
     , fromCardanoApiTx
-    , toCardanoApiTx
     )
 import Cardano.BM.Tracing
     ( HasPrivacyAnnotation (..)
@@ -672,6 +670,9 @@ import Cardano.Wallet.Registry
 import Cardano.Wallet.Shelley.Transaction
     ( TxWitnessTag
     )
+import Cardano.Wallet.Shelley.Transaction.Ledger
+    ( sealWriteTx
+    )
 import Cardano.Wallet.TokenMetadata
     ( TokenMetadataClient
     , fillMetadata
@@ -908,7 +909,6 @@ import qualified Cardano.Wallet.Primitive.Types.AssetName as AssetName
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx.SealedTx as W
     ( SealedTx
-    , sealedTxFromCardano
     )
 import qualified Cardano.Wallet.Primitive.Types.Tx.Tx as W
     ( TxMetadata
@@ -3585,7 +3585,8 @@ constructSharedTransaction
                     apiDecoded <-
                         decodeSharedTransaction api (ApiT wid)
                             $ ApiDecodeTransactionPostData
-                                { transaction = ApiT (sealWriteTx balancedTx)
+                                { transaction =
+                                    ApiT (sealWriteTx Write.recentEra balancedTx)
                                 , decrypt_metadata = Nothing
                                 }
                     let deposits = case optionalDelegationAction of
@@ -5522,17 +5523,6 @@ fromApiRedeemer = \case
                 (sNetworkIdToLedger (sNetworkId @n))
                 (Ledger.AccountId (toLedgerStakeCredential acct))
 
-sealWriteTx
-    :: forall era. Write.IsRecentEra era => Write.Tx era -> W.SealedTx
-sealWriteTx =
-    cardanoApiEraConstraints era'
-        $ W.sealedTxFromCardano
-            . Cardano.InAnyCardanoEra cardanoEra
-            . toCardanoApiTx
-  where
-    era' = Write.recentEra :: Write.RecentEra era
-    cardanoEra = cardanoEraFromRecentEra era'
-
 toApiSerialisedTransaction
     :: Write.IsRecentEra era
     => Maybe ApiSealedTxEncoding
@@ -5542,7 +5532,9 @@ toApiSerialisedTransaction maybeEncoding tx =
     let
         encoding = fromMaybe Base64Encoded maybeEncoding
     in
-        ApiSerialisedTransaction (ApiT $ sealWriteTx tx) encoding
+        ApiSerialisedTransaction
+            (ApiT $ sealWriteTx Write.recentEra tx)
+            encoding
 
 {-------------------------------------------------------------------------------
                                 Api Layer

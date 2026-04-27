@@ -18,17 +18,11 @@
 module Cardano.Wallet.Primitive.Types.Tx.SealedTx
     ( -- * Types
       SealedTx (serialisedTx, unsafeReadTx)
-    , cardanoTxIdeallyNoLaterThan
     , sealedTxFromBytes
     , sealedTxFromBytes'
-    , sealedTxFromCardano
-    , sealedTxFromCardano'
-    , sealedTxFromCardanoBody
     , sealedTxFromLedgerTx
     , unsafeSealedTxFromBytes
     , SerialisedTx (..)
-    , getSealedTxBody
-    , getSealedTxWitnesses
     , sealedTxWitnessCount
     , persistSealedTx
     , unPersistSealedTx
@@ -39,16 +33,6 @@ module Cardano.Wallet.Primitive.Types.Tx.SealedTx
     )
 where
 
-import Cardano.Api
-    ( AnyCardanoEra (..)
-    , CardanoEra (..)
-    , InAnyCardanoEra (..)
-    , anyCardanoEra
-    , deserialiseFromCBOR
-    )
-import Cardano.Api.Tx
-    ( Tx (ShelleyTx)
-    )
 import Cardano.Ledger.Api
     ( addrTxWitsL
     , bootAddrTxWitsL
@@ -117,7 +101,6 @@ import GHC.Generics
     )
 import Prelude
 
-import qualified Cardano.Api as Cardano
 import qualified Cardano.Wallet.Read as Read
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
@@ -133,8 +116,7 @@ import qualified Data.Text as T
 -- then the wallet core can use it either as a
 -- 'ByteString', or as a 'Read.Tx'.
 --
--- Construct it with either 'sealedTxFromCardano' or
--- 'sealedTxFromBytes'.
+-- Construct it with either 'sealedTxFromLedgerTx' or 'sealedTxFromBytes'.
 data SealedTx = SealedTx
     { valid :: Bool
     -- ^ Internal flag - indicates that the
@@ -178,73 +160,12 @@ instance NFData SealedTx where
     rnf (SealedTx v _ bs) =
         v `deepseq` bs `deepseq` ()
 
--- | Temporary: reconstructs 'InAnyCardanoEra Cardano.Tx'
--- from bytes on demand. Will be removed when callers
--- migrate to 'Read.Tx'.
-cardanoTxIdeallyNoLaterThan
-    :: AnyCardanoEra
-    -> SealedTx
-    -> InAnyCardanoEra Cardano.Tx
-cardanoTxIdeallyNoLaterThan maxEra stx =
-    case cardanoTxFromBytes
-        maxEra
-        (serialisedTx stx) of
-        Right tx -> tx
-        Left _ ->
-            -- Fall back: try all eras
-            case cardanoTxFromBytes
-                maxBound
-                (serialisedTx stx) of
-                Right tx -> tx
-                Left e ->
-                    internalError
-                        $ "cardanoTxIdeallyNoLaterThan: "
-                        +|| e
-                        ||+ ""
-
--- | Temporary: reconstructs cardano-api TxBody from
--- bytes. Will be removed when callers migrate.
-getSealedTxBody
-    :: SealedTx -> InAnyCardanoEra Cardano.TxBody
-getSealedTxBody stx =
-    case cardanoTxFromBytes
-        maxBound
-        (serialisedTx stx) of
-        Right (InAnyCardanoEra era tx) ->
-            InAnyCardanoEra era (Cardano.getTxBody tx)
-        Left e ->
-            internalError
-                $ "getSealedTxBody: "
-                +|| e
-                ||+ ""
-
--- | Temporary: reconstructs cardano-api witnesses from
--- bytes. Will be removed when callers migrate.
-getSealedTxWitnesses
-    :: SealedTx
-    -> [InAnyCardanoEra Cardano.KeyWitness]
-getSealedTxWitnesses stx =
-    case cardanoTxFromBytes
-        maxBound
-        (serialisedTx stx) of
-        Right (InAnyCardanoEra era tx) ->
-            [ InAnyCardanoEra era w
-            | w <- Cardano.getTxWitnesses tx
-            ]
-        Left e ->
-            internalError
-                $ "getSealedTxWitnesses: "
-                +|| e
-                ||+ ""
-
 -- | Total number of key witnesses (VKey + bootstrap) in
 -- a 'SealedTx'. Ledger-native: does not round-trip
 -- through cardano-api.
 --
--- Equivalent of @length (getSealedTxWitnesses stx)@ for
--- the wallet's fee / witness-count accounting. Byron txs
--- are counted as 0 — the wallet does not construct Byron
--- txs through 'SealedTx'.
+-- Byron txs are counted as 0 — the wallet does not construct
+-- Byron txs through 'SealedTx'.
 sealedTxWitnessCount :: SealedTx -> Int
 sealedTxWitnessCount stx = case unsafeReadTx stx of
     EraValue (Read.Tx tx :: Read.Tx era) -> case theEra @era of
@@ -261,68 +182,10 @@ sealedTxWitnessCount stx = case unsafeReadTx stx of
         Set.size (tx ^. witsTxL . addrTxWitsL)
             + Set.size (tx ^. witsTxL . bootAddrTxWitsL)
 
--- | Convert a cardano-api 'Tx' to 'EraValue Read.Tx'.
-cardanoApiTxToReadTx
-    :: Cardano.Tx era -> EraValue Read.Tx
-cardanoApiTxToReadTx (ShelleyTx sbe ledgerTx) =
-    case sbe of
-        Cardano.ShelleyBasedEraShelley ->
-            EraValue (Read.Tx ledgerTx :: Read.Tx Shelley)
-        Cardano.ShelleyBasedEraAllegra ->
-            EraValue (Read.Tx ledgerTx :: Read.Tx Allegra)
-        Cardano.ShelleyBasedEraMary ->
-            EraValue (Read.Tx ledgerTx :: Read.Tx Mary)
-        Cardano.ShelleyBasedEraAlonzo ->
-            EraValue (Read.Tx ledgerTx :: Read.Tx Alonzo)
-        Cardano.ShelleyBasedEraBabbage ->
-            EraValue (Read.Tx ledgerTx :: Read.Tx Babbage)
-        Cardano.ShelleyBasedEraConway ->
-            EraValue (Read.Tx ledgerTx :: Read.Tx Conway)
-        Cardano.ShelleyBasedEraDijkstra ->
-            EraValue (Read.Tx ledgerTx :: Read.Tx Dijkstra)
-
--- | Construct a 'SealedTx' from a "Cardano.Api"
--- transaction.
-sealedTxFromCardano
-    :: InAnyCardanoEra Cardano.Tx -> SealedTx
-sealedTxFromCardano (InAnyCardanoEra _era tx) =
-    let readTx = cardanoApiTxToReadTx tx
-        bs = cardanoApiTxToBytes tx
-    in  SealedTx True readTx bs
-  where
-    cardanoApiTxToBytes
-        :: Cardano.Tx e -> ByteString
-    cardanoApiTxToBytes tx'@(ShelleyTx sbe _) =
-        Cardano.shelleyBasedEraConstraints
-            sbe
-            (Cardano.serialiseToCBOR tx')
-
--- | Construct a 'SealedTx' from a "Cardano.Api"
--- transaction.
-sealedTxFromCardano'
-    :: Cardano.IsCardanoEra era
-    => Cardano.Tx era
-    -> SealedTx
-sealedTxFromCardano' =
-    sealedTxFromCardano
-        . InAnyCardanoEra Cardano.cardanoEra
-
--- | Construct a 'SealedTx' from a 'Cardano.Api.TxBody'.
-sealedTxFromCardanoBody
-    :: Cardano.IsCardanoEra era
-    => Cardano.TxBody era
-    -> SealedTx
-sealedTxFromCardanoBody =
-    sealedTxFromCardano
-        . InAnyCardanoEra Cardano.cardanoEra
-        . mk
-  where
-    mk body = Cardano.Tx body []
-
 -- | Try to deserialize bytes into 'EraValue Read.Tx',
 -- trying the newest ledger era first, then older eras.
 readTxFromBytes
-    :: AnyCardanoEra
+    :: EraValue Read.Era
     -> ByteString
     -> Either DecoderError (EraValue Read.Tx)
 readTxFromBytes maxEra bs =
@@ -331,19 +194,19 @@ readTxFromBytes maxEra bs =
         $ filter
             (withinEra maxEra . fst)
             [ tryEra @Dijkstra
-                (AnyCardanoEra DijkstraEra)
+                (EraValue Dijkstra)
             , tryEra @Conway
-                (AnyCardanoEra ConwayEra)
+                (EraValue Conway)
             , tryEra @Babbage
-                (AnyCardanoEra BabbageEra)
+                (EraValue Babbage)
             , tryEra @Alonzo
-                (AnyCardanoEra AlonzoEra)
+                (EraValue Alonzo)
             , tryEra @Mary
-                (AnyCardanoEra MaryEra)
+                (EraValue Mary)
             , tryEra @Allegra
-                (AnyCardanoEra AllegraEra)
+                (EraValue Allegra)
             , tryEra @Shelley
-                (AnyCardanoEra ShelleyEra)
+                (EraValue Shelley)
             ]
   where
     lbs = BL.fromStrict bs
@@ -351,8 +214,8 @@ readTxFromBytes maxEra bs =
     tryEra
         :: forall era
          . IsEra era
-        => AnyCardanoEra
-        -> ( AnyCardanoEra
+        => EraValue Read.Era
+        -> ( EraValue Read.Era
            , Either DecoderError (EraValue Read.Tx)
            )
     tryEra eraTag =
@@ -368,86 +231,21 @@ readTxFromBytes maxEra bs =
         ([], []) ->
             internalError "readTxFromBytes: impossible"
 
--- | Deserialise a Cardano transaction. The transaction
--- can be in the format of any era. This function will
--- try the most recent era first, then previous eras.
---
--- Temporary: kept for functions that still need
--- cardano-api types. Will be removed.
---
--- Dijkstra is intentionally absent here because the wallet's
--- temporary 'CardanoApiEra' bridge does not support it. The
--- ledger-native 'readTxFromBytes' path above already tries Dijkstra.
-cardanoTxFromBytes
-    :: AnyCardanoEra
-    -> ByteString
-    -> Either DecoderError (InAnyCardanoEra Cardano.Tx)
-cardanoTxFromBytes maxEra bs =
-    asum
-        $ map snd
-        $ filter
-            (withinEra maxEra . fst)
-            [ deserialise
-                ConwayEra
-                Cardano.AsConwayEra
-            , deserialise
-                BabbageEra
-                Cardano.AsBabbageEra
-            , deserialise
-                AlonzoEra
-                Cardano.AsAlonzoEra
-            , deserialise
-                MaryEra
-                Cardano.AsMaryEra
-            , deserialise
-                AllegraEra
-                Cardano.AsAllegraEra
-            , deserialise
-                ShelleyEra
-                Cardano.AsShelleyEra
-            ]
-  where
-    deserialise
-        :: forall era
-         . Cardano.IsShelleyBasedEra era
-        => CardanoEra era
-        -> Cardano.AsType era
-        -> ( AnyCardanoEra
-           , Either
-                DecoderError
-                (InAnyCardanoEra Cardano.Tx)
-           )
-    deserialise cera asEra =
-        ( anyCardanoEra cera
-        , InAnyCardanoEra cera
-            <$> deserialiseFromCBOR
-                (Cardano.AsTx asEra)
-                bs
-        )
-
-    asum :: [Either e a] -> Either e a
-    asum xs = case partitionEithers xs of
-        (_, (a : _)) -> Right a
-        ((e : _), []) -> Left e
-        ([], []) ->
-            internalError
-                "cardanoTxFromBytes: impossible"
-
 -- | @a `withinEra` b@ is 'True' iff @b@ is the same
 -- era as @a@, or an earlier one.
-withinEra :: AnyCardanoEra -> AnyCardanoEra -> Bool
+withinEra :: EraValue Read.Era -> EraValue Read.Era -> Bool
 withinEra = (>=) `on` numberEra
   where
-    numberEra :: AnyCardanoEra -> Int
-    numberEra (AnyCardanoEra e) = case e of
-        ByronEra -> 1
-        ShelleyEra -> 2
-        AllegraEra -> 3
-        MaryEra -> 4
-        AlonzoEra -> 5
-        BabbageEra -> 6
-        ConwayEra -> 7
-        _ -> 8
+    numberEra :: EraValue Read.Era -> Int
+    numberEra (EraValue e) = case e of
+        Byron -> 1
+        Shelley -> 2
+        Allegra -> 3
+        Mary -> 4
+        Alonzo -> 5
+        Babbage -> 6
+        Conway -> 7
+        Dijkstra -> 8
 
 -- | Construct a 'SealedTx' from a ledger-native
 -- 'Read.Tx'. Serialises to CBOR via ledger-read;
@@ -463,12 +261,12 @@ sealedTxFromLedgerTx tx =
 -- 'SealedTx'.
 sealedTxFromBytes
     :: ByteString -> Either DecoderError SealedTx
-sealedTxFromBytes = sealedTxFromBytes' maxBound
+sealedTxFromBytes = sealedTxFromBytes' (EraValue Conway)
 
 -- | Deserialise a transaction to construct a
 -- 'SealedTx'.
 sealedTxFromBytes'
-    :: AnyCardanoEra
+    :: EraValue Read.Era
     -- ^ Most recent era
     -> ByteString
     -- ^ Serialised transaction

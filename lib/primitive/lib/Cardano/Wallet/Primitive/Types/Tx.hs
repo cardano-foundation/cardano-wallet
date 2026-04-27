@@ -27,16 +27,12 @@ module Cardano.Wallet.Primitive.Types.Tx
 
       -- * Serialisation
     , SealedTx (serialisedTx, unsafeReadTx)
-    , cardanoTxIdeallyNoLaterThan
     , sealedTxFromBytes
     , sealedTxFromBytes'
-    , sealedTxFromCardano
-    , sealedTxFromCardano'
-    , sealedTxFromCardanoBody
+    , sealedTxFromLedgerTx
     , unsafeSealedTxFromBytes
     , SerialisedTx (..)
-    , getSealedTxBody
-    , getSealedTxWitnesses
+    , sealedTxWitnessCount
     , persistSealedTx
     , unPersistSealedTx
 
@@ -82,16 +78,12 @@ import Cardano.Wallet.Primitive.Types.Tx.Constraints
 import Cardano.Wallet.Primitive.Types.Tx.SealedTx
     ( SealedTx (..)
     , SerialisedTx (..)
-    , cardanoTxIdeallyNoLaterThan
-    , getSealedTxBody
-    , getSealedTxWitnesses
     , mockSealedTx
     , persistSealedTx
     , sealedTxFromBytes
     , sealedTxFromBytes'
-    , sealedTxFromCardano
-    , sealedTxFromCardano'
-    , sealedTxFromCardanoBody
+    , sealedTxFromLedgerTx
+    , sealedTxWitnessCount
     , unPersistSealedTx
     , unsafeSealedTxFromBytes
     , withinEra
