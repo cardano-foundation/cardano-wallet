@@ -385,7 +385,6 @@ import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
 import qualified Cardano.Wallet.Read as Read
 import qualified Codec.CBOR.Term as CBOR
-import qualified Data.ByteString as BS
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
@@ -638,8 +637,8 @@ withNodeNetworkLayerBase
 
         -- NOTE: only shelley-era transactions can be submitted: the stored
         -- 'EraValue Read.Tx' carries the era so no query is needed.
-        _postSealedTx txSubmissionQueue tx = do
-            liftIO $ traceWith tr $ MsgPostTx $ BS.fromStrict $ serialisedTx tx
+        -- Logging is handled by 'postTxToQueue'.
+        _postSealedTx txSubmissionQueue tx =
             case unsafeReadTx tx of
                 Read.EraValue readTx ->
                     postTxToQueue tr txSubmissionQueue readTx
