@@ -141,6 +141,7 @@ library scenarios
     , cardano-crypto-class
     , cardano-ledger-alonzo
     , cardano-ledger-core
+    , cardano-ledger-read
     , cardano-protocol-tpraos
     , cardano-wallet
     , cardano-wallet-api

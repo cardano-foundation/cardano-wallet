@@ -58,10 +58,6 @@ import Cardano.Address.KeyHash
 import Cardano.Address.Script
     ( Script (..)
     )
-import Cardano.Api.Extra
-    ( cardanoApiEraConstraints
-    , toCardanoApiTx
-    )
 import Cardano.Balance.Tx.Eras
     ( IsRecentEra
     , RecentEra (..)
@@ -145,10 +141,12 @@ import Cardano.Wallet.Primitive.Types.Coin
     )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx
-    , sealedTxFromCardano'
     )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( txOutMaxTokenQuantity
+    )
+import Cardano.Wallet.Primitive.Types.Tx.SealedTx
+    ( sealedTxFromLedgerTx
     )
 import Cardano.Wallet.Primitive.Types.Tx.Tx
     ( TxMetadata
@@ -583,14 +581,14 @@ mkRewardAccount network acct =
 -- restructured.
 sealWriteTx
     :: forall era
-     . IsRecentEra era
-    => RecentEra era
+     . RecentEra era
     -> Write.Tx era
     -> SealedTx
-sealWriteTx era tx =
-    cardanoApiEraConstraints era
-        $ sealedTxFromCardano'
-        $ toCardanoApiTx tx
+sealWriteTx era tx = case era of
+    RecentEraConway ->
+        sealedTxFromLedgerTx (Read.Tx tx :: Read.Tx Read.Conway)
+    RecentEraDijkstra ->
+        sealedTxFromLedgerTx (Read.Tx tx :: Read.Tx Read.Dijkstra)
 
 -- | Project a 'Cardano.NetworkId' onto the ledger's
 -- 'Network' (magic-free) for cert / withdrawal construction.

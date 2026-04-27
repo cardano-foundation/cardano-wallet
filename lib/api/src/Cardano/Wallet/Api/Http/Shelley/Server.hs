@@ -173,7 +173,8 @@ import Cardano.Balance.Tx.Eras
     ( AnyRecentEra (..)
     )
 import Cardano.Ledger.Binary
-    ( serialize'
+    ( DecoderError
+    , serialize'
     , shelleyProtVer
     )
 import Cardano.Mnemonic
@@ -181,6 +182,9 @@ import Cardano.Mnemonic
     )
 import Cardano.Pool.Types
     ( PoolId
+    )
+import Cardano.Read.Ledger.Tx.CBOR
+    ( deserializeTx
     )
 import Cardano.Wallet
     ( BuiltTx (..)
@@ -628,11 +632,13 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( Tx (..)
     , TxChange (..)
     , UnsignedTx (..)
-    , cardanoTxInExactEra
-    , getSealedTxWitnesses
+    , serialisedTx
     )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( txMintBurnMaxTokenQuantity
+    )
+import Cardano.Wallet.Primitive.Types.Tx.SealedTx
+    ( sealedTxWitnessCount
     )
 import Cardano.Wallet.Primitive.Types.Tx.TransactionInfo
     ( TransactionInfo
@@ -867,7 +873,7 @@ import qualified Cardano.Balance.Tx.Balance as Write
     )
 import qualified Cardano.Balance.Tx.Eras as Write
     ( IsRecentEra (recentEra)
-    , RecentEra
+    , RecentEra (..)
     )
 import qualified Cardano.Balance.Tx.Sign as Write
     ( TimelockKeyWitnessCounts (..)
@@ -920,6 +926,7 @@ import qualified Cardano.Wallet.Registry as Registry
 import qualified Control.Concurrent.Concierge as Concierge
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Lazy as BL
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
@@ -3793,23 +3800,29 @@ balanceTransaction ctx (ApiT wid) body = do
                     $ map fromExternalInput
                     $ body ^. #inputs
 
-        tx <-
-            maybe
-                ( liftHandler
+        let sealedTx = getApiT $ body ^. #transaction
+            bytes = BL.fromStrict (serialisedTx sealedTx)
+            readErr :: forall a. Handler a
+            readErr =
+                liftHandler
                     . throwE
                     . W.ErrPartialTxNotInNodeEra
                     $ AnyRecentEra era
-                )
-                pure
-                . cardanoTxInExactEra (cardanoEraFromRecentEra era)
-                . getApiT
-                $ body ^. #transaction
+        ledgerTx <- case era of
+            Write.RecentEraConway ->
+                case deserializeTx bytes :: Either DecoderError (Read.Tx Read.Conway) of
+                    Right (Read.Tx t) -> pure t
+                    Left _ -> readErr
+            Write.RecentEraDijkstra ->
+                case deserializeTx bytes :: Either DecoderError (Read.Tx Read.Dijkstra) of
+                    Right (Read.Tx t) -> pure t
+                    Left _ -> readErr
 
         case mExternalUTxO of
             Right externalUTxO ->
                 pure
                     $ Write.PartialTx
-                        (fromCardanoApiTx tx)
+                        ledgerTx
                         externalUTxO
                         (fromApiRedeemer <$> body ^. #redeemers)
                         (Write.StakeKeyDepositMap mempty)
@@ -4041,7 +4054,7 @@ submitTransaction ctx apiw@(ApiT wid) apitx = do
                 $ L.nubBy samePaymentKey
                 $ filter isInpOurs
                 $ (apiDecoded ^. #inputs) ++ (apiDecoded ^. #collateral)
-    let totalNumberOfWits = length $ getSealedTxWitnesses sealedTx
+    let totalNumberOfWits = sealedTxWitnessCount sealedTx
 
     when (countJoinsQuits (apiDecoded ^. #certificates) > 1)
         $ liftHandler
@@ -4207,7 +4220,7 @@ submitSharedTransaction ctx apiw@(ApiT wid) apitx = do
                     $ L.nubBy samePaymentKey
                     $ filter isInpOurs
                     $ (apiDecoded ^. #inputs) ++ (apiDecoded ^. #collateral)
-        let totalNumberOfWits = length $ getSealedTxWitnesses sealedTx
+        let totalNumberOfWits = sealedTxWitnessCount sealedTx
         let paymentWitsRequired =
                 fromIntegral pWitsPerInput * witsRequiredForInputs
         let allWitsRequired =
