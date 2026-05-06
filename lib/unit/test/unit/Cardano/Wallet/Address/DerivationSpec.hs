@@ -42,6 +42,9 @@ import Cardano.Wallet.Address.Keys.PersistPrivateKey
     ( serializeXPrv
     , unsafeDeserializeXPrv
     )
+import Cardano.Wallet.Primitive.Types.Credentials
+    ( HashedCredentials (..)
+    )
 import Cardano.Wallet.Address.Keys.WalletKey
     ( getRawKey
     , publicKey
@@ -411,10 +414,11 @@ prop_roundtripXPrv
     => KeyFlavorS k
     -> (k 'RootK XPrv, PassphraseHash)
     -> Property
-prop_roundtripXPrv keyF xpriv =
-    xpriv' === xpriv
+prop_roundtripXPrv keyF (xpriv, hash) =
+    creds' === creds
   where
-    xpriv' = unsafeDeserializeXPrv keyF . serializeXPrv keyF $ xpriv
+    creds = HashedCredentialsV1 xpriv hash
+    creds' = unsafeDeserializeXPrv keyF . serializeXPrv keyF $ creds
 
 prop_roundtripXPub
     :: ( PersistPublicKey (k 'AccountK)
