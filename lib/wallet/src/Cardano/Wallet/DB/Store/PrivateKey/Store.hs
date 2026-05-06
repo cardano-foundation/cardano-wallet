@@ -25,8 +25,7 @@ import Cardano.Wallet.Primitive.Types
     ( WalletId
     )
 import Cardano.Wallet.Primitive.Types.Credentials
-    ( HashedCredentials
-    , RootCredentials (..)
+    ( HashedCredentials (..)
     )
 import Control.Exception
     ( SomeException (..)
@@ -86,7 +85,7 @@ mkStorePrivateKey kF wid = mkSimpleStore load write
       where
         privateKeyFromEntity :: Schema.PrivateKey -> HashedCredentials k
         privateKeyFromEntity (Schema.PrivateKey _ k h) =
-            uncurry RootCredentials $ unsafeDeserializeXPrv kF (k, h)
+            unsafeDeserializeXPrv kF (k, h)
 
     write :: Maybe (HashedCredentials k) -> SqlPersistT IO ()
     write (Just key) = do
@@ -94,11 +93,11 @@ mkStorePrivateKey kF wid = mkSimpleStore load write
         insert_ (mkPrivateKeyEntity key)
     write Nothing = deleteWhere ([] :: [Filter Schema.PrivateKey])
 
-    mkPrivateKeyEntity (RootCredentials k h) =
+    mkPrivateKeyEntity creds =
         Schema.PrivateKey
             { Schema.privateKeyWalletId = wid
             , Schema.privateKeyRootKey = root
             , Schema.privateKeyHash = hash
             }
       where
-        (root, hash) = serializeXPrv kF (k, h)
+        (root, hash) = serializeXPrv kF creds

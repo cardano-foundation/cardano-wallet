@@ -1156,12 +1156,14 @@ mkShelleyWallet ctx@ApiLayer{..} wid cp meta delegation pending progress = do
             , delegation = apiDelegation
             , id = ApiT wid
             , name = ApiT $ meta ^. #name
-            , passphrase =
-                ApiWalletPassphraseInfo
-                    <$> fmap (view #lastUpdatedAt) (meta ^. #passphraseInfo)
+            , passphrase = toApiPassphraseInfo <$> meta ^. #passphraseInfo
             , state = ApiT progress
             , tip
             }
+
+toApiPassphraseInfo :: WalletPassphraseInfo -> ApiWalletPassphraseInfo
+toApiPassphraseInfo WalletPassphraseInfo{lastUpdatedAt, passphraseScheme} =
+    ApiWalletPassphraseInfo lastUpdatedAt (ApiT passphraseScheme)
 
 toApiWalletDelegation
     :: W.WalletDelegation -> TimeInterpreter IO -> IO ApiWalletDelegation
@@ -1497,9 +1499,7 @@ mkSharedWallet ctx wid cp meta delegation pending progress =
                     , name = ApiT $ meta ^. #name
                     , accountIndex = ApiT $ DerivationIndex $ getIndex accIx
                     , addressPoolGap = ApiT $ Shared.poolGap st
-                    , passphrase =
-                        ApiWalletPassphraseInfo
-                            <$> fmap (view #lastUpdatedAt) (meta ^. #passphraseInfo)
+                    , passphrase = toApiPassphraseInfo <$> meta ^. #passphraseInfo
                     , paymentScriptTemplate =
                         ApiScriptTemplate
                             $ Shared.paymentTemplate st
@@ -1583,7 +1583,7 @@ patchSharedWallet ctx liftKey cred (ApiT wid) body = do
             $ withWorkerCtx @_ @s ctx wid liftE liftE
             $ \wrk ->
                 handler
-                    $ W.attachPrivateKeyFromPwdHashShelley wrk (fromJust prvKeyM)
+                    $ liftIO $ W.reattachPrivateKey wrk (fromJust prvKeyM)
 
     fst <$> getWallet ctx (mkSharedWallet @_ @s) (ApiT wid)
   where
@@ -1641,6 +1641,7 @@ mkLegacyWallet
        , HasNetworkLayer IO ctx
        , IsOurs s Address
        , IsOurs s RewardAccount
+       , WalletFlavor s
        )
     => ctx
     -> WalletId
@@ -1662,13 +1663,15 @@ mkLegacyWallet ctx wid cp meta _ pending progress = do
     pwdInfo <- case meta ^. #passphraseInfo of
         Nothing ->
             pure Nothing
-        Just (WalletPassphraseInfo time EncryptWithPBKDF2) ->
-            pure $ Just $ ApiWalletPassphraseInfo time
-        Just (WalletPassphraseInfo time EncryptWithScrypt) ->
+        Just info@(WalletPassphraseInfo _ EncryptWithPBKDF2) ->
+            pure $ Just $ toApiPassphraseInfo info
+        Just info@(WalletPassphraseInfo _ EncryptWithArgon2idV2) ->
+            pure $ Just $ toApiPassphraseInfo info
+        Just info@(WalletPassphraseInfo _ EncryptWithScrypt) ->
             withWorkerCtx @_ @s ctx wid liftE liftE $ \wrk ->
                 matchEmptyPassphrase (wrk ^. typed) <&> \case
                     Right{} -> Nothing
-                    Left{} -> Just $ ApiWalletPassphraseInfo time
+                    Left{} -> Just $ toApiPassphraseInfo info
 
     tip' <- liftIO $ getWalletTip (expectAndThrowFailures ti) cp
     let available = availableBalance pending cp

@@ -1899,7 +1899,7 @@ instance Arbitrary WalletName where
         | otherwise = [WalletName $ T.take walletNameMinLength t]
 
 instance Arbitrary ApiWalletPassphraseInfo where
-    arbitrary = ApiWalletPassphraseInfo <$> genUniformTime
+    arbitrary = ApiWalletPassphraseInfo <$> genUniformTime <*> arbitrary
 
 instance Arbitrary ApiMaintenanceAction where
     arbitrary = genericArbitrary

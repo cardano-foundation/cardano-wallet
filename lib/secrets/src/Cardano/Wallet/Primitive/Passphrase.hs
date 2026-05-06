@@ -64,6 +64,10 @@ preparePassphrase
 preparePassphrase = \case
     EncryptWithPBKDF2 -> PBKDF2.preparePassphrase
     EncryptWithScrypt -> Scrypt.preparePassphrase
+    -- v2 keys are stored as CBOR envelopes; the in-memory XPrv holds the
+    -- plaintext scalar, so the C layer is invoked with an empty passphrase
+    -- (memcpy / no-op path, no PBKDF2 round-trip).
+    EncryptWithArgon2idV2 -> \_ -> Passphrase mempty
 
 -- | Check whether a 'Passphrase' matches with a stored 'Hash'
 checkPassphrase
@@ -77,6 +81,10 @@ checkPassphrase scheme received stored = case scheme of
         if Scrypt.checkPassphrase prepared stored
             then Right ()
             else Left ErrWrongPassphrase
+    EncryptWithArgon2idV2 ->
+        -- v2 keys are self-authenticating via AEAD; this path should not be
+        -- reached, but fail safely if it is.
+        Left ErrWrongPassphrase
   where
     prepared = preparePassphrase scheme received
 
