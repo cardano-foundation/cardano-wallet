@@ -57,18 +57,28 @@ jobs:
             runner: '["self-hosted", "linux", "x86_64", "cardano-wallet"]'
             output: ci.artifacts.linux64.release
             artifact-name: linux-release
+            extract: tar xzf
+            binary: cardano-wallet
           - name: Windows
             runner: '["self-hosted", "linux", "x86_64", "cardano-wallet"]'
             output: ci.artifacts.win64.release
             artifact-name: windows-release
+            extract: unzip -o
+            binary: cardano-wallet.exe
           - name: macOS Silicon
             runner: '["self-hosted", "macOS", "ARM64", "cardano-wallet"]'
             output: packages.aarch64-darwin.ci.artifacts.macos-silicon.release
             artifact-name: macos-silicon-release
+            extract: tar xzf
+            binary: cardano-wallet
           - name: Docker Image
             runner: '["self-hosted", "linux", "x86_64", "cardano-wallet"]'
             output: ci.artifacts.dockerImage
             artifact-name: docker-image
+            # Docker images are smoke-tested separately; skip the
+            # archive-based checks below by leaving `binary` empty.
+            extract: ''
+            binary: ''
     steps:
       - name: Checkout release candidate
         uses: actions/checkout@v6
@@ -76,8 +86,71 @@ jobs:
           ref: ${{ needs.prepare.outputs.release-candidate-branch }}
           fetch-depth: 0
 
+      - name: Sanity-check checkout
+        env:
+          EXPECTED_COMMIT: ${{ needs.prepare.outputs.release-candidate-commit }}
+          EXPECTED_CABAL_VERSION: ${{ needs.prepare.outputs.release-cabal-version }}
+        run: |
+          actual_commit=$(git rev-parse HEAD)
+          if [ "$actual_commit" != "$EXPECTED_COMMIT" ]; then
+            echo "ERROR: working tree HEAD ($actual_commit) does not match release-candidate-commit ($EXPECTED_COMMIT)"
+            exit 1
+          fi
+          # release-cabal-version strips the leading "0." (see scripts/release/release-candidate.sh:42).
+          actual_cabal_version=$(grep -m1 '^version' lib/wallet/cardano-wallet.cabal | awk '{print $2}' | sed 's/^0\.//')
+          if [ "$actual_cabal_version" != "$EXPECTED_CABAL_VERSION" ]; then
+            echo "ERROR: cabal version ($actual_cabal_version) does not match release-cabal-version ($EXPECTED_CABAL_VERSION)"
+            exit 1
+          fi
+          echo "Checkout OK: $actual_commit @ $actual_cabal_version"
+
       - name: Build
         run: nix build --quiet -o result .#${{ matrix.output }}
+
+      - name: Smoke test built artifact
+        if: matrix.binary != ''
+        env:
+          EXPECTED_VERSION: ${{ needs.prepare.outputs.release-version }}
+          EXPECTED_COMMIT: ${{ needs.prepare.outputs.release-candidate-commit }}
+        run: |
+          archive=$(find result/ -maxdepth 2 -type f \( -name '*.tar.gz' -o -name '*.zip' \) | head -1)
+          if [ -z "$archive" ]; then
+            echo "ERROR: no archive found in result/"
+            ls -laR result/
+            exit 1
+          fi
+          archive_basename=$(basename "$archive")
+          if ! echo "$archive_basename" | grep -q "$EXPECTED_VERSION"; then
+            echo "ERROR: archive name '$archive_basename' does not contain expected version $EXPECTED_VERSION"
+            exit 1
+          fi
+          # The Windows binary cannot be executed on the linux build runner
+          # without wine; the verify-artifacts job covers it with wine.
+          if [ "${{ matrix.name }}" = "Windows" ]; then
+            echo "Archive name OK; skipping in-process version check on Windows."
+            exit 0
+          fi
+          tmp=$(mktemp -d)
+          archive_abs=$(readlink -f "$archive")
+          ( cd "$tmp" && ${{ matrix.extract }} "$archive_abs" )
+          binary=$(find "$tmp" -name "${{ matrix.binary }}" -type f | head -1)
+          if [ -z "$binary" ]; then
+            echo "ERROR: binary ${{ matrix.binary }} not found in extracted archive"
+            find "$tmp" -type f
+            exit 1
+          fi
+          version_output=$("$binary" version 2>&1)
+          echo "Version output: $version_output"
+          echo "Expected version: $EXPECTED_VERSION"
+          echo "Expected commit:  $EXPECTED_COMMIT"
+          if ! echo "$version_output" | grep -q "$EXPECTED_VERSION"; then
+            echo "ERROR: binary embeds wrong version (expected $EXPECTED_VERSION)"
+            exit 1
+          fi
+          if ! echo "$version_output" | grep -q "$EXPECTED_COMMIT"; then
+            echo "ERROR: binary embeds wrong commit (expected $EXPECTED_COMMIT)"
+            exit 1
+          fi
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7
