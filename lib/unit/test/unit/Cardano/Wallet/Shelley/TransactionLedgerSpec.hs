@@ -191,12 +191,9 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..)
     , TxMetadata (..)
     , TxMetadataValue (..)
-    , cardanoTxIdeallyNoLaterThan
-    , getSealedTxWitnesses
     , sealedTxFromBytes
     , sealedTxFromBytes'
-    , sealedTxFromCardano
-    , sealedTxFromCardano'
+    , sealedTxFromLedgerTx
     , serialisedTx
     )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
@@ -396,6 +393,7 @@ import qualified Cardano.Wallet.Primitive.Ledger.Read.Eras as Eras
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
+import qualified Cardano.Wallet.Read as Read
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
@@ -1100,6 +1098,9 @@ decodeSealedTxSpec = describe "SealedTx serialisation/deserialisation" $ do
         sealedTx `shouldSatisfy` isRight
 
     prop "roundtrip for Shelley witnesses" prop_sealedTxRecentEraRoundtrip
+    prop
+        "default decoder roundtrips recent era transactions"
+        prop_sealedTxDefaultRecentEraRoundtrip
   where
     byteString =
         mconcat
@@ -1355,7 +1356,10 @@ prop_sealedTxRecentEraRoundtrip
             $ let tx = makeShelleyTx era tc
                   txBytes = Cardano.serialiseToCBOR tx
                   sealedTxC = sealedTxFromCardano' tx
-                  sealedTxB = sealedTxFromBytes' currentEra txBytes
+                  sealedTxB =
+                    sealedTxFromBytes'
+                        (Eras.fromAnyCardanoEra currentEra)
+                        txBytes
               in  conjoin
                     [ txBytes ==== serialisedTx sealedTxC
                     , either
@@ -1364,6 +1368,18 @@ prop_sealedTxRecentEraRoundtrip
                         sealedTxB
                     ]
                     .||. encodingFromTheFuture (txEra) currentEra
+
+prop_sealedTxDefaultRecentEraRoundtrip
+    :: Pretty DecodeSetup
+    -> Property
+prop_sealedTxDefaultRecentEraRoundtrip (Pretty tc) =
+    cardanoApiEraConstraints RecentEraConway
+        $ let tx = makeShelleyTx RecentEraConway tc
+              txBytes = Cardano.serialiseToCBOR tx
+          in  either
+                (\e -> counterexample (show e) False)
+                (compareOnCBOR tx)
+                (sealedTxFromBytes txBytes)
 
 makeShelleyTx
     :: RecentEra era
@@ -1568,8 +1584,43 @@ dummyWit b =
 dummyTxId :: Hash "Tx"
 dummyTxId = Hash $ BS.pack $ replicate 32 0
 
+sealedTxFromCardano :: InAnyCardanoEra Cardano.Tx -> SealedTx
+sealedTxFromCardano (InAnyCardanoEra _ tx) = sealedTxFromCardano' tx
+
+sealedTxFromCardano' :: Cardano.Tx era -> SealedTx
+sealedTxFromCardano' (Cardano.ShelleyTx sbe ledgerTx) = case sbe of
+    Cardano.ShelleyBasedEraShelley ->
+        sealedTxFromLedgerTx (Read.Tx ledgerTx :: Read.Tx Read.Shelley)
+    Cardano.ShelleyBasedEraAllegra ->
+        sealedTxFromLedgerTx (Read.Tx ledgerTx :: Read.Tx Read.Allegra)
+    Cardano.ShelleyBasedEraMary ->
+        sealedTxFromLedgerTx (Read.Tx ledgerTx :: Read.Tx Read.Mary)
+    Cardano.ShelleyBasedEraAlonzo ->
+        sealedTxFromLedgerTx (Read.Tx ledgerTx :: Read.Tx Read.Alonzo)
+    Cardano.ShelleyBasedEraBabbage ->
+        sealedTxFromLedgerTx (Read.Tx ledgerTx :: Read.Tx Read.Babbage)
+    Cardano.ShelleyBasedEraConway ->
+        sealedTxFromLedgerTx (Read.Tx ledgerTx :: Read.Tx Read.Conway)
+    Cardano.ShelleyBasedEraDijkstra ->
+        sealedTxFromLedgerTx (Read.Tx ledgerTx :: Read.Tx Read.Dijkstra)
+
+getSealedTxWitnesses
+    :: SealedTx
+    -> [InAnyCardanoEra Cardano.KeyWitness]
+getSealedTxWitnesses sealedTx =
+    case cardanoTx sealedTx of
+        InAnyCardanoEra era tx ->
+            InAnyCardanoEra era <$> Cardano.getTxWitnesses tx
+
 cardanoTx :: SealedTx -> InAnyCardanoEra Cardano.Tx
-cardanoTx = cardanoTxIdeallyNoLaterThan maxBound
+cardanoTx sealedTx = case unsafeReadTx sealedTx of
+    Read.EraValue (Read.Tx tx :: Read.Tx era) -> case Read.theEra @era of
+        Read.Conway ->
+            InAnyCardanoEra Cardano.ConwayEra $ toCardanoApiTx tx
+        Read.Dijkstra ->
+            error "cardanoTx: Dijkstra not yet supported"
+        _ ->
+            error "cardanoTx: only recent eras are supported"
 
 testTxLayer :: TransactionLayer ShelleyKey 'CredFromKeyK SealedTx
 testTxLayer = newTransactionLayer ShelleyKeyS Cardano.Mainnet

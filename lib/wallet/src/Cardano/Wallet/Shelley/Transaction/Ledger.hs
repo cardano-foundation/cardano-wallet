@@ -19,6 +19,9 @@ module Cardano.Wallet.Shelley.Transaction.Ledger
       mkTransactionLedger
     , constructUnsignedTxLedger
 
+      -- * Sealing
+    , sealWriteTx
+
       -- * Signing
     , signTransaction
     , mkShelleyWitnessLedger
@@ -573,12 +576,8 @@ mkRewardAccount network acct =
         network
         (Ledger.AccountId (toLedgerStakeCredential acct))
 
--- | Convert a cardano-api 'Certificate' to the underlying
--- | Seal a ledger 'Tx' into a 'SealedTx' by going through
--- cardano-api serialisation.
---
--- TODO: avoid cardano-api roundtrip when SealedTx is
--- restructured.
+-- | Seal a ledger 'Write.Tx' into a 'SealedTx'. Ledger-native;
+-- does not round-trip through cardano-api.
 sealWriteTx
     :: forall era
      . RecentEra era
