@@ -38,7 +38,6 @@ import Cardano.Api
     , CardanoEra (..)
     , NodeToClientVersion (..)
     , SlotNo (..)
-    , toConsensusGenTx
     )
 import Cardano.BM.Data.Severity
     ( Severity (..)
@@ -113,10 +112,8 @@ import Cardano.Wallet.Primitive.Ledger.Read.Eras
     ( fromAnyCardanoEra
     )
 import Cardano.Wallet.Primitive.Ledger.Shelley
-    ( UnsealException (..)
-    , nodeToClientVersions
+    ( nodeToClientVersions
     , toCardanoEra
-    , unsealShelleyTx
     )
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter
@@ -523,7 +520,7 @@ withNodeNetworkLayerBase
                     slottingParamsLegacy
                         <$> atomically (readTMVar networkParamsVar)
                 , postSealedTx =
-                    _postSealedTx txSubmissionQ readCurrentNodeEra
+                    _postSealedTx txSubmissionQ
                 , postTx =
                     postTxToQueue tr txSubmissionQ
                 , stakeDistribution =
@@ -639,27 +636,13 @@ withNodeNetworkLayerBase
                 cont $ atomically . putTMVar var
                 atomically $ readTMVar var
 
-        -- NOTE1: only shelley transactions can be submitted like this, because they
-        -- are deserialised as shelley transactions before submitting.
-        --
-        -- NOTE2: It is not ideal to query the current era again here because we
-        -- should in practice use the same era as the one used to construct the
-        -- transaction. However, when turning transactions to 'SealedTx', we loose
-        -- all form of type-level indicator about the era. The 'SealedTx' type
-        -- shouldn't be needed anymore since we've dropped jormungandr, so we could
-        -- instead carry a transaction from cardano-api types with proper typing.
-        _postSealedTx txSubmissionQueue readCurrentEra tx = do
+        -- NOTE: only shelley-era transactions can be submitted: the stored
+        -- 'EraValue Read.Tx' carries the era so no query is needed.
+        _postSealedTx txSubmissionQueue tx = do
             liftIO $ traceWith tr $ MsgPostTx $ BS.fromStrict $ serialisedTx tx
-            preferredEra <- liftIO readCurrentEra
-            case unsealShelleyTx preferredEra tx of
-                Left (UnsealedTxInUnsupportedEra era) ->
-                    throwE $ ErrPostTxEraUnsupported era
-                Right tx' -> do
-                    let cmd = CmdSubmitTx . toConsensusGenTx $ tx'
-                    liftIO (send txSubmissionQueue cmd) >>= \case
-                        SubmitSuccess -> pure ()
-                        SubmitFail e ->
-                            throwE $ ErrPostTxValidationError $ T.pack $ show e
+            case unsafeReadTx tx of
+                Read.EraValue readTx ->
+                    postTxToQueue tr txSubmissionQueue readTx
 
         _stakeDistribution queue coin = do
             liftIO $ traceWith tr $ MsgWillQueryRewardsForStake coin

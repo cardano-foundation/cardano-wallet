@@ -19,16 +19,17 @@ module Cardano.Wallet.Primitive.Types.Tx.SealedTx
     ( -- * Types
       SealedTx (serialisedTx, unsafeReadTx)
     , cardanoTxIdeallyNoLaterThan
-    , cardanoTxInExactEra
     , sealedTxFromBytes
     , sealedTxFromBytes'
     , sealedTxFromCardano
     , sealedTxFromCardano'
     , sealedTxFromCardanoBody
+    , sealedTxFromLedgerTx
     , unsafeSealedTxFromBytes
     , SerialisedTx (..)
     , getSealedTxBody
     , getSealedTxWitnesses
+    , sealedTxWitnessCount
     , persistSealedTx
     , unPersistSealedTx
 
@@ -48,11 +49,17 @@ import Cardano.Api
 import Cardano.Api.Tx
     ( Tx (ShelleyTx)
     )
+import Cardano.Ledger.Api
+    ( addrTxWitsL
+    , bootAddrTxWitsL
+    , witsTxL
+    )
 import Cardano.Ledger.Binary
     ( DecoderError
     )
 import Cardano.Read.Ledger.Tx.CBOR
     ( deserializeTx
+    , serializeTx
     )
 import Cardano.Wallet.Read
     ( EraValue (..)
@@ -63,9 +70,11 @@ import Cardano.Wallet.Read.Eras
     , Babbage
     , Conway
     , Dijkstra
+    , Era (..)
     , IsEra
     , Mary
     , Shelley
+    , theEra
     )
 import Cardano.Wallet.Util
     ( HasCallStack
@@ -74,6 +83,9 @@ import Cardano.Wallet.Util
 import Control.DeepSeq
     ( NFData (..)
     , deepseq
+    )
+import Control.Lens
+    ( (^.)
     )
 import Data.Bifunctor
     ( first
@@ -84,9 +96,6 @@ import Data.ByteArray
     )
 import Data.ByteString
     ( ByteString
-    )
-import Data.Data
-    ( Proxy (..)
     )
 import Data.Either
     ( partitionEithers
@@ -112,6 +121,7 @@ import qualified Cardano.Api as Cardano
 import qualified Cardano.Wallet.Read as Read
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
+import qualified Data.Set as Set
 import qualified Data.Text as T
 
 -- | 'SealedTx' is a transaction for any hard fork era,
@@ -192,25 +202,6 @@ cardanoTxIdeallyNoLaterThan maxEra stx =
                         +|| e
                         ||+ ""
 
--- | Re-deserialises the bytes of the 'SealedTx' as a
--- transaction in the provided era, and that era only.
-cardanoTxInExactEra
-    :: forall era
-     . Cardano.IsShelleyBasedEra era
-    => CardanoEra era
-    -> SealedTx
-    -> Maybe (Cardano.Tx era)
-cardanoTxInExactEra _ tx =
-    eitherToMaybe
-        $ deserialiseFromCBOR
-            ( Cardano.AsTx
-                (Cardano.proxyToAsType $ Proxy @era)
-            )
-        $ serialisedTx tx
-  where
-    eitherToMaybe :: Either a b -> Maybe b
-    eitherToMaybe = either (const Nothing) Just
-
 -- | Temporary: reconstructs cardano-api TxBody from
 -- bytes. Will be removed when callers migrate.
 getSealedTxBody
@@ -245,6 +236,30 @@ getSealedTxWitnesses stx =
                 $ "getSealedTxWitnesses: "
                 +|| e
                 ||+ ""
+
+-- | Total number of key witnesses (VKey + bootstrap) in
+-- a 'SealedTx'. Ledger-native: does not round-trip
+-- through cardano-api.
+--
+-- Equivalent of @length (getSealedTxWitnesses stx)@ for
+-- the wallet's fee / witness-count accounting. Byron txs
+-- are counted as 0 — the wallet does not construct Byron
+-- txs through 'SealedTx'.
+sealedTxWitnessCount :: SealedTx -> Int
+sealedTxWitnessCount stx = case unsafeReadTx stx of
+    EraValue (Read.Tx tx :: Read.Tx era) -> case theEra @era of
+        Byron -> 0
+        Shelley -> countLedgerTxWits tx
+        Allegra -> countLedgerTxWits tx
+        Mary -> countLedgerTxWits tx
+        Alonzo -> countLedgerTxWits tx
+        Babbage -> countLedgerTxWits tx
+        Conway -> countLedgerTxWits tx
+        Dijkstra -> countLedgerTxWits tx
+  where
+    countLedgerTxWits tx =
+        Set.size (tx ^. witsTxL . addrTxWitsL)
+            + Set.size (tx ^. witsTxL . bootAddrTxWitsL)
 
 -- | Convert a cardano-api 'Tx' to 'EraValue Read.Tx'.
 cardanoApiTxToReadTx
@@ -433,6 +448,16 @@ withinEra = (>=) `on` numberEra
         BabbageEra -> 6
         ConwayEra -> 7
         _ -> 8
+
+-- | Construct a 'SealedTx' from a ledger-native
+-- 'Read.Tx'. Serialises to CBOR via ledger-read;
+-- bypasses cardano-api entirely.
+sealedTxFromLedgerTx
+    :: forall era
+     . Read.IsEra era
+    => Read.Tx era -> SealedTx
+sealedTxFromLedgerTx tx =
+    SealedTx True (EraValue tx) (BL.toStrict (serializeTx tx))
 
 -- | Deserialise a transaction to construct a
 -- 'SealedTx'.
