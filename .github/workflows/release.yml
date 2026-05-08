@@ -111,6 +111,7 @@ jobs:
         if: matrix.binary != ''
         env:
           EXPECTED_VERSION: ${{ needs.prepare.outputs.release-version }}
+          EXPECTED_COMMIT: ${{ needs.prepare.outputs.release-candidate-commit }}
         run: |
           archive=$(find result/ -maxdepth 2 -type f \( -name '*.tar.gz' -o -name '*.zip' \) | head -1)
           if [ -z "$archive" ]; then
@@ -140,9 +141,14 @@ jobs:
           fi
           version_output=$("$binary" version 2>&1)
           echo "Version output: $version_output"
-          echo "Expected: $EXPECTED_VERSION"
+          echo "Expected version: $EXPECTED_VERSION"
+          echo "Expected commit:  $EXPECTED_COMMIT"
           if ! echo "$version_output" | grep -q "$EXPECTED_VERSION"; then
             echo "ERROR: binary embeds wrong version (expected $EXPECTED_VERSION)"
+            exit 1
+          fi
+          if ! echo "$version_output" | grep -q "$EXPECTED_COMMIT"; then
+            echo "ERROR: binary embeds wrong commit (expected $EXPECTED_COMMIT)"
             exit 1
           fi
 
