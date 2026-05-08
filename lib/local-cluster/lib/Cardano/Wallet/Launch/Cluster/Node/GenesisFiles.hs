@@ -271,7 +271,7 @@ generateGenesis initialFunds genesisMods = do
                     -- based on the protocol version rather than just the era,
                     -- so we need to set it to a realisitic value.
                     & ppProtocolVersionL
-                        .~ Ledger.ProtVer (natVersion @10) 0
+                        .~ Ledger.ProtVer (natVersion @12) 0
                     -- Sensible pool & reward parameters:
                     & ppNOptL
                         .~ 3
