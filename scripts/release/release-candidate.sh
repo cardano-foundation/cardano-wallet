@@ -85,8 +85,10 @@ git checkout -b "$RELEASE_CANDIDATE_BRANCH" || true
 sed -i "s|version: .*|version: $NEW_GIT_TAG|g" specifications/api/swagger.yaml
 git diff --quiet || git commit -m "Update wallet version in swagger.yaml" specifications/api/swagger.yaml
 
-git ls-files '*.cabal' | xargs sed -i "s|$OLD_CABAL_VERSION|$NEW_CABAL_VERSION|g"
-git diff --quiet || git commit -am "Update cardano-wallet version in *.cabal files"
+# NEGATIVE CONTROL FOR #5273: deliberately skip cabal version sync so the
+# resulting test-rc branch has a stale cabal version. This must trigger
+# the new "Sanity-check checkout" step in build-artifacts.
+echo "[negative-control] skipping cabal version sed (will leave $OLD_CABAL_VERSION in *.cabal)"
 
 sed -i "s|NODE_TAG=.*|NODE_TAG=$CARDANO_NODE_TAG|g" README.md
 sed -i "s|WALLET_TAG=.*|WALLET_TAG=$NEW_CABAL_VERSION|g" README.md
