@@ -17,14 +17,13 @@
 -- see https://github.com/IntersectMBO/cardano-node/blob/master/cardano-api/src/Cardano/Api/TxMetadata.hs
 module Cardano.Wallet.Api.Types.SchemaMetadata where
 
-import Cardano.Api
+import Cardano.Wallet.Primitive.Types.Tx
+    ( TxMetadata (..)
+    )
+import Cardano.Wallet.Primitive.Types.Tx.TxMetadata
     ( TxMetadataJsonSchema (..)
     , metadataFromJson
     , metadataToJson
-    )
--- Removed: Cardano.Api.Error no longer exists
-import Cardano.Wallet.Primitive.Types.Tx
-    ( TxMetadata (..)
     )
 import Control.Applicative
     ( (<|>)

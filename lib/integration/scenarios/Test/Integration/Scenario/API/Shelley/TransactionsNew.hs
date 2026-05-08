@@ -381,6 +381,10 @@ import qualified Cardano.Wallet.Api.Types.Era as ApiEra
 import qualified Cardano.Wallet.Api.Types.WalletAssets as ApiWalletAssets
 import qualified Cardano.Wallet.Primitive.Types.AssetName as AssetName
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxMetadata as W
+    ( fromShelleyMetadata
+    , metadataValueToJsonNoSchema
+    )
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString.Lazy as BL
@@ -484,7 +488,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             Nothing -> error "Tx doesn't include metadata"
             Just m -> case Map.lookup 1 m of
                 Nothing -> error "Tx doesn't include metadata"
-                Just (Cardano.TxMetaText "hello") -> pure ()
+                Just (TxMetaText "hello") -> pure ()
                 Just _ -> error "Tx metadata incorrect"
 
         let decodePayload = Json (toJSON signedTx)
@@ -558,7 +562,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 Nothing -> error "Tx doesn't include metadata"
                 Just m -> case Map.lookup 1 m of
                     Nothing -> error "Tx doesn't include metadata"
-                    Just (Cardano.TxMetaText "hello") -> pure ()
+                    Just (TxMetaText "hello") -> pure ()
                     Just _ -> error "Tx metadata incorrect"
 
             let decodePayload = Json (toJSON signedTx)
@@ -714,7 +718,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     cardanoTxIdeallyNoLaterThan era
                         $ getApiT (signedTx ^. #serialisedTxSealed)
 
-            let extractTxt (Cardano.TxMetaText txt) = txt
+            let extractTxt (TxMetaText txt) = txt
                 extractTxt _ =
                     error "extractTxt is expected"
             let encryptedMsg = case getMetadataFromTx tx of
@@ -722,7 +726,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     Just m -> case Map.lookup 674 m of
                         Nothing -> error "Tx doesn't include metadata"
                         Just
-                            ( Cardano.TxMetaMap
+                            ( TxMetaMap
                                     [ (TxMetaText "msg", TxMetaList chunks1)
                                         , (TxMetaText "msg", TxMetaList chunks2)
                                         , (TxMetaText "enc", TxMetaText "basic")
@@ -746,13 +750,13 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     encrypt WithPadding key1 iv1 (Just salt1)
                         $ BL.toStrict
                         $ Aeson.encode
-                        $ Cardano.metadataValueToJsonNoSchema
+                        $ W.metadataValueToJsonNoSchema
                             toBeEncrypted1
             let (Right encryptedMsgRaw2) =
                     encrypt WithPadding key2 iv2 (Just salt2)
                         $ BL.toStrict
                         $ Aeson.encode
-                        $ Cardano.metadataValueToJsonNoSchema
+                        $ W.metadataValueToJsonNoSchema
                             toBeEncrypted2
 
             encryptedMsg
@@ -5525,8 +5529,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     , expectField
                         (#metadata . traverse . #txMetadataWithSchema_metadata)
                         ( `shouldBe`
-                            Cardano.TxMetadata
-                                (Map.fromList [(1, Cardano.TxMetaText "hello")])
+                            TxMetadata
+                                (Map.fromList [(1, TxMetaText "hello")])
                         )
                     ]
 
@@ -6735,7 +6739,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     Cardano.TxMetadataNone ->
                         Nothing
                     Cardano.TxMetadataInEra _ (Cardano.TxMetadata m) ->
-                        Just m
+                        Just (W.fromShelleyMetadata (Cardano.toShelleyMetadata m))
 
     -- Construct a JSON payment request for the given quantity of lovelace.
     mkTxPayload
@@ -7380,7 +7384,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 cardanoTxIdeallyNoLaterThan era
                     $ getApiT (signedTx ^. #serialisedTxSealed)
 
-        let extractTxt (Cardano.TxMetaText txt) = txt
+        let extractTxt (TxMetaText txt) = txt
             extractTxt _ =
                 error "extractTxt is expected"
         let encryptedMsg = case getMetadataFromTx tx of
@@ -7388,7 +7392,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 Just m -> case Map.lookup 674 m of
                     Nothing -> error "Tx doesn't include metadata"
                     Just
-                        ( Cardano.TxMetaMap
+                        ( TxMetaMap
                                 [ (TxMetaText "msg", TxMetaList chunks)
                                     , (TxMetaText "enc", TxMetaText "basic")
                                     ]
@@ -7404,7 +7408,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 encrypt WithPadding key iv (Just salt)
                     $ BL.toStrict
                     $ Aeson.encode
-                    $ Cardano.metadataValueToJsonNoSchema
+                    $ W.metadataValueToJsonNoSchema
                         toBeEncrypted
 
         encryptedMsg `shouldBe` toBase64 encryptedMsgRaw

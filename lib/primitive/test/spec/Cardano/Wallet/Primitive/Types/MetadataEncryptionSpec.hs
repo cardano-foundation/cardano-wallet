@@ -57,7 +57,7 @@ import Test.QuickCheck
     )
 import Prelude
 
-import qualified Cardano.Api as Cardano
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxMetadata as Cardano
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.List as L

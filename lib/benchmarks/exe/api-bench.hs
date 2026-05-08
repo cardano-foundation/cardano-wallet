@@ -192,7 +192,6 @@ import System.IO
     )
 import Prelude
 
-import qualified Cardano.Api as Cardano
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.DB as DB
 import qualified Cardano.Wallet.DB.Layer as DB
@@ -710,7 +709,7 @@ mockNetworkLayer =
                         :: Read.PParams Read.Conway
                     )
         , currentProtocolParameters = pure dummyProtocolParameters
-        , currentNodeEra = pure $ Cardano.anyCardanoEra Cardano.BabbageEra
+        , currentNodeEra = pure $ Read.EraValue Read.Babbage
         , currentNodeTip =
             pure
                 Read.BlockTip

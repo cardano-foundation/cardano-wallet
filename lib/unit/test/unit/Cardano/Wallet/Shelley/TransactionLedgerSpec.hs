@@ -209,6 +209,9 @@ import Cardano.Wallet.Primitive.Types.Tx.TxIn
 import Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen
     ( genTxIn
     )
+import Cardano.Wallet.Primitive.Types.Tx.TxMetadata
+    ( toShelleyMetadata
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..)
     )
@@ -389,6 +392,7 @@ import qualified Cardano.Crypto.Hash.Class as Crypto
 import qualified Cardano.Ledger.Coin as Ledger
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
+import qualified Cardano.Wallet.Primitive.Ledger.Read.Eras as Eras
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
@@ -565,7 +569,7 @@ prop_signTransaction_addsRewardAccountKey
                         signTransaction
                             ShelleyKeyS
                             tl
-                            (AnyCardanoEra era)
+                            (Eras.fromAnyCardanoEra (AnyCardanoEra era))
                             AnyWitnessCountCtx
                             (const Nothing)
                             Nothing
@@ -657,7 +661,7 @@ prop_signTransaction_addsExtraKeyWitnesses
                         signTransaction
                             ShelleyKeyS
                             tl
-                            (AnyCardanoEra era)
+                            (Eras.fromAnyCardanoEra (AnyCardanoEra era))
                             AnyWitnessCountCtx
                             (lookupFnFromKeys extraKeys)
                             Nothing
@@ -805,7 +809,9 @@ prop_signTransaction_addsTxInWitnesses
                             signTransaction
                                 ShelleyKeyS
                                 tl
-                                (AnyCardanoEra $ cardanoEraFromRecentEra recentEra)
+                                ( Eras.fromAnyCardanoEra
+                                    (AnyCardanoEra $ cardanoEraFromRecentEra recentEra)
+                                )
                                 AnyWitnessCountCtx
                                 (lookupFnFromKeys extraKeys)
                                 Nothing
@@ -871,7 +877,7 @@ prop_signTransaction_addsTxInCollateralWitnesses
                             signTransaction
                                 ShelleyKeyS
                                 tl
-                                (AnyCardanoEra era)
+                                (Eras.fromAnyCardanoEra (AnyCardanoEra era))
                                 AnyWitnessCountCtx
                                 (lookupFnFromKeys extraKeys)
                                 Nothing
@@ -915,7 +921,9 @@ prop_signTransaction_neverRemovesWitnesses
                         signTransaction
                             ShelleyKeyS
                             tl
-                            (AnyCardanoEra $ cardanoEraFromRecentEra recentEra)
+                            ( Eras.fromAnyCardanoEra
+                                (AnyCardanoEra $ cardanoEraFromRecentEra recentEra)
+                            )
                             AnyWitnessCountCtx
                             (lookupFnFromKeys extraKeys)
                             Nothing
@@ -959,7 +967,7 @@ prop_signTransaction_neverChangesTxBody
                         signTransaction
                             ShelleyKeyS
                             tl
-                            (AnyCardanoEra era)
+                            (Eras.fromAnyCardanoEra (AnyCardanoEra era))
                             AnyWitnessCountCtx
                             (lookupFnFromKeys extraKeys)
                             Nothing
@@ -1015,7 +1023,9 @@ prop_signTransaction_preservesScriptIntegrity
                         signTransaction
                             ShelleyKeyS
                             tl
-                            (AnyCardanoEra $ cardanoEraFromRecentEra recentEra)
+                            ( Eras.fromAnyCardanoEra
+                                (AnyCardanoEra $ cardanoEraFromRecentEra recentEra)
+                            )
                             AnyWitnessCountCtx
                             (const Nothing)
                             Nothing
@@ -1378,7 +1388,7 @@ makeShelleyTx era' testCase = case era' of
                   metadata = case md of
                     Nothing -> Map.empty
                     Just (TxMetadata m) ->
-                        Cardano.toShelleyMetadata m
+                        toShelleyMetadata m
                   baseTx =
                     mkLedgerTx
                         era''

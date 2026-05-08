@@ -69,8 +69,7 @@ import Cardano.Address.Script
     , toScriptHash
     )
 import Cardano.Api
-    ( AnyCardanoEra (..)
-    , InAnyCardanoEra (..)
+    ( InAnyCardanoEra (..)
     , NetworkId
     )
 -- Removed: Cardano.Api.Error no longer exists, using show instead
@@ -184,6 +183,10 @@ import Cardano.Wallet.Primitive.Types.Tx.TxExtended
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..)
     )
+import Cardano.Wallet.Primitive.Types.Tx.TxMetadata
+    ( TxMetadata (..)
+    , toShelleyMetadata
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..)
     )
@@ -292,9 +295,11 @@ import qualified Cardano.Crypto.Wallet as Crypto.HD
 import qualified Cardano.Ledger.Api as Ledger
 import qualified Cardano.Ledger.Keys.Bootstrap as SL
 import qualified Cardano.Wallet.Primitive.Ledger.Convert as Convert
+import qualified Cardano.Wallet.Primitive.Ledger.Read.Eras as Eras
 import qualified Cardano.Wallet.Primitive.Ledger.Shelley as Compatibility
 import qualified Cardano.Wallet.Primitive.Types.AssetId as AssetId
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
+import qualified Cardano.Wallet.Read as Read
 import qualified Data.ByteString as BS
 import qualified Data.Foldable as F
 import qualified Data.List as L
@@ -325,7 +330,7 @@ constructUnsignedTx
     :: forall era
      . Write.IsRecentEra era
     => Cardano.NetworkId
-    -> (Maybe Cardano.TxMetadata, [Cardano.Certificate (CardanoApiEra era)])
+    -> (Maybe TxMetadata, [Cardano.Certificate (CardanoApiEra era)])
     -> (Maybe SlotNo, SlotNo)
     -- ^ Slot at which the transaction will optionally start and expire.
     -> Withdrawal
@@ -672,7 +677,7 @@ newTransactionLayer keyF networkId =
                     sealedTxFromCardano
                         $ fromMaybe errNonRecentEra
                         $ withRecentEraLedgerTx
-                            (cardanoTxIdeallyNoLaterThan era sealedTx)
+                            (cardanoTxIdeallyNoLaterThan (Eras.toAnyCardanoEra era) sealedTx)
                         $ \ledgerTx ->
                             signTransaction
                                 keyF
@@ -860,11 +865,13 @@ mkUnsignedTransaction networkId stakeCred ctx selection = do
                 refScriptM
 
 _decodeSealedTx
-    :: AnyCardanoEra
+    :: Read.EraValue Read.Era
     -> SealedTx
     -> TxExtended
 _decodeSealedTx preferredLatestEra sealedTx =
-    case cardanoTxIdeallyNoLaterThan preferredLatestEra sealedTx of
+    case cardanoTxIdeallyNoLaterThan
+        (Eras.toAnyCardanoEra preferredLatestEra)
+        sealedTx of
         Cardano.InAnyCardanoEra _ tx ->
             fromCardanoTx tx
 
@@ -882,7 +889,7 @@ mkUnsignedTx
      . Write.IsRecentEra era
     => (Maybe SlotNo, SlotNo)
     -> Either PreSelection (SelectionOf TxOut)
-    -> Maybe Cardano.TxMetadata
+    -> Maybe TxMetadata
     -> [(Cardano.StakeAddress, Write.Coin)]
     -> [Cardano.Certificate (CardanoApiEra era)]
     -> Write.Coin
@@ -1009,7 +1016,11 @@ mkUnsignedTx
                         , Cardano.txMetadata =
                             case md of
                                 Nothing -> Cardano.TxMetadataNone
-                                Just d -> Cardano.TxMetadataInEra shelleyEra d
+                                Just (TxMetadata d) ->
+                                    Cardano.TxMetadataInEra shelleyEra
+                                        $ Cardano.makeTransactionMetadata
+                                        $ Cardano.fromShelleyMetadata
+                                        $ toShelleyMetadata d
                         , Cardano.txAuxScripts =
                             Cardano.TxAuxScriptsNone
                         , Cardano.txUpdateProposal =

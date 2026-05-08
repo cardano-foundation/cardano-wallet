@@ -267,11 +267,6 @@ import Cardano.Address.Script
     , ScriptTemplate
     , ValidationLevel (..)
     )
-import Cardano.Api
-    ( StakeAddress
-    , deserialiseFromBech32
-    , serialiseToBech32
-    )
 import Cardano.Mnemonic
     ( MkSomeMnemonic (..)
     , MkSomeMnemonicError (..)
@@ -311,7 +306,9 @@ import Cardano.Wallet.Address.Discovery.Shared
     )
 import Cardano.Wallet.Address.Encoding
     ( decodeAddress
+    , decodeStakeAddress
     , encodeAddress
+    , encodeStakeAddress
     )
 import Cardano.Wallet.Api.Aeson
     ( eitherToParser
@@ -660,6 +657,7 @@ import qualified Cardano.Wallet.Address.Derivation as AD
 import qualified Cardano.Wallet.Api.Types.Amount as ApiAmount
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.AssetName as W
+import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
 import qualified Cardano.Wallet.Primitive.Types.TokenFingerprint as W
 import qualified Cardano.Wallet.Primitive.Types.TokenMetadata as W
 import qualified Cardano.Wallet.Primitive.Types.TokenPolicyId as W
@@ -1434,7 +1432,7 @@ type ApiRedeemerData = ApiBytesT 'Base16 ByteString
 data ApiRedeemer (n :: NetworkDiscriminant)
     = ApiRedeemerSpending ApiRedeemerData (ApiT TxIn)
     | ApiRedeemerMinting ApiRedeemerData (ApiT W.TokenPolicyId)
-    | ApiRedeemerRewarding ApiRedeemerData StakeAddress
+    | ApiRedeemerRewarding ApiRedeemerData W.RewardAccount
     deriving (Eq, Generic, Show)
 
 data ApiFee = ApiFee
@@ -2822,7 +2820,7 @@ instance HasSNetworkId n => FromJSON (ApiRedeemer n) where
                 ApiRedeemerMinting bytes <$> (o .: "policy_id")
             "rewarding" -> do
                 text <- o .: "stake_address"
-                case deserialiseFromBech32 @StakeAddress text of
+                case decodeStakeAddress (sNetworkId @n) text of
                     Left e -> fail (show e)
                     Right addr -> pure $ ApiRedeemerRewarding bytes addr
             _ ->
@@ -2845,7 +2843,7 @@ instance HasSNetworkId n => ToJSON (ApiRedeemer n) where
             object
                 [ "purpose" .= ("rewarding" :: Text)
                 , "data" .= bytes
-                , "stake_address" .= serialiseToBech32 addr
+                , "stake_address" .= encodeStakeAddress (sNetworkId @n) addr
                 ]
 
 instance ToJSON ApiValidityBound where

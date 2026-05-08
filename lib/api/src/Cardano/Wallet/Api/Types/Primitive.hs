@@ -14,12 +14,6 @@ module Cardano.Wallet.Api.Types.Primitive () where
 import Cardano.Address.Script
     ( ScriptHash (..)
     )
-import Cardano.Api
-    ( TxMetadataJsonSchema (..)
-    , metadataFromJson
-    , metadataToJson
-    )
--- Removed: Cardano.Api.Error no longer exists
 import Cardano.Pool.Metadata.Types
     ( StakePoolMetadataHash
     , StakePoolMetadataUrl
@@ -69,6 +63,11 @@ import Cardano.Wallet.Primitive.Types.Tx.Tx
     )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..)
+    )
+import Cardano.Wallet.Primitive.Types.Tx.TxMetadata
+    ( TxMetadataJsonSchema (..)
+    , metadataFromJson
+    , metadataToJson
     )
 import Cardano.Wallet.Transaction
     ( AnyExplicitScript (..)

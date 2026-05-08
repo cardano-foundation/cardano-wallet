@@ -304,6 +304,7 @@ import qualified Cardano.Ledger.State as Ledger
 import qualified Cardano.Protocol.TPraos.BHeader as SL
 import qualified Cardano.Slotting.Slot as Slotting
 import qualified Cardano.Wallet.Primitive.Ledger.Convert as Ledger
+import qualified Cardano.Wallet.Primitive.Ledger.Read.Eras as Eras
 import qualified Cardano.Wallet.Primitive.Slotting as W
 import qualified Cardano.Wallet.Primitive.Types.Address as W
 import qualified Cardano.Wallet.Primitive.Types.AssetId as W
@@ -1118,22 +1119,27 @@ rewardAccountFromAddress (W.Address bytes) = refToAccount . ref =<< parseAddr by
     refToAccount (SL.StakeRefPtr _) = Nothing
     refToAccount SL.StakeRefNull = Nothing
 
-newtype UnsealException = UnsealedTxInUnsupportedEra AnyCardanoEra
+newtype UnsealException
+    = UnsealedTxInUnsupportedEra (Read.EraValue Read.Era)
 
 -- | Converts 'SealedTx' to something that can be submitted with the
 -- 'Cardano.Api' local tx submission client.
 unsealShelleyTx
-    :: AnyCardanoEra
+    :: Read.EraValue Read.Era
     -- ^ Preferred latest era (see 'ideallyNoLaterThan')
     -> W.SealedTx
     -> Either UnsealException TxInMode
-unsealShelleyTx era wtx = case W.cardanoTxIdeallyNoLaterThan era wtx of
-    Cardano.InAnyCardanoEra BabbageEra tx ->
-        Right $ TxInMode ShelleyBasedEraBabbage tx
-    Cardano.InAnyCardanoEra ConwayEra tx ->
-        Right $ TxInMode ShelleyBasedEraConway tx
-    Cardano.InAnyCardanoEra unsupportedEra _ ->
-        Left $ UnsealedTxInUnsupportedEra $ AnyCardanoEra unsupportedEra
+unsealShelleyTx era wtx =
+    case W.cardanoTxIdeallyNoLaterThan (Eras.toAnyCardanoEra era) wtx of
+        Cardano.InAnyCardanoEra BabbageEra tx ->
+            Right $ TxInMode ShelleyBasedEraBabbage tx
+        Cardano.InAnyCardanoEra ConwayEra tx ->
+            Right $ TxInMode ShelleyBasedEraConway tx
+        Cardano.InAnyCardanoEra unsupportedEra _ ->
+            Left
+                $ UnsealedTxInUnsupportedEra
+                $ Eras.fromAnyCardanoEra
+                $ AnyCardanoEra unsupportedEra
 
 instance
     (forall era. IsCardanoEra era => Show (thing era))
