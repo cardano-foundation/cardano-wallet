@@ -96,7 +96,8 @@ jobs:
             echo "ERROR: working tree HEAD ($actual_commit) does not match release-candidate-commit ($EXPECTED_COMMIT)"
             exit 1
           fi
-          actual_cabal_version=$(grep -m1 '^version' lib/wallet/cardano-wallet.cabal | awk '{print $2}')
+          # release-cabal-version strips the leading "0." (see scripts/release/release-candidate.sh:42).
+          actual_cabal_version=$(grep -m1 '^version' lib/wallet/cardano-wallet.cabal | awk '{print $2}' | sed 's/^0\.//')
           if [ "$actual_cabal_version" != "$EXPECTED_CABAL_VERSION" ]; then
             echo "ERROR: cabal version ($actual_cabal_version) does not match release-cabal-version ($EXPECTED_CABAL_VERSION)"
             exit 1
