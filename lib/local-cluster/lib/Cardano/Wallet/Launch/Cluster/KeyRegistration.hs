@@ -91,7 +91,7 @@ prepareStakeKeyRegistration = do
         , "--tx-out"
         , sink <> "+" <> "1000000"
         , "--ttl"
-        , "400"
+        , "6000000"
         , "--fee"
         , show (faucetAmt - depositAmt - 1_000_000)
         , "--certificate-file"

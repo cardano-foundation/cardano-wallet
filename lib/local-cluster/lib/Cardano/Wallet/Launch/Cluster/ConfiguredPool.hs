@@ -403,7 +403,7 @@ preparePoolRetirement nodeSegment certs = do
           , "--tx-in"
           , untag faucetInput
           , "--ttl"
-          , "400"
+          , "6000000"
           , "--fee"
           , show faucetAmt
           , "--out-file"
