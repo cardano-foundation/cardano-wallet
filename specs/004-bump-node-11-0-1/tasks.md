@@ -31,11 +31,11 @@
 
 **Purpose**: Adapt dependencies that wallet consumes through `source-repository-package` before local wallet consumers are closed.
 
-- [ ] T006 [US1] Adapt `cardano-ledger-read` central constraints in `/code/cardano-ledger-read/cabal.project` and only non-version package metadata in `/code/cardano-ledger-read/cardano-ledger-read.cabal` to the node 11.0.1 freeze
-- [ ] T007 [US2] Fix and validate `cardano-ledger-read` source/tests under `/code/cardano-ledger-read/`, then record the resulting commit/tag and validation evidence in `/code/cardano-wallet/specs/004-bump-node-11-0-1/research.md`
-- [ ] T008 [US1] Adapt `cardano-balance-transaction` central constraints in `/code/cardano-balance-transaction/cabal.project` and only non-version package metadata in `/code/cardano-balance-transaction/cardano-balance-tx.cabal` to the node 11.0.1 freeze
-- [ ] T009 [US2] Fix and validate `cardano-balance-transaction` source/tests under `/code/cardano-balance-transaction/`, then record the resulting commit/tag and validation evidence in `/code/cardano-wallet/specs/004-bump-node-11-0-1/research.md`
-- [ ] T010 [US1] Prefetch the validated upstream commits and update wallet source-repository-package tags and sha256 values for `cardano-ledger-read` and `cardano-balance-tx` in `/code/cardano-wallet/cabal.project`
+- [X] T006 [US1] Adapt `cardano-ledger-read` central constraints in `/code/cardano-ledger-read/cabal.project` and only non-version package metadata in `/code/cardano-ledger-read/cardano-ledger-read.cabal` to the node 11.0.1 freeze
+- [X] T007 [US2] Fix and validate `cardano-ledger-read` source/tests under `/code/cardano-ledger-read/`, then record the resulting commit/tag and validation evidence in `/code/cardano-wallet/specs/004-bump-node-11-0-1/research.md`
+- [X] T008 [US1] Adapt `cardano-balance-transaction` central constraints in `/code/cardano-balance-transaction/cabal.project` and only non-version package metadata in `/code/cardano-balance-transaction/cardano-balance-tx.cabal` to the node 11.0.1 freeze
+- [X] T009 [US2] Fix and validate `cardano-balance-transaction` source/tests under `/code/cardano-balance-transaction/`, then record the resulting commit/tag and validation evidence in `/code/cardano-wallet/specs/004-bump-node-11-0-1/research.md`
+- [X] T010 [US1] Prefetch the validated upstream commits and update wallet source-repository-package tags and sha256 values for `cardano-ledger-read` and `cardano-balance-tx` in `/code/cardano-wallet/cabal.project`
 
 **Checkpoint**: Wallet consumers will see the final upstream dependency surface before local component work starts.
 

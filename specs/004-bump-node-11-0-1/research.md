@@ -170,3 +170,34 @@ Upstream implementation note:
 - Both upstream dev shells set `withHoogle = true` under `ghc9123`.
 - Wallet pins must not be updated until each upstream repo has a validated issue-scoped commit/PR.
 - The draft PRs are pushed to warm remote builders before the wallet `source-repository-package` pins move.
+
+## Implementation Log: T006-T010 upstream dependency gates
+
+Completed on 2026-05-11.
+
+`cardano-ledger-read`:
+
+- Issue: https://github.com/cardano-foundation/cardano-ledger-read/issues/16
+- PR: https://github.com/cardano-foundation/cardano-ledger-read/pull/17
+- Merged commit used by wallet pin: `242c5c856f51aebe17f2d39b2320df6de1c05293`
+- Source-repository sha256: `1k6vjzng1qmjs4kpz5123wps6phxqyss6c44g48z6riwiwnkzpjw`
+- Local validation before merge: `nix-instantiate --parse nix/project.nix`, `git diff --check`, `nix develop --accept-flake-config --allow-import-from-derivation --quiet -c bash -lc 'ghc --numeric-version && hoogle --version && just build'`, and `nix develop --accept-flake-config --allow-import-from-derivation --quiet -c bash -lc 'just test'`.
+- Unit test result: 49 examples, 0 failures.
+- Remote validation before merge: `build`, `code-quality`, and `docs` passed.
+
+`cardano-balance-transaction`:
+
+- Issue: https://github.com/cardano-foundation/cardano-balance-transaction/issues/41
+- PR: https://github.com/cardano-foundation/cardano-balance-transaction/pull/42
+- Merged commit used by wallet pin: `c3a340d1f55ba4d4e4f825b6e9061df9f6bae6d8`
+- Source-repository sha256: `002sigimba2admcrg7gy5bgyd4hmlimzvl3pf7k4bfqpjifydqyw`
+- Local validation before merge: `nix-instantiate --parse nix/project.nix`, `git diff --check`, `nix develop --accept-flake-config --allow-import-from-derivation --quiet -c bash -lc 'ghc --numeric-version && hoogle --version'`, `just build`, and `just unit`.
+- Unit test result: 420 examples, 0 failures, 8 pending.
+- Remote validation before merge: `build` and `docs` passed.
+
+Wallet pin prefetch commands:
+
+```bash
+nix run nixpkgs#nix-prefetch-git -- --url https://github.com/cardano-foundation/cardano-ledger-read --rev 242c5c856f51aebe17f2d39b2320df6de1c05293 --quiet
+nix run nixpkgs#nix-prefetch-git -- --url https://github.com/cardano-foundation/cardano-balance-transaction --rev c3a340d1f55ba4d4e4f825b6e9061df9f6bae6d8 --quiet
+```

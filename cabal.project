@@ -129,8 +129,8 @@ source-repository-package
 source-repository-package
   type: git
   location: https://github.com/cardano-foundation/cardano-ledger-read
-  tag: cc9ca75f4b14967c714af502b50f7eee44d7a53c
-  --sha256: 1arsxznk4702v7sf2xnjs69jr0jdagkgf8cj3gz9cyqhjrzv27f5
+  tag: 242c5c856f51aebe17f2d39b2320df6de1c05293
+  --sha256: 1k6vjzng1qmjs4kpz5123wps6phxqyss6c44g48z6riwiwnkzpjw
 
 -- END cardano-ledger-read
 --------------------------------------------------------------------------------
@@ -141,8 +141,8 @@ source-repository-package
 source-repository-package
   type: git
   location: https://github.com/cardano-foundation/cardano-balance-transaction
-  tag: 5d69cc9bd47062b363929c877b83f0ab96369583
-  --sha256: 1mbbnq4i6sjyk6v6y1srhy42ybl9lb21yi39ifklsdpq1q84hzkz
+  tag: c3a340d1f55ba4d4e4f825b6e9061df9f6bae6d8
+  --sha256: 002sigimba2admcrg7gy5bgyd4hmlimzvl3pf7k4bfqpjifydqyw
 
 -- END cardano-balance-tx
 --------------------------------------------------------------------------------
