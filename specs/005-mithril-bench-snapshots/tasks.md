@@ -109,7 +109,7 @@ provenance and a specific `FAILURE_STAGE`.
 
 - [x] T021 [US2] Add line-oriented provenance logging to `scripts/ci/bench-restore.sh` for `BENCH_NAME`, `NETWORK`, `NODE_DB`, `MITHRIL_CLIENT_SOURCE`, `MITHRIL_CLIENT_VERSION`, `MITHRIL_SNAPSHOT_HASH`, setup timestamps, sync progress, sync wait seconds, and benchmark start time
 - [x] T022 [US2] Add per-leg JSON provenance artifact writing to `scripts/ci/bench-restore.sh` with fields from `specs/005-mithril-bench-snapshots/contracts/restoration-benchmarks.md`
-- [x] T023 [US2] Add explicit `FAILURE_STAGE=setup:mithril-list`, `setup:mithril-download`, `setup:mithril-extract`, `setup:node-start`, `setup:node-sync`, and `benchmark:restore` classification paths in `scripts/ci/bench-restore.sh`
+- [x] T023 [US2] Add explicit `FAILURE_STAGE=setup:mithril-list`, `setup:mithril-download`, `setup:mithril-convert`, `setup:mithril-extract`, `setup:node-start`, `setup:node-sync`, and `benchmark:restore` classification paths in `scripts/ci/bench-restore.sh`
 - [x] T024 [US2] Update `.github/workflows/restoration-benchmarks.yml` artifact upload patterns to include `*.json` alongside the existing `*.txt`, `*.log`, `*.svg`, and `*.hp` artifacts
 - [x] T025 [US2] Ensure `scripts/ci/bench-restore.sh` writes best-effort provenance on exit even when setup fails before the benchmark starts
 

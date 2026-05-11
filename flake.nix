@@ -124,7 +124,7 @@
     customConfig.url = "github:input-output-hk/empty-flake";
     cardano-node-runtime.url = "github:IntersectMBO/cardano-node?ref=11.0.1";
     mithril = {
-      url = "github:input-output-hk/mithril?ref=2603.1";
+      url = "github:input-output-hk/mithril?ref=2617.0";
       inputs.nixpkgs.follows = "nixpkgs-unstable";
     };
   };

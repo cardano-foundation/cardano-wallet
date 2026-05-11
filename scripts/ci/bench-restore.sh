@@ -52,8 +52,10 @@ node_sync_progress=""
 final_tip_json="null"
 mithril_snapshot_hash=""
 mithril_snapshot_tip="null"
-mithril_client_source="github:input-output-hk/mithril?ref=2543.1-hotfix"
+mithril_client_source=${MITHRIL_CLIENT_SOURCE:-"github:input-output-hk/mithril?ref=2617.0"}
 mithril_client_version=""
+mithril_utxo_hd_flavor=${MITHRIL_UTXO_HD_FLAVOR:-LMDB}
+mithril_cardano_node_version=""
 
 iso_now() {
     date -u +%Y-%m-%dT%H:%M:%SZ
@@ -61,6 +63,19 @@ iso_now() {
 
 epoch_now() {
     date +%s
+}
+
+detect_cardano_node_version() {
+    if command -v cardano-node >/dev/null 2>&1; then
+        local version
+        if version=$(cardano-node --version | awk 'NR == 1 { print $2 }') \
+            && [[ -n "$version" ]]; then
+            echo "$version"
+            return
+        fi
+    fi
+
+    echo "10.7.1"
 }
 
 wipe_directory_contents() {
@@ -91,6 +106,8 @@ write_provenance() {
         --arg mithril_snapshot_hash "$mithril_snapshot_hash" \
         --arg mithril_client_source "$mithril_client_source" \
         --arg mithril_client_version "$mithril_client_version" \
+        --arg mithril_utxo_hd_flavor "$mithril_utxo_hd_flavor" \
+        --arg mithril_cardano_node_version "$mithril_cardano_node_version" \
         --arg setup_started_at "$setup_started_at" \
         --arg setup_finished_at "$setup_finished_at" \
         --arg node_sync_completed_at "$node_sync_completed_at" \
@@ -110,6 +127,8 @@ write_provenance() {
           mithril_snapshot_tip: $mithril_snapshot_tip,
           mithril_client_source: $mithril_client_source,
           mithril_client_version: $mithril_client_version,
+          mithril_utxo_hd_flavor: $mithril_utxo_hd_flavor,
+          mithril_cardano_node_version: $mithril_cardano_node_version,
           setup_started_at: $setup_started_at,
           setup_finished_at: $setup_finished_at,
           node_sync_completed_at: $node_sync_completed_at,
@@ -181,6 +200,10 @@ echo "SETUP_STARTED_AT=$setup_started_at"
 echo "--- Provision Mithril snapshot"
 wipe_directory_contents "$node_db"
 
+mithril_cardano_node_version=$(detect_cardano_node_version)
+echo "MITHRIL_UTXO_HD_FLAVOR=$mithril_utxo_hd_flavor"
+echo "MITHRIL_CARDANO_NODE_VERSION=$mithril_cardano_node_version"
+
 mithril_remaining=$(require_setup_time "setup:mithril-list")
 set +e
 timeout --foreground --kill-after=60s "$mithril_remaining" \
@@ -188,6 +211,8 @@ timeout --foreground --kill-after=60s "$mithril_remaining" \
       NODE_DB="$node_db" \
       MITHRIL_SNAPSHOT_INFO_FILE="$mithril_info_file" \
       MITHRIL_STAGE_FILE="$mithril_stage_file" \
+      MITHRIL_UTXO_HD_FLAVOR="$mithril_utxo_hd_flavor" \
+      MITHRIL_CARDANO_NODE_VERSION="$mithril_cardano_node_version" \
       "$repo_root/run/mainnet/nix/snapshot.sh"
 mithril_status=$?
 set -e

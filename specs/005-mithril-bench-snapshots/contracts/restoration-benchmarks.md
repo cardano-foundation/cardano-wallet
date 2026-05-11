@@ -70,6 +70,7 @@ The script exits non-zero on failure and prints one of:
 ```text
 FAILURE_STAGE=setup:mithril-list
 FAILURE_STAGE=setup:mithril-download
+FAILURE_STAGE=setup:mithril-convert
 FAILURE_STAGE=setup:mithril-extract
 FAILURE_STAGE=setup:node-start
 FAILURE_STAGE=setup:node-sync
@@ -92,9 +93,11 @@ Each run must print these fields before the benchmark starts:
 BENCH_NAME=<base|seq0|seq1|rnd5>
 NETWORK=mainnet
 NODE_DB=<path>
-MITHRIL_CLIENT_SOURCE=github:input-output-hk/mithril?ref=2543.1-hotfix
+MITHRIL_CLIENT_SOURCE=github:input-output-hk/mithril?ref=2617.0
 MITHRIL_CLIENT_VERSION=<version>
 MITHRIL_SNAPSHOT_HASH=<hash>
+MITHRIL_UTXO_HD_FLAVOR=LMDB
+MITHRIL_CARDANO_NODE_VERSION=<version>
 SETUP_STARTED_AT=<ISO-8601 timestamp>
 NODE_SYNC_PROGRESS=<numeric percentage>
 NODE_SYNC_COMPLETED_AT=<ISO-8601 timestamp>

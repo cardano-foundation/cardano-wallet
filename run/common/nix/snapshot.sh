@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
 
-MITHRIL_CLIENT_SOURCE="github:input-output-hk/mithril?ref=2543.1-hotfix"
+MITHRIL_CLIENT_SOURCE=${MITHRIL_CLIENT_SOURCE:-"github:input-output-hk/mithril?ref=2617.0"}
 
 function mithril() {
     nix shell --quiet "$MITHRIL_CLIENT_SOURCE" --command mithril-client "$@"
@@ -9,6 +9,24 @@ function mithril() {
 
 function jq() {
     nix shell --quiet 'nixpkgs#jq' --command jq "$@"
+}
+
+detect_cardano_node_version() {
+    if [[ -n "${MITHRIL_CARDANO_NODE_VERSION:-}" ]]; then
+        echo "$MITHRIL_CARDANO_NODE_VERSION"
+        return
+    fi
+
+    if command -v cardano-node >/dev/null 2>&1; then
+        local version
+        if version=$(cardano-node --version | awk 'NR == 1 { print $2 }') \
+            && [[ -n "$version" ]]; then
+            echo "$version"
+            return
+        fi
+    fi
+
+    echo "10.7.1"
 }
 
 set -euo pipefail
@@ -77,6 +95,30 @@ fi
 
 set_stage "setup:mithril-download"
 (cd "${NODE_DB}" && mithril cdb download --include-ancillary "$hash")
+
+if [[ -n "${MITHRIL_UTXO_HD_FLAVOR:-}" ]]; then
+    case "$MITHRIL_UTXO_HD_FLAVOR" in
+        LMDB|Legacy) ;;
+        *)
+            echo "Unsupported MITHRIL_UTXO_HD_FLAVOR: $MITHRIL_UTXO_HD_FLAVOR" >&2
+            exit 1
+            ;;
+    esac
+
+    cardano_node_version=$(detect_cardano_node_version)
+    echo "MITHRIL_UTXO_HD_FLAVOR=$MITHRIL_UTXO_HD_FLAVOR"
+    echo "MITHRIL_CARDANO_NODE_VERSION=$cardano_node_version"
+
+    set_stage "setup:mithril-convert"
+    (
+        cd "${NODE_DB}"
+        mithril tools utxo-hd snapshot-converter \
+            --db-directory db \
+            --cardano-node-version "$cardano_node_version" \
+            --utxo-hd-flavor "$MITHRIL_UTXO_HD_FLAVOR" \
+            --commit
+    )
+fi
 
 set_stage "setup:mithril-extract"
 (cd "${NODE_DB}" && mv db/* . && rm -rf db)

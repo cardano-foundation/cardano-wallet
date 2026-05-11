@@ -35,7 +35,7 @@
 - `network`: `mainnet`
 - `hash`: snapshot hash selected from `mithril-client cdb snapshot list --json`
 - `client_source`: pinned Nix source identifier,
-  `github:input-output-hk/mithril?ref=2543.1-hotfix`
+  `github:input-output-hk/mithril?ref=2617.0`
 - `client_version`: `mithril-client --version`
 - `tip`: best-effort snapshot tip metadata if exposed by the client JSON
 
@@ -84,7 +84,7 @@
 - `final_sync_progress`
 - `final_tip`
 - `failure_stage`: one of `mithril-list`, `mithril-download`,
-  `mithril-extract`, `node-start`, `node-sync`
+  `mithril-convert`, `mithril-extract`, `node-start`, `node-sync`
 
 **Validation rules**:
 - The benchmark phase may not start before `final_sync_progress >= 99.9`.

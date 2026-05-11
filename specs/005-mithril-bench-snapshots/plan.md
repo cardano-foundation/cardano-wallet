@@ -19,7 +19,7 @@ helper, starting a per-leg `cardano-node`, polling `cardano-cli query tip` until
 ## Technical Context
 
 **Language/Version**: Bash for CI orchestration; Haskell/GHC 9.6.x via the Nix flake for the existing benchmark executable
-**Primary Dependencies**: GitHub Actions, Nix flake packages, `cardano-node`, `cardano-cli`, `mithril-client` from `github:input-output-hk/mithril?ref=2543.1-hotfix`, `jq`, GNU `timeout`, existing `ci.benchmarks.restore` derivation
+**Primary Dependencies**: GitHub Actions, Nix flake packages, `cardano-node`, `cardano-cli`, `mithril-client` from `github:input-output-hk/mithril?ref=2617.0`, `jq`, GNU `timeout`, existing `ci.benchmarks.restore` derivation
 **Storage**: Per-leg filesystem ChainDB under `$HOME/databases/node/<matrix-node-db>` on self-hosted benchmark runners
 **Testing**: Shell syntax/lint checks, Nix build of `.#ci.benchmarks.restore`, targeted workflow dispatch, workflow-log inspection for provenance and timeout classification
 **Target Platform**: Linux x86_64 self-hosted GitHub Actions runners labelled `cardano-wallet-bench`
