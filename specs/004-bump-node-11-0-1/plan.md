@@ -9,8 +9,8 @@ Upgrade Cardano Wallet to the dependency set aligned with cardano-node 11.0.1. T
 
 ## Status
 
-- **Completed**: Node 11.0.1 freeze, upstream `cardano-ledger-read` and `cardano-balance-transaction` PRs, wallet source-repository pins, wallet dependency metadata, StGit stack setup, `cardano-numeric`, `text-class`, `cardano-wallet-read`, `cardano-wallet-test-utils`, `cardano-wallet-launcher`, `crypto-primitives`, `delta-types`, `cardano-wallet-primitive`, `cardano-wallet-secrets`, `address-derivation-discovery`, `cardano-api-extra`, `iohk-monitoring-extra`, `cardano-wallet-network-layer`, `delta-store`, `cardano-wallet`, `cardano-wallet-api`, `cardano-wallet-application-tls`, `wai-middleware-logging`, `cardano-wallet-ui`, `cardano-wallet-application`, `cardano-wallet-application-extras`, and `faucet`.
-- **Current**: Corrected topology includes all local test/exe/bench dependencies. The next component slice is `temporary-extra`. The PR must stay draft until the branch is rebased onto the current target base and the final gate is rerun.
+- **Completed**: Node 11.0.1 freeze, upstream `cardano-ledger-read` and `cardano-balance-transaction` PRs, wallet source-repository pins, wallet dependency metadata, StGit stack setup, `cardano-numeric`, `text-class`, `cardano-wallet-read`, `cardano-wallet-test-utils`, `cardano-wallet-launcher`, `crypto-primitives`, `delta-types`, `cardano-wallet-primitive`, `cardano-wallet-secrets`, `address-derivation-discovery`, `cardano-api-extra`, `iohk-monitoring-extra`, `cardano-wallet-network-layer`, `delta-store`, `cardano-wallet`, `cardano-wallet-api`, `cardano-wallet-application-tls`, `wai-middleware-logging`, `cardano-wallet-ui`, `cardano-wallet-application`, `cardano-wallet-application-extras`, `faucet`, and `temporary-extra`.
+- **Current**: Corrected topology includes all local test/exe/bench dependencies. The next component slice is `local-cluster`. The PR must stay draft until the branch is rebased onto the current target base and the final gate is rerun.
 - **Blockers**: None for the next component slice.
 
 ## Technical Context
