@@ -258,7 +258,8 @@ spec = describe "SHELLEY_WALLETS" $ do
         runResourceT $ do
             m15 <- Mnemonics.generateSome Mnemonics.M15
             w <-
-                runPartialClientRequest ctx
+                eventually "Wallet from tip can be created"
+                    $ runPartialClientRequest ctx
                     $ C.postWallet
                     $ WalletOrAccountPostData
                     $ Left

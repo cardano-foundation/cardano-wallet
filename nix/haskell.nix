@@ -230,6 +230,9 @@ haskell-nix.cabalProject' [
             # support base-4.20 (GHC 9.10) yet. The binary itself builds
             # fine against nixpkgs' default base.
             pkgs.haskellPackages.cabal-fmt
+            # Required by the dependency-topology gate in the node upgrade
+            # workflow.
+            pkgs.haskellPackages.cabal-plan
           ];
         shellHook =
           let
@@ -292,6 +295,19 @@ haskell-nix.cabalProject' [
             {
               reinstallableLibGhc = true;
 
+              packages.local-cluster.components.tests.test-local-cluster = {
+                build-tools = cardanoNodeExes;
+                preCheck =
+                  noCacheTestFailuresCookie
+                  + ''
+                    export LOCAL_CLUSTER_CONFIGS=${localClusterConfigs}
+                  ''
+                  + lib.optionalString stdenv.isDarwin ''
+                    # cardano-node socket path becomes too long otherwise
+                    export TMPDIR=/tmp
+                  '';
+              };
+
               packages.cardano-wallet-unit.components.tests = {
                 unit.build-tools = cardanoNodeExes;
                 unit.preCheck =
@@ -312,7 +328,11 @@ haskell-nix.cabalProject' [
                 # tests as part of building a nix derivation.
                 #
                 # provide cardano-node & cardano-cli to tests
-                integration.build-tools = cardanoNodeExes;
+                e2e.doCheck = false;
+                integration = {
+                  build-tools = cardanoNodeExes;
+                  doCheck = false;
+                };
               };
 
               # Add node backend to the PATH of the latency benchmarks, and
