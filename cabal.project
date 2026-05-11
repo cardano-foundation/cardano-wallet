@@ -148,16 +148,16 @@ source-repository-package
 --------------------------------------------------------------------------------
 
 --------------------------------------------------------------------------------
--- BEGIN cardano-crypto-wallet-v2
+-- BEGIN cardano-crypto-wallet
 
 source-repository-package
   type: git
   location: https://github.com/intersectmbo/cardano-base
-  tag: b0941c4168d2fbc00253a8f955ce0063d710b7e0
-  --sha256: sha256-vuBiy4ix8QiEB6hdOM8PQtNFBaSjxKJWEV6W4yaiEGU=
-  subdir: cardano-crypto-wallet-v2
+  tag: 592fc8d2e236a8bd24147323ac3282272adbae38
+  --sha256: sha256-FwXrSjX6AOnRiH3LnL3YKkff9flb1UeuUZ4gEuiTm8g=
+  subdir: cardano-crypto-wallet
 
--- END cardano-crypto-wallet-v2
+-- END cardano-crypto-wallet
 --------------------------------------------------------------------------------
 
 --------------------------------------------------------------------------------

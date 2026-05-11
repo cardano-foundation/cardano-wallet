@@ -54,7 +54,7 @@ library
     , cardano-binary
     , cardano-crypto
     , cardano-crypto-class
-    , cardano-crypto-wallet-v2
+    , cardano-crypto-wallet
     , cardano-crypto-wrapper
     , cardano-ledger-allegra
     , cardano-ledger-alonzo

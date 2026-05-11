@@ -17,7 +17,7 @@ import Cardano.Crypto.Wallet
     ( unXPrv
     , xprv
     )
-import Cardano.Crypto.WalletV2.Encrypted
+import Cardano.Crypto.WalletHD.Encrypted
     ( EncryptedKey
     , encryptedKey
     , unEncryptedKey

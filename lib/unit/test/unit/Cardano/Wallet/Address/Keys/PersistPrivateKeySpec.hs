@@ -16,7 +16,7 @@ where
 import Cardano.Address.Derivation
     ( XPrv
     )
-import Cardano.Crypto.WalletV2.Encrypted
+import Cardano.Crypto.WalletHD.Encrypted
     ( EncryptedKey
     , encryptedCreate
     , withFastKdfForTesting

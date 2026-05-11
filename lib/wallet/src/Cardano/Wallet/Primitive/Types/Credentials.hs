@@ -11,7 +11,7 @@ module Cardano.Wallet.Primitive.Types.Credentials
 import Cardano.Address.Derivation
     ( XPrv
     )
-import Cardano.Crypto.WalletV2.Encrypted
+import Cardano.Crypto.WalletHD.Encrypted
     ( EncryptedKey
     )
 import Cardano.Wallet.Address.Derivation
