@@ -230,6 +230,9 @@ haskell-nix.cabalProject' [
             # support base-4.20 (GHC 9.10) yet. The binary itself builds
             # fine against nixpkgs' default base.
             pkgs.haskellPackages.cabal-fmt
+            # Required by the dependency-topology gate in the node upgrade
+            # workflow.
+            pkgs.haskellPackages.cabal-plan
           ];
         shellHook =
           let

@@ -78,43 +78,43 @@ Before editing component code:
 4. For each component patch/commit, update its non-version Cabal metadata, owned source, and owned tests together, then record formatting, linting, Nix build/test evidence, and green unit test evidence before moving to the next patch. If the component declares any Cabal `test-suite`, that test suite must pass in the same patch/commit that closes the component. Version constraints remain centralized in `cabal.project`; `.cabal` edits are limited to package names, component references, exposed modules, or other non-version metadata required by the upgrade.
 5. After a component patch is refreshed, later patches must not edit files under that component's ownership. The only exception is an emergency topology correction documented in `tasks.md` and in the patch message.
 
-## Seed Component Order
+## Confirmed Component Order
 
-This seed order is based on the repository dependency-update workflow and current Cabal package layout. It must be confirmed by the topology gate before implementation.
+This order is confirmed by the topology gate after the node 11.0.1 solver plan exists. The command used for the package order is `cabal-plan --hide-global --hide-builtin --hide-setup --hide-exes topo --reverse`. A package is ordered by its first local package/library occurrence in that dependency-first output. Later test, executable, sublibrary, and benchmark entries for the same package are still part of that package's closure evidence.
 
 ```text
-00. cardano-wallet-read                  lib/cardano-wallet-read/cardano-wallet-read.cabal
-01. delta-types                          lib/delta-types/delta-types.cabal
-02. text-class                           lib/text-class/text-class.cabal
-03. cardano-numeric                      lib/numeric/cardano-numeric.cabal
-04. std-gen-seed                         lib/std-gen-seed/std-gen-seed.cabal
-05. cardano-wallet-test-utils            lib/test-utils/cardano-wallet-test-utils.cabal
-06. crypto-primitives                    lib/crypto-primitives/crypto-primitives.cabal
-07. faucet                               lib/faucet/faucet.cabal
-08. flaky-tests                          lib/flaky-tests/flaky-tests.cabal
-09. iohk-monitoring-extra                lib/iohk-monitoring-extra/iohk-monitoring-extra.cabal
-10. cardano-wallet-launcher              lib/launcher/cardano-wallet-launcher.cabal
-11. delta-store                          lib/delta-store/delta-store.cabal
-12. wai-middleware-logging               lib/wai-middleware-logging/wai-middleware-logging.cabal
-13. cardano-wallet-secrets               lib/secrets/cardano-wallet-secrets.cabal
-14. cardano-wallet-application-extras    lib/application-extras/cardano-wallet-application-extras.cabal
-15. cardano-wallet-application-tls       lib/application-tls/cardano-wallet-application-tls.cabal
-16. temporary-extra                      lib/temporary-extra/temporary-extra.cabal
-17. delta-chain                          lib/delta-chain/delta-chain.cabal
-18. delta-table                          lib/delta-table/delta-table.cabal
-19. cardano-api-extra                    lib/cardano-api-extra/cardano-api-extra.cabal
-20. cardano-wallet-primitive             lib/primitive/cardano-wallet-primitive.cabal
-21. address-derivation-discovery         lib/address-derivation-discovery/address-derivation-discovery.cabal
-22. cardano-wallet-network-layer         lib/network-layer/cardano-wallet-network-layer.cabal
-23. cardano-wallet                       lib/wallet/cardano-wallet.cabal
-24. local-cluster                        lib/local-cluster/local-cluster.cabal
-25. cardano-wallet-api                   lib/api/cardano-wallet-api.cabal
-26. cardano-wallet-ui                    lib/ui/cardano-wallet-ui.cabal
-27. cardano-wallet-application           lib/application/cardano-wallet-application.cabal
-28. cardano-wallet-integration           lib/integration/cardano-wallet-integration.cabal
-29. cardano-wallet-unit                  lib/unit/cardano-wallet-unit.cabal
-30. cardano-wallet-benchmarks            lib/benchmarks/cardano-wallet-benchmarks.cabal
-31. cardano-wallet-blackbox-benchmarks   lib/wallet-benchmarks/cardano-wallet-blackbox-benchmarks.cabal
+00. cardano-numeric                      lib/numeric/cardano-numeric.cabal
+01. text-class                           lib/text-class/text-class.cabal
+02. cardano-wallet-launcher              lib/launcher/cardano-wallet-launcher.cabal
+03. cardano-wallet-read                  lib/cardano-wallet-read/cardano-wallet-read.cabal
+04. cardano-wallet-test-utils            lib/test-utils/cardano-wallet-test-utils.cabal
+05. crypto-primitives                    lib/crypto-primitives/crypto-primitives.cabal
+06. delta-types                          lib/delta-types/delta-types.cabal
+07. cardano-wallet-primitive             lib/primitive/cardano-wallet-primitive.cabal
+08. cardano-wallet-secrets               lib/secrets/cardano-wallet-secrets.cabal
+09. address-derivation-discovery         lib/address-derivation-discovery/address-derivation-discovery.cabal
+10. cardano-api-extra                    lib/cardano-api-extra/cardano-api-extra.cabal
+11. iohk-monitoring-extra                lib/iohk-monitoring-extra/iohk-monitoring-extra.cabal
+12. cardano-wallet-network-layer         lib/network-layer/cardano-wallet-network-layer.cabal
+13. delta-store                          lib/delta-store/delta-store.cabal
+14. cardano-wallet                       lib/wallet/cardano-wallet.cabal
+15. cardano-wallet-api                   lib/api/cardano-wallet-api.cabal
+16. cardano-wallet-application-tls       lib/application-tls/cardano-wallet-application-tls.cabal
+17. wai-middleware-logging               lib/wai-middleware-logging/wai-middleware-logging.cabal
+18. cardano-wallet-application           lib/application/cardano-wallet-application.cabal
+19. cardano-wallet-ui                    lib/ui/cardano-wallet-ui.cabal
+20. cardano-wallet-application-extras    lib/application-extras/cardano-wallet-application-extras.cabal
+21. faucet                               lib/faucet/faucet.cabal
+22. temporary-extra                      lib/temporary-extra/temporary-extra.cabal
+23. local-cluster                        lib/local-cluster/local-cluster.cabal
+24. cardano-wallet-integration           lib/integration/cardano-wallet-integration.cabal
+25. cardano-wallet-benchmarks            lib/benchmarks/cardano-wallet-benchmarks.cabal
+26. cardano-wallet-unit                  lib/unit/cardano-wallet-unit.cabal
+27. cardano-wallet-blackbox-benchmarks   lib/wallet-benchmarks/cardano-wallet-blackbox-benchmarks.cabal
+28. delta-chain                          lib/delta-chain/delta-chain.cabal
+29. delta-table                          lib/delta-table/delta-table.cabal
+30. flaky-tests                          lib/flaky-tests/flaky-tests.cabal
+31. std-gen-seed                         lib/std-gen-seed/std-gen-seed.cabal
 ```
 
 External source-repository-package compatibility (`cardano-ledger-read`, `cardano-balance-tx`, `cardano-coin-selection`) is handled before local consumers close, but those external packages are not local component slices.

@@ -148,7 +148,7 @@ Result: stopped after more than six minutes in Nix evaluation without reaching t
 - several missing object messages from `https://paolino.cachix.org`
 - `error: interrupted by the user`
 
-T004 remains open. The topology gate must be rerun after wallet metadata has been aligned to the 11.0.1 freeze and before any wallet component slice is edited.
+This attempt is superseded by the final T004 confirmation below. The topology gate was rerun after wallet metadata was aligned to the 11.0.1 freeze and before any wallet component slice was edited.
 
 ## Upstream issue tracking
 
@@ -232,3 +232,103 @@ git diff --name-only
 ```
 
 Before the metadata commit, the changed files were limited to `cabal.project`, `flake.lock`, and the Spec Kit files under `specs/004-bump-node-11-0-1/`. No component-owned source directory under `lib/` was edited before Phase 4.
+
+## Implementation Log: T004 topology confirmation
+
+Completed on 2026-05-11 after wallet metadata and upstream pins were aligned.
+
+The first rerun of the documented topology gate showed that the wallet dev shell did not provide `cabal-plan`, so the gate in `plan.md` was not executable from the repository-owned environment. The dev shell now includes `pkgs.haskellPackages.cabal-plan` in `/code/cardano-wallet/nix/haskell.nix`.
+
+Final topology command:
+
+```bash
+nix develop --accept-flake-config --allow-import-from-derivation --quiet -c bash -lc 'cabal build all --dry-run --enable-tests -O0 && cabal-plan topo'
+```
+
+Result: succeeded. The Cabal dry run selected GHC `9.12.3`, the node 11 dependency set, and the merged upstream pins:
+
+- `cardano-api-11.0.0.0`
+- `cardano-cli-11.0.0.0`
+- `cardano-ledger-conway-1.22.1.0`
+- `plutus-core-1.63.0.0`
+- `plutus-ledger-api-1.63.0.0`
+- `plutus-tx-1.63.0.0`
+- `ouroboros-consensus-3.0.1.0`
+- `ouroboros-network-1.1.0.0`
+- `cardano-ledger-read` at merge commit `242c5c856f51aebe17f2d39b2320df6de1c05293`
+- `cardano-balance-tx` at merge commit `c3a340d1f55ba4d4e4f825b6e9061df9f6bae6d8`
+
+The component task order was updated from the seed order using:
+
+```bash
+nix develop --accept-flake-config --allow-import-from-derivation --quiet -c cabal-plan --hide-global --hide-builtin --hide-setup --hide-exes topo --reverse
+```
+
+Package order derived from the first local package/library occurrence in the dependency-first output:
+
+```text
+00. cardano-numeric
+01. text-class
+02. cardano-wallet-launcher
+03. cardano-wallet-read
+04. cardano-wallet-test-utils
+05. crypto-primitives
+06. delta-types
+07. cardano-wallet-primitive
+08. cardano-wallet-secrets
+09. address-derivation-discovery
+10. cardano-api-extra
+11. iohk-monitoring-extra
+12. cardano-wallet-network-layer
+13. delta-store
+14. cardano-wallet
+15. cardano-wallet-api
+16. cardano-wallet-application-tls
+17. wai-middleware-logging
+18. cardano-wallet-application
+19. cardano-wallet-ui
+20. cardano-wallet-application-extras
+21. faucet
+22. temporary-extra
+23. local-cluster
+24. cardano-wallet-integration
+25. cardano-wallet-benchmarks
+26. cardano-wallet-unit
+27. cardano-wallet-blackbox-benchmarks
+28. delta-chain
+29. delta-table
+30. flaky-tests
+31. std-gen-seed
+```
+
+Later test, executable, sublibrary, and benchmark entries for the same package remain part of that package's closure evidence. A task is not complete until its declared test-suite entries have green unit-test evidence or the task explicitly records `no Cabal test-suite`.
+
+## Implementation Log: T005 stgit stack
+
+Completed on 2026-05-11 before component source edits.
+
+Safety branch:
+
+```bash
+git branch backup/004-bump-node-11-0-1-before-stgit 09533afb540082a8b0828ded29fc174aac152dd0
+```
+
+Stack initialization:
+
+```bash
+stg init
+stg uncommit -t 989fba758dec8718032386629128701f235e2649 -x
+stg series
+```
+
+Resulting applied stack:
+
+```text
++ docs-add-node-11.0.1-upgrade
++ docs-record-node-freeze-and
++ chore-pin-node-11-upstream
++ chore-align-wallet-node-11
+> docs-confirm-node-11-topology
+```
+
+The existing upstream pin patch contains both validated upstream source-repository-package pins because both pins were moved together after both upstream PRs were green and merged. Component patches are not pre-created as empty commits. For T015 onward, the workflow is to create exactly one StGit patch when the component starts, close that component end-to-end, record green unit-test evidence whenever a Cabal `test-suite` exists, refresh the patch, and then never edit that component again.
