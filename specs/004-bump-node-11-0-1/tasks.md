@@ -45,10 +45,10 @@
 
 **Purpose**: Align wallet-wide metadata to the node freeze before component slices.
 
-- [ ] T011 [US1] Update CHaP index-state, Cardano package constraints, and solver metadata from `/tmp/cardano-node-11.0.1/cabal.project.freeze` in `/code/cardano-wallet/cabal.project`
-- [ ] T012 [US1] Update `cardano-node-runtime` to 11.0.1 and align CHaP/runtime locks in `/code/cardano-wallet/flake.nix` and `/code/cardano-wallet/flake.lock`
-- [ ] T013 [US1] Run wallet dependency resolution from `/code/cardano-wallet/cabal.project`, explicitly verify whether `ouroboros-consensus` and `ouroboros-network` remain on the already-selected compatible major versions, and record any package removals, replacements, or freeze-driven ouroboros adjustment in `/code/cardano-wallet/specs/004-bump-node-11-0-1/research.md`
-- [ ] T014 [US4] Refresh the metadata patch and verify no component-owned source directory under `/code/cardano-wallet/lib/` has been edited yet
+- [X] T011 [US1] Update CHaP index-state, Cardano package constraints, and solver metadata from `/tmp/cardano-node-11.0.1/cabal.project.freeze` in `/code/cardano-wallet/cabal.project`
+- [X] T012 [US1] Update `cardano-node-runtime` to 11.0.1 and align CHaP/runtime locks in `/code/cardano-wallet/flake.nix` and `/code/cardano-wallet/flake.lock`
+- [X] T013 [US1] Run wallet dependency resolution from `/code/cardano-wallet/cabal.project`, explicitly verify whether `ouroboros-consensus` and `ouroboros-network` remain on the already-selected compatible major versions, and record any package removals, replacements, or freeze-driven ouroboros adjustment in `/code/cardano-wallet/specs/004-bump-node-11-0-1/research.md`
+- [X] T014 [US4] Refresh the metadata patch and verify no component-owned source directory under `/code/cardano-wallet/lib/` has been edited yet
 
 **Checkpoint**: Solver metadata is ready and component ownership boundaries are still clean.
 

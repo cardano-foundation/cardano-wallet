@@ -201,3 +201,34 @@ Wallet pin prefetch commands:
 nix run nixpkgs#nix-prefetch-git -- --url https://github.com/cardano-foundation/cardano-ledger-read --rev 242c5c856f51aebe17f2d39b2320df6de1c05293 --quiet
 nix run nixpkgs#nix-prefetch-git -- --url https://github.com/cardano-foundation/cardano-balance-transaction --rev c3a340d1f55ba4d4e4f825b6e9061df9f6bae6d8 --quiet
 ```
+
+## Implementation Log: T011-T014 wallet metadata
+
+Completed on 2026-05-11.
+
+Metadata changes:
+
+- `cabal.project` CHaP index-state moved to `2026-05-02T16:21:41Z`.
+- `cabal.project` Cardano constraint heading moved from node 10.7.1 to node 11.0.1.
+- `cardano-api` and `cardano-cli` constrained to `11.0.0.0`.
+- `cardano-ledger-conway` constrained to `1.22.1.0`.
+- `typed-protocols` constrained to `1.2.1.0`.
+- `plutus-core`, `plutus-ledger-api`, and `plutus-tx` constrained to `1.63.0.0`.
+- Top-level flake `CHaP` lock aligned to node 11.0.1 CHaP revision `e8a483522ee73c8c9493ea6055553e5c2532e66b`.
+- `cardano-node-runtime` was already on `11.0.1`, locked to node commit `97036a66bcf8c89f687ae57a048eecc0389977ef`.
+
+Dependency resolution command:
+
+```bash
+nix build --accept-flake-config --allow-import-from-derivation --dry-run .#ci.tests.all
+```
+
+Result: succeeded. The dry run selected `cardano-api-11.0.0.0`, `cardano-cli-11.0.0.0`, `cardano-ledger-conway-1.22.1.0`, `plutus-core-1.63.0.0`, `plutus-ledger-api-1.63.0.0`, and `plutus-tx-1.63.0.0`. It kept `ouroboros-consensus-3.0.1.0` and `ouroboros-network-1.1.0.0`, so no freeze-driven ouroboros major-version adjustment is required.
+
+Component-boundary audit:
+
+```bash
+git diff --name-only
+```
+
+Before the metadata commit, the changed files were limited to `cabal.project`, `flake.lock`, and the Spec Kit files under `specs/004-bump-node-11-0-1/`. No component-owned source directory under `lib/` was edited before Phase 4.
