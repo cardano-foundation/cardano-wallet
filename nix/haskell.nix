@@ -4,11 +4,10 @@
 CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: set-git-rev: rewrite-libs:
 haskell-nix.cabalProject' [
   (
-    {
-      lib,
-      pkgs,
-      buildProject,
-      ...
+    { lib
+    , pkgs
+    , buildProject
+    , ...
     }:
     {
       options = {
@@ -37,12 +36,11 @@ haskell-nix.cabalProject' [
     }
   )
   (
-    {
-      pkgs,
-      lib,
-      config,
-      buildProject,
-      ...
+    { pkgs
+    , lib
+    , config
+    , buildProject
+    , ...
     }:
 
     let
@@ -294,6 +292,19 @@ haskell-nix.cabalProject' [
             in
             {
               reinstallableLibGhc = true;
+
+              packages.local-cluster.components.tests.test-local-cluster = {
+                build-tools = cardanoNodeExes;
+                preCheck =
+                  noCacheTestFailuresCookie
+                  + ''
+                    export LOCAL_CLUSTER_CONFIGS=${localClusterConfigs}
+                  ''
+                  + lib.optionalString stdenv.isDarwin ''
+                    # cardano-node socket path becomes too long otherwise
+                    export TMPDIR=/tmp
+                  '';
+              };
 
               packages.cardano-wallet-unit.components.tests = {
                 unit.build-tools = cardanoNodeExes;
