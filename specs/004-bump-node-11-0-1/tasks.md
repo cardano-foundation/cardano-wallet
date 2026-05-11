@@ -64,7 +64,7 @@ Before each component task T015-T046 is marked complete, add the exact commands 
 
 | Task | Component | Close command evidence |
 |------|-----------|------------------------|
-| T015 | cardano-numeric | Must record exact fourmolu, hlint, cabal-fmt, Nix, and unit-test commands before marking this task complete |
+| T015 | cardano-numeric | `nix develop --accept-flake-config --allow-import-from-derivation --quiet -c fourmolu --mode check lib/numeric/src/Cardano/Numeric/Util.hs lib/numeric/test/unit/Cardano/Numeric/UtilSpec.hs lib/numeric/test/unit/numeric-unit-test.hs`; `nix develop --accept-flake-config --allow-import-from-derivation --quiet -c hlint lib/numeric/src lib/numeric/test/unit`; `nix develop --accept-flake-config --allow-import-from-derivation --quiet -c cabal-fmt --check lib/numeric/cardano-numeric.cabal`; `nix build --accept-flake-config --allow-import-from-derivation --no-link .#packages.x86_64-linux.tests.cardano-numeric.unit`; `nix build --accept-flake-config --allow-import-from-derivation --no-link .#checks.x86_64-linux.cardano-numeric.unit`; `/nix/store/wamyrg4404svcizmamy7h1x7x012pf4x-cardano-numeric-test-unit-2020.12.8/bin/unit` -> 11 examples, 0 failures |
 | T016 | text-class | Must record exact fourmolu, hlint, cabal-fmt, Nix, and unit-test commands before marking this task complete |
 | T017 | cardano-wallet-launcher | Must record exact fourmolu, hlint, cabal-fmt, Nix, and unit-test commands before marking this task complete |
 | T018 | cardano-wallet-read | Must record exact fourmolu, hlint, cabal-fmt, Nix, and unit-test commands before marking this task complete |
@@ -97,7 +97,7 @@ Before each component task T015-T046 is marked complete, add the exact commands 
 | T045 | flaky-tests | Must record exact fourmolu, hlint, cabal-fmt, Nix, and unit-test commands before marking this task complete |
 | T046 | std-gen-seed | Must record exact fourmolu, hlint, cabal-fmt, Nix, and unit-test commands before marking this task complete |
 
-- [ ] T015 [US1] Adapt and close `cardano-numeric` in `/code/cardano-wallet/lib/numeric/cardano-numeric.cabal` and `/code/cardano-wallet/lib/numeric/`
+- [X] T015 [US1] Adapt and close `cardano-numeric` in `/code/cardano-wallet/lib/numeric/cardano-numeric.cabal` and `/code/cardano-wallet/lib/numeric/`
 - [ ] T016 [US1] Adapt and close `text-class` in `/code/cardano-wallet/lib/text-class/text-class.cabal` and `/code/cardano-wallet/lib/text-class/`
 - [ ] T017 [US1] Adapt and close `cardano-wallet-launcher` in `/code/cardano-wallet/lib/launcher/cardano-wallet-launcher.cabal` and `/code/cardano-wallet/lib/launcher/`
 - [ ] T018 [US1] Adapt and close `cardano-wallet-read` in `/code/cardano-wallet/lib/cardano-wallet-read/cardano-wallet-read.cabal` and `/code/cardano-wallet/lib/cardano-wallet-read/`
