@@ -143,6 +143,7 @@ Before each component task T015-T046 is marked complete, add the exact commands 
 - [ ] T049 [US3] Run end-to-end tests against cardano-node 11.0.1 from `/code/cardano-wallet/flake.nix` runtime outputs
 - [ ] T050 [US1] Run the final clean repository build gate from `/code/cardano-wallet/cabal.project` and `/code/cardano-wallet/flake.nix`
 - [ ] T051 [US4] Audit `git diff --name-only` from `/code/cardano-wallet` against the component order in `/code/cardano-wallet/specs/004-bump-node-11-0-1/tasks.md` and document any reopened component before review
+- [ ] T052 [US4] Rebase `/code/cardano-wallet` branch `004-bump-node-11-0-1` onto the current target base before undrafting the PR or requesting merge, then rerun the required final gate on the rebased branch
 
 **Checkpoint**: The upgrade is reviewable, validated, and traceable back to issue #5275.
 
@@ -173,3 +174,4 @@ None for component implementation. The only safe parallel work is read-only inve
 3. Align wallet metadata.
 4. Close components one by one in dependency-first topology.
 5. Run runtime and whole-repository gates.
+6. Rebase before undrafting the PR, then rerun the required final gate.
