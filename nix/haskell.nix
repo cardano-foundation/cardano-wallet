@@ -4,10 +4,11 @@
 CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: set-git-rev: rewrite-libs:
 haskell-nix.cabalProject' [
   (
-    { lib
-    , pkgs
-    , buildProject
-    , ...
+    {
+      lib,
+      pkgs,
+      buildProject,
+      ...
     }:
     {
       options = {
@@ -36,11 +37,12 @@ haskell-nix.cabalProject' [
     }
   )
   (
-    { pkgs
-    , lib
-    , config
-    , buildProject
-    , ...
+    {
+      pkgs,
+      lib,
+      config,
+      buildProject,
+      ...
     }:
 
     let
@@ -326,7 +328,11 @@ haskell-nix.cabalProject' [
                 # tests as part of building a nix derivation.
                 #
                 # provide cardano-node & cardano-cli to tests
-                integration.build-tools = cardanoNodeExes;
+                e2e.doCheck = false;
+                integration = {
+                  build-tools = cardanoNodeExes;
+                  doCheck = false;
+                };
               };
 
               # Add node backend to the PATH of the latency benchmarks, and
