@@ -9,8 +9,8 @@ Upgrade Cardano Wallet to the dependency set aligned with cardano-node 11.0.1. T
 
 ## Status
 
-- **Completed**: Node 11.0.1 freeze, upstream `cardano-ledger-read` and `cardano-balance-transaction` PRs, wallet source-repository pins, wallet dependency metadata, StGit stack setup, `cardano-numeric`, `text-class`, `cardano-wallet-read`, `cardano-wallet-test-utils`, and `cardano-wallet-launcher`.
-- **Current**: Corrected topology includes all local test/exe/bench dependencies. The next component slice is `crypto-primitives`.
+- **Completed**: Node 11.0.1 freeze, upstream `cardano-ledger-read` and `cardano-balance-transaction` PRs, wallet source-repository pins, wallet dependency metadata, StGit stack setup, `cardano-numeric`, `text-class`, `cardano-wallet-read`, `cardano-wallet-test-utils`, `cardano-wallet-launcher`, and `crypto-primitives`.
+- **Current**: Corrected topology includes all local test/exe/bench dependencies. The next component slice is `delta-types`.
 - **Blockers**: None for the next component slice.
 
 ## Technical Context
