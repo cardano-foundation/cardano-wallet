@@ -4,16 +4,6 @@ on:
   schedule:
     - cron: "0 0 * * 1" # every Monday at midnight UTC
   workflow_dispatch:
-    inputs:
-      to-tip-timeout:
-        description: "Node sync timeout in hours"
-        type: choice
-        default: "4"
-        options:
-          - "infinite"
-          - "1"
-          - "2"
-          - "4"
 
 concurrency:
   group: ${{ github.workflow }}
@@ -35,7 +25,7 @@ jobs:
     name: "Restore ${{ matrix.bench }}"
     needs: build
     runs-on: [self-hosted, linux, x86_64, cardano-wallet-bench]
-    timeout-minutes: 1380
+    timeout-minutes: 870
     strategy:
       fail-fast: false
       matrix:
@@ -50,7 +40,10 @@ jobs:
             node-db: mainnet-4
     env:
       LC_ALL: C.UTF-8
-      TO_TIP_TIMEOUT: ${{ inputs.to-tip-timeout }}
+      SETUP_TIMEOUT_SECONDS: 7200
+      BENCHMARK_TIMEOUT_SECONDS: 43200
+      SYNC_POLL_INTERVAL_SECONDS: 15
+      SYNC_STALE_SECONDS: 1200
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -61,7 +54,7 @@ jobs:
         env:
           TMPDIR: ${{ runner.temp }}
         run: |
-          nix shell --quiet 'nixpkgs#coreutils' 'nixpkgs#gnugrep' 'nixpkgs#gawk' 'nixpkgs#time' 'nixpkgs#haskellPackages.hp2pretty' -c \
+          nix shell --quiet '.#cardano-node' '.#cardano-cli' 'nixpkgs#coreutils' 'nixpkgs#gnugrep' 'nixpkgs#gawk' 'nixpkgs#jq' 'nixpkgs#time' 'nixpkgs#haskellPackages.hp2pretty' -c \
             bash scripts/ci/bench-restore.sh \
               mainnet ${{ matrix.bench }} $HOME/databases/node/${{ matrix.node-db }}
 
@@ -75,4 +68,5 @@ jobs:
             *.log
             *.svg
             *.hp
+            *.json
           if-no-files-found: ignore
