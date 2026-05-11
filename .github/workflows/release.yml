@@ -297,7 +297,7 @@ jobs:
     name: "E2E Windows"
     if: inputs.release_type == 'release'
     needs: [prepare, build-e2e-windows]
-    runs-on: windows-latest
+    runs-on: windows-2025-vs2026
     timeout-minutes: 240
     steps:
       - name: Download E2E bundle
