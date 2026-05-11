@@ -294,7 +294,7 @@ import Cardano.Balance.Tx.Tx
 import Cardano.Crypto.Wallet
     ( toXPub
     )
-import Cardano.Crypto.WalletV2.Encrypted
+import Cardano.Crypto.WalletHD.Encrypted
     ( EncryptedKey
     , XPrvError (..)
     , encryptedCreateDirectWithTweak
