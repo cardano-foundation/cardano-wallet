@@ -34,9 +34,5 @@ $API_CHANGES
 
 | Name                                | Role              | Approval |
 | ----------------------------------- | ----------------- | -------- |
-| Heinrich Apfelmus @HeinrichApfelmus | Software Engineer |          |
 | Paolo Veronelli @paolino            | Software Engineer |          |
 | Pawel Jakubas @paweljakubas         | Software Engineer |          |
-| Johannes Lund @Anviking             | Software Engineer |          |
-| David Clark @david-a-clark          | Product Manager   |          |
-| Arnaud Bailly @abailly              | Software Engineer |          |

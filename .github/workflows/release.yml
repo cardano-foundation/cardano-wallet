@@ -297,7 +297,7 @@ jobs:
     name: "E2E Windows"
     if: inputs.release_type == 'release'
     needs: [prepare, build-e2e-windows]
-    runs-on: windows-latest
+    runs-on: windows-2025-vs2026
     timeout-minutes: 240
     steps:
       - name: Download E2E bundle
@@ -388,11 +388,13 @@ jobs:
       - name: Create GitHub release
         shell: nix shell --quiet nixpkgs#gh -c bash -e {0}
         run: |
-          gh release create \
-            -d \
-            -F release-body.md \
-            -t "${{ steps.tag.outputs.title }}" \
-            "${{ steps.tag.outputs.tag }}"
+          # Mark nightly/test as prereleases so they don't overtake the most
+          # recent semver release as GitHub's "Latest" pointer.
+          args=(-d -F release-body.md -t "${{ steps.tag.outputs.title }}")
+          if [ "$IS_RELEASE" != "true" ]; then
+            args+=(--prerelease)
+          fi
+          gh release create "${args[@]}" "${{ steps.tag.outputs.tag }}"
 
       - name: Download all build artifacts
         uses: actions/download-artifact@v8
@@ -453,26 +455,37 @@ jobs:
     runs-on: [self-hosted, linux, x86_64, cardano-wallet]
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      IS_RELEASE: ${{ inputs.release_type == 'release' && 'true' || 'false' }}
     steps:
-      - name: Un-draft release
+      - name: Un-draft nightly/test release
+        if: env.IS_RELEASE != 'true'
         shell: nix shell --quiet nixpkgs#gh -c bash -e {0}
         run: |
           TAG="${{ needs.create-release.outputs.tag }}"
-          echo "Publishing release $TAG"
+          echo "Un-drafting $TAG"
           gh release edit "$TAG" \
             --repo cardano-foundation/cardano-wallet \
             --draft=false
 
+      - name: Notify release ready for manual review
+        if: env.IS_RELEASE == 'true'
+        run: |
+          TAG="${{ needs.create-release.outputs.tag }}"
+          URL="https://github.com/cardano-foundation/cardano-wallet/releases/tag/$TAG"
+          echo "::notice::Draft release $TAG built and verified."
+          echo "::notice::Edit notes (Docker link, changelog, signatures) and click Publish in the UI."
+          echo "::notice::$URL"
+          echo "::notice::On Publish, .github/workflows/publish-release.yml handles docker + docs."
+
   push-docker:
-    name: "Push Docker Image"
+    name: "Push Docker Image (nightly/test)"
     needs: [prepare, create-release, publish-release]
-    if: ${{ !cancelled() && needs.publish-release.result == 'success' }}
+    # Skip for real releases — .github/workflows/publish-release.yml pushes
+    # version + latest docker tags on the release.published event instead.
+    if: ${{ !cancelled() && inputs.release_type != 'release' && needs.publish-release.result == 'success' }}
     runs-on: [self-hosted, linux, x86_64, cardano-wallet]
     env:
-      RELEASE_VERSION: ${{ needs.prepare.outputs.release-version }}
-      RELEASE_CABAL_VERSION: ${{ needs.prepare.outputs.release-cabal-version }}
       TEST_RC: ${{ needs.prepare.outputs.test-rc }}
-      IS_RELEASE: ${{ inputs.release_type == 'release' && 'true' || 'false' }}
     steps:
       - name: Download Docker image
         uses: actions/download-artifact@v8
@@ -483,9 +496,7 @@ jobs:
       - name: Determine tag
         id: tag
         run: |
-          if [ "$IS_RELEASE" == "true" ]; then
-            echo "tag=$RELEASE_VERSION" >> "$GITHUB_OUTPUT"
-          elif [ "$TEST_RC" == "TRUE" ]; then
+          if [ "$TEST_RC" == "TRUE" ]; then
             echo "tag=test" >> "$GITHUB_OUTPUT"
           else
             echo "tag=nightly" >> "$GITHUB_OUTPUT"
@@ -504,35 +515,7 @@ jobs:
           load_output=$(docker load -i "$image_file")
           echo "$load_output"
 
-          # Extract actual image name from docker load output
           LOADED_IMAGE=$(echo "$load_output" | grep -oP 'Loaded image: \K.*')
           echo "Loaded image: $LOADED_IMAGE"
           docker tag "$LOADED_IMAGE" "$REPO:$TAG"
           docker push "$REPO:$TAG"
-
-          if [ "$IS_RELEASE" == "true" ]; then
-            docker tag "$REPO:$TAG" "$REPO:latest"
-            docker push "$REPO:latest"
-          fi
-
-  update-docs:
-    name: "Update Documentation Links"
-    needs: [prepare, create-release, publish-release]
-    if: ${{ !cancelled() && inputs.release_type == 'release' && needs.publish-release.result == 'success' }}
-    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - name: Checkout gh-pages
-        uses: actions/checkout@v6
-        with:
-          ref: gh-pages
-          fetch-depth: 0
-
-      - name: Update redirects
-        run: |
-          cd releases
-          ./make_redirects.sh "${{ needs.prepare.outputs.release-version }}"
-
-      - name: Push updates
-        run: git push origin gh-pages

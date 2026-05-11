@@ -98,7 +98,7 @@ jobs:
   unit-tests:
     name: ${{ matrix.name }}
     needs: upload-win-test
-    runs-on: windows-latest
+    runs-on: windows-2025-vs2026
     env:
       LOCAL_CLUSTER_CONFIGS: test\data\cluster-configs
     strategy:
