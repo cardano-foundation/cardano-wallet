@@ -20,7 +20,7 @@
 - [X] T001 [US4] Record issue #5275 targets and dirty worktree/upstream checkout status in `/code/cardano-wallet/specs/004-bump-node-11-0-1/research.md`
 - [X] T002 [US1] Checkout cardano-node tag `11.0.1`, generate `/code/cardano-node/cabal.project.freeze`, and copy it to `/tmp/cardano-node-11.0.1/cabal.project.freeze`
 - [X] T003 [US1] Extract CHaP revision/index-state and target Cardano package versions from `/code/cardano-node/flake.lock` and `/tmp/cardano-node-11.0.1/cabal.project.freeze` into `/code/cardano-wallet/specs/004-bump-node-11-0-1/research.md`
-- [X] T004 [US4] Generate or confirm Cabal topology with `nix develop --quiet -c cabal-plan topo` and update `/code/cardano-wallet/specs/004-bump-node-11-0-1/plan.md` plus `/code/cardano-wallet/specs/004-bump-node-11-0-1/tasks.md` if the order differs
+- [X] T004 [US4] Generate or confirm the all-component Cabal topology from `dist-newstyle/cache/plan.json`, including local test/exe/bench dependencies, and update `/code/cardano-wallet/specs/004-bump-node-11-0-1/plan.md` plus `/code/cardano-wallet/specs/004-bump-node-11-0-1/tasks.md` if the order differs
 - [X] T005 [US4] Initialize the stgit stack from `/code/cardano-wallet`, with existing documentation, upstream pin, metadata, and topology patches imported; create exactly one new patch per Cabal component when that component task starts
 
 **Checkpoint**: The node freeze exists, target versions are recorded, and the implementation stack is ordered before code edits.
@@ -66,9 +66,9 @@ Before each component task T015-T046 is marked complete, add the exact commands 
 |------|-----------|------------------------|
 | T015 | cardano-numeric | `nix develop --accept-flake-config --allow-import-from-derivation --quiet -c fourmolu --mode check lib/numeric/src/Cardano/Numeric/Util.hs lib/numeric/test/unit/Cardano/Numeric/UtilSpec.hs lib/numeric/test/unit/numeric-unit-test.hs`; `nix develop --accept-flake-config --allow-import-from-derivation --quiet -c hlint lib/numeric/src lib/numeric/test/unit`; `nix develop --accept-flake-config --allow-import-from-derivation --quiet -c cabal-fmt --check lib/numeric/cardano-numeric.cabal`; `nix build --accept-flake-config --allow-import-from-derivation --no-link .#packages.x86_64-linux.tests.cardano-numeric.unit`; `nix build --accept-flake-config --allow-import-from-derivation --no-link .#checks.x86_64-linux.cardano-numeric.unit`; `/nix/store/wamyrg4404svcizmamy7h1x7x012pf4x-cardano-numeric-test-unit-2020.12.8/bin/unit` -> 11 examples, 0 failures |
 | T016 | text-class | `nix develop --accept-flake-config --allow-import-from-derivation --quiet -c fourmolu --mode check lib/text-class/src/Data/Text/Class.hs lib/text-class/src/Test/Text/Roundtrip.hs lib/text-class/test/unit/Data/Text/ClassSpec.hs lib/text-class/test/unit/text-class-unit-test.hs`; `nix develop --accept-flake-config --allow-import-from-derivation --quiet -c hlint lib/text-class/src lib/text-class/test/unit`; `nix develop --accept-flake-config --allow-import-from-derivation --quiet -c cabal-fmt --check lib/text-class/text-class.cabal`; `nix build --accept-flake-config --allow-import-from-derivation --no-link .#packages.x86_64-linux.tests.text-class.unit`; `nix build --accept-flake-config --allow-import-from-derivation --no-link .#checks.x86_64-linux.text-class.unit`; `/nix/store/pgjg3b5b1rs85ix77c9w4jj8hb0l0jrs-text-class-test-unit-0.2026.4.17/bin/unit` -> 27 examples, 0 failures |
-| T017 | cardano-wallet-launcher | Must record exact fourmolu, hlint, cabal-fmt, Nix, and unit-test commands before marking this task complete |
-| T018 | cardano-wallet-read | Must record exact fourmolu, hlint, cabal-fmt, Nix, and unit-test commands before marking this task complete |
-| T019 | cardano-wallet-test-utils | Must record exact fourmolu, hlint, cabal-fmt, Nix, and unit-test commands before marking this task complete |
+| T017 | cardano-wallet-read | Must record exact fourmolu, hlint, cabal-fmt, Nix, and unit-test commands before marking this task complete |
+| T018 | cardano-wallet-test-utils | Must record exact fourmolu, hlint, cabal-fmt, Nix, and unit-test commands before marking this task complete |
+| T019 | cardano-wallet-launcher | Must record exact fourmolu, hlint, cabal-fmt, Nix, and unit-test commands before marking this task complete |
 | T020 | crypto-primitives | Must record exact fourmolu, hlint, cabal-fmt, Nix, and unit-test commands before marking this task complete |
 | T021 | delta-types | Must record exact fourmolu, hlint, cabal-fmt, Nix, and unit-test commands before marking this task complete |
 | T022 | cardano-wallet-primitive | Must record exact fourmolu, hlint, cabal-fmt, Nix, and unit-test commands before marking this task complete |
@@ -82,15 +82,15 @@ Before each component task T015-T046 is marked complete, add the exact commands 
 | T030 | cardano-wallet-api | Must record exact fourmolu, hlint, cabal-fmt, Nix, and unit-test commands before marking this task complete |
 | T031 | cardano-wallet-application-tls | Must record exact fourmolu, hlint, cabal-fmt, Nix, and unit-test commands before marking this task complete |
 | T032 | wai-middleware-logging | Must record exact fourmolu, hlint, cabal-fmt, Nix, and unit-test commands before marking this task complete |
-| T033 | cardano-wallet-application | Must record exact fourmolu, hlint, cabal-fmt, Nix, and unit-test commands before marking this task complete |
-| T034 | cardano-wallet-ui | Must record exact fourmolu, hlint, cabal-fmt, Nix, and unit-test commands before marking this task complete |
+| T033 | cardano-wallet-ui | Must record exact fourmolu, hlint, cabal-fmt, Nix, and unit-test commands before marking this task complete |
+| T034 | cardano-wallet-application | Must record exact fourmolu, hlint, cabal-fmt, Nix, and unit-test commands before marking this task complete |
 | T035 | cardano-wallet-application-extras | Must record exact fourmolu, hlint, cabal-fmt, Nix, and unit-test commands before marking this task complete |
 | T036 | faucet | Must record exact fourmolu, hlint, cabal-fmt, Nix, and unit-test commands before marking this task complete |
 | T037 | temporary-extra | Must record exact fourmolu, hlint, cabal-fmt, Nix, and unit-test commands before marking this task complete |
 | T038 | local-cluster | Must record exact fourmolu, hlint, cabal-fmt, Nix, and unit-test commands before marking this task complete |
 | T039 | cardano-wallet-integration | Must record exact fourmolu, hlint, cabal-fmt, Nix, and unit-test commands before marking this task complete |
-| T040 | cardano-wallet-benchmarks | Must record exact fourmolu, hlint, cabal-fmt, Nix, and unit-test commands before marking this task complete |
-| T041 | cardano-wallet-unit | Must record exact fourmolu, hlint, cabal-fmt, Nix, and unit-test commands before marking this task complete |
+| T040 | cardano-wallet-unit | Must record exact fourmolu, hlint, cabal-fmt, Nix, and unit-test commands before marking this task complete |
+| T041 | cardano-wallet-benchmarks | Must record exact fourmolu, hlint, cabal-fmt, Nix, and unit-test commands before marking this task complete |
 | T042 | cardano-wallet-blackbox-benchmarks | Must record exact fourmolu, hlint, cabal-fmt, Nix, and unit-test commands before marking this task complete |
 | T043 | delta-chain | Must record exact fourmolu, hlint, cabal-fmt, Nix, and unit-test commands before marking this task complete |
 | T044 | delta-table | Must record exact fourmolu, hlint, cabal-fmt, Nix, and unit-test commands before marking this task complete |
@@ -99,9 +99,9 @@ Before each component task T015-T046 is marked complete, add the exact commands 
 
 - [X] T015 [US1] Adapt and close `cardano-numeric` in `/code/cardano-wallet/lib/numeric/cardano-numeric.cabal` and `/code/cardano-wallet/lib/numeric/`
 - [X] T016 [US1] Adapt and close `text-class` in `/code/cardano-wallet/lib/text-class/text-class.cabal` and `/code/cardano-wallet/lib/text-class/`
-- [ ] T017 [US1] Adapt and close `cardano-wallet-launcher` in `/code/cardano-wallet/lib/launcher/cardano-wallet-launcher.cabal` and `/code/cardano-wallet/lib/launcher/`
-- [ ] T018 [US1] Adapt and close `cardano-wallet-read` in `/code/cardano-wallet/lib/cardano-wallet-read/cardano-wallet-read.cabal` and `/code/cardano-wallet/lib/cardano-wallet-read/`
-- [ ] T019 [US1] Adapt and close `cardano-wallet-test-utils` in `/code/cardano-wallet/lib/test-utils/cardano-wallet-test-utils.cabal` and `/code/cardano-wallet/lib/test-utils/`
+- [ ] T017 [US1] Adapt and close `cardano-wallet-read` in `/code/cardano-wallet/lib/cardano-wallet-read/cardano-wallet-read.cabal` and `/code/cardano-wallet/lib/cardano-wallet-read/`
+- [ ] T018 [US1] Adapt and close `cardano-wallet-test-utils` in `/code/cardano-wallet/lib/test-utils/cardano-wallet-test-utils.cabal` and `/code/cardano-wallet/lib/test-utils/`
+- [ ] T019 [US1] Adapt and close `cardano-wallet-launcher` in `/code/cardano-wallet/lib/launcher/cardano-wallet-launcher.cabal` and `/code/cardano-wallet/lib/launcher/`
 - [ ] T020 [US1] Adapt and close `crypto-primitives` in `/code/cardano-wallet/lib/crypto-primitives/crypto-primitives.cabal` and `/code/cardano-wallet/lib/crypto-primitives/`
 - [ ] T021 [US1] Adapt and close `delta-types` in `/code/cardano-wallet/lib/delta-types/delta-types.cabal` and `/code/cardano-wallet/lib/delta-types/`
 - [ ] T022 [US2] Adapt and close `cardano-wallet-primitive` in `/code/cardano-wallet/lib/primitive/cardano-wallet-primitive.cabal` and `/code/cardano-wallet/lib/primitive/`
@@ -115,15 +115,15 @@ Before each component task T015-T046 is marked complete, add the exact commands 
 - [ ] T030 [US2] Adapt and close `cardano-wallet-api` in `/code/cardano-wallet/lib/api/cardano-wallet-api.cabal` and `/code/cardano-wallet/lib/api/`
 - [ ] T031 [US1] Adapt and close `cardano-wallet-application-tls` in `/code/cardano-wallet/lib/application-tls/cardano-wallet-application-tls.cabal` and `/code/cardano-wallet/lib/application-tls/`
 - [ ] T032 [US1] Adapt and close `wai-middleware-logging` in `/code/cardano-wallet/lib/wai-middleware-logging/wai-middleware-logging.cabal` and `/code/cardano-wallet/lib/wai-middleware-logging/`
-- [ ] T033 [US2] Adapt and close `cardano-wallet-application` in `/code/cardano-wallet/lib/application/cardano-wallet-application.cabal` and `/code/cardano-wallet/lib/application/`
-- [ ] T034 [US2] Adapt and close `cardano-wallet-ui` in `/code/cardano-wallet/lib/ui/cardano-wallet-ui.cabal` and `/code/cardano-wallet/lib/ui/`
+- [ ] T033 [US2] Adapt and close `cardano-wallet-ui` in `/code/cardano-wallet/lib/ui/cardano-wallet-ui.cabal` and `/code/cardano-wallet/lib/ui/`
+- [ ] T034 [US2] Adapt and close `cardano-wallet-application` in `/code/cardano-wallet/lib/application/cardano-wallet-application.cabal` and `/code/cardano-wallet/lib/application/`
 - [ ] T035 [US1] Adapt and close `cardano-wallet-application-extras` in `/code/cardano-wallet/lib/application-extras/cardano-wallet-application-extras.cabal` and `/code/cardano-wallet/lib/application-extras/`
 - [ ] T036 [US1] Adapt and close `faucet` in `/code/cardano-wallet/lib/faucet/faucet.cabal` and `/code/cardano-wallet/lib/faucet/`
 - [ ] T037 [US1] Adapt and close `temporary-extra` in `/code/cardano-wallet/lib/temporary-extra/temporary-extra.cabal` and `/code/cardano-wallet/lib/temporary-extra/`
 - [ ] T038 [US3] Adapt and close `local-cluster` in `/code/cardano-wallet/lib/local-cluster/local-cluster.cabal` and `/code/cardano-wallet/lib/local-cluster/`, consuming the separate node 11.0.1 local-cluster PR if available
 - [ ] T039 [US3] Adapt and close `cardano-wallet-integration` in `/code/cardano-wallet/lib/integration/cardano-wallet-integration.cabal` and `/code/cardano-wallet/lib/integration/`
-- [ ] T040 [US4] Adapt and close `cardano-wallet-benchmarks` in `/code/cardano-wallet/lib/benchmarks/cardano-wallet-benchmarks.cabal` and `/code/cardano-wallet/lib/benchmarks/`
-- [ ] T041 [US2] Adapt and close `cardano-wallet-unit` in `/code/cardano-wallet/lib/unit/cardano-wallet-unit.cabal` and `/code/cardano-wallet/lib/unit/`
+- [ ] T040 [US2] Adapt and close `cardano-wallet-unit` in `/code/cardano-wallet/lib/unit/cardano-wallet-unit.cabal` and `/code/cardano-wallet/lib/unit/`
+- [ ] T041 [US4] Adapt and close `cardano-wallet-benchmarks` in `/code/cardano-wallet/lib/benchmarks/cardano-wallet-benchmarks.cabal` and `/code/cardano-wallet/lib/benchmarks/`
 - [ ] T042 [US4] Adapt and close `cardano-wallet-blackbox-benchmarks` in `/code/cardano-wallet/lib/wallet-benchmarks/cardano-wallet-blackbox-benchmarks.cabal` and `/code/cardano-wallet/lib/wallet-benchmarks/`
 - [ ] T043 [US1] Adapt and close `delta-chain` in `/code/cardano-wallet/lib/delta-chain/delta-chain.cabal` and `/code/cardano-wallet/lib/delta-chain/`
 - [ ] T044 [US1] Adapt and close `delta-table` in `/code/cardano-wallet/lib/delta-table/delta-table.cabal` and `/code/cardano-wallet/lib/delta-table/`

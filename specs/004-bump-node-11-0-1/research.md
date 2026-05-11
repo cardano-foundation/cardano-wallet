@@ -258,50 +258,45 @@ Result: succeeded. The Cabal dry run selected GHC `9.12.3`, the node 11 dependen
 - `cardano-ledger-read` at merge commit `242c5c856f51aebe17f2d39b2320df6de1c05293`
 - `cardano-balance-tx` at merge commit `c3a340d1f55ba4d4e4f825b6e9061df9f6bae6d8`
 
-The component task order was updated from the seed order using:
+## Implementation Log: T004 all-component topology correction
+
+Completed on 2026-05-11 before closing the next component after `text-class`.
+
+While preparing `cardano-wallet-launcher`, its `test:unit` component was found to depend on local package `cardano-wallet-test-utils`. The earlier confirmed package order used the first local library/package occurrence in `cabal-plan topo`, which placed `cardano-wallet-launcher` before `cardano-wallet-test-utils`. That was not strong enough for the no-return rule because every Cabal `test-suite` is part of the component closure evidence.
+
+Corrected topology method:
+
+1. Run `cabal build all --dry-run --enable-tests -O0` in the wallet dev shell to refresh `dist-newstyle/cache/plan.json`.
+2. Read every `style: local` entry from `dist-newstyle/cache/plan.json`.
+3. For each package, union local package dependencies from every component entry's `depends` and `exe-depends`, including libraries, public sublibraries, tests, executables, and benchmarks.
+4. Topologically sort packages dependency-first. Independent packages keep the existing committed/seed order.
+
+The corrected early order is:
+
+```text
+00. cardano-numeric
+01. text-class
+02. cardano-wallet-read
+03. cardano-wallet-test-utils
+04. cardano-wallet-launcher
+```
+
+Key dependency evidence:
+
+- `cardano-wallet-test-utils` depends on `text-class`.
+- `cardano-wallet-launcher` depends on `text-class` and, through `test:unit`, `cardano-wallet-test-utils`.
+- `cardano-wallet-ui` precedes `cardano-wallet-application` because the application package depends on the UI package.
+- `cardano-wallet-unit` precedes `cardano-wallet-benchmarks` because the benchmark package depends on the unit package.
+
+`plan.md` and `tasks.md` were corrected before any launcher-owned files were changed or the launcher component was marked closed.
+
+The earlier first-library-order command was:
 
 ```bash
 nix develop --accept-flake-config --allow-import-from-derivation --quiet -c cabal-plan --hide-global --hide-builtin --hide-setup --hide-exes topo --reverse
 ```
 
-Package order derived from the first local package/library occurrence in the dependency-first output:
-
-```text
-00. cardano-numeric
-01. text-class
-02. cardano-wallet-launcher
-03. cardano-wallet-read
-04. cardano-wallet-test-utils
-05. crypto-primitives
-06. delta-types
-07. cardano-wallet-primitive
-08. cardano-wallet-secrets
-09. address-derivation-discovery
-10. cardano-api-extra
-11. iohk-monitoring-extra
-12. cardano-wallet-network-layer
-13. delta-store
-14. cardano-wallet
-15. cardano-wallet-api
-16. cardano-wallet-application-tls
-17. wai-middleware-logging
-18. cardano-wallet-application
-19. cardano-wallet-ui
-20. cardano-wallet-application-extras
-21. faucet
-22. temporary-extra
-23. local-cluster
-24. cardano-wallet-integration
-25. cardano-wallet-benchmarks
-26. cardano-wallet-unit
-27. cardano-wallet-blackbox-benchmarks
-28. delta-chain
-29. delta-table
-30. flaky-tests
-31. std-gen-seed
-```
-
-Later test, executable, sublibrary, and benchmark entries for the same package remain part of that package's closure evidence. A task is not complete until its declared test-suite entries have green unit-test evidence or the task explicitly records `no Cabal test-suite`.
+That first-library-order output is superseded by the all-component package graph above. Later test, executable, sublibrary, and benchmark entries for the same package remain part of that package's closure evidence. A task is not complete until its declared test-suite entries have green unit-test evidence or the task explicitly records `no Cabal test-suite`.
 
 ## Implementation Log: T005 stgit stack
 

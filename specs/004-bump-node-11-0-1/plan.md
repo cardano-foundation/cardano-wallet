@@ -7,6 +7,12 @@
 
 Upgrade Cardano Wallet to the dependency set aligned with cardano-node 11.0.1. The work starts by freezing the target cardano-node release and adapting upstream wallet dependencies (`cardano-ledger-read` and `cardano-balance-transaction`) before local wallet consumers are touched. Local wallet work is then organized as a dependency-first component stack: establish target metadata and source-repository pins, generate the Cabal component topology, then fix one Cabal component vertically from dependency leaves to dependents. Once a component is validated and its patch is refreshed, later patches must not edit it.
 
+## Status
+
+- **Completed**: Node 11.0.1 freeze, upstream `cardano-ledger-read` and `cardano-balance-transaction` PRs, wallet source-repository pins, wallet dependency metadata, StGit stack setup, `cardano-numeric`, and `text-class`.
+- **Current**: Corrected the component topology to include all local test/exe/bench dependencies before starting the next component. The next component slice is `cardano-wallet-read`.
+- **Blockers**: None for the next component slice.
+
 ## Technical Context
 
 **Language/Version**: Haskell, current repository GHC from `nix develop`
@@ -72,7 +78,7 @@ The implementation unit is a Cabal component slice, not a module and not a user-
 
 Before editing component code:
 
-1. Generate or confirm the current Cabal component topology with `cabal-plan topo` after the 11.0.1 solver plan exists.
+1. Generate or confirm the current Cabal component topology after the 11.0.1 solver plan exists. The ordering input is the package-level union of every local Cabal component's local dependencies from `dist-newstyle/cache/plan.json`, including libraries, public sublibraries, tests, executables, benchmarks, and `exe-depends`.
 2. Update this plan and `tasks.md` if the generated order differs from the seed order below.
 3. Create a patch stack in exactly that order, one patch per component.
 4. For each component patch/commit, update its non-version Cabal metadata, owned source, and owned tests together, then record formatting, linting, Nix build/test evidence, and green unit test evidence before moving to the next patch. If the component declares any Cabal `test-suite`, that test suite must pass in the same patch/commit that closes the component. Version constraints remain centralized in `cabal.project`; `.cabal` edits are limited to package names, component references, exposed modules, or other non-version metadata required by the upgrade.
@@ -80,14 +86,14 @@ Before editing component code:
 
 ## Confirmed Component Order
 
-This order is confirmed by the topology gate after the node 11.0.1 solver plan exists. The command used for the package order is `cabal-plan --hide-global --hide-builtin --hide-setup --hide-exes topo --reverse`. A package is ordered by its first local package/library occurrence in that dependency-first output. Later test, executable, sublibrary, and benchmark entries for the same package are still part of that package's closure evidence.
+This order is confirmed by the topology gate after the node 11.0.1 solver plan exists. The command first runs `cabal build all --dry-run --enable-tests -O0`, then reads `dist-newstyle/cache/plan.json`, unions local dependencies from every component entry for each local package, and topologically sorts packages dependency-first. Independent packages retain the already-committed/seed order so closed independent leaves remain valid. This all-component order supersedes the earlier first-library-occurrence order because test suites are part of each package's closure evidence.
 
 ```text
 00. cardano-numeric                      lib/numeric/cardano-numeric.cabal
 01. text-class                           lib/text-class/text-class.cabal
-02. cardano-wallet-launcher              lib/launcher/cardano-wallet-launcher.cabal
-03. cardano-wallet-read                  lib/cardano-wallet-read/cardano-wallet-read.cabal
-04. cardano-wallet-test-utils            lib/test-utils/cardano-wallet-test-utils.cabal
+02. cardano-wallet-read                  lib/cardano-wallet-read/cardano-wallet-read.cabal
+03. cardano-wallet-test-utils            lib/test-utils/cardano-wallet-test-utils.cabal
+04. cardano-wallet-launcher              lib/launcher/cardano-wallet-launcher.cabal
 05. crypto-primitives                    lib/crypto-primitives/crypto-primitives.cabal
 06. delta-types                          lib/delta-types/delta-types.cabal
 07. cardano-wallet-primitive             lib/primitive/cardano-wallet-primitive.cabal
@@ -101,15 +107,15 @@ This order is confirmed by the topology gate after the node 11.0.1 solver plan e
 15. cardano-wallet-api                   lib/api/cardano-wallet-api.cabal
 16. cardano-wallet-application-tls       lib/application-tls/cardano-wallet-application-tls.cabal
 17. wai-middleware-logging               lib/wai-middleware-logging/wai-middleware-logging.cabal
-18. cardano-wallet-application           lib/application/cardano-wallet-application.cabal
-19. cardano-wallet-ui                    lib/ui/cardano-wallet-ui.cabal
+18. cardano-wallet-ui                    lib/ui/cardano-wallet-ui.cabal
+19. cardano-wallet-application           lib/application/cardano-wallet-application.cabal
 20. cardano-wallet-application-extras    lib/application-extras/cardano-wallet-application-extras.cabal
 21. faucet                               lib/faucet/faucet.cabal
 22. temporary-extra                      lib/temporary-extra/temporary-extra.cabal
 23. local-cluster                        lib/local-cluster/local-cluster.cabal
 24. cardano-wallet-integration           lib/integration/cardano-wallet-integration.cabal
-25. cardano-wallet-benchmarks            lib/benchmarks/cardano-wallet-benchmarks.cabal
-26. cardano-wallet-unit                  lib/unit/cardano-wallet-unit.cabal
+25. cardano-wallet-unit                  lib/unit/cardano-wallet-unit.cabal
+26. cardano-wallet-benchmarks            lib/benchmarks/cardano-wallet-benchmarks.cabal
 27. cardano-wallet-blackbox-benchmarks   lib/wallet-benchmarks/cardano-wallet-blackbox-benchmarks.cabal
 28. delta-chain                          lib/delta-chain/delta-chain.cabal
 29. delta-table                          lib/delta-table/delta-table.cabal
