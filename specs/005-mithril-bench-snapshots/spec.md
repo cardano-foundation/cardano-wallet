@@ -5,6 +5,15 @@
 **Status**: Draft
 **Input**: GitHub issue cardano-foundation/cardano-wallet#5278 — "Use Mithril snapshots for every restoration benchmark run"
 
+## Clarifications
+
+### Session 2026-05-11
+
+- Q: What operational signal counts as "node synced/ready tip" before the wallet benchmark starts? → A: Node-reported sync progress reaches ≥ 99.9% (canonical `query tip` `syncProgress` field).
+- Q: What is the bounded setup timeout (Mithril download + extraction + node startup + node sync)? → A: 2 hours per matrix leg.
+- Q: What is the bounded benchmark timeout (wallet restoration phase alone, post-setup)? → A: 12 hours per matrix leg.
+- Q: What is the per-leg node DB lifecycle between runs? → A: Cleanup happens at the START of each run, not the end. The previous run's per-leg DB persists on disk until the next run for that leg begins, then is wiped before fresh Mithril provisioning. There is never more than one DB per leg at rest, and a failed run's DB stays available for triage until the next scheduled run.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 — Repeatable restoration benchmarks unaffected by stale runner state (Priority: P1)
@@ -69,17 +78,18 @@ The four restoration benchmark variants (`base`, `seq0`, `seq1`, `rnd5`) can run
 
 - **FR-001**: The restoration benchmark workflow MUST provision a node database from a Mithril snapshot at the start of every run, on every matrix leg, instead of relying on any pre-existing node database on the runner.
 - **FR-002**: Each matrix leg (`base`, `seq0`, `seq1`, `rnd5`) MUST operate on an isolated node database, such that two legs running concurrently cannot read or write the same database state.
-- **FR-003**: The workflow MUST start the wallet restoration benchmark measurement only after `cardano-node` has reached a synced/ready tip for that leg's database.
+- **FR-003**: The workflow MUST start the wallet restoration benchmark measurement only after `cardano-node` for that leg reports a sync progress value of at least 99.9% (as exposed by the node's canonical tip query). The signal MUST be polled, not assumed from elapsed time.
 - **FR-004**: The reported wallet restoration benchmark time MUST NOT include Mithril download, Mithril extraction, node startup, or node sync time. These setup phases MUST be timed and logged independently.
 - **FR-005**: For every run, the workflow logs MUST include, at minimum: (a) Mithril snapshot hash, (b) Mithril client source identifier and version, (c) the node database path used for that leg, (d) the elapsed node-sync wait duration, (e) the wall-clock time at which the wallet benchmark was started.
-- **FR-006**: The workflow MUST enforce a bounded timeout on the combined Mithril-provisioning-and-node-sync setup phase, and a separate bounded timeout on the wallet restoration benchmark phase. A timeout in one MUST NOT consume the budget of the other.
+- **FR-006**: The workflow MUST enforce a bounded timeout of 2 hours per matrix leg on the combined Mithril-provisioning-and-node-sync setup phase, and a separate bounded timeout of 12 hours per matrix leg on the wallet restoration benchmark phase. A timeout in one MUST NOT consume the budget of the other.
 - **FR-007**: When the setup phase fails or times out (Mithril download, extraction, node startup, or node sync), the workflow MUST classify the failure as a setup failure, distinct from a benchmark failure, in its logs and exit status.
 - **FR-008**: The change MUST be observable end-to-end by linking a successful workflow run in which all four restoration benchmark variants start after Mithril-provisioned node sync and produce the normal benchmark artifacts they produced before this change.
+- **FR-009**: Each matrix leg MUST wipe its per-leg node database path at the start of the run, immediately before Mithril provisioning. No end-of-run cleanup step is required; this guarantees at most one per-leg database is at rest between runs and preserves the most recent run's database for triage.
 
 ### Key Entities
 
 - **Mithril snapshot**: An immutable, hash-identified node database checkpoint published by the Mithril aggregator and consumed by a Mithril client. Has a snapshot hash, a network (mainnet), and an associated tip.
-- **Per-leg node database**: A filesystem location dedicated to one matrix leg's node instance, populated by extracting a Mithril snapshot, written to only by that leg's node process, and discarded (or treated as discardable) at run end.
+- **Per-leg node database**: A filesystem location dedicated to one matrix leg's node instance, populated by extracting a Mithril snapshot at the start of each run (after wiping any prior contents at the same path) and written to only by that leg's node process. Between runs, the previous run's database persists at this path (available for triage) until the next run for that leg wipes it.
 - **Setup phase**: The portion of a run that downloads the Mithril snapshot, extracts it, starts `cardano-node`, and waits for sync. Bounded by its own timeout. Time spent here is recorded but not attributed to the benchmark metric.
 - **Benchmark phase**: The portion of a run that executes the wallet restoration benchmark against an already-synced node. Bounded by its own timeout. Time spent here is the metric of interest.
 - **Run provenance record**: The set of log fields emitted on every run that lets a later reader identify the snapshot, client, database path, sync wait, and benchmark start time without re-running.

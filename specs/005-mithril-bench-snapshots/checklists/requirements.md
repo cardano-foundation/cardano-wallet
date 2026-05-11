@@ -32,7 +32,9 @@
 ## Notes
 
 - The spec deliberately names the workflow's matrix legs (`base`, `seq0`, `seq1`, `rnd5`) and the term "Mithril" because they are part of the feature's identity in the source issue, not implementation choices the spec is making. The choice of *how* to provision from Mithril (CLI flag, action, script) is intentionally left to planning.
-- Two areas to revisit in `speckit-clarify`:
-  - **What counts as "synced"?** The spec says "synced/ready tip" but does not define the operational signal (tip lag below threshold, JSON-RPC ready flag, etc.). Picking one significantly shapes implementation and may belong in the spec.
-  - **Timeout values.** The spec mandates *bounded* setup and benchmark timeouts but deliberately does not set numbers. The team may want to commit to ranges in the spec rather than defer to planning.
+- 2026-05-11 clarification session (see `spec.md ## Clarifications`) resolved the previously open areas:
+  - Operational signal for "synced/ready tip" → node-reported `syncProgress` ≥ 99.9%.
+  - Bounded setup timeout → 2 hours per matrix leg.
+  - Bounded benchmark timeout → 12 hours per matrix leg.
+  - Per-leg DB lifecycle → wipe at run start, retain between runs for triage.
 - Items marked incomplete require spec updates before `/speckit.clarify` or `/speckit.plan`.
