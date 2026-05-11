@@ -75,3 +75,98 @@
 **Alternatives considered**:
 
 - Trust the static order without verification: rejected because the package graph has changed across recent specs.
+
+## Implementation Log: T001 issue targets and checkout state
+
+Recorded on 2026-05-11 before implementation edits.
+
+Issue #5275 remains open at https://github.com/cardano-foundation/cardano-wallet/issues/5275. Target scope:
+
+- Align wallet dependencies with cardano-node 11.0.1.
+- Move `cardano-api` and `cardano-cli` from the 10.x line to `^>=11.0`.
+- Move `cardano-ledger-conway` to `>= 1.22.1.0`.
+- Use CHaP index-state `2026-05-02T16:21:41Z`.
+- Keep `ouroboros-consensus ^>= 3.0.1` and `ouroboros-network ^>= 1.1` unless the node freeze proves otherwise.
+- Consume the cardano-node-runtime 11.0.1/local-cluster prerequisite work already present on `origin/master`.
+
+Initial checkout state:
+
+- `/code/cardano-wallet`: branch `004-bump-node-11-0-1`, clean, tracking `origin/004-bump-node-11-0-1`.
+- `/code/cardano-node`: detached checkout at tag `11.0.1`, clean.
+- `/code/cardano-ledger-read`: branch `chore/update-gha-node24`, clean, ahead of `origin/chore/update-gha-node24` by 7 commits, HEAD `80d01c6a4cf113b548167de99e0cb06cb6fec5e1`.
+- `/code/cardano-balance-transaction`: branch `main`, HEAD `5d69cc9bd47062b363929c877b83f0ab96369583`, with untracked `.claude/` and `specs/002-remove-cardano-api/spec.md.local-bak`.
+
+## Implementation Log: T002-T003 node freeze
+
+The first plain-shell attempt failed because `cabal` was not on PATH. A second attempt inside `nix develop` failed while the stale ignored `/code/cardano-node/cabal.project.freeze` still constrained `base ==4.21.0.0` under the default GHC environment. The stale freeze also pinned `cardano-api 10.23.0.0` and `cardano-ledger-conway 1.20.0.0`, which did not match issue #5275 or the node 11.0.1 Cabal files.
+
+Final command sequence:
+
+```bash
+cd /code/cardano-node
+backup=$(mktemp /tmp/cardano-node-11.0.1-freeze-old.XXXXXX)
+cp cabal.project.freeze "$backup"
+rm cabal.project.freeze
+nix develop --quiet -c bash -lc 'cabal freeze'
+mkdir -p /tmp/cardano-node-11.0.1
+cp cabal.project.freeze /tmp/cardano-node-11.0.1/cabal.project.freeze
+```
+
+Result:
+
+- Node checkout: tag `11.0.1`, commit `97036a66bcf8c89f687ae57a048eecc0389977ef`.
+- Freeze artifact: `/tmp/cardano-node-11.0.1/cabal.project.freeze`.
+- Freeze SHA256: `3c147cc1c960dfb3163e6970e9f7a1c1879fc763922ff0120cf5b102495ba0cc`.
+- Freeze size: 585 lines.
+- CHaP flake revision: `e8a483522ee73c8c9493ea6055553e5c2532e66b`.
+- CHaP flake nar hash: `sha256-ZzXz2vOhqethlqPgBExPXEnKWvaTbidsIxh5MGv+pwE=`.
+- CHaP index-state: `2026-05-02T16:21:41Z`.
+- Hackage index-state: `2026-03-26T20:21:33Z`.
+
+Wallet-relevant target versions from the regenerated freeze:
+
+| Package | Version |
+|---------|---------|
+| `base` | `4.18.3.0` |
+| `cardano-api` | `11.0.0.0` |
+| `cardano-cli` | `11.0.0.0` |
+| `cardano-ledger-conway` | `1.22.1.0` |
+| `ouroboros-consensus` | `3.0.1.0` |
+| `ouroboros-network` | `1.1.0.0` |
+
+## Implementation Log: T004 topology attempt
+
+Initial command from `/code/cardano-wallet`:
+
+```bash
+nix develop --quiet -c bash -lc 'cabal build all --dry-run && cabal-plan topo'
+```
+
+Result: stopped after more than six minutes in Nix evaluation without reaching the Cabal dry run. Output before interruption:
+
+- `warning: Git tree '/code/cardano-wallet' is dirty`
+- several missing object messages from `https://paolino.cachix.org`
+- `error: interrupted by the user`
+
+T004 remains open. The topology gate must be rerun after wallet metadata has been aligned to the 11.0.1 freeze and before any wallet component slice is edited.
+
+## Upstream issue tracking
+
+The upstream dependency gates are tracked in their own repositories before wallet pins move:
+
+- `cardano-ledger-read`: https://github.com/cardano-foundation/cardano-ledger-read/issues/16
+- `cardano-balance-transaction`: https://github.com/cardano-foundation/cardano-balance-transaction/issues/41
+- `cardano-ledger-read` draft PR: https://github.com/cardano-foundation/cardano-ledger-read/pull/17
+- `cardano-balance-transaction` draft PR: https://github.com/cardano-foundation/cardano-balance-transaction/pull/42
+
+Both tickets are on the Planning board in Backlog with Work ownership. Implementation branches:
+
+- `/code/cardano-ledger-read`: `chore/issue-16-node-11-0-1`
+- `/code/cardano-balance-transaction`: `chore/issue-41-node-11-0-1`
+
+Upstream implementation note:
+
+- Both upstream repositories are being harmonized with wallet's `ghc9123` compiler setting before validation.
+- Both upstream dev shells set `withHoogle = true` under `ghc9123`.
+- Wallet pins must not be updated until each upstream repo has a validated issue-scoped commit/PR.
+- The draft PRs are pushed to warm remote builders before the wallet `source-repository-package` pins move.

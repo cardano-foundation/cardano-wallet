@@ -17,9 +17,9 @@
 
 **Purpose**: Establish the target dependency source of truth before wallet edits.
 
-- [ ] T001 [US4] Record issue #5275 targets and dirty worktree/upstream checkout status in `/code/cardano-wallet/specs/004-bump-node-11-0-1/research.md`
-- [ ] T002 [US1] Checkout cardano-node tag `11.0.1`, generate `/code/cardano-node/cabal.project.freeze`, and copy it to `/tmp/cardano-node-11.0.1/cabal.project.freeze`
-- [ ] T003 [US1] Extract CHaP revision/index-state and target Cardano package versions from `/code/cardano-node/flake.lock` and `/tmp/cardano-node-11.0.1/cabal.project.freeze` into `/code/cardano-wallet/specs/004-bump-node-11-0-1/research.md`
+- [X] T001 [US4] Record issue #5275 targets and dirty worktree/upstream checkout status in `/code/cardano-wallet/specs/004-bump-node-11-0-1/research.md`
+- [X] T002 [US1] Checkout cardano-node tag `11.0.1`, generate `/code/cardano-node/cabal.project.freeze`, and copy it to `/tmp/cardano-node-11.0.1/cabal.project.freeze`
+- [X] T003 [US1] Extract CHaP revision/index-state and target Cardano package versions from `/code/cardano-node/flake.lock` and `/tmp/cardano-node-11.0.1/cabal.project.freeze` into `/code/cardano-wallet/specs/004-bump-node-11-0-1/research.md`
 - [ ] T004 [US4] Generate or confirm Cabal topology with `nix develop --quiet -c cabal-plan topo` and update `/code/cardano-wallet/specs/004-bump-node-11-0-1/plan.md` plus `/code/cardano-wallet/specs/004-bump-node-11-0-1/tasks.md` if the order differs
 - [ ] T005 [US4] Create the stgit stack described by this task list from `/code/cardano-wallet`, with one patch for metadata, one patch per upstream pin update, and one patch per Cabal component
 
