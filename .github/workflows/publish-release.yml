@@ -1,0 +1,72 @@
+name: Publish Release
+
+# Fires when a maintainer clicks "Publish release" on a draft in the GitHub UI
+# (or otherwise un-drafts a non-prerelease release). The release.yml workflow
+# builds, verifies, and uploads assets to a draft; this workflow runs the
+# public-facing side-effects (docker push + gh-pages redirect) after a human
+# has reviewed and published the release notes.
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  push-docker:
+    name: "Push Docker Image"
+    # Skip for prereleases (nightly/test are published as prereleases and
+    # already had their docker image pushed by release.yml).
+    if: ${{ !github.event.release.prerelease }}
+    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      TAG: ${{ github.event.release.tag_name }}
+    steps:
+      - name: Download docker-image asset
+        shell: nix shell --quiet nixpkgs#gh -c bash -e {0}
+        run: |
+          mkdir -p docker-image
+          gh release download "$TAG" \
+            --repo cardano-foundation/cardano-wallet \
+            --pattern "cardano-wallet-${TAG}-docker-image.tgz" \
+            --dir docker-image
+
+      - name: Login to Docker Hub
+        run: docker login -u cfhal -p "${{ secrets.DOCKER_HUB_TOKEN }}"
+
+      - name: Load and push Docker image
+        run: |
+          REPO="cardanofoundation/cardano-wallet"
+          image_file=$(find docker-image -type f | head -1)
+          echo "Loading docker image from: $image_file ($(stat -c%s "$image_file") bytes)"
+          load_output=$(docker load -i "$image_file")
+          echo "$load_output"
+
+          LOADED_IMAGE=$(echo "$load_output" | grep -oP 'Loaded image: \K.*')
+          echo "Loaded image: $LOADED_IMAGE"
+          docker tag "$LOADED_IMAGE" "$REPO:$TAG"
+          docker push "$REPO:$TAG"
+
+          docker tag "$REPO:$TAG" "$REPO:latest"
+          docker push "$REPO:latest"
+
+  update-docs:
+    name: "Update Documentation Links"
+    if: ${{ !github.event.release.prerelease }}
+    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      TAG: ${{ github.event.release.tag_name }}
+    steps:
+      - name: Checkout gh-pages
+        uses: actions/checkout@v6
+        with:
+          ref: gh-pages
+          fetch-depth: 0
+
+      - name: Update redirects
+        run: |
+          cd releases
+          ./make_redirects.sh "$TAG"
+
+      - name: Push updates
+        run: git push origin gh-pages
