@@ -93,7 +93,14 @@ jobs:
       - name: Run benchmark
         env:
           TMPDIR: ${{ runner.temp }}
-        run: ${{ matrix.command }}
+        run: |
+          if [ "${{ matrix.name }}" = "Memory Benchmark" ]; then
+            TMPDIR="$(mktemp -d /tmp/cwbench.XXXXXX)"
+            export TMPDIR
+            trap 'rm -rf "$TMPDIR"' EXIT
+          fi
+
+          ${{ matrix.command }}
 
       - name: Upload artifacts
         if: always()

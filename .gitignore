@@ -54,6 +54,7 @@ cabal.project.diff
 
 ## local ignored space
 ignore-me
+/llm/
 floskell.json
 Makefile
 
