@@ -5,17 +5,20 @@
 
 ## Status
 
-- **Completed**: Phase 0 research, Phase 1 design.
-- **Current**: Awaiting plan review, then tasks.
-- **Blockers**: None for Story 1. Story 2 blocked on `Transaction.Ledger` minting + script-witness support (`mempty -- TODO: minting support` at `Shelley/Transaction/Ledger.hs:433,496`; pervasive cardano-api coupling acknowledged at `Ledger.hs:47-49`). Story 3 blocked on a ledger-native `signTransaction` rewrite (no `signTransactionLedger` exists; `mkShelleyWitnessLedger`/`mkByronWitnessLedger` already in place).
+- **Completed**: Phase 0 research, Phase 1 design, Phase 2 tasks, implementation pre-flight.
+- **Current**: All three stories deferred; this PR (#5286) becomes documentation only.
+- **Blockers**: All three stories blocked on the open ACs in [#5243](https://github.com/cardano-foundation/cardano-wallet/issues/5243).
+  - Story 2 blocked on `Transaction.Ledger` minting + script-witness support (`mempty -- TODO: minting support` at `Shelley/Transaction/Ledger.hs:433,496`; pervasive cardano-api coupling acknowledged at `Ledger.hs:47-49`).
+  - Story 1 blocked on Story 2 — discovered at implementation time on `dce6abbbf1`. The `*Ledger` cert builders return `[Ledger.TxCert era]`, but `mkUnsignedTransaction` in `Shelley/Transaction.hs` feeds the cert lists into `constructUnsignedTx` (cardano-api body builder) which expects `[ApiCert.Certificate (CardanoApiEra era)]`. Until the body builder is swapped to the ledger variant (Story 2), the cert-builder switch will not compile. Full analysis in `research.md` §G.
+  - Story 3 blocked on a ledger-native `signTransaction` rewrite (no `signTransactionLedger` exists; `mkShelleyWitnessLedger`/`mkByronWitnessLedger` already in place).
 
 ## Summary
 
 Three vertical slices remove `cardano-api` from `lib/wallet/src/Cardano/Wallet/Shelley/Transaction.hs` and delete two cert-helper modules. Replacements (`certificateFrom{Voting,Delegation}ActionLedger`) already live in `Shelley/Transaction/Ledger.hs` from #5270.
 
-Story 1 (cert helpers) is unblocked and mechanical — 5 callsites in `Shelley/Transaction.hs` (the only remaining importer; `Cardano/Wallet.hs` was migrated separately and already uses the `*Ledger` variants).
+Story 1 (cert helpers) was originally believed unblocked — 5 callsites in `Shelley/Transaction.hs` (the only remaining importer; `Cardano/Wallet.hs` was migrated separately and already uses the `*Ledger` variants). Implementation pre-flight on `dce6abbbf1` proved it is in fact blocked transitively on Story 2: the cert lists feed the cardano-api body builder `constructUnsignedTx`, which requires the cardano-api cert type. See `research.md` §G.
 
-Stories 2 and 3 are gated on prerequisite Ledger-side work tracked under parent #5243; this plan documents their shape so they can be scheduled, not implemented here.
+All three stories are now gated on prerequisite Ledger-side work tracked under parent #5243; this plan documents their shape so they can be scheduled, not implemented here.
 
 ## Technical Context
 
@@ -98,8 +101,8 @@ Full report in `research.md`. Headlines:
 
 Per project PR policy (RED + GREEN in one bisect-safe commit):
 
-- **Story 1 commit** carries: deletion of `Voting.hs` + `Delegation.hs`, all 5 callsite updates in `Shelley/Transaction.hs`, cabal `exposed-modules` prune. Existing property/golden suites for cert construction serve as the RED proof — they pass pre-change and post-change because the `*Ledger` builders are byte-equivalent. No new tests required.
-- **Story 2 commit** (once unblocked): body-construction rewrite in `mkUnsignedTx` / `mkWithdrawalTx`. RED proof is the existing property + golden body-bytes suite for those functions; will be tightened with explicit per-era byte-equality assertions if the existing coverage is insufficient.
+- **Story 2 commit** (once unblocked): body-construction rewrite in `mkUnsignedTx` / `mkWithdrawalTx`. The body-builder swap forces the cert-list type to `[Ledger.TxCert era]`, which removes the `*Ledger`-vs-cardano-api type mismatch at the cert callsites. As a consequence, the Story 1 work (delete `Voting.hs` + `Delegation.hs`, switch the 5 cert callsites to `*Ledger` variants, prune cabal `exposed-modules`) folds naturally into this same commit. RED proof is the existing property + golden body-bytes suite for those functions; will be tightened with explicit per-era byte-equality assertions if the existing coverage is insufficient.
+- **Story 1 commit** (subsumed by Story 2): not a separate slice anymore. If for some reason the team chooses to keep a separate Story 1 PR after Story 2 lands, it would carry only the helper deletion + cabal prune, and the RED proof is the same signing-property suite that today already covers the cert paths indirectly.
 - **Story 3 commit** (once unblocked): `signTransaction` rewrite. RED proof is the existing signing-property suite plus on-chain verification tests.
 - The cabal `build-depends: cardano-api` entry stays in `cardano-wallet.cabal` until **no module under `lib/wallet/`** imports it; removal lands in whichever slice closes the last importer.
 

@@ -56,13 +56,13 @@ certificateFromVotingActionLedger
 
 ## `Cardano.Wallet.Transaction.Voting`, `Cardano.Wallet.Transaction.Delegation`
 
-**Deleted in Story 1.** No invariant.
+**To be deleted when Story 2 lands** (folded into Story 2's commit per `plan.md` §"Vertical Slice Contract"). Until then, both modules and their `exposed-modules` entries stay. No invariant on their public surface for the lifetime of this feature.
 
-The `exposed-modules` block in `lib/wallet/cardano-wallet.cabal` MUST drop these two entries in the same commit. Otherwise `cabal check` fails.
+When Story 2 deletes them, the `exposed-modules` block in `lib/wallet/cardano-wallet.cabal` MUST drop these two entries in the same commit; otherwise `cabal check` fails.
 
-## `Cardano.Wallet` (caller of cert helpers)
+## `Cardano.Wallet` (consumer of the ledger cert builders)
 
-The exports remain stable. Internal calls switch from `certificateFrom{Voting,Delegation}Action` to the `*Ledger` variants in Story 1.
+The exports remain stable. `Cardano/Wallet.hs` already calls the `*Ledger` cert builders (via `constructUnsignedTxLedger`) and is unchanged by this feature.
 
 ## Cabal `build-depends`
 

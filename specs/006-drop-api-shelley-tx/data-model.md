@@ -16,7 +16,7 @@ Return-type change at the callsite:
 - Before: `[Cardano.Certificate (CardanoApiEra era)]`
 - After:  `[Cardano.Ledger.Api.Tx.Cert.TxCert era]`
 
-Callers consume the result via `TxPayload._certificates`, whose field type is era-parameterised. The change is downstream-compatible because the post-Story-1 callers already construct a ledger-native `TxPayload` in the new code path — see `TxPayload` in `Shelley/Transaction/Ledger.hs:18-50` exports.
+This row is **not downstream-compatible at the `Shelley/Transaction.hs` callsites today**. `mkUnsignedTransaction` feeds the cert lists into `constructUnsignedTx` (the cardano-api body builder), not into a ledger-typed `TxPayload._certificates`. The row only becomes compatible once Story 2 swaps the body builder to the ledger variant — see `research.md` §G. The earlier framing of this row (Story 1 as a self-contained refactor downstream-compatible via `TxPayload`) was wrong; it conflated `Cardano/Wallet.hs`'s ledger code path with `Shelley/Transaction.hs`'s cardano-api code path.
 
 ## Story 2 — Body construction (mapping; not implemented in this PR)
 

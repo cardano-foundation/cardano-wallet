@@ -170,6 +170,42 @@ Foundation signalling in code:
 
 Story 2 cannot land until the minting + script-witness support work in `Transaction.Ledger` is complete (tracked as an open AC in [#5243](https://github.com/cardano-foundation/cardano-wallet/issues/5243)). Story 3 cannot land until a ledger-native `signTransaction` exists.
 
+## G. Cert flow in `Shelley/Transaction.hs` — what blocks Story 1
+
+Discovered during the implementation pre-flight on commit `dce6abbbf1`: an attempted swap of the cert-builder calls in `Shelley/Transaction.hs` to the `*Ledger` variants fails to compile.
+
+### What goes wrong
+
+`mkUnsignedTransaction` (line 749) builds `votingCerts` and `delegCerts` (the same 5 callsites listed in §A "Story 1") and passes them down to `constructUnsignedTx` at line ~834 in the form `(md, votingCerts)` and equivalent for delegation. `constructUnsignedTx` is the **cardano-api** body builder; its certificate parameter is typed `[ApiCert.Certificate (CardanoApiEra era)]`. The `*Ledger` cert builders return `[Ledger.TxCert era]`. The two are not interchangeable:
+
+```
+src/Cardano/Wallet/Shelley/Transaction.hs:834:30: error: [GHC-05617]
+    • Could not deduce ‘Ledger.TxCert era
+                        ~ ApiCert.Certificate (CardanoApiEra era)’
+      …
+      Expected: [ApiCert.Certificate (CardanoApiEra era)]
+        Actual: [Ledger.TxCert era]
+    • In the expression: votingCerts
+      In the second argument of ‘constructUnsignedTx’, namely
+        ‘(md, votingCerts)’
+```
+
+The same shape of error appears at line 410 (delegation path).
+
+### Why `Cardano/Wallet.hs` works without this problem
+
+`Cardano/Wallet.hs` only constructs certs as inputs to `constructUnsignedTxLedger` (the **ledger** body builder) — see lines 2729/2738/3533/3542 feeding into the ledger code path. There the certificate parameter is already `[Ledger.TxCert era]`, so the `*Ledger` cert builders are a type-compatible match. That is why Wallet.hs has been on the `*Ledger` variants since earlier work and why the wrong inference (Story 1 unblocked at the `Shelley/Transaction.hs` callsites too) survived plan + spec review.
+
+### Implication for the story ordering
+
+Earlier sections of this file claimed Story 1 was independent of Story 2. They were wrong. The actual dependency is:
+
+- Story 1 (delete `Voting.hs` + `Delegation.hs`, switch the 5 callsites in `Shelley/Transaction.hs` to `*Ledger` variants) requires `mkUnsignedTransaction` to call the ledger body builder, **which is Story 2**.
+- Once Story 2 lands, the helper deletion is the trivial coda — and may even fold into Story 2's commit because the cardano-api cert builders become orphaned by the body-builder swap.
+- Story 3 (signing) is unchanged: independent of Stories 1 and 2 once its own prerequisite (ledger-native `signTransaction` rewrite) lands.
+
+Net: the open-blocker list under [#5243](https://github.com/cardano-foundation/cardano-wallet/issues/5243) blocks **all three** stories under this feature, not just Stories 2 and 3. There is no shippable Story 1 slice today.
+
 ## Decisions, Rationale, Alternatives
 
 | Decision | Rationale | Alternative rejected because |
