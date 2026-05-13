@@ -37,16 +37,9 @@ Update the imports near the top of the file: remove `Cardano.Wallet.Transaction.
 
 The return-type change at callsites is `[Cardano.Certificate (CardanoApiEra era)] → [TxCert era]`. Inspect each caller to confirm it stores into `TxPayload._certificates` (which is already era-parameterised on the ledger type after #5270).
 
-### 2. Switch the 4 callsites in `lib/wallet/src/Cardano/Wallet/Wallet.hs`
+### 2. `Cardano/Wallet.hs` — no edit needed
 
-| Line | Helper |
-|---|---|
-| 2729 | Delegation |
-| 2738 | Voting |
-| 3533 | Delegation |
-| 3542 | Voting |
-
-Same import update: remove the two helper-module imports, add the `*Ledger` names to the `Shelley.Transaction.Ledger` import.
+Confirmed during pre-flight (commit `73b1088113`): `lib/wallet/src/Cardano/Wallet.hs` already imports the `*Ledger` names (lines 637-642) and its 4 callsites at 2729 (delegation), 2738 (voting), 3533 (delegation), 3542 (voting) already use the `*Ledger` variants. An earlier draft of this file claimed Wallet.hs needed switching; that was a Phase-0 inventory error and has been corrected. Skip this section.
 
 ### 3. Delete the helper files
 
@@ -104,10 +97,13 @@ Conventional Commits per the constitution. Single commit, vertical, bisect-safe:
 ```text
 refactor(wallet)!: drop cardano-api cert helpers (#5285)
 
-Switch Shelley/Transaction.hs and Cardano/Wallet.hs callsites to the
+Switch the 5 cert-helper callsites in Shelley/Transaction.hs to the
 ledger-native certificateFromDelegationActionLedger /
 certificateFromVotingActionLedger introduced in #5270. Delete the two
 helper modules and prune their cabal exposed-modules entries.
+
+(Cardano/Wallet.hs already used the *Ledger variants from earlier work;
+no edit there.)
 
 Behaviour-preserving; existing signing property suite is the regression
 proof.

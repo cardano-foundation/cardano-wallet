@@ -84,7 +84,7 @@ certificateFromVotingAction
 
 Internal cardano-api usage: `makeStakeAddressDelegationCertificate`, `StakeDelegationRequirementsConwayOnwards`, `makeStakeAddressRegistrationCertificate`, `StakeAddrRegistrationConway`, `ConwayEraOnwardsConway`, `StakeCredentialByKey`, `StakeCredentialByScript`, `hashScript`, `SimpleScript`.
 
-Callers: `Shelley/Transaction.hs:778,784`; `Cardano/Wallet.hs:2738,3542`.
+Callers: `Shelley/Transaction.hs:778,784`. (`Cardano/Wallet.hs` already uses `certificateFromVotingActionLedger` — see lines 639, 2738, 3542 in the current tree.)
 
 ### `Delegation.hs`
 
@@ -105,7 +105,7 @@ certificateFromDelegationAction
 
 Internal cardano-api usage: same set as `Voting.hs` plus `makeStakeAddressUnregistrationCertificate`.
 
-Callers: `Shelley/Transaction.hs:400,849,855`; `Cardano/Wallet.hs:2729,3533`.
+Callers: `Shelley/Transaction.hs:400,849,855`. (`Cardano/Wallet.hs` already uses `certificateFromDelegationActionLedger` — see lines 638, 2729, 3533 in the current tree.)
 
 ## C. Replacements in `lib/wallet/src/Cardano/Wallet/Shelley/Transaction/Ledger.hs`
 

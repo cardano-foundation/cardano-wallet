@@ -44,7 +44,9 @@ description: "Task list for dropping cardano-api from Shelley/Transaction.hs and
 
 ## Phase 3: User Story 1 - Delete the cert helper modules (Priority: P1) 🎯 MVP
 
-**Goal**: Delete `Voting.hs` and `Delegation.hs`, switch all 9 callsites to the `*Ledger` variants, and prune the deleted modules from the cabal `exposed-modules`. Single vertical commit.
+**Goal**: Delete `Voting.hs` and `Delegation.hs`, switch the 5 callsites in `Shelley/Transaction.hs` to the `*Ledger` variants, and prune the deleted modules from the cabal `exposed-modules`. Single vertical commit.
+
+`Cardano/Wallet.hs` is already on the `*Ledger` variants — pre-flight grep on `73b1088113` showed imports at lines 637-642 and callsites at 2729/2738/3533/3542 already using the new names. T006/T007 are no-ops; only the file deletions, the `Shelley/Transaction.hs` edits, and the cabal prune ship in this slice.
 
 **Independent Test**: After the slice, `git grep -nE "Cardano\.Wallet\.Transaction\.(Voting|Delegation)" lib/` returns empty; `git grep -nE "^import.*Cardano\.Api" lib/wallet/src/Cardano/Wallet/Transaction/` returns empty; `cabal build cardano-wallet` and `cabal test cardano-wallet-unit:unit --test-options="--match \"Sign transaction\""` are green; the test result matches the T003 baseline byte-for-byte over the property vectors.
 
@@ -58,8 +60,8 @@ The signing-property suite (`TransactionSpec.hs` "Sign transaction" cases at `li
 
 - [ ] T004 [US1] In `lib/wallet/src/Cardano/Wallet/Shelley/Transaction.hs`, update the import block: remove `import Cardano.Wallet.Transaction.Voting` and `import Cardano.Wallet.Transaction.Delegation`; add `certificateFromVotingActionLedger` and `certificateFromDelegationActionLedger` to the existing `import Cardano.Wallet.Shelley.Transaction.Ledger` group
 - [ ] T005 [US1] In `lib/wallet/src/Cardano/Wallet/Shelley/Transaction.hs`, switch the 5 callsites to the `*Ledger` variants at lines 400, 778, 784, 849, 855 (3 delegation, 2 voting per research §A; verify exact form before editing). Confirm each result flows into `TxPayload._certificates`, whose field type is already `[TxCert era]` post-#5270 (data-model §"Story 1")
-- [ ] T006 [P] [US1] In `lib/wallet/src/Cardano/Wallet/Wallet.hs`, update the import block: remove the two helper-module imports; add `certificateFromDelegationActionLedger` and `certificateFromVotingActionLedger` to the `Cardano.Wallet.Shelley.Transaction.Ledger` import group
-- [ ] T007 [P] [US1] In `lib/wallet/src/Cardano/Wallet/Wallet.hs`, switch the 4 callsites to the `*Ledger` variants at lines 2729 (delegation), 2738 (voting), 3533 (delegation), 3542 (voting) per research §B
+- [x] T006 [US1] ~~Edit `Cardano/Wallet.hs` imports~~ — NO-OP. Pre-flight grep on `73b1088113` shows `lib/wallet/src/Cardano/Wallet.hs` already imports `certificateFromDelegationActionLedger` and `certificateFromVotingActionLedger` from `Cardano.Wallet.Shelley.Transaction.Ledger` at lines 637-642. Earlier docs were wrong; corrected in the docs-fixup commit before this implementation
+- [x] T007 [US1] ~~Switch `Cardano/Wallet.hs` callsites~~ — NO-OP. Pre-flight grep shows the 4 callsites at lines 2729/2738/3533/3542 already use the `*Ledger` variants. Nothing to switch
 - [ ] T008 [P] [US1] Delete `lib/wallet/src/Cardano/Wallet/Transaction/Voting.hs` via `git rm`
 - [ ] T009 [P] [US1] Delete `lib/wallet/src/Cardano/Wallet/Transaction/Delegation.hs` via `git rm`
 - [ ] T010 [US1] In `lib/wallet/cardano-wallet.cabal`, remove the two lines `Cardano.Wallet.Transaction.Delegation` and `Cardano.Wallet.Transaction.Voting` from the `exposed-modules` block (around lines 256-257). Do NOT touch the `cardano-api` `build-depends` entry — `Shelley/Transaction.hs` is still a consumer (FR-006, plan §"Vertical Slice Contract")
@@ -123,13 +125,13 @@ The signing-property suite (`TransactionSpec.hs` "Sign transaction" cases at `li
 ### Within Story 1
 
 - T004 → T005 (must update imports before edits compile in `Shelley/Transaction.hs`).
-- T006 → T007 (same, for `Wallet.hs`).
-- T004/T005 (Shelley/Transaction.hs edits) and T006/T007 (Wallet.hs edits) and T008/T009 (file deletions) and T010 (cabal edit) are independent at the source level but interdependent for build success — none compile alone. They land as one commit.
+- T006/T007 are no-ops (see Phase 3); they introduce no dependency.
+- T004/T005 (Shelley/Transaction.hs edits) and T008/T009 (file deletions) and T010 (cabal edit) are independent at the source level but interdependent for build success — none compile alone. They land as one commit.
 - T011 (audit) and T012 (gate) run last, after all source edits are in place.
 
 ### Parallel Opportunities
 
-- T006, T007, T008, T009 are marked `[P]`: they touch different files from T004/T005 and from each other. A solo author can apply them in any order; they MUST NOT be split across commits.
+- T008, T009 are marked `[P]`: they touch different files from T004/T005 and from each other. A solo author can apply them in any order; they MUST NOT be split across commits.
 - Inside Phase 6, T013 and T014 are independent activities (PR description vs CI watch).
 
 ---
@@ -146,7 +148,7 @@ The signing-property suite (`TransactionSpec.hs` "Sign transaction" cases at `li
 
 ### Incremental Delivery (across PRs, after this one)
 
-1. This PR ships Story 1 → cert helpers gone, 7 callsites moved, 2 imports out of `Shelley/Transaction.hs`.
+1. This PR ships Story 1 → cert helpers gone, 5 callsites moved in `Shelley/Transaction.hs`, 2 imports removed from that file. (`Cardano/Wallet.hs` was migrated separately and already uses the `*Ledger` variants — no callsite edits there.)
 2. When #5243 lands minting + script-witness in `Transaction.Ledger`: open a new spec branch (or extend) for Story 2 → body construction migrated; ~25 cardano-api symbols out.
 3. When #5243 lands ledger `signTransaction`: open a new spec branch for Story 3 → signing migrated; the last `Cardano.Api*` import in `Shelley/Transaction.hs` is removed; if no other `lib/wallet/` consumer remains, `build-depends: cardano-api` is dropped in the same slice (FR-006, SC-004).
 

@@ -13,7 +13,7 @@
 
 Three vertical slices remove `cardano-api` from `lib/wallet/src/Cardano/Wallet/Shelley/Transaction.hs` and delete two cert-helper modules. Replacements (`certificateFrom{Voting,Delegation}ActionLedger`) already live in `Shelley/Transaction/Ledger.hs` from #5270.
 
-Story 1 (cert helpers) is unblocked and mechanical — 7 callsites total across `Shelley/Transaction.hs` and `Cardano/Wallet.hs`.
+Story 1 (cert helpers) is unblocked and mechanical — 5 callsites in `Shelley/Transaction.hs` (the only remaining importer; `Cardano/Wallet.hs` was migrated separately and already uses the `*Ledger` variants).
 
 Stories 2 and 3 are gated on prerequisite Ledger-side work tracked under parent #5243; this plan documents their shape so they can be scheduled, not implemented here.
 
@@ -68,7 +68,6 @@ specs/006-drop-api-shelley-tx/
 lib/wallet/
 ├── cardano-wallet.cabal                            # prune exposed-modules; eventually drop build-depends
 └── src/Cardano/Wallet/
-    ├── Wallet.hs                                    # switch 4 callsites (Voting + Delegation in 2 places each)
     ├── Transaction/
     │   ├── Voting.hs                                # DELETE in Story 1
     │   └── Delegation.hs                            # DELETE in Story 1
@@ -85,7 +84,7 @@ Full report in `research.md`. Headlines:
 
 - `Shelley/Transaction.hs` has 4 distinct `Cardano.Api*` imports across ~40 symbol references. 2 of those references (cert builders) are replaced in Story 1; the remaining ~38 are body-construction (~25 symbols) and signing/witness (~13 symbols) and belong to Stories 2 and 3.
 - `Voting.hs` and `Delegation.hs` are each ~120 lines with one exported function. Their internal cardano-api dependencies (`makeStakeAddress*Certificate`, `StakeCredentialBy*`, `ConwayEraOnwards*`) are fully encapsulated by the existing `*Ledger` replacements.
-- The two helpers are called from **two** files, not just one: `Shelley/Transaction.hs` (lines 400, 778, 784, 849, 855) and `Cardano/Wallet.hs` (lines 2729, 2738, 3533, 3542). Story 1 must update both.
+- The two helpers are called from **one** file: `Shelley/Transaction.hs` (lines 400, 778, 784, 849, 855). `Cardano/Wallet.hs` was already migrated to the `*Ledger` variants in earlier work — its 4 callsites at 2729/2738/3533/3542 already use the new names. Story 1 only edits `Shelley/Transaction.hs`.
 - Test coverage is concentrated in `lib/unit/test/unit/Cardano/Wallet/Shelley/{Transaction,TransactionLedger}Spec.hs`. No dedicated tests for the cert helpers — they are exercised indirectly via signing-property tests.
 - Story 2 prerequisite is acknowledged in code at `Ledger.hs:47-49` (TODO comment) and `Ledger.hs:433,496` (minting stubbed `mempty`).
 
@@ -99,7 +98,7 @@ Full report in `research.md`. Headlines:
 
 Per project PR policy (RED + GREEN in one bisect-safe commit):
 
-- **Story 1 commit** carries: deletion of `Voting.hs` + `Delegation.hs`, all 7 callsite updates, cabal `exposed-modules` prune. Existing property/golden suites for cert construction serve as the RED proof — they pass pre-change and post-change because the `*Ledger` builders are byte-equivalent. No new tests required.
+- **Story 1 commit** carries: deletion of `Voting.hs` + `Delegation.hs`, all 5 callsite updates in `Shelley/Transaction.hs`, cabal `exposed-modules` prune. Existing property/golden suites for cert construction serve as the RED proof — they pass pre-change and post-change because the `*Ledger` builders are byte-equivalent. No new tests required.
 - **Story 2 commit** (once unblocked): body-construction rewrite in `mkUnsignedTx` / `mkWithdrawalTx`. RED proof is the existing property + golden body-bytes suite for those functions; will be tightened with explicit per-era byte-equality assertions if the existing coverage is insufficient.
 - **Story 3 commit** (once unblocked): `signTransaction` rewrite. RED proof is the existing signing-property suite plus on-chain verification tests.
 - The cabal `build-depends: cardano-api` entry stays in `cardano-wallet.cabal` until **no module under `lib/wallet/`** imports it; removal lands in whichever slice closes the last importer.
