@@ -17,7 +17,7 @@ Read these in order if you are reviewing or resuming:
 | File | Change |
 |---|---|
 | `lib/primitive/lib/Cardano/Wallet/Primitive/Ledger/Convert.hs` | Add `toLedgerMintValue :: TokenMap -> TokenMap -> MultiAsset`. |
-| `lib/wallet/src/Cardano/Wallet/Shelley/Transaction/Ledger.hs` | `buildLedgerTx` and `buildLedgerTxRaw` take an explicit `MultiAsset` parameter. The two `mempty -- TODO` sites at lines 433 and 496 vanish. `mkTransactionLedger` and `constructUnsignedTxLedger` translate and pass through. |
+| `lib/wallet/src/Cardano/Wallet/Shelley/Transaction/Ledger.hs` | `buildLedgerTx` and `buildLedgerTxRaw` take an explicit `MultiAsset` parameter. The two `mempty -- TODO` sites at lines 433 and 496 vanish. `mkTransaction` and `constructUnsignedTxLedger` translate and pass through. |
 | `lib/wallet/src/Cardano/Wallet.hs` | One call site (around line 2746) updated to pass `(TokenMap, TokenMap)` mint/burn through to `constructUnsignedTxLedger`. |
 | `lib/primitive/test/.../Ledger/ConvertSpec.hs` (or equivalent) | Properties P1–P8 from the contract. |
 | `lib/unit/test/unit/Cardano/Wallet/Shelley/TransactionLedgerSpec.hs` | Properties B1–B3 from the contract. |
@@ -55,7 +55,7 @@ just check-fmt
 Three vertical, bisect-safe commits, in this order:
 
 1. **`feat(primitive): toLedgerMintValue (TokenMap, TokenMap) → MultiAsset`** — adds the conversion **and** its property tests in the same commit (RED + GREEN folded, per the PR skill's rule).
-2. **`feat(wallet): plumb mint through buildLedgerTx / buildLedgerTxRaw`** — adds the explicit `MultiAsset` parameter to both builders, removes both `mempty -- TODO` sites, wires `mkTransactionLedger` and `constructUnsignedTxLedger`, and adds the builder-side property tests B1–B3. Same commit holds both the test and the implementation, again to keep the slice bisect-safe.
+2. **`feat(wallet): plumb mint through buildLedgerTx / buildLedgerTxRaw`** — adds the explicit `MultiAsset` parameter to both builders, removes both `mempty -- TODO` sites, wires `mkTransaction` and `constructUnsignedTxLedger`, and adds the builder-side property tests B1–B3. Same commit holds both the test and the implementation, again to keep the slice bisect-safe.
 3. **`feat(wallet): pass mint/burn from Cardano.Wallet to constructUnsignedTxLedger`** — updates the single call site at `Cardano.Wallet.hs:~2746`.
 
 If a fourth commit appears for "documentation" or "review fixes", reroute the change into the commit that introduced the issue (per the PR skill).

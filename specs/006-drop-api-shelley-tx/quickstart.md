@@ -6,7 +6,7 @@
 
 Earlier drafts of this quickstart described how to switch the cert-builder calls in `Shelley/Transaction.hs` to the `*Ledger` variants, delete `Voting.hs` + `Delegation.hs`, and prune the cabal `exposed-modules`. An implementation pre-flight on commit `dce6abbbf1` proved the switch does not compile: `mkUnsignedTransaction` passes the cert lists into `constructUnsignedTx` (the cardano-api body builder), which requires `[ApiCert.Certificate (CardanoApiEra era)]`, while the `*Ledger` builders return `[Ledger.TxCert era]`.
 
-Story 1 is therefore blocked transitively on Story 2 (the body-construction migration to `constructUnsignedTxLedger`), which is itself blocked on the minting + script-witness AC in [#5243](https://github.com/cardano-foundation/cardano-wallet/issues/5243). When Story 2 lands, the helper deletion + cabal prune fold into Story 2's commit; there is no separate Story 1 to hand off.
+Story 1 is therefore blocked transitively on Story 2 (the body-construction migration to `constructUnsignedTxLedger`). After #5287, mint plumbing is available; the remaining blocker is script-witness parity. When Story 2 lands, the helper deletion + cabal prune fold into Story 2's commit; there is no separate Story 1 to hand off.
 
 Full analysis: `research.md` §G ("Cert flow in `Shelley/Transaction.hs` — what blocks Story 1").
 

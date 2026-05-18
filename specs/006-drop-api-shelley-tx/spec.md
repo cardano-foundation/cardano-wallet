@@ -13,11 +13,21 @@ The top-level `Transaction.hs` interface module (which only carries one dead `Ca
 
 Audience: codebase maintainers driving the `cardano-api` removal epic. Each story is an independently shippable refactor slice.
 
+### Delivered Slice - Use the ledger-native signed constructor
+
+After #5287, `Cardano.Wallet.Shelley.Transaction.Ledger.mkTransaction`
+preserves mint/burn values. This PR routes the reachable
+`Cardano.Wallet.buildAndSignTransaction` path through that constructor and
+removes the obsolete `Cardano.Wallet.Shelley.Transaction.mkTransaction`
+cardano-api wrapper.
+
+**Independent Test**: `rg -n "\\bmkTransaction\\b" lib/wallet/src/Cardano/Wallet/Shelley/Transaction.hs` returns no matches, while `Cardano.Wallet.hs` imports and calls `mkTransaction` from `Cardano.Wallet.Shelley.Transaction.Ledger`; `lib/wallet` builds; Fourmolu and HLint pass on the touched modules.
+
 ### User Story 1 - Delete the cert helper modules (Priority: P1) — BLOCKED on Story 2
 
 The two helpers `Transaction/Voting.hs` and `Transaction/Delegation.hs` each export exactly one function (`certificateFromVotingAction` and `certificateFromDelegationAction`) built on `cardano-api` types. Ledger-native equivalents `certificateFromVotingActionLedger` and `certificateFromDelegationActionLedger` already live in `Shelley/Transaction/Ledger.hs` since PR #5270. The single caller of the original helpers is `Shelley/Transaction.hs:mkUnsignedTransaction`. This slice deletes both helper files, switches those callsites to the `*Ledger` variants, and prunes the deleted modules from the cabal `exposed-modules`.
 
-**Why this priority**: Originally believed unblocked. Implementation pre-flight on `dce6abbbf1` proved otherwise — see `research.md` §G. The cert lists feed `constructUnsignedTx` (the cardano-api body builder), which expects `[ApiCert.Certificate (CardanoApiEra era)]`; the `*Ledger` builders return `[Ledger.TxCert era]`, and the two are not type-compatible at this callsite. So Story 1 cannot land before `mkUnsignedTransaction` switches to the ledger body builder — which is Story 2's body-construction work, blocked on the minting + script-witness AC in [#5243](https://github.com/cardano-foundation/cardano-wallet/issues/5243).
+**Why this priority**: Originally believed unblocked. Implementation pre-flight on `dce6abbbf1` proved otherwise — see `research.md` §G. The cert lists feed `constructUnsignedTx` (the cardano-api body builder), which expects `[ApiCert.Certificate (CardanoApiEra era)]`; the `*Ledger` builders return `[Ledger.TxCert era]`, and the two are not type-compatible at this callsite. So Story 1 cannot land before `mkUnsignedTransaction` switches to the ledger body builder. After #5287, mint plumbing is no longer the blocker; the remaining Story 2 prerequisite is script-witness parity.
 
 Practically, once Story 2 lands, the helper deletion is the trivial coda and is expected to fold into Story 2's commit. Story 1 is preserved here as a separate narrative for traceability with the parent epic [#5237](https://github.com/cardano-foundation/cardano-wallet/issues/5237).
 
@@ -34,7 +44,7 @@ Practically, once Story 2 lands, the helper deletion is the trivial coda and is 
 
 The `mkUnsignedTx` and `mkWithdrawalTx` paths in `Shelley/Transaction.hs` build transaction bodies via `cardano-api`'s `createTransactionBody` over a populated `TxBodyContent` record. This slice replaces those calls with the ledger-native body builder exposed by `Transaction.Ledger`, removing the remaining `Cardano.Api`, `Cardano.Api.Shelley`, and related imports that feed `TxBodyContent` fields (witness sets, mint sets, certificate sets, validity intervals, withdrawal sets). Once the body builder takes `[Ledger.TxCert era]`, the cert-builder swap that Story 1 wanted becomes type-compatible and the helper deletion folds into this commit.
 
-**Why this priority**: The largest single reduction in `cardano-api` surface inside `lib/wallet`, and (per `research.md` §G) the actual unlock for Story 1. Blocked on minting + script-witness support being added to `Transaction.Ledger` (open acceptance criterion in #5243). Cannot land until that prerequisite is satisfied; it may be folded into this slice or coordinated as a parallel ticket. When it lands, expect Story 1's helper deletion + cabal prune to ride along in the same commit.
+**Why this priority**: The largest single reduction in `cardano-api` surface inside `lib/wallet`, and (per `research.md` §G) the actual unlock for Story 1. #5287 added mint plumbing to `Transaction.Ledger`; the remaining blocker is script-witness support. When it lands, expect Story 1's helper deletion + cabal prune to ride along in the same commit.
 
 **Independent Test**: After this slice, `grep -E "Cardano\.Api" lib/wallet/src/Cardano/Wallet/Shelley/Transaction.hs` returns nothing for the body-construction code paths; constructed bodies match pre-migration `TxBody` bytes across the existing property and golden suites for `mkUnsignedTx` and `mkWithdrawalTx`.
 
@@ -95,7 +105,7 @@ The `mkUnsignedTx` and `mkWithdrawalTx` paths in `Shelley/Transaction.hs` build 
 ## Assumptions
 
 - The ledger-native cert builders `certificateFromVotingActionLedger` and `certificateFromDelegationActionLedger` introduced by [PR #5270](https://github.com/cardano-foundation/cardano-wallet/pull/5270) are behaviour-equivalent to the `cardano-api`-based originals over the test vectors in `cardano-wallet-unit`. (Already used as the call path in `Cardano.Wallet.hs`, which routes through `constructUnsignedTxLedger`.)
-- The Story 2 prerequisite — minting and script-witness support in `Transaction.Ledger` — is tracked as a separate acceptance criterion in [#5243](https://github.com/cardano-foundation/cardano-wallet/issues/5243). This feature does NOT include adding it; if it has not landed when Story 2 is picked up, Story 2 is blocked. Per `research.md` §G, **Story 1 is also blocked** behind the same prerequisite (transitively, via Story 2). Only Story 3 is independently workable once *its* prerequisite lands.
+- The Story 2 prerequisite is now script-witness support in `Transaction.Ledger`. Mint plumbing landed in #5287. Per `research.md` §G, **Story 1 is also blocked** behind that prerequisite (transitively, via Story 2). Only Story 3 is independently workable once *its* prerequisite lands.
 - The Story 3 prerequisite — a ledger-native `signTransaction` rewrite — is tracked under the same parent #5243.
 - Existing test coverage (unit, property, golden, integration) is sufficient to detect any byte-level regression in the migrated transaction-body and signing paths. No new tests are required *unless* a coverage gap surfaces during implementation.
 - The wallet's public `TransactionLayer` interface (exported from the out-of-scope top-level `Transaction.hs`) does not change shape as part of this feature. Callers see no API change.

@@ -38,7 +38,7 @@ The exports remain stable. New exports MAY be added (this is where prerequisite 
 Current invariant set (Phase-0 inventory):
 
 ```text
-mkTransactionLedger
+mkTransaction
 constructUnsignedTxLedger
 sealWriteTx
 signTransaction              -- re-export

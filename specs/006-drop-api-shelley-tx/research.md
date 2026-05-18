@@ -112,7 +112,7 @@ Callers: `Shelley/Transaction.hs:400,849,855`. (`Cardano/Wallet.hs` already uses
 Module exports (lines 18-50):
 
 ```text
-mkTransactionLedger
+mkTransaction
 constructUnsignedTxLedger
 sealWriteTx
 signTransaction                 -- re-exported from Shelley.Transaction (still cardano-api)
@@ -154,7 +154,7 @@ Story 1 prunes `Cardano.Wallet.Transaction.Delegation` and `Cardano.Wallet.Trans
 Concentrated in `lib/unit/test/unit/Cardano/Wallet/Shelley/`:
 
 - `TransactionSpec.hs` — property tests on `signTransaction` for Byron and Shelley witness tags (`describe "Sign transaction"`, lines 377-412), `SealedTx` serialisation (line 1057), fee-estimation regression (line 1079), Byron/Shelley witness-size calculations (lines 1133-1295), `txConstraints` and withdrawal-cost coverage (lines 1296-1455).
-- `TransactionLedgerSpec.hs` — mirrors `TransactionSpec.hs` for the ledger-native path (`mkTransactionLedger`, `sealWriteTx`, `mkShelleyWitnessLedger`, `mkByronWitnessLedger`).
+- `TransactionLedgerSpec.hs` — mirrors `TransactionSpec.hs` for the ledger-native path (`mkTransaction`, `sealWriteTx`, `mkShelleyWitnessLedger`, `mkByronWitnessLedger`).
 
 No dedicated test files for `Voting.hs` / `Delegation.hs`; the cert helpers are exercised indirectly via the signing-property tests.
 
@@ -165,10 +165,10 @@ No dedicated test files for `Voting.hs` / `Delegation.hs`; the cert helpers are 
 Foundation signalling in code:
 
 - `Shelley/Transaction/Ledger.hs:47-49` — TODO comment: `mkUnsignedTransaction uses Cardano.NetworkId, Cardano.Certificate, and other cardano-api types pervasively. Needs a ledger-native rewrite.`
-- `Shelley/Transaction/Ledger.hs:433,496` — `mempty -- TODO: minting support` in `buildLedgerTx` and `buildLedgerTxRaw`. Minting set is stubbed empty.
+- `Shelley/Transaction/Ledger.hs` — #5287 removed the former `mempty -- TODO: minting support` placeholders in `buildLedgerTx` and `buildLedgerTxRaw`.
 - No `signTransactionLedger` stub found. `signTransaction` is re-exported from `Shelley.Transaction` (line 26 of `Ledger.hs`) and still uses cardano-api internally.
 
-Story 2 cannot land until the minting + script-witness support work in `Transaction.Ledger` is complete (tracked as an open AC in [#5243](https://github.com/cardano-foundation/cardano-wallet/issues/5243)). Story 3 cannot land until a ledger-native `signTransaction` exists.
+Story 2 cannot land until script-witness support in `Transaction.Ledger` is complete. Story 3 cannot land until a ledger-native `signTransaction` exists.
 
 ## G. Cert flow in `Shelley/Transaction.hs` — what blocks Story 1
 

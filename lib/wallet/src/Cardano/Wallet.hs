@@ -628,8 +628,7 @@ import Cardano.Wallet.Read.Tx.CBOR
     , prettyTxCBOR
     )
 import Cardano.Wallet.Shelley.Transaction
-    ( mkTransaction
-    , mkUnsignedTransaction
+    ( mkUnsignedTransaction
     , txConstraints
     , txWitnessTagForKey
     , _txRewardWithdrawalCost
@@ -638,6 +637,7 @@ import Cardano.Wallet.Shelley.Transaction.Ledger
     ( certificateFromDelegationActionLedger
     , certificateFromVotingActionLedger
     , constructUnsignedTxLedger
+    , mkTransaction
     , sealWriteTx
     )
 import Cardano.Wallet.Transaction

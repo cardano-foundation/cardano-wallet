@@ -25,7 +25,7 @@ This table is informational. It is the contract for the prerequisite work in `Tr
 | cardano-api type/value | Ledger-native concept | Notes |
 |---|---|---|
 | `Cardano.TxBodyContent` | `Cardano.Ledger.Api.Tx.Body.TxBody era` (built via `Build.mkLedgerTx` and friends) | The whole record disappears; field accessors become record-update on the era-specific `TxBody`. |
-| `Cardano.createTransactionBody` | `Build.mkLedgerTx` (existing in `Shelley/Transaction/Build`, used today inside `mkTransactionLedger`) | The Ledger path already exists for the simple case; Story 2 extends it to cover all `TxBodyContent` fields. |
+| `Cardano.createTransactionBody` | `Build.mkLedgerTx` (existing in `Shelley/Transaction/Build`, used today inside `Cardano.Wallet.Shelley.Transaction.Ledger.mkTransaction`) | The Ledger path already exists for the simple case; Story 2 extends it to cover all `TxBodyContent` fields. |
 | `Cardano.BuildTxWith` | (eliminated; ledger uses concrete values) | The `BuildTxWith` wrapper is a cardano-api-only abstraction; the ledger builder takes the inner value directly. |
 | `Cardano.TxFeeExplicit` | `Cardano.Ledger.Coin.Coin` in the era's body fee field | One field on the era's `TxBody`. |
 | `Cardano.TxValidityNoLowerBound`, `TxValidityLowerBound`, `TxValidityUpperBound` | `Cardano.Ledger.BaseTypes.StrictMaybe SlotNo` in the era's validity-interval body field | Direct field. |

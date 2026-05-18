@@ -7,33 +7,61 @@ description: "Task list for dropping cardano-api from Shelley/Transaction.hs and
 **Input**: Design documents from `/specs/006-drop-api-shelley-tx/`
 **Prerequisites**: plan.md, spec.md, research.md, data-model.md, contracts/module-interface-invariants.md, quickstart.md
 
-**Status**: All three stories deferred. PR #5286 is documentation-only — see plan.md §"Status".
+**Status**: One narrow API-removal slice is implemented in this PR. The
+original Story 1 helper deletion is still deferred behind the unsigned body
+builder migration — see plan.md §"Status".
 
-## Why this file has no work tasks
+## Completed implementation slice
 
-An earlier revision of this file (commit `73b1088113`, then patched at `dce6abbbf1`) carried tasks T001–T014 implementing Story 1 as a single vertical commit: switch the 5 cert-builder callsites in `Shelley/Transaction.hs` to the `*Ledger` variants, delete `Voting.hs` + `Delegation.hs`, prune cabal `exposed-modules`.
+- [x] Route `Cardano.Wallet.buildAndSignTransaction` through
+  `Cardano.Wallet.Shelley.Transaction.Ledger.mkTransaction`, the ledger-native
+  signed transaction constructor.
+- [x] Remove the now-unused `mkTransaction` wrapper from
+  `Cardano.Wallet.Shelley.Transaction`.
+- [x] Prune imports and the local `txExtendedFromRecentTx` helper that were
+  only used by that wrapper.
+- [x] Verify the old wrapper is gone:
+  `rg -n "\\bmkTransaction\\b" lib/wallet/src/Cardano/Wallet/Shelley/Transaction.hs`
+  returns no matches, while `Cardano.Wallet.hs` imports and calls the ledger
+  module's `mkTransaction`.
+
+This slice is deliberately smaller than the original Story 1 plan. It removes
+one reachable cardano-api body-construction path after #5287 made
+the ledger-native `mkTransaction` carry the real mint value. It does not change
+`mkUnsignedTransaction`, and it does not delete the cardano-api cert helper
+modules.
+
+## Why the original Story 1 tasks remain deferred
+
+An earlier revision of this file (commit `73b1088113`, then patched at
+`dce6abbbf1`) carried tasks T001–T014 implementing Story 1 as a single vertical
+commit: switch the 5 cert-builder callsites in `Shelley/Transaction.hs` to the
+`*Ledger` variants, delete `Voting.hs` + `Delegation.hs`, prune cabal
+`exposed-modules`.
 
 The implementation pre-flight on `dce6abbbf1` showed the switch does not compile. `mkUnsignedTransaction` flows the cert lists into `constructUnsignedTx` (the cardano-api body builder) at line ~834, which expects `[ApiCert.Certificate (CardanoApiEra era)]`. The `*Ledger` cert builders return `[Ledger.TxCert era]`. The two are not interchangeable. `Cardano/Wallet.hs` works on `*Ledger` only because it routes through `constructUnsignedTxLedger` — a different code path inside the same file family.
 
 Full analysis: `research.md` §G.
 
-The corollary is that Story 1 is blocked transitively on Story 2 (the body-construction migration). When Story 2 unblocks (per the minting + script-witness AC in [#5243](https://github.com/cardano-foundation/cardano-wallet/issues/5243)), the helper deletion + cabal prune fold into Story 2's commit. There is no standalone Story 1 PR.
+The corollary is that Story 1 is blocked transitively on Story 2 (the body-construction migration). After #5287, mint plumbing is available; when the remaining script-witness parity lands, the helper deletion + cabal prune fold into Story 2's commit. There is no standalone Story 1 PR.
 
-## Phase 1: Setup — N/A
+## Phase 1: Setup — COMPLETE
 
-No work tasks. The only "task" is to keep the spec/plan/research/quickstart in this directory accurate so the next attempt does not repeat the same wrong inference.
+The branch is stacked on `007-ledger-minting`, so the ledger-native
+`mkTransaction` now receives the real mint/burn value from `TransactionCtx`.
 
-## Phase 2: Foundational — N/A
+## Phase 2: Foundational — COMPLETE
 
-No work tasks.
+The signed wallet transaction path now uses the ledger-native constructor.
 
 ## Phase 3: User Story 1 — DEFERRED
 
 Folded into Story 2. See plan.md §"Vertical Slice Contract" and quickstart.md §"What to do when Story 2 unblocks".
 
-## Phase 4: User Story 2 — PARKED on #5243 (minting + script-witness)
+## Phase 4: User Story 2 — PARKED on script-witness parity
 
-When the prerequisite lands:
+The minting half of the prerequisite landed in #5287. When the remaining
+script-witness parity lands:
 
 1. Re-inventory cardano-api importers in `Shelley/Transaction.hs` (research §A) — line numbers will have drifted.
 2. Replace `createTransactionBody` over `TxBodyContent` in `mkUnsignedTx` and `mkWithdrawalTx` with the ledger-native body builder; the cert-list type at the callsites becomes `[Ledger.TxCert era]`, which makes the Story 1 cert-builder switch type-compatible.
@@ -54,7 +82,7 @@ Nothing to land in this PR beyond the documentation correction itself.
 
 ## Implementation Strategy
 
-Wait for the [#5243](https://github.com/cardano-foundation/cardano-wallet/issues/5243) prerequisites. When they land, reopen this branch (or open a new one), regenerate the research §A inventory against the then-current tip, and proceed with Story 2 (which subsumes Story 1) and Story 3. There is no near-term action on this PR beyond keeping the docs honest.
+Wait for the remaining script-witness and ledger-native signing prerequisites. When they land, regenerate the research §A inventory against the then-current tip, and proceed with Story 2 (which subsumes Story 1) and Story 3.
 
 ## Notes
 

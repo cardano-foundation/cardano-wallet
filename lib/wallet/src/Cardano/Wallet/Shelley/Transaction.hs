@@ -40,7 +40,6 @@ module Cardano.Wallet.Shelley.Transaction
     ( newTransactionLayer
     , txConstraints
     , mkUnsignedTransaction
-    , mkTransaction
 
       -- * Internals
     , TxPayload (..)
@@ -96,8 +95,7 @@ import Cardano.Ledger.Allegra.Core
     ( inputsTxBodyL
     )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (..)
-    , RewardAccount (..)
+    ( RewardAccount (..)
     )
 import Cardano.Wallet.Address.Derivation.SharedKey
     ( replaceCosignersWithVerKeys
@@ -165,7 +163,6 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
     )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..)
-    , Tx (..)
     , sealedTxFromBytes'
     , sealedTxFromLedgerTx
     )
@@ -213,7 +210,6 @@ import Cardano.Wallet.Transaction.Voting
     )
 import Control.Arrow
     ( left
-    , second
     )
 import Control.Lens
     ( over
@@ -368,86 +364,6 @@ constructUnsignedTx
       where
         wdrls = mkWithdrawals networkId wdrl
         mintingScripts = Map.union (snd toMint) (snd toBurn)
-
-mkTransaction
-    :: forall era k
-     . Write.IsRecentEra era
-    => RecentEra era
-    -- ^ Era for which the transaction should be created.
-    -> Cardano.NetworkId
-    -> KeyFlavorS k
-    -> (XPrv, Passphrase "encryption")
-    -- ^ Reward account.
-    -> (Address -> Maybe (k 'CredFromKeyK XPrv, Passphrase "encryption"))
-    -- ^ Key store.
-    -> TransactionCtx
-    -- ^ Additional context about the transaction.
-    -> SelectionOf TxOut
-    -- ^ A balanced coin selection where all change addresses have been
-    -- assigned.
-    -> Either ErrMkTransaction (Tx, SealedTx)
-mkTransaction era networkId keyF stakeCreds addrResolver ctx cs = do
-    let ttl = txValidityInterval ctx
-    let wdrl = view #txWithdrawal ctx
-    let delta = selectionDelta cs
-    let md = view #txMetadata ctx
-    let certs =
-            case view #txDelegationAction ctx of
-                Nothing ->
-                    mempty
-                Just action ->
-                    let stakeXPub = toXPub $ fst stakeCreds
-                    in  certificateFromDelegationAction
-                            era
-                            (Left stakeXPub)
-                            (view #txDeposit ctx)
-                            action
-    let wdrls = mkWithdrawals networkId wdrl
-    unsigned <-
-        mkUnsignedTx
-            ttl
-            (Right cs)
-            md
-            wdrls
-            certs
-            (toCardanoLovelace delta)
-            TokenMap.empty
-            TokenMap.empty
-            Map.empty
-            Map.empty
-            Nothing
-            Nothing
-    let signed =
-            signTransaction
-                keyF
-                networkId
-                AnyWitnessCountCtx
-                acctResolver
-                (const Nothing)
-                Nothing
-                (const Nothing)
-                addrResolver
-                inputResolver
-                (fromCardanoApiTx $ Cardano.Tx unsigned [])
-    let withResolvedInputs tx =
-            tx{resolvedInputs = second Just <$> F.toList (view #inputs cs)}
-    Right
-        ( withResolvedInputs $ walletTx $ txExtendedFromRecentTx era signed
-        , sealRecentTx era signed
-        )
-  where
-    inputResolver :: TxIn -> Maybe Address
-    inputResolver i =
-        let index = Map.fromList (F.toList $ view #inputs cs)
-        in  do
-                TxOut addr _ <- Map.lookup i index
-                pure addr
-
-    acctResolver :: RewardAccount -> Maybe (XPrv, Passphrase "encryption")
-    acctResolver acct = do
-        let (rewardAcnt, pwdAcnt) = stakeCreds
-        let acct' = toRewardAccountRaw $ toXPub rewardAcnt
-        guard (acct == acct') $> (rewardAcnt, pwdAcnt)
 
 -- Adds VK witnesses to an already constructed transactions. The function
 -- preserves any existing witnesses on the transaction, and resolve inputs
@@ -715,16 +631,6 @@ readSealedTxIdeallyNoLaterThan preferredLatestEra sealedTx =
         $ sealedTxFromBytes'
             preferredLatestEra
             (serialisedTx sealedTx)
-
-txExtendedFromRecentTx
-    :: RecentEra era
-    -> Write.Tx era
-    -> TxExtended
-txExtendedFromRecentTx era tx = case era of
-    RecentEraConway ->
-        getTxExtended (Read.Tx tx :: Read.Tx Read.Conway)
-    RecentEraDijkstra ->
-        getTxExtended (Read.Tx tx :: Read.Tx Read.Dijkstra)
 
 sealRecentTx
     :: RecentEra era
