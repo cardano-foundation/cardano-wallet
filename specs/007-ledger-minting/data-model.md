@@ -69,7 +69,7 @@ These are the property statements the test suite must encode (see `contracts/led
 
 ## Use in callers
 
-- `mkTransactionLedger` (Ledger.hs:266–349): extract `txAssetsToMint` and `txAssetsToBurn` from its `TransactionCtx`; call `toLedgerMintValue mint burn`; pass the result as the new explicit mint argument to `buildLedgerTx`.
+- `mkTransaction` (Ledger.hs:266–349): extract `txAssetsToMint` and `txAssetsToBurn` from its `TransactionCtx`; call `toLedgerMintValue mint burn`; pass the result as the new explicit mint argument to `buildLedgerTx`.
 - `constructUnsignedTxLedger` (Ledger.hs:376–408): grow an explicit `(TokenMap, TokenMap)` parameter (mints, burns); call `toLedgerMintValue` internally; pass the result to `buildLedgerTxRaw`.
 - Wallet-level call site at `Cardano.Wallet.hs:~2746`: pass `txAssetsToMint`'s first component and `txAssetsToBurn`'s first component (the `TokenMap` halves) into the updated `constructUnsignedTxLedger`.
 

@@ -5,7 +5,7 @@
 
 ## Summary
 
-Plumb a mint specification through `buildLedgerTx` and `buildLedgerTxRaw`, translate the wallet's `(mint :: TokenMap, burn :: TokenMap)` pair to a single signed ledger `MultiAsset`, and feed the real value from `mkTransactionLedger` and `constructUnsignedTxLedger`. The two TODO sites in `Ledger.hs` (lines 433, 496) become parameters. No script witnesses, no `mkUnsignedTransaction` migration; those live in follow-up features.
+Plumb a mint specification through `buildLedgerTx` and `buildLedgerTxRaw`, translate the wallet's `(mint :: TokenMap, burn :: TokenMap)` pair to a single signed ledger `MultiAsset`, and feed the real value from the ledger-native `mkTransaction` and `constructUnsignedTxLedger`. The two TODO sites in `Ledger.hs` (lines 433, 496) become parameters. No script witnesses, no `mkUnsignedTransaction` migration; those live in follow-up features.
 
 ## Technical Context
 
@@ -83,7 +83,7 @@ lib/primitive/test/.../Ledger/
 3. **Mint–burn overlap**: if the same `(policy, asset)` appears in both `assetsToMint` and `assetsToBurn`, net them (`mint − burn`). Drop zero entries (the ledger admits but does not require them, and dropping keeps the body deterministic across equivalent inputs). Make this explicit in `contracts/ledger-mint-translation.md`.
 
 4. **Caller wiring**:
-   - `mkTransactionLedger` (Ledger.hs:306) extracts `txAssetsToMint` and `txAssetsToBurn` from its `TransactionCtx` and passes `toLedgerMintValue mint burn` to `buildLedgerTx`.
+   - `mkTransaction` (Ledger.hs:306) extracts `txAssetsToMint` and `txAssetsToBurn` from its `TransactionCtx` and passes `toLedgerMintValue mint burn` to `buildLedgerTx`.
    - `constructUnsignedTxLedger` (Ledger.hs:399) grows an explicit `(TokenMap, TokenMap)` argument; updated at its single call site in `Cardano.Wallet.hs:2746`.
 
 5. **Out-of-scope, explicit**: no change to `mkLedgerTx` (its `MultiAsset` parameter already exists); no script witnesses; no Dijkstra-era work; no change to the `mkUnsignedTransaction` cardano-api path.

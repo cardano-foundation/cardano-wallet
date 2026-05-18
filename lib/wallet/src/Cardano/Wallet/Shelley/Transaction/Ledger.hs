@@ -16,7 +16,7 @@
 -- bypassing @Cardano.Api@.
 module Cardano.Wallet.Shelley.Transaction.Ledger
     ( -- * Transaction construction
-      mkTransactionLedger
+      mkTransaction
     , constructUnsignedTxLedger
     , buildLedgerTx
     , buildLedgerTxRaw
@@ -266,10 +266,9 @@ data TxPayload era = TxPayload
 -- | Build and sign a transaction using ledger types
 -- directly.
 --
--- Replaces 'mkTransaction' by calling 'mkLedgerTx' instead
--- of 'mkUnsignedTx', and converting wallet types to ledger
--- types internally.
-mkTransactionLedger
+-- Uses 'mkLedgerTx' instead of the cardano-api unsigned transaction
+-- builder, and converts wallet types to ledger types internally.
+mkTransaction
     :: forall era k
      . IsRecentEra era
     => RecentEra era
@@ -283,7 +282,7 @@ mkTransactionLedger
     -> TransactionCtx
     -> SelectionOf TxOut
     -> Either ErrMkTransaction (W.Tx, SealedTx)
-mkTransactionLedger
+mkTransaction
     era
     net
     keyF
@@ -346,7 +345,7 @@ mkTransactionLedger
                         )
                 RecentEraDijkstra ->
                     error
-                        "mkTransactionLedger: Dijkstra \
+                        "mkTransaction: Dijkstra \
                         \not yet supported"
         let withResolvedInputs tx =
                 tx
