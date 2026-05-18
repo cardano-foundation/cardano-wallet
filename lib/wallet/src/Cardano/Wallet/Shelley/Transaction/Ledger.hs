@@ -18,6 +18,8 @@ module Cardano.Wallet.Shelley.Transaction.Ledger
     ( -- * Transaction construction
       mkTransactionLedger
     , constructUnsignedTxLedger
+    , buildLedgerTx
+    , buildLedgerTxRaw
 
       -- * Sealing
     , sealWriteTx
@@ -105,6 +107,9 @@ import Cardano.Ledger.Keys.Bootstrap
 import Cardano.Ledger.Keys.WitVKey
     ( WitVKey (WitVKey)
     )
+import Cardano.Ledger.Mary.Value
+    ( MultiAsset
+    )
 import Cardano.Ledger.Metadata
     ( Metadatum
     )
@@ -124,6 +129,7 @@ import Cardano.Wallet.Flavor
 import Cardano.Wallet.Primitive.Ledger.Convert
     ( Convert (toLedger)
     , toLedgerDelegatee
+    , toLedgerMintValue
     , toLedgerTimelockScript
     )
 import Cardano.Wallet.Primitive.Ledger.Read.Tx.TxExtended
@@ -302,6 +308,10 @@ mkTransactionLedger
                                 (view #txDeposit ctx)
                                 action
         outs <- extractValidatedOutputs (Right cs)
+        let ledgerMint =
+                toLedgerMintValue
+                    (fst $ view #txAssetsToMint ctx)
+                    (fst $ view #txAssetsToBurn ctx)
         let ledgerTx =
                 buildLedgerTx
                     era
@@ -313,6 +323,7 @@ mkTransactionLedger
                     ledgerCerts
                     outs
                     cs
+                    ledgerMint
         let signed =
                 signTransaction
                     keyF
@@ -383,6 +394,7 @@ constructUnsignedTxLedger
        )
     -> (Maybe SlotNo, SlotNo)
     -> Withdrawal
+    -> (TokenMap.TokenMap, TokenMap.TokenMap)
     -> Either PreSelection (SelectionOf TxOut)
     -> W.Coin
     -> Either ErrMkTransaction (Write.Tx era)
@@ -392,9 +404,11 @@ constructUnsignedTxLedger
     (md, lCerts)
     ttl
     wdrl
+    (mint, burn)
     cs
     fee = do
         outs <- extractValidatedOutputs cs
+        let ledgerMint = toLedgerMintValue mint burn
         Right
             $ buildLedgerTxRaw
                 era
@@ -406,6 +420,7 @@ constructUnsignedTxLedger
                 lCerts
                 outs
                 cs
+                ledgerMint
 
 -- | Convert wallet/context types and call 'mkLedgerTx'.
 buildLedgerTx
@@ -420,8 +435,9 @@ buildLedgerTx
     -> [TxCert era]
     -> [TxOut]
     -> SelectionOf TxOut
+    -> MultiAsset
     -> Write.Tx era
-buildLedgerTx era ttl network wdrl fee md certs outs cs =
+buildLedgerTx era ttl network wdrl fee md certs outs cs mint =
     mkLedgerTx
         era
         ins
@@ -430,7 +446,7 @@ buildLedgerTx era ttl network wdrl fee md certs outs cs =
         validity
         wdrls
         ledgerCerts
-        mempty -- TODO: minting support
+        mint
         metadata
   where
     ins :: Set Ledger.TxIn
@@ -474,6 +490,7 @@ buildLedgerTxRaw
     -> [TxCert era]
     -> [TxOut]
     -> Either PreSelection (SelectionOf TxOut)
+    -> MultiAsset
     -> Write.Tx era
 buildLedgerTxRaw
     era
@@ -484,7 +501,8 @@ buildLedgerTxRaw
     md
     certs
     outs
-    cs =
+    cs
+    mint =
         mkLedgerTx
             era
             ins
@@ -493,7 +511,7 @@ buildLedgerTxRaw
             validity
             wdrls
             ledgerCerts
-            mempty -- TODO: minting support
+            mint
             metadata
       where
         ins :: Set Ledger.TxIn
