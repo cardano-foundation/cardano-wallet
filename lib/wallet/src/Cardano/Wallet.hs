@@ -2749,6 +2749,9 @@ buildTransactionPure
                         (view #txMetadata txCtx, allCerts)
                         (txValidityInterval txCtx)
                         (view #txWithdrawal txCtx)
+                        ( fst $ view #txAssetsToMint txCtx
+                        , fst $ view #txAssetsToBurn txCtx
+                        )
                         (Left preSelection)
                         (Coin 0)
             let utxoIndex :: Write.UTxOIndex era
@@ -3553,6 +3556,9 @@ transactionFee
                     (view #txMetadata txCtx, allCerts)
                     (txValidityInterval txCtx)
                     (view #txWithdrawal txCtx)
+                    ( fst $ view #txAssetsToMint txCtx
+                    , fst $ view #txAssetsToBurn txCtx
+                    )
                     (Left preSelection)
                     (Coin 0)
 

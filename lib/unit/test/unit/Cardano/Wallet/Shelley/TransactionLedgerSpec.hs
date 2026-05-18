@@ -87,8 +87,12 @@ import Cardano.Ledger.Api
     , eraProtVerLow
     , witsTxL
     )
+import Cardano.Ledger.Api.Tx.Body
+    ( mintTxBodyL
+    )
 import Cardano.Ledger.BaseTypes
-    ( StrictMaybe (..)
+    ( Network (Testnet)
+    , StrictMaybe (..)
     )
 import Cardano.Ledger.Binary
     ( serialize
@@ -127,6 +131,7 @@ import Cardano.Wallet.Primitive.Ledger.Convert
     ( Convert (..)
     , toConwayTxOut
     , toLedgerCoin
+    , toLedgerMintValue
     )
 import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Integrity
     ( txIntegrity
@@ -227,13 +232,17 @@ import Cardano.Wallet.Shelley.Transaction.Build
     )
 import Cardano.Wallet.Shelley.Transaction.Ledger
     ( TxWitnessTag (..)
+    , buildLedgerTx
+    , buildLedgerTxRaw
     , mkByronWitnessLedger
     , mkShelleyWitnessLedger
     , txConstraints
     )
 import Cardano.Wallet.Transaction
-    ( SelectionOf (..)
+    ( PreSelection (..)
+    , SelectionOf (..)
     , TransactionLayer (..)
+    , Withdrawal (..)
     , WitnessCountCtx (..)
     , selectionDelta
     )
@@ -410,6 +419,7 @@ spec = describe "TransactionSpec" $ do
     decodeSealedTxSpec
     forAllRecentEras feeEstimationRegressionSpec
     forAllRecentEras binaryCalculationsSpec
+    forAllRecentEras ledgerMintPlumbingSpec
     transactionConstraintsSpec
     describe "Sign transaction" $ do
         -- TODO [ADP-2849] The implementation must be restricted to work only in
@@ -1142,6 +1152,113 @@ binaryCalculationsSpec (AnyRecentEra era) =
             describe "binaryCalculationsSpec"
                 $ it "Dijkstra"
                 $ pendingWith "TODO: Dijkstra"
+
+ledgerMintPlumbingSpec :: AnyRecentEra -> Spec
+ledgerMintPlumbingSpec (AnyRecentEra era) =
+    case era of
+        RecentEraConway -> ledgerMintPlumbingSpec' era
+        RecentEraDijkstra ->
+            describe "ledgerMintPlumbingSpec"
+                $ it "Dijkstra"
+                $ pendingWith "TODO: Dijkstra"
+
+ledgerMintPlumbingSpec'
+    :: forall era
+     . (Write.IsRecentEra era, era ~ Write.Conway)
+    => RecentEra era -> Spec
+ledgerMintPlumbingSpec' era =
+    describe ("ledger mint plumbing - " +|| era ||+ "") $ do
+        it "buildLedgerTx writes the explicit mint value"
+            $ txMint
+                ( buildLedgerTx
+                    era
+                    sampleTtl
+                    Testnet
+                    NoWithdrawal
+                    (Coin 0)
+                    Nothing
+                    []
+                    sampleOutputs
+                    sampleSelection
+                    sampleMintValue
+                )
+            `shouldBe` sampleMintValue
+
+        it "buildLedgerTxRaw writes the explicit mint value for selections"
+            $ txMint
+                ( buildLedgerTxRaw
+                    era
+                    sampleTtl
+                    Testnet
+                    NoWithdrawal
+                    (Coin 0)
+                    Nothing
+                    []
+                    sampleOutputs
+                    (Right sampleSelection)
+                    sampleMintValue
+                )
+            `shouldBe` sampleMintValue
+
+        it "buildLedgerTxRaw writes the explicit mint value for preselections"
+            $ txMint
+                ( buildLedgerTxRaw
+                    era
+                    sampleTtl
+                    Testnet
+                    NoWithdrawal
+                    (Coin 0)
+                    Nothing
+                    []
+                    sampleOutputs
+                    (Left samplePreSelection)
+                    sampleMintValue
+                )
+            `shouldBe` sampleMintValue
+  where
+    txMint tx = tx ^. bodyTxL . mintTxBodyL
+
+    sampleTtl = (Nothing, SlotNo 100)
+
+    sampleSelection =
+        Selection
+            { inputs =
+                ( TxIn dummyTxId 0
+                , TxOut (dummyAddress 0) (coinToBundle 10_000_000)
+                )
+                    :| []
+            , collateral = []
+            , extraCoinSource = Coin 0
+            , extraCoinSink = Coin 0
+            , outputs = sampleOutputs
+            , change = []
+            , assetsToMint = sampleMint
+            , assetsToBurn = sampleBurn
+            }
+
+    samplePreSelection = PreSelection{outputs = sampleOutputs}
+
+    sampleOutputs =
+        [TxOut (dummyAddress 1) (coinToBundle 2_000_000)]
+
+    sampleMintValue = toLedgerMintValue sampleMint sampleBurn
+
+    sampleMint =
+        TokenMap.fromFlatList
+            [ (sampleAsset 1 1, TokenQuantity 10)
+            , (sampleAsset 1 2, TokenQuantity 3)
+            ]
+
+    sampleBurn =
+        TokenMap.fromFlatList
+            [ (sampleAsset 1 1, TokenQuantity 4)
+            , (sampleAsset 2 1, TokenQuantity 8)
+            ]
+
+    sampleAsset policyByte assetByte =
+        AssetId
+            (UnsafeTokenPolicyId $ Hash $ BS.pack $ replicate 28 policyByte)
+            (UnsafeAssetName $ BS.pack [assetByte])
 
 -- Up till Mary era we have the following structure of transaction
 --   transaction =

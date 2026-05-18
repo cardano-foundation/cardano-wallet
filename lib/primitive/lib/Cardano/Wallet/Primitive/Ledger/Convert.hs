@@ -19,6 +19,7 @@ module Cardano.Wallet.Primitive.Ledger.Convert
       toLedgerAddress
     , toLedgerCoin
     , toLedgerTokenBundle
+    , toLedgerMintValue
     , toLedgerTokenPolicyId
     , toLedgerAssetName
     , toLedgerTokenQuantity
@@ -234,6 +235,31 @@ toLedgerTokenBundle bundle =
         inner
             & Map.mapKeys toLedgerAssetName
             & Map.map toLedgerTokenQuantity
+
+toLedgerMintValue
+    :: TokenMap.TokenMap
+    -> TokenMap.TokenMap
+    -> Ledger.MultiAsset
+toLedgerMintValue mint burn =
+    Ledger.MultiAsset
+        $ Map.mapMaybe nonEmpty
+        $ Map.unionWith
+            (Map.unionWith (+))
+            (signedNested id mint)
+            (signedNested negate burn)
+  where
+    signedNested sign =
+        Map.map (Map.map (sign . toLedgerTokenQuantity))
+            . toLedgerNestedMap
+
+    toLedgerNestedMap =
+        Map.mapKeys toLedgerTokenPolicyId
+            . Map.map (Map.mapKeys toLedgerAssetName)
+            . TokenMap.toNestedMap
+
+    nonEmpty inner =
+        let nonZero = Map.filter (/= 0) inner
+        in  if Map.null nonZero then Nothing else Just nonZero
 
 toWalletTokenBundle :: Ledger.MaryValue -> TokenBundle
 toWalletTokenBundle

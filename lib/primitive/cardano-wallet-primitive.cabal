@@ -243,6 +243,7 @@ test-suite test
     , cardano-ledger-babbage
     , cardano-ledger-core
     , cardano-ledger-core:testlib
+    , cardano-ledger-mary
     , cardano-ledger-shelley
     , cardano-numeric
     , cardano-slotting

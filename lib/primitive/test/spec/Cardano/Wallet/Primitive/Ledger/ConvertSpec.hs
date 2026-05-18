@@ -19,8 +19,17 @@ import Cardano.Ledger.Babbage
     )
 import Cardano.Wallet.Primitive.Ledger.Convert
     ( Convert (..)
+    , toLedgerAssetName
+    , toLedgerMintValue
     , toLedgerTimelockScript
+    , toLedgerTokenPolicyId
+    , toLedgerTokenQuantity
+    , toWalletAssetName
     , toWalletScript
+    , toWalletTokenPolicyId
+    )
+import Cardano.Wallet.Primitive.Types.AssetId
+    ( AssetId (..)
     )
 import Cardano.Wallet.Primitive.Types.AssetName
     ( AssetName
@@ -37,6 +46,13 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
     ( genTokenBundleSmallRange
     , shrinkTokenBundleSmallRange
+    )
+import Cardano.Wallet.Primitive.Types.TokenMap
+    ( TokenMap
+    )
+import Cardano.Wallet.Primitive.Types.TokenMap.Gen
+    ( genTokenMapSmallRange
+    , shrinkTokenMap
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicyId
     ( TokenPolicyId
@@ -65,6 +81,9 @@ import Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen
 import Data.Proxy
     ( Proxy (..)
     )
+import Data.Set
+    ( Set
+    )
 import Data.Typeable
     ( Typeable
     , typeRep
@@ -84,8 +103,10 @@ import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
     , Positive (Positive)
+    , Property
     , arbitrarySizedNatural
     , choose
+    , counterexample
     , elements
     , oneof
     , property
@@ -93,10 +114,15 @@ import Test.QuickCheck
     , sized
     , vectorOf
     , (===)
+    , (==>)
     )
 import Prelude
 
+import qualified Cardano.Ledger.Mary.Value as Ledger
+import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.ByteString as BS
+import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
 
 spec :: Spec
 spec = describe "Cardano.Wallet.Primitive.Ledger.ConvertSpec"
@@ -123,6 +149,38 @@ spec = describe "Cardano.Wallet.Primitive.Ledger.ConvertSpec"
                 it "ledger . wallet == id" $ property $ \s -> do
                     ledger (wallet s) === s
 
+        describe "toLedgerMintValue" $ do
+            it "is total for generated mint and burn maps"
+                $ property
+                    prop_mintValue_total
+
+            it "preserves empty mint and burn maps"
+                $ toLedgerMintValue mempty mempty === mempty
+
+            it "translates pure mints as positive quantities"
+                $ property
+                    prop_mintValue_mintOnly
+
+            it "translates pure burns as negative quantities"
+                $ property
+                    prop_mintValue_burnOnly
+
+            it "nets mint and burn quantities per asset"
+                $ property
+                    prop_mintValue_netting
+
+            it "does not introduce phantom asset keys"
+                $ property
+                    prop_mintValue_noPhantomKeys
+
+            it "does not emit empty policy buckets"
+                $ property
+                    prop_mintValue_noEmptyBuckets
+
+            it "roundtrips disjoint mints and burns"
+                $ property
+                    prop_mintValue_roundtripDisjoint
+
 --------------------------------------------------------------------------------
 -- Utilities
 --------------------------------------------------------------------------------
@@ -143,9 +201,141 @@ ledgerRoundtrip proxy = it title
             , "'"
             ]
 
+prop_mintValue_total :: TestTokenMap -> TestTokenMap -> Property
+prop_mintValue_total (TestTokenMap mint) (TestTokenMap burn) =
+    ledgerMintMap (toLedgerMintValue mint burn)
+        === expectedLedgerMintMap mint burn
+
+prop_mintValue_mintOnly :: TestTokenMap -> Property
+prop_mintValue_mintOnly (TestTokenMap mint) =
+    ledgerMintMap (toLedgerMintValue mint mempty)
+        === expectedLedgerMintMap mint mempty
+
+prop_mintValue_burnOnly :: TestTokenMap -> Property
+prop_mintValue_burnOnly (TestTokenMap burn) =
+    ledgerMintMap (toLedgerMintValue mempty burn)
+        === expectedLedgerMintMap mempty burn
+
+prop_mintValue_netting :: TestTokenMap -> TestTokenMap -> Property
+prop_mintValue_netting (TestTokenMap mint) (TestTokenMap burn) =
+    ledgerMintMap (toLedgerMintValue mint burn)
+        === expectedLedgerMintMap mint burn
+
+prop_mintValue_noPhantomKeys
+    :: TestTokenMap -> TestTokenMap -> Property
+prop_mintValue_noPhantomKeys (TestTokenMap mint) (TestTokenMap burn) =
+    outputKeys `Set.isSubsetOf` inputKeys
+        === True
+  where
+    outputKeys = walletAssetKeys $ ledgerMintMap $ toLedgerMintValue mint burn
+    inputKeys = TokenMap.getAssets mint <> TokenMap.getAssets burn
+
+prop_mintValue_noEmptyBuckets
+    :: TestTokenMap -> TestTokenMap -> Property
+prop_mintValue_noEmptyBuckets (TestTokenMap mint) (TestTokenMap burn) =
+    counterexample (show output) $ not (any Map.null output) === True
+  where
+    output = ledgerMintMap $ toLedgerMintValue mint burn
+
+prop_mintValue_roundtripDisjoint
+    :: TestTokenMap -> TestTokenMap -> Property
+prop_mintValue_roundtripDisjoint (TestTokenMap mint) (TestTokenMap burn) =
+    Set.null
+        (TokenMap.getAssets mint `Set.intersection` TokenMap.getAssets burn)
+        ==> fromLedgerMintValue (toLedgerMintValue mint burn) === (mint, burn)
+
+ledgerMintMap
+    :: Ledger.MultiAsset
+    -> Map.Map Ledger.PolicyID (Map.Map Ledger.AssetName Integer)
+ledgerMintMap (Ledger.MultiAsset assets) = assets
+
+expectedLedgerMintMap
+    :: TokenMap
+    -> TokenMap
+    -> Map.Map Ledger.PolicyID (Map.Map Ledger.AssetName Integer)
+expectedLedgerMintMap mint burn =
+    Map.mapMaybe nonEmpty
+        $ Map.unionWith
+            (Map.unionWith (+))
+            (signedNested id mint)
+            (signedNested negate burn)
+  where
+    signedNested sign =
+        Map.map (Map.map (sign . toLedgerTokenQuantity))
+            . toLedgerNestedMap
+
+    nonEmpty inner =
+        let nonZero = Map.filter (/= 0) inner
+        in  if Map.null nonZero then Nothing else Just nonZero
+
+walletAssetKeys
+    :: Map.Map Ledger.PolicyID (Map.Map Ledger.AssetName Integer)
+    -> Set AssetId
+walletAssetKeys =
+    Set.fromList
+        . concatMap
+            ( \(policy, assets) ->
+                [ AssetId
+                    (toWalletTokenPolicyId policy)
+                    (toWalletAssetName asset)
+                | asset <- Map.keys assets
+                ]
+            )
+        . Map.toList
+
+fromLedgerMintValue :: Ledger.MultiAsset -> (TokenMap, TokenMap)
+fromLedgerMintValue (Ledger.MultiAsset assets) =
+    (TokenMap.fromFlatList mints, TokenMap.fromFlatList burns)
+  where
+    (mints, burns) =
+        foldMap
+            splitQuantity
+            [ (policy, asset, quantity)
+            | (policy, inner) <- Map.toList assets
+            , (asset, quantity) <- Map.toList inner
+            ]
+
+    splitQuantity (policy, asset, quantity)
+        | quantity > 0 =
+            ( pure
+                ( walletAssetId policy asset
+                , TokenQuantity $ fromInteger quantity
+                )
+            , []
+            )
+        | quantity < 0 =
+            ( []
+            , pure
+                ( walletAssetId policy asset
+                , TokenQuantity $ fromInteger $ abs quantity
+                )
+            )
+        | otherwise =
+            mempty
+
+    walletAssetId policy asset =
+        AssetId (toWalletTokenPolicyId policy) (toWalletAssetName asset)
+
+toLedgerNestedMap
+    :: TokenMap
+    -> Map.Map Ledger.PolicyID (Map.Map Ledger.AssetName TokenQuantity)
+toLedgerNestedMap =
+    Map.mapKeys toLedgerTokenPolicyId
+        . Map.map (Map.mapKeys toLedgerAssetName)
+        . TokenMap.toNestedMap
+
 --------------------------------------------------------------------------------
 -- Arbitraries
 --------------------------------------------------------------------------------
+
+newtype TestTokenMap = TestTokenMap
+    { getTestTokenMap :: TokenMap
+    }
+    deriving (Eq, Show)
+
+instance Arbitrary TestTokenMap where
+    arbitrary = TestTokenMap <$> genTokenMapSmallRange
+    shrink = fmap TestTokenMap . shrinkTokenMap . getTestTokenMap
 
 instance Arbitrary Coin where
     -- This instance is used to test roundtrip conversions, so it's important
