@@ -217,17 +217,17 @@ ready for finalisation.
 
 ## Phase 6: Polish & finalization
 
-- [ ] T020 Verify `gate.sh` is green at HEAD on the orchestrator
+- [X] T020 Verify `gate.sh` is green at HEAD on the orchestrator
   side. Re-run independently of the subagent's report
   ([gate.sh](https://github.com/cardano-foundation/cardano-wallet/blob/5288-script-witnesses/gate.sh)).
-- [ ] T021 Update PR body to reflect delivered behavior (drop the
+- [X] T021 Update PR body to reflect delivered behavior (drop the
   "tasks stop" wording, replace with completed scope per
   `spec.md` Success Criteria).
-- [ ] T022 Run the finalization audit
+- [X] T022 Run the finalization audit
   (`gate-script` skill, `finalization_audit`): every commit on the
   branch passes the commit message gate; `tasks.md` has no open
   `[ ]` items in the behavior-changing phases.
-- [ ] T023 Drop `gate.sh` in a dedicated `chore: drop gate.sh
+- [X] T023 Drop `gate.sh` in a dedicated `chore: drop gate.sh
   (ready for review)` commit; push; `gh pr ready 5291`.
 
 T020–T023 are orchestrator-owned mechanical work. None of them
