@@ -421,7 +421,6 @@ import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Ledger as L
 import qualified Cardano.Balance.Tx.Eras as Write
     ( Conway
-    , IsRecentEra
     , RecentEra (RecentEraConway, RecentEraDijkstra)
     )
 import qualified Cardano.Balance.Tx.Primitive as BT
@@ -1199,9 +1198,7 @@ ledgerMintPlumbingSpec (AnyRecentEra era) =
                 $ pendingWith "TODO: Dijkstra"
 
 ledgerMintPlumbingSpec'
-    :: forall era
-     . (Write.IsRecentEra era, era ~ Write.Conway)
-    => RecentEra era -> Spec
+    :: RecentEra Write.Conway -> Spec
 ledgerMintPlumbingSpec' era =
     describe ("ledger mint plumbing - " +|| era ||+ "") $ do
         it "buildLedgerTx writes the explicit mint value"
@@ -1322,9 +1319,7 @@ ledgerScriptWitnessParitySpec (AnyRecentEra era) = case era of
             $ pendingWith "TODO: Dijkstra"
 
 ledgerScriptWitnessParitySpec'
-    :: forall era
-     . era ~ Write.Conway
-    => RecentEra era -> Spec
+    :: RecentEra Write.Conway -> Spec
 ledgerScriptWitnessParitySpec' eraW =
     describe ("ledger script-witness parity - " +|| eraW ||+ "") $ do
         it "1. native-script input" $ do
@@ -1477,13 +1472,11 @@ parityFee = Coin 200_000
 
 -- | Build the legacy body via mkUnsignedTx and lift it to a ledger Tx Conway.
 buildLegacyParityTx
-    :: forall era
-     . (Write.IsRecentEra era, era ~ Write.Conway)
-    => RecentEra era
+    :: RecentEra Write.Conway
     -> SelectionOf TxOut
     -> ScriptWitnesses
     -> ScriptParityCtx
-    -> Write.Tx era
+    -> Write.Tx Write.Conway
 buildLegacyParityTx _eraW sel ws ctx =
     let networkId = Cardano.Mainnet
         wdrlsList = case ctxWithdrawal ctx of
@@ -1538,13 +1531,11 @@ buildLegacyParityTx _eraW sel ws ctx =
 
 -- | Build the new ledger body via buildLedgerTx (extended with ScriptWitnesses).
 buildNewParityTx
-    :: forall era
-     . era ~ Write.Conway
-    => RecentEra era
+    :: RecentEra Write.Conway
     -> SelectionOf TxOut
     -> ScriptWitnesses
     -> ScriptParityCtx
-    -> Write.Tx era
+    -> Write.Tx Write.Conway
 buildNewParityTx eraW sel ws ctx =
     let certs = case ctxDelegation ctx of
             Nothing -> []
@@ -1579,9 +1570,7 @@ mintBurnFromMintingSources
 mintBurnFromMintingSources mint _ = (mint, TokenMap.empty)
 
 shouldHaveBodyParity
-    :: forall era
-     . (Write.IsRecentEra era, era ~ Write.Conway)
-    => RecentEra era
+    :: RecentEra Write.Conway
     -> SelectionOf TxOut
     -> ScriptWitnesses
     -> ScriptParityCtx
@@ -1603,9 +1592,7 @@ parityScriptWits t = t ^. witsTxL . scriptTxWitsL
 -- | The QuickCheck variant of the comparison. Hangs the same equalities off a
 -- Property so we can pretty-print counter-examples without an IO context.
 propParity
-    :: forall era
-     . (Write.IsRecentEra era, era ~ Write.Conway)
-    => RecentEra era
+    :: RecentEra Write.Conway
     -> SelectionOf TxOut
     -> ScriptWitnesses
     -> ScriptParityCtx
@@ -1829,9 +1816,7 @@ genParityCase = do
 -- representation for transaction outputs as the concept of them is
 -- extended in this era.
 binaryCalculationsSpec'
-    :: forall era
-     . (Write.IsRecentEra era, era ~ Write.Conway)
-    => RecentEra era -> Spec
+    :: RecentEra Write.Conway -> Spec
 binaryCalculationsSpec' era = describe ("calculateBinary - " +|| era ||+ "") $ do
     describe "Byron witnesses - mainnet" $ do
         let net = Cardano.Mainnet
@@ -1951,7 +1936,7 @@ binaryCalculationsSpec' era = describe ("calculateBinary - " +|| era ||+ "") $ d
     calculateBinary net utxo outs chgs pairs =
         hex
             $ BL.toStrict
-            $ serialize (eraProtVerLow @era) ledgerTx
+            $ serialize (eraProtVerLow @Write.Conway) ledgerTx
       where
         ledgerTx =
             baseTx
@@ -2056,10 +2041,8 @@ makeShelleyTx era' testCase = case era' of
         error "makeShelleyTx: Dijkstra not yet supported"
   where
     go
-        :: forall e
-         . (Write.IsRecentEra e, e ~ Write.Conway)
-        => RecentEra e
-        -> Cardano.Tx (CardanoApiEra e)
+        :: RecentEra Write.Conway
+        -> Cardano.Tx (CardanoApiEra Write.Conway)
     go era'' =
         cardanoApiEraConstraints era''
             $ let DecodeSetup utxo outs md slotNo pairs _netwk =
