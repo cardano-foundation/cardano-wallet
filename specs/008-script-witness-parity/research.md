@@ -170,23 +170,33 @@ built via the ledger path), that smoke belongs to #5285, not here.
 
 ### D6 — Property-test coverage vs. enumerated scenarios
 
-Decision: ship the six enumerated scenarios from `spec.md` as
-`it`-style HSpec cases first. A QuickCheck property that combines
-random selections, withdrawals, certs, mint maps, and reference
-scripts is a strict superset of these scenarios and is *welcome*
-but not required for acceptance. The enumerated scenarios are
-sufficient for parity; the property is a future cheap enhancement.
+Decision (revised at tasks-phase review): ship **both** the six
+enumerated scenarios from `spec.md` AND one QuickCheck property
+that combines random selections, withdrawals, certs, mint maps,
+and reference scripts within documented generator bounds. Both
+are acceptance-gating; the property is named
+`prop_buildLedgerTx_matches_mkUnsignedTx_on_script_witnesses`
+(see [tasks.md](./tasks.md) T013 and
+[briefs/T010-T013.md](./briefs/T010-T013.md) for the generator
+bounds).
 
 Rationale: enumerated cases are tractable in code review (every
-reader can see exactly what is being compared); a property test
-hides scenario coverage behind a generator and is harder to
-audit. We may add the property in this PR if `gate.sh` time
-allows, but it does not gate acceptance.
+reader can see exactly what is being compared) and pin specific
+acceptance scenarios from `spec.md`. The property mechanically
+covers combinations the enumerated cases cannot reach (e.g. an
+input both natively script-witnessed AND referenced by an
+output-attached reference script). At the parity-with-existing-code
+boundary, divergences are typically structural rather than
+statistical, so `withMaxSuccess 100` is sufficient; the property
+does not need to be a soak test to add value.
 
 Alternatives considered:
 
 - *Property test only.* Rejected — review unfriendly; harder to
-  diagnose a failure.
-- *Enumerated + property test mandatory.* Rejected — gold-plates
-  the slice and risks running the gate clock over what is, in this
-  parity setting, a confidence multiplier rather than the proof.
+  diagnose a failure scenario-by-scenario; loses the line-by-line
+  audit trail to `spec.md` US1 ACs.
+- *Enumerated only (the previous decision in this PR).* Rejected
+  at tasks-phase review: the generator boundary catches
+  combinations the six enumerated cases cannot, and parity
+  proofs benefit from "explicit wins" over implicit coverage
+  trust.

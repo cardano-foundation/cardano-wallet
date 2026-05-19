@@ -181,8 +181,12 @@ Tests (RED then GREEN, in the same commit):
   4. Asserts byte-equality of the body CBOR and equality of the
      `scriptTxWitsL` map. (Witness-set equality is part of the
      parity contract; see D2 in research.md.)
-- Property test: optional, deferred (D6 in research.md). If the
-  subagent adds it, it must still pass the gate.
+- Property test: **mandatory** per the tasks-phase revision of
+  D6 in research.md. One QuickCheck property named
+  `prop_buildLedgerTx_matches_mkUnsignedTx_on_script_witnesses`
+  lives in the same `describe` block; same assertions; bounded
+  by `withMaxSuccess 100`. See [tasks.md](./tasks.md) T013 for
+  generator bounds.
 
 ## Proof strategy (RED + GREEN per slice)
 
