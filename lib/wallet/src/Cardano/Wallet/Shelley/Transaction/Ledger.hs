@@ -21,6 +21,10 @@ module Cardano.Wallet.Shelley.Transaction.Ledger
     , buildLedgerTx
     , buildLedgerTxRaw
 
+      -- * Script-witness builder argument
+    , ScriptWitnesses (..)
+    , noScriptWitnesses
+
       -- * Sealing
     , sealWriteTx
 
@@ -85,6 +89,14 @@ import Cardano.Ledger.Address
 import Cardano.Ledger.Allegra.Scripts
     ( ValidityInterval (..)
     )
+import Cardano.Ledger.Api
+    ( bodyTxL
+    , outputsTxBodyL
+    , referenceInputsTxBodyL
+    , referenceScriptTxOutL
+    , scriptTxWitsL
+    , witsTxL
+    )
 import Cardano.Ledger.BaseTypes
     ( Network (Mainnet, Testnet)
     , StrictMaybe (SJust, SNothing)
@@ -145,8 +157,14 @@ import Cardano.Wallet.Primitive.Passphrase
 import Cardano.Wallet.Primitive.Types.Address
     ( Address
     )
+import Cardano.Wallet.Primitive.Types.AssetId
+    ( AssetId (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin
+    )
+import Cardano.Wallet.Primitive.Types.TokenMapWithScripts
+    ( ReferenceInput (..)
     )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx
@@ -188,12 +206,18 @@ import Cardano.Wallet.Transaction
     , ErrMkTransaction (..)
     , ErrMkTransactionOutputTokenQuantityExceedsLimitError (..)
     , PreSelection (..)
+    , ScriptSource
     , SelectionOf (..)
     , TransactionCtx (..)
     , VotingAction (..)
     , Withdrawal (..)
     , WitnessCountCtx (..)
     , selectionDelta
+    )
+import Control.Lens
+    ( (%~)
+    , (&)
+    , (.~)
     )
 import Control.Monad
     ( forM_
@@ -210,6 +234,9 @@ import Data.Generics.Internal.VL.Lens
     )
 import Data.Map.Strict
     ( Map
+    )
+import Data.Maybe
+    ( maybeToList
     )
 import Data.Sequence.Strict
     ( StrictSeq
@@ -262,6 +289,50 @@ data TxPayload era = TxPayload
     , _certificates :: StrictSeq (TxCert era)
     -- ^ Certificates to be included in the transaction.
     }
+
+-- | Script-witness inputs accepted by 'buildLedgerTx' and
+-- 'buildLedgerTxRaw'.
+--
+-- Mirrors the script-witness surface of the legacy
+-- 'Cardano.Wallet.Shelley.Transaction.mkUnsignedTx': native-script
+-- spending witnesses, an optional staking script, mint/burn
+-- 'ScriptSource' entries, and an output-attached reference script.
+--
+-- All fields default to "no witness" via 'noScriptWitnesses'. Existing
+-- (non-script) call sites pass 'noScriptWitnesses' so this change is
+-- bisect-safe.
+--
+-- See @specs\/008-script-witness-parity\/data-model.md@ for the
+-- body\/witness-set mapping each field touches.
+data ScriptWitnesses = ScriptWitnesses
+    { swNativeInputs :: Map TxIn (Script KeyHash)
+    -- ^ Mirrors 'TransactionCtx.txNativeScriptInputs'. Each entry
+    -- pushes the script into the witness set under its 'hashScript'.
+    , swStakingScript :: Maybe (Script KeyHash)
+    -- ^ Mirrors the resolved
+    -- 'TransactionCtx.txStakingCredentialScriptTemplate'. Pushed
+    -- into the witness set; the caller is responsible for using the
+    -- corresponding script hash as the withdrawal / cert credential.
+    , swMintingSources :: Map AssetId ScriptSource
+    -- ^ Mirrors the union of the mint and burn
+    -- 'TransactionCtx.txAssetsTo{Mint,Burn}' script-source maps.
+    -- @Left script@ entries are added to the witness set; @Right
+    -- (ReferenceInput txin)@ entries are added to
+    -- 'referenceInputsTxBodyL'.
+    , swReferenceScript :: Maybe (Script KeyHash)
+    -- ^ Mirrors 'TransactionCtx.txReferenceScript'. Attached as the
+    -- reference script of the first output (if any).
+    }
+
+-- | The "no scripts" default; equivalent to the pre-#5288 behavior.
+noScriptWitnesses :: ScriptWitnesses
+noScriptWitnesses =
+    ScriptWitnesses
+        { swNativeInputs = Map.empty
+        , swStakingScript = Nothing
+        , swMintingSources = Map.empty
+        , swReferenceScript = Nothing
+        }
 
 -- | Build and sign a transaction using ledger types
 -- directly.
@@ -323,6 +394,7 @@ mkTransaction
                     outs
                     cs
                     ledgerMint
+                    noScriptWitnesses
         let signed =
                 signTransaction
                     keyF
@@ -420,8 +492,11 @@ constructUnsignedTxLedger
                 outs
                 cs
                 ledgerMint
+                noScriptWitnesses
 
--- | Convert wallet/context types and call 'mkLedgerTx'.
+-- | Convert wallet/context types and call 'mkLedgerTx'. Threads
+-- 'ScriptWitnesses' through to the body and witness-set lenses
+-- (per @specs\/008-script-witness-parity\/data-model.md@).
 buildLedgerTx
     :: forall era
      . IsRecentEra era
@@ -435,18 +510,20 @@ buildLedgerTx
     -> [TxOut]
     -> SelectionOf TxOut
     -> MultiAsset
+    -> ScriptWitnesses
     -> Write.Tx era
-buildLedgerTx era ttl network wdrl fee md certs outs cs mint =
-    mkLedgerTx
-        era
-        ins
-        ledgerOuts
-        ledgerFee
-        validity
-        wdrls
-        ledgerCerts
-        mint
-        metadata
+buildLedgerTx era ttl network wdrl fee md certs outs cs mint sws =
+    installScriptWitnesses era sws
+        $ mkLedgerTx
+            era
+            ins
+            ledgerOuts
+            ledgerFee
+            validity
+            wdrls
+            ledgerCerts
+            mint
+            metadata
   where
     ins :: Set Ledger.TxIn
     ins =
@@ -476,7 +553,9 @@ buildLedgerTx era ttl network wdrl fee md certs outs cs mint =
         Just m -> toShelleyMetadata (unTxMetadata m)
 
 -- | Lower-level builder that takes already-converted
--- types.
+-- types. Like 'buildLedgerTx', it accepts a 'ScriptWitnesses' record
+-- whose default ('noScriptWitnesses') reproduces the pre-#5288
+-- behavior.
 buildLedgerTxRaw
     :: forall era
      . IsRecentEra era
@@ -490,6 +569,7 @@ buildLedgerTxRaw
     -> [TxOut]
     -> Either PreSelection (SelectionOf TxOut)
     -> MultiAsset
+    -> ScriptWitnesses
     -> Write.Tx era
 buildLedgerTxRaw
     era
@@ -501,17 +581,19 @@ buildLedgerTxRaw
     certs
     outs
     cs
-    mint =
-        mkLedgerTx
-            era
-            ins
-            ledgerOuts
-            ledgerFee
-            validity
-            wdrls
-            ledgerCerts
-            mint
-            metadata
+    mint
+    sws =
+        installScriptWitnesses era sws
+            $ mkLedgerTx
+                era
+                ins
+                ledgerOuts
+                ledgerFee
+                validity
+                wdrls
+                ledgerCerts
+                mint
+                metadata
       where
         ins :: Set Ledger.TxIn
         ins = case cs of
@@ -542,6 +624,105 @@ buildLedgerTxRaw
         metadata = case md of
             Nothing -> Map.empty
             Just m -> toShelleyMetadata (unTxMetadata m)
+
+-- | Install the script-witness extras on a freshly-built ledger
+-- 'Tx': reference inputs collected from 'swMintingSources'
+-- @Right@-branches, the first-output reference script attachment
+-- from 'swReferenceScript', and the native-script witness set
+-- from 'swNativeInputs' values, one local script per minting policy
+-- from 'swMintingSources' @Left@-branches, and 'swStakingScript'.
+installScriptWitnesses
+    :: RecentEra era
+    -> ScriptWitnesses
+    -> Write.Tx era
+    -> Write.Tx era
+installScriptWitnesses era sws tx = case era of
+    RecentEraConway -> installScriptWitnessesConway sws tx
+    RecentEraDijkstra ->
+        error
+            "installScriptWitnesses: Dijkstra not yet supported"
+
+-- | Conway-specialised core of 'installScriptWitnesses'. The
+-- type signature pins @era ~ Conway@ so 'Alonzo.NativeScript' can
+-- resolve its 'Core.NativeScript era ~ Timelock era' constraint
+-- from 'RecentEraConstraints'.
+installScriptWitnessesConway
+    :: ScriptWitnesses
+    -> Write.Tx Write.Conway
+    -> Write.Tx Write.Conway
+installScriptWitnessesConway sws tx =
+    tx
+        & bodyTxL . referenceInputsTxBodyL
+            .~ refInputs
+        & bodyTxL . outputsTxBodyL
+            %~ attachReferenceScript (swReferenceScript sws)
+        & witsTxL . scriptTxWitsL
+            .~ scriptWits
+  where
+    refInputs :: Set Ledger.TxIn
+    refInputs =
+        Set.fromList
+            [ toLedger txin
+            | Right (ReferenceInput txin) <-
+                Map.elems (swMintingSources sws)
+            ]
+
+    scriptWits
+        :: Map
+            LApi.ScriptHash
+            (Alonzo.AlonzoScript Write.Conway)
+    scriptWits =
+        let nativeMintScripts =
+                Map.elems
+                    $ Map.foldlWithKey'
+                        collectMintScript
+                        Map.empty
+                        (swMintingSources sws)
+            stakingScripts =
+                maybeToList (swStakingScript sws)
+            allScripts =
+                Map.elems (swNativeInputs sws)
+                    ++ nativeMintScripts
+                    ++ stakingScripts
+            toLedgerScript
+                :: Script KeyHash -> Alonzo.AlonzoScript Write.Conway
+            toLedgerScript script =
+                Alonzo.NativeScript (toLedgerTimelockScript script)
+        in  Map.fromList
+                [ ( LApi.hashScript @Write.Conway ledgerScript
+                  , ledgerScript
+                  )
+                | script <- allScripts
+                , let ledgerScript = toLedgerScript script
+                ]
+
+    collectMintScript scriptsByPolicy aid = \case
+        Left script ->
+            Map.insertWith
+                (\_ existing -> existing)
+                (policyId aid)
+                script
+                scriptsByPolicy
+        Right _ -> scriptsByPolicy
+
+    attachReferenceScript
+        :: Maybe (Script KeyHash)
+        -> StrictSeq (Write.TxOut Write.Conway)
+        -> StrictSeq (Write.TxOut Write.Conway)
+    attachReferenceScript Nothing outs = outs
+    attachReferenceScript (Just script) outs =
+        case outs of
+            StrictSeq.Empty -> outs
+            firstOut StrictSeq.:<| rest ->
+                let scriptVal :: Alonzo.AlonzoScript Write.Conway
+                    scriptVal =
+                        Alonzo.NativeScript
+                            (toLedgerTimelockScript script)
+                    firstOut' =
+                        firstOut
+                            & referenceScriptTxOutL
+                                .~ SJust scriptVal
+                in  firstOut' StrictSeq.:<| rest
 
 -- | Convert a wallet 'TxOut' to a ledger 'TxOut'.
 toLedgerTxOut
