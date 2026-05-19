@@ -149,9 +149,7 @@ import Cardano.Wallet.Primitive.Ledger.Read.Tx.Sealed
     ( fromSealedTx
     )
 import Cardano.Wallet.Primitive.Ledger.Shelley
-    ( toCardanoLovelace
-    , toCardanoStakeCredential
-    , toCardanoTxIn
+    ( toCardanoTxIn
     )
 import Cardano.Wallet.Primitive.NetworkId
     ( SNetworkId (..)
