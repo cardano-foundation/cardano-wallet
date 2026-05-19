@@ -154,8 +154,10 @@ Behavior change:
    - the staking-script-credential override on the
      `mkWithdrawalsLedger` call when `swStakingScript` is `Just`,
    - the set of native scripts to install in `witsTxL .
-     scriptTxWitsL` (the `Left` branches of `swMintingSources`,
-     `swNativeInputs` values, and `swStakingScript`).
+     scriptTxWitsL` (`swNativeInputs` values, `swStakingScript`,
+     and local `swMintingSources` `Left` branches deduplicated to one
+     script per token policy id, matching the legacy `txMintValue`
+     merge).
 4. Call `mkLedgerTx` with the extended body, then set the witness
    set fields on the returned `Tx era` via the appropriate lenses.
    Alternative: extend `mkLedgerTx` itself to take the scripts;

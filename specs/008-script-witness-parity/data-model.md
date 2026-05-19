@@ -58,7 +58,7 @@ against parity.
 |---|---|---|
 | `swNativeInputs` | `inputsTxBodyL` (input set membership; inputs are already added from the selection) | `witsTxL . scriptTxWitsL` ← script with `hashScript` as key |
 | `swStakingScript` | `withdrawalsTxBodyL` (script-hash credential) AND `certsTxBodyL` (script-hash stake credential on each cert that has one) | `witsTxL . scriptTxWitsL` ← script with `hashScript` as key, once |
-| `swMintingSources` `Left script` | `mintTxBodyL` already covers the value via `toLedgerMintValue`; no body-shape contribution from the script itself | `witsTxL . scriptTxWitsL` ← script with `hashScript` as key |
+| `swMintingSources` `Left script` | `mintTxBodyL` already covers the value via `toLedgerMintValue`; no body-shape contribution from the script itself | `witsTxL . scriptTxWitsL` ← one local script per token policy, keyed by `hashScript`, matching the legacy `txMintValue` merge |
 | `swMintingSources` `Right (ReferenceInput txin)` | `referenceInputsTxBodyL` ← txin; `mintTxBodyL` carries the policy via `toLedgerMintValue` | (none; the script is on-chain at `txin`) |
 | `swReferenceScript` | `outputsTxBodyL` first element's reference-script field | (none; the script ships in the output, not the witness set) |
 
@@ -72,6 +72,9 @@ Deduplication invariants:
   the ledger `NativeScript`, so multiple references to the same
   script (e.g., the same staking script used by both a withdrawal
   and a cert) produce one entry.
+- Local mint scripts are first deduplicated by token policy id to
+  mirror the legacy `TxMintValue` map, which carries one witness per
+  policy even when multiple asset names under that policy are minted.
 
 ## Test-fixture vocabulary
 

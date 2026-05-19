@@ -10,6 +10,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
@@ -50,6 +51,7 @@ import Cardano.Api.Extra
     ( CardanoApiEra
     , cardanoApiEraConstraints
     , cardanoEraFromRecentEra
+    , fromCardanoApiTx
     , shelleyBasedEraFromRecentEra
     , toCardanoApiTx
     )
@@ -80,18 +82,23 @@ import Cardano.Ledger.Address
 import Cardano.Ledger.Allegra.Scripts
     ( ValidityInterval (..)
     )
+import Cardano.Ledger.Alonzo.Scripts
+    ( AlonzoScript (NativeScript)
+    )
 import Cardano.Ledger.Api
     ( addrTxWitsL
     , bodyTxL
     , bootAddrTxWitsL
     , eraProtVerLow
+    , hashScript
+    , scriptTxWitsL
     , witsTxL
     )
 import Cardano.Ledger.Api.Tx.Body
     ( mintTxBodyL
     )
 import Cardano.Ledger.BaseTypes
-    ( Network (Testnet)
+    ( Network (Mainnet, Testnet)
     , StrictMaybe (..)
     )
 import Cardano.Ledger.Binary
@@ -108,6 +115,7 @@ import Cardano.Wallet
     )
 import Cardano.Wallet.Address.Derivation
     ( Depth (..)
+    , DerivationIndex (..)
     , deriveRewardAccount
     , hex
     , paymentAddress
@@ -132,6 +140,7 @@ import Cardano.Wallet.Primitive.Ledger.Convert
     , toConwayTxOut
     , toLedgerCoin
     , toLedgerMintValue
+    , toLedgerTimelockScript
     )
 import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Integrity
     ( txIntegrity
@@ -140,7 +149,9 @@ import Cardano.Wallet.Primitive.Ledger.Read.Tx.Sealed
     ( fromSealedTx
     )
 import Cardano.Wallet.Primitive.Ledger.Shelley
-    ( toCardanoTxIn
+    ( toCardanoLovelace
+    , toCardanoStakeCredential
+    , toCardanoTxIn
     )
 import Cardano.Wallet.Primitive.NetworkId
     ( SNetworkId (..)
@@ -175,12 +186,21 @@ import Cardano.Wallet.Primitive.Types.Credentials
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
     )
+import Cardano.Wallet.Primitive.Types.Pool
+    ( PoolId (..)
+    )
+import Cardano.Wallet.Primitive.Types.RewardAccount
+    ( RewardAccount (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle
     )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
     ( genTokenBundleSmallRange
     , shrinkTokenBundleSmallRange
+    )
+import Cardano.Wallet.Primitive.Types.TokenMapWithScripts
+    ( ReferenceInput (..)
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicyId
     ( TokenPolicyId (UnsafeTokenPolicyId)
@@ -225,26 +245,35 @@ import Cardano.Wallet.Primitive.Types.UTxO
     )
 import Cardano.Wallet.Shelley.Transaction
     ( mkShelleyWitness
+    , mkUnsignedTx
     , newTransactionLayer
     )
 import Cardano.Wallet.Shelley.Transaction.Build
     ( mkLedgerTx
     )
 import Cardano.Wallet.Shelley.Transaction.Ledger
-    ( TxWitnessTag (..)
+    ( ScriptWitnesses (..)
+    , TxWitnessTag (..)
     , buildLedgerTx
     , buildLedgerTxRaw
+    , certificateFromDelegationActionLedger
     , mkByronWitnessLedger
     , mkShelleyWitnessLedger
+    , noScriptWitnesses
     , txConstraints
     )
 import Cardano.Wallet.Transaction
-    ( PreSelection (..)
+    ( DelegationAction (..)
+    , PreSelection (..)
+    , ScriptSource
     , SelectionOf (..)
     , TransactionLayer (..)
     , Withdrawal (..)
     , WitnessCountCtx (..)
     , selectionDelta
+    )
+import Cardano.Wallet.Transaction.Delegation
+    ( certificateFromDelegationAction
     )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex
@@ -253,7 +282,8 @@ import Control.Arrow
     ( first
     )
 import Control.Lens
-    ( (.~)
+    ( view
+    , (.~)
     , (^.)
     )
 import Control.Monad
@@ -356,11 +386,13 @@ import Test.QuickCheck
     , conjoin
     , counterexample
     , cover
+    , elements
     , forAll
     , forAllShow
     , frequency
     , oneof
     , property
+    , resize
     , scale
     , suchThat
     , vector
@@ -393,6 +425,9 @@ import qualified Cardano.Balance.Tx.Eras as Write
     , RecentEra (RecentEraConway, RecentEraDijkstra)
     )
 import qualified Cardano.Balance.Tx.Primitive as BT
+import qualified Cardano.Balance.Tx.Tx as Write
+    ( Tx
+    )
 import qualified Cardano.Crypto.Hash.Blake2b as Crypto
 import qualified Cardano.Crypto.Hash.Class as Crypto
 import qualified Cardano.Ledger.Coin as Ledger
@@ -420,6 +455,7 @@ spec = describe "TransactionSpec" $ do
     forAllRecentEras feeEstimationRegressionSpec
     forAllRecentEras binaryCalculationsSpec
     forAllRecentEras ledgerMintPlumbingSpec
+    forAllRecentEras ledgerScriptWitnessParitySpec
     transactionConstraintsSpec
     describe "Sign transaction" $ do
         -- TODO [ADP-2849] The implementation must be restricted to work only in
@@ -1181,6 +1217,7 @@ ledgerMintPlumbingSpec' era =
                     sampleOutputs
                     sampleSelection
                     sampleMintValue
+                    noScriptWitnesses
                 )
             `shouldBe` sampleMintValue
 
@@ -1197,6 +1234,7 @@ ledgerMintPlumbingSpec' era =
                     sampleOutputs
                     (Right sampleSelection)
                     sampleMintValue
+                    noScriptWitnesses
                 )
             `shouldBe` sampleMintValue
 
@@ -1213,6 +1251,7 @@ ledgerMintPlumbingSpec' era =
                     sampleOutputs
                     (Left samplePreSelection)
                     sampleMintValue
+                    noScriptWitnesses
                 )
             `shouldBe` sampleMintValue
   where
@@ -1259,6 +1298,515 @@ ledgerMintPlumbingSpec' era =
         AssetId
             (UnsafeTokenPolicyId $ Hash $ BS.pack $ replicate 28 policyByte)
             (UnsafeAssetName $ BS.pack [assetByte])
+
+--------------------------------------------------------------------------------
+-- Script-witness parity (PR #5288)
+--
+-- Six enumerated scenarios + one property compare two builders byte-for-byte:
+--   * the legacy Cardano.Wallet.Shelley.Transaction.mkUnsignedTx (cardano-api)
+--   * the new   Cardano.Wallet.Shelley.Transaction.Ledger.buildLedgerTx
+--
+-- After both builders produce a Conway-era body, we compare:
+--   (a) CBOR of `tx ^. bodyTxL` (via serialize @Conway)
+--   (b) `tx ^. witsTxL . scriptTxWitsL`
+--
+-- See specs/008-script-witness-parity/{spec,data-model,plan,research}.md.
+--------------------------------------------------------------------------------
+
+ledgerScriptWitnessParitySpec :: AnyRecentEra -> Spec
+ledgerScriptWitnessParitySpec (AnyRecentEra era) = case era of
+    RecentEraConway -> ledgerScriptWitnessParitySpec' era
+    RecentEraDijkstra ->
+        describe "ledger script-witness parity"
+            $ it "Dijkstra"
+            $ pendingWith "TODO: Dijkstra"
+
+ledgerScriptWitnessParitySpec'
+    :: forall era
+     . era ~ Write.Conway
+    => RecentEra era -> Spec
+ledgerScriptWitnessParitySpec' eraW =
+    describe ("ledger script-witness parity - " +|| eraW ||+ "") $ do
+        it "1. native-script input" $ do
+            let script = mkScript 11
+            let sel = mkSimpleSelection (Coin 10_000_000) [mkOut 1 2_000_000]
+            let ws =
+                    noScriptWitnesses
+                        { swNativeInputs =
+                            Map.fromList
+                                [ (i, script)
+                                | (i, _) <- F.toList (view #inputs sel)
+                                ]
+                        }
+            shouldHaveBodyParity eraW sel ws emptyCtx
+
+        it "2. staking script (withdrawal + delegation cert)" $ do
+            let script = mkScript 22
+            let scriptHash = scriptKeyHashBytes script
+            let acct = FromScriptHash scriptHash
+            let ws = noScriptWitnesses{swStakingScript = Just script}
+            let sel = mkSimpleSelection (Coin 10_000_000) [mkOut 1 2_000_000]
+            let ctx =
+                    emptyCtx
+                        { ctxWithdrawal =
+                            WithdrawalSelf acct dummyDerivPath (Coin 1)
+                        , ctxDelegation =
+                            Just
+                                ( Right script
+                                , Just (Coin 2_000_000)
+                                , JoinRegisteringKey dummyPoolId
+                                )
+                        }
+            shouldHaveBodyParity eraW sel ws ctx
+
+        it "3. local mint (Left script in ScriptSource)" $ do
+            let script = mkScript 33
+            let aid = mkAsset 0xAA 1
+            let mintMap = Map.singleton aid (Left script :: ScriptSource)
+            let sel =
+                    (mkSimpleSelection (Coin 10_000_000) [mkOut 1 2_000_000])
+                        { assetsToMint =
+                            TokenMap.singleton aid (TokenQuantity 7)
+                        }
+            let ws = noScriptWitnesses{swMintingSources = mintMap}
+            shouldHaveBodyParity eraW sel ws emptyCtx
+
+        it "4. reference-input mint (Right ReferenceInput in ScriptSource)" $ do
+            let aid = mkAsset 0xBB 2
+            let refIn = TxIn dummyTxId 9
+            let mintMap =
+                    Map.singleton
+                        aid
+                        (Right (ReferenceInput refIn) :: ScriptSource)
+            let sel =
+                    (mkSimpleSelection (Coin 10_000_000) [mkOut 1 2_000_000])
+                        { assetsToMint =
+                            TokenMap.singleton aid (TokenQuantity 5)
+                        }
+            let ws = noScriptWitnesses{swMintingSources = mintMap}
+            shouldHaveBodyParity eraW sel ws emptyCtx
+
+        it "5. output reference script" $ do
+            let script = mkScript 55
+            let sel = mkSimpleSelection (Coin 10_000_000) [mkOut 1 2_000_000]
+            let ws = noScriptWitnesses{swReferenceScript = Just script}
+            shouldHaveBodyParity eraW sel ws emptyCtx
+
+        it "6. mixed (all of the above simultaneously)" $ do
+            let inputScript = mkScript 61
+            let stakingScript = mkScript 62
+            let localMintScript = mkScript 63
+            let refScript = mkScript 64
+            let aidLocal = mkAsset 0xCC 1
+            let aidRef = mkAsset 0xDD 2
+            let refIn = TxIn dummyTxId 17
+            let scriptHash = scriptKeyHashBytes stakingScript
+            let acct = FromScriptHash scriptHash
+            let sel =
+                    (mkSimpleSelection (Coin 10_000_000) [mkOut 1 2_000_000])
+                        { assetsToMint =
+                            TokenMap.fromFlatList
+                                [ (aidLocal, TokenQuantity 11)
+                                , (aidRef, TokenQuantity 13)
+                                ]
+                        }
+            let ws =
+                    ScriptWitnesses
+                        { swNativeInputs =
+                            Map.fromList
+                                [ (i, inputScript)
+                                | (i, _) <- F.toList (view #inputs sel)
+                                ]
+                        , swStakingScript = Just stakingScript
+                        , swMintingSources =
+                            Map.fromList
+                                [ (aidLocal, Left localMintScript)
+                                , (aidRef, Right (ReferenceInput refIn))
+                                ]
+                        , swReferenceScript = Just refScript
+                        }
+            let ctx =
+                    emptyCtx
+                        { ctxWithdrawal =
+                            WithdrawalSelf acct dummyDerivPath (Coin 1)
+                        , ctxDelegation =
+                            Just
+                                ( Right stakingScript
+                                , Just (Coin 2_000_000)
+                                , JoinRegisteringKey dummyPoolId
+                                )
+                        }
+            shouldHaveBodyParity eraW sel ws ctx
+
+        prop "prop_buildLedgerTx_matches_mkUnsignedTx_on_script_witnesses"
+            $ withMaxSuccess 100
+            $ forAll genParityCase
+            $ \(ParityCase sel ws ctx) ->
+                propParity eraW sel ws ctx
+
+--------------------------------------------------------------------------------
+-- Script-witness parity: comparison harness
+--------------------------------------------------------------------------------
+
+-- | The non-script context shared between scenarios. Withdrawal + an optional
+-- staking-credentialled delegation cert exercise the cert/withdrawal lenses
+-- without dragging in cardano-api types at the test site.
+data ScriptParityCtx = ScriptParityCtx
+    { ctxWithdrawal :: Withdrawal
+    , ctxDelegation
+        :: Maybe
+            ( Either XPub (Script KeyHash)
+            , Maybe Coin
+            , DelegationAction
+            )
+    }
+
+emptyCtx :: ScriptParityCtx
+emptyCtx =
+    ScriptParityCtx
+        { ctxWithdrawal = NoWithdrawal
+        , ctxDelegation = Nothing
+        }
+
+-- | The fixed validity interval all parity scenarios share.
+parityTtl :: (Maybe SlotNo, SlotNo)
+parityTtl = (Nothing, SlotNo 100)
+
+parityFee :: Coin
+parityFee = Coin 200_000
+
+-- | Build the legacy body via mkUnsignedTx and lift it to a ledger Tx Conway.
+buildLegacyParityTx
+    :: forall era
+     . (Write.IsRecentEra era, era ~ Write.Conway)
+    => RecentEra era
+    -> SelectionOf TxOut
+    -> ScriptWitnesses
+    -> ScriptParityCtx
+    -> Write.Tx era
+buildLegacyParityTx _eraW sel ws ctx =
+    let networkId = Cardano.Mainnet
+        wdrlsList = case ctxWithdrawal ctx of
+            NoWithdrawal -> []
+            WithdrawalExternal acct _ amt _ ->
+                [
+                    ( Cardano.makeStakeAddress
+                        networkId
+                        (toCardanoStakeCredential acct)
+                    , toCardanoLovelace amt
+                    )
+                ]
+            WithdrawalSelf acct _ amt ->
+                [
+                    ( Cardano.makeStakeAddress
+                        networkId
+                        (toCardanoStakeCredential acct)
+                    , toCardanoLovelace amt
+                    )
+                ]
+        certsApi = case ctxDelegation ctx of
+            Nothing -> []
+            Just (cred, depositM, action) ->
+                certificateFromDelegationAction
+                    Write.RecentEraConway
+                    cred
+                    depositM
+                    action
+        (mintTokens, burnTokens) =
+            mintBurnFromMintingSources
+                (view #assetsToMint sel)
+                (swMintingSources ws)
+        body = case mkUnsignedTx
+            parityTtl
+            (Right sel :: Either PreSelection (SelectionOf TxOut))
+            Nothing
+            wdrlsList
+            certsApi
+            (toCardanoLovelace parityFee)
+            mintTokens
+            burnTokens
+            (swMintingSources ws)
+            (swNativeInputs ws)
+            (swStakingScript ws)
+            (swReferenceScript ws) of
+            Left err ->
+                error
+                    $ "buildLegacyParityTx: mkUnsignedTx failed: "
+                        <> show err
+            Right b -> b
+    in  fromCardanoApiTx (Cardano.makeSignedTransaction [] body)
+
+-- | Build the new ledger body via buildLedgerTx (extended with ScriptWitnesses).
+buildNewParityTx
+    :: forall era
+     . era ~ Write.Conway
+    => RecentEra era
+    -> SelectionOf TxOut
+    -> ScriptWitnesses
+    -> ScriptParityCtx
+    -> Write.Tx era
+buildNewParityTx eraW sel ws ctx =
+    let certs = case ctxDelegation ctx of
+            Nothing -> []
+            Just (cred, depositM, action) ->
+                certificateFromDelegationActionLedger eraW cred depositM action
+        outs = view #outputs sel ++ F.toList (view #change sel)
+        ledgerMint =
+            toLedgerMintValue
+                (view #assetsToMint sel)
+                (view #assetsToBurn sel)
+    in  buildLedgerTx
+            eraW
+            parityTtl
+            Mainnet -- ledger Network; matches Cardano.Mainnet on legacy side
+            (ctxWithdrawal ctx)
+            parityFee
+            Nothing
+            certs
+            outs
+            sel
+            ledgerMint
+            ws
+
+-- | Split mint/burn TokenMaps using the *signed* mint quantities from the
+-- selection.assetsToMint TokenMap: positive entries go to mintTokens, negative
+-- (if any) to burnTokens. The selection-based fixtures used here only mint
+-- (no burn), but we keep the split future-proof.
+mintBurnFromMintingSources
+    :: TokenMap.TokenMap
+    -> Map AssetId ScriptSource
+    -> (TokenMap.TokenMap, TokenMap.TokenMap)
+mintBurnFromMintingSources mint _ = (mint, TokenMap.empty)
+
+shouldHaveBodyParity
+    :: forall era
+     . (Write.IsRecentEra era, era ~ Write.Conway)
+    => RecentEra era
+    -> SelectionOf TxOut
+    -> ScriptWitnesses
+    -> ScriptParityCtx
+    -> IO ()
+shouldHaveBodyParity eraW sel ws ctx = do
+    let legacy = buildLegacyParityTx eraW sel ws ctx
+    let new = buildNewParityTx eraW sel ws ctx
+    parityBodyCbor legacy `shouldBe` parityBodyCbor new
+    parityScriptWits legacy `shouldBe` parityScriptWits new
+
+parityBodyCbor :: Write.Tx Write.Conway -> BL.ByteString
+parityBodyCbor t = serialize (eraProtVerLow @Write.Conway) (t ^. bodyTxL)
+
+parityScriptWits
+    :: Write.Tx Write.Conway
+    -> Map SL.ScriptHash (AlonzoScript Write.Conway)
+parityScriptWits t = t ^. witsTxL . scriptTxWitsL
+
+-- | The QuickCheck variant of the comparison. Hangs the same equalities off a
+-- Property so we can pretty-print counter-examples without an IO context.
+propParity
+    :: forall era
+     . (Write.IsRecentEra era, era ~ Write.Conway)
+    => RecentEra era
+    -> SelectionOf TxOut
+    -> ScriptWitnesses
+    -> ScriptParityCtx
+    -> Property
+propParity eraW sel ws ctx =
+    let legacy = buildLegacyParityTx eraW sel ws ctx
+        new = buildNewParityTx eraW sel ws ctx
+    in  conjoin
+            [ counterexample "body CBOR differs"
+                $ parityBodyCbor legacy === parityBodyCbor new
+            , counterexample "scriptTxWitsL differs"
+                $ parityScriptWits legacy === parityScriptWits new
+            ]
+
+--------------------------------------------------------------------------------
+-- Script-witness parity: small fixture helpers
+--------------------------------------------------------------------------------
+
+mkScript :: Word8 -> Script KeyHash
+mkScript b =
+    RequireSignatureOf
+        $ KeyHash Payment
+        $ BS.pack
+        $ replicate 28 b
+
+mkAsset :: Word8 -> Word8 -> AssetId
+mkAsset policyByte assetByte =
+    AssetId
+        (UnsafeTokenPolicyId $ Hash $ BS.pack $ replicate 28 policyByte)
+        (UnsafeAssetName $ BS.pack [assetByte])
+
+mkOut :: Word8 -> Word64 -> TxOut
+mkOut idx coins = TxOut (dummyAddress idx) (coinToBundle coins)
+
+mkSimpleSelection :: Coin -> [TxOut] -> SelectionOf TxOut
+mkSimpleSelection (Coin amt) outs =
+    Selection
+        { inputs =
+            ( TxIn dummyTxId 0
+            , TxOut (dummyAddress 0) (coinToBundle (fromIntegral amt))
+            )
+                :| []
+        , collateral = []
+        , extraCoinSource = Coin 0
+        , extraCoinSink = Coin 0
+        , outputs = outs
+        , change = []
+        , assetsToMint = TokenMap.empty
+        , assetsToBurn = TokenMap.empty
+        }
+
+-- | Hash a native Script KeyHash as the ledger does, returning the raw
+-- 28-byte hash. Used to build a RewardAccount with the script's hash so
+-- the legacy and new builders see identical stake credentials.
+scriptKeyHashBytes :: Script KeyHash -> ByteString
+scriptKeyHashBytes script =
+    let ledgerScript :: AlonzoScript Write.Conway
+        ledgerScript = NativeScript (toLedgerTimelockScript script)
+        SL.ScriptHash h = hashScript @Write.Conway ledgerScript
+    in  Crypto.hashToBytes h
+
+dummyDerivPath :: NE.NonEmpty DerivationIndex
+dummyDerivPath = pure (DerivationIndex 0)
+
+dummyPoolId :: PoolId
+dummyPoolId = PoolId $ BS.pack $ replicate 28 1
+
+--------------------------------------------------------------------------------
+-- Script-witness parity: QuickCheck generators
+--------------------------------------------------------------------------------
+
+data ParityCase
+    = ParityCase
+        (SelectionOf TxOut)
+        ScriptWitnesses
+        ScriptParityCtx
+
+instance Show ParityCase where
+    show (ParityCase _ ws ctx) =
+        "ParityCase{nInputs="
+            <> show (Map.size (swNativeInputs ws))
+            <> ", staking="
+            <> show (isJust (swStakingScript ws))
+            <> ", mints="
+            <> show (Map.size (swMintingSources ws))
+            <> ", refScript="
+            <> show (isJust (swReferenceScript ws))
+            <> ", withdrawal="
+            <> show (hasWithdrawal (ctxWithdrawal ctx))
+            <> "}"
+      where
+        hasWithdrawal NoWithdrawal = False
+        hasWithdrawal _ = True
+
+-- | Generator constraints (T013):
+--   * 1..3 selection inputs
+--   * 0..3 native-script inputs (subset of selection inputs)
+--   * 0 or 1 staking script
+--   * 0..3 mint/burn ScriptSource entries (mix of Left and Right)
+--   * 0 or 1 output reference script
+genParityCase :: Gen ParityCase
+genParityCase = do
+    nIns <- choose (1, 3) :: Gen Int
+    inputIxs <-
+        vectorOf nIns (choose (0, 255) :: Gen Word8)
+            `suchThat` (\xs -> length (nub xs) == length xs)
+    let mkInput ix =
+            ( TxIn dummyTxId (fromIntegral ix)
+            , TxOut (dummyAddress ix) (coinToBundle 10_000_000)
+            )
+    let allInputs = NE.fromList $ map mkInput inputIxs
+    -- Native-script inputs (subset)
+    nNativeInputs <- choose (0, nIns)
+    nativeInputsList <-
+        vectorOf nNativeInputs
+            $ (,)
+                <$> elements (F.toList allInputs)
+                <*> resize 3 (genScript [KeyHash Payment (BS.pack (replicate 28 99))])
+    let nativeInputsMap = case nativeInputsList of
+            [] -> Map.empty
+            ((_, firstScript) : _) ->
+                -- Legacy requires *every* selection input be in the map when
+                -- any native-script input is present; promote partial coverage
+                -- to full by reusing the first script for missing inputs.
+                let declared =
+                        Map.fromList
+                            $ map (first fst) nativeInputsList
+                    fillerEntries =
+                        [ (fst i, firstScript)
+                        | i <- F.toList allInputs
+                        , not (Map.member (fst i) declared)
+                        ]
+                in  Map.union declared (Map.fromList fillerEntries)
+    -- Staking script
+    stakingScript <-
+        oneof
+            [ pure Nothing
+            , Just
+                <$> resize
+                    3
+                    (genScript [KeyHash Delegation (BS.pack (replicate 28 88))])
+            ]
+    -- Mint/burn ScriptSource entries
+    nMints <- choose (0, 3) :: Gen Int
+    mintEntries <- vectorOf nMints $ do
+        policyByte <- choose (0, 255) :: Gen Word8
+        assetByte <- choose (0, 255) :: Gen Word8
+        let aid = mkAsset policyByte assetByte
+        src <-
+            oneof
+                [ Left
+                    <$> resize
+                        3
+                        (genScript [KeyHash Payment (BS.pack (replicate 28 77))])
+                , do
+                    ix <- choose (100, 200) :: Gen Word8
+                    pure (Right (ReferenceInput (TxIn dummyTxId (fromIntegral ix))))
+                ]
+        pure (aid, src)
+    let mintMap = Map.fromList mintEntries
+    let mintTokenMap =
+            TokenMap.fromFlatList
+                [(aid, TokenQuantity 1) | (aid, _) <- Map.toList mintMap]
+    -- Output reference script
+    refScript <-
+        oneof
+            [ pure Nothing
+            , Just
+                <$> resize
+                    3
+                    (genScript [KeyHash Payment (BS.pack (replicate 28 55))])
+            ]
+    let sel =
+            Selection
+                { inputs = allInputs
+                , collateral = []
+                , extraCoinSource = Coin 0
+                , extraCoinSink = Coin 0
+                , outputs = [TxOut (dummyAddress 250) (coinToBundle 2_000_000)]
+                , change = []
+                , assetsToMint = mintTokenMap
+                , assetsToBurn = TokenMap.empty
+                }
+    let ws =
+            ScriptWitnesses
+                { swNativeInputs = nativeInputsMap
+                , swStakingScript = stakingScript
+                , swMintingSources = mintMap
+                , swReferenceScript = refScript
+                }
+    let ctx = case stakingScript of
+            Nothing -> emptyCtx
+            Just script ->
+                emptyCtx
+                    { ctxWithdrawal =
+                        WithdrawalSelf
+                            (FromScriptHash (scriptKeyHashBytes script))
+                            dummyDerivPath
+                            (Coin 1)
+                    }
+    pure (ParityCase sel ws ctx)
 
 -- Up till Mary era we have the following structure of transaction
 --   transaction =

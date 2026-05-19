@@ -55,10 +55,13 @@ Alternatives considered:
 
 Decision: the extended builder sets
 `witsTxL . scriptTxWitsL` on the returned `Write.Tx era` with every
-locally-supplied native script. Reference-input-only branches do not
-contribute to `scriptTxWitsL` (the script bytes are on-chain in the
-referenced UTxO). The output reference script does not go through
-`scriptTxWitsL` either — it lives in the output structure.
+locally-supplied native script that the legacy `TxMintValue` shape can
+carry: native input scripts, the optional staking script, and one
+local mint script per token policy id after the legacy merge.
+Reference-input-only branches do not contribute to `scriptTxWitsL`
+(the script bytes are on-chain in the referenced UTxO). The output
+reference script does not go through `scriptTxWitsL` either — it
+lives in the output structure.
 
 Rationale: the existing wallet code reads scripts back via
 `witsTxL . scriptTxWitsL` (see

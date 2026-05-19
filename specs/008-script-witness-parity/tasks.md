@@ -83,7 +83,7 @@ property from T013.
 
 ### RED (test-first)
 
-- [ ] T010 [US1] Add `describe "ledger script-witness parity"` with
+- [X] T010 [US1] Add `describe "ledger script-witness parity"` with
   six failing scenarios to
   `lib/unit/test/unit/Cardano/Wallet/Shelley/TransactionLedgerSpec.hs`.
   Each `it`-case constructs the same selection/ctx values, calls
@@ -95,7 +95,7 @@ property from T013.
 
 ### GREEN (implementation)
 
-- [ ] T011 [US1] Extend
+- [X] T011 [US1] Extend
   `lib/wallet/src/Cardano/Wallet/Shelley/Transaction/Ledger.hs`:
   add `ScriptWitnesses`/`noScriptWitnesses` (export both), grow
   `buildLedgerTx` and `buildLedgerTxRaw` with a `ScriptWitnesses`
@@ -133,7 +133,7 @@ This is the same suite the gate.sh runs; both the new
 
 ### Regression check
 
-- [ ] T012 [US2] Within the same uncommitted working tree as T010+T011,
+- [X] T012 [US2] Within the same uncommitted working tree as T010+T011,
   re-run the broader pattern above and observe all pre-existing
   cases (including `ledgerMintPlumbingSpec`,
   `binaryCalculationsSpec`, `feeEstimationRegressionSpec`, the
@@ -163,7 +163,7 @@ nix develop --quiet -c cabal test cardano-wallet-unit:unit -O0 -v0 \
 
 ### Property test
 
-- [ ] T013 [US3] Add ONE QuickCheck property named exactly
+- [X] T013 [US3] Add ONE QuickCheck property named exactly
   `prop_buildLedgerTx_matches_mkUnsignedTx_on_script_witnesses` to
   the same `describe "ledger script-witness parity"` block in
   `lib/unit/test/unit/Cardano/Wallet/Shelley/TransactionLedgerSpec.hs`.
