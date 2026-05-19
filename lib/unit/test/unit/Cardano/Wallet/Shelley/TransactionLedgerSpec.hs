@@ -272,9 +272,6 @@ import Cardano.Wallet.Transaction
     , WitnessCountCtx (..)
     , selectionDelta
     )
-import Cardano.Wallet.Transaction.Delegation
-    ( certificateFromDelegationAction
-    )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex
     )
@@ -1479,28 +1476,10 @@ buildLegacyParityTx
     -> Write.Tx Write.Conway
 buildLegacyParityTx _eraW sel ws ctx =
     let networkId = Cardano.Mainnet
-        wdrlsList = case ctxWithdrawal ctx of
-            NoWithdrawal -> []
-            WithdrawalExternal acct _ amt _ ->
-                [
-                    ( Cardano.makeStakeAddress
-                        networkId
-                        (toCardanoStakeCredential acct)
-                    , toCardanoLovelace amt
-                    )
-                ]
-            WithdrawalSelf acct _ amt ->
-                [
-                    ( Cardano.makeStakeAddress
-                        networkId
-                        (toCardanoStakeCredential acct)
-                    , toCardanoLovelace amt
-                    )
-                ]
-        certsApi = case ctxDelegation ctx of
+        certsLedger = case ctxDelegation ctx of
             Nothing -> []
             Just (cred, depositM, action) ->
-                certificateFromDelegationAction
+                certificateFromDelegationActionLedger
                     Write.RecentEraConway
                     cred
                     depositM
@@ -1510,12 +1489,13 @@ buildLegacyParityTx _eraW sel ws ctx =
                 (view #assetsToMint sel)
                 (swMintingSources ws)
         body = case mkUnsignedTx
+            networkId
             parityTtl
             (Right sel :: Either PreSelection (SelectionOf TxOut))
             Nothing
-            wdrlsList
-            certsApi
-            (toCardanoLovelace parityFee)
+            (ctxWithdrawal ctx)
+            certsLedger
+            parityFee
             mintTokens
             burnTokens
             (swMintingSources ws)

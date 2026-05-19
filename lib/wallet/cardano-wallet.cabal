@@ -243,6 +243,7 @@ library
     Cardano.Wallet.Shelley.Transaction
     Cardano.Wallet.Shelley.Transaction.Build
     Cardano.Wallet.Shelley.Transaction.Ledger
+    Cardano.Wallet.Shelley.Transaction.Unsigned
     Cardano.Wallet.Submissions.Operations
     Cardano.Wallet.Submissions.Primitives
     Cardano.Wallet.Submissions.Properties.Common
@@ -253,8 +254,6 @@ library
     Cardano.Wallet.TokenMetadata
     Cardano.Wallet.Transaction
     Cardano.Wallet.Transaction.Built
-    Cardano.Wallet.Transaction.Delegation
-    Cardano.Wallet.Transaction.Voting
     Cardano.Wallet.TypeLevel
     Control.Concurrent.Concierge
     Control.Monad.Exception.Unchecked

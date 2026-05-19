@@ -22,9 +22,6 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# OPTIONS_GHC -Wno-deprecations #-}
 
--- TODO: Migrate from deprecated Cardano.Api.Certificate to
--- Cardano.Api.Experimental.Certificate
-
 {- HLINT ignore "Use <$>" -}
 {- HLINT ignore "Use camelCase" -}
 
@@ -70,8 +67,6 @@ import Cardano.Address.Script
 import Cardano.Api
     ( NetworkId
     )
--- Removed: Cardano.Api.Error no longer exists, using show instead
-
 import Cardano.Api.Extra
     ( CardanoApiEra
     , fromCardanoApiTx
@@ -91,8 +86,8 @@ import Cardano.Binary
 import Cardano.Crypto.Wallet
     ( XPub
     )
-import Cardano.Ledger.Allegra.Core
-    ( inputsTxBodyL
+import Cardano.Ledger.Core
+    ( TxCert
     )
 import Cardano.Wallet.Address.Derivation
     ( RewardAccount (..)
@@ -113,7 +108,7 @@ import Cardano.Wallet.Flavor
     ( KeyFlavorS (..)
     )
 import Cardano.Wallet.Primitive.Ledger.Convert
-    ( Convert (toLedger)
+    ( toLedgerMintValue
     )
 import Cardano.Wallet.Primitive.Ledger.Read.Tx.TxExtended
     ( fromCardanoTx
@@ -123,13 +118,6 @@ import Cardano.Wallet.Primitive.Ledger.Shelley
     ( cardanoCertKeysForWitnesses
     , fromCardanoAddress
     , fromCardanoWdrls
-    , toCardanoAssetName
-    , toCardanoLovelace
-    , toCardanoPolicyId
-    , toCardanoSimpleScript
-    , toCardanoStakeCredential
-    , toCardanoTxIn
-    , toCardanoTxOut
     )
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..)
@@ -170,7 +158,6 @@ import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TxConstraints (..)
     , TxSize (..)
     , txOutMaxCoin
-    , txOutMaxTokenQuantity
     )
 import Cardano.Wallet.Primitive.Types.Tx.TxExtended
     ( TxExtended (..)
@@ -180,18 +167,25 @@ import Cardano.Wallet.Primitive.Types.Tx.TxIn
     )
 import Cardano.Wallet.Primitive.Types.Tx.TxMetadata
     ( TxMetadata (..)
-    , toShelleyMetadata
     )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..)
+    )
+import Cardano.Wallet.Shelley.Transaction.Unsigned
+    ( ScriptWitnesses (..)
+    , TxPayload (..)
+    , buildLedgerTxRaw
+    , certificateFromDelegationActionLedger
+    , certificateFromVotingActionLedger
+    , extractValidatedOutputs
+    , ledgerNetworkOf
+    , noScriptWitnesses
     )
 import Cardano.Wallet.Transaction
     ( AnyExplicitScript (..)
     , AnyScript (..)
     , ErrMkTransaction (..)
-    , ErrMkTransactionOutputTokenQuantityExceedsLimitError (..)
     , PreSelection (..)
-    , ReferenceInput (..)
     , ScriptSource
     , SelectionOf (..)
     , TokenMapWithScripts
@@ -202,26 +196,11 @@ import Cardano.Wallet.Transaction
     , WitnessCountCtx (..)
     , selectionDelta
     )
-import Cardano.Wallet.Transaction.Delegation
-    ( certificateFromDelegationAction
-    )
-import Cardano.Wallet.Transaction.Voting
-    ( certificateFromVotingAction
-    )
-import Control.Arrow
-    ( left
-    )
-import Control.Lens
-    ( over
-    )
 import Control.Monad
-    ( forM_
-    , guard
-    , when
+    ( guard
     )
 import Data.Functor
     ( ($>)
-    , (<&>)
     )
 import Data.Generics.Internal.VL.Lens
     ( view
@@ -256,8 +235,6 @@ import qualified Cardano.Address.Script as CA
 import qualified Cardano.Address.Style.Shelley as CA
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Byron as Byron
-import qualified Cardano.Api.Certificate as ApiCert
-import qualified Cardano.Api.Experimental.Certificate as ExpCert
 import qualified Cardano.Balance.Tx.Eras as Write
 import qualified Cardano.Balance.Tx.Primitive as BT
 import qualified Cardano.Balance.Tx.Sign as Write
@@ -273,8 +250,7 @@ import qualified Cardano.Balance.Tx.SizeEstimation as Write
     , sizeOf_Withdrawals
     )
 import qualified Cardano.Balance.Tx.Tx as Write
-    ( Coin
-    , FeePerByte
+    ( FeePerByte
     , PParams
     , Tx
     , TxOut
@@ -290,40 +266,17 @@ import qualified Cardano.Ledger.Api as Ledger
 import qualified Cardano.Ledger.Keys.Bootstrap as SL
 import qualified Cardano.Wallet.Primitive.Ledger.Convert as Convert
 import qualified Cardano.Wallet.Primitive.Ledger.Shelley as Compatibility
-import qualified Cardano.Wallet.Primitive.Types.AssetId as AssetId
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Read as Read
 import qualified Data.ByteString as BS
-import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.Map as Map
-import qualified Data.Map.Ordered.Strict as OMap
-import qualified Data.Set as Set
-import qualified Data.Text as T
-
--- | Type encapsulating what we need to know to add things -- payloads,
--- certificates -- to a transaction.
---
--- Designed to allow us to have /one/ @mkTx@ which doesn't care whether we
--- include certificates or not.
-data TxPayload era = TxPayload
-    { _metadata :: Maybe Cardano.TxMetadata
-    -- ^ User or application-defined metadata to be included in the
-    -- transaction.
-    , _certificates :: [Cardano.Certificate (CardanoApiEra era)]
-    -- ^ Certificates to be included in the transactions.
-    , _extraWitnesses :: Cardano.TxBody era -> [Cardano.KeyWitness era]
-    -- ^ Create payload-specific witnesses given the unsigned transaction body.
-    --
-    -- Caller has the freedom and responsibility to provide the correct
-    -- witnesses for what they're trying to do.
-    }
 
 constructUnsignedTx
     :: forall era
      . Write.IsRecentEra era
     => Cardano.NetworkId
-    -> (Maybe TxMetadata, [Cardano.Certificate (CardanoApiEra era)])
+    -> (Maybe TxMetadata, [TxCert era])
     -> (Maybe SlotNo, SlotNo)
     -- ^ Slot at which the transaction will optionally start and expire.
     -> Withdrawal
@@ -352,17 +305,17 @@ constructUnsignedTx
     toMint
     toBurn =
         mkUnsignedTx
+            networkId
             ttl
             cs
             md
-            wdrls
+            wdrl
             certs
-            (toCardanoLovelace fee)
+            fee
             (fst toMint)
             (fst toBurn)
             mintingScripts
       where
-        wdrls = mkWithdrawals networkId wdrl
         mintingScripts = Map.union (snd toMint) (snd toBurn)
 
 -- Adds VK witnesses to an already constructed transactions. The function
@@ -681,13 +634,13 @@ mkUnsignedTransaction networkId stakeCred ctx selection = do
                 []
             Just action -> case stakeCred of
                 Left xpub ->
-                    certificateFromVotingAction
+                    certificateFromVotingActionLedger
                         era
                         (Left xpub)
                         depositM
                         action
                 Right (Just script) ->
-                    certificateFromVotingAction
+                    certificateFromVotingActionLedger
                         era
                         (Right script)
                         depositM
@@ -752,13 +705,13 @@ mkUnsignedTransaction networkId stakeCred ctx selection = do
         Just action -> do
             let delegCerts = case stakeCred of
                     Left xpub ->
-                        certificateFromDelegationAction
+                        certificateFromDelegationActionLedger
                             era
                             (Left xpub)
                             depositM
                             action
                     Right (Just script) ->
-                        certificateFromDelegationAction
+                        certificateFromDelegationActionLedger
                             era
                             (Right script)
                             depositM
@@ -805,12 +758,13 @@ _decodeSealedTx preferredLatestEra sealedTx =
 mkUnsignedTx
     :: forall era
      . Write.IsRecentEra era
-    => (Maybe SlotNo, SlotNo)
+    => Cardano.NetworkId
+    -> (Maybe SlotNo, SlotNo)
     -> Either PreSelection (SelectionOf TxOut)
     -> Maybe TxMetadata
-    -> [(Cardano.StakeAddress, Write.Coin)]
-    -> [Cardano.Certificate (CardanoApiEra era)]
-    -> Write.Coin
+    -> Withdrawal
+    -> [TxCert era]
+    -> Coin
     -> TokenMap
     -> TokenMap
     -> Map AssetId ScriptSource
@@ -819,10 +773,11 @@ mkUnsignedTx
     -> Maybe (Script KeyHash)
     -> Either ErrMkTransaction (Cardano.TxBody (CardanoApiEra era))
 mkUnsignedTx
+    networkId
     ttl
     cs
     md
-    wdrls
+    wdrl
     certs
     fees
     mintData
@@ -832,306 +787,32 @@ mkUnsignedTx
     stakingScriptM
     refScriptM =
         extractValidatedOutputs cs >>= \outs ->
-            left toErrMkTx
-                $ fmap removeDummyInput
-                $ Cardano.createTransactionBody
-                    shelleyEra
-                    Cardano.TxBodyContent
-                        { Cardano.txIns = inputWits
-                        , txInsReference =
-                            let hasRefInp = \case
-                                    Left _ -> False
-                                    Right _ -> True
-                                filteredRefInp = filter hasRefInp $ Map.elems mintingSource
-                                toNodeTxIn (Right (ReferenceInput txin)) = toCardanoTxIn txin
-                                toNodeTxIn _ = error "at this moment we should have reference input"
-                            in  if null filteredRefInp
-                                    then
-                                        Cardano.TxInsReferenceNone
-                                    else
-                                        Cardano.TxInsReference
-                                            babbageOnwards
-                                            (toNodeTxIn <$> filteredRefInp)
-                                            (Cardano.BuildTxWith Set.empty)
-                        , Cardano.txOuts = case refScriptM of
-                            Nothing ->
-                                map (toCardanoTxOut shelleyEra Nothing) outs
-                            Just _ -> case outs of
-                                firstOut : rest ->
-                                    let cardanoFirstTxOut =
-                                            toCardanoTxOut shelleyEra refScriptM firstOut
-                                    in  cardanoFirstTxOut
-                                            : (map (toCardanoTxOut shelleyEra Nothing) rest)
-                                _ ->
-                                    []
-                        , Cardano.txWithdrawals = case stakingScriptM of
-                            Nothing ->
-                                let ctx =
-                                        Cardano.BuildTxWith
-                                            $ Cardano.KeyWitness Cardano.KeyWitnessForStakeAddr
-                                in  Cardano.TxWithdrawals
-                                        shelleyEra
-                                        (map (\(key, coin) -> (key, coin, ctx)) wdrls)
-                            Just stakingScript ->
-                                let
-                                    buildVal =
-                                        Cardano.ScriptWitness
-                                            Cardano.ScriptWitnessForStakeAddr
-                                            (toScriptWitness stakingScript)
-                                    ctx = Cardano.BuildTxWith buildVal
-                                in
-                                    Cardano.TxWithdrawals
-                                        shelleyEra
-                                        (map (\(key, coin) -> (key, coin, ctx)) wdrls)
-                        , -- @mkUnsignedTx@ is never used with Plutus scripts, and so we never have to
-                          -- care about collateral or PParams (for script integrity hash) here.
-                          --
-                          -- If constructTransaction because of multisig in the future ever needs to
-                          -- run/redeem Plutus scripts, we should re-use balanceTransaction and remove
-                          -- this @mkUnsignedTx@. (We should do this regardless.)
-                          txInsCollateral = Cardano.TxInsCollateralNone
-                        , txTotalCollateral = Cardano.TxTotalCollateralNone
-                        , txReturnCollateral = Cardano.TxReturnCollateralNone
-                        , txProtocolParams = Cardano.BuildTxWith Nothing
-                        , txScriptValidity = Cardano.TxScriptValidityNone
-                        , txExtraKeyWits = Cardano.TxExtraKeyWitnessesNone
-                        , Cardano.txCertificates = case stakingScriptM of
-                            Nothing ->
-                                let
-                                    ctx = Cardano.BuildTxWith Nothing
-                                in
-                                    Cardano.TxCertificates shelleyEra
-                                        $ OMap.fromList
-                                        $ map certToLedger certs
-                                        <&> (,ctx)
-                            Just stakingScript ->
-                                let
-                                    buildKey =
-                                        Cardano.StakeCredentialByScript
-                                            . Cardano.hashScript
-                                            . Cardano.SimpleScript
-                                            $ toCardanoSimpleScript stakingScript
-                                    buildVal =
-                                        Cardano.ScriptWitness
-                                            Cardano.ScriptWitnessForStakeAddr
-                                            (toScriptWitness stakingScript)
-                                    witPair = Just (buildKey, buildVal)
-                                    ctx = Cardano.BuildTxWith witPair
-                                in
-                                    Cardano.TxCertificates shelleyEra
-                                        $ OMap.fromList
-                                        $ map certToLedger certs
-                                        <&> (,ctx)
-                        , Cardano.txFee = Cardano.TxFeeExplicit shelleyEra fees
-                        , Cardano.txValidityLowerBound =
-                            case fst ttl of
-                                Nothing ->
-                                    Cardano.TxValidityNoLowerBound
-                                Just from ->
-                                    Cardano.TxValidityLowerBound allegraOnwards from
-                        , Cardano.txValidityUpperBound =
-                            Cardano.TxValidityUpperBound shelleyEra (Just $ snd ttl)
-                        , Cardano.txMetadata =
-                            case md of
-                                Nothing -> Cardano.TxMetadataNone
-                                Just (TxMetadata d) ->
-                                    Cardano.TxMetadataInEra shelleyEra
-                                        $ Cardano.makeTransactionMetadata
-                                        $ Cardano.fromShelleyMetadata
-                                        $ toShelleyMetadata d
-                        , Cardano.txAuxScripts =
-                            Cardano.TxAuxScriptsNone
-                        , Cardano.txUpdateProposal =
-                            Cardano.TxUpdateProposalNone
-                        , Cardano.txMintValue =
-                            let toScriptWitnessGeneral = \case
-                                    Left script -> toScriptWitness script
-                                    Right (ReferenceInput txin) ->
-                                        Cardano.SimpleScriptWitness scriptWitsSupported
-                                            $ Cardano.SReferenceScript
-                                            $ toCardanoTxIn txin
-                                -- Build (PolicyAssets, ScriptWitness) per policy
-                                collect burn (assetId, TokenQuantity q) = do
-                                    scriptSource <- case Map.lookup assetId mintingSource of
-                                        Just script ->
-                                            pure
-                                                $ Cardano.BuildTxWith
-                                                $ toScriptWitnessGeneral script
-                                        Nothing -> []
-                                    let qty = (if burn then negate else id) $ fromIntegral q
-                                        policyAssets =
-                                            Cardano.PolicyAssets
-                                                $ Map.singleton (toCardanoAssetName $ assetName assetId) qty
-                                    pure
-                                        $ Map.singleton
-                                            (toCardanoPolicyId . AssetId.policyId $ assetId)
-                                            (policyAssets, scriptSource)
-                                -- Merge PolicyAssets for same PolicyId
-                                mergeMint (pa1, wit) (pa2, _) =
-                                    (pa1 <> pa2, wit)
-                            in  Cardano.TxMintValue maryOnwards
-                                    $ Map.unionsWith mergeMint
-                                    $ (TokenMap.toFlatList mintData >>= collect False)
-                                        <> (TokenMap.toFlatList burnData >>= collect True)
-                        , Cardano.txProposalProcedures =
-                            Nothing
-                        , Cardano.txVotingProcedures =
-                            Nothing
-                        , txCurrentTreasuryValue = Nothing
-                        , txTreasuryDonation = Nothing
-                        }
+            let ledgerTx =
+                    buildLedgerTxRaw
+                        era
+                        ttl
+                        (ledgerNetworkOf networkId)
+                        wdrl
+                        fees
+                        md
+                        certs
+                        outs
+                        cs
+                        (toLedgerMintValue mintData burnData)
+                        scriptWitnesses
+                Cardano.Tx body _ = toCardanoApiTx ledgerTx
+            in  Right body
       where
         era = Write.recentEra @era
 
-        toErrMkTx :: Cardano.TxBodyError -> ErrMkTransaction
-        toErrMkTx =
-            ErrMkTransactionTxBodyError . T.pack . show
-
-        -- Extra validation for HTTP API backward compatibility:
-        --
-        -- Previously validation of user-provided payment outputs was handled by
-        -- coin-selection, as coin-selection was run before assembling the
-        -- transaction as a real 'Cardano.Tx'. Now, with 'balanceTx' this is no
-        -- longer the case, meaning that validation from cardano-api would take
-        -- precedence without this extra preceeding validation.
-        --
-        -- We may concider to, after ADP-2268:
-        -- - Embrace cardano-api errors and remove this function
-        -- - Extract and re-use validation from coin-selection, rather than
-        --     duplicating.
-        -- - Remove validation from coin-selection itself
-        extractValidatedOutputs
-            :: Either PreSelection (SelectionOf TxOut)
-            -> Either ErrMkTransaction [TxOut]
-        extractValidatedOutputs sel =
-            mapM validateOut $ case sel of
-                Right selOf -> view #outputs selOf ++ F.toList (view #change selOf)
-                Left preSel -> view #outputs preSel
-          where
-            validateOut :: TxOut -> Either ErrMkTransaction TxOut
-            validateOut out = do
-                verifyOutputTokenQuantities out
-                return out
-              where
-                verifyOutputTokenQuantities :: TxOut -> Either ErrMkTransaction ()
-                verifyOutputTokenQuantities (TxOut addr (TokenBundle _ tokens)) = do
-                    forM_ (TokenMap.toFlatList tokens) $ \(asset, quantity) -> do
-                        when (quantity > txOutMaxTokenQuantity)
-                            $ Left (mkErr asset quantity)
-                  where
-                    mkErr aid q =
-                        ErrMkTransactionOutputTokenQuantityExceedsLimit
-                            $ ErrMkTransactionOutputTokenQuantityExceedsLimitError
-                                { address = addr
-                                , asset = aid
-                                , quantity = q
-                                , quantityMaxBound = txOutMaxTokenQuantity
-                                }
-
-        scriptWitsSupported
-            :: Cardano.ScriptLanguageInEra
-                Cardano.SimpleScript'
-                (CardanoApiEra era)
-        scriptWitsSupported = case era of
-            RecentEraConway -> Cardano.SimpleScriptInConway
-            RecentEraDijkstra ->
-                error "scriptWitsSupported: Dijkstra era not yet supported"
-
-        toScriptWitness
-            :: Script KeyHash
-            -> Cardano.ScriptWitness witctx (CardanoApiEra era)
-        toScriptWitness script =
-            Cardano.SimpleScriptWitness
-                scriptWitsSupported
-                (Cardano.SScript $ toCardanoSimpleScript script)
-
-        constructInpScriptWit inp =
-            let script = case Map.lookup inp inpsScripts of
-                    Nothing ->
-                        error
-                            $ unwords
-                                [ "constructInpScriptWit:"
-                                , "each input should have script in multisig"
-                                ]
-                    Just script' -> script'
-                scriptWit = toScriptWitness script
-            in  ( toCardanoTxIn inp
-                , Cardano.BuildTxWith
-                    (Cardano.ScriptWitness Cardano.ScriptWitnessForSpending scriptWit)
-                )
-        inputWits = case cs of
-            Right selOf ->
-                if inpsScripts == Map.empty
-                    then
-                        (,buildTxCommand)
-                            . toCardanoTxIn
-                            . fst
-                            <$> F.toList (view #inputs selOf)
-                    else
-                        constructInpScriptWit . fst <$> F.toList (view #inputs selOf)
-            Left _preSel ->
-                [(toCardanoTxIn dummyInput, buildTxCommand)]
-          where
-            buildTxCommand =
-                Cardano.BuildTxWith
-                    $ Cardano.KeyWitness Cardano.KeyWitnessForSpending
-
-        shelleyEra = shelleyBasedEraFromRecentEra era
-
-        allegraOnwards :: Cardano.AllegraEraOnwards (CardanoApiEra era)
-        allegraOnwards = case era of
-            RecentEraConway -> Cardano.AllegraEraOnwardsConway
-            RecentEraDijkstra ->
-                error "allegraOnwards: Dijkstra era not yet supported"
-
-        maryOnwards :: Cardano.MaryEraOnwards (CardanoApiEra era)
-        maryOnwards = case era of
-            RecentEraConway -> Cardano.MaryEraOnwardsConway
-            RecentEraDijkstra ->
-                error "maryOnwards: Dijkstra era not yet supported"
-
-        babbageOnwards :: Cardano.BabbageEraOnwards (CardanoApiEra era)
-        babbageOnwards = case era of
-            RecentEraConway -> Cardano.BabbageEraOnwardsConway
-            RecentEraDijkstra ->
-                error "babbageOnwards: Dijkstra era not yet supported"
-
--- TODO: ADP-2257
--- cardano-node does not allow to construct tx without inputs at this moment.
--- this should change and this hack should be removed
-dummyInput :: TxIn
-dummyInput = TxIn (Hash $ BS.replicate 32 0) 999
-
-removeDummyInput
-    :: forall era
-     . Write.IsRecentEra era
-    => Cardano.TxBody (CardanoApiEra era)
-    -> Cardano.TxBody (CardanoApiEra era)
-removeDummyInput = case Write.recentEra @era of
-    RecentEraConway -> \case
-        Cardano.ShelleyTxBody sbe body scripts scriptData aux val ->
-            Cardano.ShelleyTxBody
-                sbe
-                (over inputsTxBodyL (Set.delete (toLedger dummyInput)) body)
-                scripts
-                scriptData
-                aux
-                val
-    RecentEraDijkstra ->
-        error "removeDummyInput: Dijkstra era not yet supported"
-
-mkWithdrawals
-    :: NetworkId
-    -> Withdrawal
-    -> [(Cardano.StakeAddress, Write.Coin)]
-mkWithdrawals networkId wdrl = case wdrl of
-    NoWithdrawal -> []
-    WithdrawalExternal acc _ amt _ ->
-        [(stakeAddress acc, toCardanoLovelace amt)]
-    WithdrawalSelf acc _ amt ->
-        [(stakeAddress acc, toCardanoLovelace amt)]
-  where
-    stakeAddress = Cardano.makeStakeAddress networkId . toCardanoStakeCredential
+        scriptWitnesses :: ScriptWitnesses
+        scriptWitnesses =
+            noScriptWitnesses
+                { swNativeInputs = inpsScripts
+                , swStakingScript = stakingScriptM
+                , swMintingSources = mintingSource
+                , swReferenceScript = refScriptM
+                }
 
 mkShelleyWitness
     :: forall era
@@ -1148,14 +829,6 @@ mkShelleyWitness body key =
         Cardano.WitnessPaymentExtendedKey
             $ Cardano.PaymentExtendedSigningKey
             $ Crypto.HD.xPrvChangePass pwd BS.empty xprv
-
-certToLedger
-    :: Cardano.Certificate era
-    -> ExpCert.Certificate (Cardano.ShelleyLedgerEra era)
-certToLedger (ApiCert.ShelleyRelatedCertificate w txCert) =
-    Cardano.shelleyToBabbageEraConstraints w $ ExpCert.Certificate txCert
-certToLedger (ApiCert.ConwayCertificate w txCert) =
-    Cardano.conwayEraOnwardsConstraints w $ ExpCert.Certificate txCert
 
 mkByronWitness
     :: forall era
