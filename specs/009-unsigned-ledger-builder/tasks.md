@@ -50,11 +50,11 @@ T014-T016 fold into one review-response commit with subject `refactor(5285): add
 
 ## Phase 5: User Story 3 - policy guard and finalization (Priority: P2)
 
-- [ ] T020 Run `./gate.sh` at HEAD and record the passing result in the PR body.
-- [ ] T021 Verify `git diff --name-only origin/master...HEAD | rg '^lib/integration/'` prints nothing.
-- [ ] T022 Verify removed surface with `rg`: no remaining helper-module imports and no `createTransactionBody` / `TxBodyContent` in the migrated unsigned builder.
-- [ ] T023 Run finalization audit over commits and task checkboxes.
-- [ ] T024 Drop `gate.sh` in a dedicated `chore: drop gate.sh (ready for review)` commit, push, and mark PR #5292 ready.
+- [X] T020 Run `./gate.sh` at HEAD and record the passing result in the PR body.
+- [X] T021 Verify `git diff --name-only origin/master...HEAD | rg '^lib/integration/'` prints nothing.
+- [X] T022 Verify removed surface with `rg`: no remaining helper-module imports and no `createTransactionBody` / `TxBodyContent` in the migrated unsigned builder.
+- [X] T023 Run finalization audit over commits and task checkboxes.
+- [X] T024 Drop `gate.sh` in a dedicated `chore: drop gate.sh (ready for review)` commit, push, and mark PR #5292 ready.
 
 ## Dependencies & Execution Order
 
