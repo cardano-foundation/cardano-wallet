@@ -85,6 +85,7 @@ import Cardano.Wallet.Address.Derivation
     )
 import Cardano.Wallet.Primitive.Ledger.Convert
     ( Convert (toLedger)
+    , toLedgerCoin
     , toLedgerDelegatee
     , toLedgerMintValue
     , toLedgerTimelockScript
@@ -276,45 +277,17 @@ buildLedgerTx
     -> MultiAsset
     -> ScriptWitnesses
     -> Write.Tx era
-buildLedgerTx era ttl network wdrl fee md certs outs cs mint sws =
-    installScriptWitnesses era sws
-        $ mkLedgerTx
-            era
-            ins
-            ledgerOuts
-            ledgerFee
-            validity
-            wdrls
-            ledgerCerts
-            mint
-            metadata
-  where
-    ins :: Set Ledger.TxIn
-    ins =
-        Set.fromList
-            $ map (toLedger . fst)
-            $ F.toList (view #inputs cs)
-
-    ledgerOuts :: StrictSeq (Write.TxOut era)
-    ledgerOuts =
-        StrictSeq.fromList $ map toLedgerTxOut outs
-
-    ledgerFee :: Ledger.Coin
-    ledgerFee = toCardanoLovelace fee
-
-    validity :: ValidityInterval
-    validity = mkValidityInterval ttl
-
-    wdrls :: Withdrawals
-    wdrls = mkWithdrawalsLedger network wdrl
-
-    ledgerCerts :: StrictSeq (TxCert era)
-    ledgerCerts = StrictSeq.fromList certs
-
-    metadata :: Map Word64 Metadatum
-    metadata = case md of
-        Nothing -> Map.empty
-        Just m -> toShelleyMetadata (unTxMetadata m)
+buildLedgerTx era ttl network wdrl fee md certs outs cs =
+    buildLedgerTxRaw
+        era
+        ttl
+        network
+        wdrl
+        fee
+        md
+        certs
+        outs
+        (Right cs)
 
 -- | Lower-level builder that takes already-converted types.
 buildLedgerTxRaw
@@ -683,6 +656,3 @@ toLedgerStakeCred = \case
                 @LApi.ConwayEra
             $ Alonzo.NativeScript
             $ toLedgerTimelockScript script
-
-toLedgerCoin :: Coin -> Ledger.Coin
-toLedgerCoin = toCardanoLovelace

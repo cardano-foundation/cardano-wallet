@@ -1428,6 +1428,24 @@ ledgerScriptWitnessParitySpec' eraW =
                         }
             shouldHaveBodyParity eraW sel ws ctx
 
+        it "7. local burn (assetsToBurn with Left script in ScriptSource)" $ do
+            let script = mkScript 77
+            let aid = mkAsset 0xEE 1
+            let mintMap = Map.singleton aid (Left script :: ScriptSource)
+            let sel =
+                    (mkSimpleSelection (Coin 10_000_000) [mkOut 1 2_000_000])
+                        { assetsToBurn =
+                            TokenMap.singleton aid (TokenQuantity 4)
+                        }
+            let ws = noScriptWitnesses{swMintingSources = mintMap}
+            let legacy = buildLegacyParityTx eraW sel ws emptyCtx
+            let new = buildNewParityTx eraW sel ws emptyCtx
+            -- MultiAsset parity: both builders must encode the burn the
+            -- same way in the ledger mint field.
+            (legacy ^. bodyTxL . mintTxBodyL)
+                `shouldBe` (new ^. bodyTxL . mintTxBodyL)
+            shouldHaveBodyParity eraW sel ws emptyCtx
+
         prop "prop_buildLedgerTx_matches_mkUnsignedTx_on_script_witnesses"
             $ withMaxSuccess 100
             $ forAll genParityCase
@@ -1485,6 +1503,7 @@ buildLegacyParityTx _eraW sel ws ctx =
         (mintTokens, burnTokens) =
             mintBurnFromMintingSources
                 (view #assetsToMint sel)
+                (view #assetsToBurn sel)
                 (swMintingSources ws)
         body = case mkUnsignedTx
             networkId
@@ -1537,15 +1556,15 @@ buildNewParityTx eraW sel ws ctx =
             ledgerMint
             ws
 
--- | Split mint/burn TokenMaps using the *signed* mint quantities from the
--- selection.assetsToMint TokenMap: positive entries go to mintTokens, negative
--- (if any) to burnTokens. The selection-based fixtures used here only mint
--- (no burn), but we keep the split future-proof.
+-- | Pass the selection's mint and burn TokenMaps through to the legacy
+-- builder unchanged. The minting-sources map is unused for the split but
+-- threaded so the signature mirrors the new builder's @ScriptWitnesses@.
 mintBurnFromMintingSources
     :: TokenMap.TokenMap
+    -> TokenMap.TokenMap
     -> Map AssetId ScriptSource
     -> (TokenMap.TokenMap, TokenMap.TokenMap)
-mintBurnFromMintingSources mint _ = (mint, TokenMap.empty)
+mintBurnFromMintingSources mint burn _ = (mint, burn)
 
 shouldHaveBodyParity
     :: RecentEra Write.Conway

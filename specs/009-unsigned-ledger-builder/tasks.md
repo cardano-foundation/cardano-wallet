@@ -42,9 +42,9 @@ T010-T013 fold into one commit with subject `feat(5285): migrate unsigned Shelle
 
 **Independent Test**: focused Shelley transaction unit specs plus `./gate.sh`.
 
-- [ ] T014 [US1] Refactor `buildLedgerTx` in `lib/wallet/src/Cardano/Wallet/Shelley/Transaction/Unsigned.hs` to delegate to `buildLedgerTxRaw ... (Right cs) ...`, removing the duplicate ledger-body construction while preserving the public signature and output bytes.
-- [ ] T015 [US1] Replace the local `toLedgerCoin` alias in `lib/wallet/src/Cardano/Wallet/Shelley/Transaction/Unsigned.hs` with the primitive `Cardano.Wallet.Primitive.Ledger.Convert.toLedgerCoin` import, and keep `toCardanoLovelace` only where still intentionally needed.
-- [ ] T016 [US1] Add parity coverage for non-empty `assetsToBurn` in `lib/unit/test/unit/Cardano/Wallet/Shelley/TransactionLedgerSpec.hs`, proving legacy `mkUnsignedTx` and new `buildLedgerTx` agree on the ledger `MultiAsset` when burn values are present.
+- [X] T014 [US1] Refactor `buildLedgerTx` in `lib/wallet/src/Cardano/Wallet/Shelley/Transaction/Unsigned.hs` to delegate to `buildLedgerTxRaw ... (Right cs) ...`, removing the duplicate ledger-body construction while preserving the public signature and output bytes.
+- [X] T015 [US1] Replace the local `toLedgerCoin` alias in `lib/wallet/src/Cardano/Wallet/Shelley/Transaction/Unsigned.hs` with the primitive `Cardano.Wallet.Primitive.Ledger.Convert.toLedgerCoin` import, and keep `toCardanoLovelace` only where still intentionally needed.
+- [X] T016 [US1] Add parity coverage for non-empty `assetsToBurn` in `lib/unit/test/unit/Cardano/Wallet/Shelley/TransactionLedgerSpec.hs`, proving legacy `mkUnsignedTx` and new `buildLedgerTx` agree on the ledger `MultiAsset` when burn values are present.
 
 T014-T016 fold into one review-response commit with subject `refactor(5285): address unsigned builder review feedback` and trailer `Tasks: T014, T015, T016`.
 
