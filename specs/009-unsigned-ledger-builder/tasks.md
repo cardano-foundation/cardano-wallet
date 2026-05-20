@@ -36,18 +36,30 @@ No separate foundational implementation commit. The acyclic builder boundary is 
 
 T010-T013 fold into one commit with subject `feat(5285): migrate unsigned Shelley tx builder` and trailer `Tasks: T010, T011, T012, T013`.
 
-## Phase 4: User Story 3 - policy guard and finalization (Priority: P2)
+## Phase 4: Review refinements (Priority: P1)
 
-- [X] T020 Run `./gate.sh` at HEAD and record the passing result in the PR body.
-- [X] T021 Verify `git diff --name-only origin/master...HEAD | rg '^lib/integration/'` prints nothing.
-- [X] T022 Verify removed surface with `rg`: no remaining helper-module imports and no `createTransactionBody` / `TxBodyContent` in the migrated unsigned builder.
-- [X] T023 Run finalization audit over commits and task checkboxes.
-- [X] T024 Drop `gate.sh` in a dedicated `chore: drop gate.sh (ready for review)` commit, push, and mark PR #5292 ready.
+**Goal**: Address Copilot review feedback without broadening the #5285 behavior scope.
+
+**Independent Test**: focused Shelley transaction unit specs plus `./gate.sh`.
+
+- [ ] T014 [US1] Refactor `buildLedgerTx` in `lib/wallet/src/Cardano/Wallet/Shelley/Transaction/Unsigned.hs` to delegate to `buildLedgerTxRaw ... (Right cs) ...`, removing the duplicate ledger-body construction while preserving the public signature and output bytes.
+- [ ] T015 [US1] Replace the local `toLedgerCoin` alias in `lib/wallet/src/Cardano/Wallet/Shelley/Transaction/Unsigned.hs` with the primitive `Cardano.Wallet.Primitive.Ledger.Convert.toLedgerCoin` import, and keep `toCardanoLovelace` only where still intentionally needed.
+- [ ] T016 [US1] Add parity coverage for non-empty `assetsToBurn` in `lib/unit/test/unit/Cardano/Wallet/Shelley/TransactionLedgerSpec.hs`, proving legacy `mkUnsignedTx` and new `buildLedgerTx` agree on the ledger `MultiAsset` when burn values are present.
+
+T014-T016 fold into one review-response commit with subject `refactor(5285): address unsigned builder review feedback` and trailer `Tasks: T014, T015, T016`.
+
+## Phase 5: User Story 3 - policy guard and finalization (Priority: P2)
+
+- [ ] T020 Run `./gate.sh` at HEAD and record the passing result in the PR body.
+- [ ] T021 Verify `git diff --name-only origin/master...HEAD | rg '^lib/integration/'` prints nothing.
+- [ ] T022 Verify removed surface with `rg`: no remaining helper-module imports and no `createTransactionBody` / `TxBodyContent` in the migrated unsigned builder.
+- [ ] T023 Run finalization audit over commits and task checkboxes.
+- [ ] T024 Drop `gate.sh` in a dedicated `chore: drop gate.sh (ready for review)` commit, push, and mark PR #5292 ready.
 
 ## Dependencies & Execution Order
 
 ```text
-T000 -> T001 -> T002 -> (T010 + T011 + T012 + T013, one worker commit) -> T020 -> T021 -> T022 -> T023 -> T024
+T000 -> T001 -> T002 -> (T010 + T011 + T012 + T013, one worker commit) -> (T014 + T015 + T016, one review-response commit) -> T020 -> T021 -> T022 -> T023 -> T024
 ```
 
 ## Parallel Opportunities
@@ -60,4 +72,5 @@ None for implementation. The parent epic and tracker require serial behavior-cha
 2. One tmux-controlled worker receives [briefs/T010-T013.md](./briefs/T010-T013.md).
 3. Worker appends progress to `WIP.md`, performs RED -> GREEN -> `./gate.sh`, and returns exactly one commit.
 4. Orchestrator reviews the diff, reruns `./gate.sh`, stamps T010-T013 in this file by amending the worker commit, and pushes.
-5. Orchestrator completes finalization tasks and marks the PR ready.
+5. If review feedback requires code changes, orchestrator restores `gate.sh`, records bounded follow-up tasks, and dispatches a fresh worker for the review-response commit.
+6. Orchestrator completes finalization tasks and marks the PR ready.
