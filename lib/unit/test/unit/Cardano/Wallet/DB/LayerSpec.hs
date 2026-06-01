@@ -53,9 +53,6 @@ import Cardano.BM.Setup
 import Cardano.BM.Trace
     ( traceInTVarIO
     )
-import Cardano.Crypto.Wallet
-    ( XPrv
-    )
 import Cardano.DB.Sqlite
     ( DBLog (..)
     )
