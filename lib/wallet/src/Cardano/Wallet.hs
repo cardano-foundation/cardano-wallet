@@ -294,6 +294,10 @@ import Cardano.Balance.Tx.Tx
 import Cardano.Crypto.Wallet
     ( toXPub
     )
+import Cardano.Crypto.Libsodium
+    ( mlsbFinalize
+    , mlsbToByteString
+    )
 import Cardano.Crypto.WalletHD.Encrypted
     ( EncryptedKey
     , XPrvError (..)
@@ -3703,8 +3707,9 @@ attachPrivateKeyFromPwd
     => WalletLayer IO s
     -> (KeyOf s 'RootK XPrv, Passphrase "user")
     -> IO ()
-attachPrivateKeyFromPwd ctx (key, pwd) =
-    attachPrivateKey db (mkV2Credentials (keyFlavorFromState @s) key pwd) EncryptWithArgon2idV2
+attachPrivateKeyFromPwd ctx (key, pwd) = do
+    creds <- mkV2Credentials (keyFlavorFromState @s) key pwd
+    attachPrivateKey db creds EncryptWithArgon2idV2
   where
     db = ctx ^. dbLayer
 
@@ -3715,8 +3720,8 @@ mkV2Credentials
     :: KeyFlavorS k
     -> k 'RootK XPrv
     -> Passphrase "user"
-    -> HashedCredentials k
-mkV2Credentials kF key pwd =
+    -> IO (HashedCredentials k)
+mkV2Credentials kF key pwd = do
     let rawXprv = getRawKey kF key
         prepared = preparePassphrase currentPassphraseScheme pwd
         -- Decrypt PBKDF2-encrypted XPrv to plaintext (empty new passphrase)
@@ -3727,10 +3732,10 @@ mkV2Credentials kF key pwd =
         mPayload = case kF of
             ByronKeyS -> Just (payloadPassphrase key)
             _ -> Nothing
-    in case encryptedCreateDirectWithTweak masterKey96 pwd of
+    encryptedCreateDirectWithTweak masterKey96 pwd >>= \case
         Left err ->
             error $ "mkV2Credentials: encryptedCreateDirectWithTweak: " <> show err
-        Right ekey -> HashedCredentialsV2 ekey mPayload
+        Right ekey -> pure $ HashedCredentialsV2 ekey mPayload
 
 -- | The hash here is the output of Scrypt function with the following parameters:
 -- - logN = 14
@@ -3824,28 +3829,31 @@ withRootKey
     -> (KeyOf s 'RootK XPrv -> PassphraseScheme -> ExceptT e IO a)
     -> ExceptT e IO a
 withRootKey db@DBLayer{..} wid pwd embed action = do
-    validated <- withExceptT embed . ExceptT . atomically $ do
+    (mCreds, mScheme) <- lift . atomically $ do
         wMetadata <- readWalletMeta walletState
         let mScheme = passphraseScheme <$> passphraseInfo wMetadata
         mCreds <- readPrivateKey walletState
-        pure $ case (mCreds, mScheme) of
-            (Just (HashedCredentialsV1 xprv hpwd), Just scheme) ->
-                case checkPassphrase scheme pwd hpwd of
-                    Left err -> Left $ ErrWithRootKeyWrongPassphrase wid err
-                    Right _ -> Right $ Left (xprv, scheme)
-            (Just (HashedCredentialsV2 ekey mPayload), Just _) ->
-                case encryptedValidatePassphrase ekey pwd of
-                    Left _ ->
-                        Left $ ErrWithRootKeyWrongPassphrase wid ErrWrongPassphrase
-                    Right () -> Right $ Right (ekey, mPayload)
-            _ -> Left $ ErrWithRootKeyNoRootKey wid
+        pure (mCreds, mScheme)
+    validated <- withExceptT embed . ExceptT $ case (mCreds, mScheme) of
+        (Just (HashedCredentialsV1 xprv hpwd), Just scheme) ->
+            pure $ case checkPassphrase scheme pwd hpwd of
+                Left err -> Left $ ErrWithRootKeyWrongPassphrase wid err
+                Right _ -> Right $ Left (xprv, scheme)
+        (Just (HashedCredentialsV2 ekey mPayload), Just _) -> do
+            result <- encryptedValidatePassphrase ekey pwd
+            pure $ case result of
+                Left _ ->
+                    Left $ ErrWithRootKeyWrongPassphrase wid ErrWrongPassphrase
+                Right () -> Right $ Right (ekey, mPayload)
+        _ -> pure $ Left $ ErrWithRootKeyNoRootKey wid
     case validated of
         Left (xprv, scheme) -> do
             -- Opportunistically migrate V1 → V2 on successful passphrase use.
             lift $ migrateV1toV2 db kF xprv scheme pwd
             action xprv scheme
-        Right (ekey, mPayload) ->
-            case decryptV2 kF ekey mPayload pwd of
+        Right (ekey, mPayload) -> do
+            result <- lift $ decryptV2 kF ekey mPayload pwd
+            case result of
                 Left _ ->
                     throwE $ embed $ ErrWithRootKeyWrongPassphrase wid ErrWrongPassphrase
                 Right xprv -> action xprv EncryptWithArgon2idV2
@@ -3872,7 +3880,7 @@ migrateV1toV2 DBLayer{..} kF key scheme pwd = do
         mPayload = case kF of
             ByronKeyS -> Just (payloadPassphrase key)
             _ -> Nothing
-    case encryptedCreateDirectWithTweak masterKey96 pwd of
+    encryptedCreateDirectWithTweak masterKey96 pwd >>= \case
         Left _ -> pure ()  -- fail silently; key stays V1 until next use
         Right ekey -> atomically $ do
             putPrivateKey walletState (HashedCredentialsV2 ekey mPayload)
@@ -3888,13 +3896,17 @@ decryptV2
     -> EncryptedKey
     -> Maybe (Passphrase "addr-derivation-payload")
     -> Passphrase "user"
-    -> Either XPrvError (k 'RootK XPrv)
+    -> IO (Either XPrvError (k 'RootK XPrv))
 decryptV2 kF ekey mPayload pwd = do
-    raw128 <- encryptedKeyMaterial ekey pwd
-    let raw128bs = BA.convert raw128 :: ByteString
-    case CC.xprv raw128bs of
-        Left _ -> Left XPrvInvalidSecretKey
-        Right plaintextXprv -> Right $ reconstructRootKey kF plaintextXprv mPayload
+    result <- encryptedKeyMaterial ekey pwd
+    case result of
+        Left err -> pure $ Left err
+        Right raw128 -> do
+            raw128bs <- mlsbToByteString raw128
+            mlsbFinalize raw128
+            pure $ case CC.xprv raw128bs of
+                Left _ -> Left XPrvInvalidSecretKey
+                Right plaintextXprv -> Right $ reconstructRootKey kF plaintextXprv mPayload
 
 reconstructRootKey
     :: KeyFlavorS k
