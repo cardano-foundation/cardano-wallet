@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -143,11 +144,10 @@ genV1ByronCreds =
 -- Must be called within 'withFastKdfForTesting'.
 mkTestEncryptedKey :: IO EncryptedKey
 mkTestEncryptedKey =
-    case
-        encryptedCreate
-            (BS.replicate 32 0x02 :: BS.ByteString)
-            ("test-passphrase-0123456789" :: BS.ByteString)
-            (BS.replicate 32 0xAB :: BS.ByteString)
-    of
-        Left err -> error $ "mkTestEncryptedKey: " <> show err
-        Right k -> pure k
+    encryptedCreate
+        (BS.replicate 32 0x02 :: BS.ByteString)
+        ("test-passphrase-0123456789" :: BS.ByteString)
+        (BS.replicate 32 0xAB :: BS.ByteString)
+        >>= \case
+            Left err -> error $ "mkTestEncryptedKey: " <> show err
+            Right k -> pure k

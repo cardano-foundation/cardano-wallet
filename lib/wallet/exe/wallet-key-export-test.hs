@@ -70,6 +70,9 @@ import Cardano.Wallet.Primitive.Passphrase.Types
 import Cardano.Wallet.Primitive.Types
     ( WalletId
     )
+import Cardano.Wallet.Primitive.Types.Credentials
+    ( HashedCredentials (..)
+    )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
     )
@@ -206,7 +209,7 @@ prop_shelleyRoundtrip exe =
                             encPass
                 (_, passHash) <- encryptPassphrase userPass
                 let (rootHex, hashHex) =
-                        serializeXPrv ShelleyKeyS (key, passHash)
+                        serializeXPrv ShelleyKeyS (HashedCredentialsV1 key passHash)
                     xprv = getRawKey ShelleyKeyS key
                     expected =
                         B16.encode
@@ -244,7 +247,7 @@ prop_byronRoundtrip exe =
                 passHash <-
                     encryptPassphraseTestingOnly hashLen encPass
                 let (rootHex, hashHex) =
-                        serializeXPrv ByronKeyS (key, passHash)
+                        serializeXPrv ByronKeyS (HashedCredentialsV1 key passHash)
                     xprv = getRawKey ByronKeyS key
                     expected =
                         B16.encode
@@ -282,7 +285,7 @@ prop_wrongPassphrase exe =
                             generateKeyFromSeed (mnemonic, Nothing) encPass
                     (_, passHash) <- encryptPassphrase userPass
                     let (rootHex, hashHex) =
-                            serializeXPrv ShelleyKeyS (key, passHash)
+                            serializeXPrv ShelleyKeyS (HashedCredentialsV1 key passHash)
                     runWrongPassTest exe wid rootHex hashHex wrongPass
 
 -- | Wrong passphrase with Byron/Scrypt scheme.
@@ -311,7 +314,7 @@ prop_wrongPassphraseByron exe =
                     let (rootHex, hashHex) =
                             serializeXPrv
                                 ByronKeyS
-                                (key, passHash)
+                                (HashedCredentialsV1 key passHash)
                     runWrongPassTest
                         exe
                         wid
@@ -340,7 +343,7 @@ prop_wrongSchemeShelley exe =
                 passHash <-
                     encryptPassphraseTestingOnly 64 encPass
                 let (rootHex, hashHex) =
-                        serializeXPrv ShelleyKeyS (key, passHash)
+                        serializeXPrv ShelleyKeyS (HashedCredentialsV1 key passHash)
                 -- Tool detects Shelley, assumes PBKDF2, but hash
                 -- is Scrypt — should fail even with correct pass.
                 runWrongPassTest
@@ -368,7 +371,7 @@ prop_wrongSchemeByron exe =
                         Byron.generateKeyFromSeed mnemonic encPass
                 (_, passHash) <- encryptPassphrase userPass
                 let (rootHex, hashHex) =
-                        serializeXPrv ByronKeyS (key, passHash)
+                        serializeXPrv ByronKeyS (HashedCredentialsV1 key passHash)
                 -- Tool detects Byron, assumes Scrypt, but hash
                 -- is PBKDF2 — should fail even with correct pass.
                 runWrongPassTest

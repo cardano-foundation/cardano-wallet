@@ -301,6 +301,7 @@ import Cardano.Crypto.Libsodium
 import Cardano.Crypto.WalletHD.Encrypted
     ( EncryptedKey
     , XPrvError (..)
+    , encryptedChainCode
     , encryptedCreateDirectWithTweak
     , encryptedKeyMaterial
     , encryptedValidatePassphrase
@@ -3901,10 +3902,11 @@ decryptV2 kF ekey mPayload pwd = do
     result <- encryptedKeyMaterial ekey pwd
     case result of
         Left err -> pure $ Left err
-        Right raw128 -> do
-            raw128bs <- mlsbToByteString raw128
-            mlsbFinalize raw128
-            pure $ case CC.xprv raw128bs of
+        Right scalar64 -> do
+            scalar64bs <- mlsbToByteString scalar64
+            mlsbFinalize scalar64
+            let raw96bs = scalar64bs <> encryptedChainCode ekey
+            pure $ case CC.xprv raw96bs of
                 Left _ -> Left XPrvInvalidSecretKey
                 Right plaintextXprv -> Right $ reconstructRootKey kF plaintextXprv mPayload
 
