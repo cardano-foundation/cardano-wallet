@@ -418,6 +418,11 @@ haskell-nix.cabalProject' [
                   pkgs.libblst
                 ]
               ];
+              packages.cardano-crypto-wallet.components.library.pkgconfig = lib.mkForce [
+                [
+                  pkgs.libsodium-vrf
+                ]
+              ];
             }
           )
 
