@@ -1583,7 +1583,8 @@ patchSharedWallet ctx liftKey cred (ApiT wid) body = do
             $ withWorkerCtx @_ @s ctx wid liftE liftE
             $ \wrk ->
                 handler
-                    $ liftIO $ W.reattachPrivateKey wrk (fromJust prvKeyM)
+                    $ liftIO
+                    $ W.reattachPrivateKey wrk (fromJust prvKeyM)
 
     fst <$> getWallet ctx (mkSharedWallet @_ @s) (ApiT wid)
   where

@@ -97,9 +97,9 @@ serializeV1 kF k h = (keyBytes, hex . getPassphraseHash $ h)
         ByronKeyS ->
             let ByronKey xk _ (Passphrase p) = k
             in  hex (unXPrv xk) <> ":" <> hex p
-        IcarusKeyS  -> hex . unXPrv . Icarus.getKey  $ k
+        IcarusKeyS -> hex . unXPrv . Icarus.getKey $ k
         ShelleyKeyS -> hex . unXPrv . Shelley.getKey $ k
-        SharedKeyS  -> hex . unXPrv . Shared.getKey  $ k
+        SharedKeyS -> hex . unXPrv . Shared.getKey $ k
 
 serializeV2
     :: KeyFlavorS k
@@ -120,10 +120,10 @@ unsafeDeserializeXPrv
     -> (ByteString, ByteString)
     -> HashedCredentials k
 unsafeDeserializeXPrv kF (keyCol, hashCol) = case kF of
-    ByronKeyS   -> deserializeByron   keyCol hashCol
-    IcarusKeyS  -> deserializeSimple  IcarusKey  keyCol hashCol
-    ShelleyKeyS -> deserializeSimple  ShelleyKey keyCol hashCol
-    SharedKeyS  -> deserializeSimple  SharedKey  keyCol hashCol
+    ByronKeyS -> deserializeByron keyCol hashCol
+    IcarusKeyS -> deserializeSimple IcarusKey keyCol hashCol
+    ShelleyKeyS -> deserializeSimple ShelleyKey keyCol hashCol
+    SharedKeyS -> deserializeSimple SharedKey keyCol hashCol
 
 -- | Detect whether the key column encodes a V1 (128-byte) or V2 (CBOR) key.
 -- We split on ':' and check the length of the first segment: exactly 256 hex
@@ -142,17 +142,17 @@ deserializeSimple
 deserializeSimple wrap keyCol hashCol
     | isV1KeySegment keyCol =
         case fromHex @ByteString keyCol of
-            Left _    -> bad
+            Left _ -> bad
             Right rawK -> case xprv rawK of
-                Left _  -> bad
+                Left _ -> bad
                 Right k -> case fromHex @ByteString hashCol of
-                    Left _     -> bad
+                    Left _ -> bad
                     Right rawH -> HashedCredentialsV1 (wrap k) (PassphraseHash (BA.convert rawH))
     | otherwise =
         case fromHex @ByteString keyCol of
-            Left _    -> bad
+            Left _ -> bad
             Right rawE -> case encryptedKey rawE of
-                Left _     -> bad
+                Left _ -> bad
                 Right ekey -> HashedCredentialsV2 ekey Nothing
   where
     bad = error "unsafeDeserializeXPrv: unable to deserialize key"
@@ -160,16 +160,17 @@ deserializeSimple wrap keyCol hashCol
 -- Deserialize a Byron key.
 -- V1: @hex(xprv):hex(payload)@ → HashedCredentialsV1 (ByronKey xprv () payload) hash
 -- V2: @hex(ekey):hex(payload)@ → HashedCredentialsV2 ekey (Just payload)
-deserializeByron :: ByteString -> ByteString -> HashedCredentials ByronKey
+deserializeByron
+    :: ByteString -> ByteString -> HashedCredentials ByronKey
 deserializeByron keyCol hashCol =
     case B8.split ':' keyCol of
         [keyHex, payloadHex]
             | isV1KeySegment keyHex ->
                 case (fromHex @ByteString keyHex, fromHex @ByteString payloadHex) of
                     (Right rawK, Right rawP) -> case xprv rawK of
-                        Left _  -> bad
+                        Left _ -> bad
                         Right k -> case fromHex @ByteString hashCol of
-                            Left _     -> bad
+                            Left _ -> bad
                             Right rawH ->
                                 let p = Passphrase (BA.convert rawP)
                                     h = PassphraseHash (BA.convert rawH)
@@ -178,7 +179,7 @@ deserializeByron keyCol hashCol =
             | otherwise ->
                 case (fromHex @ByteString keyHex, fromHex @ByteString payloadHex) of
                     (Right rawE, Right rawP) -> case encryptedKey rawE of
-                        Left _     -> bad
+                        Left _ -> bad
                         Right ekey ->
                             let p = Passphrase (BA.convert rawP)
                             in  HashedCredentialsV2 ekey (Just p)

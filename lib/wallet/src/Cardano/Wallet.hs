@@ -291,12 +291,12 @@ import Cardano.Balance.Tx.TimeTranslation
 import Cardano.Balance.Tx.Tx
     ( toRecentEraGADT
     )
-import Cardano.Crypto.Wallet
-    ( toXPub
-    )
 import Cardano.Crypto.Libsodium
     ( mlsbFinalize
     , mlsbToByteString
+    )
+import Cardano.Crypto.Wallet
+    ( toXPub
     )
 import Cardano.Crypto.WalletHD.Encrypted
     ( EncryptedKey
@@ -3704,7 +3704,8 @@ padFeePercentiles
 -- @preparePassphrase currentPassphraseScheme pwd@ (PBKDF2), which is the
 -- invariant upheld by all wallet-creation and passphrase-change paths.
 attachPrivateKeyFromPwd
-    :: forall s. WalletFlavor s
+    :: forall s
+     . WalletFlavor s
     => WalletLayer IO s
     -> (KeyOf s 'RootK XPrv, Passphrase "user")
     -> IO ()
@@ -3735,7 +3736,8 @@ mkV2Credentials kF key pwd = do
             _ -> Nothing
     encryptedCreateDirectWithTweak masterKey96 pwd >>= \case
         Left err ->
-            error $ "mkV2Credentials: encryptedCreateDirectWithTweak: " <> show err
+            error
+                $ "mkV2Credentials: encryptedCreateDirectWithTweak: " <> show err
         Right ekey -> pure $ HashedCredentialsV2 ekey mPayload
 
 -- | The hash here is the output of Scrypt function with the following parameters:
@@ -3759,7 +3761,10 @@ attachPrivateKeyFromPwdHashShelley
     -> (KeyOf s 'RootK XPrv, PassphraseHash)
     -> IO ()
 attachPrivateKeyFromPwdHashShelley ctx (xprv, hpwd) =
-    attachPrivateKey db (HashedCredentialsV1 xprv hpwd) currentPassphraseScheme
+    attachPrivateKey
+        db
+        (HashedCredentialsV1 xprv hpwd)
+        currentPassphraseScheme
   where
     db = ctx ^. dbLayer
 
@@ -3882,7 +3887,7 @@ migrateV1toV2 DBLayer{..} kF key scheme pwd = do
             ByronKeyS -> Just (payloadPassphrase key)
             _ -> Nothing
     encryptedCreateDirectWithTweak masterKey96 pwd >>= \case
-        Left _ -> pure ()  -- fail silently; key stays V1 until next use
+        Left _ -> pure () -- fail silently; key stays V1 until next use
         Right ekey -> atomically $ do
             putPrivateKey walletState (HashedCredentialsV2 ekey mPayload)
             meta <- readWalletMeta walletState
@@ -3919,9 +3924,9 @@ reconstructRootKey kF plaintextXprv mPayload = case kF of
     ByronKeyS ->
         ByronKey plaintextXprv ()
             $ fromMaybe (hdPassphrase (toXPub plaintextXprv)) mPayload
-    IcarusKeyS  -> IcarusKey  plaintextXprv
+    IcarusKeyS -> IcarusKey plaintextXprv
     ShelleyKeyS -> ShelleyKey plaintextXprv
-    SharedKeyS  -> SharedKey  plaintextXprv
+    SharedKeyS -> SharedKey plaintextXprv
 
 -- | Sign an arbitrary transaction metadata object with a private key belonging
 -- to the wallet's account.

@@ -199,11 +199,11 @@ test-suite unit
     Cardano.Wallet.Address.Derivation.IcarusSpec
     Cardano.Wallet.Address.Derivation.MintBurnSpec
     Cardano.Wallet.Address.DerivationSpec
-    Cardano.Wallet.Address.Keys.PersistPrivateKeySpec
     Cardano.Wallet.Address.Discovery.RandomSpec
     Cardano.Wallet.Address.Discovery.SequentialSpec
     Cardano.Wallet.Address.Discovery.SharedSpec
     Cardano.Wallet.Address.DiscoverySpec
+    Cardano.Wallet.Address.Keys.PersistPrivateKeySpec
     Cardano.Wallet.Address.PoolSpec
     Cardano.Wallet.Api.Malformed
     Cardano.Wallet.Api.ServerSpec

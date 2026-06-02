@@ -192,10 +192,11 @@ instance ToText PassphraseScheme where
     toText EncryptWithArgon2idV2 = "argon2id-v2"
 
 instance FromText PassphraseScheme where
-    fromText "scrypt"             = Right EncryptWithScrypt
+    fromText "scrypt" = Right EncryptWithScrypt
     fromText "pbkdf2-hmac-sha512" = Right EncryptWithPBKDF2
-    fromText "argon2id-v2"        = Right EncryptWithArgon2idV2
-    fromText t = Left $ TextDecodingError $ "Unknown passphrase scheme: " <> T.unpack t
+    fromText "argon2id-v2" = Right EncryptWithArgon2idV2
+    fromText t =
+        Left $ TextDecodingError $ "Unknown passphrase scheme: " <> T.unpack t
 
 newtype PassphraseHash = PassphraseHash {getPassphraseHash :: ScrubbedBytes}
     deriving stock (Show)
