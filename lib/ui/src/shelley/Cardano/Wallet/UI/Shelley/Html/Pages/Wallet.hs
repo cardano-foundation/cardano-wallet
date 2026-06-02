@@ -1,4 +1,4 @@
-{-# LANGUAGE NamedFieldPuns  #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RecordWildCards #-}
 
 module Cardano.Wallet.UI.Shelley.Html.Pages.Wallet where

@@ -42,9 +42,6 @@ import Cardano.Wallet.Address.Keys.PersistPrivateKey
     ( serializeXPrv
     , unsafeDeserializeXPrv
     )
-import Cardano.Wallet.Primitive.Types.Credentials
-    ( HashedCredentials (..)
-    )
 import Cardano.Wallet.Address.Keys.WalletKey
     ( getRawKey
     , publicKey
@@ -64,6 +61,9 @@ import Cardano.Wallet.Primitive.Passphrase.Types
     , PassphraseMaxLength (..)
     , PassphraseMinLength (..)
     , PassphraseScheme (..)
+    )
+import Cardano.Wallet.Primitive.Types.Credentials
+    ( HashedCredentials (..)
     )
 import Control.Monad
     ( replicateM

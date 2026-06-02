@@ -130,9 +130,6 @@ import Cardano.Wallet.Primitive.Passphrase.Current
 import Cardano.Wallet.Primitive.Passphrase.Types
     ( PassphraseHash
     )
-import Cardano.Wallet.Primitive.Types.Credentials
-    ( HashedCredentials (..)
-    )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , NetworkParameters (..)
@@ -157,6 +154,9 @@ import Cardano.Wallet.Primitive.Types.Coin
     )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
     ( genCoinPositive
+    )
+import Cardano.Wallet.Primitive.Types.Credentials
+    ( HashedCredentials (..)
     )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
@@ -280,11 +280,11 @@ import Cryptography.Hash.Core
 import Data.ByteString
     ( ByteString
     )
-import Data.Either
-    ( isLeft
-    )
 import Data.Coerce
     ( coerce
+    )
+import Data.Either
+    ( isLeft
     )
 import Data.Function
     ( on
@@ -296,9 +296,6 @@ import Data.Generics.Internal.VL
     ( iso
     , view
     , (^.)
-    )
-import Data.Proxy
-    ( Proxy (..)
     )
 import Data.List
     ( nubBy
@@ -320,6 +317,9 @@ import Data.Maybe
     )
 import Data.Ord
     ( Down (..)
+    )
+import Data.Proxy
+    ( Proxy (..)
     )
 import Data.Quantity
     ( Quantity (..)
@@ -482,11 +482,14 @@ spec = describe "Cardano.WalletSpec" $ do
             (property walletListsOnlyRelatedAssets)
 
     describe "V1 → V2 root key migration" $ do
-        it "V1 key is upgraded to V2 on successful unlock"
+        it
+            "V1 key is upgraded to V2 on successful unlock"
             walletRootKeyV1toV2Migration
-        it "Wrong passphrase leaves key at V1"
+        it
+            "Wrong passphrase leaves key at V1"
             walletRootKeyMigrationRejectedOnWrongPassphrase
-        it "V2 key is not re-encrypted on successful unlock (idempotent)"
+        it
+            "V2 key is not re-encrypted on successful unlock (idempotent)"
             walletRootKeyV2Idempotent
 
     describe "Tx fee estimation spread"
@@ -692,7 +695,8 @@ walletRootKeyMigrationRejectedOnWrongPassphrase = do
     WalletLayerFixture DBLayer{walletState, atomically} wl wid <-
         setupFixture dummyStateF testWallet
     W.attachPrivateKeyFromPwdHashShelley wl (testKey, testHash)
-    let wrongPwd = Passphrase @"user" (BA.convert @BS.ByteString "wrong-passphrase-0000")
+    let wrongPwd =
+            Passphrase @"user" (BA.convert @BS.ByteString "wrong-passphrase-0000")
     result <-
         runExceptT
             $ withRootKey
@@ -720,7 +724,8 @@ walletRootKeyV2Idempotent = do
     mCreds0 <- atomically $ readPrivateKey walletState
     case mCreds0 of
         Just (HashedCredentialsV2 _ _) -> pure ()
-        _ -> expectationFailure "expected HashedCredentialsV2 after initial store"
+        _ ->
+            expectationFailure "expected HashedCredentialsV2 after initial store"
     -- Unlock again.
     _ <-
         runExceptT
@@ -748,7 +753,8 @@ testWallet =
 
 -- | A fixed test passphrase (>= 10 chars to satisfy 'validatePassphrase').
 testPwd :: Passphrase "user"
-testPwd = Passphrase @"user" (BA.convert @BS.ByteString "migration-test-pass01")
+testPwd =
+    Passphrase @"user" (BA.convert @BS.ByteString "migration-test-pass01")
 
 -- | The test key generated from 'testPwd' via PBKDF2 (V1 scheme).
 testKey :: ShelleyKey 'RootK XPrv

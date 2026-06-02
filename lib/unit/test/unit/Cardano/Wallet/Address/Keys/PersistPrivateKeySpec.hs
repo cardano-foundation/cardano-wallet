@@ -36,7 +36,8 @@ import Cardano.Wallet.Address.Keys.PersistPrivateKey
     , unsafeDeserializeXPrv
     )
 import Cardano.Wallet.DB.Arbitrary
-    ()
+    (
+    )
 import Cardano.Wallet.Flavor
     ( KeyFlavorS (..)
     )
@@ -75,14 +76,16 @@ spec = describe "PersistPrivateKey" $ do
             $ property
             $ forAll genV1ShelleyCreds
             $ \creds ->
-                unsafeDeserializeXPrv ShelleyKeyS
+                unsafeDeserializeXPrv
+                    ShelleyKeyS
                     (serializeXPrv ShelleyKeyS creds)
                     `shouldBe` creds
         it "V1 Byron key roundtrips through serialize/deserialize"
             $ property
             $ forAll genV1ByronCreds
             $ \creds ->
-                unsafeDeserializeXPrv ByronKeyS
+                unsafeDeserializeXPrv
+                    ByronKeyS
                     (serializeXPrv ByronKeyS creds)
                     `shouldBe` creds
         it "V2 Shelley key (no payload) roundtrips"
@@ -91,8 +94,10 @@ spec = describe "PersistPrivateKey" $ do
                 ekey <- mkTestEncryptedKey
                 let creds :: HashedCredentials ShelleyKey
                     creds = HashedCredentialsV2 ekey Nothing
-                    creds' = unsafeDeserializeXPrv ShelleyKeyS
-                        (serializeXPrv ShelleyKeyS creds)
+                    creds' =
+                        unsafeDeserializeXPrv
+                            ShelleyKeyS
+                            (serializeXPrv ShelleyKeyS creds)
                 creds' `shouldBe` creds
         it "V2 Byron key (with payload) roundtrips"
             $ withFastKdfForTesting
@@ -100,12 +105,15 @@ spec = describe "PersistPrivateKey" $ do
                 ekey <- mkTestEncryptedKey
                 let payload =
                         Passphrase
-                            (BA.convert @BS.ByteString
-                                "payload-bytes-0123456789abcdef0")
+                            ( BA.convert @BS.ByteString
+                                "payload-bytes-0123456789abcdef0"
+                            )
                     creds :: HashedCredentials ByronKey
                     creds = HashedCredentialsV2 ekey (Just payload)
-                    creds' = unsafeDeserializeXPrv ByronKeyS
-                        (serializeXPrv ByronKeyS creds)
+                    creds' =
+                        unsafeDeserializeXPrv
+                            ByronKeyS
+                            (serializeXPrv ByronKeyS creds)
                 creds' `shouldBe` creds
         it "V2 key column is longer than 256 hex chars"
             $ withFastKdfForTesting

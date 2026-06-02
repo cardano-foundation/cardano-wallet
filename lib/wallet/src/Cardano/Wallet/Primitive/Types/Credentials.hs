@@ -45,7 +45,9 @@ deriving instance
 -- address-derivation-payload passphrase (only present for Byron keys).
 data HashedCredentials k
     = HashedCredentialsV1 !(k 'RootK XPrv) !PassphraseHash
-    | HashedCredentialsV2 !EncryptedKey !(Maybe (Passphrase "addr-derivation-payload"))
+    | HashedCredentialsV2
+        !EncryptedKey
+        !(Maybe (Passphrase "addr-derivation-payload"))
 
 deriving instance (Eq (k 'RootK XPrv)) => Eq (HashedCredentials k)
 deriving instance (Show (k 'RootK XPrv)) => Show (HashedCredentials k)
