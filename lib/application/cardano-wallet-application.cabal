@@ -74,6 +74,7 @@ library shelley
   build-depends:
     , address-derivation-discovery
     , base
+    , cardano-crypto-class
     , cardano-wallet
     , cardano-wallet-api
     , cardano-wallet-application
