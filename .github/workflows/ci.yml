@@ -501,6 +501,7 @@ jobs:
     env:
       WALLET_TAG: ${{ needs.docker.outputs.image-tag }}
       USE_LOCAL_IMAGE: "true"
+      DOCKER_RESTART_POLICY: "no"
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -512,9 +513,25 @@ jobs:
         env:
           SUCCESS_STATUS: ${{ matrix.status }}
           COMPOSE_PROJECT_NAME: gha-${{ github.run_id }}-${{ strategy.job-index }}
+          BOOT_SYNC_DIR: ${{ runner.temp }}/cardano-wallet/${{ github.run_id }}-${{ strategy.job-index }}
+          NODE_DB: ${{ runner.temp }}/cardano-wallet/${{ github.run_id }}-${{ strategy.job-index }}/node-db
+          WALLET_DB: ${{ runner.temp }}/cardano-wallet/${{ github.run_id }}-${{ strategy.job-index }}/wallet-db
+          NODE_SOCKET_DIR: ${{ runner.temp }}/cardano-wallet/${{ github.run_id }}-${{ strategy.job-index }}/ipc
         run: |
-          rm -rf databases
+          rm -rf "$BOOT_SYNC_DIR"
+          mkdir -p "$NODE_DB" "$WALLET_DB" "$NODE_SOCKET_DIR"
           ./run.sh sync ${{ matrix.timeout }}
+
+      - name: Cleanup boot sync
+        if: always()
+        working-directory: ${{ matrix.dir }}
+        env:
+          COMPOSE_PROJECT_NAME: gha-${{ github.run_id }}-${{ strategy.job-index }}
+          BOOT_SYNC_DIR: ${{ runner.temp }}/cardano-wallet/${{ github.run_id }}-${{ strategy.job-index }}
+        run: |
+          docker compose -p "$COMPOSE_PROJECT_NAME" down --remove-orphans --timeout 10 || true
+          docker compose -p "$COMPOSE_PROJECT_NAME" rm -sf || true
+          rm -rf "$BOOT_SYNC_DIR"
 
   # ---------------------------------------------------------------------------
   # macOS (build gate + artifacts)
@@ -643,6 +660,9 @@ jobs:
 
           - name: "Lint Bash Scripts"
             command: ./scripts/shellcheck.sh
+
+          - name: "Check Docker Boot Sync Cleanup"
+            command: scripts/ci/check-docker-boot-sync-cleanup.sh
 
           - name: "Check EOL"
             command: nix develop --quiet --command scripts/enforce-eol.sh
