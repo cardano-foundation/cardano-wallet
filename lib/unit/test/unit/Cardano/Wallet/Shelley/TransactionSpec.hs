@@ -205,6 +205,7 @@ import Cardano.Wallet.Shelley.Transaction
 import Cardano.Wallet.Transaction
     ( SelectionOf (..)
     , TransactionLayer (..)
+    , Withdrawal (NoWithdrawal)
     , WitnessCountCtx (..)
     , selectionDelta
     )
@@ -1263,14 +1264,15 @@ binaryCalculationsSpec' era = describe ("calculateBinary - " +|| era ||+ "") $ d
         mkByronWitness' unsignedTx (_, (TxOut addr _)) =
             mkByronWitness unsignedTx net addr
         addrWits = zipWith (mkByronWitness' unsigned) inps pairs
-        fee = toLedgerCoin $ selectionDelta cs
+        fee = selectionDelta cs
         unsigned =
             either (error . show) id
                 $ mkUnsignedTx
+                    net
                     (Nothing, slotNo)
                     (Right cs)
                     md
-                    mempty
+                    NoWithdrawal
                     []
                     fee
                     TokenMap.empty
@@ -1346,16 +1348,17 @@ makeShelleyTx
     -> Cardano.Tx (CardanoApiEra era)
 makeShelleyTx era' testCase =
     cardanoApiEraConstraints era'
-        $ let DecodeSetup utxo outs md slotNo pairs _netwk = testCase
+        $ let DecodeSetup utxo outs md slotNo pairs netwk = testCase
               inps = Map.toList $ unUTxO utxo
-              fee = toLedgerCoin $ selectionDelta cs
+              fee = selectionDelta cs
               unsigned =
                 either (error . show) id
                     $ mkUnsignedTx
+                        netwk
                         (Nothing, slotNo)
                         (Right cs)
                         md
-                        mempty
+                        NoWithdrawal
                         []
                         fee
                         TokenMap.empty
