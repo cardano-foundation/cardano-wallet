@@ -7,7 +7,7 @@ services:
     volumes:
       - ${NODE_DB}:/data
       - ${NODE_SOCKET_DIR}:/ipc
-    restart: on-failure
+    restart: "${DOCKER_RESTART_POLICY:-on-failure}"
     user: ${USER_ID}:${GROUP_ID}
     logging:
       driver: "json-file"
@@ -41,7 +41,7 @@ services:
         --testnet /configs/cardano/${NETWORK}/byron-genesis.json
 
     user: ${USER_ID}:${GROUP_ID}
-    restart: on-failure
+    restart: "${DOCKER_RESTART_POLICY:-on-failure}"
     logging:
       driver: "json-file"
       options:

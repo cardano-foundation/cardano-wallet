@@ -91,9 +91,8 @@ startup() {
 # Function to clean up the service
 cleanup() {
     echo "Cleaning up..."
-    docker compose -p "$COMPOSE_PROJECT_NAME" down 2>/dev/null
-    sleep  3
-    docker compose -p "$COMPOSE_PROJECT_NAME" kill 2>/dev/null
+    docker compose -p "$COMPOSE_PROJECT_NAME" down --remove-orphans --timeout 10 2>/dev/null || true
+    docker compose -p "$COMPOSE_PROJECT_NAME" rm -sf 2>/dev/null || true
 }
 
 node-db-with-mithril() {
@@ -107,6 +106,10 @@ node-db-with-mithril() {
 # Case statement to handle different command-line arguments
 case "$1" in
     sync)
+        trap cleanup EXIT
+        trap 'exit 130' INT
+        trap 'exit 143' TERM
+
         if [[ -n "${USE_MITHRIL-}" ]]; then
             node-db-with-mithril
         fi
@@ -124,9 +127,6 @@ case "$1" in
         query_status="$command  .sync_progress.status"
         query_time="$command .node_tip.time"
         query_progress="$command .sync_progress.progress.quantity"
-
-        # Execute and display the full query result
-        trap cleanup ERR INT
 
         # Define the wanted status and result, can be "syncing" or "ready"
         SUCCESS_STATUS=${SUCCESS_STATUS:="ready"}
@@ -158,6 +158,7 @@ case "$1" in
         fi
 
         cleanup
+        trap - EXIT INT TERM
 
         # Stop the service after syncing
         echo "Result: $result"
