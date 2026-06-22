@@ -32,6 +32,10 @@ import Cardano.Balance.Tx.Balance
 import Cardano.Balance.Tx.SizeEstimation
     ( TxWitnessTag (..)
     )
+import Cardano.Crypto.Wallet
+    ( XPub
+    , toXPub
+    )
 import Cardano.Mnemonic
     ( SomeMnemonic (..)
     )
@@ -491,6 +495,9 @@ spec = describe "Cardano.WalletSpec" $ do
         it
             "V2 key is not re-encrypted on successful unlock (idempotent)"
             walletRootKeyV2Idempotent
+        it
+            "password change V1→V2 preserves derived public keys"
+            walletPasswordChangeV1ToV2PreservesPublicKey
 
     describe "Tx fee estimation spread"
         $ it
@@ -742,6 +749,58 @@ walletRootKeyV2Idempotent = do
         _ ->
             expectationFailure
                 "expected key to remain HashedCredentialsV2 after re-unlock"
+
+-- | Changing a wallet passphrase from the old V1 format (PBKDF2 /
+-- cardano-crypto hard-coded-salt KDF) to the new V2 format (Argon2id /
+-- cardano-base) must not change the child public keys derivable from the
+-- root key.  The same mnemonic always produces the same HD tree regardless
+-- of how the root key happens to be encrypted at rest.
+walletPasswordChangeV1ToV2PreservesPublicKey :: IO ()
+walletPasswordChangeV1ToV2PreservesPublicKey = do
+    WalletLayerFixture DBLayer{walletState, atomically} wl wid <-
+        setupFixture dummyStateF testWallet
+    -- 1. Store the root key in the old V1 (PBKDF2 / cardano-crypto) format.
+    W.attachPrivateKeyFromPwdHashShelley wl (testKey, testHash)
+    -- 2. Derive an address public key from the V1 root key (before migration).
+    let encOld = preparePassphrase testPwd
+        derivedPub encPwd k =
+            toXPub . getKey
+                $ deriveAddressPrivateKey encPwd
+                    (deriveAccountPrivateKey encPwd k minBound)
+                    UtxoExternal
+                    minBound
+        pubKeyBefore = derivedPub encOld testKey
+    -- 3. Change passphrase: V1 PBKDF2 (cardano-crypto) → V2 Argon2id (cardano-base).
+    let newPwd = Passphrase @"user" (BA.convert @BS.ByteString "new-migration-pass01")
+    changeResult <-
+        runExceptT
+            $ W.updateWalletPassphraseWithOldPassphrase
+                dummyStateF
+                wl
+                wid
+                (testPwd, newPwd)
+    changeResult `shouldBe` Right ()
+    -- 4. Confirm V2 credentials are now stored.
+    mCreds <- atomically $ readPrivateKey walletState
+    case mCreds of
+        Just (HashedCredentialsV2 _ _) -> pure ()
+        _ ->
+            expectationFailure
+                "expected HashedCredentialsV2 after password change"
+    -- 5. Unlock with the new passphrase and derive the same address public key.
+    pubKeyAfterResult <-
+        runExceptT
+            $ withRootKey (wl ^. dbLayer) wid newPwd id
+            $ \rootK _scheme ->
+                pure $ derivedPub (preparePassphrase newPwd) rootK
+    pubKeyAfter <- case pubKeyAfterResult of
+        Left err ->
+            expectationFailure
+                ("withRootKey after password change failed: " <> show err)
+                >> error "unreachable"
+        Right pk -> pure pk
+    -- 6. The derived public key must be identical regardless of encryption format.
+    pubKeyAfter `shouldBe` pubKeyBefore
 
 -- | A fixed (WalletId, WalletName, DummyState) used by the migration tests.
 testWallet :: (WalletId, WalletName, DummyState)
