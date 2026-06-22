@@ -42,8 +42,7 @@ import Cardano.Wallet.Flavor
     ( KeyFlavorS (..)
     )
 import Cardano.Wallet.Primitive.Passphrase.Types
-    ( Passphrase (..)
-    , PassphraseHash
+    ( PassphraseHash
     )
 import Cardano.Wallet.Primitive.Types.Credentials
     ( HashedCredentials (..)
@@ -58,11 +57,11 @@ import Test.QuickCheck
     ( Gen
     , arbitrary
     , forAll
+    , generate
     , property
     )
 import Prelude
 
-import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 
 {-------------------------------------------------------------------------------
@@ -88,12 +87,13 @@ spec = describe "PersistPrivateKey" $ do
                     ByronKeyS
                     (serializeXPrv ByronKeyS creds)
                     `shouldBe` creds
-        it "V2 Shelley key (no payload) roundtrips"
+        it "V2 Shelley key roundtrips"
             $ withFastKdfForTesting
             $ do
                 ekey <- mkTestEncryptedKey
+                key <- generate (arbitrary @(ShelleyKey 'RootK XPrv))
                 let creds :: HashedCredentials ShelleyKey
-                    creds = HashedCredentialsV2 ekey Nothing
+                    creds = HashedCredentialsV2 key ekey
                     creds' =
                         unsafeDeserializeXPrv
                             ShelleyKeyS
@@ -103,13 +103,9 @@ spec = describe "PersistPrivateKey" $ do
             $ withFastKdfForTesting
             $ do
                 ekey <- mkTestEncryptedKey
-                let payload =
-                        Passphrase
-                            ( BA.convert @BS.ByteString
-                                "payload-bytes-0123456789abcdef0"
-                            )
-                    creds :: HashedCredentials ByronKey
-                    creds = HashedCredentialsV2 ekey (Just payload)
+                key <- generate (arbitrary @(ByronKey 'RootK XPrv))
+                let creds :: HashedCredentials ByronKey
+                    creds = HashedCredentialsV2 key ekey
                     creds' =
                         unsafeDeserializeXPrv
                             ByronKeyS
@@ -119,16 +115,18 @@ spec = describe "PersistPrivateKey" $ do
             $ withFastKdfForTesting
             $ do
                 ekey <- mkTestEncryptedKey
+                key <- generate (arbitrary @(ShelleyKey 'RootK XPrv))
                 let creds :: HashedCredentials ShelleyKey
-                    creds = HashedCredentialsV2 ekey Nothing
+                    creds = HashedCredentialsV2 key ekey
                     (keyCol, _) = serializeXPrv ShelleyKeyS creds
                 BS.length keyCol > 256 `shouldBe` True
         it "V2 hash column is empty"
             $ withFastKdfForTesting
             $ do
                 ekey <- mkTestEncryptedKey
+                key <- generate (arbitrary @(ShelleyKey 'RootK XPrv))
                 let creds :: HashedCredentials ShelleyKey
-                    creds = HashedCredentialsV2 ekey Nothing
+                    creds = HashedCredentialsV2 key ekey
                     (_, hashCol) = serializeXPrv ShelleyKeyS creds
                 hashCol `shouldBe` ""
 

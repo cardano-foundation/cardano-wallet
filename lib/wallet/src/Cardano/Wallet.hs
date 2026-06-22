@@ -291,19 +291,11 @@ import Cardano.Balance.Tx.TimeTranslation
 import Cardano.Balance.Tx.Tx
     ( toRecentEraGADT
     )
-import Cardano.Crypto.Libsodium
-    ( mlsbFinalize
-    , mlsbToByteString
-    )
 import Cardano.Crypto.Wallet
     ( toXPub
     )
 import Cardano.Crypto.WalletHD.Encrypted
-    ( EncryptedKey
-    , XPrvError (..)
-    , encryptedChainCode
-    , encryptedCreateDirectWithTweak
-    , encryptedKeyMaterial
+    ( encryptedCreateDirectWithTweak
     , encryptedValidatePassphrase
     )
 import Cardano.Ledger.Api
@@ -3715,9 +3707,9 @@ attachPrivateKeyFromPwd ctx (key, pwd) = do
   where
     db = ctx ^. dbLayer
 
--- | Build a 'HashedCredentialsV2' from a v1-PBKDF2-encrypted root key.
--- Decrypts the scalar, wraps it in a v2 Argon2id envelope, and preserves the
--- Byron address-derivation payload (if applicable).
+-- | Build a 'HashedCredentialsV2' from a PBKDF2-encrypted root key.
+-- Derives the plaintext scalar+chaincode to create an Argon2id authentication
+-- envelope, and stores the original PBKDF2-encrypted key for key operations.
 mkV2Credentials
     :: KeyFlavorS k
     -> k 'RootK XPrv
@@ -3731,14 +3723,11 @@ mkV2Credentials kF key pwd = do
         raw128 = CC.unXPrv plaintextXprv
         -- Master-key group for encryptedCreateDirectWithTweak: scalar(64) || cc(32)
         masterKey96 = BS.take 64 raw128 <> BS.drop 96 raw128
-        mPayload = case kF of
-            ByronKeyS -> Just (payloadPassphrase key)
-            _ -> Nothing
     encryptedCreateDirectWithTweak masterKey96 pwd >>= \case
         Left err ->
             error
                 $ "mkV2Credentials: encryptedCreateDirectWithTweak: " <> show err
-        Right ekey -> pure $ HashedCredentialsV2 ekey mPayload
+        Right ekey -> pure $ HashedCredentialsV2 key ekey
 
 -- | The hash here is the output of Scrypt function with the following parameters:
 -- - logN = 14
@@ -3781,7 +3770,7 @@ reattachPrivateKey ctx creds =
   where
     scheme = case creds of
         HashedCredentialsV1 _ _ -> currentPassphraseScheme
-        HashedCredentialsV2 _ _ -> EncryptWithArgon2idV2
+        HashedCredentialsV2{} -> EncryptWithArgon2idV2
 
 attachPrivateKey
     :: DBLayer IO s
@@ -3809,15 +3798,16 @@ attachPrivateKey db creds scheme =
 --
 -- 'withRootKey' takes a callback function with two arguments:
 --
---  - The root private key (plaintext scalar for v2, PBKDF2/Scrypt-encrypted for v1)
---  - The underlying passphrase scheme
+--  - The root private key (PBKDF2-encrypted for all stored variants)
+--  - The passphrase scheme to use ('currentPassphraseScheme')
 --
 -- Callers are expected to use 'preparePassphrase' with the given scheme in
 -- order to "prepare" the passphrase before passing it to signing / derivation
--- functions.  For v2 keys the scheme is 'EncryptWithArgon2idV2', and
--- @preparePassphrase EncryptWithArgon2idV2 _ = Passphrase mempty@, which
--- causes the C layer to run in memcpy / no-op mode (correct, because the
--- in-memory XPrv already has a plaintext scalar).
+-- functions.
+--
+-- For v2 keys, passphrase authentication uses the Argon2id AEAD envelope;
+-- the key itself remains PBKDF2-encrypted so key-operation callers use the
+-- same 'preparePassphrase' path as v1.
 --
 -- V1 keys are opportunistically migrated to v2 on every successful use.
 --
@@ -3845,30 +3835,31 @@ withRootKey db@DBLayer{..} wid pwd embed action = do
             pure $ case checkPassphrase scheme pwd hpwd of
                 Left err -> Left $ ErrWithRootKeyWrongPassphrase wid err
                 Right _ -> Right $ Left (xprv, scheme)
-        (Just (HashedCredentialsV2 ekey mPayload), Just _) -> do
+        (Just (HashedCredentialsV2 xprv ekey), Just _) -> do
             result <- encryptedValidatePassphrase ekey pwd
             pure $ case result of
                 Left _ ->
                     Left $ ErrWithRootKeyWrongPassphrase wid ErrWrongPassphrase
-                Right () -> Right $ Right (ekey, mPayload)
+                Right () -> Right $ Right xprv
         _ -> pure $ Left $ ErrWithRootKeyNoRootKey wid
     case validated of
         Left (xprv, scheme) -> do
             -- Opportunistically migrate V1 → V2 on successful passphrase use.
             lift $ migrateV1toV2 db kF xprv scheme pwd
             action xprv scheme
-        Right (ekey, mPayload) -> do
-            result <- lift $ decryptV2 kF ekey mPayload pwd
-            case result of
-                Left _ ->
-                    throwE $ embed $ ErrWithRootKeyWrongPassphrase wid ErrWrongPassphrase
-                Right xprv -> action xprv EncryptWithArgon2idV2
+        Right xprv ->
+            action xprv currentPassphraseScheme
   where
     kF = keyFlavorFromState @s
 
 -- | Migrate a V1 PBKDF2- or Scrypt-encrypted root key to a V2 Argon2id
 -- envelope and write it back to the database.  Fails silently so that the
 -- current operation is not affected if migration is unsuccessful.
+--
+-- The stored XPrv in the resulting 'HashedCredentialsV2' is always
+-- re-encrypted with 'currentPassphraseScheme' (PBKDF2), regardless of the
+-- original V1 scheme.  This ensures that 'withRootKey' can always return
+-- 'currentPassphraseScheme' for V2 credentials.
 migrateV1toV2
     :: forall s
      . DBLayer IO s
@@ -3880,40 +3871,25 @@ migrateV1toV2
 migrateV1toV2 DBLayer{..} kF key scheme pwd = do
     let rawXprv = getRawKey kF key
         prepared = preparePassphrase scheme pwd
+        -- Decrypt to plaintext (empty passphrase)
         plaintextXprv = CC.xPrvChangePass prepared (mempty :: ByteString) rawXprv
         raw128 = CC.unXPrv plaintextXprv
         masterKey96 = BS.take 64 raw128 <> BS.drop 96 raw128
+        -- Re-encrypt with current scheme (PBKDF2) for V2 stored key
+        pbkdf2Prepared = preparePassphrase currentPassphraseScheme pwd
+        pbkdf2XPrv = CC.xPrvChangePass (mempty :: ByteString) pbkdf2Prepared plaintextXprv
         mPayload = case kF of
             ByronKeyS -> Just (payloadPassphrase key)
             _ -> Nothing
+        v2Key = reconstructRootKey kF pbkdf2XPrv mPayload
     encryptedCreateDirectWithTweak masterKey96 pwd >>= \case
         Left _ -> pure () -- fail silently; key stays V1 until next use
         Right ekey -> atomically $ do
-            putPrivateKey walletState (HashedCredentialsV2 ekey mPayload)
+            putPrivateKey walletState (HashedCredentialsV2 v2Key ekey)
             meta <- readWalletMeta walletState
             let updateScheme info = info{passphraseScheme = EncryptWithArgon2idV2}
             putWalletMeta walletState
                 $ meta{passphraseInfo = fmap updateScheme (passphraseInfo meta)}
-
--- | Decrypt a V2 'EncryptedKey' and reconstruct the flavored root key with a
--- plaintext scalar (suitable for use with 'EncryptWithArgon2idV2' scheme).
-decryptV2
-    :: KeyFlavorS k
-    -> EncryptedKey
-    -> Maybe (Passphrase "addr-derivation-payload")
-    -> Passphrase "user"
-    -> IO (Either XPrvError (k 'RootK XPrv))
-decryptV2 kF ekey mPayload pwd = do
-    result <- encryptedKeyMaterial ekey pwd
-    case result of
-        Left err -> pure $ Left err
-        Right scalar64 -> do
-            scalar64bs <- mlsbToByteString scalar64
-            mlsbFinalize scalar64
-            let raw96bs = scalar64bs <> encryptedChainCode ekey
-            pure $ case CC.xprv raw96bs of
-                Left _ -> Left XPrvInvalidSecretKey
-                Right plaintextXprv -> Right $ reconstructRootKey kF plaintextXprv mPayload
 
 reconstructRootKey
     :: KeyFlavorS k
