@@ -7,32 +7,23 @@ module Cardano.Wallet.UI.Common.Handlers.Wallet
 where
 
 import Cardano.Mnemonic
-    ( MkSomeMnemonic (mkSomeMnemonic)
-    )
-import Cardano.Wallet.UI.Static
-    ( englishWords
-    )
-import Control.Monad
-    ( replicateM
+    ( entropyToMnemonic
+    , genEntropy
+    , mnemonicToText
     )
 import Data.Text
     ( Text
     )
-import System.Random.Stateful
-    ( randomRIO
-    )
-import Prelude hiding
-    ( lookup
-    )
+import Prelude
 
+-- | Suggest a fresh recovery phrase, drawing entropy from the system
+-- cryptographically-secure RNG via 'genEntropy', consistent with how the
+-- wallet API and CLI generate recovery phrases.
 pickMnemonic :: Int -> Maybe Bool -> IO (Maybe [Text])
-pickMnemonic _n (Just True) = pure Nothing
-pickMnemonic n _ = do
-    let loop = do
-            xs <- replicateM n $ do
-                i <- randomRIO (0, length englishWords - 1)
-                pure $ englishWords !! i
-            case mkSomeMnemonic @'[15, 18, 21, 24] xs of
-                Left _ -> loop
-                Right _ -> pure xs
-    Just <$> loop
+pickMnemonic _ (Just True) = pure Nothing
+pickMnemonic n _ = case n of
+    15 -> Just . mnemonicToText @15 . entropyToMnemonic <$> genEntropy
+    18 -> Just . mnemonicToText @18 . entropyToMnemonic <$> genEntropy
+    21 -> Just . mnemonicToText @21 . entropyToMnemonic <$> genEntropy
+    24 -> Just . mnemonicToText @24 . entropyToMnemonic <$> genEntropy
+    _ -> pure Nothing
