@@ -98,6 +98,24 @@ jobs:
         run: nix build --quiet .#devShells.x86_64-linux.default.inputDerivation
 
   # ---------------------------------------------------------------------------
+  # ARC runner probe (throwaway) — does CW's nix work on nix-enabled-runners?
+  # Self-contained, no shared store, --max-jobs 0 bounds it to a cache fetch.
+  # ---------------------------------------------------------------------------
+
+  arc-runner-probe:
+    name: "ARC runner probe (nix-enabled-runners)"
+    runs-on: nix-enabled-runners
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Nix is present
+        run: nix --version
+      - name: Fetch CW dev shell from cache (no source build)
+        run: nix build --quiet --max-jobs 0 .#devShells.x86_64-linux.default.inputDerivation
+
+  # ---------------------------------------------------------------------------
   # Nix check
   # ---------------------------------------------------------------------------
 
