@@ -820,6 +820,7 @@ import Data.Traversable
     )
 import Data.Word
     ( Word32
+    , Word64
     )
 import Fmt
     ( pretty
@@ -847,10 +848,6 @@ import Servant
 import Servant.Server
     ( Handler (..)
     , runHandler
-    )
-import System.Random
-    ( getStdRandom
-    , random
     )
 import UnliftIO.Async
     ( race_
@@ -1708,6 +1705,15 @@ mkLegacyWallet ctx wid cp meta _ pending progress = do
             $ runExceptT
             $ W.withRootKey @s db wid mempty Prelude.id (\_ _ -> pure ())
 
+-- | A 64-bit seed for the Byron HD-random address generator, drawn from the
+-- system CSPRNG rather than the process-global 'StdGen'.
+secureSeed :: IO Int
+secureSeed = do
+    bytes <- genSalt 8
+    pure
+        $ fromIntegral
+        $ BS.foldl' (\acc w -> acc * 256 + fromIntegral w) (0 :: Word64) bytes
+
 postRandomWallet
     :: forall ctx s n
      . ( ctx ~ ApiLayer s
@@ -1717,7 +1723,7 @@ postRandomWallet
     -> ByronWalletPostData '[12, 15, 18, 21, 24]
     -> Handler ApiByronWallet
 postRandomWallet ctx body = do
-    s <- liftIO $ mkRndState rootXPrv <$> getStdRandom random
+    s <- liftIO $ mkRndState rootXPrv <$> secureSeed
     let initialState = InitialState s genesisBlock RestorationPointAtGenesis
     postLegacyWallet ctx (rootXPrv, pwd) $ \wid ->
         W.createWallet @s networkParams wid wName initialState
@@ -1739,7 +1745,7 @@ postRandomWalletFromXPrv
     -> ByronWalletFromXPrvPostData
     -> Handler ApiByronWallet
 postRandomWalletFromXPrv ctx body = do
-    s <- liftIO $ mkRndState byronKey <$> getStdRandom random
+    s <- liftIO $ mkRndState byronKey <$> secureSeed
     let initialState = InitialState s genesisBlock RestorationPointAtGenesis
     void
         $ liftHandler

@@ -184,17 +184,17 @@ instance NFData (RndState network) where
 
 -- | There's no instance of 'Show' for 'XPrv'
 instance Show (RndState network) where
-    show (RndState _key ix addrs pending g) =
+    show (RndState _key ix addrs pending _gen) =
         unwords
-            ["RndState <xprv>", p ix, p addrs, p pending, p g]
+            ["RndState <xprv>", p ix, p addrs, p pending, "<gen>"]
       where
         p x = "(" ++ show x ++ ")"
 
 instance Buildable (RndState network) where
-    build (RndState _ ix addrs pending g) =
+    build (RndState _ ix addrs pending _) =
         "RndState:\n"
             <> indentF 4 ("Account ix:       " <> build ix)
-            <> indentF 4 ("Random Generator: " <> build (show g))
+            <> indentF 4 "Random Generator: <gen>"
             <> indentF 4 ("Known addresses:  " <> blockMapF' tupleF tupleF addrs)
             <> indentF 4 ("Change addresses: " <> blockMapF' tupleF build pending)
 
