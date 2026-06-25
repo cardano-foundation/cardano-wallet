@@ -15,6 +15,11 @@ env:
   # All runners share the same OS user, so one evaluating job blocks every other
   # nix command. Per-job XDG_CACHE_HOME eliminates the contention.
   XDG_CACHE_HOME: /tmp/nix-eval-cache/${{ github.job }}
+  # ARC nix-enabled-runners ship no UTF-8 locale, so GHC programs crash printing
+  # non-ASCII (e.g. an em-dash): "commitBuffer: invalid argument (cannot encode
+  # character)". Force a UTF-8 locale (builder-new had one).
+  LANG: C.UTF-8
+  LC_ALL: C.UTF-8
 
 jobs:
   # ---------------------------------------------------------------------------
