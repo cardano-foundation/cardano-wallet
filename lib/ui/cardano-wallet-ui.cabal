@@ -75,15 +75,16 @@ library common
     , containers
     , contra-tracer
     , cookie
+    , crypto-primitives
     , exceptions
     , file-embed
     , generic-lens
     , http-media
     , lens
     , lucid
+    , memory
     , mtl
     , operational
-    , random
     , servant
     , servant-server
     , string-interpolate
