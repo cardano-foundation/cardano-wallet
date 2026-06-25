@@ -508,6 +508,17 @@ jobs:
         with:
           fetch-depth: 0
 
+      # Per-pod docker daemons on the ARC fleet don't share the image the
+      # `docker` job built; load it from its artifact (builder-new shared one daemon).
+      - name: Download image
+        uses: actions/download-artifact@v7
+        with:
+          name: docker-image
+          path: artifacts
+
+      - name: Load image
+        run: docker load < artifacts/docker-image.tgz
+
       - name: Run boot sync
         working-directory: ${{ matrix.dir }}
         env:
@@ -674,7 +685,9 @@ jobs:
             command: nix develop --quiet --command scripts/todo-list.sh
 
           - name: "Check HLS Works"
-            command: nix develop --quiet --command bash -c "rm -f cabal.project.local; haskell-language-server lib/wallet/src/Cardano/Wallet.hs"
+            # cabal update so HLS's cabal v2-repl cradle has the hackage/CHaP index
+            # (ephemeral pods lack the cabal home builder-new persisted).
+            command: nix develop --quiet --command bash -c "rm -f cabal.project.local; cabal update; haskell-language-server lib/wallet/src/Cardano/Wallet.hs"
 
           - name: "Check git revision"
             command: scripts/ci/git-revision.sh
