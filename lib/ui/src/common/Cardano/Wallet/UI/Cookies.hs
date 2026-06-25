@@ -14,11 +14,15 @@ module Cardano.Wallet.UI.Cookies
     )
 where
 
-import Control.Monad
-    ( replicateM
-    )
 import Control.Monad.IO.Class
     ( liftIO
+    )
+import Cryptography.Core
+    ( MonadRandom (getRandomBytes)
+    )
+import Data.ByteArray.Encoding
+    ( Base (Base16)
+    , convertToBase
     )
 import Data.ByteString
     ( ByteString
@@ -31,9 +35,6 @@ import Servant
     , addHeader
     , type (:>)
     )
-import System.Random
-    ( randomRIO
-    )
 import Web.Cookie
     ( Cookies
     , SetCookie (..)
@@ -42,7 +43,6 @@ import Web.Cookie
     )
 import Prelude
 
-import qualified Data.ByteString.Char8 as B8
 import qualified Data.Text.Encoding as T
 
 -- | A type representing a request that may contain cookies.
@@ -104,10 +104,9 @@ withSessionRead action mc = do
             maybe createCookie (pure . SessionKey) (lookup cookieName cs)
     action c
 
--- | Create a new session key.
+-- | Create a new session key, drawing 16 bytes from the system
+-- cryptographically-secure RNG and hex-encoding them.
 createCookie :: Handler SessionKey
-createCookie =
-    liftIO
-        $ fmap (SessionKey . B8.pack)
-        $ replicateM 16
-        $ randomRIO ('a', 'z')
+createCookie = liftIO $ do
+    bytes <- getRandomBytes 16 :: IO ByteString
+    pure $ SessionKey $ convertToBase Base16 bytes
