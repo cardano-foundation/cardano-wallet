@@ -87,7 +87,7 @@ unit-tests-cabal-match match:
   LOCAL_CLUSTER_CONFIGS=../../lib/local-cluster/test/data/cluster-configs \
   cabal test \
     cardano-wallet-application-tls:unit \
-    cardano-balance-tx:test \
+    cardano-balance-tx:unit \
     cardano-numeric:unit \
     cardano-wallet-blackbox-benchmarks:unit \
     cardano-wallet-launcher:unit \

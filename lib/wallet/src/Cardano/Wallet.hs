@@ -75,6 +75,7 @@ module Cardano.Wallet
     , attachPrivateKeyFromPwd
     , attachPrivateKeyFromPwdHashByron
     , attachPrivateKeyFromPwdHashShelley
+    , reattachPrivateKey
     , getWalletUtxoSnapshot
     , listUtxoStatistics
     , readWallet
@@ -293,6 +294,10 @@ import Cardano.Balance.Tx.Tx
 import Cardano.Crypto.Wallet
     ( toXPub
     )
+import Cardano.Crypto.WalletHD.Encrypted
+    ( encryptedCreateDirectWithTweak
+    , encryptedValidatePassphrase
+    )
 import Cardano.Ledger.Api
     ( EraTxBody (allInputsTxBodyF)
     , bodyTxL
@@ -334,10 +339,12 @@ import Cardano.Wallet.Address.Derivation
     , stakeDerivationPath
     )
 import Cardano.Wallet.Address.Derivation.Byron
-    ( ByronKey
+    ( ByronKey (..)
+    , hdPassphrase
+    , payloadPassphrase
     )
 import Cardano.Wallet.Address.Derivation.Icarus
-    ( IcarusKey
+    ( IcarusKey (..)
     )
 import Cardano.Wallet.Address.Derivation.MintBurn
     ( derivePolicyPrivateKey
@@ -504,7 +511,6 @@ import Cardano.Wallet.Primitive.Passphrase
     , WalletPassphraseInfo (..)
     , checkPassphrase
     , currentPassphraseScheme
-    , encryptPassphrase
     , preparePassphrase
     )
 import Cardano.Wallet.Primitive.Slotting
@@ -566,6 +572,7 @@ import Cardano.Wallet.Primitive.Types.Coin
     )
 import Cardano.Wallet.Primitive.Types.Credentials
     ( ClearCredentials
+    , HashedCredentials (..)
     , RootCredentials (..)
     )
 import Cardano.Wallet.Primitive.Types.DRep
@@ -909,6 +916,7 @@ import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics
 import qualified Cardano.Wallet.Read as Read
 import qualified Data.ByteArray as BA
+import qualified Data.ByteString as BS
 import qualified Data.Delta.Update as Delta
 import qualified Data.Foldable as F
 import qualified Data.Functor
@@ -1155,19 +1163,16 @@ readWalletMeta walletState = walletMeta . info <$> readDBVar walletState
 readPrivateKey
     :: Functor stm
     => DBVar stm (DeltaWalletState s)
-    -> stm (Maybe (KeyOf s 'RootK XPrv, PassphraseHash))
-readPrivateKey walletState =
-    readDBVar walletState <&> \mc -> do
-        (RootCredentials pk h) <- credentials mc
-        pure (pk, h)
+    -> stm (Maybe (HashedCredentials (KeyOf s)))
+readPrivateKey walletState = credentials <$> readDBVar walletState
 
 putPrivateKey
     :: Monad m
     => DBVar m (DeltaWalletState s)
-    -> (KeyOf s 'RootK XPrv, PassphraseHash)
+    -> HashedCredentials (KeyOf s)
     -> m ()
-putPrivateKey walletState (pk, hpw) = onDBVar walletState $ update $ \_ ->
-    [UpdateCredentials $ Replace $ Just $ RootCredentials pk hpw]
+putPrivateKey walletState creds = onDBVar walletState $ update $ \_ ->
+    [UpdateCredentials $ Replace $ Just creds]
 
 readDelegation
     :: Monad stm
@@ -1255,7 +1260,8 @@ updateWallet ctx f = onWalletState ctx $ update $ \s ->
 -- | Change a wallet's passphrase to the given passphrase.
 updateWalletPassphraseWithOldPassphrase
     :: forall s
-     . WalletFlavorS s
+     . WalletFlavor s
+    => WalletFlavorS s
     -> WalletLayer IO s
     -> WalletId
     -> (Passphrase "user", Passphrase "user")
@@ -1278,7 +1284,8 @@ updateWalletPassphraseWithOldPassphrase wF ctx wid (old, new) =
     db = ctx ^. typed
 
 updateWalletPassphraseWithMnemonic
-    :: WalletLayer IO s
+    :: WalletFlavor s
+    => WalletLayer IO s
     -> (KeyOf s 'RootK XPrv, Passphrase "user")
     -> IO ()
 updateWalletPassphraseWithMnemonic ctx (xprv, new) =
@@ -1883,6 +1890,7 @@ createRandomAddress
        , ByronKey ~ KeyOf s
        , AddressBookIso s
        , HasSNetworkId n
+       , WalletFlavor s
        )
     => WalletLayer IO s
     -> WalletId
@@ -3681,20 +3689,45 @@ padFeePercentiles
                                   Key Store
 -------------------------------------------------------------------------------}
 
--- | Store an 'XPrv' which was encrypted with the given passphrase,
--- and also store the 'PassphraseHash' of the passphrase.
+-- | Store a root key encrypted with the given passphrase as a v2
+-- (Argon2id + XChaCha20-Poly1305) envelope and update the wallet metadata.
 --
--- Uses 'Cardano.Wallet.Primitive.Passphrase.encryptPassphrase' to
--- hash/encrypt the passphrase using the 'currentPassphraseScheme'.
+-- The input 'XPrv' must be encrypted with
+-- @preparePassphrase currentPassphraseScheme pwd@ (PBKDF2), which is the
+-- invariant upheld by all wallet-creation and passphrase-change paths.
 attachPrivateKeyFromPwd
-    :: WalletLayer IO s
+    :: forall s
+     . WalletFlavor s
+    => WalletLayer IO s
     -> (KeyOf s 'RootK XPrv, Passphrase "user")
     -> IO ()
-attachPrivateKeyFromPwd ctx (xprv, pwd) = do
-    (scheme, hpwd) <- encryptPassphrase pwd
-    attachPrivateKey db (xprv, hpwd) scheme
+attachPrivateKeyFromPwd ctx (key, pwd) = do
+    creds <- mkV2Credentials (keyFlavorFromState @s) key pwd
+    attachPrivateKey db creds EncryptWithArgon2idV2
   where
     db = ctx ^. dbLayer
+
+-- | Build a 'HashedCredentialsV2' from a PBKDF2-encrypted root key.
+-- Derives the plaintext scalar+chaincode to create an Argon2id authentication
+-- envelope, and stores the original PBKDF2-encrypted key for key operations.
+mkV2Credentials
+    :: KeyFlavorS k
+    -> k 'RootK XPrv
+    -> Passphrase "user"
+    -> IO (HashedCredentials k)
+mkV2Credentials kF key pwd = do
+    let rawXprv = getRawKey kF key
+        prepared = preparePassphrase currentPassphraseScheme pwd
+        -- Decrypt PBKDF2-encrypted XPrv to plaintext (empty new passphrase)
+        plaintextXprv = CC.xPrvChangePass prepared (mempty :: ByteString) rawXprv
+        raw128 = CC.unXPrv plaintextXprv
+        -- Master-key group for encryptedCreateDirectWithTweak: scalar(64) || cc(32)
+        masterKey96 = BS.take 64 raw128 <> BS.drop 96 raw128
+    encryptedCreateDirectWithTweak masterKey96 pwd >>= \case
+        Left err ->
+            error
+                $ "mkV2Credentials: encryptedCreateDirectWithTweak: " <> show err
+        Right ekey -> pure $ HashedCredentialsV2 key ekey
 
 -- | The hash here is the output of Scrypt function with the following parameters:
 -- - logN = 14
@@ -3706,10 +3739,9 @@ attachPrivateKeyFromPwdHashByron
     -> (KeyOf s 'RootK XPrv, PassphraseHash)
     -> IO ()
 attachPrivateKeyFromPwdHashByron ctx (xprv, hpwd) =
-    db & \_ ->
-        -- NOTE Only legacy wallets are imported through this function, passphrase
-        -- were encrypted with the legacy scheme (Scrypt).
-        attachPrivateKey db (xprv, hpwd) EncryptWithScrypt
+    -- NOTE Only legacy wallets are imported through this function, passphrase
+    -- were encrypted with the legacy scheme (Scrypt).
+    attachPrivateKey db (HashedCredentialsV1 xprv hpwd) EncryptWithScrypt
   where
     db = ctx ^. dbLayer
 
@@ -3718,21 +3750,38 @@ attachPrivateKeyFromPwdHashShelley
     -> (KeyOf s 'RootK XPrv, PassphraseHash)
     -> IO ()
 attachPrivateKeyFromPwdHashShelley ctx (xprv, hpwd) =
-    db & \_ ->
-        attachPrivateKey db (xprv, hpwd) currentPassphraseScheme
+    attachPrivateKey
+        db
+        (HashedCredentialsV1 xprv hpwd)
+        currentPassphraseScheme
   where
     db = ctx ^. dbLayer
 
+-- | Re-attach stored 'HashedCredentials' after a wallet is deleted and
+-- recreated (e.g. shared wallet activation).  The passphrase scheme is
+-- inferred from the credential format: V1 → 'currentPassphraseScheme',
+-- V2 → 'EncryptWithArgon2idV2'.
+reattachPrivateKey
+    :: WalletLayer IO s
+    -> HashedCredentials (KeyOf s)
+    -> IO ()
+reattachPrivateKey ctx creds =
+    attachPrivateKey (ctx ^. dbLayer) creds scheme
+  where
+    scheme = case creds of
+        HashedCredentialsV1 _ _ -> currentPassphraseScheme
+        HashedCredentialsV2{} -> EncryptWithArgon2idV2
+
 attachPrivateKey
     :: DBLayer IO s
-    -> (KeyOf s 'RootK XPrv, PassphraseHash)
+    -> HashedCredentials (KeyOf s)
     -> PassphraseScheme
     -> IO ()
-attachPrivateKey db pk scheme =
+attachPrivateKey db creds scheme =
     db & \DBLayer{..} -> do
         now <- liftIO getCurrentTime
         atomically $ do
-            putPrivateKey walletState pk
+            putPrivateKey walletState creds
             meta <- readWalletMeta walletState
             let modify x =
                     x
@@ -3749,38 +3798,111 @@ attachPrivateKey db pk scheme =
 --
 -- 'withRootKey' takes a callback function with two arguments:
 --
---  - The encrypted root private key itself
---  - The underlying passphrase scheme (legacy or new)
+--  - The root private key (PBKDF2-encrypted for all stored variants)
+--  - The passphrase scheme to use ('currentPassphraseScheme')
 --
--- Caller are then expected to use 'preparePassphrase' with the given scheme in
--- order to "prepare" the passphrase to be used by other function. This does
--- nothing for the new encryption, but for the legacy encryption with Scrypt,
--- passphrases needed to first be CBOR serialized and blake2b_256 hashed.
+-- Callers are expected to use 'preparePassphrase' with the given scheme in
+-- order to "prepare" the passphrase before passing it to signing / derivation
+-- functions.
+--
+-- For v2 keys, passphrase authentication uses the Argon2id AEAD envelope;
+-- the key itself remains PBKDF2-encrypted so key-operation callers use the
+-- same 'preparePassphrase' path as v1.
+--
+-- V1 keys are opportunistically migrated to v2 on every successful use.
 --
 -- @@@
---     withRootKey @ctx @s @k ctx wid pwd OnError $ \xprv scheme ->
+--     withRootKey db wid pwd OnError $ \xprv scheme ->
 --         changePassphrase (preparePassphrase scheme pwd) newPwd xprv
 -- @@@
 withRootKey
     :: forall s e a
-     . DBLayer IO s
+     . WalletFlavor s
+    => DBLayer IO s
     -> WalletId
     -> Passphrase "user"
     -> (ErrWithRootKey -> e)
     -> (KeyOf s 'RootK XPrv -> PassphraseScheme -> ExceptT e IO a)
     -> ExceptT e IO a
-withRootKey DBLayer{..} wid pwd embed action = do
-    (xprv, scheme) <- withExceptT embed . ExceptT . atomically $ do
+withRootKey db@DBLayer{..} wid pwd embed action = do
+    (mCreds, mScheme) <- lift . atomically $ do
         wMetadata <- readWalletMeta walletState
         let mScheme = passphraseScheme <$> passphraseInfo wMetadata
-        mXPrv <- readPrivateKey walletState
-        pure $ case (mXPrv, mScheme) of
-            (Just (xprv, hpwd), Just scheme) ->
-                case checkPassphrase scheme pwd hpwd of
-                    Left err -> Left $ ErrWithRootKeyWrongPassphrase wid err
-                    Right _ -> Right (xprv, scheme)
-            _ -> Left $ ErrWithRootKeyNoRootKey wid
-    action xprv scheme
+        mCreds <- readPrivateKey walletState
+        pure (mCreds, mScheme)
+    validated <- withExceptT embed . ExceptT $ case (mCreds, mScheme) of
+        (Just (HashedCredentialsV1 xprv hpwd), Just scheme) ->
+            pure $ case checkPassphrase scheme pwd hpwd of
+                Left err -> Left $ ErrWithRootKeyWrongPassphrase wid err
+                Right _ -> Right $ Left (xprv, scheme)
+        (Just (HashedCredentialsV2 xprv ekey), Just _) -> do
+            result <- encryptedValidatePassphrase ekey pwd
+            pure $ case result of
+                Left _ ->
+                    Left $ ErrWithRootKeyWrongPassphrase wid ErrWrongPassphrase
+                Right () -> Right $ Right xprv
+        _ -> pure $ Left $ ErrWithRootKeyNoRootKey wid
+    case validated of
+        Left (xprv, scheme) -> do
+            -- Opportunistically migrate V1 → V2 on successful passphrase use.
+            lift $ migrateV1toV2 db kF xprv scheme pwd
+            action xprv scheme
+        Right xprv ->
+            action xprv currentPassphraseScheme
+  where
+    kF = keyFlavorFromState @s
+
+-- | Migrate a V1 PBKDF2- or Scrypt-encrypted root key to a V2 Argon2id
+-- envelope and write it back to the database.  Fails silently so that the
+-- current operation is not affected if migration is unsuccessful.
+--
+-- The stored XPrv in the resulting 'HashedCredentialsV2' is always
+-- re-encrypted with 'currentPassphraseScheme' (PBKDF2), regardless of the
+-- original V1 scheme.  This ensures that 'withRootKey' can always return
+-- 'currentPassphraseScheme' for V2 credentials.
+migrateV1toV2
+    :: forall s
+     . DBLayer IO s
+    -> KeyFlavorS (KeyOf s)
+    -> KeyOf s 'RootK XPrv
+    -> PassphraseScheme
+    -> Passphrase "user"
+    -> IO ()
+migrateV1toV2 DBLayer{..} kF key scheme pwd = do
+    let rawXprv = getRawKey kF key
+        prepared = preparePassphrase scheme pwd
+        -- Decrypt to plaintext (empty passphrase)
+        plaintextXprv = CC.xPrvChangePass prepared (mempty :: ByteString) rawXprv
+        raw128 = CC.unXPrv plaintextXprv
+        masterKey96 = BS.take 64 raw128 <> BS.drop 96 raw128
+        -- Re-encrypt with current scheme (PBKDF2) for V2 stored key
+        pbkdf2Prepared = preparePassphrase currentPassphraseScheme pwd
+        pbkdf2XPrv = CC.xPrvChangePass (mempty :: ByteString) pbkdf2Prepared plaintextXprv
+        mPayload = case kF of
+            ByronKeyS -> Just (payloadPassphrase key)
+            _ -> Nothing
+        v2Key = reconstructRootKey kF pbkdf2XPrv mPayload
+    encryptedCreateDirectWithTweak masterKey96 pwd >>= \case
+        Left _ -> pure () -- fail silently; key stays V1 until next use
+        Right ekey -> atomically $ do
+            putPrivateKey walletState (HashedCredentialsV2 v2Key ekey)
+            meta <- readWalletMeta walletState
+            let updateScheme info = info{passphraseScheme = EncryptWithArgon2idV2}
+            putWalletMeta walletState
+                $ meta{passphraseInfo = fmap updateScheme (passphraseInfo meta)}
+
+reconstructRootKey
+    :: KeyFlavorS k
+    -> XPrv
+    -> Maybe (Passphrase "addr-derivation-payload")
+    -> k 'RootK XPrv
+reconstructRootKey kF plaintextXprv mPayload = case kF of
+    ByronKeyS ->
+        ByronKey plaintextXprv ()
+            $ fromMaybe (hdPassphrase (toXPub plaintextXprv)) mPayload
+    IcarusKeyS -> IcarusKey plaintextXprv
+    ShelleyKeyS -> ShelleyKey plaintextXprv
+    SharedKeyS -> SharedKey plaintextXprv
 
 -- | Sign an arbitrary transaction metadata object with a private key belonging
 -- to the wallet's account.
@@ -3864,7 +3986,9 @@ readAccountPublicKey ctx =
 
 writePolicyPublicKey
     :: forall s n
-     . s ~ SeqState n ShelleyKey
+     . ( s ~ SeqState n ShelleyKey
+       , WalletFlavor s
+       )
     => WalletLayer IO s
     -> WalletId
     -> Passphrase "user"

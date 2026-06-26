@@ -34,6 +34,9 @@ import Cardano.Wallet.Primitive.Passphrase.Types
     , Passphrase (..)
     , PassphraseScheme (..)
     )
+import Cardano.Wallet.Primitive.Types.Credentials
+    ( HashedCredentials (..)
+    )
 import Control.Monad
     ( when
     )
@@ -97,18 +100,6 @@ run dbPath walletId = do
     -- Auto-detect key type: Byron keys contain ':' separator
     let isByron = B8.elem ':' rootHex
 
-    -- Deserialize and extract XPrv + PassphraseHash
-    let (xprv, passHash, scheme) =
-            if isByron
-                then
-                    let (key, h) =
-                            unsafeDeserializeXPrv ByronKeyS (rootHex, hashHex)
-                    in  (getRawKey ByronKeyS key, h, EncryptWithScrypt)
-                else
-                    let (key, h) =
-                            unsafeDeserializeXPrv ShelleyKeyS (rootHex, hashHex)
-                    in  (getRawKey ShelleyKeyS key, h, EncryptWithPBKDF2)
-
     putStrLn
         $ "Key type: "
             <> if isByron then "Byron" else "Shelley"
@@ -116,20 +107,38 @@ run dbPath walletId = do
     -- Prompt for passphrase
     userPass <- promptPassphrase
 
-    -- Verify passphrase
-    case checkPassphrase scheme userPass passHash of
-        Left ErrWrongPassphrase -> do
-            putStrLn "Error: wrong passphrase"
-            exitFailure
-        Right () -> pure ()
-
-    -- Decrypt: change passphrase from user's to empty
-    let prepared = preparePassphrase scheme userPass
-        emptyPass = mempty :: Passphrase "encryption"
-        decrypted = xPrvChangePass prepared emptyPass xprv
+    -- Deserialize, verify passphrase, and decrypt
+    xprv <-
+        if isByron
+            then case unsafeDeserializeXPrv ByronKeyS (rootHex, hashHex) of
+                HashedCredentialsV1 key passHash -> do
+                    case checkPassphrase EncryptWithScrypt userPass passHash of
+                        Left ErrWrongPassphrase -> do
+                            putStrLn "Error: wrong passphrase"
+                            exitFailure
+                        Right () -> pure ()
+                    let prepared = preparePassphrase EncryptWithScrypt userPass
+                        emptyPass = mempty :: Passphrase "encryption"
+                    pure $ xPrvChangePass prepared emptyPass (getRawKey ByronKeyS key)
+                HashedCredentialsV2{} -> do
+                    putStrLn "Error: V2 (Argon2id) keys cannot be exported in XPrv format"
+                    exitFailure
+            else case unsafeDeserializeXPrv ShelleyKeyS (rootHex, hashHex) of
+                HashedCredentialsV1 key passHash -> do
+                    case checkPassphrase EncryptWithPBKDF2 userPass passHash of
+                        Left ErrWrongPassphrase -> do
+                            putStrLn "Error: wrong passphrase"
+                            exitFailure
+                        Right () -> pure ()
+                    let prepared = preparePassphrase EncryptWithPBKDF2 userPass
+                        emptyPass = mempty :: Passphrase "encryption"
+                    pure $ xPrvChangePass prepared emptyPass (getRawKey ShelleyKeyS key)
+                HashedCredentialsV2{} -> do
+                    putStrLn "Error: V2 (Argon2id) keys cannot be exported in XPrv format"
+                    exitFailure
 
     -- Output raw hex (128 bytes = 256 hex chars)
-    let hexKey = B16.encode (unXPrv decrypted)
+    let hexKey = B16.encode (unXPrv xprv)
     putStrLn ""
     putStrLn "=== Raw XPrv (hex) ==="
     B8.putStrLn hexKey

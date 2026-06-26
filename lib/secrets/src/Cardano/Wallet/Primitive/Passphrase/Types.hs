@@ -177,6 +177,11 @@ data PassphraseScheme
       EncryptWithScrypt
     | -- | Encryption scheme used since cardano-wallet
       EncryptWithPBKDF2
+    | -- | v2 envelope (Argon2id + XChaCha20-Poly1305). Keys encrypted
+      -- with this scheme are stored as CBOR-encoded v2 blobs; the
+      -- in-memory XPrv holds the plaintext scalar so the C layer is
+      -- called with an empty passphrase (memcpy / no-op path).
+      EncryptWithArgon2idV2
     deriving (Generic, Eq, Ord, Show, Read)
 
 instance NFData PassphraseScheme
@@ -184,6 +189,14 @@ instance NFData PassphraseScheme
 instance ToText PassphraseScheme where
     toText EncryptWithScrypt = "scrypt"
     toText EncryptWithPBKDF2 = "pbkdf2-hmac-sha512"
+    toText EncryptWithArgon2idV2 = "argon2id-v2"
+
+instance FromText PassphraseScheme where
+    fromText "scrypt" = Right EncryptWithScrypt
+    fromText "pbkdf2-hmac-sha512" = Right EncryptWithPBKDF2
+    fromText "argon2id-v2" = Right EncryptWithArgon2idV2
+    fromText t =
+        Left $ TextDecodingError $ "Unknown passphrase scheme: " <> T.unpack t
 
 newtype PassphraseHash = PassphraseHash {getPassphraseHash :: ScrubbedBytes}
     deriving stock (Show)

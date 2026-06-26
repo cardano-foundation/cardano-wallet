@@ -25,6 +25,9 @@ module Cardano.Wallet.Application
     , module Tracers
     ) where
 
+import Cardano.Crypto.Init
+    ( cryptoInit
+    )
 import Cardano.Wallet
     ( WalletException
     )
@@ -308,6 +311,7 @@ serveWallet
     tokenMetaUri
     block0
     beforeMainLoop = withSNetworkId network $ \sNetwork -> evalContT $ do
+        lift cryptoInit
         let netId = networkIdVal sNetwork
         lift $ case blockchainSource of
             NodeSource nodeConn _ _ ->

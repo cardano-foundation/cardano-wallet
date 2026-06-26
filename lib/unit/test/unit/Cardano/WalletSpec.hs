@@ -32,6 +32,9 @@ import Cardano.Balance.Tx.Balance
 import Cardano.Balance.Tx.SizeEstimation
     ( TxWitnessTag (..)
     )
+import Cardano.Crypto.Wallet
+    ( toXPub
+    )
 import Cardano.Mnemonic
     ( SomeMnemonic (..)
     )
@@ -42,9 +45,12 @@ import Cardano.Wallet
     , LocalTxSubmissionConfig (..)
     , SelectionWithoutChange
     , WalletLayer (..)
+    , dbLayer
     , migrationPlanToSelectionWithdrawals
+    , readPrivateKey
     , submitTx
     , throttle
+    , withRootKey
     )
 import Cardano.Wallet.Address.Derivation
     ( Depth (..)
@@ -121,7 +127,11 @@ import Cardano.Wallet.Primitive.Passphrase
     , Passphrase (..)
     )
 import Cardano.Wallet.Primitive.Passphrase.Current
-    ( preparePassphrase
+    ( encryptPassphrase
+    , preparePassphrase
+    )
+import Cardano.Wallet.Primitive.Passphrase.Types
+    ( PassphraseHash
     )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
@@ -147,6 +157,9 @@ import Cardano.Wallet.Primitive.Types.Coin
     )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
     ( genCoinPositive
+    )
+import Cardano.Wallet.Primitive.Types.Credentials
+    ( HashedCredentials (..)
     )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
@@ -206,7 +219,8 @@ import Cardano.Wallet.Transaction.Built
     ( BuiltTx (..)
     )
 import Cardano.Wallet.Unsafe
-    ( unsafeRunExceptT
+    ( someDummyMnemonic
+    , unsafeRunExceptT
     )
 import Cardano.Wallet.Util
     ( HasCallStack
@@ -272,6 +286,9 @@ import Data.ByteString
 import Data.Coerce
     ( coerce
     )
+import Data.Either
+    ( isLeft
+    )
 import Data.Function
     ( on
     )
@@ -304,6 +321,9 @@ import Data.Maybe
 import Data.Ord
     ( Down (..)
     )
+import Data.Proxy
+    ( Proxy (..)
+    )
 import Data.Quantity
     ( Quantity (..)
     )
@@ -330,6 +350,7 @@ import System.Random
 import Test.Hspec
     ( Spec
     , describe
+    , expectationFailure
     , it
     , shouldBe
     , shouldSatisfy
@@ -462,6 +483,20 @@ spec = describe "Cardano.WalletSpec" $ do
         it
             "Wallet won't list unrelated assets used in related transactions"
             (property walletListsOnlyRelatedAssets)
+
+    describe "V1 → V2 root key migration" $ do
+        it
+            "V1 key is upgraded to V2 on successful unlock"
+            walletRootKeyV1toV2Migration
+        it
+            "Wrong passphrase leaves key at V1"
+            walletRootKeyMigrationRejectedOnWrongPassphrase
+        it
+            "V2 key is not re-encrypted on successful unlock (idempotent)"
+            walletRootKeyV2Idempotent
+        it
+            "password change V1→V2 preserves derived public keys"
+            walletPasswordChangeV1ToV2PreservesPublicKey
 
     describe "Tx fee estimation spread"
         $ it
@@ -630,6 +665,170 @@ walletKeyIsReencrypted
     -> Passphrase "user"
     -> Property
 walletKeyIsReencrypted (_wid, _wname) (_xprv, _pwd) _newPwd = property True
+
+-- | Assert that a V1 (PBKDF2-hashed) root key is silently upgraded to V2 the
+-- first time the wallet is unlocked with the correct passphrase.
+walletRootKeyV1toV2Migration :: IO ()
+walletRootKeyV1toV2Migration = do
+    WalletLayerFixture DBLayer{walletState, atomically} wl wid <-
+        setupFixture dummyStateF testWallet
+    -- Store a V1 credential set.
+    W.attachPrivateKeyFromPwdHashShelley wl (testKey, testHash)
+    -- Confirm V1 is stored.
+    mCreds0 <- atomically $ readPrivateKey walletState
+    case mCreds0 of
+        Just (HashedCredentialsV1 _ _) -> pure ()
+        _ -> expectationFailure "expected HashedCredentialsV1 before migration"
+    -- Unlock the wallet (triggers opportunistic migration).
+    result <-
+        runExceptT
+            $ withRootKey
+                (wl ^. dbLayer)
+                wid
+                testPwd
+                id
+                (\_ _ -> pure ())
+    result `shouldBe` Right ()
+    -- Confirm V2 is now stored.
+    mCreds1 <- atomically $ readPrivateKey walletState
+    case mCreds1 of
+        Just (HashedCredentialsV2 _ _) -> pure ()
+        _ -> expectationFailure "expected HashedCredentialsV2 after migration"
+
+-- | A wrong passphrase must not trigger migration: the stored key stays V1.
+walletRootKeyMigrationRejectedOnWrongPassphrase :: IO ()
+walletRootKeyMigrationRejectedOnWrongPassphrase = do
+    WalletLayerFixture DBLayer{walletState, atomically} wl wid <-
+        setupFixture dummyStateF testWallet
+    W.attachPrivateKeyFromPwdHashShelley wl (testKey, testHash)
+    let wrongPwd =
+            Passphrase @"user" (BA.convert @BS.ByteString "wrong-passphrase-0000")
+    result <-
+        runExceptT
+            $ withRootKey
+                (wl ^. dbLayer)
+                wid
+                wrongPwd
+                id
+                (\_ _ -> pure ())
+    result `shouldSatisfy` isLeft
+    mCreds <- atomically $ readPrivateKey walletState
+    case mCreds of
+        Just (HashedCredentialsV1 _ _) -> pure ()
+        _ ->
+            expectationFailure
+                "expected key to remain HashedCredentialsV1 after failed unlock"
+
+-- | Unlocking a V2 wallet must not trigger re-encryption: the stored key bytes
+-- must remain identical.
+walletRootKeyV2Idempotent :: IO ()
+walletRootKeyV2Idempotent = do
+    WalletLayerFixture DBLayer{walletState, atomically} wl wid <-
+        setupFixture dummyStateF testWallet
+    -- attachPrivateKeyFromPwd stores V2.
+    W.attachPrivateKeyFromPwd wl (testKey, testPwd)
+    mCreds0 <- atomically $ readPrivateKey walletState
+    case mCreds0 of
+        Just (HashedCredentialsV2 _ _) -> pure ()
+        _ ->
+            expectationFailure "expected HashedCredentialsV2 after initial store"
+    -- Unlock again.
+    _ <-
+        runExceptT
+            $ withRootKey
+                (wl ^. dbLayer)
+                wid
+                testPwd
+                id
+                (\_ _ -> pure ())
+    mCreds1 <- atomically $ readPrivateKey walletState
+    -- Still V2 after the second unlock.
+    case mCreds1 of
+        Just (HashedCredentialsV2 _ _) -> pure ()
+        _ ->
+            expectationFailure
+                "expected key to remain HashedCredentialsV2 after re-unlock"
+
+-- | Changing a wallet passphrase from the old V1 format (PBKDF2 /
+-- cardano-crypto hard-coded-salt KDF) to the new V2 format (Argon2id /
+-- cardano-base) must not change the child public keys derivable from the
+-- root key.  The same mnemonic always produces the same HD tree regardless
+-- of how the root key happens to be encrypted at rest.
+walletPasswordChangeV1ToV2PreservesPublicKey :: IO ()
+walletPasswordChangeV1ToV2PreservesPublicKey = do
+    WalletLayerFixture DBLayer{walletState, atomically} wl wid <-
+        setupFixture dummyStateF testWallet
+    -- 1. Store the root key in the old V1 (PBKDF2 / cardano-crypto) format.
+    W.attachPrivateKeyFromPwdHashShelley wl (testKey, testHash)
+    -- 2. Derive an address public key from the V1 root key (before migration).
+    let encOld = preparePassphrase testPwd
+        derivedPub encPwd k =
+            toXPub . getKey
+                $ deriveAddressPrivateKey encPwd
+                    (deriveAccountPrivateKey encPwd k minBound)
+                    UtxoExternal
+                    minBound
+        pubKeyBefore = derivedPub encOld testKey
+    -- 3. Change passphrase: V1 PBKDF2 (cardano-crypto) → V2 Argon2id (cardano-base).
+    let newPwd = Passphrase @"user" (BA.convert @BS.ByteString "new-migration-pass01")
+    changeResult <-
+        runExceptT
+            $ W.updateWalletPassphraseWithOldPassphrase
+                dummyStateF
+                wl
+                wid
+                (testPwd, newPwd)
+    changeResult `shouldBe` Right ()
+    -- 4. Confirm V2 credentials are now stored.
+    mCreds <- atomically $ readPrivateKey walletState
+    case mCreds of
+        Just (HashedCredentialsV2 _ _) -> pure ()
+        _ ->
+            expectationFailure
+                "expected HashedCredentialsV2 after password change"
+    -- 5. Unlock with the new passphrase and derive the same address public key.
+    pubKeyAfterResult <-
+        runExceptT
+            $ withRootKey (wl ^. dbLayer) wid newPwd id
+            $ \rootK _scheme ->
+                pure $ derivedPub (preparePassphrase newPwd) rootK
+    pubKeyAfter <- case pubKeyAfterResult of
+        Left err ->
+            expectationFailure
+                ("withRootKey after password change failed: " <> show err)
+                >> error "unreachable"
+        Right pk -> pure pk
+    -- 6. The derived public key must be identical regardless of encryption format.
+    pubKeyAfter `shouldBe` pubKeyBefore
+
+-- | A fixed (WalletId, WalletName, DummyState) used by the migration tests.
+testWallet :: (WalletId, WalletName, DummyState)
+testWallet =
+    ( WalletId (hash @BS.ByteString "migration-test-wallet")
+    , WalletName "Migration Test Wallet"
+    , TestState mempty
+    )
+
+-- | A fixed test passphrase (>= 10 chars to satisfy 'validatePassphrase').
+testPwd :: Passphrase "user"
+testPwd =
+    Passphrase @"user" (BA.convert @BS.ByteString "migration-test-pass01")
+
+-- | The test key generated from 'testPwd' via PBKDF2 (V1 scheme).
+testKey :: ShelleyKey 'RootK XPrv
+testKey =
+    generateKeyFromSeed
+        (someDummyMnemonic (Proxy @15), Nothing)
+        (preparePassphrase testPwd)
+
+-- | A PBKDF2 hash of 'testPwd' created with a fixed 16-byte salt, compatible
+-- with 'checkPassphrase EncryptWithPBKDF2 testPwd'.
+testHash :: PassphraseHash
+testHash = encryptPassphrase (preparePassphrase testPwd) fixedSalt
+  where
+    fixedSalt :: Passphrase "salt"
+    fixedSalt =
+        Passphrase (BA.convert @BS.ByteString "0123456789abcdef")
 
 walletListTransactionsSorted
     :: (WalletId, WalletName, DummyState)

@@ -53,9 +53,6 @@ import Cardano.BM.Setup
 import Cardano.BM.Trace
     ( traceInTVarIO
     )
-import Cardano.Crypto.Wallet
-    ( XPrv
-    )
 import Cardano.DB.Sqlite
     ( DBLog (..)
     )
@@ -174,7 +171,6 @@ import Cardano.Wallet.Primitive.Passphrase
     )
 import Cardano.Wallet.Primitive.Passphrase.Types
     ( Passphrase (..)
-    , PassphraseHash (..)
     , PassphraseScheme (..)
     , WalletPassphraseInfo (..)
     )
@@ -198,7 +194,8 @@ import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
 import Cardano.Wallet.Primitive.Types.Credentials
-    ( RootCredentials (..)
+    ( HashedCredentials (..)
+    , RootCredentials (..)
     )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
@@ -678,8 +675,8 @@ fileModeSpec = do
                 testReopening f getWalletId' testWid
 
             it "create and get private key" $ \f -> do
-                (k, h) <- withShelleyFileBootDBLayer f attachPrivateKey
-                testReopening f readPrivateKey' (Just (k, h))
+                creds <- withShelleyFileBootDBLayer f attachPrivateKey
+                testReopening f readPrivateKey' (Just creds)
 
             it "put and read tx history (Ascending)" $ \f -> do
                 withShelleyFileBootDBLayer f $ \DBLayer{atomically, putTxHistory} ->
@@ -1181,21 +1178,22 @@ readTransactions' DBLayer{..} a1 a2 mstatus =
 
 readPrivateKey'
     :: DBLayer m s
-    -> m (Maybe (KeyOf s 'RootK XPrv, PassphraseHash))
+    -> m (Maybe (HashedCredentials (KeyOf s)))
 readPrivateKey' DBLayer{..} = atomically $ readPrivateKey walletState
 
 -- | Attach an arbitrary private key to a wallet
 attachPrivateKey
     :: KeyOf s ~ ShelleyKey
     => DBLayer IO s
-    -> IO (KeyOf s 'RootK XPrv, PassphraseHash)
+    -> IO (HashedCredentials (KeyOf s))
 attachPrivateKey DBLayer{..} = do
     let pwd = Passphrase $ BA.convert $ T.encodeUtf8 "simplevalidphrase"
     seed <- liftIO $ generate $ SomeMnemonic <$> genMnemonic @15
     (scheme, h) <- liftIO $ encryptPassphrase pwd
     let k = generateKeyFromSeed (seed, Nothing) (preparePassphrase scheme pwd)
-    atomically $ putPrivateKey walletState (k, h)
-    return (k, h)
+        creds = HashedCredentialsV1 k h
+    atomically $ putPrivateKey walletState creds
+    return creds
 
 cutRandomly :: [a] -> IO [[a]]
 cutRandomly = iter []
