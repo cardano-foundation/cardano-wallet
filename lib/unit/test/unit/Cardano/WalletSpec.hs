@@ -33,8 +33,7 @@ import Cardano.Balance.Tx.SizeEstimation
     ( TxWitnessTag (..)
     )
 import Cardano.Crypto.Wallet
-    ( XPub
-    , toXPub
+    ( toXPub
     )
 import Cardano.Mnemonic
     ( SomeMnemonic (..)
