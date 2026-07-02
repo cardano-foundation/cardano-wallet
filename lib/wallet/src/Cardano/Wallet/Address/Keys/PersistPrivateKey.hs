@@ -180,12 +180,10 @@ deserializeByron keyCol hashCol
         case B8.split ':' (BS.drop 3 keyCol) of
             [keyHex, ekeyHex, payloadHex]
                 | isV1KeySegment keyHex ->
-                    case
-                        ( fromHex @ByteString keyHex
-                        , fromHex @ByteString ekeyHex
-                        , fromHex @ByteString payloadHex
-                        )
-                      of
+                    case ( fromHex @ByteString keyHex
+                         , fromHex @ByteString ekeyHex
+                         , fromHex @ByteString payloadHex
+                         ) of
                         (Right rawK, Right rawE, Right rawP) ->
                             case (xprv rawK, mkEncryptedKey rawE) of
                                 (Right k, Right ekey) ->

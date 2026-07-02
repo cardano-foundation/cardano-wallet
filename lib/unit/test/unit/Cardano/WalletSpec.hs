@@ -764,13 +764,15 @@ walletPasswordChangeV1ToV2PreservesPublicKey = do
     let encOld = preparePassphrase testPwd
         derivedPub encPwd k =
             toXPub . getKey
-                $ deriveAddressPrivateKey encPwd
+                $ deriveAddressPrivateKey
+                    encPwd
                     (deriveAccountPrivateKey encPwd k minBound)
                     UtxoExternal
                     minBound
         pubKeyBefore = derivedPub encOld testKey
     -- 3. Change passphrase: V1 PBKDF2 (cardano-crypto) → V2 Argon2id (cardano-base).
-    let newPwd = Passphrase @"user" (BA.convert @BS.ByteString "new-migration-pass01")
+    let newPwd =
+            Passphrase @"user" (BA.convert @BS.ByteString "new-migration-pass01")
     changeResult <-
         runExceptT
             $ W.updateWalletPassphraseWithOldPassphrase

@@ -3877,7 +3877,8 @@ migrateV1toV2 DBLayer{..} kF key scheme pwd = do
         masterKey96 = BS.take 64 raw128 <> BS.drop 96 raw128
         -- Re-encrypt with current scheme (PBKDF2) for V2 stored key
         pbkdf2Prepared = preparePassphrase currentPassphraseScheme pwd
-        pbkdf2XPrv = CC.xPrvChangePass (mempty :: ByteString) pbkdf2Prepared plaintextXprv
+        pbkdf2XPrv =
+            CC.xPrvChangePass (mempty :: ByteString) pbkdf2Prepared plaintextXprv
         mPayload = case kF of
             ByronKeyS -> Just (payloadPassphrase key)
             _ -> Nothing
