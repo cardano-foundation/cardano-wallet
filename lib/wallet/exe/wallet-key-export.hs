@@ -77,6 +77,7 @@ import System.IO
 import Prelude
 
 import qualified Data.ByteArray as BA
+import qualified Data.ByteString as BS
 import qualified Data.ByteString.Base16 as B16
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Text as T
@@ -97,12 +98,17 @@ run dbPath walletId = do
     -- Read root key and hash from the SQLite database
     (rootHex, hashHex) <- readPrivateKey dbPath walletId
 
-    -- Auto-detect key type: Byron keys contain ':' separator
-    let isByron = B8.elem ':' rootHex
+    -- Auto-detect key type from the serialized key column.
+    let isV2 = "V2:" `BS.isPrefixOf` rootHex
+        isByron = not isV2 && isByronV1RootKey rootHex
 
     putStrLn
         $ "Key type: "
             <> if isByron then "Byron" else "Shelley"
+
+    when isV2 $ do
+        putStrLn "Error: V2 (Argon2id) keys cannot be exported in XPrv format"
+        exitFailure
 
     -- Prompt for passphrase
     userPass <- promptPassphrase
@@ -184,6 +190,12 @@ readPrivateKey dbPath walletId = do
         _ -> do
             putStrLn "Error: unexpected number of rows in private_key table"
             exitFailure
+
+isByronV1RootKey :: ByteString -> Bool
+isByronV1RootKey rootHex =
+    case B8.split ':' rootHex of
+        [keyHex, _payloadHex] -> BS.length keyHex == 256
+        _ -> False
 
 promptPassphrase :: IO (Passphrase "user")
 promptPassphrase = do

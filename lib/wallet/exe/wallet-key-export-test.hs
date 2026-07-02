@@ -18,6 +18,10 @@ import Cardano.Crypto.Wallet
     ( unXPrv
     , xPrvChangePass
     )
+import Cardano.Crypto.WalletHD.Encrypted
+    ( EncryptedKey
+    , mkEncryptedKey
+    )
 import Cardano.DB.Sqlite
     ( runQuery
     , withSqliteContextFile
@@ -81,6 +85,9 @@ import Cardano.Wallet.Unsafe
     )
 import Control.Tracer
     ( nullTracer
+    )
+import Data.List
+    ( isInfixOf
     )
 import Data.Text.Class
     ( toText
@@ -155,6 +162,7 @@ main = do
             , withMaxSuccess 20 $ prop_wrongPassphraseByron exe
             , withMaxSuccess 20 $ prop_wrongSchemeShelley exe
             , withMaxSuccess 20 $ prop_wrongSchemeByron exe
+            , withMaxSuccess 20 $ prop_v2ShelleyUnsupported exe
             ]
     if all isSuccess results
         then putStrLn "All tests passed."
@@ -381,6 +389,35 @@ prop_wrongSchemeByron exe =
                     hashHex
                     userPass
 
+-- | V2 Shelley keys contain ':' separators but must not be routed to
+-- the Byron deserializer.
+prop_v2ShelleyUnsupported :: FilePath -> Property
+prop_v2ShelleyUnsupported exe =
+    forAll
+        ( (,,)
+            <$> genShelleyMnemonic
+            <*> genUserPassphrase
+            <*> genWalletId
+        )
+        $ \(mnemonic, userPass, wid) ->
+            ioProperty $ do
+                let encPass =
+                        preparePassphrase EncryptWithPBKDF2 userPass
+                    key =
+                        generateKeyFromSeed
+                            (mnemonic, Nothing)
+                            encPass
+                    (rootHex, hashHex) =
+                        serializeXPrv
+                            ShelleyKeyS
+                            (HashedCredentialsV2 key testEncryptedKey)
+                runUnsupportedV2Test
+                    exe
+                    wid
+                    rootHex
+                    hashHex
+                    userPass
+
 emptyPass :: Passphrase "encryption"
 emptyPass = mempty
 
@@ -480,6 +517,57 @@ runWrongPassTest exe wid rootHex hashHex wrongPass =
                             ("stdout: " <> stdout_)
                         $ exitCode
                             === ExitFailure 1
+
+-- | Test that a V2 key reports the intentional unsupported-key error.
+runUnsupportedV2Test
+    :: FilePath
+    -> WalletId
+    -> BS.ByteString
+    -> BS.ByteString
+    -> Passphrase "user"
+    -> IO Property
+runUnsupportedV2Test exe wid rootHex hashHex userPass =
+    withSystemTempFile "wallet-export-test.db"
+        $ \dbPath handle -> do
+            hClose handle
+            dbResult <-
+                withSqliteContextFile
+                    nullTracer
+                    dbPath
+                    noManualMigration
+                    migrateAll
+                    $ \db ->
+                        runQuery db $ do
+                            insertWallet wid
+                            insert_
+                                $ PrivateKey wid rootHex hashHex
+            case dbResult of
+                Left err ->
+                    pure
+                        $ counterexample
+                            ("DB migration error: " <> show err)
+                        $ False === True
+                Right () -> do
+                    let widHex = T.unpack (toText wid)
+                        passText = passphraseToText userPass
+                    (exitCode, stdout_, stderr_) <-
+                        readCreateProcessWithExitCode
+                            (proc exe [dbPath, widHex])
+                            (T.unpack passText ++ "\n")
+                    pure
+                        $ counterexample
+                            ("stdout: " <> stdout_ <> "\nstderr: " <> stderr_)
+                        $ (exitCode === ExitFailure 1)
+                        .&&. (unsupportedMessage `isInfixOf` stdout_ === True)
+  where
+    unsupportedMessage =
+        "Error: V2 (Argon2id) keys cannot be exported in XPrv format"
+
+testEncryptedKey :: EncryptedKey
+testEncryptedKey =
+    case mkEncryptedKey (BS.replicate 128 0x02) of
+        Left err -> error $ "testEncryptedKey: " <> show err
+        Right k -> k
 
 -- | Extract the hex line from wallet-key-export output.
 -- Looks for the line after "=== Raw XPrv (hex) ===".

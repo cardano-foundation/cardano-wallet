@@ -322,6 +322,7 @@ test-suite wallet-key-export-test
     , bytestring
     , cardano-addresses
     , cardano-crypto
+    , cardano-crypto-wallet
     , cardano-wallet
     , cardano-wallet-primitive
     , cardano-wallet-secrets
