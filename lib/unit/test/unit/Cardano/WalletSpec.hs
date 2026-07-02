@@ -492,6 +492,9 @@ spec = describe "Cardano.WalletSpec" $ do
             "Wrong passphrase leaves key at V1"
             walletRootKeyMigrationRejectedOnWrongPassphrase
         it
+            "empty-passphrase V1 key migrates to V2 and remains unlockable"
+            walletRootKeyEmptyPassphraseV1toV2Migration
+        it
             "V2 key is not re-encrypted on successful unlock (idempotent)"
             walletRootKeyV2Idempotent
         it
@@ -719,6 +722,45 @@ walletRootKeyMigrationRejectedOnWrongPassphrase = do
             expectationFailure
                 "expected key to remain HashedCredentialsV1 after failed unlock"
 
+walletRootKeyEmptyPassphraseV1toV2Migration :: IO ()
+walletRootKeyEmptyPassphraseV1toV2Migration = do
+    WalletLayerFixture DBLayer{walletState, atomically} wl wid <-
+        setupFixture dummyStateF testWallet
+    W.attachPrivateKeyFromPwdHashShelley wl (testEmptyKey, testEmptyHash)
+    result <-
+        runExceptT
+            $ withRootKey
+                (wl ^. dbLayer)
+                wid
+                testEmptyPwd
+                id
+                (\_ _ -> pure ())
+    result `shouldBe` Right ()
+    mCreds <- atomically $ readPrivateKey walletState
+    case mCreds of
+        Just (HashedCredentialsV2 _ _) -> pure ()
+        _ ->
+            expectationFailure
+                "expected empty-passphrase key to migrate to HashedCredentialsV2"
+    unlockAgain <-
+        runExceptT
+            $ withRootKey
+                (wl ^. dbLayer)
+                wid
+                testEmptyPwd
+                id
+                (\_ _ -> pure ())
+    unlockAgain `shouldBe` Right ()
+    rejected <-
+        runExceptT
+            $ withRootKey
+                (wl ^. dbLayer)
+                wid
+                testNonEmptyPwd
+                id
+                (\_ _ -> pure ())
+    rejected `shouldSatisfy` isLeft
+
 -- | Unlocking a V2 wallet must not trigger re-encryption: the stored key bytes
 -- must remain identical.
 walletRootKeyV2Idempotent :: IO ()
@@ -816,6 +858,13 @@ testPwd :: Passphrase "user"
 testPwd =
     Passphrase @"user" (BA.convert @BS.ByteString "migration-test-pass01")
 
+testEmptyPwd :: Passphrase "user"
+testEmptyPwd = Passphrase @"user" mempty
+
+testNonEmptyPwd :: Passphrase "user"
+testNonEmptyPwd =
+    Passphrase @"user" (BA.convert @BS.ByteString "not-empty-pass01")
+
 -- | The test key generated from 'testPwd' via PBKDF2 (V1 scheme).
 testKey :: ShelleyKey 'RootK XPrv
 testKey =
@@ -823,10 +872,23 @@ testKey =
         (someDummyMnemonic (Proxy @15), Nothing)
         (preparePassphrase testPwd)
 
+testEmptyKey :: ShelleyKey 'RootK XPrv
+testEmptyKey =
+    generateKeyFromSeed
+        (someDummyMnemonic (Proxy @15), Nothing)
+        (preparePassphrase testEmptyPwd)
+
 -- | A PBKDF2 hash of 'testPwd' created with a fixed 16-byte salt, compatible
 -- with 'checkPassphrase EncryptWithPBKDF2 testPwd'.
 testHash :: PassphraseHash
 testHash = encryptPassphrase (preparePassphrase testPwd) fixedSalt
+  where
+    fixedSalt :: Passphrase "salt"
+    fixedSalt =
+        Passphrase (BA.convert @BS.ByteString "0123456789abcdef")
+
+testEmptyHash :: PassphraseHash
+testEmptyHash = encryptPassphrase (preparePassphrase testEmptyPwd) fixedSalt
   where
     fixedSalt :: Passphrase "salt"
     fixedSalt =

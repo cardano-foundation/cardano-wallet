@@ -1667,12 +1667,9 @@ mkLegacyWallet ctx wid cp meta _ pending progress = do
         Just info@(WalletPassphraseInfo _ EncryptWithPBKDF2) ->
             pure $ Just $ toApiPassphraseInfo info
         Just info@(WalletPassphraseInfo _ EncryptWithArgon2idV2) ->
-            pure $ Just $ toApiPassphraseInfo info
+            hideInfoForEmptyPassphrase info
         Just info@(WalletPassphraseInfo _ EncryptWithScrypt) ->
-            withWorkerCtx @_ @s ctx wid liftE liftE $ \wrk ->
-                matchEmptyPassphrase (wrk ^. typed) <&> \case
-                    Right{} -> Nothing
-                    Left{} -> Just $ toApiPassphraseInfo info
+            hideInfoForEmptyPassphrase info
 
     tip' <- liftIO $ getWalletTip (expectAndThrowFailures ti) cp
     let available = availableBalance pending cp
@@ -1708,6 +1705,12 @@ mkLegacyWallet ctx wid cp meta _ pending progress = do
         liftIO
             $ runExceptT
             $ W.withRootKey @s db wid mempty Prelude.id (\_ _ -> pure ())
+
+    hideInfoForEmptyPassphrase info =
+        withWorkerCtx @_ @s ctx wid liftE liftE $ \wrk ->
+            matchEmptyPassphrase (wrk ^. typed) <&> \case
+                Right{} -> Nothing
+                Left{} -> Just $ toApiPassphraseInfo info
 
 -- | A 64-bit seed for the Byron HD-random address generator, drawn from the
 -- system CSPRNG rather than the process-global 'StdGen'.
