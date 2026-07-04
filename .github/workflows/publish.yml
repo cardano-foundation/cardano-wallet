@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   docs:
-    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    runs-on: nix-enabled-runners
     env:
       PUBLISH_DIR: _build
       PR_NUMBER: ${{ github.event.pull_request.number }}
