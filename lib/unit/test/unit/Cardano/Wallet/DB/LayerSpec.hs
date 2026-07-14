@@ -65,7 +65,8 @@ import Cardano.Mnemonic
     ( SomeMnemonic (..)
     )
 import Cardano.Wallet
-    ( putPrivateKey
+    ( RootKeyAccess (..)
+    , putPrivateKey
     , readPrivateKey
     , readWalletMeta
     , withRootKey
@@ -694,7 +695,9 @@ fileModeSpec = do
                     unlocked <-
                         runExceptT
                             $ withRootKey db testWid migrationPwd id
-                            $ \_ scheme -> pure scheme
+                            $ \case
+                                RootKeyAccessV1 _ s -> pure s
+                                RootKeyAccessV2{} -> pure EncryptWithArgon2idV2
                     unlocked `shouldBeRight` EncryptWithPBKDF2
                     (credsAfter, metaAfter) <- readPrivateKeyAndMeta' db
                     assertHashedCredentialsV2 credsAfter
@@ -708,12 +711,14 @@ fileModeSpec = do
                     unlockedAgain <-
                         runExceptT
                             $ withRootKey db testWid migrationPwd id
-                            $ \_ scheme -> pure scheme
-                    unlockedAgain `shouldBeRight` EncryptWithPBKDF2
+                            $ \case
+                                RootKeyAccessV1 _ s -> pure s
+                                RootKeyAccessV2{} -> pure EncryptWithArgon2idV2
+                    unlockedAgain `shouldBeRight` EncryptWithArgon2idV2
                     rejected <-
                         runExceptT
                             $ withRootKey db testWid wrongMigrationPwd id
-                            $ \_ _ -> pure ()
+                            $ \_ -> pure ()
                     rejected `shouldSatisfy` isLeft
 
             it "put and read tx history (Ascending)" $ \f -> do

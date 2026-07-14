@@ -214,6 +214,7 @@ module Cardano.Wallet
 
       -- ** Root Key
     , withRootKey
+    , RootKeyAccess (..)
     , derivePublicKey
     , getAccountPublicKeyAtIndex
     , readAccountPublicKey
@@ -293,10 +294,28 @@ import Cardano.Balance.Tx.Tx
     )
 import Cardano.Crypto.Wallet
     ( toXPub
+    , xpub
     )
 import Cardano.Crypto.WalletHD.Encrypted
-    ( encryptedCreateDirectWithTweak
+    ( DerivationScheme (..)
+    , EncryptedKey
+    , ExtKeyMaterial
+    , Validated
+    , XPrvError
+    , chainCodeByteString
+    , deriveExtKeyMaterial
+    , encryptedChangePassphrase
+    , encryptedChainCode
+    , encryptedCreateDirectWithTweak
+    , encryptedDerivePrivate
+    , encryptedPublic
     , encryptedValidatePassphrase
+    , publicKeyByteString
+    , signWithExtKeyMaterial
+    , withDecryptedExtKeyMaterial
+    )
+import qualified Cardano.Crypto.WalletHD.Encrypted as EncHD
+    ( Signature (..)
     )
 import Cardano.Ledger.Api
     ( EraTxBody (allInputsTxBodyF)
@@ -336,11 +355,11 @@ import Cardano.Wallet.Address.Derivation
     , deriveRewardAccount
     , liftDelegationAddressS
     , liftIndex
+    , paymentAddressS
     , stakeDerivationPath
     )
 import Cardano.Wallet.Address.Derivation.Byron
     ( ByronKey (..)
-    , hdPassphrase
     , payloadPassphrase
     )
 import Cardano.Wallet.Address.Derivation.Icarus
@@ -349,6 +368,7 @@ import Cardano.Wallet.Address.Derivation.Icarus
 import Cardano.Wallet.Address.Derivation.MintBurn
     ( derivePolicyPrivateKey
     , policyDerivationPath
+    , purposeCIP1855
     )
 import Cardano.Wallet.Address.Derivation.SharedKey
     ( SharedKey (..)
@@ -367,6 +387,7 @@ import Cardano.Wallet.Address.Discovery
     , GetPurpose (..)
     , IsOurs (..)
     , KnownAddresses (..)
+    , coinTypeAda
     )
 import Cardano.Wallet.Address.Discovery.Random
     ( ErrImportAddress (..)
@@ -676,7 +697,8 @@ import Control.DeepSeq
     ( NFData
     )
 import Control.Monad
-    ( forM
+    ( foldM
+    , forM
     , forM_
     , join
     , replicateM
@@ -811,7 +833,8 @@ import Data.Void
     ( Void
     )
 import Data.Word
-    ( Word64
+    ( Word32
+    , Word64
     )
 import Fmt
     ( Buildable
@@ -1267,10 +1290,10 @@ updateWalletPassphraseWithOldPassphrase
     -> (Passphrase "user", Passphrase "user")
     -> ExceptT ErrUpdatePassphrase IO ()
 updateWalletPassphraseWithOldPassphrase wF ctx wid (old, new) =
-    withRootKey db wid old ErrUpdatePassphraseWithRootKey
-        $ \xprv scheme -> do
+    withRootKey db wid old ErrUpdatePassphraseWithRootKey $ \case
+        RootKeyAccessV1 xprv scheme -> do
             -- IMPORTANT NOTE:
-            -- This use 'EncryptWithPBKDF2', regardless of the passphrase
+            -- This uses 'EncryptWithPBKDF2', regardless of the passphrase
             -- current scheme, we'll re-encrypt it using the current scheme,
             -- always.
             let xprv' =
@@ -1280,6 +1303,15 @@ updateWalletPassphraseWithOldPassphrase wF ctx wid (old, new) =
                         (currentPassphraseScheme, new)
                         xprv
             lift $ attachPrivateKeyFromPwd ctx (xprv', new)
+        RootKeyAccessV2 ekey mPayload _ -> do
+            ekey' <- liftIO $ encryptedChangePassphrase old new ekey
+            case ekey' of
+                Left _ ->
+                    throwE $ ErrUpdatePassphraseWithRootKey
+                        $ ErrWithRootKeyWrongPassphrase wid ErrWrongPassphrase
+                Right newEkey ->
+                    lift $ attachPrivateKey db (HashedCredentialsV2 newEkey mPayload)
+                        EncryptWithArgon2idV2
   where
     db = ctx ^. typed
 
@@ -1658,9 +1690,9 @@ readRewardAccount db = do
     walletState <- getState <$> readWalletCheckpoint db
     case walletFlavor @s of
         ShelleyWallet -> do
-            let xpub = Seq.rewardAccountKey walletState
+            let rewardKey = Seq.rewardAccountKey walletState
                 path = stakeDerivationPath $ Seq.derivationPrefix walletState
-            pure (toRewardAccount xpub, Just $ getRawKey ShelleyKeyS xpub, path)
+            pure (toRewardAccount rewardKey, Just $ getRawKey ShelleyKeyS rewardKey, path)
         SharedWallet -> do
             let path = stakeDerivationPath $ Shared.derivationPrefix walletState
             case Shared.rewardAccountKey walletState of
@@ -1741,10 +1773,10 @@ readPolicyPublicKey ctx =
                 let s = getState cp
                 case Seq.policyXPub s of
                     Nothing -> pure $ Left ErrReadPolicyPublicKeyAbsent
-                    Just xpub ->
+                    Just policyKey ->
                         pure
                             $ Right
-                                ( getRawKey (keyFlavorFromState @s) xpub
+                                ( getRawKey (keyFlavorFromState @s) policyKey
                                 , policyDerivationPath
                                 )
             _ ->
@@ -1899,23 +1931,52 @@ createRandomAddress
     -> ExceptT ErrCreateRandomAddress IO (Address, NonEmpty DerivationIndex)
 createRandomAddress ctx wid pwd mIx =
     db & \DBLayer{..} ->
-        withRootKey db wid pwd ErrCreateAddrWithRootKey $ \xprv scheme ->
-            ExceptT
-                . atomically
-                . Delta.onDBVar walletState
-                . Delta.updateWithResultAndError
-                $ createRandomAddress' xprv scheme
+        withRootKey db wid pwd ErrCreateAddrWithRootKey $ \case
+            RootKeyAccessV1 xprv scheme ->
+                ExceptT
+                    . atomically
+                    . Delta.onDBVar walletState
+                    . Delta.updateWithResultAndError
+                    $ createRandomAddressV1 xprv scheme
+            RootKeyAccessV2 ekey mPayload userPwd -> do
+                -- Phase 1 (STM): determine path
+                -- Note: atomically has existential stm type; must be used
+                -- directly in the DBLayer{..} binding scope, not in where
+                -- clauses.
+                path <- ExceptT . atomically $ do
+                    wal <- readDBVar walletState
+                    let s0 = getState $ getLatest wal
+                        accIx = Rnd.defaultAccountIndex s0
+                    pure $ case mIx of
+                        Just addrIx
+                            | (liftIndex accIx, liftIndex addrIx)
+                                `Set.member` Rnd.unavailablePaths s0 ->
+                                Left $ ErrIndexAlreadyExists addrIx
+                        Just addrIx ->
+                            Right (liftIndex accIx, liftIndex addrIx)
+                        Nothing ->
+                            Right $ fst $
+                                Rnd.withRNG s0 $ \rng ->
+                                    Rnd.findUnusedPath rng accIx (Rnd.unavailablePaths s0)
+                -- Phase 2 (IO): derive address from encrypted key
+                addr <- liftIO $ deriveByronV2Address ekey mPayload userPwd path
+                -- Phase 3 (STM): write path + address to state
+                lift . atomically . Delta.onDBVar walletState . Delta.update
+                    $ \wal ->
+                        let s0 = getState $ getLatest wal
+                        in [ReplacePrologue $ getPrologue $ Rnd.addPendingAddress addr path s0]
+                pure (addr, Rnd.toDerivationIndexes path)
   where
     db = ctx ^. dbLayer
 
-    createRandomAddress' xprv scheme wal = case mIx of
+    createRandomAddressV1 xprv scheme wal = case mIx of
         Just addrIx
             | isKnownIndex addrIx s0 ->
                 Left $ ErrIndexAlreadyExists addrIx
         Just addrIx ->
-            Right $ addAddress ((liftIndex accIx, liftIndex addrIx), s0)
+            Right $ addAddressV1 xprv scheme ((liftIndex accIx, liftIndex addrIx), s0)
         Nothing ->
-            Right $ addAddress $ Rnd.withRNG s0 $ \rng ->
+            Right $ addAddressV1 xprv scheme $ Rnd.withRNG s0 $ \rng ->
                 Rnd.findUnusedPath rng accIx (Rnd.unavailablePaths s0)
       where
         s0 = getState $ getLatest wal
@@ -1924,13 +1985,32 @@ createRandomAddress ctx wid pwd mIx =
             (liftIndex accIx, liftIndex addrIx)
                 `Set.member` Rnd.unavailablePaths s
 
-        addAddress (path, s1) =
-            ( [ReplacePrologue $ getPrologue $ Rnd.addPendingAddress addr path s1]
-            , (addr, Rnd.toDerivationIndexes path)
-            )
-          where
-            prepared = preparePassphrase scheme pwd
-            addr = Rnd.deriveRndStateAddress @n xprv prepared path
+    addAddressV1 xprv scheme (path, s1) =
+        ( [ReplacePrologue $ getPrologue $ Rnd.addPendingAddress addr path s1]
+        , (addr, Rnd.toDerivationIndexes path)
+        )
+      where
+        prepared = preparePassphrase scheme pwd
+        addr = Rnd.deriveRndStateAddress @n xprv prepared path
+
+    deriveByronV2Address ekey mPayload userPwd (accIdx, addrIdx) = do
+        let payload = fromMaybe
+                (error "createRandomAddress: V2 Byron key missing payload")
+                mPayload
+        accEkey <-
+            encryptedDerivePrivate DerivationScheme1 ekey userPwd (getIndex accIdx)
+                >>= either (error . ("createRandomAddress V2 acct: " <>) . show) pure
+        addrEkey <-
+            encryptedDerivePrivate DerivationScheme1 accEkey userPwd (getIndex addrIdx)
+                >>= either (error . ("createRandomAddress V2 addr: " <>) . show) pure
+        let pubBytes = publicKeyByteString (encryptedPublic addrEkey)
+            ccBytes = chainCodeByteString (encryptedChainCode addrEkey)
+        addrXPub <-
+            case xpub (pubBytes <> ccBytes) of
+                Left e -> error $ "createRandomAddress V2 xpub: " <> e
+                Right x -> pure x
+        pure $ paymentAddressS @n
+            (ByronKey addrXPub (accIdx, addrIdx) payload :: ByronKey 'CredFromKeyK XPub)
 
 importRandomAddresses
     :: forall s
@@ -2445,61 +2525,66 @@ buildSignSubmitTransaction
         let ti = timeInterpreter netLayer
         throwOnErr <=< runExceptT
             $ withRootKey db walletId pwd wrapRootKeyError
-            $ \rootKey scheme -> lift $ do
-                (BuiltTx{..}, slot) <- atomically $ do
-                    pendingTxs <-
-                        fmap fromTransactionInfo
-                            <$> readTransactions
-                                Nothing
-                                Descending
-                                Range.everything
-                                (Just Pending)
-                                Nothing
-                                Nothing
-                    txWithSlot@(builtTx, slot) <- ( throwOnErr
-                                                        <=< (Delta.onDBVar walletState . Delta.updateWithResultAndError)
-                                                  )
-                        $ \s -> do
-                            let wallet = WalletState.getLatest s
-                                utxo = availableUTxO (Set.fromList pendingTxs) wallet
-                            buildAndSignTransactionPure @k @s
-                                timeTranslation
-                                utxo
-                                rootKey
-                                scheme
-                                pwd
-                                protocolParams
-                                txLayer
-                                changeAddrGen
-                                preSelection
-                                txCtx
-                                & (`runStateT` wallet)
-                                & runExceptT . withExceptT wrapBalanceConstructError
-                                & (`evalRand` stdGen)
-                                & fmap
-                                    ( \(builtTx, wallet') ->
-                                        -- Newly generated change addresses
-                                        -- only change the Prologue
-                                        ( [ReplacePrologue $ getPrologue $ getState wallet']
-                                        , (builtTx, currentTip wallet' ^. #slotNo)
+            $ \case
+                RootKeyAccessV1 rootKey scheme -> lift $ do
+                    (BuiltTx{..}, slot) <- atomically $ do
+                        pendingTxs <-
+                            fmap fromTransactionInfo
+                                <$> readTransactions
+                                    Nothing
+                                    Descending
+                                    Range.everything
+                                    (Just Pending)
+                                    Nothing
+                                    Nothing
+                        txWithSlot@(builtTx, slot) <- ( throwOnErr
+                                                            <=< (Delta.onDBVar walletState . Delta.updateWithResultAndError)
+                                                      )
+                            $ \s -> do
+                                let wallet = WalletState.getLatest s
+                                    utxo = availableUTxO (Set.fromList pendingTxs) wallet
+                                buildAndSignTransactionPure @k @s
+                                    timeTranslation
+                                    utxo
+                                    rootKey
+                                    scheme
+                                    pwd
+                                    protocolParams
+                                    txLayer
+                                    changeAddrGen
+                                    preSelection
+                                    txCtx
+                                    & (`runStateT` wallet)
+                                    & runExceptT . withExceptT wrapBalanceConstructError
+                                    & (`evalRand` stdGen)
+                                    & fmap
+                                        ( \(builtTx, wallet') ->
+                                            -- Newly generated change addresses
+                                            -- only change the Prologue
+                                            ( [ReplacePrologue $ getPrologue $ getState wallet']
+                                            , (builtTx, currentTip wallet' ^. #slotNo)
+                                            )
                                         )
-                                    )
 
-                    Delta.onDBVar walletState
-                        . WalletState.updateSubmissions
-                        . Delta.update
-                        $ \_ -> Submissions.addTxSubmission builtTx slot
+                        Delta.onDBVar walletState
+                            . WalletState.updateSubmissions
+                            . Delta.update
+                            $ \_ -> Submissions.addTxSubmission builtTx slot
 
-                    pure txWithSlot
+                        pure txWithSlot
 
-                postSealedTx netLayer builtSealedTx
-                    & throwWrappedErr wrapNetworkError
-                    & liftIO
+                    postSealedTx netLayer builtSealedTx
+                        & throwWrappedErr wrapNetworkError
+                        & liftIO
 
-                slotToUTCTime slot
-                    & interpretQuery (neverFails "slot is ahead of the node tip" ti)
-                    & fmap (BuiltTx{..},)
-                    & liftIO
+                    slotToUTCTime slot
+                        & interpretQuery (neverFails "slot is ahead of the node tip" ti)
+                        & fmap (BuiltTx{..},)
+                        & liftIO
+                RootKeyAccessV2{} ->
+                    liftIO
+                        $ error
+                            "buildSignSubmitTransaction: V2 key signing not yet implemented"
       where
         wrapRootKeyError = ExceptionWitnessTx . ErrWitnessTxWithRootKey
         wrapNetworkError = ExceptionSubmitTx . ErrSubmitTxNetwork
@@ -2811,42 +2896,47 @@ buildAndSignTransaction
     -> ExceptT ErrSignPayment IO (Tx, TxMeta, UTCTime, SealedTx)
 buildAndSignTransaction ctx wid mkRwdAcct pwd txCtx sel =
     db & \DBLayer{..} ->
-        withRootKey db wid pwd ErrSignPaymentWithRootKey $ \xprv scheme -> do
-            let pwdP = preparePassphrase scheme pwd
-            mapExceptT atomically $ do
-                cp <- lift readCheckpoint
-                (Write.PParamsInAnyRecentEra era _pp, _) <-
-                    liftIO $ readNodeTipStateForTxWrite nl
-                let keyFrom = isOwned wF (getState cp) (xprv, pwdP)
-                    rewardAcnt = mkRwdAcct $ RootCredentials xprv pwdP
-                (tx, sealedTx) <-
-                    withExceptT ErrSignPaymentMkTx
-                        $ ExceptT
-                        $ pure
-                        $ mkTransaction era net kF rewardAcnt keyFrom txCtx sel
-                let amountOut :: Coin =
-                        F.fold
-                            $ fmap TxOut.coin (sel ^. #change)
-                                <> mapMaybe (`ourCoin` getState cp) (sel ^. #outputs)
-                    amountIn :: Coin =
-                        F.fold (NE.toList (TxOut.coin . snd <$> sel ^. #inputs))
-                            -- NOTE: In case where rewards are pulled from an external
-                            -- source, they aren't added to the calculation, as the
-                            -- money is considered to come from outside the wallet. In
-                            -- such cases, transactions are categorised as "incoming",
-                            -- as they bring extra money to the wallet from elsewhere.
-                            & case txWithdrawal txCtx of
-                                w@WithdrawalSelf{} -> Coin.add (withdrawalToCoin w)
-                                WithdrawalExternal{} -> Prelude.id
-                                NoWithdrawal -> Prelude.id
-                time <- liftIO $ tipSlotStartTime $ currentTip cp
-                let meta =
-                        mkTxMeta
-                            (currentTip cp)
-                            (txValidityInterval txCtx)
-                            amountIn
-                            amountOut
-                pure (tx, meta, time, sealedTx)
+        withRootKey db wid pwd ErrSignPaymentWithRootKey $ \case
+            RootKeyAccessV2{} ->
+                liftIO
+                    $ error
+                        "buildAndSignTransaction: V2 key signing not yet implemented"
+            RootKeyAccessV1 xprv scheme ->
+                let pwdP = preparePassphrase scheme pwd
+                in mapExceptT atomically $ do
+                    cp <- lift readCheckpoint
+                    (Write.PParamsInAnyRecentEra era _pp, _) <-
+                        liftIO $ readNodeTipStateForTxWrite nl
+                    let keyFrom = isOwned wF (getState cp) (xprv, pwdP)
+                        rewardAcnt = mkRwdAcct $ RootCredentials xprv pwdP
+                    (tx, sealedTx) <-
+                        withExceptT ErrSignPaymentMkTx
+                            $ ExceptT
+                            $ pure
+                            $ mkTransaction era net kF rewardAcnt keyFrom txCtx sel
+                    let amountOut :: Coin =
+                            F.fold
+                                $ fmap TxOut.coin (sel ^. #change)
+                                    <> mapMaybe (`ourCoin` getState cp) (sel ^. #outputs)
+                        amountIn :: Coin =
+                            F.fold (NE.toList (TxOut.coin . snd <$> sel ^. #inputs))
+                                -- NOTE: In case where rewards are pulled from an external
+                                -- source, they aren't added to the calculation, as the
+                                -- money is considered to come from outside the wallet. In
+                                -- such cases, transactions are categorised as "incoming",
+                                -- as they bring extra money to the wallet from elsewhere.
+                                & case txWithdrawal txCtx of
+                                    w@WithdrawalSelf{} -> Coin.add (withdrawalToCoin w)
+                                    WithdrawalExternal{} -> Prelude.id
+                                    NoWithdrawal -> Prelude.id
+                    time <- liftIO $ tipSlotStartTime $ currentTip cp
+                    let meta =
+                            mkTxMeta
+                                (currentTip cp)
+                                (txValidityInterval txCtx)
+                                amountIn
+                                amountOut
+                    pure (tx, meta, time, sealedTx)
   where
     wF = walletFlavor @s
     kF = keyFlavorFromState @s
@@ -2872,10 +2962,10 @@ constructTransaction
     -> PreSelection
     -> ExceptT ErrConstructTx IO (Cardano.TxBody (CardanoApiEra era))
 constructTransaction era db txCtx preSel = do
-    (_, xpub, _) <- lift $ readRewardAccount db
+    (_, mRewardXPub, _) <- lift $ readRewardAccount db
     when (containsSelfWithdrawal (txCtx ^. #txWithdrawal))
         $ assertIsVoting db era
-    mkUnsignedTransaction netId (Left $ fromJust xpub) txCtx (Left preSel)
+    mkUnsignedTransaction netId (Left $ fromJust mRewardXPub) txCtx (Left preSel)
         & withExceptT ErrConstructTxBody . except
   where
     netId = networkIdVal $ sNetworkId @n
@@ -3708,8 +3798,8 @@ attachPrivateKeyFromPwd ctx (key, pwd) = do
     db = ctx ^. dbLayer
 
 -- | Build a 'HashedCredentialsV2' from a PBKDF2-encrypted root key.
--- Derives the plaintext scalar+chaincode to create an Argon2id authentication
--- envelope, and stores the original PBKDF2-encrypted key for key operations.
+-- Derives the plaintext scalar+chaincode to create an Argon2id AEAD
+-- envelope.  The plaintext key is never persisted.
 mkV2Credentials
     :: KeyFlavorS k
     -> k 'RootK XPrv
@@ -3718,16 +3808,17 @@ mkV2Credentials
 mkV2Credentials kF key pwd = do
     let rawXprv = getRawKey kF key
         prepared = preparePassphrase currentPassphraseScheme pwd
-        -- Decrypt PBKDF2-encrypted XPrv to plaintext (empty new passphrase)
         plaintextXprv = CC.xPrvChangePass prepared (mempty :: ByteString) rawXprv
         raw128 = CC.unXPrv plaintextXprv
-        -- Master-key group for encryptedCreateDirectWithTweak: scalar(64) || cc(32)
         masterKey96 = BS.take 64 raw128 <> BS.drop 96 raw128
+        mPayload = case kF of
+            ByronKeyS -> Just (payloadPassphrase key)
+            _ -> Nothing
     encryptedCreateDirectWithTweak masterKey96 pwd >>= \case
         Left err ->
             error
                 $ "mkV2Credentials: encryptedCreateDirectWithTweak: " <> show err
-        Right ekey -> pure $ HashedCredentialsV2 key ekey
+        Right ekey -> pure $ HashedCredentialsV2 ekey mPayload
 
 -- | The hash here is the output of Scrypt function with the following parameters:
 -- - logN = 14
@@ -3794,27 +3885,30 @@ attachPrivateKey db creds scheme =
                         }
             putWalletMeta walletState (modify meta)
 
--- | Execute an action which requires holding a root XPrv.
+-- | Safe handle to a validated root key, used as the callback argument in
+-- 'withRootKey'.  V2 credentials never expose plaintext key bytes.
+data RootKeyAccess k
+    = RootKeyAccessV1 (k 'RootK XPrv) PassphraseScheme
+    | RootKeyAccessV2
+        !EncryptedKey
+        !(Maybe (Passphrase "addr-derivation-payload"))
+        !(Passphrase "user")
+
+-- | Execute an action which requires access to a root key.
 --
--- 'withRootKey' takes a callback function with two arguments:
+-- 'withRootKey' validates the passphrase and passes a 'RootKeyAccess' handle
+-- to the callback.
 --
---  - The root private key (PBKDF2-encrypted for all stored variants)
---  - The passphrase scheme to use ('currentPassphraseScheme')
+-- * V1 keys: the callback receives the plaintext 'XPrv' and its
+--   'PassphraseScheme' as a 'RootKeyAccessV1'.  The caller can call
+--   @preparePassphrase scheme pwd@ to encrypt before passing to the C layer.
 --
--- Callers are expected to use 'preparePassphrase' with the given scheme in
--- order to "prepare" the passphrase before passing it to signing / derivation
--- functions.
+-- * V2 keys: the callback receives 'RootKeyAccessV2' carrying the
+--   'EncryptedKey'.  Key material stays in @sodium_malloc@-backed memory
+--   and is zeroed after use; the plaintext scalar is never copied to the
+--   GC heap.
 --
--- For v2 keys, passphrase authentication uses the Argon2id AEAD envelope;
--- the key itself remains PBKDF2-encrypted so key-operation callers use the
--- same 'preparePassphrase' path as v1.
---
--- V1 keys are opportunistically migrated to v2 on every successful use.
---
--- @@@
---     withRootKey db wid pwd OnError $ \xprv scheme ->
---         changePassphrase (preparePassphrase scheme pwd) newPwd xprv
--- @@@
+-- V1 keys are opportunistically migrated to V2 on every successful use.
 withRootKey
     :: forall s e a
      . WalletFlavor s
@@ -3822,7 +3916,7 @@ withRootKey
     -> WalletId
     -> Passphrase "user"
     -> (ErrWithRootKey -> e)
-    -> (KeyOf s 'RootK XPrv -> PassphraseScheme -> ExceptT e IO a)
+    -> (RootKeyAccess (KeyOf s) -> ExceptT e IO a)
     -> ExceptT e IO a
 withRootKey db@DBLayer{..} wid pwd embed action = do
     (mCreds, mScheme) <- lift . atomically $ do
@@ -3834,32 +3928,37 @@ withRootKey db@DBLayer{..} wid pwd embed action = do
         (Just (HashedCredentialsV1 xprv hpwd), Just scheme) ->
             pure $ case checkPassphrase scheme pwd hpwd of
                 Left err -> Left $ ErrWithRootKeyWrongPassphrase wid err
-                Right _ -> Right $ Left (xprv, scheme)
-        (Just (HashedCredentialsV2 xprv ekey), Just _) -> do
+                Right _ -> Right $ RootKeyAccessV1 xprv scheme
+        (Just (HashedCredentialsV2 ekey mPayload), Just _) -> do
             result <- encryptedValidatePassphrase ekey pwd
             pure $ case result of
-                Left _ ->
-                    Left $ ErrWithRootKeyWrongPassphrase wid ErrWrongPassphrase
-                Right () -> Right $ Right xprv
+                Left _ -> Left $ ErrWithRootKeyWrongPassphrase wid ErrWrongPassphrase
+                Right () -> Right $ RootKeyAccessV2 ekey mPayload pwd
         _ -> pure $ Left $ ErrWithRootKeyNoRootKey wid
     case validated of
-        Left (xprv, scheme) -> do
-            -- Opportunistically migrate V1 → V2 on successful passphrase use.
+        rka@(RootKeyAccessV1 xprv scheme) -> do
             lift $ migrateV1toV2 db kF xprv scheme pwd
-            action xprv scheme
-        Right xprv ->
-            action xprv currentPassphraseScheme
+            action rka
+        rka@(RootKeyAccessV2 _ _ _) -> action rka
   where
     kF = keyFlavorFromState @s
+
+-- | CPS key derivation along a path for V2 'ExtKeyMaterial'.
+-- Recursively nests 'deriveExtKeyMaterial' calls for each index in the path.
+withDerivedExtKeyMaterial
+    :: DerivationScheme
+    -> ExtKeyMaterial s' Validated
+    -> [Word32]
+    -> (forall s. ExtKeyMaterial s Validated -> IO (Either XPrvError a))
+    -> IO (Either XPrvError a)
+withDerivedExtKeyMaterial _ km [] k = k km
+withDerivedExtKeyMaterial scheme km (ix : ixs) k =
+    deriveExtKeyMaterial scheme km ix $ \km' ->
+        withDerivedExtKeyMaterial scheme km' ixs k
 
 -- | Migrate a V1 PBKDF2- or Scrypt-encrypted root key to a V2 Argon2id
 -- envelope and write it back to the database.  Fails silently so that the
 -- current operation is not affected if migration is unsuccessful.
---
--- The stored XPrv in the resulting 'HashedCredentialsV2' is always
--- re-encrypted with 'currentPassphraseScheme' (PBKDF2), regardless of the
--- original V1 scheme.  This ensures that 'withRootKey' can always return
--- 'currentPassphraseScheme' for V2 credentials.
 migrateV1toV2
     :: forall s
      . DBLayer IO s
@@ -3871,39 +3970,20 @@ migrateV1toV2
 migrateV1toV2 DBLayer{..} kF key scheme pwd = do
     let rawXprv = getRawKey kF key
         prepared = preparePassphrase scheme pwd
-        -- Decrypt to plaintext (empty passphrase)
         plaintextXprv = CC.xPrvChangePass prepared (mempty :: ByteString) rawXprv
         raw128 = CC.unXPrv plaintextXprv
         masterKey96 = BS.take 64 raw128 <> BS.drop 96 raw128
-        -- Re-encrypt with current scheme (PBKDF2) for V2 stored key
-        pbkdf2Prepared = preparePassphrase currentPassphraseScheme pwd
-        pbkdf2XPrv =
-            CC.xPrvChangePass (mempty :: ByteString) pbkdf2Prepared plaintextXprv
         mPayload = case kF of
             ByronKeyS -> Just (payloadPassphrase key)
             _ -> Nothing
-        v2Key = reconstructRootKey kF pbkdf2XPrv mPayload
     encryptedCreateDirectWithTweak masterKey96 pwd >>= \case
         Left _ -> pure () -- fail silently; key stays V1 until next use
         Right ekey -> atomically $ do
-            putPrivateKey walletState (HashedCredentialsV2 v2Key ekey)
+            putPrivateKey walletState (HashedCredentialsV2 ekey mPayload)
             meta <- readWalletMeta walletState
             let updateScheme info = info{passphraseScheme = EncryptWithArgon2idV2}
             putWalletMeta walletState
                 $ meta{passphraseInfo = fmap updateScheme (passphraseInfo meta)}
-
-reconstructRootKey
-    :: KeyFlavorS k
-    -> XPrv
-    -> Maybe (Passphrase "addr-derivation-payload")
-    -> k 'RootK XPrv
-reconstructRootKey kF plaintextXprv mPayload = case kF of
-    ByronKeyS ->
-        ByronKey plaintextXprv ()
-            $ fromMaybe (hdPassphrase (toXPub plaintextXprv)) mPayload
-    IcarusKeyS -> IcarusKey plaintextXprv
-    ShelleyKeyS -> ShelleyKey plaintextXprv
-    SharedKeyS -> SharedKey plaintextXprv
 
 -- | Sign an arbitrary transaction metadata object with a private key belonging
 -- to the wallet's account.
@@ -3930,19 +4010,41 @@ signMetadataWith ctx wid pwd (role_, ix) metadata =
 
         cp <- lift $ atomically readCheckpoint
 
-        withRootKey db wid pwd ErrSignMetadataWithRootKey $ \rootK scheme -> do
-            let encPwd = preparePassphrase scheme pwd
-                DerivationPrefix (_, _, acctIx) = Seq.derivationPrefix (getState cp)
-                acctK = deriveAccountPrivateKey encPwd rootK acctIx
-                addrK = deriveAddressPrivateKey encPwd acctK role_ addrIx
-            pure
-                $ Signature
-                $ BA.convert
-                $ CC.sign encPwd (getRawKey (keyFlavorFromState @s) addrK)
-                $ hash @ByteString @Blake2b_256
-                $ serialize' shelleyProtVer
-                $ toShelleyMetadata
-                $ unTxMetadata metadata
+        withRootKey db wid pwd ErrSignMetadataWithRootKey $ \case
+            RootKeyAccessV1 rootK scheme -> do
+                let encPwd = preparePassphrase scheme pwd
+                    DerivationPrefix (_, _, acctIx) = Seq.derivationPrefix (getState cp)
+                    acctK = deriveAccountPrivateKey encPwd rootK acctIx
+                    addrK = deriveAddressPrivateKey encPwd acctK role_ addrIx
+                pure
+                    $ Signature
+                    $ BA.convert
+                    $ CC.sign encPwd (getRawKey (keyFlavorFromState @s) addrK)
+                    $ hash @ByteString @Blake2b_256
+                    $ serialize' shelleyProtVer
+                    $ toShelleyMetadata
+                    $ unTxMetadata metadata
+            RootKeyAccessV2 ekey _ userPwd -> do
+                let DerivationPrefix (purpose, coinType, acctIx) =
+                        Seq.derivationPrefix (getState cp)
+                    msg =
+                        hash @ByteString @Blake2b_256
+                            $ serialize' shelleyProtVer
+                            $ toShelleyMetadata
+                            $ unTxMetadata metadata
+                    path =
+                        [ getIndex purpose
+                        , getIndex coinType
+                        , getIndex acctIx
+                        , fromIntegral (fromEnum role_)
+                        , getIndex addrIx
+                        ]
+                sigE <- liftIO $ withDecryptedExtKeyMaterial ekey userPwd $ \rootKm ->
+                    withDerivedExtKeyMaterial DerivationScheme2 rootKm path $ \addrKm ->
+                        fmap (fmap (\(EncHD.Signature s) -> s)) (signWithExtKeyMaterial addrKm msg)
+                case sigE of
+                    Left e -> error $ "signMetadataWith V2: " <> show e
+                    Right sig -> pure $ Signature $ BA.convert sig
   where
     db = ctx ^. dbLayer
 
@@ -4005,14 +4107,38 @@ writePolicyPublicKey ctx wid pwd =
             wid
             pwd
             ErrWritePolicyPublicKeyWithRootKey
-            $ \rootK scheme -> do
-                let encPwd = preparePassphrase scheme pwd
-                    xprv =
-                        derivePolicyPrivateKey
-                            encPwd
-                            (getRawKey ShelleyKeyS rootK)
-                            minBound
-                pure $ ShelleyKey $ toXPub xprv
+            $ \case
+                RootKeyAccessV1 rootK scheme -> do
+                    let encPwd = preparePassphrase scheme pwd
+                        xprv =
+                            derivePolicyPrivateKey
+                                encPwd
+                                (getRawKey ShelleyKeyS rootK)
+                                minBound
+                    pure $ ShelleyKey $ toXPub xprv
+                RootKeyAccessV2 ekey _ userPwd -> liftIO $ do
+                    let policyIx :: Index 'Hardened 'PolicyK
+                        policyIx = minBound
+                        path =
+                            [ getIndex purposeCIP1855
+                            , getIndex coinTypeAda
+                            , getIndex policyIx
+                            ]
+                    policyEkey <-
+                        foldM
+                            ( \ek ix ->
+                                encryptedDerivePrivate DerivationScheme2 ek userPwd ix
+                                    >>= either
+                                        (error . ("writePolicyPublicKey V2: " <>) . show)
+                                        pure
+                            )
+                            ekey
+                            path
+                    let pubBytes = publicKeyByteString (encryptedPublic policyEkey)
+                        ccBytes = chainCodeByteString (encryptedChainCode policyEkey)
+                    case xpub (pubBytes <> ccBytes) of
+                        Left e -> error $ "writePolicyPublicKey V2 xpub: " <> e
+                        Right xpub' -> pure $ ShelleyKey xpub'
 
         let seqState' = seqState & #policyXPub .~ Just policyXPub
         lift
@@ -4080,15 +4206,37 @@ getAccountPublicKeyAtIndex ctx wid pwd ix purposeM =
         _cp <- lift $ atomically readCheckpoint
         let kf = keyFlavorFromState @s
         withRootKey db wid pwd ErrReadAccountPublicKeyRootKey
-            $ \rootK scheme -> do
-                let encPwd = preparePassphrase scheme pwd
-                    xprv =
-                        deriveAccountPrivateKeyShelley
-                            purpose
-                            encPwd
-                            (getRawKey kf rootK)
-                            acctIx
-                pure $ liftRawKey kf $ toXPub xprv
+            $ \case
+                RootKeyAccessV1 rootK scheme -> do
+                    let encPwd = preparePassphrase scheme pwd
+                        xprv =
+                            deriveAccountPrivateKeyShelley
+                                purpose
+                                encPwd
+                                (getRawKey kf rootK)
+                                acctIx
+                    pure $ liftRawKey kf $ toXPub xprv
+                RootKeyAccessV2 ekey _ userPwd -> liftIO $ do
+                    let path =
+                            [ getIndex purpose
+                            , getIndex coinTypeAda
+                            , getIndex acctIx
+                            ]
+                    accountEkey <-
+                        foldM
+                            ( \ek pathIx ->
+                                encryptedDerivePrivate DerivationScheme2 ek userPwd pathIx
+                                    >>= either
+                                        (error . ("getAccountPublicKeyAtIndex V2: " <>) . show)
+                                        pure
+                            )
+                            ekey
+                            path
+                    let pubBytes = publicKeyByteString (encryptedPublic accountEkey)
+                        ccBytes = chainCodeByteString (encryptedChainCode accountEkey)
+                    case xpub (pubBytes <> ccBytes) of
+                        Left e -> error $ "getAccountPublicKeyAtIndex V2 xpub: " <> e
+                        Right xpub' -> pure $ liftRawKey kf xpub'
   where
     db = ctx ^. dbLayer
 

@@ -1,5 +1,6 @@
 {-# LANGUAGE ApplicativeDo #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -34,15 +35,25 @@ import Cardano.Balance.Tx.SizeEstimation
     )
 import Cardano.Crypto.Wallet
     ( toXPub
+    , xpub
     )
 import Cardano.Mnemonic
     ( SomeMnemonic (..)
+    )
+import Cardano.Crypto.WalletHD.Encrypted
+    ( DerivationScheme (..)
+    , chainCodeByteString
+    , encryptedChainCode
+    , encryptedDerivePrivate
+    , encryptedPublic
+    , publicKeyByteString
     )
 import Cardano.Wallet
     ( ErrUpdatePassphrase (..)
     , ErrWithRootKey (..)
     , InitialState (..)
     , LocalTxSubmissionConfig (..)
+    , RootKeyAccess (..)
     , SelectionWithoutChange
     , WalletLayer (..)
     , dbLayer
@@ -65,11 +76,15 @@ import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey (..)
     , generateKeyFromSeed
     )
+import Cardano.Wallet.Address.Discovery.Sequential
+    ( purposeCIP1852
+    )
 import Cardano.Wallet.Address.Discovery
     ( CompareDiscovery (..)
     , GenChange (..)
     , IsOurs (..)
     , KnownAddresses (..)
+    , coinTypeAda
     )
 import Cardano.Wallet.Address.States.Features
     ( TestFeatures (..)
@@ -229,7 +244,8 @@ import Control.DeepSeq
     ( NFData (..)
     )
 import Control.Monad
-    ( forM_
+    ( foldM
+    , forM_
     , guard
     , replicateM
     , void
@@ -690,7 +706,7 @@ walletRootKeyV1toV2Migration = do
                 wid
                 testPwd
                 id
-                (\_ _ -> pure ())
+                (\_ -> pure ())
     result `shouldBe` Right ()
     -- Confirm V2 is now stored.
     mCreds1 <- atomically $ readPrivateKey walletState
@@ -713,7 +729,7 @@ walletRootKeyMigrationRejectedOnWrongPassphrase = do
                 wid
                 wrongPwd
                 id
-                (\_ _ -> pure ())
+                (\_ -> pure ())
     result `shouldSatisfy` isLeft
     mCreds <- atomically $ readPrivateKey walletState
     case mCreds of
@@ -734,7 +750,7 @@ walletRootKeyEmptyPassphraseV1toV2Migration = do
                 wid
                 testEmptyPwd
                 id
-                (\_ _ -> pure ())
+                (\_ -> pure ())
     result `shouldBe` Right ()
     mCreds <- atomically $ readPrivateKey walletState
     case mCreds of
@@ -749,7 +765,7 @@ walletRootKeyEmptyPassphraseV1toV2Migration = do
                 wid
                 testEmptyPwd
                 id
-                (\_ _ -> pure ())
+                (\_ -> pure ())
     unlockAgain `shouldBe` Right ()
     rejected <-
         runExceptT
@@ -758,7 +774,7 @@ walletRootKeyEmptyPassphraseV1toV2Migration = do
                 wid
                 testNonEmptyPwd
                 id
-                (\_ _ -> pure ())
+                (\_ -> pure ())
     rejected `shouldSatisfy` isLeft
 
 -- | Unlocking a V2 wallet must not trigger re-encryption: the stored key bytes
@@ -782,7 +798,7 @@ walletRootKeyV2Idempotent = do
                 wid
                 testPwd
                 id
-                (\_ _ -> pure ())
+                (\_ -> pure ())
     mCreds1 <- atomically $ readPrivateKey walletState
     -- Still V2 after the second unlock.
     case mCreds1 of
@@ -834,8 +850,32 @@ walletPasswordChangeV1ToV2PreservesPublicKey = do
     pubKeyAfterResult <-
         runExceptT
             $ withRootKey (wl ^. dbLayer) wid newPwd id
-            $ \rootK _scheme ->
-                pure $ derivedPub (preparePassphrase newPwd) rootK
+            $ \case
+                RootKeyAccessV1 rootK _scheme ->
+                    pure $ derivedPub (preparePassphrase newPwd) rootK
+                RootKeyAccessV2 ekey _ userPwd -> liftIO $ do
+                    let path =
+                            [ getIndex (purposeCIP1852 :: Index 'Hardened 'PurposeK)
+                            , getIndex (coinTypeAda :: Index 'Hardened 'CoinTypeK)
+                            , getIndex (minBound :: Index 'Hardened 'AccountK)
+                            , 0
+                            , 0
+                            ]
+                    addrEkey <-
+                        foldM
+                            ( \ek ix ->
+                                encryptedDerivePrivate DerivationScheme2 ek userPwd ix
+                                    >>= either (error . show) pure
+                            )
+                            ekey
+                            path
+                    let pub = publicKeyByteString (encryptedPublic addrEkey)
+                        cc = chainCodeByteString (encryptedChainCode addrEkey)
+                    case xpub (pub <> cc) of
+                        Left e ->
+                            error
+                                $ "walletPasswordChangeV1ToV2: xpub: " <> e
+                        Right xpub' -> pure xpub'
     pubKeyAfter <- case pubKeyAfterResult of
         Left err ->
             expectationFailure

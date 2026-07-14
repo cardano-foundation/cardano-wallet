@@ -1704,7 +1704,7 @@ mkLegacyWallet ctx wid cp meta _ pending progress = do
     matchEmptyPassphrase db =
         liftIO
             $ runExceptT
-            $ W.withRootKey @s db wid mempty Prelude.id (\_ _ -> pure ())
+            $ W.withRootKey @s db wid mempty Prelude.id (\_ -> pure ())
 
     hideInfoForEmptyPassphrase info =
         withWorkerCtx @_ @s ctx wid liftE liftE $ \wrk ->
@@ -2492,40 +2492,45 @@ signTransaction ctx (ApiT wid) body = do
             nl = wrk ^. W.networkLayer
         db & \W.DBLayer{atomically, readCheckpoint} ->
             W.withRootKey @s db wid pwd ErrWitnessTxWithRootKey
-                $ \rootK scheme -> lift $ do
-                    cp <- atomically readCheckpoint
-                    let
-                        pwdP :: Passphrase "encryption"
-                        pwdP = preparePassphrase scheme pwd
+                $ \case
+                    W.RootKeyAccessV2{} ->
+                        liftIO
+                            $ error
+                                "signTransaction: V2 key signing not yet implemented"
+                    W.RootKeyAccessV1 rootK scheme -> lift $ do
+                        cp <- atomically readCheckpoint
+                        let
+                            pwdP :: Passphrase "encryption"
+                            pwdP = preparePassphrase scheme pwd
 
-                        utxo :: UTxO.UTxO
-                        utxo = totalUTxO mempty cp
+                            utxo :: UTxO.UTxO
+                            utxo = totalUTxO mempty cp
 
-                        keyLookup = isOwned wF (getState cp) (rootK, pwdP)
+                            keyLookup = isOwned wF (getState cp) (rootK, pwdP)
 
-                        accIxForStakingM :: Maybe (Index 'Hardened 'AccountK)
-                        accIxForStakingM = getAccountIx @s (getState cp)
+                            accIxForStakingM :: Maybe (Index 'Hardened 'AccountK)
+                            accIxForStakingM = getAccountIx @s (getState cp)
 
-                        witCountCtx = shelleyOrShared
-                            wF
-                            AnyWitnessCountCtx
-                            $ \flavor ->
-                                toWitnessCountCtx flavor (getState cp)
+                            witCountCtx = shelleyOrShared
+                                wF
+                                AnyWitnessCountCtx
+                                $ \flavor ->
+                                    toWitnessCountCtx flavor (getState cp)
 
-                    era <- liftIO $ NW.currentNodeEra nl
-                    let sealedTx = body ^. #transaction . #getApiT
-                    pure
-                        $ W.signTransaction
-                            (keyFlavorFromState @s)
-                            tl
-                            era
-                            witCountCtx
-                            keyLookup
-                            Nothing
-                            (RootCredentials rootK pwdP)
-                            utxo
-                            accIxForStakingM
-                            sealedTx
+                        era <- liftIO $ NW.currentNodeEra nl
+                        let sealedTx = body ^. #transaction . #getApiT
+                        pure
+                            $ W.signTransaction
+                                (keyFlavorFromState @s)
+                                tl
+                                era
+                                witCountCtx
+                                keyLookup
+                                Nothing
+                                (RootCredentials rootK pwdP)
+                                utxo
+                                accIxForStakingM
+                                sealedTx
 
     -- TODO: The body+witnesses seem redundant with the sealedTx already. What's
     -- the use-case for having them provided separately? In the end, the client
@@ -5062,7 +5067,13 @@ rndStateChange
 rndStateChange ctx (ApiT wid) pwd =
     withWorkerCtx @_ @s ctx wid liftE liftE $ \wrk -> liftHandler
         $ W.withRootKey (wrk ^. dbLayer) wid pwd ErrSignPaymentWithRootKey
-        $ \xprv scheme -> pure (xprv, preparePassphrase scheme pwd)
+        $ \case
+            W.RootKeyAccessV2{} ->
+                liftIO
+                    $ error
+                        "rndStateChange: V2 key not yet supported for Byron wallets"
+            W.RootKeyAccessV1 xprv scheme ->
+                pure (xprv, preparePassphrase scheme pwd)
 
 type RewardAccountBuilder k =
     ClearCredentials k
