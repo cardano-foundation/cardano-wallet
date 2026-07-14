@@ -147,6 +147,18 @@ source-repository-package
 -- END cardano-balance-tx
 --------------------------------------------------------------------------------
 
+-- BEGIN cardano-crypto-wallet
+
+source-repository-package
+  type: git
+  location: https://github.com/intersectmbo/cardano-base
+  tag: 94bf0f1b4961470f6172ab20a7df2ff540b0096e
+  --sha256: sha256-SKhBl29Fm0Mhd9Zsz695q2Er5wATDFsGR/2We6+Ri80=
+  subdir:
+    cardano-crypto-wallet
+
+-- END cardano-crypto-wallet
+
 --------------------------------------------------------------------------------
 -- BEGIN Constraints tweaking section
 
