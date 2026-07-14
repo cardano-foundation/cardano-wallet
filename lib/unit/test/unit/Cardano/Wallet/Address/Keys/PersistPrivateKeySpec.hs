@@ -26,7 +26,7 @@ import Cardano.Wallet.Address.Derivation
     ( Depth (..)
     )
 import Cardano.Wallet.Address.Derivation.Byron
-    ( ByronKey
+    ( ByronKey (..)
     )
 import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey
@@ -91,9 +91,8 @@ spec = describe "PersistPrivateKey" $ do
             $ withFastKdfForTesting
             $ do
                 ekey <- mkTestEncryptedKey
-                key <- generate (arbitrary @(ShelleyKey 'RootK XPrv))
                 let creds :: HashedCredentials ShelleyKey
-                    creds = HashedCredentialsV2 key ekey
+                    creds = HashedCredentialsV2 ekey Nothing
                     creds' =
                         unsafeDeserializeXPrv
                             ShelleyKeyS
@@ -103,9 +102,9 @@ spec = describe "PersistPrivateKey" $ do
             $ withFastKdfForTesting
             $ do
                 ekey <- mkTestEncryptedKey
-                key <- generate (arbitrary @(ByronKey 'RootK XPrv))
+                ByronKey _ _ payload <- generate (arbitrary @(ByronKey 'RootK XPrv))
                 let creds :: HashedCredentials ByronKey
-                    creds = HashedCredentialsV2 key ekey
+                    creds = HashedCredentialsV2 ekey (Just payload)
                     creds' =
                         unsafeDeserializeXPrv
                             ByronKeyS
@@ -115,18 +114,16 @@ spec = describe "PersistPrivateKey" $ do
             $ withFastKdfForTesting
             $ do
                 ekey <- mkTestEncryptedKey
-                key <- generate (arbitrary @(ShelleyKey 'RootK XPrv))
                 let creds :: HashedCredentials ShelleyKey
-                    creds = HashedCredentialsV2 key ekey
+                    creds = HashedCredentialsV2 ekey Nothing
                     (keyCol, _) = serializeXPrv ShelleyKeyS creds
                 BS.length keyCol > 256 `shouldBe` True
         it "V2 hash column is empty"
             $ withFastKdfForTesting
             $ do
                 ekey <- mkTestEncryptedKey
-                key <- generate (arbitrary @(ShelleyKey 'RootK XPrv))
                 let creds :: HashedCredentials ShelleyKey
-                    creds = HashedCredentialsV2 key ekey
+                    creds = HashedCredentialsV2 ekey Nothing
                     (_, hashCol) = serializeXPrv ShelleyKeyS creds
                 hashCol `shouldBe` ""
 

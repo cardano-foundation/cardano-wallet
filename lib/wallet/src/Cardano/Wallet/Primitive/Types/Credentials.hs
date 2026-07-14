@@ -39,14 +39,14 @@ deriving instance
 -- 'HashedCredentialsV1' uses the legacy PBKDF2\/Scrypt passphrase-hash
 -- scheme; present only for wallets that have not yet been migrated.
 --
--- 'HashedCredentialsV2' stores a PBKDF2-encrypted root key for key
--- operations alongside an Argon2id+XChaCha20-Poly1305 AEAD envelope
--- for passphrase authentication.  The AEAD tag replaces the
--- 'PassphraseHash'; the stored key remains PBKDF2-encrypted so that
--- all key-operation callers use the same 'preparePassphrase' path.
+-- 'HashedCredentialsV2' stores only the Argon2id+XChaCha20-Poly1305
+-- AEAD envelope.  The plaintext scalar is reconstructed on demand by
+-- decrypting the envelope; it is never persisted.  The optional
+-- 'Passphrase' is the Byron address-derivation payload (non-Nothing
+-- only for Byron-flavoured wallets).
 data HashedCredentials k
     = HashedCredentialsV1 !(k 'RootK XPrv) !PassphraseHash
-    | HashedCredentialsV2 !(k 'RootK XPrv) !EncryptedKey
+    | HashedCredentialsV2 !EncryptedKey !(Maybe (Passphrase "addr-derivation-payload"))
 
 deriving instance (Eq (k 'RootK XPrv)) => Eq (HashedCredentials k)
 deriving instance (Show (k 'RootK XPrv)) => Show (HashedCredentials k)

@@ -74,19 +74,22 @@ import qualified Data.ByteString.Char8 as B8
 -- V1 non-Byron : @hex(unXPrv k)@  (exactly 256 hex chars = 128 bytes)
 -- V1 Byron     : @hex(unXPrv k) ":" hex(payloadPass)@
 --
--- V2 non-Byron : @"V2:" hex(unXPrv k) ":" hex(unEncryptedKey ekey)@
--- V2 Byron     : @"V2:" hex(unXPrv k) ":" hex(unEncryptedKey ekey) ":" hex(payloadPass)@
+-- V2 non-Byron : @"V2:" hex(unEncryptedKey ekey)@
+-- V2 Byron     : @"V2:" hex(unEncryptedKey ekey) ":" hex(payloadPass)@
 --
 -- V1 and V2 are distinguished by the "V2:" prefix in the key column.
 -- Within V1, Byron keys are distinguished by the presence of a single ":"
 -- separator (the key segment is exactly 256 hex chars).
+--
+-- Older V2 rows may contain an extra PBKDF2-XPrv hex segment (now
+-- removed for security); 'unsafeDeserializeXPrv' accepts both formats.
 serializeXPrv
     :: KeyFlavorS k
     -> HashedCredentials k
     -> (ByteString, ByteString)
 serializeXPrv kF = \case
     HashedCredentialsV1 k h -> serializeV1 kF k h
-    HashedCredentialsV2 k ekey -> serializeV2 kF k ekey
+    HashedCredentialsV2 ekey mPayload -> serializeV2 ekey mPayload
 
 serializeV1
     :: KeyFlavorS k
@@ -104,20 +107,15 @@ serializeV1 kF k h = (keyBytes, hex . getPassphraseHash $ h)
         SharedKeyS -> hex . unXPrv . Shared.getKey $ k
 
 serializeV2
-    :: KeyFlavorS k
-    -> k 'RootK XPrv
-    -> EncryptedKey
+    :: EncryptedKey
+    -> Maybe (Passphrase "addr-derivation-payload")
     -> (ByteString, ByteString)
-serializeV2 kF k ekey = (keyBytes, "")
+serializeV2 ekey mPayload = (keyBytes, "")
   where
     ekeyHex = hex (unEncryptedKey ekey)
-    keyBytes = case kF of
-        ByronKeyS ->
-            let ByronKey xk _ (Passphrase p) = k
-            in  "V2:" <> hex (unXPrv xk) <> ":" <> ekeyHex <> ":" <> hex p
-        IcarusKeyS -> "V2:" <> hex (unXPrv (Icarus.getKey k)) <> ":" <> ekeyHex
-        ShelleyKeyS -> "V2:" <> hex (unXPrv (Shelley.getKey k)) <> ":" <> ekeyHex
-        SharedKeyS -> "V2:" <> hex (unXPrv (Shared.getKey k)) <> ":" <> ekeyHex
+    keyBytes = case mPayload of
+        Nothing -> "V2:" <> ekeyHex
+        Just (Passphrase p) -> "V2:" <> ekeyHex <> ":" <> hex p
 
 -- | The reverse of 'serializeXPrv'. Dies with 'error' if the inputs are not
 -- valid hexadecimal strings or if the key is of the wrong length\/format.
@@ -137,8 +135,15 @@ isV1KeySegment :: ByteString -> Bool
 isV1KeySegment seg = BS.length seg == 256
 
 -- Deserialize a non-Byron key (Icarus / Shelley / Shared).
--- V1: @hex(xprv)@                      → HashedCredentialsV1 (wrap xprv) hash
--- V2: @"V2:" hex(xprv) ":" hex(ekey)@  → HashedCredentialsV2 (wrap xprv) ekey
+--
+-- V1  : @hex(xprv)@
+--       → HashedCredentialsV1 (wrap xprv) hash
+--
+-- V2 new : @"V2:" hex(ekey)@
+--          → HashedCredentialsV2 ekey Nothing
+--
+-- V2 old : @"V2:" hex(xprv256) ":" hex(ekey)@   (xprv hex is exactly 256 chars)
+--          → HashedCredentialsV2 ekey Nothing     (xprv discarded — security fix)
 deserializeSimple
     :: (XPrv -> k 'RootK XPrv)
     -> ByteString
@@ -147,13 +152,21 @@ deserializeSimple
 deserializeSimple wrap keyCol hashCol
     | "V2:" `BS.isPrefixOf` keyCol =
         case B8.split ':' (BS.drop 3 keyCol) of
-            [keyHex, ekeyHex]
-                | isV1KeySegment keyHex ->
-                    case (fromHex @ByteString keyHex, fromHex @ByteString ekeyHex) of
-                        (Right rawK, Right rawE) ->
-                            case (xprv rawK, mkEncryptedKey rawE) of
-                                (Right k, Right ekey) -> HashedCredentialsV2 (wrap k) ekey
-                                _ -> bad
+            -- new format: single segment is the ekey
+            [ekeyHex]
+                | not (isV1KeySegment ekeyHex) ->
+                    case fromHex @ByteString ekeyHex of
+                        Right rawE -> case mkEncryptedKey rawE of
+                            Right ekey -> HashedCredentialsV2 ekey Nothing
+                            _ -> bad
+                        _ -> bad
+            -- old format: first segment is the 256-char XPrv hex, second is ekey
+            [_keyHex, ekeyHex]
+                | isV1KeySegment _keyHex ->
+                    case fromHex @ByteString ekeyHex of
+                        Right rawE -> case mkEncryptedKey rawE of
+                            Right ekey -> HashedCredentialsV2 ekey Nothing
+                            _ -> bad
                         _ -> bad
             _ -> bad
     | isV1KeySegment keyCol =
@@ -169,27 +182,37 @@ deserializeSimple wrap keyCol hashCol
     bad = error "unsafeDeserializeXPrv: unable to deserialize key"
 
 -- Deserialize a Byron key.
--- V1: @hex(xprv) ":" hex(payload)@
---     → HashedCredentialsV1 (ByronKey xprv () payload) hash
--- V2: @"V2:" hex(xprv) ":" hex(ekey) ":" hex(payload)@
---     → HashedCredentialsV2 (ByronKey xprv () payload) ekey
+--
+-- V1  : @hex(xprv) ":" hex(payload)@
+--       → HashedCredentialsV1 (ByronKey xprv () payload) hash
+--
+-- V2 new : @"V2:" hex(ekey) ":" hex(payload)@
+--          → HashedCredentialsV2 ekey (Just payload)
+--
+-- V2 old : @"V2:" hex(xprv256) ":" hex(ekey) ":" hex(payload)@
+--          → HashedCredentialsV2 ekey (Just payload)   (xprv discarded — security fix)
 deserializeByron
     :: ByteString -> ByteString -> HashedCredentials ByronKey
 deserializeByron keyCol hashCol
     | "V2:" `BS.isPrefixOf` keyCol =
         case B8.split ':' (BS.drop 3 keyCol) of
-            [keyHex, ekeyHex, payloadHex]
-                | isV1KeySegment keyHex ->
-                    case ( fromHex @ByteString keyHex
-                         , fromHex @ByteString ekeyHex
-                         , fromHex @ByteString payloadHex
-                         ) of
-                        (Right rawK, Right rawE, Right rawP) ->
-                            case (xprv rawK, mkEncryptedKey rawE) of
-                                (Right k, Right ekey) ->
-                                    let p = Passphrase (BA.convert rawP)
-                                    in  HashedCredentialsV2 (ByronKey k () p) ekey
-                                _ -> bad
+            -- new format: ekey ":" payload
+            [ekeyHex, payloadHex]
+                | not (isV1KeySegment ekeyHex) ->
+                    case (fromHex @ByteString ekeyHex, fromHex @ByteString payloadHex) of
+                        (Right rawE, Right rawP) -> case mkEncryptedKey rawE of
+                            Right ekey ->
+                                HashedCredentialsV2 ekey (Just (Passphrase (BA.convert rawP)))
+                            _ -> bad
+                        _ -> bad
+            -- old format: xprv256 ":" ekey ":" payload
+            [_keyHex, ekeyHex, payloadHex]
+                | isV1KeySegment _keyHex ->
+                    case (fromHex @ByteString ekeyHex, fromHex @ByteString payloadHex) of
+                        (Right rawE, Right rawP) -> case mkEncryptedKey rawE of
+                            Right ekey ->
+                                HashedCredentialsV2 ekey (Just (Passphrase (BA.convert rawP)))
+                            _ -> bad
                         _ -> bad
             _ -> bad
     | otherwise =

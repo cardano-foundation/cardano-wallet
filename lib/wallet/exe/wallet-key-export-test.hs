@@ -394,23 +394,16 @@ prop_wrongSchemeByron exe =
 prop_v2ShelleyUnsupported :: FilePath -> Property
 prop_v2ShelleyUnsupported exe =
     forAll
-        ( (,,)
-            <$> genShelleyMnemonic
-            <*> genUserPassphrase
+        ( (,)
+            <$> genUserPassphrase
             <*> genWalletId
         )
-        $ \(mnemonic, userPass, wid) ->
+        $ \(userPass, wid) ->
             ioProperty $ do
-                let encPass =
-                        preparePassphrase EncryptWithPBKDF2 userPass
-                    key =
-                        generateKeyFromSeed
-                            (mnemonic, Nothing)
-                            encPass
-                    (rootHex, hashHex) =
+                let (rootHex, hashHex) =
                         serializeXPrv
                             ShelleyKeyS
-                            (HashedCredentialsV2 key testEncryptedKey)
+                            (HashedCredentialsV2 testEncryptedKey Nothing)
                 runUnsupportedV2Test
                     exe
                     wid
