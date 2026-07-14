@@ -3,6 +3,9 @@ module Main where
 import Cardano.Crypto.Init
     ( cryptoInit
     )
+import Cardano.Crypto.WalletHD.Encrypted
+    ( withFastKdfForTesting
+    )
 import Main.Utf8
     ( withUtf8
     )
@@ -19,5 +22,6 @@ import qualified Spec
 main :: IO ()
 main = withUtf8 $ do
     cryptoInit
-    hspecMain Spec.spec
-    performMajorGC
+    withFastKdfForTesting $ do
+        hspecMain Spec.spec
+        performMajorGC
