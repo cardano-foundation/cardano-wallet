@@ -20,11 +20,11 @@ completes under an explicit 2 GiB cap.
 **Independent test**: All six rebuilt test executables report the compiled
 `-M2G -N4` default, and the monolithic suite passes using those defaults.
 
-- [ ] T005 [US2] Record the pre-fix compiled-default RED evidence for the six affected Cabal test components in WIP.md
-- [ ] T006 [US2] Collapse repeated `-with-rtsopts` declarations in the six Cabal files listed in `specs/5309-unit-memory-leak/plan.md`
-- [ ] T007 [US2] Rebuild all six test components and verify each `+RTS --info` reports `-M2G -N4`
-- [ ] T008 [US3] Run `./gate.sh` and the monolithic default-options smoke from `specs/5309-unit-memory-leak/quickstart.md`
-- [ ] T009 [US2] Commit Slice 2 as `test: restore bounded RTS defaults` with `Tasks: T005, T006, T007, T008, T009`
+- [X] T005 [US2] Record the pre-fix compiled-default RED evidence for the six affected Cabal test components in WIP.md
+- [X] T006 [US2] Collapse repeated `-with-rtsopts` declarations in the six Cabal files listed in `specs/5309-unit-memory-leak/plan.md`
+- [X] T007 [US2] Rebuild all six test components and verify each `+RTS --info` reports `-M2G -N4`
+- [X] T008 [US3] Run `./gate.sh` and the monolithic default-options smoke from `specs/5309-unit-memory-leak/quickstart.md`
+- [X] T009 [US2] Commit Slice 2 as `test: restore bounded RTS defaults` with `Tasks: T005, T006, T007, T008, T009`
 
 ## Dependencies and Execution Order
 

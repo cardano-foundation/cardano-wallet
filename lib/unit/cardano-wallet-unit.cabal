@@ -57,9 +57,7 @@ library test-common
 
 test-suite unit
   import:             language, opts-exe
-  ghc-options:
-    -with-rtsopts=-M2G -with-rtsopts=-N4 -fprint-potential-instances
-
+  ghc-options:        "-with-rtsopts=-M2G -N4" -fprint-potential-instances
   type:               exitcode-stdio-1.0
   hs-source-dirs:     test/unit test/data
   main-is:            core-unit-test.hs
