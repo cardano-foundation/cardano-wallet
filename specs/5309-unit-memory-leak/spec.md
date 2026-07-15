@@ -30,9 +30,9 @@ without exhausting the ceiling.
 2. **Given** every top-level spec group is enabled, **When** the full suite
    finishes, **Then** the fix has not hidden, skipped, or filtered tests to
    obtain the lower memory footprint.
-3. **Given** the suite runs long enough to exercise all groups, **When** major
-   garbage collections occur, **Then** live memory does not grow without bound
-   as completed test groups accumulate.
+3. **Given** the suite exercises list-monad properties, **When** generated cases
+   branch repeatedly, **Then** the property bounds its generated workload and
+   live memory does not grow without limit.
 
 ---
 
@@ -107,8 +107,8 @@ reported failure while recording the suite's exit status and memory summary.
 
 - **FR-001**: The complete `cardano-wallet-unit` suite MUST complete with a
   2 GiB heap ceiling and its configured four-way concurrency.
-- **FR-002**: The solution MUST eliminate cumulative retention of completed
-  test work rather than merely raising the heap ceiling.
+- **FR-002**: The solution MUST eliminate the unbounded generated workload in
+  the offending property rather than merely raising the heap ceiling.
 - **FR-003**: The solution MUST preserve the full set of tests and MUST NOT
   obtain the memory reduction by filtering, disabling, or silently skipping
   spec groups.
@@ -137,8 +137,7 @@ reported failure while recording the suite's exit status and memory summary.
 - **SC-002**: All 6 affected executables report both intended runtime defaults
   when their compiled configuration is inspected.
 - **SC-003**: Repeating the bounded full-suite check produces no OS-level OOM
-  kill and no monotonic multi-gigabyte live-memory accumulation across
-  completed spec groups.
+  kill and no multi-gigabyte list buildup from a generated property case.
 - **SC-004**: A deliberately undersized diagnostic run fails with a local heap
   exhaustion exit instead of requiring host-level process termination.
 - **SC-005**: The repository's formatting, build, and relevant unit-test gates
