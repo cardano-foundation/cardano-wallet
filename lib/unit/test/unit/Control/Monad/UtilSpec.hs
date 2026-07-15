@@ -35,9 +35,10 @@ import Test.QuickCheck
     , NonNegative (..)
     , Property
     , applyFun
+    , chooseInt
     , conjoin
+    , forAll
     , property
-    , withMaxSuccess
     , (===)
     )
 import Prelude
@@ -55,8 +56,7 @@ spec = describe "Control.Monad.UtilSpec" $ do
             $ prop_applyNM_iterate @Maybe @Int
             & property
         it "prop_applyNM_iterate @[] @Int"
-            $ prop_applyNM_iterate @[] @Int
-            & withMaxSuccess 10
+            $ prop_applyNM_iterate_list
             & property
         it "prop_applyNM_unit @Identity @Int"
             $ prop_applyNM_unit @Identity @Int
@@ -65,8 +65,7 @@ spec = describe "Control.Monad.UtilSpec" $ do
             $ prop_applyNM_unit @Maybe @Int
             & property
         it "prop_applyNM_unit @[] @Int"
-            $ prop_applyNM_unit @[] @Int
-            & withMaxSuccess 10
+            $ prop_applyNM_unit_list
             & property
 
 --------------------------------------------------------------------------------
@@ -89,6 +88,17 @@ prop_applyNM_iterate (getNonNegative -> n) (applyFun -> f) a =
   where
     applyNM_iterate n' f' = (!! n') . iterate (f' =<<) . pure
 
+prop_applyNM_iterate_list
+    :: Fun Int (Maybe (Either Int (Int, Int)))
+    -> Int
+    -> Property
+prop_applyNM_iterate_list (applyFun -> boundedF) a =
+    forAll (chooseInt (0, 5)) $ \n ->
+        applyNM n f a === applyNM_iterate n f a
+  where
+    f = boundedList . boundedF
+    applyNM_iterate n' f' = (!! n') . iterate (f' =<<) . pure
+
 prop_applyNM_unit
     :: (Monad m, Eq (m a), Show (m a)) => Fun a (m a) -> a -> Property
 prop_applyNM_unit (applyFun -> f) a =
@@ -99,3 +109,21 @@ prop_applyNM_unit (applyFun -> f) a =
         , applyNM 3 f a === (f <=< f <=< f) a
         , applyNM 4 f a === (f <=< f <=< f <=< f) a
         ]
+
+prop_applyNM_unit_list
+    :: Fun Int (Maybe (Either Int (Int, Int))) -> Int -> Property
+prop_applyNM_unit_list (applyFun -> boundedF) a =
+    conjoin
+        [ applyNM 0 f a === pure a
+        , applyNM 1 f a === f a
+        , applyNM 2 f a === (f <=< f) a
+        , applyNM 3 f a === (f <=< f <=< f) a
+        , applyNM 4 f a === (f <=< f <=< f <=< f) a
+        ]
+  where
+    f = boundedList . boundedF
+
+boundedList :: Maybe (Either a (a, a)) -> [a]
+boundedList Nothing = []
+boundedList (Just (Left a)) = [a]
+boundedList (Just (Right (a, b))) = [a, b]

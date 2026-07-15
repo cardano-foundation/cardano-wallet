@@ -10,10 +10,10 @@ slice. Slice 2 depends on Slice 1.
 heap cap, the `Control.Monad.Util` group passes, and the monolithic suite
 completes under an explicit 2 GiB cap.
 
-- [ ] T001 [US1] Record the deterministic heap-exhaustion RED command in WIP.md for `lib/unit/test/unit/Control/Monad/UtilSpec.hs`
-- [ ] T002 [US1] Replace unbounded list-valued generation with 0/1/2-result branching and iteration depth 0..5 in `lib/unit/test/unit/Control/Monad/UtilSpec.hs`
-- [ ] T003 [US3] Run focused GREEN, `Control.Monad.Util`, `./gate.sh`, and the monolithic bounded smoke from `specs/5309-unit-memory-leak/quickstart.md`
-- [ ] T004 [US1] Commit Slice 1 as `test: bound applyNM list properties` with `Tasks: T001, T002, T003, T004`
+- [X] T001 [US1] Record the deterministic heap-exhaustion RED command in WIP.md for `lib/unit/test/unit/Control/Monad/UtilSpec.hs`
+- [X] T002 [US1] Replace unbounded list-valued generation with 0/1/2-result branching and iteration depth 0..5 in `lib/unit/test/unit/Control/Monad/UtilSpec.hs`
+- [X] T003 [US3] Run focused GREEN, `Control.Monad.Util`, `./gate.sh`, and the monolithic bounded smoke from `specs/5309-unit-memory-leak/quickstart.md`
+- [X] T004 [US1] Commit Slice 1 as `test: bound applyNM list properties` with `Tasks: T001, T002, T003, T004`
 
 ## Slice 2 — Restore RTS safety defaults (US2, US3)
 
