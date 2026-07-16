@@ -86,6 +86,22 @@ prop_applyNM_iterate
 prop_applyNM_iterate (getNonNegative -> n) (applyFun -> f) =
     prop_applyNM_iterate_with n f
 
+-- In the list monad, iterating a function of result width @w@ to depth @n@
+-- yields up to @w ^ n@ elements, so drawing both the function and the depth
+-- freely generates exponentially large lists (#5309). The list properties
+-- therefore bound both exponents:
+--
+-- - Width: the generated function's codomain is
+--   @Maybe (Either Int (Int, Int))@, which 'boundedList' maps to lists of
+--   width 0, 1 or 2. Wider results are unrepresentable, yet nothing
+--   qualitative is lost: widths 0, 1 and 2 exercise failure, linear
+--   chaining and branching, and every wider list arises as a composition
+--   of binary branches.
+--
+-- - Depth: iteration counts are drawn from 0 to 5.
+--
+-- The largest generated case is therefore 2 ^ 5 = 32 elements.
+
 prop_applyNM_iterate_list
     :: Fun Int (Maybe (Either Int (Int, Int)))
     -> Int
@@ -121,6 +137,7 @@ prop_applyNM_unit_with f a =
         , applyNM 4 f a === (f <=< f <=< f <=< f) a
         ]
 
+-- | Interpret the bounded codomain as a list of at most two elements.
 boundedList :: Maybe (Either a (a, a)) -> [a]
 boundedList Nothing = []
 boundedList (Just (Left a)) = [a]
