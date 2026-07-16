@@ -698,7 +698,7 @@ prettyTxMetadataJsonSchemaError = \case
             <> "\"int\", \"bytes\", \"string\", \"list\" or \"map\".\n"
             <> "Unexpected object field(s): "
             <> encodeValue
-                (Aeson.Object (KeyMap.fromList (bimap Aeson.fromText id <$> fields)))
+                (Aeson.Object (KeyMap.fromList (first Aeson.fromText <$> fields)))
     TxMetadataJsonBadMapPair v ->
         "Expected a list of key/value pair { \"k\": ..., \"v\": ... } objects."
             <> "\nUnexpected value: "
