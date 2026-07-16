@@ -34,6 +34,7 @@ module Cardano.Wallet.Primitive.Types.Tx.TxMetadata
     , metadataValueToJsonNoSchema
     , TxMetadataJsonError (..)
     , TxMetadataJsonSchemaError (..)
+    , prettyTxMetadataJsonError
 
       -- * Internal conversion functions
     , toShelleyMetadata
@@ -651,6 +652,84 @@ data TxMetadataJsonSchemaError
     | TxMetadataJsonBadMapPair !Aeson.Value
     | TxMetadataJsonTypeMismatch !Text !Aeson.Value
     deriving (Eq, Show)
+
+-- | Render a 'TxMetadataJsonError' as a human-readable message.
+--
+-- These types were split out of @cardano-api@ into wallet-owned copies; this
+-- reproduces the wording @cardano-api@'s @Error@ instance used, so the HTTP
+-- API keeps returning a readable message instead of the bare constructor name.
+prettyTxMetadataJsonError :: TxMetadataJsonError -> Text
+prettyTxMetadataJsonError = \case
+    TxMetadataJsonToplevelNotMap ->
+        "The JSON metadata top level must be a map (JSON object) from word to value."
+    TxMetadataJsonToplevelBadKey k ->
+        "The JSON metadata top level must be a map (JSON object) with unsigned "
+            <> "integer keys.\nInvalid key: "
+            <> k
+    TxMetadataJsonSchemaError k v detail ->
+        "JSON schema error within the metadata item "
+            <> T.pack (show k)
+            <> ": "
+            <> encodeValue v
+            <> "\n"
+            <> prettyTxMetadataJsonSchemaError detail
+    TxMetadataRangeError k v detail ->
+        "Value out of range within the metadata item "
+            <> T.pack (show k)
+            <> ": "
+            <> encodeValue v
+            <> "\n"
+            <> prettyTxMetadataRangeError detail
+
+prettyTxMetadataJsonSchemaError :: TxMetadataJsonSchemaError -> Text
+prettyTxMetadataJsonSchemaError = \case
+    TxMetadataJsonNullNotAllowed ->
+        "JSON null values are not supported."
+    TxMetadataJsonBoolNotAllowed ->
+        "JSON bool values are not supported."
+    TxMetadataJsonNumberNotInteger d ->
+        "JSON numbers must be integers. Unexpected value: "
+            <> T.pack (show d)
+    TxMetadataJsonNotObject v ->
+        "JSON object expected. Unexpected value: "
+            <> encodeValue v
+    TxMetadataJsonBadObject fields ->
+        "JSON object does not match the schema.\nExpected a single field named "
+            <> "\"int\", \"bytes\", \"string\", \"list\" or \"map\".\n"
+            <> "Unexpected object field(s): "
+            <> encodeValue
+                (Aeson.Object (KeyMap.fromList (bimap Aeson.fromText id <$> fields)))
+    TxMetadataJsonBadMapPair v ->
+        "Expected a list of key/value pair { \"k\": ..., \"v\": ... } objects."
+            <> "\nUnexpected value: "
+            <> encodeValue v
+    TxMetadataJsonTypeMismatch k v ->
+        "The value in the field "
+            <> T.pack (show k)
+            <> " does not have the type required by the schema.\nUnexpected value: "
+            <> encodeValue v
+
+prettyTxMetadataRangeError :: TxMetadataRangeError -> Text
+prettyTxMetadataRangeError = \case
+    TxMetadataNumberOutOfRange n ->
+        "Numeric metadata value "
+            <> T.pack (show n)
+            <> " is outside the range -(2^64-1) .. 2^64-1."
+    TxMetadataTextTooLong actualLen ->
+        "Text string metadata value must consist of at most "
+            <> T.pack (show txMetadataTextStringMaxByteLength)
+            <> " UTF8 bytes, but it consists of "
+            <> T.pack (show actualLen)
+            <> " bytes."
+    TxMetadataBytesTooLong actualLen ->
+        "Byte string metadata value must consist of at most "
+            <> T.pack (show txMetadataByteStringMaxLength)
+            <> " bytes, but it consists of "
+            <> T.pack (show actualLen)
+            <> " bytes."
+
+encodeValue :: Aeson.Value -> Text
+encodeValue = T.Lazy.toStrict . Aeson.Text.encodeToLazyText
 
 -- ----------------------------------------------------------------------------
 -- Shared parsing utils

@@ -1982,7 +1982,7 @@ instance Malformed (BodyParam ApiSerialisedTransaction) where
                         ( [aesonQQ|
                { "transaction": "cafecafe"
                }|]
-                        , "Error in $: Deserialisation failure while decoding Shelley Tx. CBOR failed with error: DeserialiseFailure 0 'expected list len or indef'"
+                        , "Error in $: Deserialisation failure while decoding ConwayTx. CBOR failed with error: DeserialiseFailure 0 'expected list len or indef'"
                         )
                     ]
 
@@ -2186,7 +2186,7 @@ instance Malformed (BodyParam (ApiBalanceTransactionPostData ('Testnet pm))) whe
                 { "transaction": "1234",
                   "inputs": []
                 }|]
-                        , "Error in $.transaction: Deserialisation failure while decoding Shelley Tx. CBOR failed with error: DeserialiseFailure 0 'expected list len or indef'"
+                        , "Error in $.transaction: Deserialisation failure while decoding ConwayTx. CBOR failed with error: DeserialiseFailure 0 'expected list len or indef'"
                         )
                     ]
 
@@ -2368,11 +2368,11 @@ instance Malformed (BodyParam (ApiT SealedTx)) where
         first BodyParam
             <$> [
                     ( ""
-                    , "DecoderErrorDeserialiseFailure 'Shelley Tx' (DeserialiseFailure 0 'end of input')"
+                    , "DecoderErrorDeserialiseFailure 'ConwayTx' (DeserialiseFailure 0 'end of input')"
                     )
                 ,
                     ( "cafecafe"
-                    , "DecoderErrorDeserialiseFailure 'Shelley Tx' (DeserialiseFailure 0 'expected list len or indef')"
+                    , "DecoderErrorDeserialiseFailure 'ConwayTx' (DeserialiseFailure 0 'expected list len or indef')"
                     )
                 ]
 
