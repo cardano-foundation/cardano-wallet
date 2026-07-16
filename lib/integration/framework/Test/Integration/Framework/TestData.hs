@@ -505,7 +505,7 @@ errMsg400WronglyEncodedTxPayload =
 
 errMsg400TxMetadataStringTooLong :: String
 errMsg400TxMetadataStringTooLong =
-    "TxMetadataTextTooLong"
+    "Text string metadata value must consist of at most 64 UTF8 bytes"
 
 errMsg400ParseError :: String
 errMsg400ParseError =
