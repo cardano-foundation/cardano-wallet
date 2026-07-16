@@ -58,7 +58,7 @@ library
 
 test-suite unit
   import:             language, opts-exe
-  ghc-options:        -with-rtsopts=-M2G -with-rtsopts=-N4
+  ghc-options:        "-with-rtsopts=-M2G -N4"
   type:               exitcode-stdio-1.0
   hs-source-dirs:     test
   main-is:            Main.hs

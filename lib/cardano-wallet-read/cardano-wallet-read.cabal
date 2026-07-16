@@ -156,7 +156,7 @@ library
 test-suite test
   import:             opts-exe, language
   default-language:   Haskell2010
-  ghc-options:        -with-rtsopts=-M2G -with-rtsopts=-N4
+  ghc-options:        "-with-rtsopts=-M2G -N4"
   build-tool-depends: hspec-discover:hspec-discover
   other-modules:
     Cardano.Read.Ledger.OutputSpec

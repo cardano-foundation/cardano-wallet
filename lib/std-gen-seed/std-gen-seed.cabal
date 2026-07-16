@@ -44,7 +44,7 @@ library
 
 test-suite unit
   import:             language, opts-exe
-  ghc-options:        -with-rtsopts=-M2G -with-rtsopts=-N4
+  ghc-options:        "-with-rtsopts=-M2G -N4"
   build-depends:
     , base
     , hspec
