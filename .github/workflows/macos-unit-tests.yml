@@ -101,79 +101,89 @@ jobs:
             command: >-
               nix shell --quiet ../../.#cardano-cli -c
               nix run --quiet ../../.#unit-cardano-wallet-unit --
-              --match "/Cardano.Byron./"
-              --match "/Cardano.CLI/"
+              --fail-on=empty
+              --match "/Cardano.Byron"
+              --match "/Cardano.CLI"
               -j1 +RTS -M2G -s -RTS
 
           - name: "wallet-unit / DB.Sqlite + Pool"
             command: >-
               nix shell --quiet .#cardano-cli -c
               nix run --quiet .#unit-cardano-wallet-unit --
-              --match "/Cardano.DB./"
-              --match "/Cardano.Pool./"
+              --fail-on=empty
+              --match "/Cardano.DB"
+              --match "/Cardano.Pool"
               -j1 +RTS -M2G -s -RTS
 
           - name: "wallet-unit / Address"
             command: >-
               nix shell --quiet .#cardano-cli -c
               nix run --quiet .#unit-cardano-wallet-unit --
-              --match "/Cardano.Wallet.Address./"
+              --fail-on=empty
+              --match "/Cardano.Wallet.Address"
               -j1 +RTS -M2G -s -RTS
 
           - name: "wallet-unit / Api"
             command: >-
               nix shell --quiet .#cardano-cli -c
               nix run --quiet .#unit-cardano-wallet-unit --
-              --match "/Cardano.Wallet.Api./"
+              --fail-on=empty
+              --match "/Cardano.Wallet.Api"
               -j1 +RTS -M2G -s -RTS
 
           - name: "wallet-unit / Balance"
             command: >-
               nix shell --quiet .#cardano-cli -c
               nix run --quiet .#unit-cardano-wallet-unit --
-              --match "/Cardano.Wallet.Balance./"
+              --fail-on=empty
+              --match "/Cardano.Wallet.Balance"
               -j1 +RTS -M2G -s -RTS
 
           - name: "wallet-unit / DB"
             command: >-
               nix shell --quiet .#cardano-cli -c
               nix run --quiet .#unit-cardano-wallet-unit --
-              --match "/Cardano.Wallet.DB./"
+              --fail-on=empty
+              --match "/Cardano.Wallet.DB"
               -j1 +RTS -M2G -s -RTS
 
           - name: "wallet-unit / Primitive"
             command: >-
               nix shell --quiet .#cardano-cli -c
               nix run --quiet .#unit-cardano-wallet-unit --
-              --match "/Cardano.Wallet.Primitive./"
+              --fail-on=empty
+              --match "/Cardano.Wallet.Primitive"
               -j1 +RTS -M2G -s -RTS
 
           - name: "wallet-unit / Shelley"
             command: >-
               nix shell --quiet .#cardano-cli -c
               nix run --quiet .#unit-cardano-wallet-unit --
-              --match "/Cardano.Wallet.Shelley./"
+              --fail-on=empty
+              --match "/Cardano.Wallet.Shelley"
               -j1 +RTS -M2G -s -RTS
 
           - name: "wallet-unit / Other Wallet"
             command: >-
               nix shell --quiet .#cardano-cli -c
               nix run --quiet .#unit-cardano-wallet-unit --
-              --match "/Cardano.Wallet./"
-              --skip "/Cardano.Wallet.Address./"
-              --skip "/Cardano.Wallet.Api./"
-              --skip "/Cardano.Wallet.Balance./"
-              --skip "/Cardano.Wallet.DB./"
-              --skip "/Cardano.Wallet.Primitive./"
-              --skip "/Cardano.Wallet.Shelley./"
+              --fail-on=empty
+              --match "/Cardano.Wallet"
+              --skip "/Cardano.Wallet.Address"
+              --skip "/Cardano.Wallet.Api"
+              --skip "/Cardano.Wallet.Balance"
+              --skip "/Cardano.Wallet.DB"
+              --skip "/Cardano.Wallet.Primitive"
+              --skip "/Cardano.Wallet.Shelley"
               -j1 +RTS -M2G -s -RTS
 
           - name: "wallet-unit / Control + Data"
             command: >-
               nix shell --quiet .#cardano-cli -c
               nix run --quiet .#unit-cardano-wallet-unit --
-              --match "/Control./"
-              --match "/Data./"
+              --fail-on=empty
+              --match "/Control"
+              --match "/Data"
               -j1 +RTS -M2G -s -RTS
 
     steps:
