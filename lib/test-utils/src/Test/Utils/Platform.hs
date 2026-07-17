@@ -13,14 +13,12 @@ module Test.Utils.Platform
     , pendingOnWindows
     , pendingOnWine
     , pendingOnMacOS
-    , skipWhenRoot
 
       -- * OS detection
     , whenWindows
     , isWindows
     , isMacOS
     , getIsWine
-    , runningAsRoot
 
       -- * Cross-platform compatibility
     , nullFileName
@@ -67,26 +65,6 @@ pendingOnWine reason = whenWindows $ do
 -- | Mark test pending if running on macOS
 pendingOnMacOS :: HasCallStack => String -> Expectation
 pendingOnMacOS reason = when isMacOS $ pendingWith reason
-
--- | Mark a test pending when the process runs as root (effective uid 0).
--- Some assertions — e.g. that binding a privileged port is denied — only
--- hold for an unprivileged user, but CI self-hosted runners often run as
--- root, where the privileged operation instead succeeds.
-skipWhenRoot :: HasCallStack => String -> Expectation
-skipWhenRoot reason = do
-    root <- runningAsRoot
-    when root $ pendingWith reason
-
--- | Whether the current process has effective user id 0. Determined via
--- @id -u@ to avoid a @unix@ dependency and stay cross-platform; always
--- 'False' on Windows.
-runningAsRoot :: IO Bool
-runningAsRoot
-    | isWindows = pure False
-    | otherwise =
-        handle (\(_ :: IOException) -> pure False) $ do
-            (code, out, _) <- readProcessWithExitCode "id" ["-u"] ""
-            pure (code == ExitSuccess && words out == ["0"])
 
 isWindows, isMacOS :: Bool
 isWindows = os == "mingw32"
