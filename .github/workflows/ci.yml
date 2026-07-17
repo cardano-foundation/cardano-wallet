@@ -189,66 +189,74 @@ jobs:
               -j1 +RTS -M2G -s -RTS
 
           - name: "wallet-unit / DB.Sqlite + Pool"
+            working-directory: lib/unit
             command: >-
-              nix shell --quiet .#cardano-cli -c
-              nix run --quiet .#unit-cardano-wallet-unit --
+              nix shell --quiet ../../.#cardano-cli -c
+              nix run --quiet ../../.#unit-cardano-wallet-unit --
               --fail-on=empty
               --match "/Cardano.DB"
               --match "/Cardano.Pool"
               -j1 +RTS -M2G -s -RTS
 
           - name: "wallet-unit / Address"
+            working-directory: lib/unit
             command: >-
-              nix shell --quiet .#cardano-cli -c
-              nix run --quiet .#unit-cardano-wallet-unit --
+              nix shell --quiet ../../.#cardano-cli -c
+              nix run --quiet ../../.#unit-cardano-wallet-unit --
               --fail-on=empty
               --match "/Cardano.Wallet.Address"
               -j1 +RTS -M2G -s -RTS
 
           - name: "wallet-unit / Api"
+            working-directory: lib/unit
             command: >-
-              nix shell --quiet .#cardano-cli -c
-              nix run --quiet .#unit-cardano-wallet-unit --
+              nix shell --quiet ../../.#cardano-cli -c
+              nix run --quiet ../../.#unit-cardano-wallet-unit --
               --fail-on=empty
               --match "/Cardano.Wallet.Api"
               -j1 +RTS -M2G -s -RTS
 
           - name: "wallet-unit / Balance"
+            working-directory: lib/unit
             command: >-
-              nix shell --quiet .#cardano-cli -c
-              nix run --quiet .#unit-cardano-wallet-unit --
+              nix shell --quiet ../../.#cardano-cli -c
+              nix run --quiet ../../.#unit-cardano-wallet-unit --
               --fail-on=empty
               --match "/Cardano.Wallet.Balance"
               -j1 +RTS -M2G -s -RTS
 
           - name: "wallet-unit / DB"
+            working-directory: lib/unit
             command: >-
-              nix shell --quiet .#cardano-cli -c
-              nix run --quiet .#unit-cardano-wallet-unit --
+              nix shell --quiet ../../.#cardano-cli -c
+              nix run --quiet ../../.#unit-cardano-wallet-unit --
               --fail-on=empty
               --match "/Cardano.Wallet.DB"
               -j1 +RTS -M2G -s -RTS
 
           - name: "wallet-unit / Primitive"
+            working-directory: lib/unit
             command: >-
-              nix shell --quiet .#cardano-cli -c
-              nix run --quiet .#unit-cardano-wallet-unit --
+              nix shell --quiet ../../.#cardano-cli -c
+              nix run --quiet ../../.#unit-cardano-wallet-unit --
               --fail-on=empty
               --match "/Cardano.Wallet.Primitive"
               -j1 +RTS -M2G -s -RTS
 
           - name: "wallet-unit / Shelley"
+            working-directory: lib/unit
             command: >-
-              nix shell --quiet .#cardano-cli -c
-              nix run --quiet .#unit-cardano-wallet-unit --
+              nix shell --quiet ../../.#cardano-cli -c
+              nix run --quiet ../../.#unit-cardano-wallet-unit --
               --fail-on=empty
               --match "/Cardano.Wallet.Shelley"
               -j1 +RTS -M2G -s -RTS
 
           - name: "wallet-unit / Other Wallet"
+            working-directory: lib/unit
             command: >-
-              nix shell --quiet .#cardano-cli -c
-              nix run --quiet .#unit-cardano-wallet-unit --
+              nix shell --quiet ../../.#cardano-cli -c
+              nix run --quiet ../../.#unit-cardano-wallet-unit --
               --fail-on=empty
               --match "/Cardano.Wallet"
               --skip "/Cardano.Wallet.Address"
@@ -260,9 +268,10 @@ jobs:
               -j1 +RTS -M2G -s -RTS
 
           - name: "wallet-unit / Control + Data"
+            working-directory: lib/unit
             command: >-
-              nix shell --quiet .#cardano-cli -c
-              nix run --quiet .#unit-cardano-wallet-unit --
+              nix shell --quiet ../../.#cardano-cli -c
+              nix run --quiet ../../.#unit-cardano-wallet-unit --
               --fail-on=empty
               --match "/Control"
               --match "/Data"
