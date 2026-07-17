@@ -130,6 +130,7 @@ import Test.QuickCheck.Property
     )
 import Test.Utils.Platform
     ( skipOnWindows
+    , skipWhenRoot
     )
 import UnliftIO.Async
     ( concurrently_
@@ -206,6 +207,7 @@ serverSpec = describe "API Server" $ do
     -- assuming we are not running the tests as root
     it "handles privileged ports" $ do
         skipOnWindows "Impossible to uniquely detect this error case"
+        skipWhenRoot "Privileged ports are bindable as root"
         withListeningSocket "127.0.0.1" (ListenOnPort 23) $ \res ->
             res `shouldBe` Left ListenErrorOperationNotPermitted
 
