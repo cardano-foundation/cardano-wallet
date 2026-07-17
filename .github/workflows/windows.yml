@@ -110,79 +110,89 @@ jobs:
             artifact: win-test-wallet-unit
             command: >-
               .\unit.exe
-              --match "/Cardano.Byron./"
-              --match "/Cardano.CLI/"
+              --fail-on=empty
+              --match "/Cardano.Byron"
+              --match "/Cardano.CLI"
               --color -j1 +RTS -M2G -s -N2 -RTS
 
           - name: "wallet-unit / DB.Sqlite + Pool"
             artifact: win-test-wallet-unit
             command: >-
               .\unit.exe
-              --match "/Cardano.DB./"
-              --match "/Cardano.Pool./"
+              --fail-on=empty
+              --match "/Cardano.DB"
+              --match "/Cardano.Pool"
               --color -j1 +RTS -M2G -s -N2 -RTS
 
           - name: "wallet-unit / Address"
             artifact: win-test-wallet-unit
             command: >-
               .\unit.exe
-              --match "/Cardano.Wallet.Address./"
+              --fail-on=empty
+              --match "/Cardano.Wallet.Address"
               --color -j1 +RTS -M2G -s -N2 -RTS
 
           - name: "wallet-unit / Api"
             artifact: win-test-wallet-unit
             command: >-
               .\unit.exe
-              --match "/Cardano.Wallet.Api./"
+              --fail-on=empty
+              --match "/Cardano.Wallet.Api"
               --color -j1 +RTS -M2G -s -N2 -RTS
 
           - name: "wallet-unit / Balance"
             artifact: win-test-wallet-unit
             command: >-
               .\unit.exe
-              --match "/Cardano.Wallet.Balance./"
+              --fail-on=empty
+              --match "/Cardano.Wallet.Balance"
               --color -j1 +RTS -M2G -s -N2 -RTS
 
           - name: "wallet-unit / DB"
             artifact: win-test-wallet-unit
             command: >-
               .\unit.exe
-              --match "/Cardano.Wallet.DB./"
+              --fail-on=empty
+              --match "/Cardano.Wallet.DB"
               --color -j1 +RTS -M2G -s -N2 -RTS
 
           - name: "wallet-unit / Primitive"
             artifact: win-test-wallet-unit
             command: >-
               .\unit.exe
-              --match "/Cardano.Wallet.Primitive./"
+              --fail-on=empty
+              --match "/Cardano.Wallet.Primitive"
               --color -j1 +RTS -M2G -s -N2 -RTS
 
           - name: "wallet-unit / Shelley"
             artifact: win-test-wallet-unit
             command: >-
               .\unit.exe
-              --match "/Cardano.Wallet.Shelley./"
+              --fail-on=empty
+              --match "/Cardano.Wallet.Shelley"
               --color -j1 +RTS -M2G -s -N2 -RTS
 
           - name: "wallet-unit / Other Wallet"
             artifact: win-test-wallet-unit
             command: >-
               .\unit.exe
-              --match "/Cardano.Wallet./"
-              --skip "/Cardano.Wallet.Address./"
-              --skip "/Cardano.Wallet.Api./"
-              --skip "/Cardano.Wallet.Balance./"
-              --skip "/Cardano.Wallet.DB./"
-              --skip "/Cardano.Wallet.Primitive./"
-              --skip "/Cardano.Wallet.Shelley./"
+              --fail-on=empty
+              --match "/Cardano.Wallet"
+              --skip "/Cardano.Wallet.Address"
+              --skip "/Cardano.Wallet.Api"
+              --skip "/Cardano.Wallet.Balance"
+              --skip "/Cardano.Wallet.DB"
+              --skip "/Cardano.Wallet.Primitive"
+              --skip "/Cardano.Wallet.Shelley"
               --color -j1 +RTS -M2G -s -N2 -RTS
 
           - name: "wallet-unit / Control + Data"
             artifact: win-test-wallet-unit
             command: >-
               .\unit.exe
-              --match "/Control./"
-              --match "/Data./"
+              --fail-on=empty
+              --match "/Control"
+              --match "/Data"
               --color -j1 +RTS -M2G -s -N2 -RTS
 
           # --- standalone suites (test.exe) ---

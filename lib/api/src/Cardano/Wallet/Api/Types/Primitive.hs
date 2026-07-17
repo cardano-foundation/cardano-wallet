@@ -68,6 +68,7 @@ import Cardano.Wallet.Primitive.Types.Tx.TxMetadata
     ( TxMetadataJsonSchema (..)
     , metadataFromJson
     , metadataToJson
+    , prettyTxMetadataJsonError
     )
 import Cardano.Wallet.Transaction
     ( AnyExplicitScript (..)
@@ -128,6 +129,7 @@ import qualified Cardano.Wallet.Primitive.Types.TokenPolicyId as W
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.ByteString as BS
+import qualified Data.Text as T
 
 instance ToJSON (ApiT DerivationIndex) where
     toJSON = toTextApiT
@@ -407,7 +409,7 @@ instance ToJSON (ApiT W.NonWalletCertificate) where
 instance FromJSON (ApiT TxMetadata) where
     parseJSON =
         fmap ApiT
-            . either (fail . show) pure
+            . either (fail . T.unpack . prettyTxMetadataJsonError) pure
             . metadataFromJson TxMetadataJsonDetailedSchema
 
 instance ToJSON (ApiT TxMetadata) where

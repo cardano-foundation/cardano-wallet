@@ -203,11 +203,17 @@ serverSpec = describe "API Server" $ do
             res
                 `shouldBe` Left (ListenErrorInvalidAddress "fe80::90c2:786f:431:b721")
 
-    -- assuming we are not running the tests as root
+    -- Binding a privileged port is only denied for unprivileged processes.
+    -- CI runners may run as root, with CAP_NET_BIND_SERVICE, or with a lowered
+    -- net.ipv4.ip_unprivileged_port_start, where the bind succeeds instead —
+    -- mark pending there rather than asserting a denial that cannot happen.
     it "handles privileged ports" $ do
         skipOnWindows "Impossible to uniquely detect this error case"
-        withListeningSocket "127.0.0.1" (ListenOnPort 23) $ \res ->
-            res `shouldBe` Left ListenErrorOperationNotPermitted
+        withListeningSocket "127.0.0.1" (ListenOnPort 23) $ \case
+            Right _ ->
+                pendingWith "Environment permits binding privileged ports"
+            Left e ->
+                e `shouldBe` ListenErrorOperationNotPermitted
 
     it "handles port in use" $ do
         skipOnWindows "Windows permits listening on same port multiple times"

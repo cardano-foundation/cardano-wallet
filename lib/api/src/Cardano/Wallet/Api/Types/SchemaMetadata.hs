@@ -24,6 +24,7 @@ import Cardano.Wallet.Primitive.Types.Tx.TxMetadata
     ( TxMetadataJsonSchema (..)
     , metadataFromJson
     , metadataToJson
+    , prettyTxMetadataJsonError
     )
 import Control.Applicative
     ( (<|>)
@@ -39,6 +40,8 @@ import GHC.Generics
     ( Generic
     )
 import Prelude
+
+import qualified Data.Text as T
 
 -- | A tag to select the json codec
 data TxMetadataSchema = TxMetadataNoSchema | TxMetadataDetailedSchema
@@ -89,10 +92,10 @@ instance FromJSON TxMetadataWithSchema where
         liftA2
             (<|>)
             ( fmap detailedMetadata
-                . either (fail . show) pure
+                . either (fail . T.unpack . prettyTxMetadataJsonError) pure
                 . metadataFromJson TxMetadataJsonDetailedSchema
             )
             ( fmap noSchemaMetadata
-                . either (fail . show) pure
+                . either (fail . T.unpack . prettyTxMetadataJsonError) pure
                 . metadataFromJson TxMetadataJsonNoSchema
             )

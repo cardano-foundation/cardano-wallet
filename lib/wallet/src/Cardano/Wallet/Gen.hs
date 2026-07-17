@@ -134,10 +134,17 @@ genMnemonic = do
     return $ entropyToMnemonic ent
 
 genPercentage :: Gen Percentage
-genPercentage = unsafeMkPercentage . fromRational . toRational <$> genDouble
+genPercentage =
+    unsafeMkPercentage . (% precision) <$> choose (0, precision)
   where
-    genDouble :: Gen Double
-    genDouble = choose (0, 1)
+    -- Percentages are persisted as a 'Word64' numerator\/denominator pair
+    -- (e.g. pool margins, which originate from a ledger 'UnitInterval' — itself
+    -- a 'Word64' ratio). Generating via @toRational (d :: Double)@ instead can
+    -- yield a 2^64 denominator, which overflows that storage and reads back as
+    -- 0 (a division-by-zero on read). Bounding the denominator keeps generated
+    -- percentages within the domain the wallet can actually persist.
+    precision :: Integer
+    precision = 10 ^ (12 :: Int)
 
 shrinkPercentage :: Percentage -> [Percentage]
 shrinkPercentage x =

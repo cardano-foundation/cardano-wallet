@@ -5240,6 +5240,30 @@ x-errBalanceTxInlinePlutusV3ScriptNotSupportedInBabbage: &errBalanceTxInlinePlut
       type: string
       enum: ["balance_tx_inline_plutus_v3_script_not_supported_in_babbage"]
 
+x-errBalanceTxInlinePlutusV4ScriptNotSupportedInConway: &errBalanceTxInlinePlutusV4ScriptNotSupportedInConway
+  <<: *responsesErr
+  title: balance_tx_inline_plutus_v4_script_not_supported_in_conway
+  properties:
+    message:
+      type: string
+      description: |
+        Plutus V4 scripts are not supported in the Conway era.
+    code:
+      type: string
+      enum: ["balance_tx_inline_plutus_v4_script_not_supported_in_conway"]
+
+x-errBalanceTxNativeScriptNotSupportedInConway: &errBalanceTxNativeScriptNotSupportedInConway
+  <<: *responsesErr
+  title: balance_tx_native_script_not_supported_in_conway
+  properties:
+    message:
+      type: string
+      description: |
+        Native scripts are not supported in the Conway era.
+    code:
+      type: string
+      enum: ["balance_tx_native_script_not_supported_in_conway"]
+
 x-errBalanceTxExistingCollateral: &errBalanceTxExistingCollateral
   <<: *responsesErr
   title: balance_tx_existing_collateral
@@ -6899,6 +6923,8 @@ x-responsesBalanceTransaction: &responsesBalanceTransaction
             - <<: *errUtxoTooSmall
             - <<: *errTxNotInNodeEra
             - <<: *errBalanceTxInlinePlutusV3ScriptNotSupportedInBabbage
+            - <<: *errBalanceTxInlinePlutusV4ScriptNotSupportedInConway
+            - <<: *errBalanceTxNativeScriptNotSupportedInConway
             - <<: *errTranslationByronTxOutInContext
   <<:
     - *responsesErr404WalletNotFound

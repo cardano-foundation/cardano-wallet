@@ -72,14 +72,10 @@ import Cardano.Wallet.Flavor
 import Cardano.Wallet.Gen
     ( genNatural
     , genScript
-    , genScriptTemplate
     )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId
     , NetworkDiscriminant (..)
-    )
-import Cardano.Wallet.Primitive.Passphrase.Gen
-    ( genEncryptionPassphrase
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..)
@@ -532,16 +528,22 @@ instance Arbitrary UnexpectedPrefix where
 
 instance Arbitrary (SharedState 'Mainnet SharedKey) where
     arbitrary = do
-        rootXPrv <- arbitrary
-        pwd <- genEncryptionPassphrase
         accIx' <- arbitrary
-        scriptTemplate <- genScriptTemplate
+        -- Build the payment template around the wallet's own account key so the
+        -- shared state activates. A random template (as produced by
+        -- 'genScriptTemplate') never contains our key, leaving the wallet
+        -- 'Pending' with an empty address pool.
+        (rootXPrv, accXPub') <- genKeys accIx'
+        let pTemplate' =
+                ScriptTemplate
+                    (Map.fromList [(Cosigner 0, getRawKey SharedKeyS accXPub')])
+                    (RequireSignatureOf (Cosigner 0))
         pure
             $ mkSharedStateFromRootXPrv
                 SharedKeyS
-                (RootCredentials rootXPrv pwd)
+                (RootCredentials rootXPrv mempty)
                 accIx'
                 IncreasingChangeAddresses
                 defaultAddressPoolGap
-                scriptTemplate
+                pTemplate'
                 Nothing
