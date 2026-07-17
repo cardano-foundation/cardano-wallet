@@ -196,7 +196,7 @@ jobs:
               --fail-on=empty
               --match "/Cardano.DB"
               --match "/Cardano.Pool"
-              -j1 +RTS -M2G -N1 -s -RTS
+              -j1 +RTS -M2G -s -RTS
 
           - name: "wallet-unit / Address"
             working-directory: lib/unit
@@ -232,7 +232,7 @@ jobs:
               nix run --quiet ../../.#unit-cardano-wallet-unit --
               --fail-on=empty
               --match "/Cardano.Wallet.DB"
-              -j1 +RTS -M2G -N1 -s -RTS
+              -j1 +RTS -M2G -s -RTS
 
           - name: "wallet-unit / Primitive"
             working-directory: lib/unit

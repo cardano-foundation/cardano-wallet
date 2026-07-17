@@ -39,9 +39,10 @@ import System.FilePath
     )
 import Test.Hspec
     ( Spec
-    , around
+    , aroundAll
     , describe
     , it
+    , sequential
     , shouldBe
     )
 import Test.Utils.Paths
@@ -62,7 +63,14 @@ withMemoryDBLayer = withDBLayer nullTracer Nothing dummyTimeInterpreter
 
 spec :: Spec
 spec = do
-    around withMemoryDBLayer $ do
+    -- One long-lived in-memory connection shared across all the property
+    -- examples (each resets via 'cleanDB' in its own setup), run
+    -- 'sequential'ly. Using 'around' here instead re-created — and tore down —
+    -- a fresh connection per QuickCheck example; when a property failed and
+    -- QuickCheck shrank it, the shrink re-ran against the already-closed
+    -- connection, surfacing as a flaky @SQLITE_MISUSE@ on @prepare "BEGIN"@.
+    -- See #5313.
+    sequential $ aroundAll withMemoryDBLayer $ do
         describe "Sqlite" properties
 
     describe "Migration Regressions" $ do
