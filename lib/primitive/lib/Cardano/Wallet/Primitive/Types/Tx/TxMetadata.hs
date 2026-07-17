@@ -658,27 +658,27 @@ data TxMetadataJsonSchemaError
 -- These types were split out of @cardano-api@ into wallet-owned copies; this
 -- reproduces the wording @cardano-api@'s @Error@ instance used, so the HTTP
 -- API keeps returning a readable message instead of the bare constructor name.
+-- Unlike @cardano-api@, we deliberately do not echo the offending JSON value or
+-- key back into the message: the error already returns to the client that sent
+-- the (already-parsed) input, so reflecting raw user content adds no diagnostic
+-- value. Structural locators — the metadata item index and the schema field
+-- name — are kept.
 prettyTxMetadataJsonError :: TxMetadataJsonError -> Text
 prettyTxMetadataJsonError = \case
     TxMetadataJsonToplevelNotMap ->
         "The JSON metadata top level must be a map (JSON object) from word to value."
-    TxMetadataJsonToplevelBadKey k ->
+    TxMetadataJsonToplevelBadKey _ ->
         "The JSON metadata top level must be a map (JSON object) with unsigned "
-            <> "integer keys.\nInvalid key: "
-            <> k
-    TxMetadataJsonSchemaError k v detail ->
+            <> "integer keys."
+    TxMetadataJsonSchemaError k _ detail ->
         "JSON schema error within the metadata item "
             <> T.pack (show k)
-            <> ": "
-            <> encodeValue v
-            <> "\n"
+            <> ":\n"
             <> prettyTxMetadataJsonSchemaError detail
-    TxMetadataRangeError k v detail ->
+    TxMetadataRangeError k _ detail ->
         "Value out of range within the metadata item "
             <> T.pack (show k)
-            <> ": "
-            <> encodeValue v
-            <> "\n"
+            <> ":\n"
             <> prettyTxMetadataRangeError detail
 
 prettyTxMetadataJsonSchemaError :: TxMetadataJsonSchemaError -> Text
@@ -690,24 +690,17 @@ prettyTxMetadataJsonSchemaError = \case
     TxMetadataJsonNumberNotInteger d ->
         "JSON numbers must be integers. Unexpected value: "
             <> T.pack (show d)
-    TxMetadataJsonNotObject v ->
-        "JSON object expected. Unexpected value: "
-            <> encodeValue v
-    TxMetadataJsonBadObject fields ->
+    TxMetadataJsonNotObject _ ->
+        "JSON object expected."
+    TxMetadataJsonBadObject _ ->
         "JSON object does not match the schema.\nExpected a single field named "
-            <> "\"int\", \"bytes\", \"string\", \"list\" or \"map\".\n"
-            <> "Unexpected object field(s): "
-            <> encodeValue
-                (Aeson.Object (KeyMap.fromList (first Aeson.fromText <$> fields)))
-    TxMetadataJsonBadMapPair v ->
+            <> "\"int\", \"bytes\", \"string\", \"list\" or \"map\"."
+    TxMetadataJsonBadMapPair _ ->
         "Expected a list of key/value pair { \"k\": ..., \"v\": ... } objects."
-            <> "\nUnexpected value: "
-            <> encodeValue v
-    TxMetadataJsonTypeMismatch k v ->
+    TxMetadataJsonTypeMismatch k _ ->
         "The value in the field "
             <> T.pack (show k)
-            <> " does not have the type required by the schema.\nUnexpected value: "
-            <> encodeValue v
+            <> " does not have the type required by the schema."
 
 prettyTxMetadataRangeError :: TxMetadataRangeError -> Text
 prettyTxMetadataRangeError = \case
@@ -727,9 +720,6 @@ prettyTxMetadataRangeError = \case
             <> " bytes, but it consists of "
             <> T.pack (show actualLen)
             <> " bytes."
-
-encodeValue :: Aeson.Value -> Text
-encodeValue = T.Lazy.toStrict . Aeson.Text.encodeToLazyText
 
 -- ----------------------------------------------------------------------------
 -- Shared parsing utils
