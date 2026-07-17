@@ -99,7 +99,7 @@ jobs:
           - name: "wallet-unit / Byron + CLI"
             working-directory: lib/unit
             command: >-
-              nix shell --quiet ../../.#cardano-cli -c
+              nix shell --quiet ../../.#cardano-cli ../../.#cardano-node -c
               nix run --quiet ../../.#unit-cardano-wallet-unit --
               --fail-on=empty
               --match "/Cardano.Byron"
@@ -109,7 +109,7 @@ jobs:
           - name: "wallet-unit / DB.Sqlite + Pool"
             working-directory: lib/unit
             command: >-
-              nix shell --quiet ../../.#cardano-cli -c
+              nix shell --quiet ../../.#cardano-cli ../../.#cardano-node -c
               nix run --quiet ../../.#unit-cardano-wallet-unit --
               --fail-on=empty
               --match "/Cardano.DB"
@@ -119,7 +119,7 @@ jobs:
           - name: "wallet-unit / Address"
             working-directory: lib/unit
             command: >-
-              nix shell --quiet ../../.#cardano-cli -c
+              nix shell --quiet ../../.#cardano-cli ../../.#cardano-node -c
               nix run --quiet ../../.#unit-cardano-wallet-unit --
               --fail-on=empty
               --match "/Cardano.Wallet.Address"
@@ -128,7 +128,7 @@ jobs:
           - name: "wallet-unit / Api"
             working-directory: lib/unit
             command: >-
-              nix shell --quiet ../../.#cardano-cli -c
+              nix shell --quiet ../../.#cardano-cli ../../.#cardano-node -c
               nix run --quiet ../../.#unit-cardano-wallet-unit --
               --fail-on=empty
               --match "/Cardano.Wallet.Api"
@@ -137,7 +137,7 @@ jobs:
           - name: "wallet-unit / Balance"
             working-directory: lib/unit
             command: >-
-              nix shell --quiet ../../.#cardano-cli -c
+              nix shell --quiet ../../.#cardano-cli ../../.#cardano-node -c
               nix run --quiet ../../.#unit-cardano-wallet-unit --
               --fail-on=empty
               --match "/Cardano.Wallet.Balance"
@@ -146,7 +146,7 @@ jobs:
           - name: "wallet-unit / DB"
             working-directory: lib/unit
             command: >-
-              nix shell --quiet ../../.#cardano-cli -c
+              nix shell --quiet ../../.#cardano-cli ../../.#cardano-node -c
               nix run --quiet ../../.#unit-cardano-wallet-unit --
               --fail-on=empty
               --match "/Cardano.Wallet.DB"
@@ -155,7 +155,7 @@ jobs:
           - name: "wallet-unit / Primitive"
             working-directory: lib/unit
             command: >-
-              nix shell --quiet ../../.#cardano-cli -c
+              nix shell --quiet ../../.#cardano-cli ../../.#cardano-node -c
               nix run --quiet ../../.#unit-cardano-wallet-unit --
               --fail-on=empty
               --match "/Cardano.Wallet.Primitive"
@@ -164,7 +164,7 @@ jobs:
           - name: "wallet-unit / Shelley"
             working-directory: lib/unit
             command: >-
-              nix shell --quiet ../../.#cardano-cli -c
+              nix shell --quiet ../../.#cardano-cli ../../.#cardano-node -c
               nix run --quiet ../../.#unit-cardano-wallet-unit --
               --fail-on=empty
               --match "/Cardano.Wallet.Shelley"
@@ -173,7 +173,7 @@ jobs:
           - name: "wallet-unit / Other Wallet"
             working-directory: lib/unit
             command: >-
-              nix shell --quiet ../../.#cardano-cli -c
+              nix shell --quiet ../../.#cardano-cli ../../.#cardano-node -c
               nix run --quiet ../../.#unit-cardano-wallet-unit --
               --fail-on=empty
               --match "/Cardano.Wallet"
@@ -188,7 +188,7 @@ jobs:
           - name: "wallet-unit / Control + Data"
             working-directory: lib/unit
             command: >-
-              nix shell --quiet ../../.#cardano-cli -c
+              nix shell --quiet ../../.#cardano-cli ../../.#cardano-node -c
               nix run --quiet ../../.#unit-cardano-wallet-unit --
               --fail-on=empty
               --match "/Control"
