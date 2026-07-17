@@ -15,7 +15,6 @@ import Cardano.Wallet.DummyTarget.Primitive.Types
     )
 import Test.Hspec
     ( Spec
-    , before
     , describe
     )
 import Prelude
@@ -24,7 +23,7 @@ import qualified Cardano.Pool.DB.MVar as MVar
 
 spec :: Spec
 spec =
-    before (MVar.newDBLayer ti)
-        $ describe "MVar" properties
+    describe "MVar"
+        $ properties (\action -> MVar.newDBLayer ti >>= action)
   where
     ti = dummyTimeInterpreter

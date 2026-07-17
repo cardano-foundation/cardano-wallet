@@ -72,11 +72,7 @@ import Control.Monad
     ( forM
     , forM_
     , replicateM
-    , unless
     , void
-    )
-import Control.Monad.IO.Class
-    ( liftIO
     )
 import Control.Monad.Trans.Except
     ( runExceptT
@@ -130,7 +126,7 @@ import Fmt
     )
 import Test.Hspec
     ( Expectation
-    , SpecWith
+    , Spec
     , anyException
     , describe
     , it
@@ -173,141 +169,149 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
 
-properties :: SpecWith (DBLayer IO)
-properties = do
+properties :: (forall a. (DBLayer IO -> IO a) -> IO a) -> Spec
+properties withDB = do
     describe "Stake Pool properties" $ do
         it
             "putPoolProduction . readPoolProduction yields expected results"
-            (property . prop_putReadPoolProduction)
+            (property (prop_putReadPoolProduction withDB))
         it
             "putPoolProduction with already put slot yields error"
-            (property . prop_putSlotTwicePoolProduction)
+            (property (prop_putSlotTwicePoolProduction withDB))
         it
             "Rollback of stake pool production"
-            (property . prop_rollbackPools)
+            (property (prop_rollbackPools withDB))
         it
             "readPoolProductionCursor should return the last applied blocks"
-            (property . prop_readPoolProductionCursorTipIsLast)
+            (property (prop_readPoolProductionCursorTipIsLast withDB))
         it
             "readPoolProduction for a given epoch should always give slots \
             \from given epoch"
-            (property . prop_readPoolNoEpochLeaks)
+            (property (prop_readPoolNoEpochLeaks withDB))
         it
             "readPoolProduction should never give pools with no slots"
-            (property . (prop_readPoolCond noEmptyPools))
+            (property (prop_readPoolCond withDB noEmptyPools))
         it
             "readPoolProduction should never give pools with no slots \
             \after consecutive 1-slot-depth rollbacks"
-            (property . (prop_readPoolCondAfterDeterministicRollbacks noEmptyPools))
+            ( property
+                (prop_readPoolCondAfterDeterministicRollbacks withDB noEmptyPools)
+            )
         it
             "readPoolProduction should never give pools with no slots \
             \after rollback - arbitrary N-slot-depth rollbacks"
-            (property . (prop_readPoolCondAfterRandomRollbacks noEmptyPools))
+            (property (prop_readPoolCondAfterRandomRollbacks withDB noEmptyPools))
         it
             "readPoolProduction should give pools with descending slots"
-            (property . (prop_readPoolCond descSlotsPerPool))
+            (property (prop_readPoolCond withDB descSlotsPerPool))
         it
             "readPoolProduction should give pools with descending slots \
             \after consecutive 1-slot-depth rollbacks"
             ( property
-                . (prop_readPoolCondAfterDeterministicRollbacks descSlotsPerPool)
+                ( prop_readPoolCondAfterDeterministicRollbacks
+                    withDB
+                    descSlotsPerPool
+                )
             )
         it
             "readPoolProduction should never give pools with no slots \
             \after rollback - arbitrary N-slot-depth rollbacks"
-            (property . (prop_readPoolCondAfterRandomRollbacks descSlotsPerPool))
+            ( property
+                (prop_readPoolCondAfterRandomRollbacks withDB descSlotsPerPool)
+            )
         it
             "readStakeDistribution . putStakeDistribution == pure"
-            (property . prop_putStakeReadStake)
+            (property (prop_putStakeReadStake withDB))
         it
             "putPoolRegistration then readPoolRegistration yields expected result"
-            (property . prop_poolRegistration)
+            (property (prop_poolRegistration withDB))
         it
             "putPoolRetirement then readPoolRetirement yields expected result"
-            (property . prop_poolRetirement)
+            (property (prop_poolRetirement withDB))
         it
             "prop_multiple_putPoolRegistration_single_readPoolRegistration"
             ( property
-                . prop_multiple_putPoolRegistration_single_readPoolRegistration
+                ( prop_multiple_putPoolRegistration_single_readPoolRegistration
+                    withDB
+                )
             )
         it
             "prop_multiple_putPoolRetirement_single_readPoolRetirement"
-            (property . prop_multiple_putPoolRetirement_single_readPoolRetirement)
+            ( property
+                ( prop_multiple_putPoolRetirement_single_readPoolRetirement
+                    withDB
+                )
+            )
         it
             "readPoolLifeCycleStatus respects certificate publication order"
-            (property . prop_readPoolLifeCycleStatus)
+            (property (prop_readPoolLifeCycleStatus withDB))
         it
             "rollback of PoolRegistration"
-            (property . prop_rollbackRegistration)
+            (property (prop_rollbackRegistration withDB))
         it
             "rollback of PoolRetirement"
-            (property . prop_rollbackRetirement)
+            (property (prop_rollbackRetirement withDB))
         it
             "removePools"
-            (property . prop_removePools)
+            (property (prop_removePools withDB))
         it
             "readStake . putStake a1 . putStake s0 == pure a1"
-            (property . prop_putStakePutStake)
+            (property (prop_putStakePutStake withDB))
         it
             "readSystemSeed is idempotent"
-            (property . prop_readSystemSeedIdempotent)
+            (property (prop_readSystemSeedIdempotent withDB))
         it
             "putPoolRegistration . listRegisteredPools yield pools"
-            (property . prop_listRegisteredPools)
+            (property (prop_listRegisteredPools withDB))
         it
             "prop_listRetiredPools_multiplePools_multipleCerts"
-            (property . prop_listRetiredPools_multiplePools_multipleCerts)
+            ( property
+                (prop_listRetiredPools_multiplePools_multipleCerts withDB)
+            )
         it
             "prop_listPoolLifeCycleData_multiplePools_multipleCerts"
-            (property . prop_listPoolLifeCycleData_multiplePools_multipleCerts)
+            ( property
+                (prop_listPoolLifeCycleData_multiplePools_multipleCerts withDB)
+            )
         it
             "putPoolProduction* . readTotalProduction matches expectations"
-            (property . prop_readTotalProduction)
+            (property (prop_readTotalProduction withDB))
         it
             "unfetchedPoolMetadataRefs"
-            (property . prop_unfetchedPoolMetadataRefs)
+            (property (prop_unfetchedPoolMetadataRefs withDB))
         it
             "unfetchedPoolMetadataRefsIgnoring"
-            (property . prop_unfetchedPoolMetadataRefsIgnoring)
+            (property (prop_unfetchedPoolMetadataRefsIgnoring withDB))
         it
             "prop_determinePoolLifeCycleStatus_orderCorrect"
-            ( property
-                . const
-                    prop_determinePoolLifeCycleStatus_orderCorrect
-            )
+            (property prop_determinePoolLifeCycleStatus_orderCorrect)
         it
             "prop_determinePoolLifeCycleStatus_neverRegistered"
-            ( property
-                . const
-                    prop_determinePoolLifeCycleStatus_neverRegistered
-            )
+            (property prop_determinePoolLifeCycleStatus_neverRegistered)
         it
             "prop_determinePoolLifeCycleStatus_differentPools"
-            ( property
-                . const
-                    prop_determinePoolLifeCycleStatus_differentPools
-            )
+            (property prop_determinePoolLifeCycleStatus_differentPools)
         it
             "SinglePoolCertificateSequence coverage is adequate"
-            (property . const prop_SinglePoolCertificateSequence_coverage)
+            (property prop_SinglePoolCertificateSequence_coverage)
         it
             "MultiPoolCertificateSequence coverage is adequate"
-            (property . const prop_MultiPoolCertificateSequence_coverage)
+            (property prop_MultiPoolCertificateSequence_coverage)
         it
             "forM putHeader headers >> listHeaders == headers"
-            (property . prop_putHeaderListHeader)
+            (property (prop_putHeaderListHeader withDB))
         it
             "modSettings . readSettings == id"
-            (property . prop_modSettingsReadSettings)
+            (property (prop_modSettingsReadSettings withDB))
         it
             "putLastMetadataGC . readLastMetadataGC == id"
-            (property . prop_putLastMetadataGCReadLastMetadataGC)
+            (property (prop_putLastMetadataGCReadLastMetadataGC withDB))
         it
             "putDelistedPools >> readDelistedPools shows the pool as delisted"
-            (property . prop_putDelistedPools)
+            (property (prop_putDelistedPools withDB))
         it
             "clearing metadata also clears delisted pools"
-            (property . prop_removePoolMetadataDelistedPools)
+            (property (prop_removePoolMetadataDelistedPools withDB))
 
 okayConfidence :: Confidence
 okayConfidence = Confidence{certainty = 10 ^ (6 :: Int), tolerance = 0.9}
@@ -325,49 +329,40 @@ assertWith lbl condition = do
 
 -- | Can read put pool production
 prop_putReadPoolProduction
-    :: DBLayer IO
+    :: (forall a. (DBLayer IO -> IO a) -> IO a)
     -> StakePoolsFixture
     -> Property
-prop_putReadPoolProduction DBLayer{..} (StakePoolsFixture pairs _) =
-    monadicIO (setup >>= prop)
+prop_putReadPoolProduction withDB (StakePoolsFixture pairs _) =
+    monadicIO $ do
+        run $ withDB $ \DBLayer{..} -> do
+            DBLayer
+                { atomically = atomically'
+                , putPoolProduction = putPoolProduction'
+                , readPoolProduction = readPoolProduction'
+                } <-
+                MVar.newDBLayer ti
+            atomically $ forM_ pairs $ \(pool, slot) ->
+                unsafeRunExceptT $ putPoolProduction slot pool
+            atomically' $ forM_ pairs $ \(pool, slot) ->
+                unsafeRunExceptT $ putPoolProduction' slot pool
+            forM_ (uniqueEpochs pairs) $ \epoch -> do
+                res' <- atomically' $ readPoolProduction' epoch
+                atomically (readPoolProduction epoch) `shouldReturn` res'
+        monitor $ classify (length pairs > 100) "productions > 100"
+        monitor $ classify (length pairs > 1000) "productions > 1000"
   where
-    setup = liftIO $ do
-        atomically cleanDB
-        db'@DBLayer{cleanDB = cleanDB', atomically = atomically'} <-
-            MVar.newDBLayer ti
-        atomically' cleanDB'
-        pure db'
-    prop
-        DBLayer
-            { atomically = atomically'
-            , putPoolProduction = putPoolProduction'
-            , readPoolProduction = readPoolProduction'
-            } =
-            do
-                run . atomically $ forM_ pairs $ \(pool, slot) ->
-                    unsafeRunExceptT $ putPoolProduction slot pool
-                run . atomically' $ forM_ pairs $ \(pool, slot) ->
-                    unsafeRunExceptT $ putPoolProduction' slot pool
-                monitor $ classify (length pairs > 100) "productions > 100"
-                monitor $ classify (length pairs > 1000) "productions > 1000"
-                run . forM_ (uniqueEpochs pairs) $ \epoch -> do
-                    res' <- atomically' $ readPoolProduction' epoch
-                    atomically (readPoolProduction epoch) `shouldReturn` res'
     ti = dummyTimeInterpreter
 
 prop_readTotalProduction
-    :: DBLayer IO
+    :: (forall a. (DBLayer IO -> IO a) -> IO a)
     -> StakePoolsFixture
     -> Property
-prop_readTotalProduction DBLayer{..} (StakePoolsFixture pairs _) =
-    monadicIO (setup >> prop)
-  where
-    setup = liftIO $ do
-        atomically cleanDB
-        atomically $ forM_ pairs $ \(pool, slot) ->
-            unsafeRunExceptT $ putPoolProduction slot pool
-    prop = do
-        production <- run $ atomically readTotalProduction
+prop_readTotalProduction withDB (StakePoolsFixture pairs _) =
+    monadicIO $ do
+        production <- run $ withDB $ \DBLayer{..} -> do
+            atomically $ forM_ pairs $ \(pool, slot) ->
+                unsafeRunExceptT $ putPoolProduction slot pool
+            atomically readTotalProduction
         monitor $ counterexample ("from database: " <> show production)
         let production' =
                 Map.map Quantity
@@ -377,14 +372,11 @@ prop_readTotalProduction DBLayer{..} (StakePoolsFixture pairs _) =
 
 -- | Cannot put pool production with already put slot
 prop_putSlotTwicePoolProduction
-    :: DBLayer IO
+    :: (forall a. (DBLayer IO -> IO a) -> IO a)
     -> StakePoolsFixture
     -> Property
-prop_putSlotTwicePoolProduction DBLayer{..} (StakePoolsFixture pairs _) =
-    monadicIO (setup >> prop)
-  where
-    setup = liftIO $ atomically cleanDB
-    prop = liftIO $ do
+prop_putSlotTwicePoolProduction withDB (StakePoolsFixture pairs _) =
+    monadicIO $ run $ withDB $ \DBLayer{..} ->
         forM_ pairs $ \(pool, slot) -> do
             let err = ErrPointAlreadyExists slot
             atomically (runExceptT $ putPoolProduction slot pool)
@@ -394,15 +386,13 @@ prop_putSlotTwicePoolProduction DBLayer{..} (StakePoolsFixture pairs _) =
 
 -- | Rolling back wipes out pool production statistics after the rollback point.
 prop_rollbackPools
-    :: DBLayer IO
+    :: (forall a. (DBLayer IO -> IO a) -> IO a)
     -> StakePoolsFixture
     -> SlotNo
     -> Property
-prop_rollbackPools db@DBLayer{..} f@(StakePoolsFixture pairs _) sl =
-    monadicIO prop
-  where
-    prop = do
-        (beforeRollback, afterRollback) <- run $ do
+prop_rollbackPools withDB f@(StakePoolsFixture pairs _) sl =
+    monadicIO $ do
+        (beforeRollback, afterRollback) <- run $ withDB $ \db@DBLayer{..} -> do
             atomically $ forM_ pairs $ \(pool, point) ->
                 runExceptT $ putPoolProduction point pool
             before <- map fst <$> allPoolProduction db f
@@ -422,33 +412,38 @@ prop_rollbackPools db@DBLayer{..} f@(StakePoolsFixture pairs _) sl =
         monitor $ classify (all (<= sl) beforeRollback) "nothing to roll back"
 
         assert $ all (<= sl) afterRollback
-
+  where
     showSlot s = T.unpack $ pretty s
 
 -- | Last element of cursor is the tip
 prop_readPoolProductionCursorTipIsLast
-    :: DBLayer IO
+    :: (forall a. (DBLayer IO -> IO a) -> IO a)
     -> StakePoolsFixture
     -> Property
-prop_readPoolProductionCursorTipIsLast DBLayer{..} (StakePoolsFixture pairs _) =
-    monadicIO (setup >> prop)
-  where
-    setup = liftIO $ atomically cleanDB
-    prop = do
-        run $ atomically $ forM_ pairs $ \(pool, slot) ->
-            unsafeRunExceptT $ putPoolProduction slot pool
-        tip <- run $ atomically $ last <$> readPoolProductionCursor 2
+prop_readPoolProductionCursorTipIsLast withDB (StakePoolsFixture pairs _) =
+    monadicIO $ do
+        tip <- run $ withDB $ \DBLayer{..} -> do
+            atomically $ forM_ pairs $ \(pool, slot) ->
+                unsafeRunExceptT $ putPoolProduction slot pool
+            atomically $ last <$> readPoolProductionCursor 2
         case pairs of
             ((_, firstSlot) : _) -> assert $ tip == firstSlot
             [] -> error "expected non-empty pairs"
 
 -- | Can read pool production only for a given epoch
 prop_readPoolNoEpochLeaks
-    :: DBLayer IO
+    :: (forall a. (DBLayer IO -> IO a) -> IO a)
     -> StakePoolsFixture
     -> Property
-prop_readPoolNoEpochLeaks DBLayer{..} (StakePoolsFixture pairs _) =
-    withMaxSuccess 1000 $ monadicIO (setup >> prop)
+prop_readPoolNoEpochLeaks withDB (StakePoolsFixture pairs _) =
+    withMaxSuccess 1000 $ monadicIO $ run $ withDB $ \DBLayer{..} -> do
+        atomically $ forM_ pairs $ \(pool, slot) ->
+            unsafeRunExceptT $ putPoolProduction slot pool
+        forM_ epochGroups $ \(epoch, slots) -> do
+            slots' <-
+                Set.fromList . map (view #slotNo) . concat . Map.elems
+                    <$> atomically (readPoolProduction epoch)
+            slots' `shouldBe` Set.fromList slots
   where
     slotPartition =
         L.groupBy ((==) `on` epochOf')
@@ -459,17 +454,6 @@ prop_readPoolNoEpochLeaks DBLayer{..} (StakePoolsFixture pairs _) =
             ( \sls -> case sls of (s : _) -> (epochOf' s, sls); [] -> error "empty group"
             )
             slotPartition
-    setup = liftIO $ atomically cleanDB
-    prop = do
-        run $ do
-            atomically $ forM_ pairs $ \(pool, slot) ->
-                unsafeRunExceptT $ putPoolProduction slot pool
-            forM_ epochGroups $ \(epoch, slots) -> do
-                slots' <-
-                    Set.fromList . map (view #slotNo) . concat . Map.elems
-                        <$> atomically (readPoolProduction epoch)
-                slots' `shouldBe` (Set.fromList slots)
-
     epochOf' :: SlotNo -> EpochNo
     epochOf' = runIdentity . interpretQuery ti . epochOf
     ti = dummyTimeInterpreter
@@ -477,57 +461,56 @@ prop_readPoolNoEpochLeaks DBLayer{..} (StakePoolsFixture pairs _) =
 -- | Read pool production satisfies conditions after consecutive
 -- 1-slot-depth rollbacks
 prop_readPoolCondAfterDeterministicRollbacks
-    :: (Map PoolId [BlockHeader] -> Expectation)
-    -> DBLayer IO
+    :: (forall a. (DBLayer IO -> IO a) -> IO a)
+    -> (Map PoolId [BlockHeader] -> Expectation)
     -> StakePoolsFixture
     -> Property
-prop_readPoolCondAfterDeterministicRollbacks cond DBLayer{..} (StakePoolsFixture pairs _) =
-    monadicIO (setup >> prop)
-  where
-    setup = liftIO $ atomically cleanDB
-    slots = map (view #slotNo . snd) pairs
-    prop = run $ do
-        atomically $ forM_ pairs $ \(pool, point) ->
-            unsafeRunExceptT $ putPoolProduction point pool
-        forM_ slots $ \slot -> do
-            _ <- atomically $ rollbackTo slot
-            forM_ (uniqueEpochs pairs) $ \epoch -> do
-                res <- atomically $ readPoolProduction epoch
-                cond res
+prop_readPoolCondAfterDeterministicRollbacks
+    withDB
+    cond
+    (StakePoolsFixture pairs _) =
+        monadicIO $ run $ withDB $ \DBLayer{..} -> do
+            atomically $ forM_ pairs $ \(pool, point) ->
+                unsafeRunExceptT $ putPoolProduction point pool
+            forM_ slots $ \slot -> do
+                _ <- atomically $ rollbackTo slot
+                forM_ (uniqueEpochs pairs) $ \epoch -> do
+                    res <- atomically $ readPoolProduction epoch
+                    cond res
+      where
+        slots = map (view #slotNo . snd) pairs
 
 -- | Read pool production satisfies conditions after consecutive
 -- arbitrary N-slot-depth rollbacks
 prop_readPoolCondAfterRandomRollbacks
-    :: (Map PoolId [BlockHeader] -> Expectation)
-    -> DBLayer IO
+    :: (forall a. (DBLayer IO -> IO a) -> IO a)
+    -> (Map PoolId [BlockHeader] -> Expectation)
     -> StakePoolsFixture
     -> Property
-prop_readPoolCondAfterRandomRollbacks cond DBLayer{..} (StakePoolsFixture pairs rSlots) =
-    monadicIO (setup >> prop)
-  where
-    setup = liftIO $ atomically cleanDB
-    prop = do
-        run $ atomically $ forM_ pairs $ \(pool, slot) ->
-            unsafeRunExceptT $ putPoolProduction slot pool
-        run $ forM_ rSlots $ \slot -> do
-            atomically $ rollbackTo slot
-            forM_ (uniqueEpochs pairs) $ \epoch -> do
-                res <- atomically $ readPoolProduction epoch
-                cond res
-        monitor $ classify (length pairs <= 10) "number of slots <= 10"
-        monitor $ classify (length pairs > 10) "number of slots > 10"
+prop_readPoolCondAfterRandomRollbacks
+    withDB
+    cond
+    (StakePoolsFixture pairs rSlots) =
+        monadicIO $ do
+            run $ withDB $ \DBLayer{..} -> do
+                atomically $ forM_ pairs $ \(pool, slot) ->
+                    unsafeRunExceptT $ putPoolProduction slot pool
+                forM_ rSlots $ \slot -> do
+                    atomically $ rollbackTo slot
+                    forM_ (uniqueEpochs pairs) $ \epoch -> do
+                        res <- atomically $ readPoolProduction epoch
+                        cond res
+            monitor $ classify (length pairs <= 10) "number of slots <= 10"
+            monitor $ classify (length pairs > 10) "number of slots > 10"
 
 -- | Read pool production satisfies condition
 prop_readPoolCond
-    :: (Map PoolId [BlockHeader] -> Expectation)
-    -> DBLayer IO
+    :: (forall a. (DBLayer IO -> IO a) -> IO a)
+    -> (Map PoolId [BlockHeader] -> Expectation)
     -> StakePoolsFixture
     -> Property
-prop_readPoolCond cond DBLayer{..} (StakePoolsFixture pairs _) =
-    monadicIO (setup >> prop)
-  where
-    setup = liftIO $ atomically cleanDB
-    prop = liftIO $ do
+prop_readPoolCond withDB cond (StakePoolsFixture pairs _) =
+    monadicIO $ run $ withDB $ \DBLayer{..} -> do
         atomically $ forM_ pairs $ \(pool, slot) ->
             unsafeRunExceptT $ putPoolProduction slot pool
         forM_ (uniqueEpochs pairs) $ \epoch -> do
@@ -536,17 +519,15 @@ prop_readPoolCond cond DBLayer{..} (StakePoolsFixture pairs _) =
 
 -- | read . put == pure
 prop_putStakeReadStake
-    :: DBLayer IO
+    :: (forall a. (DBLayer IO -> IO a) -> IO a)
     -> EpochNo
     -> [(PoolId, Quantity "lovelace" Word64)]
     -> Property
-prop_putStakeReadStake DBLayer{..} epoch distribution =
-    monadicIO (setup >> prop)
-  where
-    setup = run $ atomically cleanDB
-    prop = do
-        run $ atomically $ putStakeDistribution epoch distribution
-        distribution' <- run $ atomically $ readStakeDistribution epoch
+prop_putStakeReadStake withDB epoch distribution =
+    monadicIO $ do
+        distribution' <- run $ withDB $ \DBLayer{..} -> do
+            atomically $ putStakeDistribution epoch distribution
+            atomically $ readStakeDistribution epoch
         monitor
             $ counterexample
             $ unlines
@@ -556,19 +537,17 @@ prop_putStakeReadStake DBLayer{..} epoch distribution =
 
 -- | read $ put B $ put A == B
 prop_putStakePutStake
-    :: DBLayer IO
+    :: (forall a. (DBLayer IO -> IO a) -> IO a)
     -> EpochNo
     -> [(PoolId, Quantity "lovelace" Word64)]
     -> [(PoolId, Quantity "lovelace" Word64)]
     -> Property
-prop_putStakePutStake DBLayer{..} epoch a b =
-    monadicIO (setup >> prop)
-  where
-    setup = run $ atomically cleanDB
-    prop = do
-        run . atomically $ putStakeDistribution epoch a
-        run . atomically $ putStakeDistribution epoch b
-        res <- run . atomically $ readStakeDistribution epoch
+prop_putStakePutStake withDB epoch a b =
+    monadicIO $ do
+        res <- run $ withDB $ \DBLayer{..} -> do
+            atomically $ putStakeDistribution epoch a
+            atomically $ putStakeDistribution epoch b
+            atomically $ readStakeDistribution epoch
         monitor
             $ counterexample
             $ unlines
@@ -580,24 +559,20 @@ prop_putStakePutStake DBLayer{..} epoch a b =
 
 -- | Heavily relies upon the fact that generated values of 'PoolId' are unique.
 prop_poolRegistration
-    :: DBLayer IO
+    :: (forall a. (DBLayer IO -> IO a) -> IO a)
     -> ManyPoolCertificates PoolRegistrationCertificate
     -> Property
-prop_poolRegistration DBLayer{..} (ManyPoolCertificates entries) =
-    monadicIO (setup >> prop)
-  where
-    setup = run $ atomically cleanDB
-    entriesIn = L.sort entries
-    prop = do
-        run
-            $ atomically
-            $ mapM_ (uncurry putPoolRegistration) entriesIn
-        entriesOut <-
-            run . atomically
-                $ L.sort . catMaybes
-                    <$> mapM (readPoolRegistration . view #poolId . snd) entries
-        poolsMarkedToRetire <-
-            run $ atomically $ listRetiredPools $ EpochNo maxBound
+prop_poolRegistration withDB (ManyPoolCertificates entries) =
+    monadicIO $ do
+        (entriesOut, poolsMarkedToRetire) <- run $ withDB $ \DBLayer{..} -> do
+            atomically $ mapM_ (uncurry putPoolRegistration) entriesIn
+            entriesOut <-
+                atomically
+                    $ L.sort . catMaybes
+                        <$> mapM (readPoolRegistration . view #poolId . snd) entries
+            poolsMarkedToRetire <-
+                atomically $ listRetiredPools $ EpochNo maxBound
+            pure (entriesOut, poolsMarkedToRetire)
         monitor
             $ counterexample
             $ unlines
@@ -612,27 +587,25 @@ prop_poolRegistration DBLayer{..} (ManyPoolCertificates entries) =
             $ entriesIn == entriesOut
         assertWith "no pools are marked to retire"
             $ null poolsMarkedToRetire
+  where
+    entriesIn = L.sort entries
 
 -- | Heavily relies upon the fact that generated values of 'PoolId' are unique.
 prop_poolRetirement
-    :: DBLayer IO
+    :: (forall a. (DBLayer IO -> IO a) -> IO a)
     -> ManyPoolCertificates PoolRetirementCertificate
     -> Property
-prop_poolRetirement DBLayer{..} (ManyPoolCertificates entries) =
-    monadicIO (setup >> prop)
-  where
-    setup = run $ atomically cleanDB
-    entriesIn = L.sort entries
-    prop = do
-        run
-            $ atomically
-            $ mapM_ (uncurry putPoolRetirement) entriesIn
-        entriesOut <-
-            run . atomically
-                $ L.sort . catMaybes
-                    <$> mapM (readPoolRetirement . view #poolId . snd) entries
-        poolsMarkedToRetire <-
-            run $ atomically $ listRetiredPools $ EpochNo maxBound
+prop_poolRetirement withDB (ManyPoolCertificates entries) =
+    monadicIO $ do
+        (entriesOut, poolsMarkedToRetire) <- run $ withDB $ \DBLayer{..} -> do
+            atomically $ mapM_ (uncurry putPoolRetirement) entriesIn
+            entriesOut <-
+                atomically
+                    $ L.sort . catMaybes
+                        <$> mapM (readPoolRetirement . view #poolId . snd) entries
+            poolsMarkedToRetire <-
+                atomically $ listRetiredPools $ EpochNo maxBound
+            pure (entriesOut, poolsMarkedToRetire)
         monitor
             $ counterexample
             $ unlines
@@ -649,32 +622,32 @@ prop_poolRetirement DBLayer{..} (ManyPoolCertificates entries) =
             $ (==)
                 (Set.fromList $ snd <$> entriesIn)
                 (Set.fromList poolsMarkedToRetire)
+  where
+    entriesIn = L.sort entries
 
 -- For the same pool, write /multiple/ pool registration certificates to the
 -- database and then read back the current registration certificate, verifying
 -- that the certificate returned is the last one to have been written.
 --
 prop_multiple_putPoolRegistration_single_readPoolRegistration
-    :: DBLayer IO
+    :: (forall a. (DBLayer IO -> IO a) -> IO a)
     -> PoolId
     -> ManyPoolCertificates PoolRegistrationCertificate
     -> Property
 prop_multiple_putPoolRegistration_single_readPoolRegistration
-    DBLayer{..}
+    withDB
     sharedPoolId
     (ManyPoolCertificates entries) =
-        monadicIO (setup >> prop)
-      where
-        setup = run $ atomically cleanDB
-
-        prop = do
-            run
-                $ atomically
-                $ mapM_ (uncurry putPoolRegistration) certificatePublications
-            mRetrievedCertificatePublication <-
-                run $ atomically $ readPoolRegistration sharedPoolId
-            poolsMarkedToRetire <-
-                run $ atomically $ listRetiredPools $ EpochNo maxBound
+        monadicIO $ do
+            (mRetrievedCertificatePublication, poolsMarkedToRetire) <-
+                run $ withDB $ \DBLayer{..} -> do
+                    atomically
+                        $ mapM_
+                            (uncurry putPoolRegistration)
+                            certificatePublications
+                    retrieved <- atomically $ readPoolRegistration sharedPoolId
+                    retired <- atomically $ listRetiredPools $ EpochNo maxBound
+                    pure (retrieved, retired)
             monitor
                 $ counterexample
                 $ unlines
@@ -693,7 +666,7 @@ prop_multiple_putPoolRegistration_single_readPoolRegistration
                     mExpectedCertificatePublication
             assertWith "pool is not marked to retire"
                 $ null poolsMarkedToRetire
-
+      where
         certificatePublications =
             L.nubBy (\(a, _) (b, _) -> view #slotNo a == view #slotNo b)
                 $ second (set #poolId sharedPoolId) <$> entries
@@ -708,26 +681,24 @@ prop_multiple_putPoolRegistration_single_readPoolRegistration
 -- that the certificate returned is the last one to have been written.
 --
 prop_multiple_putPoolRetirement_single_readPoolRetirement
-    :: DBLayer IO
+    :: (forall a. (DBLayer IO -> IO a) -> IO a)
     -> PoolId
     -> ManyPoolCertificates PoolRetirementCertificate
     -> Property
 prop_multiple_putPoolRetirement_single_readPoolRetirement
-    DBLayer{..}
+    withDB
     sharedPoolId
     (ManyPoolCertificates entries) =
-        monadicIO (setup >> prop)
-      where
-        setup = run $ atomically cleanDB
-
-        prop = do
-            run
-                $ atomically
-                $ mapM_ (uncurry putPoolRetirement) certificatePublications
-            mRetrievedCertificatePublication <-
-                run $ atomically $ readPoolRetirement sharedPoolId
-            poolsMarkedToRetire <-
-                run $ atomically $ listRetiredPools $ EpochNo maxBound
+        monadicIO $ do
+            (mRetrievedCertificatePublication, poolsMarkedToRetire) <-
+                run $ withDB $ \DBLayer{..} -> do
+                    atomically
+                        $ mapM_
+                            (uncurry putPoolRetirement)
+                            certificatePublications
+                    retrieved <- atomically $ readPoolRetirement sharedPoolId
+                    retired <- atomically $ listRetiredPools $ EpochNo maxBound
+                    pure (retrieved, retired)
             monitor
                 $ counterexample
                 $ unlines
@@ -750,7 +721,7 @@ prop_multiple_putPoolRetirement_single_readPoolRetirement
                         null poolsMarkedToRetire
                     Just (_publicationTime, retirementCert) ->
                         poolsMarkedToRetire == [retirementCert]
-
+      where
         certificatePublications =
             L.nubBy (\(a, _) (b, _) -> view #slotNo a == view #slotNo b)
                 $ second (set #poolId sharedPoolId) <$> entries
@@ -770,22 +741,21 @@ prop_multiple_putPoolRetirement_single_readPoolRetirement
 -- the @prop_determinePoolLifeCycleStatus@ series of properties.
 --
 prop_readPoolLifeCycleStatus
-    :: DBLayer IO
+    :: (forall a. (DBLayer IO -> IO a) -> IO a)
     -> SinglePoolCertificateSequence
     -> Property
 prop_readPoolLifeCycleStatus
-    db@DBLayer{..}
+    withDB
     (SinglePoolCertificateSequence sharedPoolId certificates) =
-        monadicIO (setup >> prop)
-      where
-        setup = run $ atomically cleanDB
-
-        prop = do
-            actualStatus <- run $ do
-                mapM_ (uncurry $ putPoolCertificate db) certificatePublications
-                atomically $ readPoolLifeCycleStatus sharedPoolId
-            poolsMarkedToRetire <-
-                run $ atomically $ listRetiredPools $ EpochNo maxBound
+        monadicIO $ do
+            (actualStatus, poolsMarkedToRetire) <-
+                run $ withDB $ \db@DBLayer{..} -> do
+                    mapM_
+                        (uncurry $ putPoolCertificate db)
+                        certificatePublications
+                    actual <- atomically $ readPoolLifeCycleStatus sharedPoolId
+                    retired <- atomically $ listRetiredPools $ EpochNo maxBound
+                    pure (actual, retired)
             monitor
                 $ counterexample
                 $ unlines
@@ -815,7 +785,7 @@ prop_readPoolLifeCycleStatus
                         null poolsMarkedToRetire
                     PoolRegisteredAndRetired _regCert retCert ->
                         poolsMarkedToRetire == [retCert]
-
+      where
         expectedStatus =
             determinePoolLifeCycleStatus
                 mFinalRegistration
@@ -847,15 +817,27 @@ prop_readPoolLifeCycleStatus
             ]
 
 prop_rollbackRegistration
-    :: DBLayer IO
+    :: (forall a. (DBLayer IO -> IO a) -> IO a)
     -> SlotNo
     -> ManyPoolCertificates PoolRegistrationCertificate
     -> Property
-prop_rollbackRegistration DBLayer{..} rollbackPoint (ManyPoolCertificates entries) =
-    monadicIO (setup >> prop)
+prop_rollbackRegistration withDB rollbackPoint (ManyPoolCertificates entries) =
+    monadicIO $ do
+        pools <- run $ withDB $ \DBLayer{..} -> do
+            atomically $ mapM_ (uncurry putPoolRegistration) entries
+            atomically $ rollbackTo rollbackPoint
+            atomically
+                $ L.sort . fmap snd . catMaybes
+                    <$> mapM (readPoolRegistration . view #poolId . snd) entries
+        monitor $ classify (length pools < length entries) "rolled back some"
+        monitor $ classify ownerHasManyPools "owner has many pools"
+        monitor
+            $ counterexample
+            $ unlines
+                [ "Read from DB:   " <> show pools
+                ]
+        assert (all beforeRollback pools)
   where
-    setup = run $ atomically cleanDB
-
     beforeRollback pool = do
         case L.find (on (==) (view #poolId) pool . snd) entries of
             Nothing ->
@@ -867,29 +849,13 @@ prop_rollbackRegistration DBLayer{..} rollbackPoint (ManyPoolCertificates entrie
         let owners = concatMap (poolOwners . snd) entries
         in  L.length owners > L.length (L.nub owners)
 
-    prop = do
-        run . atomically $ mapM_ (uncurry putPoolRegistration) entries
-        run . atomically $ rollbackTo rollbackPoint
-        pools <-
-            run . atomically
-                $ L.sort . fmap snd . catMaybes
-                    <$> mapM (readPoolRegistration . (view #poolId) . snd) entries
-        monitor $ classify (length pools < length entries) "rolled back some"
-        monitor $ classify ownerHasManyPools "owner has many pools"
-        monitor
-            $ counterexample
-            $ unlines
-                [ "Read from DB:   " <> show pools
-                ]
-        assert (all beforeRollback pools)
-
 -- Verify that retirement certificates are correctly rolled back.
 --
 prop_rollbackRetirement
-    :: DBLayer IO
+    :: (forall a. (DBLayer IO -> IO a) -> IO a)
     -> [PoolRetirementCertificate]
     -> Property
-prop_rollbackRetirement DBLayer{..} certificates =
+prop_rollbackRetirement withDB certificates =
     checkCoverageWith okayConfidence
         $ cover
             15
@@ -914,43 +880,41 @@ prop_rollbackRetirement DBLayer{..} certificates =
                 (length expectedPublications < length allPublications)
             )
             "0 < length expectedPublications < length allPublications"
-        $ monadicIO (setup >> prop)
+        $ monadicIO
+        $ do
+            (retrievedPublications, poolsMarkedToRetire) <-
+                run $ withDB $ \DBLayer{..} -> do
+                    atomically
+                        $ mapM_ (uncurry putPoolRetirement) allPublications
+                    atomically $ rollbackTo rollbackPoint
+                    retrieved <-
+                        catMaybes
+                            <$> atomically (mapM readPoolRetirement poolIds)
+                    retired <- atomically $ listRetiredPools $ EpochNo maxBound
+                    pure (retrieved, retired)
+            monitor
+                $ counterexample
+                $ unlines
+                    [ "\nRollback point: "
+                    , show rollbackPoint
+                    , "\nAll certificate publications: "
+                    , unlines (("\n" <>) . show <$> allPublications)
+                    , "\nExpected certificate publications: "
+                    , unlines (("\n" <>) . show <$> expectedPublications)
+                    , "\nRetrieved certificate publications: "
+                    , unlines (("\n" <>) . show <$> retrievedPublications)
+                    , "All pools that are marked to retire: "
+                    , unlines (("\n" <>) . show <$> poolsMarkedToRetire)
+                    ]
+            assertWith "retrieved publications match expectations"
+                $ (==)
+                    retrievedPublications
+                    expectedPublications
+            assertWith "only the correct retirements are listed"
+                $ (==)
+                    (Set.fromList $ snd <$> expectedPublications)
+                    (Set.fromList poolsMarkedToRetire)
   where
-    setup = run $ atomically cleanDB
-
-    prop = do
-        run
-            $ atomically
-            $ mapM_ (uncurry putPoolRetirement) allPublications
-        run $ atomically $ rollbackTo rollbackPoint
-        retrievedPublications <-
-            catMaybes
-                <$> run (atomically $ mapM readPoolRetirement poolIds)
-        poolsMarkedToRetire <-
-            run $ atomically $ listRetiredPools $ EpochNo maxBound
-        monitor
-            $ counterexample
-            $ unlines
-                [ "\nRollback point: "
-                , show rollbackPoint
-                , "\nAll certificate publications: "
-                , unlines (("\n" <>) . show <$> allPublications)
-                , "\nExpected certificate publications: "
-                , unlines (("\n" <>) . show <$> expectedPublications)
-                , "\nRetrieved certificate publications: "
-                , unlines (("\n" <>) . show <$> retrievedPublications)
-                , "All pools that are marked to retire: "
-                , unlines (("\n" <>) . show <$> poolsMarkedToRetire)
-                ]
-        assertWith "retrieved publications match expectations"
-            $ (==)
-                retrievedPublications
-                expectedPublications
-        assertWith "only the correct retirements are listed"
-            $ (==)
-                (Set.fromList $ snd <$> expectedPublications)
-                (Set.fromList poolsMarkedToRetire)
-
     poolIds :: [PoolId]
     poolIds = view #poolId <$> certificates
 
@@ -1001,11 +965,11 @@ prop_rollbackRetirement DBLayer{..} certificates =
 -- We can revise this decision in future if the metadata table grows too large.
 --
 prop_removePools
-    :: DBLayer IO
+    :: (forall a. (DBLayer IO -> IO a) -> IO a)
     -> ManyPoolCertificates PoolCertificate
     -> Property
 prop_removePools
-    DBLayer{..}
+    withDB
     (ManyPoolCertificates entries) =
         checkCoverageWith okayConfidence
             $ cover
@@ -1028,66 +992,94 @@ prop_removePools
                 6
                 (null metadataToRetain)
                 "retain no metadata"
-            $ monadicIO (setup >> prop)
+            $ monadicIO
+            $ do
+                ( poolIdsWithRegCertsAtStart
+                    , poolIdsWithRetCertsAtStart
+                    , poolMetadataAtStart
+                    , poolIdsWithRegCertsAtEnd
+                    , poolIdsWithRetCertsAtEnd
+                    , poolMetadataAtEnd
+                    ) <- run $ withDB $ \DBLayer{..} -> do
+                    let poolIdsWithRegCerts =
+                            fmap
+                                ( Set.fromList
+                                    . fmap (view #poolId . snd)
+                                    . catMaybes
+                                )
+                                <$> atomically
+                                $ mapM readPoolRegistration
+                                $ Set.toList pools
+                    let poolIdsWithRetCerts =
+                            fmap
+                                ( Set.fromList
+                                    . fmap (view #poolId . snd)
+                                    . catMaybes
+                                )
+                                <$> atomically
+                                $ mapM readPoolRetirement
+                                $ Set.toList pools
+                    atomically $ forM_ certificatePublications $ \case
+                        (publicationTime, Registration cert) -> do
+                            putPoolRegistration publicationTime cert
+                            forM_
+                                (view #poolMetadata cert)
+                                $ \(_, metadataHash) ->
+                                    putPoolMetadata
+                                        metadataHash
+                                        mockPoolMetadata
+                        (publicationTime, Retirement cert) ->
+                            putPoolRetirement publicationTime cert
+                    regsAtStart <- poolIdsWithRegCerts
+                    retsAtStart <- poolIdsWithRetCerts
+                    metadataAtStart <-
+                        Map.keysSet <$> atomically readPoolMetadata
+                    atomically $ removePools $ Set.toList poolsToRemove
+                    regsAtEnd <- poolIdsWithRegCerts
+                    retsAtEnd <- poolIdsWithRetCerts
+                    metadataAtEnd <-
+                        Map.keysSet <$> atomically readPoolMetadata
+                    pure
+                        ( regsAtStart
+                        , retsAtStart
+                        , metadataAtStart
+                        , regsAtEnd
+                        , retsAtEnd
+                        , metadataAtEnd
+                        )
+                monitor
+                    $ counterexample
+                    $ T.unpack
+                    $ T.unlines
+                        [ "All pools: "
+                        , T.unlines (toText <$> Set.toList pools)
+                        , "Pools to remove:"
+                        , T.unlines (toText <$> Set.toList poolsToRemove)
+                        , "Pools to retain:"
+                        , T.unlines (toText <$> Set.toList poolsToRetain)
+                        ]
+                assertWith "subset rule for registrations"
+                    $ poolIdsWithRegCertsAtEnd `Set.isSubsetOf` poolsToRetain
+                assertWith "subset rule for retirements"
+                    $ poolIdsWithRetCertsAtEnd `Set.isSubsetOf` poolsToRetain
+                assertWith "disjoint rule for registrations"
+                    $ poolIdsWithRegCertsAtEnd `Set.disjoint` poolsToRemove
+                assertWith "disjoint rule for retirements"
+                    $ poolIdsWithRetCertsAtEnd `Set.disjoint` poolsToRemove
+                assertWith "difference rule for registrations"
+                    $ poolIdsWithRegCertsAtStart `Set.difference` poolsToRemove
+                        == poolIdsWithRegCertsAtEnd
+                assertWith "difference rule for retirements"
+                    $ poolIdsWithRetCertsAtStart `Set.difference` poolsToRemove
+                        == poolIdsWithRetCertsAtEnd
+                assertWith "equality rule #1 for metadata"
+                    $ poolMetadataAtEnd == poolMetadataAtStart
+                assertWith "equality rule #2 for metadata"
+                    $ poolMetadataAtEnd == metadataToRetain
       where
-        setup = run $ atomically cleanDB
-
         certificates = snd <$> entries
 
         notNull = not . null
-
-        prop = do
-            -- Firstly, publish an arbitrary set of pool certificates:
-            run $ atomically $ forM_ certificatePublications $ \case
-                (publicationTime, Registration cert) -> do
-                    -- In the case of a pool registration, we also add an
-                    -- accompanying mock entry to the metadata table.
-                    putPoolRegistration publicationTime cert
-                    forM_ (view #poolMetadata cert) $ \(_, metadataHash) ->
-                        putPoolMetadata metadataHash mockPoolMetadata
-                (publicationTime, Retirement cert) ->
-                    putPoolRetirement publicationTime cert
-            -- Next, read the latest certificates and metadata for all pools:
-            poolIdsWithRegCertsAtStart <- run poolIdsWithRegCerts
-            poolIdsWithRetCertsAtStart <- run poolIdsWithRetCerts
-            poolMetadataAtStart <-
-                Map.keysSet <$> run (atomically readPoolMetadata)
-            -- Next, remove a subset of the pools:
-            run $ atomically $ removePools $ Set.toList poolsToRemove
-            -- Finally, see which certificates and metadata remain:
-            poolIdsWithRegCertsAtEnd <- run poolIdsWithRegCerts
-            poolIdsWithRetCertsAtEnd <- run poolIdsWithRetCerts
-            poolMetadataAtEnd <- Map.keysSet <$> run (atomically readPoolMetadata)
-            monitor
-                $ counterexample
-                $ T.unpack
-                $ T.unlines
-                    [ "All pools: "
-                    , T.unlines (toText <$> Set.toList pools)
-                    , "Pools to remove:"
-                    , T.unlines (toText <$> Set.toList poolsToRemove)
-                    , "Pools to retain:"
-                    , T.unlines (toText <$> Set.toList poolsToRetain)
-                    ]
-            assertWith "subset rule for registrations"
-                $ poolIdsWithRegCertsAtEnd `Set.isSubsetOf` poolsToRetain
-            assertWith "subset rule for retirements"
-                $ poolIdsWithRetCertsAtEnd `Set.isSubsetOf` poolsToRetain
-            assertWith "disjoint rule for registrations"
-                $ poolIdsWithRegCertsAtEnd `Set.disjoint` poolsToRemove
-            assertWith "disjoint rule for retirements"
-                $ poolIdsWithRetCertsAtEnd `Set.disjoint` poolsToRemove
-            assertWith "difference rule for registrations"
-                $ poolIdsWithRegCertsAtStart `Set.difference` poolsToRemove
-                    == poolIdsWithRegCertsAtEnd
-            assertWith "difference rule for retirements"
-                $ poolIdsWithRetCertsAtStart `Set.difference` poolsToRemove
-                    == poolIdsWithRetCertsAtEnd
-            -- For the moment, we never delete any metadata.
-            assertWith "equality rule #1 for metadata"
-                $ poolMetadataAtEnd == poolMetadataAtStart
-            assertWith "equality rule #2 for metadata"
-                $ poolMetadataAtEnd == metadataToRetain
 
         -- The complete set of all pools.
         pools = Set.fromList $ getPoolCertificatePoolId <$> certificates
@@ -1118,18 +1110,6 @@ prop_removePools
         certificatePublications =
             testCertificatePublicationTimes `zip` certificates
 
-        poolIdsWithRegCerts =
-            fmap (Set.fromList . fmap (view #poolId . snd) . catMaybes)
-                <$> atomically
-                $ mapM readPoolRegistration
-                $ Set.toList pools
-
-        poolIdsWithRetCerts =
-            fmap (Set.fromList . fmap (view #poolId . snd) . catMaybes)
-                <$> atomically
-                $ mapM readPoolRetirement
-                $ Set.toList pools
-
         mockPoolMetadata =
             StakePoolMetadata
                 { ticker = StakePoolTicker "MOCK"
@@ -1139,25 +1119,19 @@ prop_removePools
                 }
 
 prop_listRegisteredPools
-    :: DBLayer IO
+    :: (forall a. (DBLayer IO -> IO a) -> IO a)
     -> [PoolRegistrationCertificate]
     -> Property
-prop_listRegisteredPools DBLayer{..} entries =
-    monadicIO (setup >> prop)
-  where
-    setup = run $ atomically cleanDB
-
-    hasDuplicateOwners PoolRegistrationCertificate{poolOwners} =
-        L.nub poolOwners /= poolOwners
-
-    prop = do
-        let entries' =
-                [ CertificatePublicationTime (SlotNo s) minBound
-                | s <- [0 ..]
-                ]
-                    `zip` entries
-        run . atomically $ mapM_ (uncurry putPoolRegistration) entries'
-        pools <- run . atomically $ listRegisteredPools
+prop_listRegisteredPools withDB entries =
+    monadicIO $ do
+        pools <- run $ withDB $ \DBLayer{..} -> do
+            let entries' =
+                    [ CertificatePublicationTime (SlotNo s) minBound
+                    | s <- [0 ..]
+                    ]
+                        `zip` entries
+            atomically $ mapM_ (uncurry putPoolRegistration) entries'
+            atomically listRegisteredPools
         monitor
             $ classify
                 (any hasDuplicateOwners entries)
@@ -1170,6 +1144,9 @@ prop_listRegisteredPools DBLayer{..} entries =
         assertWith
             "pools written == pools retrieved"
             (L.sort pools == L.sort (view #poolId <$> entries))
+  where
+    hasDuplicateOwners PoolRegistrationCertificate{poolOwners} =
+        L.nub poolOwners /= poolOwners
 
 -- | Test that `listRetiredPools` returns the correct set of retirements for
 --   any given epoch.
@@ -1180,37 +1157,35 @@ prop_listRegisteredPools DBLayer{..} entries =
 --   - there are multiple registrations and retirements for each pool;
 --   - certificates affecting different pools are interleaved in time.
 prop_listRetiredPools_multiplePools_multipleCerts
-    :: DBLayer IO
+    :: (forall a. (DBLayer IO -> IO a) -> IO a)
     -> MultiPoolCertificateSequence
     -> Property
 prop_listRetiredPools_multiplePools_multipleCerts
-    db@DBLayer{..}
-    mpcs = monadicIO (setup >> prop)
-      where
-        setup = run $ atomically cleanDB
-
-        prop = do
-            run $ mapM_ (uncurry $ putPoolCertificate db) allPublications
-            lifeCycleStatuses <- run $ atomically $ do
-                mapM readPoolLifeCycleStatus allPoolIds
+    withDB
+    mpcs = monadicIO $ do
+        comparisons <- run $ withDB $ \db@DBLayer{..} -> do
+            mapM_ (uncurry $ putPoolCertificate db) allPublications
+            lifeCycleStatuses <-
+                atomically $ mapM readPoolLifeCycleStatus allPoolIds
             let poolsMarkedToRetire =
                     mapMaybe getPoolRetirementCertificate lifeCycleStatuses
             let epochsToTest =
                     EpochNo minBound
                         : EpochNo maxBound
                         : L.nub (view #retirementEpoch <$> poolsMarkedToRetire)
-            forM_ epochsToTest $ \currentEpoch -> do
+            forM epochsToTest $ \currentEpoch -> do
+                retiredPoolsActual <- atomically $ listRetiredPools currentEpoch
                 let retiredPoolsExpected =
                         filter
                             ((<= currentEpoch) . view #retirementEpoch)
-                            (poolsMarkedToRetire)
-                retiredPoolsActual <-
-                    run $ atomically $ listRetiredPools currentEpoch
-                assert
-                    $ (==)
-                        (Set.fromList retiredPoolsActual)
-                        (Set.fromList retiredPoolsExpected)
-
+                            poolsMarkedToRetire
+                pure (retiredPoolsActual, retiredPoolsExpected)
+        forM_ comparisons $ \(retiredPoolsActual, retiredPoolsExpected) ->
+            assert
+                $ (==)
+                    (Set.fromList retiredPoolsActual)
+                    (Set.fromList retiredPoolsExpected)
+      where
         allPoolIds :: [PoolId]
         allPoolIds = getSinglePoolId <$> getSinglePoolSequences mpcs
 
@@ -1238,55 +1213,63 @@ prop_listRetiredPools_multiplePools_multipleCerts
 -- This property tests that both operations give equivalent results, even with
 -- complex sequences of pool registration and retirement certificates.
 prop_listPoolLifeCycleData_multiplePools_multipleCerts
-    :: DBLayer IO
+    :: (forall a. (DBLayer IO -> IO a) -> IO a)
     -> MultiPoolCertificateSequence
     -> Property
 prop_listPoolLifeCycleData_multiplePools_multipleCerts
-    db@DBLayer{..}
-    mpcs = monadicIO (setup >> prop)
-      where
-        setup = run $ atomically cleanDB
-
-        prop = do
-            run $ mapM_ (uncurry $ putPoolCertificate db) allPublications
-            lifeCycleDataReadIndividually <-
-                filter isRegistered
-                    <$> run (atomically $ mapM readPoolLifeCycleStatus allPoolIds)
-            let poolsMarkedToRetire =
-                    mapMaybe getPoolRetirementCertificate lifeCycleDataReadIndividually
-            let epochsToTest =
-                    EpochNo minBound
-                        : EpochNo maxBound
-                        : L.nub (view #retirementEpoch <$> poolsMarkedToRetire)
-            forM_ epochsToTest $ \currentEpoch -> do
-                let lifeCycleDataExpected =
+    withDB
+    mpcs = monadicIO $ do
+        (epochsToTest, poolsMarkedToRetire, comparisons) <-
+            run $ withDB $ \db@DBLayer{..} -> do
+                mapM_ (uncurry $ putPoolCertificate db) allPublications
+                lifeCycleDataReadIndividually <-
+                    filter isRegistered
+                        <$> atomically
+                            (mapM readPoolLifeCycleStatus allPoolIds)
+                let poolsMarkedToRetire =
+                        mapMaybe
+                            getPoolRetirementCertificate
+                            lifeCycleDataReadIndividually
+                let epochsToTest =
+                        EpochNo minBound
+                            : EpochNo maxBound
+                            : L.nub
+                                ( view #retirementEpoch
+                                    <$> poolsMarkedToRetire
+                                )
+                comparisons <- forM epochsToTest $ \currentEpoch -> do
+                    lifeCycleDataActual <-
                         Set.fromList
-                            $ filter
-                                (not . isRetired currentEpoch)
-                                (lifeCycleDataReadIndividually)
-                lifeCycleDataActual <-
-                    Set.fromList
-                        <$> run
-                            (atomically $ listPoolLifeCycleData currentEpoch)
-                monitor
-                    $ counterexample
-                    $ unlines
-                        [ "\nEpochs to test: "
-                        , show epochsToTest
-                        , "\nCurrent epoch: "
-                        , show currentEpoch
-                        , "\nPools marked with a retirement epoch: "
-                        , show poolsMarkedToRetire
-                        , "\nExpected lifecycle data: "
-                        , show lifeCycleDataExpected
-                        , "\nActual lifecycle data: "
-                        , show lifeCycleDataActual
-                        ]
-                assert
-                    $ (==)
-                        lifeCycleDataExpected
-                        lifeCycleDataActual
-
+                            <$> atomically
+                                (listPoolLifeCycleData currentEpoch)
+                    let lifeCycleDataExpected =
+                            Set.fromList
+                                $ filter
+                                    (not . isRetired currentEpoch)
+                                    lifeCycleDataReadIndividually
+                    pure
+                        ( currentEpoch
+                        , lifeCycleDataExpected
+                        , lifeCycleDataActual
+                        )
+                pure (epochsToTest, poolsMarkedToRetire, comparisons)
+        forM_ comparisons $ \(currentEpoch, expected, actual) -> do
+            monitor
+                $ counterexample
+                $ unlines
+                    [ "\nEpochs to test: "
+                    , show epochsToTest
+                    , "\nCurrent epoch: "
+                    , show currentEpoch
+                    , "\nPools marked with a retirement epoch: "
+                    , show poolsMarkedToRetire
+                    , "\nExpected lifecycle data: "
+                    , show expected
+                    , "\nActual lifecycle data: "
+                    , show actual
+                    ]
+            assert $ expected == actual
+      where
         isRegistered :: PoolLifeCycleStatus -> Bool
         isRegistered = \case
             PoolNotRegistered -> False
@@ -1309,27 +1292,34 @@ prop_listPoolLifeCycleData_multiplePools_multipleCerts
                 `zip` getMultiPoolCertificateSequence mpcs
 
 prop_unfetchedPoolMetadataRefs
-    :: DBLayer IO
+    :: (forall a. (DBLayer IO -> IO a) -> IO a)
     -> [PoolRegistrationCertificate]
     -> Property
-prop_unfetchedPoolMetadataRefs DBLayer{..} entries =
-    monadicIO
-        (setup >> propWellFormedResult >> propInteractionWithPutPoolMetadata)
-  where
-    setup = do
-        run . atomically $ cleanDB
-        let entries' =
-                [ CertificatePublicationTime (SlotNo s) minBound
-                | s <- [0 ..]
-                ]
-                    `zip` entries
-        run . atomically $ mapM_ (uncurry putPoolRegistration) entries'
+prop_unfetchedPoolMetadataRefs withDB entries =
+    monadicIO $ do
+        generatedMetadata <- forM metas $ \(url, _) -> do
+            metadata <- pick $ genStakePoolMetadata url
+            pure (url, metadata)
+        (refs, interaction) <- run $ withDB $ \DBLayer{..} -> do
+            let entries' =
+                    [ CertificatePublicationTime (SlotNo s) minBound
+                    | s <- [0 ..]
+                    ]
+                        `zip` entries
+            atomically $ mapM_ (uncurry putPoolRegistration) entries'
+            refs <- atomically $ unfetchedPoolMetadataRefs 10
+            interaction <- case take 1 refs of
+                [(_, url, hash)] -> do
+                    let metadata = case lookup url generatedMetadata of
+                            Just value -> value
+                            Nothing -> error "metadata URL not generated"
+                    atomically $ putPoolMetadata hash metadata
+                    refs' <- atomically $ unfetchedPoolMetadataRefs 10
+                    pure $ Just (hash, refs')
+                _ -> pure Nothing
+            pure (refs, interaction)
         monitor $ classify (length entries > 10) "10+ entries"
         monitor $ classify (length entries > 50) "50+ entries"
-
-    propWellFormedResult = do
-        let hashes = snd <$> mapMaybe poolMetadata entries
-        refs <- run . atomically $ unfetchedPoolMetadataRefs 10
         monitor
             $ counterexample
             $ unlines
@@ -1344,65 +1334,59 @@ prop_unfetchedPoolMetadataRefs DBLayer{..} entries =
         assertWith
             "no duplicate"
             (L.nub refs == refs)
-
-    propInteractionWithPutPoolMetadata = do
-        refs <- run . atomically $ unfetchedPoolMetadataRefs 10
-        unless (null refs) $ do
-            let [(_, url, hash)] = take 1 refs
-            metadata <- pick $ genStakePoolMetadata url
-            run . atomically $ putPoolMetadata hash metadata
-            refs' <- run . atomically $ unfetchedPoolMetadataRefs 10
+        forM_ interaction $ \(hash, refs') -> do
             monitor
                 $ counterexample
                 $ unlines
-                    [ "Read from DB (" <> show (length refs') <> "): " <> show refs'
+                    [ "Read from DB ("
+                        <> show (length refs')
+                        <> "): "
+                        <> show refs'
                     ]
             assertWith
                 "fetching metadata removes it from unfetchedPoolMetadataRefs"
                 (hash `notElem` ((\(_, _, c) -> c) <$> refs'))
+  where
+    metas = mapMaybe poolMetadata entries
+    hashes = snd <$> metas
 
 prop_unfetchedPoolMetadataRefsIgnoring
-    :: DBLayer IO
+    :: (forall a. (DBLayer IO -> IO a) -> IO a)
     -> [PoolRegistrationCertificate]
     -> Property
-prop_unfetchedPoolMetadataRefsIgnoring DBLayer{..} entries =
-    length metas >= 2 ==> monadicIO (setup >> propIgnoredMetadataRefs)
+prop_unfetchedPoolMetadataRefsIgnoring withDB entries =
+    length metas >= 2 ==>
+        monadicIO $ do
+            let recent = case metas of (m : _) -> m; [] -> error "expected metas"
+            refs <- run $ withDB $ \DBLayer{..} -> do
+                let entries' =
+                        [ CertificatePublicationTime (SlotNo s) minBound
+                        | s <- [0 ..]
+                        ]
+                            `zip` entries
+                atomically $ mapM_ (uncurry putPoolRegistration) entries'
+                atomically $ putFetchAttempt recent
+                atomically $ unfetchedPoolMetadataRefs 10
+            monitor
+                $ counterexample
+                $ unlines
+                    [ "Read from DB (" <> show (length refs) <> "): " <> show refs
+                    ]
+            assertWith
+                "recently failed URLs are ignored"
+                (recent `notElem` ((\(_, b, c) -> (b, c)) <$> refs))
   where
     metas = mapMaybe poolMetadata entries
 
-    setup = do
-        run . atomically $ cleanDB
-        let entries' =
-                [ CertificatePublicationTime (SlotNo s) minBound
-                | s <- [0 ..]
-                ]
-                    `zip` entries
-        run . atomically $ mapM_ (uncurry putPoolRegistration) entries'
-
-    propIgnoredMetadataRefs = do
-        let recent = case metas of (m : _) -> m; [] -> error "expected metas"
-        run . atomically $ putFetchAttempt recent
-        refs <- run . atomically $ unfetchedPoolMetadataRefs 10
-        monitor
-            $ counterexample
-            $ unlines
-                [ "Read from DB (" <> show (length refs) <> "): " <> show refs
-                ]
-        assertWith
-            "recently failed URLs are ignored"
-            (recent `notElem` ((\(_, b, c) -> (b, c)) <$> refs))
-
 -- | successive readSystemSeed yield the exact same value
 prop_readSystemSeedIdempotent
-    :: DBLayer IO
+    :: (forall a. (DBLayer IO -> IO a) -> IO a)
     -> Positive Int
     -> Property
-prop_readSystemSeedIdempotent DBLayer{..} (Positive n) =
-    monadicIO (setup >> prop)
-  where
-    setup = run $ atomically cleanDB
-    prop = do
-        seeds <- map show <$> replicateM n (run $ atomically readSystemSeed)
+prop_readSystemSeedIdempotent withDB (Positive n) =
+    monadicIO $ do
+        seeds <- run $ withDB $ \DBLayer{..} ->
+            map show <$> replicateM n (atomically readSystemSeed)
         let firstS = case seeds of (s : _) -> s; [] -> error "expected seeds"
         monitor $ counterexample $ show seeds
         monitor $ counterexample $ show $ filter (/= firstS) seeds
@@ -1609,23 +1593,15 @@ prop_MultiPoolCertificateSequence_coverage mpcs =
 
 -- | read . put == pure
 prop_putHeaderListHeader
-    :: DBLayer IO
+    :: (forall a. (DBLayer IO -> IO a) -> IO a)
     -> [BlockHeader]
     -> NonNegative Int
     -> Property
-prop_putHeaderListHeader DBLayer{..} headers (NonNegative k) =
-    monadicIO (setup >> prop)
-  where
-    -- The generator can't really simulate how we get blocks from the node,
-    -- so we need to do some deduplicaton and sorting.
-    sortedHeaders = nubSortOn blockHeight headers
-    -- This simulates the limiting of results to the last k elements,
-    -- while retaining ascending order.
-    expected = limitTo k sortedHeaders
-    setup = run $ atomically cleanDB
-    prop = do
-        void $ run $ atomically $ forM sortedHeaders putHeader
-        lHeaders <- run $ atomically $ listHeaders k
+prop_putHeaderListHeader withDB headers (NonNegative k) =
+    monadicIO $ do
+        lHeaders <- run $ withDB $ \DBLayer{..} -> do
+            void $ atomically $ forM sortedHeaders putHeader
+            atomically $ listHeaders k
         monitor
             $ counterexample
             $ unlines
@@ -1635,13 +1611,17 @@ prop_putHeaderListHeader DBLayer{..} headers (NonNegative k) =
                 , "k: " <> show k
                 ]
         monitor $ classify (null lHeaders) "Empty distributions"
-        -- this is implicit in 'expected', but it's nice to have
-        -- as separate assertion
         assertWith
-            "headers are inceraing in block height"
+            "headers are increasing in block height"
             (strictlyIncreasing . fmap blockHeight $ lHeaders)
         assertWith "read back the headers we expect" (lHeaders == expected)
-
+  where
+    -- The generator can't really simulate how we get blocks from the node,
+    -- so we need to do some deduplication and sorting.
+    sortedHeaders = nubSortOn blockHeight headers
+    -- This simulates the limiting of results to the last k elements,
+    -- while retaining ascending order.
+    expected = limitTo k sortedHeaders
     strictlyIncreasing :: Ord a => [a] -> Bool
     strictlyIncreasing [] = True
     strictlyIncreasing [_] = True
@@ -1663,59 +1643,57 @@ prop_putHeaderListHeader DBLayer{..} headers (NonNegative k) =
 
 -- | read . put == pure
 prop_modSettingsReadSettings
-    :: DBLayer IO
+    :: (forall a. (DBLayer IO -> IO a) -> IO a)
     -> Settings
     -> Property
-prop_modSettingsReadSettings DBLayer{..} settings = do
-    monadicIO (setup >> prop)
-  where
-    setup = run $ atomically cleanDB
-    prop = do
-        defSettings <- run $ atomically readSettings
+prop_modSettingsReadSettings withDB settings =
+    monadicIO $ do
+        (defSettings, modSettings') <- run $ withDB $ \DBLayer{..} -> do
+            initial <- atomically readSettings
+            atomically $ putSettings settings
+            modified <- atomically readSettings
+            pure (initial, modified)
         assertWith
             "Reading settings from empty table returns default settings"
             (defSettings == defaultSettings)
-        run $ atomically $ putSettings settings
-        modSettings' <- run $ atomically readSettings
         assertWith
             "Modifying settings and reading afterwards works"
             (modSettings' == settings)
 
 -- | read . put == id
 prop_putLastMetadataGCReadLastMetadataGC
-    :: DBLayer IO
+    :: (forall a. (DBLayer IO -> IO a) -> IO a)
     -> POSIXTime
     -> Property
-prop_putLastMetadataGCReadLastMetadataGC DBLayer{..} posixTime = do
-    monadicIO (setup >> prop)
-  where
-    setup = run $ atomically cleanDB
-    prop = do
-        defGCTime <- run $ atomically readLastMetadataGC
+prop_putLastMetadataGCReadLastMetadataGC withDB posixTime =
+    monadicIO $ do
+        (defGCTime, time) <- run $ withDB $ \DBLayer{..} -> do
+            initial <- atomically readLastMetadataGC
+            atomically $ putLastMetadataGC posixTime
+            modified <- atomically readLastMetadataGC
+            pure (initial, modified)
         assertWith
             "Reading sync time from empty db returns Nothing"
             (isNothing defGCTime)
-        run $ atomically $ putLastMetadataGC posixTime
-        time <- run $ atomically readLastMetadataGC
         assertWith
             "Setting sync time and reading afterwards works"
             (time == Just posixTime)
 
 -- Check that removing pool metadata removes delisted pools.
 prop_removePoolMetadataDelistedPools
-    :: DBLayer IO
+    :: (forall a. (DBLayer IO -> IO a) -> IO a)
     -> Set.Set PoolId
     -> Property
-prop_removePoolMetadataDelistedPools DBLayer{..} pools =
-    monadicIO (setup >> prop)
-  where
-    setup = run $ atomically cleanDB
-
-    prop = do
-        run $ atomically $ putDelistedPools (Set.toList pools)
-        poolsActuallyDelisted <-
-            Set.fromList . L.sort
-                <$> run (atomically readDelistedPools)
+prop_removePoolMetadataDelistedPools withDB pools =
+    monadicIO $ do
+        (poolsActuallyDelisted, poolsAfter) <-
+            run $ withDB $ \DBLayer{..} -> do
+                atomically $ putDelistedPools (Set.toList pools)
+                actuallyDelisted <-
+                    Set.fromList . L.sort <$> atomically readDelistedPools
+                atomically removePoolMetadata
+                after <- Set.fromList . L.sort <$> atomically readDelistedPools
+                pure (actuallyDelisted, after)
         monitor
             $ counterexample
             $ unlines
@@ -1726,12 +1704,6 @@ prop_removePoolMetadataDelistedPools DBLayer{..} pools =
                 ]
         assertWith "pools == poolsActuallyDelisted"
             $ pools == poolsActuallyDelisted
-
-        -- now should be empty
-        run $ atomically removePoolMetadata
-        poolsAfter <-
-            Set.fromList . L.sort
-                <$> run (atomically readDelistedPools)
         assertWith "[] == poolsAfter"
             $ null (Set.toList poolsAfter)
 
@@ -1739,11 +1711,11 @@ prop_removePoolMetadataDelistedPools DBLayer{..} pools =
 -- of delisted pools every time:
 --
 prop_putDelistedPools
-    :: DBLayer IO
+    :: (forall a. (DBLayer IO -> IO a) -> IO a)
     -> [PoolId]
     -> [PoolId]
     -> Property
-prop_putDelistedPools DBLayer{..} pools1 pools2 =
+prop_putDelistedPools withDB pools1 pools2 =
     checkCoverageWith okayConfidence
         $ cover
             2
@@ -1769,31 +1741,31 @@ prop_putDelistedPools DBLayer{..} pools1 pools2 =
             40
             (Set.size poolSet2 > 1)
             "number of pools in set #2 > 1"
-        $ monadicIO (setup >> prop)
+        $ monadicIO
+        $ do
+            comparisons <- run $ withDB $ \DBLayer{..} ->
+                forM [poolSet1, poolSet2] $ \poolsToMarkAsDelisted -> do
+                    atomically
+                        $ putDelistedPools
+                        $ Set.toList poolsToMarkAsDelisted
+                    poolsActuallyDelisted <-
+                        Set.fromList . L.sort <$> atomically readDelistedPools
+                    pure (poolsToMarkAsDelisted, poolsActuallyDelisted)
+            forM_ comparisons $ \(poolsToMarkAsDelisted, poolsActuallyDelisted) -> do
+                monitor
+                    $ counterexample
+                    $ unlines
+                        [ "Pools to mark as delisted: "
+                        , pretty $ Set.toList poolsToMarkAsDelisted
+                        , "Pools actually delisted: "
+                        , pretty $ Set.toList poolsActuallyDelisted
+                        ]
+                assertWith
+                    "poolsToMarkAsDelisted == poolsActuallyDelisted"
+                    $ poolsToMarkAsDelisted == poolsActuallyDelisted
   where
     poolSet1 = Set.fromList pools1 `Set.difference` Set.fromList pools2
     poolSet2 = Set.fromList pools2 `Set.difference` Set.fromList pools1
-
-    setup = run $ atomically cleanDB
-
-    prop = forM_ [poolSet1, poolSet2] $ \poolsToMarkAsDelisted -> do
-        run
-            $ atomically
-            $ putDelistedPools
-            $ Set.toList poolsToMarkAsDelisted
-        poolsActuallyDelisted <-
-            Set.fromList . L.sort
-                <$> run (atomically readDelistedPools)
-        monitor
-            $ counterexample
-            $ unlines
-                [ "Pools to mark as delisted: "
-                , pretty $ Set.toList poolsToMarkAsDelisted
-                , "Pools actually delisted: "
-                , pretty $ Set.toList poolsActuallyDelisted
-                ]
-        assertWith "poolsToMarkAsDelisted == poolsActuallyDelisted"
-            $ poolsToMarkAsDelisted == poolsActuallyDelisted
 
 descSlotsPerPool :: Map PoolId [BlockHeader] -> Expectation
 descSlotsPerPool pools = do
