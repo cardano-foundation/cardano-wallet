@@ -132,6 +132,9 @@ unsafeDeserializeXPrv kF (keyCol, hashCol) = case kF of
 
 -- | Detect whether a key segment (first colon-delimited field) is V1.
 -- V1 XPrv hex is exactly 256 chars (128 bytes).
+-- V2 EncryptedKey hex is structurally larger (AEAD overhead + header), so
+-- this heuristic is unambiguous. The 'PersistPrivateKeySpec' suite asserts
+-- that V2 key columns are always longer than 256 hex chars.
 isV1KeySegment :: ByteString -> Bool
 isV1KeySegment seg = BS.length seg == 256
 

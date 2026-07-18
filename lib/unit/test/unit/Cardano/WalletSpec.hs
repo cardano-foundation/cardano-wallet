@@ -514,6 +514,9 @@ spec = describe "Cardano.WalletSpec" $ do
             "V2 key is not re-encrypted on successful unlock (idempotent)"
             walletRootKeyV2Idempotent
         it
+            "Wrong passphrase is rejected for V2 key"
+            walletRootKeyV2RejectedOnWrongPassphrase
+        it
             "password change V1→V2 preserves derived public keys"
             walletPasswordChangeV1ToV2PreservesPublicKey
 
@@ -812,6 +815,30 @@ walletRootKeyV2Idempotent = do
         _ ->
             expectationFailure
                 "expected key to remain HashedCredentialsV2 after re-unlock"
+
+walletRootKeyV2RejectedOnWrongPassphrase :: IO ()
+walletRootKeyV2RejectedOnWrongPassphrase = do
+    WalletLayerFixture DBLayer{walletState, atomically} wl wid <-
+        setupFixture dummyStateF testWallet
+    W.attachPrivateKeyFromPwd wl (testKey, testPwd)
+    let wrongPwd =
+            Passphrase @"user" (BA.convert @BS.ByteString "wrong-passphrase-0000")
+    result <-
+        runExceptT
+            $ withRootKey
+                nullTracer
+                (wl ^. dbLayer)
+                wid
+                wrongPwd
+                id
+                (\_ -> pure ())
+    result `shouldSatisfy` isLeft
+    mCreds <- atomically $ readPrivateKey walletState
+    case mCreds of
+        Just (HashedCredentialsV2 _ _) -> pure ()
+        _ ->
+            expectationFailure
+                "expected key to remain HashedCredentialsV2 after failed unlock"
 
 -- | Changing a wallet passphrase from the old V1 format (PBKDF2 /
 -- cardano-crypto hard-coded-salt KDF) to the new V2 format (Argon2id /

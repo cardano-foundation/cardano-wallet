@@ -4178,6 +4178,10 @@ attachPrivateKeyFromPwdHashShelley ctx (xprv, hpwd) =
 -- recreated (e.g. shared wallet activation).  The passphrase scheme is
 -- inferred from the credential format: V1 → 'currentPassphraseScheme',
 -- V2 → 'EncryptWithArgon2idV2'.
+--
+-- NOTE: V1 Byron wallets use 'EncryptWithScrypt', not 'currentPassphraseScheme'.
+-- The current callers of this function are Shelley-only, so this is not a
+-- current bug, but Byron credentials must not be routed through here.
 reattachPrivateKey
     :: WalletLayer IO s
     -> HashedCredentials (KeyOf s)

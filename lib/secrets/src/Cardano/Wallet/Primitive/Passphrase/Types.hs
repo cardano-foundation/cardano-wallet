@@ -177,10 +177,10 @@ data PassphraseScheme
       EncryptWithScrypt
     | -- | Encryption scheme used since cardano-wallet
       EncryptWithPBKDF2
-    | -- | v2 envelope (Argon2id + XChaCha20-Poly1305). Keys encrypted
-      -- with this scheme are stored as CBOR-encoded v2 blobs; the
-      -- in-memory XPrv holds the plaintext scalar so the C layer is
-      -- called with an empty passphrase (memcpy / no-op path).
+    | -- | v2 envelope (Argon2id + XChaCha20-Poly1305 AEAD, raw bytes).
+      -- Secret material is decrypted on demand by
+      -- 'withDecryptedExtKeyMaterial', which keeps it in
+      -- @sodium_malloc@-backed memory and zeroes it when the bracket exits.
       EncryptWithArgon2idV2
     deriving (Generic, Eq, Ord, Show, Read)
 

@@ -47,11 +47,16 @@ import Cardano.Wallet.Primitive.Passphrase.Types
 import Cardano.Wallet.Primitive.Types.Credentials
     ( HashedCredentials (..)
     )
+import Control.Exception
+    ( evaluate
+    )
 import Test.Hspec
     ( Spec
+    , anyException
     , describe
     , it
     , shouldBe
+    , shouldThrow
     )
 import Test.QuickCheck
     ( Gen
@@ -126,6 +131,22 @@ spec = describe "PersistPrivateKey" $ do
                     creds = HashedCredentialsV2 ekey Nothing
                     (_, hashCol) = serializeXPrv ShelleyKeyS creds
                 hashCol `shouldBe` ""
+    describe "Malformed input throws" $ do
+        it "garbled Shelley key column throws"
+            $ evaluate (unsafeDeserializeXPrv ShelleyKeyS ("garbage", ""))
+                `shouldThrow` anyException
+        it "V2-prefix with invalid hex payload throws"
+            $ evaluate (unsafeDeserializeXPrv ShelleyKeyS ("V2:notvalidhex!", ""))
+                `shouldThrow` anyException
+        it "short key column (neither V1 nor V2) throws"
+            $ evaluate (unsafeDeserializeXPrv ShelleyKeyS ("aabbcc", ""))
+                `shouldThrow` anyException
+        it "garbled Byron key column throws"
+            $ evaluate (unsafeDeserializeXPrv ByronKeyS ("garbage", ""))
+                `shouldThrow` anyException
+        it "V2-prefix with invalid hex payload throws for Byron"
+            $ evaluate (unsafeDeserializeXPrv ByronKeyS ("V2:notvalidhex!", ""))
+                `shouldThrow` anyException
 
 {-------------------------------------------------------------------------------
     Generators
