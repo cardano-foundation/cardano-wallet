@@ -753,6 +753,7 @@ import Control.Monad.Trans.State
 import Control.Tracer
     ( Tracer
     , contramap
+    , nullTracer
     , traceWith
     )
 import Cryptography.Hash.Blake
@@ -1300,7 +1301,7 @@ updateWalletPassphraseWithOldPassphrase
     -> (Passphrase "user", Passphrase "user")
     -> ExceptT ErrUpdatePassphrase IO ()
 updateWalletPassphraseWithOldPassphrase wF ctx wid (old, new) =
-    withRootKey db wid old ErrUpdatePassphraseWithRootKey $ \case
+    withRootKey (contramap MsgWallet (logger_ ctx)) db wid old ErrUpdatePassphraseWithRootKey $ \case
         RootKeyAccessV1 xprv scheme -> do
             -- IMPORTANT NOTE:
             -- This uses 'EncryptWithPBKDF2', regardless of the passphrase
@@ -1941,7 +1942,7 @@ createRandomAddress
     -> ExceptT ErrCreateRandomAddress IO (Address, NonEmpty DerivationIndex)
 createRandomAddress ctx wid pwd mIx =
     db & \DBLayer{..} ->
-        withRootKey db wid pwd ErrCreateAddrWithRootKey $ \case
+        withRootKey (contramap MsgWallet (logger_ ctx)) db wid pwd ErrCreateAddrWithRootKey $ \case
             RootKeyAccessV1 xprv scheme ->
                 ExceptT
                     . atomically
@@ -2534,63 +2535,8 @@ buildSignSubmitTransaction
             readNodeTipStateForTxWrite netLayer
         let ti = timeInterpreter netLayer
         throwOnErr <=< runExceptT
-            $ withRootKey db walletId pwd wrapRootKeyError
+            $ withRootKey nullTracer db walletId pwd wrapRootKeyError
             $ \case
-                RootKeyAccessV1 rootKey scheme -> lift $ do
-                    (BuiltTx{..}, slot) <- atomically $ do
-                        pendingTxs <-
-                            fmap fromTransactionInfo
-                                <$> readTransactions
-                                    Nothing
-                                    Descending
-                                    Range.everything
-                                    (Just Pending)
-                                    Nothing
-                                    Nothing
-                        txWithSlot@(builtTx, slot) <- ( throwOnErr
-                                                            <=< (Delta.onDBVar walletState . Delta.updateWithResultAndError)
-                                                      )
-                            $ \s -> do
-                                let wallet = WalletState.getLatest s
-                                    utxo = availableUTxO (Set.fromList pendingTxs) wallet
-                                buildAndSignTransactionPure @k @s
-                                    timeTranslation
-                                    utxo
-                                    rootKey
-                                    scheme
-                                    pwd
-                                    protocolParams
-                                    txLayer
-                                    changeAddrGen
-                                    preSelection
-                                    txCtx
-                                    & (`runStateT` wallet)
-                                    & runExceptT . withExceptT wrapBalanceConstructError
-                                    & (`evalRand` stdGen)
-                                    & fmap
-                                        ( \(builtTx, wallet') ->
-                                            -- Newly generated change addresses
-                                            -- only change the Prologue
-                                            ( [ReplacePrologue $ getPrologue $ getState wallet']
-                                            , (builtTx, currentTip wallet' ^. #slotNo)
-                                            )
-                                        )
-
-                        Delta.onDBVar walletState
-                            . WalletState.updateSubmissions
-                            . Delta.update
-                            $ \_ -> Submissions.addTxSubmission builtTx slot
-
-                        pure txWithSlot
-
-                    postSealedTx netLayer builtSealedTx
-                        & throwWrappedErr wrapNetworkError
-                        & liftIO
-
-                    slotToUTCTime slot
-                        & interpretQuery (neverFails "slot is ahead of the node tip" ti)
-                        & fmap (BuiltTx{..},)
-                        & liftIO
                 RootKeyAccessV2 ekey _mPayload userPwd -> lift $ do
                     let recentEra' = _era
                         anyCardanoEra = case recentEra' of
@@ -2756,6 +2702,60 @@ buildSignSubmitTransaction
                         & interpretQuery
                             (neverFails "slot is ahead of the node tip" ti)
                         & fmap (builtTx,)
+                        & liftIO
+                RootKeyAccessV1 rootKey scheme -> lift $ do
+                    (BuiltTx{..}, slot) <- atomically $ do
+                        pendingTxs <-
+                            fmap fromTransactionInfo
+                                <$> readTransactions
+                                    Nothing
+                                    Descending
+                                    Range.everything
+                                    (Just Pending)
+                                    Nothing
+                                    Nothing
+                        txWithSlot@(builtTx, slot) <-
+                            ( throwOnErr
+                                    <=< (Delta.onDBVar walletState . Delta.updateWithResultAndError)
+                                )
+                                $ \s -> do
+                                    let wallet = WalletState.getLatest s
+                                        utxo = availableUTxO (Set.fromList pendingTxs) wallet
+                                    buildAndSignTransactionPure @k @s
+                                        timeTranslation
+                                        utxo
+                                        rootKey
+                                        scheme
+                                        pwd
+                                        protocolParams
+                                        txLayer
+                                        changeAddrGen
+                                        preSelection
+                                        txCtx
+                                        & (`runStateT` wallet)
+                                        & runExceptT . withExceptT wrapBalanceConstructError
+                                        & (`evalRand` stdGen)
+                                        & fmap
+                                            ( \(builtTx, wallet') ->
+                                                ( [ReplacePrologue $ getPrologue $ getState wallet']
+                                                , (builtTx, currentTip wallet' ^. #slotNo)
+                                                )
+                                            )
+
+                        Delta.onDBVar walletState
+                            . WalletState.updateSubmissions
+                            . Delta.update
+                            $ \_ -> Submissions.addTxSubmission builtTx slot
+
+                        pure txWithSlot
+
+                    postSealedTx netLayer builtSealedTx
+                        & throwWrappedErr wrapNetworkError
+                        & liftIO
+
+                    slotToUTCTime slot
+                        & interpretQuery (neverFails "slot is ahead of the node tip" ti)
+                        & fmap (BuiltTx{..},)
                         & liftIO
       where
         wrapRootKeyError = ExceptionWitnessTx . ErrWitnessTxWithRootKey
@@ -3068,7 +3068,7 @@ buildAndSignTransaction
     -> ExceptT ErrSignPayment IO (Tx, TxMeta, UTCTime, SealedTx)
 buildAndSignTransaction ctx wid mkRwdAcct pwd txCtx sel =
     db & \DBLayer{..} ->
-        withRootKey db wid pwd ErrSignPaymentWithRootKey $ \case
+        withRootKey (contramap MsgWallet (logger_ ctx)) db wid pwd ErrSignPaymentWithRootKey $ \case
             RootKeyAccessV2 ekey _mPayload userPwd -> do
                 cp <- mapExceptT atomically $ lift readCheckpoint
                 (Write.PParamsInAnyRecentEra era' _pp, _) <-
@@ -3079,6 +3079,9 @@ buildAndSignTransaction ctx wid mkRwdAcct pwd txCtx sel =
                     stakeXPub = case walletFlavor @s of
                         ShelleyWallet ->
                             getRawKey kF $ Seq.rewardAccountKey walletSt
+                        -- Guard: only Shelley wallets have sequential state and a
+                        -- reward account; this branch is unreachable for other flavors
+                        -- because the outer ShelleyWallet constraint holds.
                         _ -> error "buildAndSignTransaction V2: non-shelley wallet"
                     delegCerts = case view #txDelegationAction txCtx of
                         Nothing -> []
@@ -4105,9 +4108,25 @@ attachPrivateKeyFromPwd ctx (key, pwd) = do
   where
     db = ctx ^. dbLayer
 
+-- | Strip the 32-byte internal PBKDF2 passphrase hash from a plaintext
+-- (decrypted) cardano-crypto 'XPrv' and return the 96-byte payload expected
+-- by 'encryptedCreateDirectWithTweak'.
+--
+-- cardano-crypto 'XPrv' layout (128 bytes):
+--   bytes  0– 63: Ed25519 extended scalar
+--   bytes 64– 95: PBKDF2-encrypted scalar copy (internal; not used after decryption)
+--   bytes 96–127: chain code
+extractPlaintextMasterBytes :: XPrv -> ByteString
+extractPlaintextMasterBytes plaintextXprv =
+    let raw128 = CC.unXPrv plaintextXprv
+    in  BS.take 64 raw128 <> BS.drop 96 raw128
+
 -- | Build a 'HashedCredentialsV2' from a PBKDF2-encrypted root key.
 -- Derives the plaintext scalar+chaincode to create an Argon2id AEAD
 -- envelope.  The plaintext key is never persisted.
+--
+-- NOTE: Only valid for PBKDF2-encrypted keys.  For Scrypt-encrypted keys
+-- use 'migrateV1toV2', which accepts the actual passphrase scheme.
 mkV2Credentials
     :: KeyFlavorS k
     -> k 'RootK XPrv
@@ -4117,8 +4136,7 @@ mkV2Credentials kF key pwd = do
     let rawXprv = getRawKey kF key
         prepared = preparePassphrase currentPassphraseScheme pwd
         plaintextXprv = CC.xPrvChangePass prepared (mempty :: ByteString) rawXprv
-        raw128 = CC.unXPrv plaintextXprv
-        masterKey96 = BS.take 64 raw128 <> BS.drop 96 raw128
+        masterKey96 = extractPlaintextMasterBytes plaintextXprv
         mPayload = case kF of
             ByronKeyS -> Just (payloadPassphrase key)
             _ -> Nothing
@@ -4220,13 +4238,14 @@ data RootKeyAccess k
 withRootKey
     :: forall s e a
      . WalletFlavor s
-    => DBLayer IO s
+    => Tracer IO WalletLog
+    -> DBLayer IO s
     -> WalletId
     -> Passphrase "user"
     -> (ErrWithRootKey -> e)
     -> (RootKeyAccess (KeyOf s) -> ExceptT e IO a)
     -> ExceptT e IO a
-withRootKey db@DBLayer{..} wid pwd embed action = do
+withRootKey tr db@DBLayer{..} wid pwd embed action = do
     (mCreds, mScheme) <- lift . atomically $ do
         wMetadata <- readWalletMeta walletState
         let mScheme = passphraseScheme <$> passphraseInfo wMetadata
@@ -4245,7 +4264,7 @@ withRootKey db@DBLayer{..} wid pwd embed action = do
         _ -> pure $ Left $ ErrWithRootKeyNoRootKey wid
     case validated of
         rka@(RootKeyAccessV1 xprv scheme) -> do
-            lift $ migrateV1toV2 db kF xprv scheme pwd
+            lift $ migrateV1toV2 tr db kF xprv scheme pwd
             action rka
         rka@(RootKeyAccessV2 _ _ _) -> action rka
   where
@@ -4265,27 +4284,28 @@ withDerivedExtKeyMaterial scheme km (ix : ixs) k =
         withDerivedExtKeyMaterial scheme km' ixs k
 
 -- | Migrate a V1 PBKDF2- or Scrypt-encrypted root key to a V2 Argon2id
--- envelope and write it back to the database.  Fails silently so that the
--- current operation is not affected if migration is unsuccessful.
+-- envelope and write it back to the database.  On failure the error is traced
+-- as a 'MsgV2MigrationFailed' warning and the key stays V1 until the next use.
 migrateV1toV2
     :: forall s
-     . DBLayer IO s
+     . Tracer IO WalletLog
+    -> DBLayer IO s
     -> KeyFlavorS (KeyOf s)
     -> KeyOf s 'RootK XPrv
     -> PassphraseScheme
     -> Passphrase "user"
     -> IO ()
-migrateV1toV2 DBLayer{..} kF key scheme pwd = do
+migrateV1toV2 tr DBLayer{..} kF key scheme pwd = do
     let rawXprv = getRawKey kF key
         prepared = preparePassphrase scheme pwd
         plaintextXprv = CC.xPrvChangePass prepared (mempty :: ByteString) rawXprv
-        raw128 = CC.unXPrv plaintextXprv
-        masterKey96 = BS.take 64 raw128 <> BS.drop 96 raw128
+        masterKey96 = extractPlaintextMasterBytes plaintextXprv
         mPayload = case kF of
             ByronKeyS -> Just (payloadPassphrase key)
             _ -> Nothing
     encryptedCreateDirectWithTweak masterKey96 pwd >>= \case
-        Left _ -> pure () -- fail silently; key stays V1 until next use
+        Left err -> do
+            traceWith tr $ MsgV2MigrationFailed $ T.pack $ show err
         Right ekey -> atomically $ do
             putPrivateKey walletState (HashedCredentialsV2 ekey mPayload)
             meta <- readWalletMeta walletState
@@ -4318,7 +4338,7 @@ signMetadataWith ctx wid pwd (role_, ix) metadata =
 
         cp <- lift $ atomically readCheckpoint
 
-        withRootKey db wid pwd ErrSignMetadataWithRootKey $ \case
+        withRootKey (contramap MsgWallet (logger_ ctx)) db wid pwd ErrSignMetadataWithRootKey $ \case
             RootKeyAccessV1 rootK scheme -> do
                 let encPwd = preparePassphrase scheme pwd
                     DerivationPrefix (_, _, acctIx) = Seq.derivationPrefix (getState cp)
@@ -4411,6 +4431,7 @@ writePolicyPublicKey ctx wid pwd =
         let (SeqPrologue seqState) = getPrologue $ getState cp
 
         policyXPub <- withRootKey
+            (contramap MsgWallet (logger_ ctx))
             db
             wid
             pwd
@@ -4513,7 +4534,7 @@ getAccountPublicKeyAtIndex ctx wid pwd ix purposeM =
 
         _cp <- lift $ atomically readCheckpoint
         let kf = keyFlavorFromState @s
-        withRootKey db wid pwd ErrReadAccountPublicKeyRootKey
+        withRootKey (contramap MsgWallet (logger_ ctx)) db wid pwd ErrReadAccountPublicKeyRootKey
             $ \case
                 RootKeyAccessV1 rootK scheme -> do
                     let encPwd = preparePassphrase scheme pwd
@@ -4967,6 +4988,7 @@ data WalletLog
     | MsgRewardBalanceExited
     | MsgTxSubmit TxSubmitLog
     | MsgIsStakeKeyRegistered Bool
+    | MsgV2MigrationFailed Text
     deriving (Show, Eq)
 
 instance ToText WalletFollowLog where
@@ -5031,6 +5053,8 @@ instance ToText WalletLog where
             "Wallet stake key is registered. Will not register it again."
         MsgIsStakeKeyRegistered False ->
             "Wallet stake key is not registered. Will register..."
+        MsgV2MigrationFailed err ->
+            "V1->V2 key migration failed (key stays V1 until next use): " <> err
 
 instance HasPrivacyAnnotation WalletFollowLog
 instance HasSeverityAnnotation WalletFollowLog where
@@ -5053,6 +5077,7 @@ instance HasSeverityAnnotation WalletLog where
         MsgRewardBalanceExited -> Notice
         MsgTxSubmit msg -> getSeverityAnnotation msg
         MsgIsStakeKeyRegistered _ -> Info
+        MsgV2MigrationFailed _ -> Warning
 
 data TxSubmitLog
     = MsgSubmitTx BuiltTx (BracketLog' (Either ErrSubmitTx ()))

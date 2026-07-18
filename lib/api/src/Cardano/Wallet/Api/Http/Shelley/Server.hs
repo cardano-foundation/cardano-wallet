@@ -194,7 +194,9 @@ import Cardano.Wallet
     , ErrGetPolicyId (..)
     , ErrNoSuchWallet (..)
     , ErrReadRewardAccount (..)
+    , ErrMkTransaction (..)
     , ErrSignPayment (..)
+    , ErrSignTx (..)
     , ErrSubmitTransaction (..)
     , ErrSubmitTransactionMissingWitnessCounts (..)
     , ErrUpdatePassphrase (..)
@@ -731,6 +733,7 @@ import Control.Monad.Trans.Except
 import Control.Tracer
     ( Tracer
     , contramap
+    , nullTracer
     )
 import Cryptography.Core
     ( genSalt
@@ -1704,7 +1707,7 @@ mkLegacyWallet ctx wid cp meta _ pending progress = do
     matchEmptyPassphrase db =
         liftIO
             $ runExceptT
-            $ W.withRootKey @s db wid mempty Prelude.id (\_ -> pure ())
+            $ W.withRootKey nullTracer @s db wid mempty Prelude.id (\_ -> pure ())
 
     hideInfoForEmptyPassphrase info =
         withWorkerCtx @_ @s ctx wid liftE liftE $ \wrk ->
@@ -2491,12 +2494,10 @@ signTransaction ctx (ApiT wid) body = do
             tl = wrk ^. W.transactionLayer @k
             nl = wrk ^. W.networkLayer
         db & \W.DBLayer{atomically, readCheckpoint} ->
-            W.withRootKey @s db wid pwd ErrWitnessTxWithRootKey
+            W.withRootKey nullTracer @s db wid pwd ErrWitnessTxWithRootKey
                 $ \case
                     W.RootKeyAccessV2{} ->
-                        liftIO
-                            $ error
-                                "signTransaction: V2 key signing not yet implemented"
+                        throwE $ ErrWitnessTxSignTx ErrSignTxUnimplemented
                     W.RootKeyAccessV1 rootK scheme -> lift $ do
                         cp <- atomically readCheckpoint
                         let
@@ -5066,12 +5067,12 @@ rndStateChange
     -> Handler (ArgGenChange s)
 rndStateChange ctx (ApiT wid) pwd =
     withWorkerCtx @_ @s ctx wid liftE liftE $ \wrk -> liftHandler
-        $ W.withRootKey (wrk ^. dbLayer) wid pwd ErrSignPaymentWithRootKey
+        $ W.withRootKey nullTracer (wrk ^. dbLayer) wid pwd ErrSignPaymentWithRootKey
         $ \case
             W.RootKeyAccessV2{} ->
-                liftIO
-                    $ error
-                        "rndStateChange: V2 key not yet supported for Byron wallets"
+                throwE $ ErrSignPaymentMkTx
+                    $ ErrMkTransactionTxBodyError
+                        "V2 key signing is not yet supported for Byron wallets."
             W.RootKeyAccessV1 xprv scheme ->
                 pure (xprv, preparePassphrase scheme pwd)
 

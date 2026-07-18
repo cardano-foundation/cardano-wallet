@@ -694,7 +694,7 @@ fileModeSpec = do
                     assertHashedCredentialsV1 beforeMigration
                     unlocked <-
                         runExceptT
-                            $ withRootKey db testWid migrationPwd id
+                            $ withRootKey nullTracer db testWid migrationPwd id
                             $ \case
                                 RootKeyAccessV1 _ s -> pure s
                                 RootKeyAccessV2{} -> pure EncryptWithArgon2idV2
@@ -710,14 +710,14 @@ fileModeSpec = do
                         `shouldBe` Just EncryptWithArgon2idV2
                     unlockedAgain <-
                         runExceptT
-                            $ withRootKey db testWid migrationPwd id
+                            $ withRootKey nullTracer db testWid migrationPwd id
                             $ \case
                                 RootKeyAccessV1 _ s -> pure s
                                 RootKeyAccessV2{} -> pure EncryptWithArgon2idV2
                     unlockedAgain `shouldBeRight` EncryptWithArgon2idV2
                     rejected <-
                         runExceptT
-                            $ withRootKey db testWid wrongMigrationPwd id
+                            $ withRootKey nullTracer db testWid wrongMigrationPwd id
                             $ \_ -> pure ()
                     rejected `shouldSatisfy` isLeft
 

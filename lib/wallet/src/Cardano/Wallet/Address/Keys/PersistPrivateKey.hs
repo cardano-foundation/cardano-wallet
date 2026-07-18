@@ -81,8 +81,9 @@ import qualified Data.ByteString.Char8 as B8
 -- Within V1, Byron keys are distinguished by the presence of a single ":"
 -- separator (the key segment is exactly 256 hex chars).
 --
--- Older V2 rows may contain an extra PBKDF2-XPrv hex segment (now
--- removed for security); 'unsafeDeserializeXPrv' accepts both formats.
+-- Older V2 rows may contain a leading PBKDF2-XPrv hex segment; the segment is
+-- ignored on read and not written by new code. 'unsafeDeserializeXPrv' accepts
+-- both formats.
 serializeXPrv
     :: KeyFlavorS k
     -> HashedCredentials k
@@ -143,7 +144,7 @@ isV1KeySegment seg = BS.length seg == 256
 --          → HashedCredentialsV2 ekey Nothing
 --
 -- V2 old : @"V2:" hex(xprv256) ":" hex(ekey)@   (xprv hex is exactly 256 chars)
---          → HashedCredentialsV2 ekey Nothing     (xprv discarded — security fix)
+--          → HashedCredentialsV2 ekey Nothing     (leading XPrv segment ignored)
 deserializeSimple
     :: (XPrv -> k 'RootK XPrv)
     -> ByteString
@@ -161,6 +162,7 @@ deserializeSimple wrap keyCol hashCol
                             _ -> bad
                         _ -> bad
             -- old format: first segment is the 256-char XPrv hex, second is ekey
+            -- (leading XPrv segment ignored)
             [_keyHex, ekeyHex]
                 | isV1KeySegment _keyHex ->
                     case fromHex @ByteString ekeyHex of
@@ -190,7 +192,7 @@ deserializeSimple wrap keyCol hashCol
 --          → HashedCredentialsV2 ekey (Just payload)
 --
 -- V2 old : @"V2:" hex(xprv256) ":" hex(ekey) ":" hex(payload)@
---          → HashedCredentialsV2 ekey (Just payload)   (xprv discarded — security fix)
+--          → HashedCredentialsV2 ekey (Just payload)   (leading XPrv segment ignored)
 deserializeByron
     :: ByteString -> ByteString -> HashedCredentials ByronKey
 deserializeByron keyCol hashCol
@@ -206,6 +208,7 @@ deserializeByron keyCol hashCol
                             _ -> bad
                         _ -> bad
             -- old format: xprv256 ":" ekey ":" payload
+            -- (leading XPrv segment ignored)
             [_keyHex, ekeyHex, payloadHex]
                 | isV1KeySegment _keyHex ->
                     case (fromHex @ByteString ekeyHex, fromHex @ByteString payloadHex) of

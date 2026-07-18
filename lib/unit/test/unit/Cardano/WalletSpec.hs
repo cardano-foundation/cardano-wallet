@@ -702,6 +702,7 @@ walletRootKeyV1toV2Migration = do
     result <-
         runExceptT
             $ withRootKey
+                nullTracer
                 (wl ^. dbLayer)
                 wid
                 testPwd
@@ -725,6 +726,7 @@ walletRootKeyMigrationRejectedOnWrongPassphrase = do
     result <-
         runExceptT
             $ withRootKey
+                nullTracer
                 (wl ^. dbLayer)
                 wid
                 wrongPwd
@@ -746,6 +748,7 @@ walletRootKeyEmptyPassphraseV1toV2Migration = do
     result <-
         runExceptT
             $ withRootKey
+                nullTracer
                 (wl ^. dbLayer)
                 wid
                 testEmptyPwd
@@ -761,6 +764,7 @@ walletRootKeyEmptyPassphraseV1toV2Migration = do
     unlockAgain <-
         runExceptT
             $ withRootKey
+                nullTracer
                 (wl ^. dbLayer)
                 wid
                 testEmptyPwd
@@ -770,6 +774,7 @@ walletRootKeyEmptyPassphraseV1toV2Migration = do
     rejected <-
         runExceptT
             $ withRootKey
+                nullTracer
                 (wl ^. dbLayer)
                 wid
                 testNonEmptyPwd
@@ -794,6 +799,7 @@ walletRootKeyV2Idempotent = do
     _ <-
         runExceptT
             $ withRootKey
+                nullTracer
                 (wl ^. dbLayer)
                 wid
                 testPwd
@@ -849,7 +855,7 @@ walletPasswordChangeV1ToV2PreservesPublicKey = do
     -- 5. Unlock with the new passphrase and derive the same address public key.
     pubKeyAfterResult <-
         runExceptT
-            $ withRootKey (wl ^. dbLayer) wid newPwd id
+            $ withRootKey nullTracer (wl ^. dbLayer) wid newPwd id
             $ \case
                 RootKeyAccessV1 rootK _scheme ->
                     pure $ derivedPub (preparePassphrase newPwd) rootK
