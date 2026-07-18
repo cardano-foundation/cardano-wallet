@@ -319,8 +319,13 @@ import qualified Cardano.Crypto.WalletHD.Encrypted as EncHD
     )
 import Cardano.Ledger.Api
     ( EraTxBody (allInputsTxBodyF)
+    , addrTxWitsL
     , bodyTxL
     , feeTxBodyL
+    , witsTxL
+    )
+import Cardano.Ledger.Api.Tx.Body
+    ( inputsTxBodyL
     )
 import Cardano.Ledger.Binary
     ( serialize'
@@ -502,6 +507,9 @@ import Cardano.Wallet.Primitive.Ledger.Convert
 import Cardano.Wallet.Primitive.Ledger.Read.Block
     ( fromCardanoBlock
     )
+import Cardano.Wallet.Primitive.Ledger.Read.Tx.TxExtended
+    ( getTxExtended
+    )
 import Cardano.Wallet.Primitive.Ledger.Shelley
     ( fromCardanoTxIn
     , fromCardanoTxOut
@@ -665,6 +673,7 @@ import Cardano.Wallet.Shelley.Transaction.Ledger
     ( certificateFromDelegationActionLedger
     , certificateFromVotingActionLedger
     , constructUnsignedTxLedger
+    , mkShelleyWitnessFromExtKeyMaterial
     , mkTransaction
     , sealWriteTx
     )
@@ -685,6 +694,7 @@ import Cardano.Wallet.Transaction
     , WitnessCountCtx (..)
     , containsSelfWithdrawal
     , defaultTransactionCtx
+    , selectionDelta
     , withdrawalToCoin
     )
 import Cardano.Wallet.Transaction.Built
@@ -2581,10 +2591,172 @@ buildSignSubmitTransaction
                         & interpretQuery (neverFails "slot is ahead of the node tip" ti)
                         & fmap (BuiltTx{..},)
                         & liftIO
-                RootKeyAccessV2{} ->
-                    liftIO
-                        $ error
-                            "buildSignSubmitTransaction: V2 key signing not yet implemented"
+                RootKeyAccessV2 ekey _mPayload userPwd -> lift $ do
+                    let recentEra' = _era
+                        anyCardanoEra = case recentEra' of
+                            Write.RecentEraConway ->
+                                Read.EraValue Read.Conway
+                            Write.RecentEraDijkstra ->
+                                Read.EraValue Read.Dijkstra
+                    (unsignedTx, wallet, slot) <- atomically $ do
+                        pendingTxs <-
+                            fmap fromTransactionInfo
+                                <$> readTransactions
+                                    Nothing
+                                    Descending
+                                    Range.everything
+                                    (Just Pending)
+                                    Nothing
+                                    Nothing
+                        ( throwOnErr
+                                <=< (Delta.onDBVar walletState . Delta.updateWithResultAndError)
+                            )
+                            $ \s -> do
+                                let wallet = WalletState.getLatest s
+                                    utxo = availableUTxO
+                                        (Set.fromList pendingTxs) wallet
+                                buildTransactionPure @s
+                                    wallet
+                                    timeTranslation
+                                    utxo
+                                    changeAddrGen
+                                    protocolParams
+                                    preSelection
+                                    txCtx
+                                    & runExceptT
+                                        . withExceptT wrapBalanceConstructError
+                                    & (`evalRand` stdGen)
+                                    & fmap
+                                        ( \(tx, newState) ->
+                                            let wallet' =
+                                                    wallet{getState = newState}
+                                            in  ( [ReplacePrologue
+                                                    $ getPrologue newState]
+                                                , ( tx
+                                                  , wallet
+                                                  , currentTip wallet'
+                                                        ^. #slotNo
+                                                  )
+                                                )
+                                        )
+                    let txBody = unsignedTx ^. bodyTxL
+                        walletSt = getState wallet
+                        walletUtxo = wallet ^. #utxo
+                        inputPaths =
+                            L.nub
+                                $ mapMaybe
+                                    ( \ledIn ->
+                                        UTxO.lookup
+                                            (toWallet ledIn)
+                                            walletUtxo
+                                            >>= \(TxOut addr _) ->
+                                                fst (isOurs addr walletSt)
+                                    )
+                                    ( Set.toList
+                                        $ unsignedTx
+                                            ^. bodyTxL
+                                            . inputsTxBodyL
+                                    )
+                        mStakePath =
+                            case walletFlavor @s of
+                                ShelleyWallet ->
+                                    Just
+                                        $ stakeDerivationPath
+                                        $ Seq.derivationPrefix walletSt
+                                _ -> Nothing
+                        needsStakeKey =
+                            isJust (view #txDelegationAction txCtx)
+                                || isJust (view #txVotingAction txCtx)
+                                || containsSelfWithdrawal
+                                    (view #txWithdrawal txCtx)
+                        allPaths =
+                            inputPaths
+                                <> case (needsStakeKey, mStakePath) of
+                                    (True, Just p) -> [p]
+                                    _ -> []
+                    witsE <-
+                        withDecryptedExtKeyMaterial ekey userPwd
+                            $ \rootKm -> do
+                                results <-
+                                    forM allPaths $ \path ->
+                                        withDerivedExtKeyMaterial
+                                            DerivationScheme2
+                                            rootKm
+                                            ( map getDerivationIndex
+                                                $ NE.toList path
+                                            )
+                                            $ \addrKm ->
+                                                Right
+                                                    <$> mkShelleyWitnessFromExtKeyMaterial
+                                                        recentEra'
+                                                        txBody
+                                                        addrKm
+                                pure $ sequence results
+                    shelleyWits <- case witsE of
+                        Left e ->
+                            error
+                                $ "buildSignSubmitTransaction V2: "
+                                <> show e
+                        Right wits -> pure wits
+                    let signedLedgerTx =
+                            unsignedTx
+                                & witsTxL . addrTxWitsL
+                                    .~ Set.fromList shelleyWits
+                        builtSealedTx = sealWriteTx recentEra' signedLedgerTx
+                        rawTx =
+                            walletTx
+                                $ decodeTx txLayer anyCardanoEra builtSealedTx
+                        utxo' =
+                            applyOurTxToUTxO
+                                (Slot.at $ currentTip wallet ^. #slotNo)
+                                (currentTip wallet ^. #blockHeight)
+                                walletSt
+                                rawTx
+                                walletUtxo
+                        builtTxMeta = case utxo' of
+                            Nothing ->
+                                error
+                                    "buildSignSubmitTransaction V2: \
+                                    \Can't apply constructed transaction."
+                            Just ((_tx, appliedMeta), _, _) ->
+                                appliedMeta
+                                    { status = Pending
+                                    , expiry =
+                                        Just
+                                            (snd $ txValidityInterval txCtx)
+                                    }
+                        resolveInputs_ =
+                            fmap
+                                ( \(txIn, _) ->
+                                    (txIn, UTxO.lookup txIn walletUtxo)
+                                )
+                        txResolved =
+                            rawTx
+                                { resolvedInputs =
+                                    resolveInputs_ (resolvedInputs rawTx)
+                                , resolvedCollateralInputs =
+                                    resolveInputs_
+                                        (resolvedCollateralInputs rawTx)
+                                }
+                    let builtTx =
+                            BuiltTx
+                                { builtTx = txResolved
+                                , builtTxMeta
+                                , builtSealedTx
+                                }
+                    atomically
+                        $ Delta.onDBVar walletState
+                        . WalletState.updateSubmissions
+                        . Delta.update
+                        $ \_ -> Submissions.addTxSubmission builtTx slot
+                    postSealedTx netLayer builtSealedTx
+                        & throwWrappedErr wrapNetworkError
+                        & liftIO
+                    slotToUTCTime slot
+                        & interpretQuery
+                            (neverFails "slot is ahead of the node tip" ti)
+                        & fmap (builtTx,)
+                        & liftIO
       where
         wrapRootKeyError = ExceptionWitnessTx . ErrWitnessTxWithRootKey
         wrapNetworkError = ExceptionSubmitTx . ErrSubmitTxNetwork
@@ -2897,10 +3069,146 @@ buildAndSignTransaction
 buildAndSignTransaction ctx wid mkRwdAcct pwd txCtx sel =
     db & \DBLayer{..} ->
         withRootKey db wid pwd ErrSignPaymentWithRootKey $ \case
-            RootKeyAccessV2{} ->
-                liftIO
-                    $ error
-                        "buildAndSignTransaction: V2 key signing not yet implemented"
+            RootKeyAccessV2 ekey _mPayload userPwd -> do
+                cp <- mapExceptT atomically $ lift readCheckpoint
+                (Write.PParamsInAnyRecentEra era' _pp, _) <-
+                    liftIO $ readNodeTipStateForTxWrite nl
+                let walletSt = getState cp
+                    walletUtxo = cp ^. #utxo
+                    network = sNetworkIdToLedger $ sNetworkId @(NetworkOf s)
+                    stakeXPub = case walletFlavor @s of
+                        ShelleyWallet ->
+                            getRawKey kF $ Seq.rewardAccountKey walletSt
+                        _ -> error "buildAndSignTransaction V2: non-shelley wallet"
+                    delegCerts = case view #txDelegationAction txCtx of
+                        Nothing -> []
+                        Just action ->
+                            certificateFromDelegationActionLedger
+                                era'
+                                (Left stakeXPub)
+                                (view #txDeposit txCtx)
+                                action
+                    votingCerts = case view #txVotingAction txCtx of
+                        Nothing -> []
+                        Just action ->
+                            certificateFromVotingActionLedger
+                                era'
+                                (Left stakeXPub)
+                                (view #txDeposit txCtx)
+                                action
+                    allCerts = L.nub $ delegCerts <> votingCerts
+                unsignedTx <- withExceptT ErrSignPaymentMkTx
+                    $ ExceptT
+                    $ pure
+                    $ constructUnsignedTxLedger
+                        era'
+                        network
+                        (view #txMetadata txCtx, allCerts)
+                        (txValidityInterval txCtx)
+                        (view #txWithdrawal txCtx)
+                        ( fst $ view #txAssetsToMint txCtx
+                        , fst $ view #txAssetsToBurn txCtx
+                        )
+                        (Right sel)
+                        (selectionDelta sel)
+                let txBody = unsignedTx ^. bodyTxL
+                    inputPaths =
+                        L.nub
+                            $ mapMaybe
+                                ( \ledIn ->
+                                    UTxO.lookup
+                                        (toWallet ledIn)
+                                        walletUtxo
+                                        >>= \(TxOut addr _) ->
+                                            fst (isOurs addr walletSt)
+                                )
+                                ( Set.toList
+                                    $ unsignedTx ^. bodyTxL . inputsTxBodyL
+                                )
+                    mStakePath = case walletFlavor @s of
+                        ShelleyWallet ->
+                            Just
+                                $ stakeDerivationPath
+                                $ Seq.derivationPrefix walletSt
+                        _ -> Nothing
+                    needsStakeKey =
+                        isJust (view #txDelegationAction txCtx)
+                            || isJust (view #txVotingAction txCtx)
+                            || containsSelfWithdrawal (view #txWithdrawal txCtx)
+                    allPaths =
+                        inputPaths
+                            <> case (needsStakeKey, mStakePath) of
+                                (True, Just p) -> [p]
+                                _ -> []
+                witsE <-
+                    liftIO $ withDecryptedExtKeyMaterial ekey userPwd
+                        $ \rootKm -> do
+                            results <-
+                                forM allPaths $ \path ->
+                                    withDerivedExtKeyMaterial
+                                        DerivationScheme2
+                                        rootKm
+                                        ( map getDerivationIndex
+                                            $ NE.toList path
+                                        )
+                                        $ \addrKm ->
+                                            Right
+                                                <$> mkShelleyWitnessFromExtKeyMaterial
+                                                    era'
+                                                    txBody
+                                                    addrKm
+                            pure $ sequence results
+                shelleyWits <- case witsE of
+                    Left e ->
+                        error
+                            $ "buildAndSignTransaction V2: "
+                            <> show e
+                    Right wits -> pure wits
+                let signedLedgerTx =
+                        unsignedTx
+                            & witsTxL . addrTxWitsL
+                                .~ Set.fromList shelleyWits
+                    builtSealedTx = sealWriteTx era' signedLedgerTx
+                    txExt = case era' of
+                        Write.RecentEraConway ->
+                            getTxExtended
+                                (Read.Tx signedLedgerTx :: Read.Tx Read.Conway)
+                        Write.RecentEraDijkstra ->
+                            getTxExtended
+                                ( Read.Tx signedLedgerTx
+                                    :: Read.Tx Read.Dijkstra
+                                )
+                    rawTx = walletTx txExt
+                    amountOut :: Coin =
+                        F.fold
+                            $ fmap TxOut.coin (sel ^. #change)
+                                <> mapMaybe
+                                    (`ourCoin` walletSt)
+                                    (sel ^. #outputs)
+                    amountIn :: Coin =
+                        F.fold (NE.toList (TxOut.coin . snd <$> sel ^. #inputs))
+                            & case view #txWithdrawal txCtx of
+                                w@WithdrawalSelf{} ->
+                                    Coin.add (withdrawalToCoin w)
+                                WithdrawalExternal{} -> Prelude.id
+                                NoWithdrawal -> Prelude.id
+                    resolveInputs =
+                        fmap (\(txIn, _) -> (txIn, UTxO.lookup txIn walletUtxo))
+                    txResolved =
+                        rawTx
+                            { resolvedInputs =
+                                resolveInputs (resolvedInputs rawTx)
+                            , resolvedCollateralInputs =
+                                resolveInputs (resolvedCollateralInputs rawTx)
+                            }
+                time <- liftIO $ tipSlotStartTime $ currentTip cp
+                let meta =
+                        mkTxMeta
+                            (currentTip cp)
+                            (txValidityInterval txCtx)
+                            amountIn
+                            amountOut
+                pure (txResolved, meta, time, builtSealedTx)
             RootKeyAccessV1 xprv scheme ->
                 let pwdP = preparePassphrase scheme pwd
                 in mapExceptT atomically $ do
