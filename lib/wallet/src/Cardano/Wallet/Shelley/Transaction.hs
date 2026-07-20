@@ -37,6 +37,7 @@ module Cardano.Wallet.Shelley.Transaction
     ( newTransactionLayer
     , txConstraints
     , mkUnsignedTransaction
+    , withSealedTxRecentEra
 
       -- * Internals
     , TxPayload (..)

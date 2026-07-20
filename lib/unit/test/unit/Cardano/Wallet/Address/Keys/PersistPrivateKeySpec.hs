@@ -147,6 +147,40 @@ spec = describe "PersistPrivateKey" $ do
         it "V2-prefix with invalid hex payload throws for Byron"
             $ evaluate (unsafeDeserializeXPrv ByronKeyS ("V2:notvalidhex!", ""))
                 `shouldThrow` anyException
+    describe "Cross-version rejection" $ do
+        it "V2 Shelley column deserializes as HashedCredentialsV2, not V1"
+            $ withFastKdfForTesting $ do
+                ekey <- mkTestEncryptedKey
+                let creds :: HashedCredentials ShelleyKey
+                    creds = HashedCredentialsV2 ekey Nothing
+                    result = unsafeDeserializeXPrv ShelleyKeyS (serializeXPrv ShelleyKeyS creds)
+                case result of
+                    HashedCredentialsV1{} -> fail "V2 Shelley column misidentified as V1"
+                    HashedCredentialsV2{} -> pure ()
+        it "V1 Shelley column deserializes as HashedCredentialsV1, not V2"
+            $ property
+            $ forAll genV1ShelleyCreds
+            $ \v1Creds ->
+                case unsafeDeserializeXPrv ShelleyKeyS (serializeXPrv ShelleyKeyS v1Creds) of
+                    HashedCredentialsV2{} -> fail "V1 Shelley column misidentified as V2"
+                    HashedCredentialsV1{} -> pure () :: IO ()
+        it "V2 Byron column deserializes as HashedCredentialsV2, not V1"
+            $ withFastKdfForTesting $ do
+                ekey <- mkTestEncryptedKey
+                ByronKey _ _ payload <- generate (arbitrary @(ByronKey 'RootK XPrv))
+                let creds :: HashedCredentials ByronKey
+                    creds = HashedCredentialsV2 ekey (Just payload)
+                    result = unsafeDeserializeXPrv ByronKeyS (serializeXPrv ByronKeyS creds)
+                case result of
+                    HashedCredentialsV1{} -> fail "V2 Byron column misidentified as V1"
+                    HashedCredentialsV2{} -> pure ()
+        it "V1 Byron column deserializes as HashedCredentialsV1, not V2"
+            $ property
+            $ forAll genV1ByronCreds
+            $ \v1Creds ->
+                case unsafeDeserializeXPrv ByronKeyS (serializeXPrv ByronKeyS v1Creds) of
+                    HashedCredentialsV2{} -> fail "V1 Byron column misidentified as V2"
+                    HashedCredentialsV1{} -> pure () :: IO ()
 
 {-------------------------------------------------------------------------------
     Generators

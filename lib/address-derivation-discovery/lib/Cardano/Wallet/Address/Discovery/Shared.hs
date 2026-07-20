@@ -462,7 +462,7 @@ isShared addrRaw st = case ready st of
 
 instance SupportsDiscovery n k => IsOurs (SharedState n k) Address where
     isOurs addr st =
-        first (fmap (decoratePath st utxoExternal . fst)) (isShared addr st)
+        first (fmap (\(ix, role') -> decoratePath st (toEnum (fromEnum role')) ix)) (isShared addr st)
 
 -- | Decorate an index with the derivation prefix corresponding to the state.
 decoratePath

@@ -196,7 +196,6 @@ import Cardano.Wallet
     , ErrReadRewardAccount (..)
     , ErrMkTransaction (..)
     , ErrSignPayment (..)
-    , ErrSignTx (..)
     , ErrSubmitTransaction (..)
     , ErrSubmitTransactionMissingWitnessCounts (..)
     , ErrUpdatePassphrase (..)
@@ -219,6 +218,7 @@ import Cardano.Wallet
     , networkLayer
     , readPrivateKey
     , readWalletMeta
+    , signTransactionV2
     , txWitnessTagForKey
     )
 import Cardano.Wallet.Address.Book
@@ -682,6 +682,7 @@ import Cardano.Wallet.TokenMetadata
 import Cardano.Wallet.Transaction
     ( AnyExplicitScript (..)
     , DelegationAction (..)
+    , ErrSignTx (..)
     , PreSelection (..)
     , SelectionOf (..)
     , TransactionCtx (..)
@@ -1707,7 +1708,7 @@ mkLegacyWallet ctx wid cp meta _ pending progress = do
     matchEmptyPassphrase db =
         liftIO
             $ runExceptT
-            $ W.withRootKey nullTracer @s db wid mempty Prelude.id (\_ -> pure ())
+            $ W.withRootKey @s nullTracer db wid mempty Prelude.id (\_ -> pure ())
 
     hideInfoForEmptyPassphrase info =
         withWorkerCtx @_ @s ctx wid liftE liftE $ \wrk ->
@@ -2494,10 +2495,27 @@ signTransaction ctx (ApiT wid) body = do
             tl = wrk ^. W.transactionLayer @k
             nl = wrk ^. W.networkLayer
         db & \W.DBLayer{atomically, readCheckpoint} ->
-            W.withRootKey nullTracer @s db wid pwd ErrWitnessTxWithRootKey
+            W.withRootKey @s nullTracer db wid pwd ErrWitnessTxWithRootKey
                 $ \case
-                    W.RootKeyAccessV2{} ->
-                        throwE $ ErrWitnessTxSignTx ErrSignTxUnimplemented
+                    W.RootKeyAccessV2 ekey _mPayload userPwd -> do
+                        cp <- lift $ atomically readCheckpoint
+                        era <- liftIO $ NW.currentNodeEra nl
+                        let sealedTxIn = body ^. #transaction . #getApiT
+                            utxo = totalUTxO mempty cp
+                        mSigned <-
+                            liftIO
+                                $ signTransactionV2
+                                    era
+                                    sealedTxIn
+                                    cp
+                                    utxo
+                                    ekey
+                                    userPwd
+                        case mSigned of
+                            Nothing ->
+                                throwE
+                                    $ ErrWitnessTxSignTx ErrSignTxUnimplemented
+                            Just signed -> pure signed
                     W.RootKeyAccessV1 rootK scheme -> lift $ do
                         cp <- atomically readCheckpoint
                         let

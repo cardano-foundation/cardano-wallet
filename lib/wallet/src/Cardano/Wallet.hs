@@ -197,6 +197,7 @@ module Cardano.Wallet
     , getTransaction
     , submitExternalTx
     , submitTx
+    , signTransactionV2
     , readLocalTxSubmissionPending
     , LocalTxSubmissionConfig (..)
     , defaultLocalTxSubmissionConfig
@@ -325,7 +326,13 @@ import Cardano.Ledger.Api
     , witsTxL
     )
 import Cardano.Ledger.Api.Tx.Body
-    ( inputsTxBodyL
+    ( Withdrawals (..)
+    , inputsTxBodyL
+    , mintTxBodyL
+    , withdrawalsTxBodyL
+    )
+import Cardano.Ledger.Core
+    ( certsTxBodyL
     )
 import Cardano.Ledger.Binary
     ( serialize'
@@ -540,6 +547,7 @@ import Cardano.Wallet.Primitive.Passphrase
     , WalletPassphraseInfo (..)
     , checkPassphrase
     , currentPassphraseScheme
+    , encryptPassphrase
     , preparePassphrase
     )
 import Cardano.Wallet.Primitive.Slotting
@@ -667,6 +675,7 @@ import Cardano.Wallet.Shelley.Transaction
     ( mkUnsignedTransaction
     , txConstraints
     , txWitnessTagForKey
+    , withSealedTxRecentEra
     , _txRewardWithdrawalCost
     )
 import Cardano.Wallet.Shelley.Transaction.Ledger
@@ -674,6 +683,7 @@ import Cardano.Wallet.Shelley.Transaction.Ledger
     , certificateFromVotingActionLedger
     , constructUnsignedTxLedger
     , mkShelleyWitnessFromExtKeyMaterial
+    , mkShelleyWitnessLedger
     , mkTransaction
     , sealWriteTx
     )
@@ -2219,7 +2229,14 @@ readWalletUTxO
     -> IO (UTxO, Wallet s, Set Tx)
 readWalletUTxO ctx = do
     (cp, _, pending) <- readWallet ctx
-    return (availableUTxO pending cp, cp, pending)
+    let avail = availableUTxO pending cp
+        tokenList = TokenMap.toFlatList (UTxO.balance avail ^. #tokens)
+    traceWith (contramap MsgWallet (logger_ ctx)) $ MsgDebugUTxO $
+        "readWalletUTxO: pendingCount="
+            <> T.pack (show (Set.size pending))
+            <> " availTokens="
+            <> T.pack (show tokenList)
+    return (avail, cp, pending)
 
 -- | Calculate the minimum coin values required for a bunch of specified
 -- outputs.
@@ -2329,6 +2346,85 @@ signTransaction
                 stakingKeyM
                 keyLookup
                 inputResolver
+
+-- | Sign an externally-built transaction using V2 (Argon2id AEAD) key material.
+--
+-- Computes Shelley witnesses for every wallet-owned input address and, for
+-- Shelley sequential wallets, the staking key.  Returns 'Nothing' when the
+-- sealed transaction is in an era older than Conway (pre-recent-era txs
+-- cannot be re-sealed).
+signTransactionV2
+    :: forall s
+     . ( IsOurs s Address
+       , WalletFlavor s
+       )
+    => Read.EraValue Read.Era
+    -- ^ Preferred era (used to decode the sealed tx)
+    -> SealedTx
+    -- ^ The externally-built, unsigned transaction
+    -> Wallet s
+    -- ^ Current wallet snapshot (address state + UTxO)
+    -> UTxO
+    -- ^ Total UTxO set (including pending)
+    -> EncryptedKey
+    -- ^ V2 root key
+    -> Passphrase "user"
+    -- ^ User passphrase
+    -> IO (Maybe SealedTx)
+signTransactionV2 era sealedTx wallet walletUtxo ekey userPwd =
+    sequence $ withSealedTxRecentEra era sealedTx $ \recentEra' ledgerTx -> do
+        let txBody = ledgerTx ^. bodyTxL
+            walletSt = getState wallet
+            inputPaths =
+                L.nub
+                    $ mapMaybe
+                        ( \ledIn ->
+                            UTxO.lookup (toWallet ledIn) walletUtxo
+                                >>= \(TxOut addr _) -> fst (isOurs addr walletSt)
+                        )
+                        (Set.toList $ txBody ^. inputsTxBodyL)
+            -- Only include the stake key when the tx actually uses it;
+            -- adding an unnecessary witness inflates tx size past the fee estimate.
+            needsStakeKey =
+                not (null $ unWithdrawals (txBody ^. withdrawalsTxBodyL))
+                    || not (null $ txBody ^. certsTxBodyL)
+            mStakePath =
+                case walletFlavor @s of
+                    ShelleyWallet
+                        | needsStakeKey ->
+                            Just $ stakeDerivationPath $ Seq.derivationPrefix walletSt
+                    _ -> Nothing
+            -- Include the policy key when the tx mints or burns native assets.
+            needsMinting = txBody ^. mintTxBodyL /= mempty
+            mPolicyPath = case walletFlavor @s of
+                ShelleyWallet | needsMinting -> Just policyDerivationPath
+                _ -> Nothing
+            allPaths =
+                inputPaths <> maybeToList mStakePath <> maybeToList mPolicyPath
+        witsE <- withDecryptedExtKeyMaterial ekey userPwd $ \rootKm -> do
+            results <-
+                forM allPaths $ \path ->
+                    withDerivedExtKeyMaterial
+                        DerivationScheme2
+                        rootKm
+                        (map getDerivationIndex $ NE.toList path)
+                        $ \addrKm ->
+                            Right
+                                <$> mkShelleyWitnessFromExtKeyMaterial
+                                    recentEra'
+                                    txBody
+                                    addrKm
+            pure $ sequence results
+        case witsE of
+            Left e ->
+                error $ "signTransactionV2: key derivation failed: " <> show e
+            Right wits ->
+                pure
+                    -- Union (not replace) so that witnesses from previous signers
+                    -- are preserved (multi-party shared wallets, cross-wallet reward
+                    -- redemption, etc.).
+                    $ sealWriteTx recentEra'
+                    $ over (witsTxL . addrTxWitsL) (Set.union (Set.fromList wits)) ledgerTx
 
 type MakeRewardAccountBuilder k =
     ClearCredentials k -> (XPrv, Passphrase "encryption")
@@ -2615,11 +2711,17 @@ buildSignSubmitTransaction
                                 || isJust (view #txVotingAction txCtx)
                                 || containsSelfWithdrawal
                                     (view #txWithdrawal txCtx)
+                        needsMinting =
+                            txBody ^. mintTxBodyL /= mempty
+                        mPolicyPath = case walletFlavor @s of
+                            ShelleyWallet | needsMinting -> Just policyDerivationPath
+                            _ -> Nothing
                         allPaths =
                             inputPaths
                                 <> case (needsStakeKey, mStakePath) of
                                     (True, Just p) -> [p]
                                     _ -> []
+                                <> maybeToList mPolicyPath
                     witsE <-
                         withDecryptedExtKeyMaterial ekey userPwd
                             $ \rootKm -> do
@@ -2644,10 +2746,19 @@ buildSignSubmitTransaction
                                 $ "buildSignSubmitTransaction V2: "
                                 <> show e
                         Right wits -> pure wits
-                    let signedLedgerTx =
+                    let mExternalWit = case view #txWithdrawal txCtx of
+                            WithdrawalExternal _ _ _ extXPrv ->
+                                Just
+                                    $ mkShelleyWitnessLedger
+                                        recentEra'
+                                        txBody
+                                        (extXPrv, mempty)
+                            _ -> Nothing
+                        signedLedgerTx =
                             unsignedTx
                                 & witsTxL . addrTxWitsL
-                                    .~ Set.fromList shelleyWits
+                                    .~ Set.fromList
+                                        (shelleyWits <> maybeToList mExternalWit)
                         builtSealedTx = sealWriteTx recentEra' signedLedgerTx
                         rawTx =
                             walletTx
@@ -3138,11 +3249,17 @@ buildAndSignTransaction ctx wid mkRwdAcct pwd txCtx sel =
                         isJust (view #txDelegationAction txCtx)
                             || isJust (view #txVotingAction txCtx)
                             || containsSelfWithdrawal (view #txWithdrawal txCtx)
+                    needsMinting =
+                        txBody ^. mintTxBodyL /= mempty
+                    mPolicyPath = case walletFlavor @s of
+                        ShelleyWallet | needsMinting -> Just policyDerivationPath
+                        _ -> Nothing
                     allPaths =
                         inputPaths
                             <> case (needsStakeKey, mStakePath) of
                                 (True, Just p) -> [p]
                                 _ -> []
+                            <> maybeToList mPolicyPath
                 witsE <-
                     liftIO $ withDecryptedExtKeyMaterial ekey userPwd
                         $ \rootKm -> do
@@ -3167,10 +3284,19 @@ buildAndSignTransaction ctx wid mkRwdAcct pwd txCtx sel =
                             $ "buildAndSignTransaction V2: "
                             <> show e
                     Right wits -> pure wits
-                let signedLedgerTx =
+                let mExternalWit = case view #txWithdrawal txCtx of
+                        WithdrawalExternal _ _ _ extXPrv ->
+                            Just
+                                $ mkShelleyWitnessLedger
+                                    era'
+                                    txBody
+                                    (extXPrv, mempty)
+                        _ -> Nothing
+                    signedLedgerTx =
                         unsignedTx
                             & witsTxL . addrTxWitsL
-                                .~ Set.fromList shelleyWits
+                                .~ Set.fromList
+                                    (shelleyWits <> maybeToList mExternalWit)
                     builtSealedTx = sealWriteTx era' signedLedgerTx
                     txExt = case era' of
                         Write.RecentEraConway ->
@@ -4102,11 +4228,20 @@ attachPrivateKeyFromPwd
     => WalletLayer IO s
     -> (KeyOf s 'RootK XPrv, Passphrase "user")
     -> IO ()
-attachPrivateKeyFromPwd ctx (key, pwd) = do
-    creds <- mkV2Credentials (keyFlavorFromState @s) key pwd
-    attachPrivateKey db creds EncryptWithArgon2idV2
+attachPrivateKeyFromPwd ctx (key, pwd) =
+    case keyFlavorFromState @s of
+        ByronKeyS -> legacyV1
+        IcarusKeyS -> legacyV1
+        kF -> do
+            creds <- mkV2Credentials kF key pwd
+            attachPrivateKey db creds EncryptWithArgon2idV2
   where
     db = ctx ^. dbLayer
+    -- Byron and Icarus wallets stay on V1: V2 signing is not yet implemented
+    -- for these legacy wallet types.
+    legacyV1 = do
+        (scheme, hpwd) <- encryptPassphrase pwd
+        attachPrivateKey db (HashedCredentialsV1 key hpwd) scheme
 
 -- | Strip the 32-byte internal PBKDF2 passphrase hash from a plaintext
 -- (decrypted) cardano-crypto 'XPrv' and return the 96-byte payload expected
@@ -4268,7 +4403,12 @@ withRootKey tr db@DBLayer{..} wid pwd embed action = do
         _ -> pure $ Left $ ErrWithRootKeyNoRootKey wid
     case validated of
         rka@(RootKeyAccessV1 xprv scheme) -> do
-            lift $ migrateV1toV2 tr db kF xprv scheme pwd
+            -- Byron and Icarus wallets stay on V1: V2 signing is not yet
+            -- implemented for these legacy wallet types.
+            case kF of
+                ByronKeyS -> pure ()
+                IcarusKeyS -> pure ()
+                _ -> lift $ migrateV1toV2 tr db kF xprv scheme pwd
             action rka
         rka@(RootKeyAccessV2 _ _ _) -> action rka
   where
@@ -4993,6 +5133,7 @@ data WalletLog
     | MsgTxSubmit TxSubmitLog
     | MsgIsStakeKeyRegistered Bool
     | MsgV2MigrationFailed Text
+    | MsgDebugUTxO Text
     deriving (Show, Eq)
 
 instance ToText WalletFollowLog where
@@ -5059,6 +5200,7 @@ instance ToText WalletLog where
             "Wallet stake key is not registered. Will register..."
         MsgV2MigrationFailed err ->
             "V1->V2 key migration failed (key stays V1 until next use): " <> err
+        MsgDebugUTxO msg -> msg
 
 instance HasPrivacyAnnotation WalletFollowLog
 instance HasSeverityAnnotation WalletFollowLog where
@@ -5082,6 +5224,7 @@ instance HasSeverityAnnotation WalletLog where
         MsgTxSubmit msg -> getSeverityAnnotation msg
         MsgIsStakeKeyRegistered _ -> Info
         MsgV2MigrationFailed _ -> Warning
+        MsgDebugUTxO _ -> Info
 
 data TxSubmitLog
     = MsgSubmitTx BuiltTx (BracketLog' (Either ErrSubmitTx ()))
