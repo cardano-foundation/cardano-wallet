@@ -5776,7 +5776,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                         [json|{
                 "validity_interval": {
                     "invalid_hereafter": {
-                        "quantity": #{sl + 10},
+                        "quantity": #{sl + 100},
                         "unit": "slot"
                     }
                 },
@@ -5784,7 +5784,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     "policy_script_template":
                         { "all":
                            [ "cosigner#0",
-                             { "active_until": #{sl + 11} }
+                             { "active_until": #{sl + 101} }
                            ]
                         },
                     "asset_name": #{toText assetName'},
@@ -5800,7 +5800,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             let scriptUsed policyKeyHash =
                     RequireAllOf
                         [ RequireSignatureOf policyKeyHash
-                        , ActiveUntilSlot (fromIntegral $ sl + 11)
+                        , ActiveUntilSlot (fromIntegral $ sl + 101)
                         ]
 
             mintAssetsCheck ctx wa assetName' payload scriptUsed
