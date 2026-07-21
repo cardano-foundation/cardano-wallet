@@ -2566,12 +2566,10 @@ prop_v2WitnessMatchesV1 xprvKey encPwd = ioProperty $ withFastKdfForTesting $ do
     ekeyE <-
         encryptedCreateDirectWithTweak masterKey96 (mempty :: BS.ByteString)
     ekey <- either (error . show) pure ekeyE
-    witE <- withDecryptedExtKeyMaterial ekey (mempty :: BS.ByteString) $ \km ->
-        Right
-            <$> mkShelleyWitnessFromExtKeyMaterial
-                RecentEraConway
-                minimalConwayTxBody
-                km
+    witE <-
+        withDecryptedExtKeyMaterial ekey (mempty :: BS.ByteString)
+            $ fmap Right
+                . mkShelleyWitnessFromExtKeyMaterial RecentEraConway minimalConwayTxBody
     v2Wit <- either (error . show) pure witE
     pure $ v1Wit == v2Wit
 
@@ -2604,11 +2602,8 @@ prop_v2DerivedWitnessMatchesV1 xprvKey encPwd ix =
             encryptedCreateDirectWithTweak masterKey96 (mempty :: BS.ByteString)
         ekey <- either (error . show) pure ekeyE
         witE <- withDecryptedExtKeyMaterial ekey (mempty :: BS.ByteString) $ \km ->
-            EncHD.deriveExtKeyMaterial EncHD.DerivationScheme2 km ix $ \childKm ->
-                Right
-                    <$> mkShelleyWitnessFromExtKeyMaterial
-                        RecentEraConway
-                        minimalConwayTxBody
-                        childKm
+            EncHD.deriveExtKeyMaterial EncHD.DerivationScheme2 km ix
+                $ fmap Right
+                    . mkShelleyWitnessFromExtKeyMaterial RecentEraConway minimalConwayTxBody
         v2Wit <- either (error . show) pure witE
         pure $ v1Wit == v2Wit

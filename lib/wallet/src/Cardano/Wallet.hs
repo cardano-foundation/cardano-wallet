@@ -2444,12 +2444,7 @@ signTransactionV2 era sealedTx wallet walletUtxo ekey userPwd =
                         DerivationScheme2
                         rootKm
                         (map getDerivationIndex $ NE.toList path)
-                        $ \addrKm ->
-                            Right
-                                <$> mkShelleyWitnessFromExtKeyMaterial
-                                    recentEra'
-                                    txBody
-                                    addrKm
+                        $ fmap Right . mkShelleyWitnessFromExtKeyMaterial recentEra' txBody
             pure $ sequence results
         case witsE of
             Left e ->
@@ -2774,12 +2769,7 @@ buildSignSubmitTransaction
                                             ( map getDerivationIndex
                                                 $ NE.toList path
                                             )
-                                            $ \addrKm ->
-                                                Right
-                                                    <$> mkShelleyWitnessFromExtKeyMaterial
-                                                        recentEra'
-                                                        txBody
-                                                        addrKm
+                                            $ fmap Right . mkShelleyWitnessFromExtKeyMaterial recentEra' txBody
                                 pure $ sequence results
                     shelleyWits <- case witsE of
                         Left e ->
@@ -3321,12 +3311,7 @@ buildAndSignTransaction ctx wid mkRwdAcct pwd txCtx sel =
                                             ( map getDerivationIndex
                                                 $ NE.toList path
                                             )
-                                            $ \addrKm ->
-                                                Right
-                                                    <$> mkShelleyWitnessFromExtKeyMaterial
-                                                        era'
-                                                        txBody
-                                                        addrKm
+                                            $ fmap Right . mkShelleyWitnessFromExtKeyMaterial era' txBody
                                 pure $ sequence results
                     shelleyWits <- case witsE of
                         Left e ->
@@ -4465,7 +4450,7 @@ withRootKey tr db@DBLayer{..} wid pwd embed action = do
                 IcarusKeyS -> pure ()
                 _ -> lift $ migrateV1toV2 tr db kF xprv scheme pwd
             action rka
-        rka@(RootKeyAccessV2 _ _ _) -> action rka
+        rka@RootKeyAccessV2{} -> action rka
   where
     kF = keyFlavorFromState @s
 
