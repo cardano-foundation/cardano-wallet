@@ -862,9 +862,10 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
 
     it "STAKE_POOLS_JOIN_03 - Cannot join a pool that has retired" $ \ctx -> runResourceT $ do
         waitForEpoch 3 ctx -- One pool retires at epoch 3
-        response <- listPools ctx arbitraryStake
-        verify response [expectListSize 3]
-        let nonRetiredPoolIds = Set.fromList (view #id <$> getResponse response)
+        nonRetiredPoolIds <- eventually "One of the pools should retire." $ do
+            response <- listPools ctx arbitraryStake
+            verify response [expectListSize 3]
+            pure $ Set.fromList (view #id <$> getResponse response)
         let reportError =
                 error
                     $ unlines
