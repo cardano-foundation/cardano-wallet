@@ -50,7 +50,7 @@ services:
   mithril:
     env_file:
       - .env
-    image: ghcr.io/input-output-hk/mithril-client:main-16c4ecf
+    image: ghcr.io/intersectmbo/mithril-client:2617.0-2478748
     user: ${USER_ID}:${GROUP_ID}
     volumes:
       - ${NODE_DB}:/app/db
