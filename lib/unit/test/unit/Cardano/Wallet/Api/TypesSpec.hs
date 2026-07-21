@@ -898,14 +898,17 @@ spec = do
 
     describe "PassphraseScheme JSON encoding (FR-004 stable identifiers)" $ do
         it "EncryptWithScrypt encodes as \"scrypt\""
-            $ Aeson.encode (ApiT EncryptWithScrypt) `shouldBe` "\"scrypt\""
+            $ Aeson.encode (ApiT EncryptWithScrypt)
+            `shouldBe` "\"scrypt\""
         it "EncryptWithPBKDF2 encodes as \"pbkdf2-hmac-sha512\""
-            $ Aeson.encode (ApiT EncryptWithPBKDF2) `shouldBe` "\"pbkdf2-hmac-sha512\""
+            $ Aeson.encode (ApiT EncryptWithPBKDF2)
+            `shouldBe` "\"pbkdf2-hmac-sha512\""
         it "EncryptWithArgon2idV2 encodes as \"argon2id-v2\""
-            $ Aeson.encode (ApiT EncryptWithArgon2idV2) `shouldBe` "\"argon2id-v2\""
+            $ Aeson.encode (ApiT EncryptWithArgon2idV2)
+            `shouldBe` "\"argon2id-v2\""
         it "unknown encryption_method string is rejected"
             $ Aeson.eitherDecode @(ApiT PassphraseScheme) "\"unknown-scheme\""
-                `shouldSatisfy` isLeft
+            `shouldSatisfy` isLeft
 
     describe "SealedTx JSON decoding" $ do
         -- NOTE(AB): I tried to factor more of the properties as their structure only

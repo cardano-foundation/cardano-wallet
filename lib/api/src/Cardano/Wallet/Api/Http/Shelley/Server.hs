@@ -192,9 +192,9 @@ import Cardano.Wallet
     , ErrCreateMigrationPlan (..)
     , ErrDecodeTx (..)
     , ErrGetPolicyId (..)
+    , ErrMkTransaction (..)
     , ErrNoSuchWallet (..)
     , ErrReadRewardAccount (..)
-    , ErrMkTransaction (..)
     , ErrSignPayment (..)
     , ErrSubmitTransaction (..)
     , ErrSubmitTransactionMissingWitnessCounts (..)
@@ -5085,10 +5085,16 @@ rndStateChange
     -> Handler (ArgGenChange s)
 rndStateChange ctx (ApiT wid) pwd =
     withWorkerCtx @_ @s ctx wid liftE liftE $ \wrk -> liftHandler
-        $ W.withRootKey nullTracer (wrk ^. dbLayer) wid pwd ErrSignPaymentWithRootKey
+        $ W.withRootKey
+            nullTracer
+            (wrk ^. dbLayer)
+            wid
+            pwd
+            ErrSignPaymentWithRootKey
         $ \case
             W.RootKeyAccessV2{} ->
-                throwE $ ErrSignPaymentMkTx
+                throwE
+                    $ ErrSignPaymentMkTx
                     $ ErrMkTransactionTxBodyError
                         "V2 key signing is not yet supported for Byron wallets."
             W.RootKeyAccessV1 xprv scheme ->

@@ -1,11 +1,11 @@
 {-# LANGUAGE ApplicativeDo #-}
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
@@ -37,9 +37,6 @@ import Cardano.Crypto.Wallet
     ( toXPub
     , xpub
     )
-import Cardano.Mnemonic
-    ( SomeMnemonic (..)
-    )
 import Cardano.Crypto.WalletHD.Encrypted
     ( DerivationScheme (..)
     , chainCodeByteString
@@ -47,6 +44,9 @@ import Cardano.Crypto.WalletHD.Encrypted
     , encryptedDerivePrivate
     , encryptedPublic
     , publicKeyByteString
+    )
+import Cardano.Mnemonic
+    ( SomeMnemonic (..)
     )
 import Cardano.Wallet
     ( ErrUpdatePassphrase (..)
@@ -76,15 +76,15 @@ import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey (..)
     , generateKeyFromSeed
     )
-import Cardano.Wallet.Address.Discovery.Sequential
-    ( purposeCIP1852
-    )
 import Cardano.Wallet.Address.Discovery
     ( CompareDiscovery (..)
     , GenChange (..)
     , IsOurs (..)
     , KnownAddresses (..)
     , coinTypeAda
+    )
+import Cardano.Wallet.Address.Discovery.Sequential
+    ( purposeCIP1852
     )
 import Cardano.Wallet.Address.States.Features
     ( TestFeatures (..)

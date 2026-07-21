@@ -76,6 +76,14 @@ import Cardano.Balance.Tx.SizeEstimation
     ( TxSkeleton (..)
     , estimateTxSize
     )
+import Cardano.Crypto.Wallet.Types
+    ( DerivationScheme (DerivationScheme2)
+    )
+import Cardano.Crypto.WalletHD.Encrypted
+    ( encryptedCreateDirectWithTweak
+    , withDecryptedExtKeyMaterial
+    , withFastKdfForTesting
+    )
 import Cardano.Ledger.Address
     ( Withdrawals (..)
     )
@@ -295,14 +303,6 @@ import Control.Monad.Trans.Except
     ( except
     , runExceptT
     )
-import Cardano.Crypto.Wallet.Types
-    ( DerivationScheme (DerivationScheme2)
-    )
-import Cardano.Crypto.WalletHD.Encrypted
-    ( encryptedCreateDirectWithTweak
-    , withDecryptedExtKeyMaterial
-    , withFastKdfForTesting
-    )
 import Cryptography.Hash.Blake
     ( blake2b224
     )
@@ -469,10 +469,11 @@ spec = describe "TransactionSpec" $ do
     forAllRecentEras ledgerScriptWitnessParitySpec
     transactionConstraintsSpec
     describe "V2 key witness" $ do
-        prop "V2 root witness matches V1 for same key material" $
-            forAll genShelleyKeyAndPwd (uncurry prop_v2WitnessMatchesV1)
-        prop "V2 derived child witness matches V1" $
-            forAll ((,) <$> genShelleyKeyAndPwd <*> arbitrary)
+        prop "V2 root witness matches V1 for same key material"
+            $ forAll genShelleyKeyAndPwd (uncurry prop_v2WitnessMatchesV1)
+        prop "V2 derived child witness matches V1"
+            $ forAll
+                ((,) <$> genShelleyKeyAndPwd <*> arbitrary)
                 (\((key, pwd), ix) -> prop_v2DerivedWitnessMatchesV1 key pwd ix)
     describe "Sign transaction" $ do
         -- TODO [ADP-2849] The implementation must be restricted to work only in
@@ -2557,13 +2558,20 @@ prop_v2WitnessMatchesV1 xprvKey encPwd = ioProperty $ withFastKdfForTesting $ do
         plaintextXprv = CC.xPrvChangePass encPwd (mempty :: BS.ByteString) rawXprv
         raw128 = CC.unXPrv plaintextXprv
         masterKey96 = BS.take 64 raw128 <> BS.drop 96 raw128
-        v1Wit = mkShelleyWitnessLedger RecentEraConway minimalConwayTxBody
-            (plaintextXprv, mempty)
-    ekeyE <- encryptedCreateDirectWithTweak masterKey96 (mempty :: BS.ByteString)
+        v1Wit =
+            mkShelleyWitnessLedger
+                RecentEraConway
+                minimalConwayTxBody
+                (plaintextXprv, mempty)
+    ekeyE <-
+        encryptedCreateDirectWithTweak masterKey96 (mempty :: BS.ByteString)
     ekey <- either (error . show) pure ekeyE
     witE <- withDecryptedExtKeyMaterial ekey (mempty :: BS.ByteString) $ \km ->
-        Right <$> mkShelleyWitnessFromExtKeyMaterial RecentEraConway
-            minimalConwayTxBody km
+        Right
+            <$> mkShelleyWitnessFromExtKeyMaterial
+                RecentEraConway
+                minimalConwayTxBody
+                km
     v2Wit <- either (error . show) pure witE
     pure $ v1Wit == v2Wit
 
@@ -2582,15 +2590,25 @@ prop_v2DerivedWitnessMatchesV1 xprvKey encPwd ix =
             raw128 = CC.unXPrv plaintextXprv
             masterKey96 = BS.take 64 raw128 <> BS.drop 96 raw128
             childXprv =
-                CC.deriveXPrv DerivationScheme2 (mempty :: BS.ByteString)
-                    plaintextXprv ix
-            v1Wit = mkShelleyWitnessLedger RecentEraConway minimalConwayTxBody
-                (childXprv, mempty)
-        ekeyE <- encryptedCreateDirectWithTweak masterKey96 (mempty :: BS.ByteString)
+                CC.deriveXPrv
+                    DerivationScheme2
+                    (mempty :: BS.ByteString)
+                    plaintextXprv
+                    ix
+            v1Wit =
+                mkShelleyWitnessLedger
+                    RecentEraConway
+                    minimalConwayTxBody
+                    (childXprv, mempty)
+        ekeyE <-
+            encryptedCreateDirectWithTweak masterKey96 (mempty :: BS.ByteString)
         ekey <- either (error . show) pure ekeyE
         witE <- withDecryptedExtKeyMaterial ekey (mempty :: BS.ByteString) $ \km ->
             EncHD.deriveExtKeyMaterial EncHD.DerivationScheme2 km ix $ \childKm ->
-                Right <$> mkShelleyWitnessFromExtKeyMaterial RecentEraConway
-                    minimalConwayTxBody childKm
+                Right
+                    <$> mkShelleyWitnessFromExtKeyMaterial
+                        RecentEraConway
+                        minimalConwayTxBody
+                        childKm
         v2Wit <- either (error . show) pure witE
         pure $ v1Wit == v2Wit

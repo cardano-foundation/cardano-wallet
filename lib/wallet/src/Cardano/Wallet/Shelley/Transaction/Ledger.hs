@@ -68,18 +68,15 @@ import Cardano.Crypto.DSIGN
     , rawDeserialiseSigDSIGN
     , rawDeserialiseVerKeyDSIGN
     )
+import Cardano.Crypto.Hash.Class
+    ( hashToBytes
+    )
 import Cardano.Crypto.WalletHD.Encrypted
     ( ExtKeyMaterial
     , Validated
     , extKeyMaterialPublicKey
     , publicKeyByteString
     , signWithExtKeyMaterial
-    )
-import qualified Cardano.Crypto.WalletHD.Encrypted as EncHD
-    ( Signature (..)
-    )
-import Cardano.Crypto.Hash.Class
-    ( hashToBytes
     )
 import Cardano.Ledger.Hashes
     ( EraIndependentTxBody
@@ -173,6 +170,9 @@ import qualified Cardano.Balance.Tx.Eras as Write
 import qualified Cardano.Balance.Tx.Tx as Write
 import qualified Cardano.Crypto as CC
 import qualified Cardano.Crypto.Wallet as Crypto.HD
+import qualified Cardano.Crypto.WalletHD.Encrypted as EncHD
+    ( Signature (..)
+    )
 import qualified Cardano.Ledger.Keys as Keys
 import qualified Cardano.Wallet.Primitive.Types.Tx.Tx as W
 import qualified Cardano.Wallet.Read as Read
@@ -385,7 +385,7 @@ mkShelleyWitnessFromExtKeyMaterial _era body km = do
                         error
                             "mkShelleyWitnessFromExtKeyMaterial: \
                             \invalid signature"
-            in pure $ WitVKey vkey sig
+            in  pure $ WitVKey vkey sig
 
 -- | Construct a Byron bootstrap witness directly from
 -- ledger types, bypassing cardano-api.

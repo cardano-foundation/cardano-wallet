@@ -134,22 +134,23 @@ spec = describe "PersistPrivateKey" $ do
     describe "Malformed input throws" $ do
         it "garbled Shelley key column throws"
             $ evaluate (unsafeDeserializeXPrv ShelleyKeyS ("garbage", ""))
-                `shouldThrow` anyException
+            `shouldThrow` anyException
         it "V2-prefix with invalid hex payload throws"
             $ evaluate (unsafeDeserializeXPrv ShelleyKeyS ("V2:notvalidhex!", ""))
-                `shouldThrow` anyException
+            `shouldThrow` anyException
         it "short key column (neither V1 nor V2) throws"
             $ evaluate (unsafeDeserializeXPrv ShelleyKeyS ("aabbcc", ""))
-                `shouldThrow` anyException
+            `shouldThrow` anyException
         it "garbled Byron key column throws"
             $ evaluate (unsafeDeserializeXPrv ByronKeyS ("garbage", ""))
-                `shouldThrow` anyException
+            `shouldThrow` anyException
         it "V2-prefix with invalid hex payload throws for Byron"
             $ evaluate (unsafeDeserializeXPrv ByronKeyS ("V2:notvalidhex!", ""))
-                `shouldThrow` anyException
+            `shouldThrow` anyException
     describe "Cross-version rejection" $ do
         it "V2 Shelley column deserializes as HashedCredentialsV2, not V1"
-            $ withFastKdfForTesting $ do
+            $ withFastKdfForTesting
+            $ do
                 ekey <- mkTestEncryptedKey
                 let creds :: HashedCredentials ShelleyKey
                     creds = HashedCredentialsV2 ekey Nothing
@@ -165,7 +166,8 @@ spec = describe "PersistPrivateKey" $ do
                     HashedCredentialsV2{} -> fail "V1 Shelley column misidentified as V2"
                     HashedCredentialsV1{} -> pure () :: IO ()
         it "V2 Byron column deserializes as HashedCredentialsV2, not V1"
-            $ withFastKdfForTesting $ do
+            $ withFastKdfForTesting
+            $ do
                 ekey <- mkTestEncryptedKey
                 ByronKey _ _ payload <- generate (arbitrary @(ByronKey 'RootK XPrv))
                 let creds :: HashedCredentials ByronKey
