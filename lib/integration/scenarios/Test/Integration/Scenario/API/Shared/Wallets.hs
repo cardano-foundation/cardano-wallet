@@ -165,6 +165,10 @@ import Test.Integration.Framework.DSL
     , walletId
     , (</>)
     )
+import Test.Integration.Framework.Setup
+    ( legacyV1Passphrase
+    , legacyV1SharedWalletId
+    )
 import Test.Integration.Framework.TestData
     ( errMsg403CreateIllegal
     , errMsg403KeyAlreadyPresent
@@ -191,6 +195,29 @@ spec
      . HasSNetworkId n
     => SpecWith Context
 spec = describe "SHARED_WALLETS" $ do
+    it
+        "SHARED_WALLETS_ROOT_KEY_MIGRATION_01 - \
+        \HTTP can use a persisted V1 root key after upgrading"
+        $ \ctx -> runResourceT $ do
+            let w = ApiT legacyV1SharedWalletId
+            let payload =
+                    Json
+                        [json|{
+                        "passphrase": #{legacyV1Passphrase},
+                        "format": "extended"
+                        }|]
+            forM_ [1 :: Int, 2] $ \_ -> do
+                r <-
+                    request @ApiAccountKeyShared
+                        ctx
+                        ( Link.postAccountKey @'Shared
+                            w
+                            (DerivationIndex 2_147_483_648)
+                        )
+                        Default
+                        payload
+                verify r [expectResponseCode HTTP.status202]
+
     it
         "SHARED_WALLETS_CREATE_01 - \
         \Create an active shared wallet from root xprv"
