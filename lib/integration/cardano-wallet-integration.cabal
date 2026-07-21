@@ -52,6 +52,7 @@ library framework
     , bech32-th
     , bytestring
     , cardano-addresses
+    , cardano-crypto
     , cardano-ledger-shelley
     , cardano-wallet
     , cardano-wallet-api
@@ -73,6 +74,7 @@ library framework
     , either
     , extra
     , faucet
+    , filepath
     , flat
     , fmt
     , generic-lens
