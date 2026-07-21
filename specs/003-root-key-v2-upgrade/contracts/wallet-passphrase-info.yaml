@@ -1,0 +1,25 @@
+# Contract: walletPassphraseInfo
+#
+# This is the PROPOSED change to specifications/api/swagger.yaml.
+# The `walletPassphraseInfo` anchor currently only has `last_updated_at`.
+# This contract shows the full intended schema after the feature is merged.
+#
+# IMPORTANT: Do not commit this file. Apply the diff to swagger.yaml when ready.
+
+x-walletPassphraseInfo: &walletPassphraseInfo
+  description: Information about the wallet's passphrase
+  type: object
+  required:
+    - last_updated_at
+  properties:
+    last_updated_at: *date
+    encryption_method:
+      description: |
+        The scheme used to protect the wallet's root key in storage.
+        Absent on wallets that have no stored passphrase (e.g. watch-only wallets).
+      type: string
+      enum:
+        - scrypt
+        - pbkdf2-hmac-sha512
+        - argon2id-v2
+      example: argon2id-v2
