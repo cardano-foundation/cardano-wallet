@@ -335,6 +335,11 @@ jobs:
           ref: ${{ needs.prepare.outputs.release-candidate-branch }}
           fetch-depth: 0
 
+      - name: Configure git identity
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
       - name: Determine tag
         id: tag
         run: |
