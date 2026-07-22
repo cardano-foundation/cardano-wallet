@@ -16,7 +16,7 @@ jobs:
     # Skip for prereleases (nightly/test are published as prereleases and
     # already had their docker image pushed by release.yml).
     if: ${{ !github.event.release.prerelease }}
-    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    runs-on: nix-enabled-runners
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       TAG: ${{ github.event.release.tag_name }}
@@ -52,7 +52,7 @@ jobs:
   update-docs:
     name: "Update Documentation Links"
     if: ${{ !github.event.release.prerelease }}
-    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    runs-on: nix-enabled-runners
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       TAG: ${{ github.event.release.tag_name }}

@@ -27,7 +27,7 @@ on:
 jobs:
   verify-linux:
     name: "Verify Linux"
-    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    runs-on: nix-enabled-runners
     steps:
       - name: Download and verify
         shell: nix shell --quiet nixpkgs#gh -c bash -e {0}
@@ -156,7 +156,7 @@ jobs:
 
   verify-docker:
     name: "Verify Docker Image"
-    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    runs-on: nix-enabled-runners
     steps:
       - name: Download and verify
         shell: nix shell --quiet nixpkgs#gh -c bash -e {0}

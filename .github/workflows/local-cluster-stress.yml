@@ -7,7 +7,7 @@ on:
 jobs:
   local-cluster:
     name: "Local Cluster Run ${{ matrix.run }}"
-    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    runs-on: nix-enabled-runners
     timeout-minutes: 30
     strategy:
       fail-fast: false
