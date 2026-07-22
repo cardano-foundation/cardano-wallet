@@ -24,7 +24,7 @@ env:
 jobs:
   prepare:
     name: "Prepare Release Candidate"
-    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    runs-on: nix-enabled-runners
     outputs:
       release-version: ${{ steps.rc.outputs.release-version }}
       release-candidate-commit: ${{ steps.rc.outputs.release-candidate-commit }}
@@ -54,13 +54,13 @@ jobs:
       matrix:
         include:
           - name: Linux
-            runner: '["self-hosted", "linux", "x86_64", "cardano-wallet"]'
+            runner: '["nix-enabled-runners"]'
             output: ci.artifacts.linux64.release
             artifact-name: linux-release
             extract: tar xzf
             binary: cardano-wallet
           - name: Windows
-            runner: '["self-hosted", "linux", "x86_64", "cardano-wallet"]'
+            runner: '["nix-enabled-runners"]'
             output: ci.artifacts.win64.release
             artifact-name: windows-release
             extract: unzip -o
@@ -72,7 +72,7 @@ jobs:
             extract: tar xzf
             binary: cardano-wallet
           - name: Docker Image
-            runner: '["self-hosted", "linux", "x86_64", "cardano-wallet"]'
+            runner: '["nix-enabled-runners"]'
             output: ci.artifacts.dockerImage
             artifact-name: docker-image
             # Docker images are smoke-tested separately; skip the
@@ -161,7 +161,7 @@ jobs:
   changelog:
     name: "Generate Changelog & API Diff"
     needs: prepare
-    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    runs-on: nix-enabled-runners
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -193,12 +193,12 @@ jobs:
       matrix:
         include:
           - name: Linux
-            runner: '["self-hosted", "linux", "x86_64", "cardano-wallet"]'
+            runner: '["nix-enabled-runners"]'
             artifact-name: linux-release
             extract: tar xzf
             binary: cardano-wallet
           - name: Windows
-            runner: '["self-hosted", "linux", "x86_64", "cardano-wallet"]'
+            runner: '["nix-enabled-runners"]'
             artifact-name: windows-release
             extract: unzip -o
             binary: cardano-wallet.exe
@@ -257,7 +257,7 @@ jobs:
     name: "E2E Linux"
     if: inputs.release_type == 'release'
     needs: [prepare, verify-artifacts]
-    runs-on: [self-hosted, linux, x86_64, cardano-wallet, high-memory]
+    runs-on: nix-enabled-runners
     timeout-minutes: 240
     steps:
       - name: Checkout release candidate
@@ -276,7 +276,7 @@ jobs:
     name: "Build E2E Bundle (Windows)"
     if: inputs.release_type == 'release'
     needs: prepare
-    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    runs-on: nix-enabled-runners
     steps:
       - name: Checkout release candidate
         uses: actions/checkout@v6
@@ -316,7 +316,7 @@ jobs:
     name: "Create ${{ inputs.release_type || 'nightly' }} Release"
     needs: [prepare, build-artifacts, verify-artifacts, changelog, e2e-linux, e2e-windows]
     if: ${{ !cancelled() && needs.prepare.result == 'success' && needs.build-artifacts.result == 'success' && needs.verify-artifacts.result == 'success' && needs.changelog.result == 'success' && (needs.e2e-linux.result == 'success' || needs.e2e-linux.result == 'skipped') && (needs.e2e-windows.result == 'success' || needs.e2e-windows.result == 'skipped') }}
-    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    runs-on: nix-enabled-runners
     environment: ${{ (inputs.release_type == 'release' && github.ref == 'refs/heads/master') && 'release' || '' }}
     outputs:
       tag: ${{ steps.tag.outputs.tag }}
@@ -334,6 +334,11 @@ jobs:
         with:
           ref: ${{ needs.prepare.outputs.release-candidate-branch }}
           fetch-depth: 0
+
+      - name: Configure git identity
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Determine tag
         id: tag
@@ -452,7 +457,7 @@ jobs:
     name: "Publish Release"
     needs: [prepare, create-release, verify-assets]
     if: ${{ !cancelled() && needs.verify-assets.result == 'success' }}
-    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    runs-on: nix-enabled-runners
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       IS_RELEASE: ${{ inputs.release_type == 'release' && 'true' || 'false' }}
@@ -483,7 +488,7 @@ jobs:
     # Skip for real releases — .github/workflows/publish-release.yml pushes
     # version + latest docker tags on the release.published event instead.
     if: ${{ !cancelled() && inputs.release_type != 'release' && needs.publish-release.result == 'success' }}
-    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    runs-on: nix-enabled-runners
     env:
       TEST_RC: ${{ needs.prepare.outputs.test-rc }}
     steps:
