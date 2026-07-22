@@ -11,13 +11,29 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Test.Integration.Framework.Setup where
+module Test.Integration.Framework.Setup
+    ( TestingCtx (..)
+    , legacyV1ApiWalletId
+    , legacyV1CliWalletId
+    , legacyV1SharedWalletId
+    , legacyV1Passphrase
+    , withContext
+    , withTestsSetup
+    ) where
 
 import Cardano.Address
     ( NetworkTag (..)
     )
+import Cardano.Address.Script
+    ( Cosigner (..)
+    , Script (RequireSignatureOf)
+    , ScriptTemplate (..)
+    )
 import Cardano.Address.Style.Shelley
     ( shelleyTestnet
+    )
+import Cardano.BM.Data.Tracer
+    ( nullTracer
     )
 import Cardano.BM.Extra
     ( bracketTracer
@@ -26,15 +42,56 @@ import Cardano.BM.Extra
 import Cardano.BM.ToTextTracer
     ( ToTextTracer (..)
     )
+import Cardano.Crypto.Wallet
+    ( XPrv
+    )
+import Cardano.Faucet.Mnemonics
+    ( unsafeMnemonic
+    )
 import Cardano.Launcher
     ( ProcessHasExited (..)
     )
 import Cardano.Ledger.Shelley.Genesis
     ( sgNetworkMagic
     )
+import Cardano.Mnemonic
+    ( SomeMnemonic (..)
+    )
 import Cardano.Startup
     ( installSignalHandlersNoLogging
     , setDefaultFilePermissions
+    )
+import Cardano.Wallet.Address.Derivation
+    ( Depth (RootK)
+    , HardDerivation (deriveAccountPrivateKey)
+    )
+import Cardano.Wallet.Address.Derivation.Shared
+    ( SharedKey
+    )
+import Cardano.Wallet.Address.Derivation.Shelley
+    ( ShelleyKey
+    )
+import Cardano.Wallet.Address.Discovery
+    ( ChangeAddressMode (IncreasingChangeAddresses)
+    )
+import Cardano.Wallet.Address.Discovery.Sequential
+    ( SeqState
+    , defaultAddressPoolGap
+    , purposeCIP1852
+    )
+import Cardano.Wallet.Address.Discovery.Shared
+    ( SharedState
+    )
+import Cardano.Wallet.Address.Keys.SequentialAny
+    ( mkSeqStateFromRootXPrv
+    )
+import Cardano.Wallet.Address.Keys.Shared
+    ( mkSharedStateFromRootXPrv
+    )
+import Cardano.Wallet.Address.Keys.WalletKey
+    ( digest
+    , getRawKey
+    , publicKey
     )
 import Cardano.Wallet.Api.Types
     ( ApiPoolSpecifier (..)
@@ -55,9 +112,20 @@ import Cardano.Wallet.Application.CLI
 import Cardano.Wallet.Application.Server
     ( walletListenFromEnv
     )
+import Cardano.Wallet.DB
+    ( DBLayer (..)
+    , DBLayerParams (..)
+    )
+import Cardano.Wallet.DB.Layer
+    ( withBootDBLayerFromFile
+    )
 import Cardano.Wallet.Faucet
     ( FaucetM
     , runFaucetM
+    )
+import Cardano.Wallet.Flavor
+    ( KeyFlavorS (SharedKeyS, ShelleyKeyS)
+    , WalletFlavorS (SharedWallet, ShelleyWallet)
     )
 import Cardano.Wallet.Launch.Cluster
     ( ClusterEra (..)
@@ -89,24 +157,52 @@ import Cardano.Wallet.Network.Implementation.Ouroboros
 import Cardano.Wallet.Network.Ports
     ( portFromURL
     )
+import Cardano.Wallet.Network.RestorationMode
+    ( RestorationPoint (RestorationPointAtGenesis)
+    )
 import Cardano.Wallet.Pools
     ( StakePool
     )
 import Cardano.Wallet.Primitive.Ledger.Shelley
     ( fromGenesisData
     )
+import Cardano.Wallet.Primitive.Model
+    ( initWallet
+    )
 import Cardano.Wallet.Primitive.NetworkId
     ( NetworkDiscriminant (Testnet)
     , NetworkId (..)
+    )
+import Cardano.Wallet.Primitive.Passphrase
+    ( encryptPassphrase
+    , preparePassphrase
+    )
+import Cardano.Wallet.Primitive.Passphrase.Types
+    ( Passphrase (..)
+    , PassphraseScheme (EncryptWithPBKDF2)
+    , WalletPassphraseInfo (..)
+    )
+import Cardano.Wallet.Primitive.Slotting
+    ( hoistTimeInterpreter
+    , mkSingleEraInterpreter
     )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance (..)
     )
 import Cardano.Wallet.Primitive.Types
-    ( NetworkParameters
+    ( Block
+    , GenesisParameters (getGenesisBlockDate)
+    , NetworkParameters (..)
+    , WalletId (..)
+    , WalletMetadata (..)
+    , WalletName (..)
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
+    )
+import Cardano.Wallet.Primitive.Types.Credentials
+    ( HashedCredentials (HashedCredentialsV1)
+    , RootCredentials (..)
     )
 import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..)
@@ -147,6 +243,12 @@ import Data.Text
     )
 import Data.Text.Class
     ( ToText (..)
+    )
+import Data.Text.Encoding
+    ( encodeUtf8
+    )
+import Data.Time.Clock
+    ( getCurrentTime
     )
 import Main.Utf8
     ( withUtf8
@@ -227,10 +329,230 @@ import Prelude
 
 import qualified Cardano.Pool.DB as Pool
 import qualified Cardano.Pool.DB.Layer as Pool
+import qualified Cardano.Wallet as Wallet
+import qualified Cardano.Wallet.Address.Derivation.Shared as Shared
+import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Cardano.Wallet.Application.CLI as CLI
 import qualified Cardano.Wallet.Faucet as Faucet
+import qualified Data.ByteArray as BA
+import qualified Data.Functor.Identity as Identity
+import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
+import qualified System.FilePath as FilePath
+
+-- | Persisted V1 root keys, prepared before the wallet server starts.
+--
+-- Separate Shelley API, Shelley CLI, and Shared API fixtures mean all
+-- migratable wallet kinds exercise the migration independently.
+legacyV1ApiWalletId :: WalletId
+legacyV1ApiWalletId = legacyV1WalletId legacyV1ApiMnemonic
+
+legacyV1Passphrase :: Text
+legacyV1Passphrase = "legacy-root-key-passphrase"
+
+legacyV1ApiMnemonic :: [Text]
+legacyV1ApiMnemonic =
+    [ "pulp"
+    , "ten"
+    , "light"
+    , "rhythm"
+    , "replace"
+    , "vessel"
+    , "slow"
+    , "drift"
+    , "kingdom"
+    , "amazing"
+    , "negative"
+    , "join"
+    , "auction"
+    , "ugly"
+    , "symptom"
+    ]
+
+legacyV1CliMnemonic :: [Text]
+legacyV1CliMnemonic =
+    [ "vintage"
+    , "poem"
+    , "topic"
+    , "machine"
+    , "hazard"
+    , "cement"
+    , "dune"
+    , "glimpse"
+    , "fix"
+    , "brief"
+    , "account"
+    , "badge"
+    , "mass"
+    , "silly"
+    , "business"
+    ]
+
+legacyV1CliWalletId :: WalletId
+legacyV1CliWalletId = legacyV1WalletId legacyV1CliMnemonic
+
+legacyV1SharedWalletId :: WalletId
+legacyV1SharedWalletId =
+    WalletId
+        $ digest SharedKeyS
+        $ publicKey SharedKeyS legacyV1SharedRootKey
+
+legacyV1WalletId :: [Text] -> WalletId
+legacyV1WalletId mnemonic =
+    WalletId
+        $ digest ShelleyKeyS
+        $ publicKey ShelleyKeyS
+        $ legacyV1RootKey mnemonic
+
+legacyV1RootKey :: [Text] -> ShelleyKey 'RootK XPrv
+legacyV1RootKey mnemonic =
+    Shelley.generateKeyFromSeed
+        ( SomeMnemonic $ unsafeMnemonic @15 mnemonic
+        , Just legacyV1SecondFactor
+        )
+        (preparePassphrase EncryptWithPBKDF2 legacyV1Passphrase')
+
+-- | Keep the persisted fixtures' IDs distinct from the fixed mnemonics used
+-- by the regular integration scenarios.
+legacyV1SecondFactor :: SomeMnemonic
+legacyV1SecondFactor =
+    SomeMnemonic $ unsafeMnemonic @15 legacyV1ApiMnemonic
+
+legacyV1SharedRootKey :: SharedKey 'RootK XPrv
+legacyV1SharedRootKey =
+    Shared.generateKeyFromSeed
+        ( SomeMnemonic $ unsafeMnemonic @15 legacyV1CliMnemonic
+        , Just legacyV1SecondFactor
+        )
+        (preparePassphrase EncryptWithPBKDF2 legacyV1Passphrase')
+
+legacyV1Passphrase' :: Passphrase "user"
+legacyV1Passphrase' =
+    Passphrase $ BA.convert $ encodeUtf8 legacyV1Passphrase
+
+seedLegacyV1Wallets
+    :: FilePath
+    -> Block
+    -> NetworkParameters
+    -> IO ()
+seedLegacyV1Wallets dbDir block0 networkParameters = do
+    forM_ [legacyV1ApiMnemonic, legacyV1CliMnemonic] $ \mnemonic -> do
+        now <- getCurrentTime
+        (_, passphraseHash) <- encryptPassphrase legacyV1Passphrase'
+        let wid = legacyV1WalletId mnemonic
+        let rootKey = legacyV1RootKey mnemonic
+        let state :: SeqState ('Testnet 42) ShelleyKey
+            state =
+                mkSeqStateFromRootXPrv
+                    ShelleyKeyS
+                    ( RootCredentials
+                        rootKey
+                        (preparePassphrase EncryptWithPBKDF2 legacyV1Passphrase')
+                    )
+                    purposeCIP1852
+                    defaultAddressPoolGap
+                    IncreasingChangeAddresses
+        let params =
+                DBLayerParams
+                    (snd $ initWallet block0 state)
+                    RestorationPointAtGenesis
+                    WalletMetadata
+                        { name = WalletName "Legacy V1 migration fixture"
+                        , creationTime = now
+                        , passphraseInfo =
+                            Just
+                                $ WalletPassphraseInfo
+                                    { lastUpdatedAt = now
+                                    , passphraseScheme = EncryptWithPBKDF2
+                                    }
+                        }
+                    mempty
+                    (genesisParameters networkParameters)
+        let dbFile =
+                dbDir
+                    FilePath.</> ("she." <> T.unpack (toText wid) <> ".sqlite")
+        let timeInterpreter =
+                hoistTimeInterpreter (pure . Identity.runIdentity)
+                    $ mkSingleEraInterpreter
+                        (getGenesisBlockDate $ genesisParameters networkParameters)
+                        (slottingParameters networkParameters)
+        withBootDBLayerFromFile
+            ShelleyWallet
+            nullTracer
+            timeInterpreter
+            wid
+            Nothing
+            params
+            dbFile
+            $ \DBLayer{atomically, walletState} ->
+                atomically
+                    $ Wallet.putPrivateKey
+                        walletState
+                        (HashedCredentialsV1 rootKey passphraseHash)
+
+    now <- getCurrentTime
+    (_, passphraseHash) <- encryptPassphrase legacyV1Passphrase'
+    let rootKey = legacyV1SharedRootKey
+    let accountXPub =
+            publicKey SharedKeyS
+                $ deriveAccountPrivateKey
+                    (preparePassphrase EncryptWithPBKDF2 legacyV1Passphrase')
+                    rootKey
+                    minBound
+    let state :: SharedState ('Testnet 42) SharedKey
+        state =
+            mkSharedStateFromRootXPrv
+                SharedKeyS
+                ( RootCredentials
+                    rootKey
+                    (preparePassphrase EncryptWithPBKDF2 legacyV1Passphrase')
+                )
+                minBound
+                IncreasingChangeAddresses
+                defaultAddressPoolGap
+                ( ScriptTemplate
+                    (Map.singleton (Cosigner 0) $ getRawKey SharedKeyS accountXPub)
+                    (RequireSignatureOf $ Cosigner 0)
+                )
+                Nothing
+    let params =
+            DBLayerParams
+                (snd $ initWallet block0 state)
+                RestorationPointAtGenesis
+                WalletMetadata
+                    { name = WalletName "Legacy V1 shared migration fixture"
+                    , creationTime = now
+                    , passphraseInfo =
+                        Just
+                            $ WalletPassphraseInfo
+                                { lastUpdatedAt = now
+                                , passphraseScheme = EncryptWithPBKDF2
+                                }
+                    }
+                mempty
+                (genesisParameters networkParameters)
+    let dbFile =
+            dbDir
+                FilePath.</> ("sha." <> T.unpack (toText legacyV1SharedWalletId) <> ".sqlite")
+    let timeInterpreter =
+            hoistTimeInterpreter (pure . Identity.runIdentity)
+                $ mkSingleEraInterpreter
+                    (getGenesisBlockDate $ genesisParameters networkParameters)
+                    (slottingParameters networkParameters)
+    withBootDBLayerFromFile
+        SharedWallet
+        nullTracer
+        timeInterpreter
+        legacyV1SharedWalletId
+        Nothing
+        params
+        dbFile
+        $ \DBLayer{atomically, walletState} ->
+            atomically
+                $ Wallet.putPrivateKey
+                    walletState
+                    (HashedCredentialsV1 rootKey passphraseHash)
 
 -- | Do all the program setup required for integration tests, create a temporary
 -- directory, and pass this info to the main hspec action.
@@ -376,6 +698,11 @@ onClusterStart
                     fromGenesisData genesisData
             let db = absDirOf testDir </> relDir "wallets"
             liftIO $ createDirectory $ toFilePath db
+            liftIO
+                $ seedLegacyV1Wallets
+                    (toFilePath db)
+                    block0
+                    networkParameters
             listen <- liftIO $ walletListenFromEnv envFromText
             let testMetadata = absDirOf testDataDir </> relFile "token-metadata.json"
             tokenMetaUrl <-

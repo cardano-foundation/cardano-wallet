@@ -18,6 +18,10 @@ import Cardano.Crypto.Wallet
     ( unXPrv
     , xPrvChangePass
     )
+import Cardano.Crypto.WalletHD.Encrypted
+    ( EncryptedKey
+    , mkEncryptedKey
+    )
 import Cardano.DB.Sqlite
     ( runQuery
     , withSqliteContextFile
@@ -70,6 +74,9 @@ import Cardano.Wallet.Primitive.Passphrase.Types
 import Cardano.Wallet.Primitive.Types
     ( WalletId
     )
+import Cardano.Wallet.Primitive.Types.Credentials
+    ( HashedCredentials (..)
+    )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
     )
@@ -78,6 +85,9 @@ import Cardano.Wallet.Unsafe
     )
 import Control.Tracer
     ( nullTracer
+    )
+import Data.List
+    ( isInfixOf
     )
 import Data.Text.Class
     ( toText
@@ -152,6 +162,7 @@ main = do
             , withMaxSuccess 20 $ prop_wrongPassphraseByron exe
             , withMaxSuccess 20 $ prop_wrongSchemeShelley exe
             , withMaxSuccess 20 $ prop_wrongSchemeByron exe
+            , withMaxSuccess 20 $ prop_v2ShelleyUnsupported exe
             ]
     if all isSuccess results
         then putStrLn "All tests passed."
@@ -206,7 +217,7 @@ prop_shelleyRoundtrip exe =
                             encPass
                 (_, passHash) <- encryptPassphrase userPass
                 let (rootHex, hashHex) =
-                        serializeXPrv ShelleyKeyS (key, passHash)
+                        serializeXPrv ShelleyKeyS (HashedCredentialsV1 key passHash)
                     xprv = getRawKey ShelleyKeyS key
                     expected =
                         B16.encode
@@ -244,7 +255,7 @@ prop_byronRoundtrip exe =
                 passHash <-
                     encryptPassphraseTestingOnly hashLen encPass
                 let (rootHex, hashHex) =
-                        serializeXPrv ByronKeyS (key, passHash)
+                        serializeXPrv ByronKeyS (HashedCredentialsV1 key passHash)
                     xprv = getRawKey ByronKeyS key
                     expected =
                         B16.encode
@@ -282,7 +293,7 @@ prop_wrongPassphrase exe =
                             generateKeyFromSeed (mnemonic, Nothing) encPass
                     (_, passHash) <- encryptPassphrase userPass
                     let (rootHex, hashHex) =
-                            serializeXPrv ShelleyKeyS (key, passHash)
+                            serializeXPrv ShelleyKeyS (HashedCredentialsV1 key passHash)
                     runWrongPassTest exe wid rootHex hashHex wrongPass
 
 -- | Wrong passphrase with Byron/Scrypt scheme.
@@ -311,7 +322,7 @@ prop_wrongPassphraseByron exe =
                     let (rootHex, hashHex) =
                             serializeXPrv
                                 ByronKeyS
-                                (key, passHash)
+                                (HashedCredentialsV1 key passHash)
                     runWrongPassTest
                         exe
                         wid
@@ -340,7 +351,7 @@ prop_wrongSchemeShelley exe =
                 passHash <-
                     encryptPassphraseTestingOnly 64 encPass
                 let (rootHex, hashHex) =
-                        serializeXPrv ShelleyKeyS (key, passHash)
+                        serializeXPrv ShelleyKeyS (HashedCredentialsV1 key passHash)
                 -- Tool detects Shelley, assumes PBKDF2, but hash
                 -- is Scrypt — should fail even with correct pass.
                 runWrongPassTest
@@ -368,10 +379,32 @@ prop_wrongSchemeByron exe =
                         Byron.generateKeyFromSeed mnemonic encPass
                 (_, passHash) <- encryptPassphrase userPass
                 let (rootHex, hashHex) =
-                        serializeXPrv ByronKeyS (key, passHash)
+                        serializeXPrv ByronKeyS (HashedCredentialsV1 key passHash)
                 -- Tool detects Byron, assumes Scrypt, but hash
                 -- is PBKDF2 — should fail even with correct pass.
                 runWrongPassTest
+                    exe
+                    wid
+                    rootHex
+                    hashHex
+                    userPass
+
+-- | V2 Shelley keys contain ':' separators but must not be routed to
+-- the Byron deserializer.
+prop_v2ShelleyUnsupported :: FilePath -> Property
+prop_v2ShelleyUnsupported exe =
+    forAll
+        ( (,)
+            <$> genUserPassphrase
+            <*> genWalletId
+        )
+        $ \(userPass, wid) ->
+            ioProperty $ do
+                let (rootHex, hashHex) =
+                        serializeXPrv
+                            ShelleyKeyS
+                            (HashedCredentialsV2 testEncryptedKey Nothing)
+                runUnsupportedV2Test
                     exe
                     wid
                     rootHex
@@ -477,6 +510,57 @@ runWrongPassTest exe wid rootHex hashHex wrongPass =
                             ("stdout: " <> stdout_)
                         $ exitCode
                             === ExitFailure 1
+
+-- | Test that a V2 key reports the intentional unsupported-key error.
+runUnsupportedV2Test
+    :: FilePath
+    -> WalletId
+    -> BS.ByteString
+    -> BS.ByteString
+    -> Passphrase "user"
+    -> IO Property
+runUnsupportedV2Test exe wid rootHex hashHex userPass =
+    withSystemTempFile "wallet-export-test.db"
+        $ \dbPath handle -> do
+            hClose handle
+            dbResult <-
+                withSqliteContextFile
+                    nullTracer
+                    dbPath
+                    noManualMigration
+                    migrateAll
+                    $ \db ->
+                        runQuery db $ do
+                            insertWallet wid
+                            insert_
+                                $ PrivateKey wid rootHex hashHex
+            case dbResult of
+                Left err ->
+                    pure
+                        $ counterexample
+                            ("DB migration error: " <> show err)
+                        $ False === True
+                Right () -> do
+                    let widHex = T.unpack (toText wid)
+                        passText = passphraseToText userPass
+                    (exitCode, stdout_, stderr_) <-
+                        readCreateProcessWithExitCode
+                            (proc exe [dbPath, widHex])
+                            (T.unpack passText ++ "\n")
+                    pure
+                        $ counterexample
+                            ("stdout: " <> stdout_ <> "\nstderr: " <> stderr_)
+                        $ (exitCode === ExitFailure 1)
+                        .&&. (unsupportedMessage `isInfixOf` stdout_ === True)
+  where
+    unsupportedMessage =
+        "Error: V2 (Argon2id) keys cannot be exported in XPrv format"
+
+testEncryptedKey :: EncryptedKey
+testEncryptedKey =
+    case mkEncryptedKey (BS.replicate 128 0x02) of
+        Left err -> error $ "testEncryptedKey: " <> show err
+        Right k -> k
 
 -- | Extract the hex line from wallet-key-export output.
 -- Looks for the line after "=== Raw XPrv (hex) ===".

@@ -54,6 +54,7 @@ library
     , cardano-binary
     , cardano-crypto
     , cardano-crypto-class
+    , cardano-crypto-wallet
     , cardano-crypto-wrapper
     , cardano-ledger-allegra
     , cardano-ledger-alonzo
@@ -321,6 +322,7 @@ test-suite wallet-key-export-test
     , bytestring
     , cardano-addresses
     , cardano-crypto
+    , cardano-crypto-wallet
     , cardano-wallet
     , cardano-wallet-primitive
     , cardano-wallet-secrets

@@ -30,6 +30,7 @@ module Cardano.Wallet.Shelley.Transaction.Ledger
       -- * Signing
     , signTransaction
     , mkShelleyWitnessLedger
+    , mkShelleyWitnessFromExtKeyMaterial
     , mkByronWitnessLedger
 
       -- * Payload
@@ -69,6 +70,13 @@ import Cardano.Crypto.DSIGN
     )
 import Cardano.Crypto.Hash.Class
     ( hashToBytes
+    )
+import Cardano.Crypto.WalletHD.Encrypted
+    ( ExtKeyMaterial
+    , Validated
+    , extKeyMaterialPublicKey
+    , publicKeyByteString
+    , signWithExtKeyMaterial
     )
 import Cardano.Ledger.Hashes
     ( EraIndependentTxBody
@@ -162,6 +170,9 @@ import qualified Cardano.Balance.Tx.Eras as Write
 import qualified Cardano.Balance.Tx.Tx as Write
 import qualified Cardano.Crypto as CC
 import qualified Cardano.Crypto.Wallet as Crypto.HD
+import qualified Cardano.Crypto.WalletHD.Encrypted as EncHD
+    ( Signature (..)
+    )
 import qualified Cardano.Ledger.Keys as Keys
 import qualified Cardano.Wallet.Primitive.Types.Tx.Tx as W
 import qualified Cardano.Wallet.Read as Read
@@ -340,6 +351,41 @@ mkShelleyWitnessLedger _era body (xprv, pwd) =
                 error
                     "mkShelleyWitnessLedger: \
                     \invalid signature"
+
+-- | Construct a Shelley-era key witness from a V2 'ExtKeyMaterial'.
+-- Hashes the transaction body, calls 'signWithExtKeyMaterial', and
+-- assembles a 'WitVKey' from the resulting signature and public key.
+mkShelleyWitnessFromExtKeyMaterial
+    :: forall era s
+     . Write.IsRecentEra era
+    => RecentEra era
+    -> Write.TxBody era
+    -> ExtKeyMaterial s Validated
+    -> IO (Keys.WitVKey Keys.Witness)
+mkShelleyWitnessFromExtKeyMaterial _era body km = do
+    let bodyHash =
+            hashToBytes
+                $ extractHash
+                $ hashAnnotated @_ @EraIndependentTxBody body
+    sigResult <- signWithExtKeyMaterial km bodyHash
+    case sigResult of
+        Left err ->
+            error $ "mkShelleyWitnessFromExtKeyMaterial: " <> show err
+        Right (EncHD.Signature sigBytes) ->
+            let pubBytes = publicKeyByteString (extKeyMaterialPublicKey km)
+                vkey = case rawDeserialiseVerKeyDSIGN pubBytes of
+                    Just vk -> VKey vk
+                    Nothing ->
+                        error
+                            "mkShelleyWitnessFromExtKeyMaterial: \
+                            \invalid public key"
+                sig = case rawDeserialiseSigDSIGN sigBytes of
+                    Just s -> SignedDSIGN s
+                    Nothing ->
+                        error
+                            "mkShelleyWitnessFromExtKeyMaterial: \
+                            \invalid signature"
+            in  pure $ WitVKey vkey sig
 
 -- | Construct a Byron bootstrap witness directly from
 -- ledger types, bypassing cardano-api.

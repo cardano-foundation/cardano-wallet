@@ -340,6 +340,7 @@ import Cardano.Wallet.Primitive.Passphrase.Types
     , PassphraseHash (PassphraseHash)
     , PassphraseMaxLength (..)
     , PassphraseMinLength (..)
+    , PassphraseScheme (..)
     , passphraseMaxLength
     , passphraseMinLength
     )
@@ -517,7 +518,8 @@ import Data.Data
     , showConstr
     )
 import Data.Either
-    ( lefts
+    ( isLeft
+    , lefts
     )
 import Data.FileEmbed
     ( embedFile
@@ -626,6 +628,7 @@ import Test.Hspec
     , describe
     , it
     , shouldBe
+    , shouldSatisfy
     )
 import Test.Hspec.QuickCheck
     ( prop
@@ -892,6 +895,20 @@ spec = do
         textRoundtrip $ Proxy @SortOrder
         textRoundtrip $ Proxy @Coin
         textRoundtrip $ Proxy @TokenFingerprint
+
+    describe "PassphraseScheme JSON encoding (FR-004 stable identifiers)" $ do
+        it "EncryptWithScrypt encodes as \"scrypt\""
+            $ Aeson.encode (ApiT EncryptWithScrypt)
+            `shouldBe` "\"scrypt\""
+        it "EncryptWithPBKDF2 encodes as \"pbkdf2-hmac-sha512\""
+            $ Aeson.encode (ApiT EncryptWithPBKDF2)
+            `shouldBe` "\"pbkdf2-hmac-sha512\""
+        it "EncryptWithArgon2idV2 encodes as \"argon2id-v2\""
+            $ Aeson.encode (ApiT EncryptWithArgon2idV2)
+            `shouldBe` "\"argon2id-v2\""
+        it "unknown encryption_method string is rejected"
+            $ Aeson.eitherDecode @(ApiT PassphraseScheme) "\"unknown-scheme\""
+            `shouldSatisfy` isLeft
 
     describe "SealedTx JSON decoding" $ do
         -- NOTE(AB): I tried to factor more of the properties as their structure only
@@ -1899,7 +1916,7 @@ instance Arbitrary WalletName where
         | otherwise = [WalletName $ T.take walletNameMinLength t]
 
 instance Arbitrary ApiWalletPassphraseInfo where
-    arbitrary = ApiWalletPassphraseInfo <$> genUniformTime
+    arbitrary = ApiWalletPassphraseInfo <$> genUniformTime <*> arbitrary
 
 instance Arbitrary ApiMaintenanceAction where
     arbitrary = genericArbitrary

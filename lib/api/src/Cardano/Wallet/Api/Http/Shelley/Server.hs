@@ -192,6 +192,7 @@ import Cardano.Wallet
     , ErrCreateMigrationPlan (..)
     , ErrDecodeTx (..)
     , ErrGetPolicyId (..)
+    , ErrMkTransaction (..)
     , ErrNoSuchWallet (..)
     , ErrReadRewardAccount (..)
     , ErrSignPayment (..)
@@ -217,6 +218,7 @@ import Cardano.Wallet
     , networkLayer
     , readPrivateKey
     , readWalletMeta
+    , signTransactionV2
     , txWitnessTagForKey
     )
 import Cardano.Wallet.Address.Book
@@ -680,6 +682,7 @@ import Cardano.Wallet.TokenMetadata
 import Cardano.Wallet.Transaction
     ( AnyExplicitScript (..)
     , DelegationAction (..)
+    , ErrSignTx (..)
     , PreSelection (..)
     , SelectionOf (..)
     , TransactionCtx (..)
@@ -731,6 +734,7 @@ import Control.Monad.Trans.Except
 import Control.Tracer
     ( Tracer
     , contramap
+    , nullTracer
     )
 import Cryptography.Core
     ( genSalt
@@ -1156,12 +1160,14 @@ mkShelleyWallet ctx@ApiLayer{..} wid cp meta delegation pending progress = do
             , delegation = apiDelegation
             , id = ApiT wid
             , name = ApiT $ meta ^. #name
-            , passphrase =
-                ApiWalletPassphraseInfo
-                    <$> fmap (view #lastUpdatedAt) (meta ^. #passphraseInfo)
+            , passphrase = toApiPassphraseInfo <$> meta ^. #passphraseInfo
             , state = ApiT progress
             , tip
             }
+
+toApiPassphraseInfo :: WalletPassphraseInfo -> ApiWalletPassphraseInfo
+toApiPassphraseInfo WalletPassphraseInfo{lastUpdatedAt, passphraseScheme} =
+    ApiWalletPassphraseInfo lastUpdatedAt (ApiT passphraseScheme)
 
 toApiWalletDelegation
     :: W.WalletDelegation -> TimeInterpreter IO -> IO ApiWalletDelegation
@@ -1497,9 +1503,7 @@ mkSharedWallet ctx wid cp meta delegation pending progress =
                     , name = ApiT $ meta ^. #name
                     , accountIndex = ApiT $ DerivationIndex $ getIndex accIx
                     , addressPoolGap = ApiT $ Shared.poolGap st
-                    , passphrase =
-                        ApiWalletPassphraseInfo
-                            <$> fmap (view #lastUpdatedAt) (meta ^. #passphraseInfo)
+                    , passphrase = toApiPassphraseInfo <$> meta ^. #passphraseInfo
                     , paymentScriptTemplate =
                         ApiScriptTemplate
                             $ Shared.paymentTemplate st
@@ -1583,7 +1587,8 @@ patchSharedWallet ctx liftKey cred (ApiT wid) body = do
             $ withWorkerCtx @_ @s ctx wid liftE liftE
             $ \wrk ->
                 handler
-                    $ W.attachPrivateKeyFromPwdHashShelley wrk (fromJust prvKeyM)
+                    $ liftIO
+                    $ W.reattachPrivateKey wrk (fromJust prvKeyM)
 
     fst <$> getWallet ctx (mkSharedWallet @_ @s) (ApiT wid)
   where
@@ -1641,6 +1646,7 @@ mkLegacyWallet
        , HasNetworkLayer IO ctx
        , IsOurs s Address
        , IsOurs s RewardAccount
+       , WalletFlavor s
        )
     => ctx
     -> WalletId
@@ -1662,13 +1668,12 @@ mkLegacyWallet ctx wid cp meta _ pending progress = do
     pwdInfo <- case meta ^. #passphraseInfo of
         Nothing ->
             pure Nothing
-        Just (WalletPassphraseInfo time EncryptWithPBKDF2) ->
-            pure $ Just $ ApiWalletPassphraseInfo time
-        Just (WalletPassphraseInfo time EncryptWithScrypt) ->
-            withWorkerCtx @_ @s ctx wid liftE liftE $ \wrk ->
-                matchEmptyPassphrase (wrk ^. typed) <&> \case
-                    Right{} -> Nothing
-                    Left{} -> Just $ ApiWalletPassphraseInfo time
+        Just info@(WalletPassphraseInfo _ EncryptWithPBKDF2) ->
+            pure $ Just $ toApiPassphraseInfo info
+        Just info@(WalletPassphraseInfo _ EncryptWithArgon2idV2) ->
+            hideInfoForEmptyPassphrase info
+        Just info@(WalletPassphraseInfo _ EncryptWithScrypt) ->
+            hideInfoForEmptyPassphrase info
 
     tip' <- liftIO $ getWalletTip (expectAndThrowFailures ti) cp
     let available = availableBalance pending cp
@@ -1703,7 +1708,13 @@ mkLegacyWallet ctx wid cp meta _ pending progress = do
     matchEmptyPassphrase db =
         liftIO
             $ runExceptT
-            $ W.withRootKey @s db wid mempty Prelude.id (\_ _ -> pure ())
+            $ W.withRootKey @s nullTracer db wid mempty Prelude.id (\_ -> pure ())
+
+    hideInfoForEmptyPassphrase info =
+        withWorkerCtx @_ @s ctx wid liftE liftE $ \wrk ->
+            matchEmptyPassphrase (wrk ^. typed) <&> \case
+                Right{} -> Nothing
+                Left{} -> Just $ toApiPassphraseInfo info
 
 -- | A 64-bit seed for the Byron HD-random address generator, drawn from the
 -- system CSPRNG rather than the process-global 'StdGen'.
@@ -2484,41 +2495,61 @@ signTransaction ctx (ApiT wid) body = do
             tl = wrk ^. W.transactionLayer @k
             nl = wrk ^. W.networkLayer
         db & \W.DBLayer{atomically, readCheckpoint} ->
-            W.withRootKey @s db wid pwd ErrWitnessTxWithRootKey
-                $ \rootK scheme -> lift $ do
-                    cp <- atomically readCheckpoint
-                    let
-                        pwdP :: Passphrase "encryption"
-                        pwdP = preparePassphrase scheme pwd
+            W.withRootKey @s nullTracer db wid pwd ErrWitnessTxWithRootKey
+                $ \case
+                    W.RootKeyAccessV2 ekey _mPayload userPwd -> do
+                        cp <- lift $ atomically readCheckpoint
+                        era <- liftIO $ NW.currentNodeEra nl
+                        let sealedTxIn = body ^. #transaction . #getApiT
+                            utxo = totalUTxO mempty cp
+                        mSigned <-
+                            liftIO
+                                $ signTransactionV2
+                                    era
+                                    sealedTxIn
+                                    cp
+                                    utxo
+                                    ekey
+                                    userPwd
+                        case mSigned of
+                            Nothing ->
+                                throwE
+                                    $ ErrWitnessTxSignTx ErrSignTxUnimplemented
+                            Just signed -> pure signed
+                    W.RootKeyAccessV1 rootK scheme -> lift $ do
+                        cp <- atomically readCheckpoint
+                        let
+                            pwdP :: Passphrase "encryption"
+                            pwdP = preparePassphrase scheme pwd
 
-                        utxo :: UTxO.UTxO
-                        utxo = totalUTxO mempty cp
+                            utxo :: UTxO.UTxO
+                            utxo = totalUTxO mempty cp
 
-                        keyLookup = isOwned wF (getState cp) (rootK, pwdP)
+                            keyLookup = isOwned wF (getState cp) (rootK, pwdP)
 
-                        accIxForStakingM :: Maybe (Index 'Hardened 'AccountK)
-                        accIxForStakingM = getAccountIx @s (getState cp)
+                            accIxForStakingM :: Maybe (Index 'Hardened 'AccountK)
+                            accIxForStakingM = getAccountIx @s (getState cp)
 
-                        witCountCtx = shelleyOrShared
-                            wF
-                            AnyWitnessCountCtx
-                            $ \flavor ->
-                                toWitnessCountCtx flavor (getState cp)
+                            witCountCtx = shelleyOrShared
+                                wF
+                                AnyWitnessCountCtx
+                                $ \flavor ->
+                                    toWitnessCountCtx flavor (getState cp)
 
-                    era <- liftIO $ NW.currentNodeEra nl
-                    let sealedTx = body ^. #transaction . #getApiT
-                    pure
-                        $ W.signTransaction
-                            (keyFlavorFromState @s)
-                            tl
-                            era
-                            witCountCtx
-                            keyLookup
-                            Nothing
-                            (RootCredentials rootK pwdP)
-                            utxo
-                            accIxForStakingM
-                            sealedTx
+                        era <- liftIO $ NW.currentNodeEra nl
+                        let sealedTx = body ^. #transaction . #getApiT
+                        pure
+                            $ W.signTransaction
+                                (keyFlavorFromState @s)
+                                tl
+                                era
+                                witCountCtx
+                                keyLookup
+                                Nothing
+                                (RootCredentials rootK pwdP)
+                                utxo
+                                accIxForStakingM
+                                sealedTx
 
     -- TODO: The body+witnesses seem redundant with the sealedTx already. What's
     -- the use-case for having them provided separately? In the end, the client
@@ -5054,8 +5085,20 @@ rndStateChange
     -> Handler (ArgGenChange s)
 rndStateChange ctx (ApiT wid) pwd =
     withWorkerCtx @_ @s ctx wid liftE liftE $ \wrk -> liftHandler
-        $ W.withRootKey (wrk ^. dbLayer) wid pwd ErrSignPaymentWithRootKey
-        $ \xprv scheme -> pure (xprv, preparePassphrase scheme pwd)
+        $ W.withRootKey
+            nullTracer
+            (wrk ^. dbLayer)
+            wid
+            pwd
+            ErrSignPaymentWithRootKey
+        $ \case
+            W.RootKeyAccessV2{} ->
+                throwE
+                    $ ErrSignPaymentMkTx
+                    $ ErrMkTransactionTxBodyError
+                        "V2 key signing is not yet supported for Byron wallets."
+            W.RootKeyAccessV1 xprv scheme ->
+                pure (xprv, preparePassphrase scheme pwd)
 
 type RewardAccountBuilder k =
     ClearCredentials k

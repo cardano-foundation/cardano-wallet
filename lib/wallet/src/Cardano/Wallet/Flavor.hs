@@ -72,6 +72,7 @@ import Cardano.Wallet.Address.States.Families
     )
 import Cardano.Wallet.Address.States.Features
     ( TestFeatures
+    , defaultTestFeatures
     )
 import Cardano.Wallet.Address.States.Test.State
     ( TestState
@@ -148,6 +149,9 @@ instance WalletFlavor (RndAnyState n p) where
 
 instance WalletFlavor (SharedState n SharedKey) where
     walletFlavor = SharedWallet
+
+instance KeyFlavor k => WalletFlavor (TestState s n k kt) where
+    walletFlavor = TestStateS defaultTestFeatures
 
 -- | A singleton type to capture the flavor of a key.
 data KeyFlavorS a where

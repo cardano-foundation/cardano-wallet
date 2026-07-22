@@ -76,6 +76,14 @@ import Cardano.Balance.Tx.SizeEstimation
     ( TxSkeleton (..)
     , estimateTxSize
     )
+import Cardano.Crypto.Wallet.Types
+    ( DerivationScheme (DerivationScheme2)
+    )
+import Cardano.Crypto.WalletHD.Encrypted
+    ( encryptedCreateDirectWithTweak
+    , withDecryptedExtKeyMaterial
+    , withFastKdfForTesting
+    )
 import Cardano.Ledger.Address
     ( Withdrawals (..)
     )
@@ -256,6 +264,7 @@ import Cardano.Wallet.Shelley.Transaction.Ledger
     , buildLedgerTxRaw
     , certificateFromDelegationActionLedger
     , mkByronWitnessLedger
+    , mkShelleyWitnessFromExtKeyMaterial
     , mkShelleyWitnessLedger
     , noScriptWitnesses
     , txConstraints
@@ -344,6 +353,7 @@ import Data.Type.Equality
     )
 import Data.Word
     ( Word16
+    , Word32
     , Word64
     , Word8
     )
@@ -385,6 +395,7 @@ import Test.QuickCheck
     , forAll
     , forAllShow
     , frequency
+    , ioProperty
     , oneof
     , property
     , resize
@@ -421,9 +432,15 @@ import qualified Cardano.Balance.Tx.Eras as Write
 import qualified Cardano.Balance.Tx.Primitive as BT
 import qualified Cardano.Balance.Tx.Tx as Write
     ( Tx
+    , TxBody
     )
 import qualified Cardano.Crypto.Hash.Blake2b as Crypto
 import qualified Cardano.Crypto.Hash.Class as Crypto
+import qualified Cardano.Crypto.Wallet as CC
+import qualified Cardano.Crypto.WalletHD.Encrypted as EncHD
+    ( DerivationScheme (..)
+    , deriveExtKeyMaterial
+    )
 import qualified Cardano.Ledger.Coin as Ledger
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
@@ -451,6 +468,13 @@ spec = describe "TransactionSpec" $ do
     forAllRecentEras ledgerMintPlumbingSpec
     forAllRecentEras ledgerScriptWitnessParitySpec
     transactionConstraintsSpec
+    describe "V2 key witness" $ do
+        prop "V2 root witness matches V1 for same key material"
+            $ forAll genShelleyKeyAndPwd (uncurry prop_v2WitnessMatchesV1)
+        prop "V2 derived child witness matches V1"
+            $ forAll
+                ((,) <$> genShelleyKeyAndPwd <*> arbitrary)
+                (\((key, pwd), ix) -> prop_v2DerivedWitnessMatchesV1 key pwd ix)
     describe "Sign transaction" $ do
         -- TODO [ADP-2849] The implementation must be restricted to work only in
         -- 'RecentEra's, not just the tests.
@@ -2490,3 +2514,96 @@ newtype ShowOrd a = ShowOrd {unShowOrd :: a}
 
 instance (Eq a, Show a) => Ord (ShowOrd a) where
     compare = comparing show
+
+--------------------------------------------------------------------------------
+-- V2 key witness parity properties
+--------------------------------------------------------------------------------
+
+-- | Generate a Shelley root key together with the passphrase it was created
+-- with, so parity tests can correctly strip the passphrase.
+genShelleyKeyAndPwd
+    :: Gen (ShelleyKey 'RootK XPrv, Passphrase "encryption")
+genShelleyKeyAndPwd = do
+    pwd <- genPassphrase (0, 16)
+    key <- genRootKeysSeqWithPass pwd
+    pure (key, pwd)
+
+-- | Build a minimal Conway tx body for use in witness parity tests.
+minimalConwayTxBody :: Write.TxBody Write.Conway
+minimalConwayTxBody =
+    mkLedgerTx
+        RecentEraConway
+        Set.empty
+        (fromList [])
+        (Ledger.Coin 1_000_000)
+        (ValidityInterval SNothing SNothing)
+        (Withdrawals Map.empty)
+        mempty
+        mempty
+        Map.empty
+        ^. bodyTxL
+
+-- | V2 and V1 produce the same witness for the same root key material.
+--
+-- Mirrors the 'mkV2Credentials' logic: strips the passphrase from the V1
+-- 'ShelleyKey', extracts the 96-byte plaintext scalar+chain-code, wraps it
+-- in a V2 Argon2id envelope, and compares the resulting 'WitVKey' with the
+-- one produced by the V1 'mkShelleyWitnessLedger' path.
+prop_v2WitnessMatchesV1
+    :: ShelleyKey 'RootK XPrv
+    -> Passphrase "encryption"
+    -> Property
+prop_v2WitnessMatchesV1 xprvKey encPwd = ioProperty $ withFastKdfForTesting $ do
+    let rawXprv = getRawKey ShelleyKeyS xprvKey
+        plaintextXprv = CC.xPrvChangePass encPwd (mempty :: BS.ByteString) rawXprv
+        raw128 = CC.unXPrv plaintextXprv
+        masterKey96 = BS.take 64 raw128 <> BS.drop 96 raw128
+        v1Wit =
+            mkShelleyWitnessLedger
+                RecentEraConway
+                minimalConwayTxBody
+                (plaintextXprv, mempty)
+    ekeyE <-
+        encryptedCreateDirectWithTweak masterKey96 (mempty :: BS.ByteString)
+    ekey <- either (error . show) pure ekeyE
+    witE <-
+        withDecryptedExtKeyMaterial ekey (mempty :: BS.ByteString)
+            $ fmap Right
+                . mkShelleyWitnessFromExtKeyMaterial RecentEraConway minimalConwayTxBody
+    v2Wit <- either (error . show) pure witE
+    pure $ v1Wit == v2Wit
+
+-- | V2 child key and V1 child key produce the same witness for the same
+-- derivation index.
+prop_v2DerivedWitnessMatchesV1
+    :: ShelleyKey 'RootK XPrv
+    -> Passphrase "encryption"
+    -> Word32
+    -> Property
+prop_v2DerivedWitnessMatchesV1 xprvKey encPwd ix =
+    ioProperty $ withFastKdfForTesting $ do
+        let rawXprv = getRawKey ShelleyKeyS xprvKey
+            plaintextXprv =
+                CC.xPrvChangePass encPwd (mempty :: BS.ByteString) rawXprv
+            raw128 = CC.unXPrv plaintextXprv
+            masterKey96 = BS.take 64 raw128 <> BS.drop 96 raw128
+            childXprv =
+                CC.deriveXPrv
+                    DerivationScheme2
+                    (mempty :: BS.ByteString)
+                    plaintextXprv
+                    ix
+            v1Wit =
+                mkShelleyWitnessLedger
+                    RecentEraConway
+                    minimalConwayTxBody
+                    (childXprv, mempty)
+        ekeyE <-
+            encryptedCreateDirectWithTweak masterKey96 (mempty :: BS.ByteString)
+        ekey <- either (error . show) pure ekeyE
+        witE <- withDecryptedExtKeyMaterial ekey (mempty :: BS.ByteString) $ \km ->
+            EncHD.deriveExtKeyMaterial EncHD.DerivationScheme2 km ix
+                $ fmap Right
+                    . mkShelleyWitnessFromExtKeyMaterial RecentEraConway minimalConwayTxBody
+        v2Wit <- either (error . show) pure witE
+        pure $ v1Wit == v2Wit

@@ -725,7 +725,12 @@ jobs:
     needs: [build-gate-quality, build-gate-artifacts, build-gate-windows]
     runs-on: nix-enabled-runners
     timeout-minutes: 180
-    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/master')
+    # Fork PRs run without repository secrets, so ATTIC_TOKEN is empty
+    # there and the push can only fail; skip the job for them.
+    if: >-
+      (github.event_name == 'pull_request'
+       && github.event.pull_request.head.repo.full_name == github.repository)
+      || (github.event_name == 'push' && github.ref == 'refs/heads/master')
     steps:
       - name: Checkout
         uses: actions/checkout@v6

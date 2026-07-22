@@ -179,6 +179,10 @@ import Test.Integration.Framework.DSL
     , walletId
     , (</>)
     )
+import Test.Integration.Framework.Setup
+    ( legacyV1ApiWalletId
+    , legacyV1Passphrase
+    )
 import Test.Integration.Framework.TestData
     ( arabicWalletName
     , errMsg403WrongMnemonic
@@ -214,6 +218,30 @@ spec
      . HasSNetworkId n
     => SpecWith Context
 spec = describe "SHELLEY_WALLETS" $ do
+    it
+        "WALLETS_ROOT_KEY_MIGRATION_01 - \
+        \HTTP can use a persisted V1 root key after upgrading"
+        $ \ctx -> runResourceT $ do
+            let w = ApiT legacyV1ApiWalletId
+            let payload =
+                    Json
+                        [json|
+                        { "passphrase": #{legacyV1Passphrase}
+                        , "metadata": {"0": { "string": "migration fixture" }}
+                        }|]
+            forM_ [1 :: Int, 2] $ \_ -> do
+                r <-
+                    rawRequest
+                        ctx
+                        (Link.signMetadata w MutableAccount (DerivationIndex 0))
+                        ( Headers
+                            [ (HTTP.hAccept, "*/*")
+                            , (HTTP.hContentType, "application/json")
+                            ]
+                        )
+                        payload
+                expectResponseCode HTTP.status200 r
+
     it "WALLETS_CREATE_01 - Create a wallet" $ \ctx -> runResourceT $ do
         m15 <- Mnemonics.generateSome Mnemonics.M15
         m12 <- Mnemonics.generateSome Mnemonics.M12

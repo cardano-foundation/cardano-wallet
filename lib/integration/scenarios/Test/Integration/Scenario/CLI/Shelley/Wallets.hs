@@ -70,6 +70,9 @@ import Data.Proxy
 import Data.Text
     ( Text
     )
+import Data.Text.Class
+    ( toText
+    )
 import Data.Word
     ( Word32
     )
@@ -127,6 +130,10 @@ import Test.Integration.Framework.DSL
     , verify
     , walletId
     )
+import Test.Integration.Framework.Setup
+    ( legacyV1CliWalletId
+    , legacyV1Passphrase
+    )
 import Test.Integration.Framework.TestData
     ( arabicWalletName
     , cmdOk
@@ -146,6 +153,33 @@ spec
      . HasSNetworkId n
     => SpecWith Context
 spec = describe "SHELLEY_CLI_WALLETS" $ do
+    it
+        "WALLETS_ROOT_KEY_MIGRATION_01 - \
+        \CLI can use a persisted V1 root key after upgrading"
+        $ \ctx -> runResourceT $ do
+            let wid = T.unpack $ toText legacyV1CliWalletId
+            let oldPassphrase = T.unpack legacyV1Passphrase
+            let newPassphrase = oldPassphrase
+            (c1, _out1, err1) <-
+                updateWalletPassphraseViaCLI
+                    ctx
+                    wid
+                    oldPassphrase
+                    newPassphrase
+                    newPassphrase
+            c1 `shouldBe` ExitSuccess
+            T.unpack err1 `shouldContain` cmdOk
+
+            (c2, _out2, err2) <-
+                updateWalletPassphraseViaCLI
+                    ctx
+                    wid
+                    newPassphrase
+                    oldPassphrase
+                    oldPassphrase
+            c2 `shouldBe` ExitSuccess
+            T.unpack err2 `shouldContain` cmdOk
+
     it "BYRON_GET_03 - Shelley CLI does not show Byron wallet" $ \ctx -> runResourceT $ do
         wid <- emptyRandomWallet' ctx
         (Exit c, Stdout out, Stderr err) <- getWalletViaCLI ctx wid

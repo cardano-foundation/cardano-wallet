@@ -53,9 +53,6 @@ import Cardano.BM.Setup
 import Cardano.BM.Trace
     ( traceInTVarIO
     )
-import Cardano.Crypto.Wallet
-    ( XPrv
-    )
 import Cardano.DB.Sqlite
     ( DBLog (..)
     )
@@ -68,9 +65,11 @@ import Cardano.Mnemonic
     ( SomeMnemonic (..)
     )
 import Cardano.Wallet
-    ( putPrivateKey
+    ( RootKeyAccess (..)
+    , putPrivateKey
     , readPrivateKey
     , readWalletMeta
+    , withRootKey
     )
 import Cardano.Wallet.Address.Derivation
     ( Depth (..)
@@ -174,7 +173,6 @@ import Cardano.Wallet.Primitive.Passphrase
     )
 import Cardano.Wallet.Primitive.Passphrase.Types
     ( Passphrase (..)
-    , PassphraseHash (..)
     , PassphraseScheme (..)
     , WalletPassphraseInfo (..)
     )
@@ -198,7 +196,8 @@ import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
 import Cardano.Wallet.Primitive.Types.Credentials
-    ( RootCredentials (..)
+    ( HashedCredentials (..)
+    , RootCredentials (..)
     )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
@@ -244,6 +243,9 @@ import Control.Monad.IO.Class
     ( MonadIO
     , liftIO
     )
+import Control.Monad.Trans.Except
+    ( runExceptT
+    )
 import Control.Tracer
     ( Tracer
     )
@@ -255,6 +257,9 @@ import Data.ByteString
     )
 import Data.Coerce
     ( coerce
+    )
+import Data.Either
+    ( isLeft
     )
 import Data.Generics.Internal.VL.Lens
     ( over
@@ -346,6 +351,7 @@ import Test.Hspec
     , before
     , beforeWith
     , describe
+    , expectationFailure
     , it
     , shouldBe
     , shouldContain
@@ -678,8 +684,42 @@ fileModeSpec = do
                 testReopening f getWalletId' testWid
 
             it "create and get private key" $ \f -> do
-                (k, h) <- withShelleyFileBootDBLayer f attachPrivateKey
-                testReopening f readPrivateKey' (Just (k, h))
+                creds <- withShelleyFileBootDBLayer f attachPrivateKey
+                testReopening f readPrivateKey' (Just creds)
+
+            it "withRootKey migrates V1 private key to V2 on disk" $ \f -> do
+                withShelleyFileBootDBLayer f attachV1PrivateKeyWithMeta
+                withShelleyFileLoadedDBLayer @TestState f $ \db -> do
+                    beforeMigration <- readPrivateKey' db
+                    assertHashedCredentialsV1 beforeMigration
+                    unlocked <-
+                        runExceptT
+                            $ withRootKey nullTracer db testWid migrationPwd id
+                            $ \case
+                                RootKeyAccessV1 _ s -> pure s
+                                RootKeyAccessV2{} -> pure EncryptWithArgon2idV2
+                    unlocked `shouldBeRight` EncryptWithPBKDF2
+                    (credsAfter, metaAfter) <- readPrivateKeyAndMeta' db
+                    assertHashedCredentialsV2 credsAfter
+                    (passphraseScheme <$> passphraseInfo metaAfter)
+                        `shouldBe` Just EncryptWithArgon2idV2
+                withShelleyFileLoadedDBLayer @TestState f $ \db -> do
+                    (credsAfterReopen, metaAfterReopen) <- readPrivateKeyAndMeta' db
+                    assertHashedCredentialsV2 credsAfterReopen
+                    (passphraseScheme <$> passphraseInfo metaAfterReopen)
+                        `shouldBe` Just EncryptWithArgon2idV2
+                    unlockedAgain <-
+                        runExceptT
+                            $ withRootKey nullTracer db testWid migrationPwd id
+                            $ \case
+                                RootKeyAccessV1 _ s -> pure s
+                                RootKeyAccessV2{} -> pure EncryptWithArgon2idV2
+                    unlockedAgain `shouldBeRight` EncryptWithArgon2idV2
+                    rejected <-
+                        runExceptT
+                            $ withRootKey nullTracer db testWid wrongMigrationPwd id
+                            $ \_ -> pure ()
+                    rejected `shouldSatisfy` isLeft
 
             it "put and read tx history (Ascending)" $ \f -> do
                 withShelleyFileBootDBLayer f $ \DBLayer{atomically, putTxHistory} ->
@@ -1181,21 +1221,90 @@ readTransactions' DBLayer{..} a1 a2 mstatus =
 
 readPrivateKey'
     :: DBLayer m s
-    -> m (Maybe (KeyOf s 'RootK XPrv, PassphraseHash))
+    -> m (Maybe (HashedCredentials (KeyOf s)))
 readPrivateKey' DBLayer{..} = atomically $ readPrivateKey walletState
+
+readPrivateKeyAndMeta'
+    :: DBLayer m s
+    -> m (Maybe (HashedCredentials (KeyOf s)), WalletMetadata)
+readPrivateKeyAndMeta' DBLayer{..} =
+    atomically
+        $ (,) <$> readPrivateKey walletState <*> readWalletMeta walletState
 
 -- | Attach an arbitrary private key to a wallet
 attachPrivateKey
     :: KeyOf s ~ ShelleyKey
     => DBLayer IO s
-    -> IO (KeyOf s 'RootK XPrv, PassphraseHash)
+    -> IO (HashedCredentials (KeyOf s))
 attachPrivateKey DBLayer{..} = do
     let pwd = Passphrase $ BA.convert $ T.encodeUtf8 "simplevalidphrase"
     seed <- liftIO $ generate $ SomeMnemonic <$> genMnemonic @15
     (scheme, h) <- liftIO $ encryptPassphrase pwd
     let k = generateKeyFromSeed (seed, Nothing) (preparePassphrase scheme pwd)
-    atomically $ putPrivateKey walletState (k, h)
-    return (k, h)
+        creds = HashedCredentialsV1 k h
+    atomically $ putPrivateKey walletState creds
+    return creds
+
+attachV1PrivateKeyWithMeta
+    :: DBLayer IO TestState
+    -> IO ()
+attachV1PrivateKeyWithMeta DBLayer{..} = do
+    seed <- liftIO $ generate $ SomeMnemonic <$> genMnemonic @15
+    now <- getCurrentTime
+    (scheme, h) <- liftIO $ encryptPassphrase migrationPwd
+    let k =
+            generateKeyFromSeed
+                (seed, Nothing)
+                (preparePassphrase scheme migrationPwd)
+        creds = HashedCredentialsV1 k h
+    atomically $ do
+        putPrivateKey walletState creds
+        meta <- readWalletMeta walletState
+        Delta.onDBVar walletState
+            $ Delta.update
+            $ \_ ->
+                [ WalletState.UpdateInfo
+                    $ WalletInfo.UpdateWalletMetadata
+                    $ meta
+                        { passphraseInfo =
+                            Just
+                                $ WalletPassphraseInfo
+                                    { lastUpdatedAt = now
+                                    , passphraseScheme = scheme
+                                    }
+                        }
+                ]
+
+assertHashedCredentialsV1
+    :: Maybe (HashedCredentials ShelleyKey)
+    -> Expectation
+assertHashedCredentialsV1 = \case
+    Just HashedCredentialsV1{} -> pure ()
+    _ -> expectationFailure "expected HashedCredentialsV1"
+
+assertHashedCredentialsV2
+    :: Maybe (HashedCredentials ShelleyKey)
+    -> Expectation
+assertHashedCredentialsV2 = \case
+    Just HashedCredentialsV2{} -> pure ()
+    _ -> expectationFailure "expected HashedCredentialsV2"
+
+shouldBeRight
+    :: (Eq a, Show a)
+    => Either e a
+    -> a
+    -> Expectation
+shouldBeRight result expected = case result of
+    Right actual -> actual `shouldBe` expected
+    Left _ -> expectationFailure "expected Right"
+
+migrationPwd :: Passphrase "user"
+migrationPwd =
+    Passphrase $ BA.convert @BS.ByteString "simplevalidphrase"
+
+wrongMigrationPwd :: Passphrase "user"
+wrongMigrationPwd =
+    Passphrase $ BA.convert @BS.ByteString "wrongvalidphrase"
 
 cutRandomly :: [a] -> IO [[a]]
 cutRandomly = iter []

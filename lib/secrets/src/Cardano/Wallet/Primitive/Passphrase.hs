@@ -42,6 +42,12 @@ import Prelude
 import qualified Cardano.Wallet.Primitive.Passphrase.Current as PBKDF2
 import qualified Cardano.Wallet.Primitive.Passphrase.Legacy as Scrypt
 
+-- | The PBKDF2 scheme used for V1 key hashing and as the intermediate
+-- derivation step when creating V2 credentials.
+--
+-- This intentionally remains 'EncryptWithPBKDF2' even though new wallets are
+-- stored as V2 envelopes: 'mkV2Credentials' calls @xPrvChangePass prepared
+-- mempty@ to extract the plaintext scalar, which requires PBKDF2 preparation.
 currentPassphraseScheme :: PassphraseScheme
 currentPassphraseScheme = EncryptWithPBKDF2
 
@@ -64,6 +70,10 @@ preparePassphrase
 preparePassphrase = \case
     EncryptWithPBKDF2 -> PBKDF2.preparePassphrase
     EncryptWithScrypt -> Scrypt.preparePassphrase
+    -- V2 passphrase validation goes through 'encryptedValidatePassphrase',
+    -- not 'checkPassphrase'; returning mempty here is a safe default that
+    -- prevents accidental use of this V1 XPrv passphrase-preparation path.
+    EncryptWithArgon2idV2 -> \_ -> Passphrase mempty
 
 -- | Check whether a 'Passphrase' matches with a stored 'Hash'
 checkPassphrase
@@ -77,6 +87,10 @@ checkPassphrase scheme received stored = case scheme of
         if Scrypt.checkPassphrase prepared stored
             then Right ()
             else Left ErrWrongPassphrase
+    EncryptWithArgon2idV2 ->
+        -- v2 keys are self-authenticating via AEAD; this path should not be
+        -- reached, but fail safely if it is.
+        Left ErrWrongPassphrase
   where
     prepared = preparePassphrase scheme received
 
