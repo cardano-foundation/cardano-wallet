@@ -10,7 +10,7 @@ concurrency:
 jobs:
   build-e2e:
     name: "Build E2E Bundle (Windows)"
-    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    runs-on: nix-enabled-runners
     steps:
       - name: Checkout
         uses: actions/checkout@v6

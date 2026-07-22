@@ -12,7 +12,7 @@ concurrency:
 jobs:
   build-release:
     name: "Build Release Package (Windows)"
-    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    runs-on: nix-enabled-runners
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -32,7 +32,7 @@ jobs:
 
   build-gate-win-tests:
     name: "Build Gate (Windows Tests)"
-    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    runs-on: nix-enabled-runners
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -60,7 +60,7 @@ jobs:
   upload-win-test:
     name: "Upload ${{ matrix.name }}"
     needs: build-gate-win-tests
-    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    runs-on: nix-enabled-runners
     strategy:
       fail-fast: false
       matrix:
