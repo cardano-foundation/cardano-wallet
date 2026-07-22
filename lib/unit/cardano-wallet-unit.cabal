@@ -1,6 +1,6 @@
 cabal-version:      3.6
 name:               cardano-wallet-unit
-version:            2026.5.11
+version:            2026.7.22
 synopsis:           Cardano wallet unit tests
 description:        Please see README.md
 homepage:           https://github.com/cardano-foundation/cardano-wallet
