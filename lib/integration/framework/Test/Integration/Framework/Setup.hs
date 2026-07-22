@@ -13,6 +13,7 @@
 
 module Test.Integration.Framework.Setup
     ( TestingCtx (..)
+    , httpManager
     , legacyV1ApiWalletId
     , legacyV1CliWalletId
     , legacyV1SharedWalletId
