@@ -7,7 +7,9 @@ import Cardano.BM.ToTextTracer
     , withToTextTracer
     )
 import Cardano.Launcher.Node
-    ( nodeSocketFile
+    ( isWindows
+    , mkWindowsPipeName
+    , nodeSocketFile
     )
 import Cardano.Startup
     ( installSignalHandlers
@@ -79,6 +81,9 @@ import System.Directory
     )
 import System.Environment.Extended
     ( isEnvSet
+    )
+import System.FilePath
+    ( takeFileName
     )
 import System.IO
     ( BufferMode (NoBuffering)
@@ -274,11 +279,25 @@ main = withUtf8 $ do
 
         debug "Creating cluster configuration"
         clusterCfg <- do
-            -- ATM, only unix is supported
-            socketPath <- fmap UnixPipe $ case nodeToClientSocket of
-                Just path -> pure path
-                Nothing ->
-                    FileOf . absFile <$> ContT withTempFile
+            -- Windows needs a named pipe (\\.\pipe\...); Unix uses a socket file.
+            socketPath <- case nodeToClientSocket of
+                Just path
+                    | isWindows ->
+                        pure
+                            $ WindowsPipe
+                            $ mkWindowsPipeName
+                            $ takeFileName
+                            $ toFilePath
+                            $ absFileOf path
+                    | otherwise -> pure $ UnixPipe path
+                Nothing
+                    | isWindows -> do
+                        -- Unique basename only; cardano-node CreateNamedPipe
+                        -- rejects filesystem paths.
+                        tmp <- ContT withTempFile
+                        pure $ WindowsPipe $ mkWindowsPipeName $ takeFileName tmp
+                    | otherwise ->
+                        UnixPipe . FileOf . absFile <$> ContT withTempFile
             clusterEra <- liftIO Cluster.clusterEraFromEnv
             cfgNodeLogging <-
                 liftIO
