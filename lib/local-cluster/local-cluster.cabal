@@ -211,6 +211,7 @@ executable local-cluster
     , contra-tracer
     , directory
     , extra
+    , filepath
     , iohk-monitoring-extra
     , lens
     , local-cluster

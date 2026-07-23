@@ -85,6 +85,7 @@ jobs:
           .#ci.artifacts.win64.tests.delta-types
           .#ci.artifacts.win64.tests.std-gen-seed
           .#ci.artifacts.win64.tests.wai-middleware-logging
+          .#ci.artifacts.win64.integration
 
   build-gate-quality:
     name: "Build Gate (Dev Shell)"
