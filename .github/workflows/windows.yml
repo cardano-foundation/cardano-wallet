@@ -56,6 +56,52 @@ jobs:
           .#ci.artifacts.win64.tests.delta-types
           .#ci.artifacts.win64.tests.std-gen-seed
           .#ci.artifacts.win64.tests.wai-middleware-logging
+          .#ci.artifacts.win64.integration
+
+  # Local-cluster smoke: one API scenario (create + single tx) against the
+  # cross-compiled Windows wallet/node/cli. Preprod E2E remains Linux-only.
+  build-integration-smoke:
+    name: "Build Integration Smoke (Windows)"
+    runs-on: nix-enabled-runners
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Cross-compile Windows integration smoke bundle
+        run: nix build --quiet .#ci.artifacts.win64.integration -o result
+
+      - name: Upload smoke bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: win-integration-smoke
+          path: result/
+
+  integration-smoke:
+    name: "Integration Smoke"
+    needs: build-integration-smoke
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 45
+    steps:
+      - name: Download smoke bundle
+        uses: actions/download-artifact@v8
+        with:
+          name: win-integration-smoke
+          path: smoke-bundle
+
+      - name: Run TRANS_CREATE_01x on local cluster
+        working-directory: smoke-bundle
+        env:
+          LOCAL_CLUSTER_CONFIGS: test\data\cluster-configs
+          CARDANO_WALLET_TEST_DATA: test\data
+        shell: pwsh
+        run: |
+          $env:PATH = "$(Get-Location);$env:PATH"
+          .\integration.exe `
+            --fail-on=empty `
+            --match "TRANS_CREATE_01x - Single Output Transaction" `
+            -j1
 
   upload-win-test:
     name: "Upload ${{ matrix.name }}"

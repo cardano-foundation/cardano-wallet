@@ -18,7 +18,8 @@ jobs:
           fetch-depth: 0
 
       - name: Cross-compile Windows E2E bundle
-        run: nix build --quiet .#ci.artifacts.win64.e2e -o result
+        # Local-cluster integration smoke (not preprod).
+        run: nix build --quiet .#ci.artifacts.win64.integration -o result
 
       - name: Upload E2E bundle
         uses: actions/upload-artifact@v7
@@ -30,21 +31,23 @@ jobs:
     name: "Windows E2E Tests"
     needs: build-e2e
     runs-on: windows-2025-vs2026
-    timeout-minutes: 120
+    timeout-minutes: 45
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-
       - name: Download E2E bundle
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: win-e2e
           path: e2e-bundle
 
-      - name: Run E2E tests
+      - name: Run Windows smoke (create wallet + single tx)
         working-directory: e2e-bundle
         env:
-          HAL_E2E_PREPROD_MNEMONICS: ${{ secrets.HAL_E2E_PREPROD_MNEMONICS }}
-        run: .\e2e.exe
+          LOCAL_CLUSTER_CONFIGS: test\data\cluster-configs
+          CARDANO_WALLET_TEST_DATA: test\data
+        shell: pwsh
+        run: |
+          $env:PATH = "$(Get-Location);$env:PATH"
+          .\integration.exe `
+            --fail-on=empty `
+            --match "TRANS_CREATE_01x - Single Output Transaction" `
+            -j1

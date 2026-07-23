@@ -314,6 +314,8 @@
 
                 # Unit test executables (for running with custom RTS flags)
                 unit-cardano-wallet-unit = project.hsPkgs.cardano-wallet-unit.components.tests.unit;
+                unit-cardano-wallet-integration =
+                  project.hsPkgs.cardano-wallet-integration.components.tests.integration;
                 unit-cardano-wallet-primitive = project.hsPkgs.cardano-wallet-primitive.components.tests.test;
                 unit-cardano-wallet-secrets = project.hsPkgs.cardano-wallet-secrets.components.tests.test;
                 unit-cardano-wallet-network-layer =
@@ -515,6 +517,22 @@
                       std-gen-seed = mkTest "std-gen-seed" windowsPackages.unit-std-gen-seed;
                       wai-middleware-logging = mkTest "wai-middleware-logging" windowsPackages.unit-wai-middleware-logging;
                     };
+                  # Local-cluster integration bundle for a short Windows smoke
+                  # (single-test match in windows.yml, release, windows-e2e).
+                  integration = import ./nix/windows-test-exe.nix {
+                    inherit pkgs;
+                    name = "integration";
+                    test = windowsPackages.unit-cardano-wallet-integration;
+                    extraPkgs = [
+                      windowsPackages.cardano-wallet
+                      windowsPackages.cardano-node
+                      windowsPackages.cardano-cli
+                    ];
+                    testDataDirs = [
+                      ./lib/local-cluster/test/data
+                      ./lib/integration/test/data
+                    ];
+                  };
                   e2e = import ./nix/windows-test-exe.nix {
                     inherit pkgs;
                     name = "e2e";
