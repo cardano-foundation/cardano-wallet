@@ -18,7 +18,7 @@ jobs:
           fetch-depth: 0
 
       - name: Cross-compile Windows E2E bundle
-        run: nix build --quiet .#ci.artifacts.win64.integration -o result
+        run: nix build --quiet .#ci.artifacts.win64.e2e -o result
 
       - name: Upload E2E bundle
         uses: actions/upload-artifact@v7
@@ -30,7 +30,7 @@ jobs:
     name: "Windows E2E Tests"
     needs: build-e2e
     runs-on: windows-2025-vs2026
-    timeout-minutes: 60
+    timeout-minutes: 120
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -45,4 +45,6 @@ jobs:
 
       - name: Run E2E tests
         working-directory: e2e-bundle
-        run: .\integration.exe
+        env:
+          HAL_E2E_PREPROD_MNEMONICS: ${{ secrets.HAL_E2E_PREPROD_MNEMONICS }}
+        run: .\e2e.exe

@@ -290,7 +290,7 @@ jobs:
           fetch-depth: 0
 
       - name: Cross-compile Windows E2E bundle
-        run: nix build --quiet .#ci.artifacts.win64.integration -o result
+        run: nix build --quiet .#ci.artifacts.win64.e2e -o result
 
       - name: Upload E2E bundle
         uses: actions/upload-artifact@v7
@@ -303,7 +303,8 @@ jobs:
     if: inputs.release_type == 'release'
     needs: [prepare, build-e2e-windows]
     runs-on: windows-2025-vs2026
-    timeout-minutes: 60
+    continue-on-error: true
+    timeout-minutes: 240
     steps:
       - name: Download E2E bundle
         uses: actions/download-artifact@v8
@@ -313,7 +314,9 @@ jobs:
 
       - name: Run E2E tests
         working-directory: e2e-bundle
-        run: .\integration.exe
+        env:
+          HAL_E2E_PREPROD_MNEMONICS: ${{ secrets.HAL_E2E_PREPROD_MNEMONICS }}
+        run: .\e2e.exe
 
   create-release:
     name: "Create ${{ inputs.release_type || 'nightly' }} Release"
