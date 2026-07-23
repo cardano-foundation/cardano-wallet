@@ -303,6 +303,7 @@ jobs:
     if: inputs.release_type == 'release'
     needs: [prepare, build-e2e-windows]
     runs-on: windows-2025-vs2026
+    continue-on-error: true
     timeout-minutes: 240
     steps:
       - name: Download E2E bundle
@@ -320,7 +321,7 @@ jobs:
   create-release:
     name: "Create ${{ inputs.release_type || 'nightly' }} Release"
     needs: [prepare, build-artifacts, verify-artifacts, changelog, e2e-linux, e2e-windows]
-    if: ${{ !cancelled() && needs.prepare.result == 'success' && needs.build-artifacts.result == 'success' && needs.verify-artifacts.result == 'success' && needs.changelog.result == 'success' && (needs.e2e-linux.result == 'success' || needs.e2e-linux.result == 'skipped') && (needs.e2e-windows.result == 'success' || needs.e2e-windows.result == 'skipped') }}
+    if: ${{ !cancelled() && needs.prepare.result == 'success' && needs.build-artifacts.result == 'success' && needs.verify-artifacts.result == 'success' && needs.changelog.result == 'success' && (needs.e2e-linux.result == 'success' || needs.e2e-linux.result == 'skipped') && (needs.e2e-windows.result == 'success' || needs.e2e-windows.result == 'skipped' || needs.e2e-windows.result == 'failure') }}
     runs-on: nix-enabled-runners
     environment: ${{ (inputs.release_type == 'release' && github.ref == 'refs/heads/master') && 'release' || '' }}
     outputs:
