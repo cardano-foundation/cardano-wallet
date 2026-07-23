@@ -105,7 +105,9 @@ jobs:
           echo "Checkout OK: $actual_commit @ $actual_cabal_version"
 
       - name: Build
-        run: nix build --quiet -o result .#${{ matrix.output }}
+        run: |
+          rm -rf result
+          nix build --quiet -o result .#${{ matrix.output }}
 
       - name: Smoke test built artifact
         if: matrix.binary != ''
@@ -219,7 +221,10 @@ jobs:
           EXPECTED_VERSION: ${{ needs.prepare.outputs.release-version }}
         run: |
           cd artifact
-          archive=$(find . -type f \( -name '*.tar.gz' -o -name '*.zip' \) | head -1)
+          archive=$(find . -type f \( -name '*.tar.gz' -o -name '*.zip' \) | grep "$EXPECTED_VERSION" | head -1)
+          if [ -z "$archive" ]; then
+            archive=$(find . -type f \( -name '*.tar.gz' -o -name '*.zip' \) | head -1)
+          fi
           if [ -z "$archive" ]; then
             echo "ERROR: no archive found in artifact"
             ls -laR .
