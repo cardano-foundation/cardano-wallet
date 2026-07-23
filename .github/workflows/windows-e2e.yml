@@ -45,6 +45,4 @@ jobs:
 
       - name: Run E2E tests
         working-directory: e2e-bundle
-        env:
-          LOCAL_CLUSTER_CONFIGS: test\data\cluster-configs
         run: .\integration.exe
