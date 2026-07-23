@@ -523,7 +523,10 @@
                     inherit pkgs;
                     name = "integration";
                     test = windowsPackages.unit-cardano-wallet-integration;
+                    # integration harness spawns local-cluster, which in turn
+                    # launches wallet/node/cli from PATH.
                     extraPkgs = [
+                      windowsPackages.local-cluster
                       windowsPackages.cardano-wallet
                       windowsPackages.cardano-node
                       windowsPackages.cardano-cli
