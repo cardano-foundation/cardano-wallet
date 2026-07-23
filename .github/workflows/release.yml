@@ -309,7 +309,7 @@ jobs:
     timeout-minutes: 45
     steps:
       - name: Download E2E bundle
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v7
         with:
           name: win-e2e
           path: e2e-bundle/

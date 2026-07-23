@@ -85,7 +85,7 @@ jobs:
     timeout-minutes: 45
     steps:
       - name: Download smoke bundle
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v7
         with:
           name: win-integration-smoke
           path: smoke-bundle
