@@ -5,21 +5,30 @@ name: Publish Release
 # builds, verifies, and uploads assets to a draft; this workflow runs the
 # public-facing side-effects (docker push + gh-pages redirect) after a human
 # has reviewed and published the release notes.
+#
+# workflow_dispatch lets a maintainer re-run the public-facing side-effects for
+# an already-published release (e.g. after a failed run) without unpublishing it.
 
 on:
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to publish side-effects for (e.g. v2026-07-23)"
+        required: true
+        type: string
 
 jobs:
   push-docker:
     name: "Push Docker Image"
     # Skip for prereleases (nightly/test are published as prereleases and
     # already had their docker image pushed by release.yml).
-    if: ${{ !github.event.release.prerelease }}
+    if: ${{ github.event_name == 'workflow_dispatch' || !github.event.release.prerelease }}
     runs-on: nix-enabled-runners
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      TAG: ${{ github.event.release.tag_name }}
+      TAG: ${{ github.event.inputs.tag || github.event.release.tag_name }}
     steps:
       - name: Download docker-image asset
         shell: nix shell --quiet nixpkgs#gh -c bash -e {0}
@@ -51,17 +60,22 @@ jobs:
 
   update-docs:
     name: "Update Documentation Links"
-    if: ${{ !github.event.release.prerelease }}
+    if: ${{ github.event_name == 'workflow_dispatch' || !github.event.release.prerelease }}
     runs-on: nix-enabled-runners
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      TAG: ${{ github.event.release.tag_name }}
+      TAG: ${{ github.event.inputs.tag || github.event.release.tag_name }}
     steps:
       - name: Checkout gh-pages
         uses: actions/checkout@v6
         with:
           ref: gh-pages
           fetch-depth: 0
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
       - name: Update redirects
         run: |
