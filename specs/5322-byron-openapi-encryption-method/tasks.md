@@ -39,10 +39,10 @@
 
 ## Slice 3 — Regression test: incomplete shared wallet omits `passphrase`
 
-- [ ] T5322-S3a New unit test: encoding an `ApiIncompleteSharedWallet`
+- [X] T5322-S3a New unit test: encoding an `ApiIncompleteSharedWallet`
       (or `ApiSharedWallet`'s `Left` branch) to JSON never produces a
       `"passphrase"` key.
-- [ ] T5322-S3b Commit (one commit, Tasks: T5322-S3a).
+- [X] T5322-S3b Commit (one commit, Tasks: T5322-S3a).
 
 ## Slice 4 — Fix `openapi-diff.sh` release-tag baseline selection
 

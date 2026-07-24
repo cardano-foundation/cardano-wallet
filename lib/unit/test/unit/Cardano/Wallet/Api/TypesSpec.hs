@@ -910,6 +910,16 @@ spec = do
             $ Aeson.eitherDecode @(ApiT PassphraseScheme) "\"unknown-scheme\""
             `shouldSatisfy` isLeft
 
+    describe "ApiIncompleteSharedWallet passphrase regression" $ do
+        it "an incomplete shared wallet response never has a passphrase key"
+            $ property
+            $ \(w :: ApiIncompleteSharedWallet) ->
+                case toJSON w of
+                    Aeson.Object obj ->
+                        counterexample (show obj)
+                            $ not (Aeson.member "passphrase" obj)
+                    _ -> property False
+
     describe "SealedTx JSON decoding" $ do
         -- NOTE(AB): I tried to factor more of the properties as their structure only
         -- differs by the encoding but this required exporting 'HasBase' from Types to
