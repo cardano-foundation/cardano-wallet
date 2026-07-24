@@ -46,13 +46,13 @@
 
 ## Slice 4 — Fix `openapi-diff.sh` release-tag baseline selection
 
-- [ ] T5322-S4a Change the `jq` filter in
+- [X] T5322-S4a Change the `jq` filter in
       `scripts/release/openapi-diff.sh` to
       `select(.prerelease == false)` before picking `.tag_name`.
-- [ ] T5322-S4b Manual smoke: paste before/after `curl | jq` output in
+- [X] T5322-S4b Manual smoke: paste before/after `curl | jq` output in
       `WIP.md` showing a stable tag is chosen even with a more-recent
       `nightly` present.
-- [ ] T5322-S4c Commit (one commit, Tasks: T5322-S4a, T5322-S4b).
+- [X] T5322-S4c Commit (one commit, Tasks: T5322-S4a, T5322-S4b).
 
 ## Finalization
 
