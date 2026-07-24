@@ -96,3 +96,8 @@ cabal.project.freeze
 # Emacs
 *~
 cabal.project.local
+
+# resolve-ticket orchestration scratch (this worktree only)
+WIP.md
+.worker-brief-slice-*.md
+.qwen/

@@ -13,7 +13,7 @@ go install github.com/oasdiff/oasdiff@v1.11.11
 
 swagger_tmp=$(mktemp -d)
 swagger_file="specifications/api/swagger.yaml"
-last_release_tag=$(curl -s https://api.github.com/repos/cardano-foundation/cardano-wallet/releases | jq -r '.[0].tag_name')
+last_release_tag=$(curl -s https://api.github.com/repos/cardano-foundation/cardano-wallet/releases | jq -r '[.[] | select(.prerelease == false)][0].tag_name')
 
 git fetch --tags --force
 
