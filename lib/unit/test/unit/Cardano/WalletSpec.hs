@@ -72,6 +72,9 @@ import Cardano.Wallet.Address.Derivation
     , Role (..)
     , deriveAccountPrivateKey
     )
+import Cardano.Wallet.Address.Derivation.Byron
+    ( ByronKey
+    )
 import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey (..)
     , generateKeyFromSeed
@@ -82,6 +85,10 @@ import Cardano.Wallet.Address.Discovery
     , IsOurs (..)
     , KnownAddresses (..)
     , coinTypeAda
+    )
+import Cardano.Wallet.Address.Discovery.Random
+    ( RndState
+    , mkRndState
     )
 import Cardano.Wallet.Address.Discovery.Sequential
     ( purposeCIP1852
@@ -122,7 +129,7 @@ import Cardano.Wallet.DummyTarget.Primitive.Types
 import Cardano.Wallet.Flavor
     ( CredFromOf
     , KeyOf
-    , WalletFlavorS (TestStateS)
+    , WalletFlavorS (ByronWallet, TestStateS)
     )
 import Cardano.Wallet.Gen
     ( genMnemonic
@@ -438,6 +445,7 @@ import qualified Cardano.Balance.Tx.Eras as Write
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.Address.Book as Sqlite
+import qualified Cardano.Wallet.Address.Derivation.Byron as Byron
 import qualified Cardano.Wallet.Balance.Migration as Migration
 import qualified Cardano.Wallet.DB.Sqlite.Types as DB
 import qualified Cardano.Wallet.DB.Store.Checkpoints.Store as Sqlite
@@ -519,6 +527,12 @@ spec = describe "Cardano.WalletSpec" $ do
         it
             "password change V1→V2 preserves derived public keys"
             walletPasswordChangeV1ToV2PreservesPublicKey
+        it
+            "Byron attachPrivateKeyFromPwd stores V1, never V2"
+            byronAttachPrivateKeyFromPwdNeverV2
+        it
+            "Byron withRootKey does not migrate V1 to V2"
+            byronWithRootKeyNoMigration
 
     describe "Tx fee estimation spread"
         $ it
@@ -966,6 +980,68 @@ testEmptyHash = encryptPassphrase (preparePassphrase testEmptyPwd) fixedSalt
     fixedSalt :: Passphrase "salt"
     fixedSalt =
         Passphrase (BA.convert @BS.ByteString "0123456789abcdef")
+
+-- | A fixed (WalletId, WalletName, RndState) for Byron migration tests.
+testByronWallet :: (WalletId, WalletName, RndState 'Mainnet)
+testByronWallet =
+    ( WalletId (hash @BS.ByteString "byron-migration-test")
+    , WalletName "Byron Migration Test"
+    , mkRndState testByronKey 0
+    )
+
+testByronKey :: ByronKey 'RootK XPrv
+testByronKey =
+    Byron.generateKeyFromSeed
+        (someDummyMnemonic (Proxy @15))
+        (preparePassphrase testPwd)
+
+-- | Byron attachPrivateKeyFromPwd must store HashedCredentialsV1, never V2.
+byronAttachPrivateKeyFromPwdNeverV2 :: IO ()
+byronAttachPrivateKeyFromPwdNeverV2 = do
+    WalletLayerFixture DBLayer{walletState, atomically} wl _wid <-
+        setupFixtureByron ByronWallet testByronWallet
+    W.attachPrivateKeyFromPwd wl (testByronKey, testPwd)
+    mCreds <- atomically $ readPrivateKey walletState
+    case mCreds of
+        Just (HashedCredentialsV1 _ _) -> pure ()
+        Just (HashedCredentialsV2 _ _) ->
+            expectationFailure
+                "Byron attachPrivateKeyFromPwd stored HashedCredentialsV2; \
+                \expected HashedCredentialsV1"
+        Nothing ->
+            expectationFailure
+                "Byron attachPrivateKeyFromPwd stored no credentials"
+
+-- | Byron withRootKey must NOT migrate V1 → V2 (no-op branch).
+byronWithRootKeyNoMigration :: IO ()
+byronWithRootKeyNoMigration = do
+    WalletLayerFixture DBLayer{walletState, atomically} wl wid <-
+        setupFixtureByron ByronWallet testByronWallet
+    W.attachPrivateKeyFromPwd wl (testByronKey, testPwd)
+    mCreds0 <- atomically $ readPrivateKey walletState
+    case mCreds0 of
+        Just (HashedCredentialsV1 _ _) -> pure ()
+        _ -> expectationFailure "expected HashedCredentialsV1 before unlock"
+    result <-
+        runExceptT
+            $ withRootKey
+                nullTracer
+                (wl ^. dbLayer)
+                wid
+                testPwd
+                id
+                (\_ -> pure ())
+    result `shouldBe` Right ()
+    mCreds1 <- atomically $ readPrivateKey walletState
+    case mCreds1 of
+        Just (HashedCredentialsV1 _ _) -> pure ()
+        Just (HashedCredentialsV2 _ _) ->
+            expectationFailure
+                "Byron withRootKey migrated to HashedCredentialsV2; \
+                \expected credentials to remain HashedCredentialsV1"
+        Nothing ->
+            expectationFailure
+                "credentials disappeared after Byron withRootKey"
 
 walletListTransactionsSorted
     :: (WalletId, WalletName, DummyState)
@@ -1871,6 +1947,42 @@ setupFixture wF (wid, wname, wstate) = do
         wal = walletId_ db
     pure $ WalletLayerFixture db' wl wal
 
+setupFixtureByron
+    :: forall s m
+     . ( MonadUnliftIO m
+       , IsOurs s Address
+       , IsOurs s RewardAccount
+       , Sqlite.PersistAddressBook s
+       , KeyOf s ~ ByronKey
+       , CredFromOf s ~ 'CredFromKeyK
+       )
+    => WalletFlavorS s
+    -> (WalletId, WalletName, s)
+    -> m (WalletLayerFixture s m)
+setupFixtureByron wF (wid, wname, wstate) = do
+    let initialState = InitialState wstate block0 RestorationPointAtGenesis
+    params <-
+        liftIO
+            $ W.createWallet dummyNetworkParameters wid wname initialState
+    (_kill, db) <-
+        liftIO
+            $ newBootDBLayerInMemory
+                wF
+                nullTracer
+                dummyTimeInterpreter
+                wid
+                params
+    let db' = hoistDBLayer liftIO db
+        wl =
+            WalletLayer
+                nullTracer
+                (block0, dummyNetworkParameters)
+                mockNetworkLayer
+                dummyByronTransactionLayer
+                db'
+        wal = walletId_ db
+    pure $ WalletLayerFixture db' wl wal
+
 slotNoTime :: SlotNo -> UTCTime
 slotNoTime = posixSecondsToUTCTime . fromIntegral . unSlotNo
 
@@ -1905,6 +2017,19 @@ dummyTransactionLayer =
             in
                 TxExtended{..}
         , transactionWitnessTag = TxWitnessShelleyUTxO
+        }
+
+dummyByronTransactionLayer
+    :: TransactionLayer ByronKey 'CredFromKeyK SealedTx
+dummyByronTransactionLayer =
+    TransactionLayer
+        { addVkWitnesses =
+            error "dummyByronTransactionLayer: addVkWitnesses not implemented"
+        , decodeTx =
+            error "dummyByronTransactionLayer: decodeTx not implemented"
+        , transactionWitnessTag =
+            error
+                "dummyByronTransactionLayer: transactionWitnessTag not implemented"
         }
 
 fakeSealedTx :: HasCallStack => (Hash "Tx", [ByteString]) -> SealedTx
