@@ -1228,6 +1228,23 @@ x-walletPassphraseInfo :: &walletPassphraseInfo
         - argon2id-v2
       example: argon2id-v2
 
+x-walletPassphraseInfoLegacy :: &walletPassphraseInfoLegacy
+  description: Information about the wallet's passphrase
+  type: object
+  required:
+    - last_updated_at
+  properties:
+    last_updated_at: *date
+    encryption_method:
+      description: |
+        The scheme used to protect the wallet's root key in storage.
+        Absent on wallets that have no stored passphrase.
+      type: string
+      enum:
+        - scrypt
+        - pbkdf2-hmac-sha512
+      example: pbkdf2-hmac-sha512
+
 x-transactionId: &transactionId
   description: A unique identifier for this transaction
   type: string
@@ -3172,7 +3189,7 @@ components:
         assets: *walletAssetsBalance
         discovery: *walletDiscovery
         name: *walletName
-        passphrase: *walletPassphraseInfo
+        passphrase: *walletPassphraseInfoLegacy
         state: *walletState
         tip: *blockReference
 

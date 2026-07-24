@@ -2,22 +2,22 @@
 
 ## Slice 1 — Narrow the Byron OpenAPI passphrase schema
 
-- [ ] T5322-S1a Add `walletPassphraseInfoLegacy` anchor to
+- [X] T5322-S1a Add `walletPassphraseInfoLegacy` anchor to
       `specifications/api/swagger.yaml` (enum: `scrypt`,
       `pbkdf2-hmac-sha512`); point `ApiByronWallet.passphrase` at it;
       leave `ApiWallet` / `ApiActiveSharedWallet` on the original
       `walletPassphraseInfo` anchor.
-- [ ] T5322-S1b Confirm RED: `validateEveryToJSONWithPatternChecker
+- [X] T5322-S1b Confirm RED: `validateEveryToJSONWithPatternChecker
       (Proxy @(Api T0))` fails after T5322-S1a alone (record the
       counterexample in `WIP.md`).
-- [ ] T5322-S1c Replace the generic `Arbitrary ApiByronWallet` instance
+- [X] T5322-S1c Replace the generic `Arbitrary ApiByronWallet` instance
       in `TypesSpec.hs` with one whose `passphrase` field only
       generates `EncryptWithScrypt` / `EncryptWithPBKDF2`.
-- [ ] T5322-S1d Confirm GREEN: focused unit run passes.
-- [ ] T5322-S1e Fix the stale `"argon2id-v2"` example in
+- [X] T5322-S1d Confirm GREEN: focused unit run passes.
+- [X] T5322-S1e Fix the stale `"argon2id-v2"` example in
       `lib/unit/test/data/Cardano/Wallet/Api/ApiByronWallet.json` to a
       legitimate Byron value.
-- [ ] T5322-S1f Commit (one commit, Tasks: T5322-S1a, T5322-S1b,
+- [X] T5322-S1f Commit (one commit, Tasks: T5322-S1a, T5322-S1b,
       T5322-S1c, T5322-S1d, T5322-S1e).
 
 ## Slice 2 — Unit proof: Byron/Icarus never persist Argon2id V2

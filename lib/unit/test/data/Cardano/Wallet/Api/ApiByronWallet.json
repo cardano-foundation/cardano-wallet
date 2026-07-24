@@ -19,7 +19,7 @@
             "id": "c575800eec184d3e2586b08c9f86971090ee3805",
             "name": "LU",
             "passphrase": {
-                "encryption_method": "argon2id-v2",
+                "encryption_method": "pbkdf2-hmac-sha512",
                 "last_updated_at": "1876-11-16T04:12:00Z"
             },
             "state": {
@@ -59,7 +59,7 @@
             "id": "1a0719491bbc63d00c370ee45266e9230afee9c3",
             "name": "窑𪚄[",
             "passphrase": {
-                "encryption_method": "argon2id-v2",
+                "encryption_method": "pbkdf2-hmac-sha512",
                 "last_updated_at": "1894-06-20T13:00:00Z"
             },
             "state": {
@@ -99,7 +99,7 @@
             "id": "bb7e3417b051446100d8b9fc0510dadd3343d050",
             "name": "5x齊",
             "passphrase": {
-                "encryption_method": "argon2id-v2",
+                "encryption_method": "pbkdf2-hmac-sha512",
                 "last_updated_at": "1904-09-21T06:00:00Z"
             },
             "state": {
@@ -171,7 +171,7 @@
             "id": "528163857e58e969ae24e437dcea1adcfc1cea48",
             "name": "l𢈏0",
             "passphrase": {
-                "encryption_method": "argon2id-v2",
+                "encryption_method": "pbkdf2-hmac-sha512",
                 "last_updated_at": "1907-04-11T05:11:05Z"
             },
             "state": {
@@ -351,7 +351,7 @@
             "id": "955ff867034a16a1c4438640bc2186d4e387d7bf",
             "name": "d",
             "passphrase": {
-                "encryption_method": "argon2id-v2",
+                "encryption_method": "pbkdf2-hmac-sha512",
                 "last_updated_at": "1900-04-14T19:00:00Z"
             },
             "state": {
