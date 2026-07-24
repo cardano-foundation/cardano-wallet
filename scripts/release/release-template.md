@@ -25,10 +25,8 @@ $API_CHANGES
 
 ## Known Issues
 
-* (ADP-2953) Revision of `cardano-node` is not reported within version in release bundle binary for Windows.
 * (ADP-2635) Database connections do not seem to gracefully terminate on stopping the wallet.
 * (ADP-2298) `Deposit_returned` is falsely reported on some incoming transactions (intermittently).
-* (ADP-1831) `cardano-wallet` version from docker image does not report revision.
 
 ## Signatures
 
