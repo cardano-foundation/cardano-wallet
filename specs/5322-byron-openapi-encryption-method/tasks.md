@@ -22,18 +22,18 @@
 
 ## Slice 2 — Unit proof: Byron/Icarus never persist Argon2id V2
 
-- [ ] T5322-S2a Add a Byron-flavored `WalletLayerFixture` in
+- [X] T5322-S2a Add a Byron-flavored `WalletLayerFixture` in
       `Cardano.WalletSpec.hs` using the production `ByronWallet ::
       WalletFlavorS (RndState n)` + `mkRndState`.
-- [ ] T5322-S2b New test: `attachPrivateKeyFromPwd` on the Byron
+- [X] T5322-S2b New test: `attachPrivateKeyFromPwd` on the Byron
       fixture persists `HashedCredentialsV1` / `EncryptWithPBKDF2`,
       never `HashedCredentialsV2` / `EncryptWithArgon2idV2`.
-- [ ] T5322-S2c New test: `withRootKey` unlock on the Byron fixture
+- [X] T5322-S2c New test: `withRootKey` unlock on the Byron fixture
       leaves credentials at V1 (no migration).
-- [ ] T5322-S2d Sanity check (not committed): temporarily break the
+- [X] T5322-S2d Sanity check (not committed): temporarily break the
       `ByronKeyS -> pure ()` no-op in `withRootKey` and confirm
       T5322-S2c fails; revert.
-- [ ] T5322-S2e Commit (one commit, Tasks: T5322-S2a, T5322-S2b,
+- [X] T5322-S2e Commit (one commit, Tasks: T5322-S2a, T5322-S2b,
       T5322-S2c; log the RED-skip rationale + T5322-S2d's result in
       `WIP.md`).
 
