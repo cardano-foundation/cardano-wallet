@@ -25,8 +25,8 @@ $API_CHANGES
 
 ## Known Issues
 
-* (ADP-2635) Database connections do not seem to gracefully terminate on stopping the wallet.
-* (ADP-2298) `Deposit_returned` is falsely reported on some incoming transactions (intermittently).
+* ([#5326](https://github.com/cardano-foundation/cardano-wallet/issues/5326)) (ADP-2635) Database connections do not seem to gracefully terminate on stopping the wallet.
+* ([#5325](https://github.com/cardano-foundation/cardano-wallet/issues/5325)) (ADP-2298) `Deposit_returned` is falsely reported on some incoming transactions (intermittently).
 
 ## Signatures
 
