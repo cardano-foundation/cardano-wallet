@@ -1604,7 +1604,14 @@ instance Arbitrary ApiWalletAssets where
     shrink = genericShrink
 
 instance Arbitrary ApiByronWallet where
-    arbitrary = genericArbitrary
+    arbitrary = do
+        ApiByronWallet i b a d n p s t <- genericArbitrary
+        p' <- traverse legacyPassphraseInfo p
+        pure $ ApiByronWallet i b a d n p' s t
+      where
+        legacyPassphraseInfo (ApiWalletPassphraseInfo t _) = do
+            scheme <- elements [EncryptWithScrypt, EncryptWithPBKDF2]
+            pure $ ApiWalletPassphraseInfo t (ApiT scheme)
     shrink = genericShrink
 
 instance Arbitrary ApiWalletDiscovery where
