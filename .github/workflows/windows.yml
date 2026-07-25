@@ -306,4 +306,7 @@ jobs:
 
       - name: Run tests
         working-directory: test-bundle
-        run: ${{ matrix.command }}
+        shell: pwsh
+        run: |
+          $env:PATH = "$(Get-Location);$env:PATH"
+          ${{ matrix.command }}

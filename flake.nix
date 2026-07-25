@@ -486,7 +486,10 @@
                         inherit pkgs;
                         name = "wallet-unit";
                         test = windowsPackages.unit-cardano-wallet-unit;
-                        extraPkgs = [ windowsPackages.cardano-cli ];
+                        extraPkgs = [
+                          windowsPackages.cardano-cli
+                          windowsPackages.cardano-node
+                        ];
                         testDataDirs = [
                           ./lib/unit/test/data
                           ./lib/local-cluster/test/data
