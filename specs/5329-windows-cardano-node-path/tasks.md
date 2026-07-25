@@ -2,17 +2,17 @@
 
 ## Slice A — ship `cardano-node.exe` in the `wallet-unit` win64 bundle
 
-- [ ] T5329-S1 Record the RED baseline: `nix derivation show
+- [X] T5329-S1 Record the RED baseline: `nix derivation show
       .#ci.artifacts.win64.tests.wallet-unit` references zero
       `cardano-node-exe-*` derivations; capture the raw output in `WIP.md`.
-- [ ] T5329-S2 Capture the pre-change `nix derivation show
+- [X] T5329-S2 Capture the pre-change `nix derivation show
       .#ci.artifacts.win64.integration` output to a file outside the repo, for
       the SC2 byte-identity comparison.
-- [ ] T5329-S3 Add `windowsPackages.cardano-node` to the `wallet-unit`
+- [X] T5329-S3 Add `windowsPackages.cardano-node` to the `wallet-unit`
       `extraPkgs` list in `flake.nix`. No other attribute touched.
-- [ ] T5329-S4 GREEN: the SC1 probe now returns the identical drv path that
+- [X] T5329-S4 GREEN: the SC1 probe now returns the identical drv path that
       `integration` returns; the SC2 comparison shows `integration` unchanged.
-- [ ] T5329-S5 `./gate.sh` green; commit as
+- [X] T5329-S5 `./gate.sh` green; commit as
       `ci(windows): bundle cardano-node.exe with the wallet-unit test artifact`
       with trailer `Tasks: T5329-S1, T5329-S2, T5329-S3, T5329-S4, T5329-S5`.
 
