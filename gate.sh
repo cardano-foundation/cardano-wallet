@@ -33,7 +33,7 @@ echo "== #5328 invariant: no cluster-config env leaks into the unit-tests job ==
 [ "$(yq -r '.jobs["unit-tests"].env.LOCAL_CLUSTER_CONFIGS // "null"' "$MAC")" = null ] \
     || fail "$MAC still sets a job-level LOCAL_CLUSTER_CONFIGS on unit-tests"
 
-[ "$(yq -r '[.jobs["unit-tests"].steps[].env.LOCAL_CLUSTER_CONFIGS // empty] | length' "$MAC")" = 0 ] \
+[ "$(yq -r '[.jobs["unit-tests"].steps[].env.LOCAL_CLUSTER_CONFIGS | select(. != null)] | length' "$MAC")" = 0 ] \
     || fail "$MAC sets LOCAL_CLUSTER_CONFIGS on a unit-tests step"
 
 echo "== #5328 invariant: wallet-unit shards still run from lib/unit =="
