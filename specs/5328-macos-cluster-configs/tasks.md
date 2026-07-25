@@ -14,9 +14,9 @@
 
 ## Slice B — verification + finalize (orchestrator-owned)
 
-- [ ] T004 Dispatch `macos-unit-tests.yml` against the branch ref and record
+- [X] T004 Dispatch `macos-unit-tests.yml` against the branch ref and record
       the run URL.
-- [ ] T005 Report the `wallet-unit / Shelley` outcome in a PR comment and
+- [X] T005 Report the `wallet-unit / Shelley` outcome in a PR comment and
       refresh the PR body with the real result (or the explicit
       residual-risk statement if the dispatch is not possible).
-- [ ] T006 `chore: drop gate.sh (ready for review)`; `gh pr ready 5331`.
+- [X] T006 `chore: drop gate.sh (ready for review)`; `gh pr ready 5331`.
