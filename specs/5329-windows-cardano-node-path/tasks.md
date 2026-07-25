@@ -18,14 +18,14 @@
 
 ## Slice B — put the bundle directory on `PATH` in `unit-tests`
 
-- [ ] T5329-S6 Record the RED-skip rationale in `WIP.md` (no test harness for
+- [X] T5329-S6 Record the RED-skip rationale in `WIP.md` (no test harness for
       workflow YAML; proof is the mechanical `gate.sh` assertion + the CI run).
-- [ ] T5329-S7 In `.github/workflows/windows.yml`, add `shell: pwsh` and
+- [X] T5329-S7 In `.github/workflows/windows.yml`, add `shell: pwsh` and
       `$env:PATH = "$(Get-Location);$env:PATH"` to the `unit-tests` job's "Run
       tests" step, mirroring `integration-smoke`. No other job or step touched.
-- [ ] T5329-S8 GREEN: `./gate.sh` green, including the YAML-parse and
+- [X] T5329-S8 GREEN: `./gate.sh` green, including the YAML-parse and
       step-content assertions.
-- [ ] T5329-S9 Commit as
+- [X] T5329-S9 Commit as
       `ci(windows): put the test bundle on PATH for unit-tests`
       with trailer `Tasks: T5329-S6, T5329-S7, T5329-S8, T5329-S9`.
 
