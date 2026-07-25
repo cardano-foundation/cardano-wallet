@@ -45,8 +45,6 @@ jobs:
     name: ${{ matrix.name }}
     needs: build
     runs-on: [self-hosted, macOS, ARM64, cardano-wallet]
-    env:
-      LOCAL_CLUSTER_CONFIGS: lib/local-cluster/test/data/cluster-configs
     strategy:
       fail-fast: false
       matrix:
