@@ -38,6 +38,38 @@ unit_node=$(nix derivation show .#ci.artifacts.win64.tests.wallet-unit \
   || fail "tests.wallet-unit uses a different cardano-node than integration:\n  unit:        $unit_node\n  integration: $integration_node"
 ok "tests.wallet-unit references the same cardano-node as integration"
 
+# FR3: the already-green integration bundle must be untouched by our change.
+#
+# Naive before/after comparison of this derivation DOES NOT WORK, and the trap
+# is worth spelling out. flake.nix stamps release binaries with
+# `gitrev = config.gitrev or self.rev or "0000…"` (flake.nix:260-265). `self.rev`
+# exists only when the working tree is CLEAN; any uncommitted edit flips it to
+# the all-zeros placeholder. That changes the cardano-wallet.exe derivation —
+# which the integration bundle consumes — so integration's derivation appears to
+# "drift" for ANY edit anywhere, including edits that cannot possibly affect it.
+# Comparing a clean baseline against a dirty tree therefore always reports a
+# false positive.
+#
+# The fix: pin gitrev to a constant on BOTH sides via the customConfig input
+# (flake.nix:124 points it at empty-flake; nix/config.nix defaults gitrev=null),
+# which removes the only variable that tracks tree cleanliness.
+base=$(git merge-base HEAD origin/master)
+pin=$(mktemp -d)
+trap 'rm -rf "$pin"' EXIT
+cat > "$pin/flake.nix" <<'EOF'
+{ outputs = _: { gitrev = "1111111111111111111111111111111111111111"; }; }
+EOF
+show_integration() {  # $1 = flake ref
+  nix derivation show --override-input customConfig "path:$pin" \
+    "$1#ci.artifacts.win64.integration" 2>/dev/null
+}
+if diff -q <(show_integration "git+file://$PWD?rev=$base") \
+           <(show_integration ".") >/dev/null; then
+  ok "integration derivation byte-identical vs $(git rev-parse --short "$base") (gitrev pinned)"
+else
+  fail "integration derivation changed vs base $base — this ticket must not perturb the green integration-smoke job"
+fi
+
 # FR4: the shared builder must not have been re-parameterised.
 git diff --quiet "$(git merge-base HEAD origin/master)" -- nix/windows-test-exe.nix \
   || fail "nix/windows-test-exe.nix was modified; the extraPkgs mechanism was supposed to suffice (FR4)"

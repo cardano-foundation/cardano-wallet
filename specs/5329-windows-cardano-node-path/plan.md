@@ -58,9 +58,47 @@ fix the two must produce the *same* drv path. Because
 `extraPkgs` entry, a referenced node drv is a sound proxy for
 `cardano-node.exe` landing in `$out`.
 
-SC2 (integration untouched) is checked the same cheap way: the full
-`nix derivation show .#ci.artifacts.win64.integration` output must be
-byte-identical before and after.
+### The gitrev trap — read before comparing any two derivations in this flake
+
+SC2 (integration untouched) is checked the same cheap way, but a **naive**
+before/after `nix derivation show .#ci.artifacts.win64.integration` comparison
+is guaranteed to produce a false positive, and this bit us during slice A.
+
+`flake.nix:260-265`:
+
+```nix
+gitrev =
+  if config.gitrev != null then config.gitrev
+  else self.rev or "0000000000000000000000000000000000000000";
+```
+
+`self.rev` exists only while the working tree is **clean**. Any uncommitted
+edit — anywhere in the repo, related or not — makes the tree dirty, drops
+`self.rev`, and falls back to the all-zeros placeholder. That changes the
+`cardano-wallet.exe` derivation (stamped via `nix/release-build.nix`), which
+the integration bundle consumes. So `integration` appears to "drift" for
+every edit, including edits that cannot possibly reach it.
+
+The diagnostic tell: `cardano-node`, `cardano-cli`, `local-cluster` and the
+integration test exe stay byte-identical across the two snapshots; only the
+one gitrev-stamped binary moves.
+
+The fix is to pin `gitrev` on both sides. `flake.nix:124` points the
+`customConfig` input at `empty-flake`, and `nix/config.nix` defaults
+`gitrev = null`, so overriding that input with a tiny local flake supplies a
+constant:
+
+```sh
+pin=$(mktemp -d)
+echo '{ outputs = _: { gitrev = "1111111111111111111111111111111111111111"; }; }' > "$pin/flake.nix"
+diff <(nix derivation show --override-input customConfig "path:$pin" \
+        "git+file://$PWD?rev=$(git merge-base HEAD origin/master)#ci.artifacts.win64.integration") \
+     <(nix derivation show --override-input customConfig "path:$pin" \
+        ".#ci.artifacts.win64.integration")
+```
+
+Measured result for slice A: **byte-identical**. This is the FR3 assertion in
+`gate.sh`. It generalises to any A/B derivation comparison in this repo.
 
 ## Slices
 

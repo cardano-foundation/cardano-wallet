@@ -61,8 +61,11 @@ missing dependency.
   `cardano-node-exe-cardano-node-x86_64-w64-mingw32-*.drv` that
   `nix derivation show .#ci.artifacts.win64.integration` references. Baseline
   today: `wallet-unit` references it **0** times — this is the RED.
-- **SC2** (locally checkable, eval-only) — the derivation-input sets of
-  `ci.artifacts.win64.integration` before and after the change are identical.
+- **SC2** (locally checkable, eval-only) — the full derivation of
+  `ci.artifacts.win64.integration` is byte-identical before and after the
+  change, **with `gitrev` pinned to a constant on both sides**. The pin is not
+  optional and the check is meaningless without it — see the gitrev trap in
+  `plan.md`.
 - **SC3** — `.github/workflows/windows.yml` parses as valid YAML and the
   `unit-tests` "Run tests" step prepends the working directory to `PATH` under
   an explicit `pwsh` shell.
