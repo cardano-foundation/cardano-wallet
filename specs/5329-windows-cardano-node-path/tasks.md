@@ -31,9 +31,9 @@
 
 ## Slice C — finalization (orchestrator-owned, no driver)
 
-- [ ] T5329-S10 PR body audit: plain-language narrative, both slices, explicit
+- [X] T5329-S10 PR body audit: plain-language narrative, both slices, explicit
       residual-risk paragraph on `windows.yml` not running on `pull_request`.
-- [ ] T5329-S11 Dispatch `windows.yml` against the branch
+- [X] T5329-S11 Dispatch `windows.yml` against the branch
       (`gh workflow run windows.yml --ref fix/5329-windows-cardano-node-path`)
       and record the run URL + outcome in the PR body — green or not.
-- [ ] T5329-S12 `chore: drop gate.sh (ready for review)`, then `gh pr ready`.
+- [X] T5329-S12 `chore: drop gate.sh (ready for review)`, then `gh pr ready`.
