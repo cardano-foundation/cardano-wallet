@@ -299,7 +299,7 @@ jobs:
 
     steps:
       - name: Download test artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: ${{ matrix.artifact }}
           path: test-bundle
