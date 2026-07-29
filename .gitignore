@@ -96,3 +96,6 @@ cabal.project.freeze
 # Emacs
 *~
 cabal.project.local
+
+# Local CI gate script
+gate.sh
