@@ -16,7 +16,7 @@ import Cardano.DB.Sqlite
     )
 import Cardano.Wallet.Address.Book
     ( AddressBookIso (..)
-    , Prologue
+    , Prologue (RndPrologue)
     , getPrologue
     )
 import Cardano.Wallet.Address.Derivation.Shared
@@ -26,7 +26,7 @@ import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey
     )
 import Cardano.Wallet.Address.Discovery.Random
-    ( RndState
+    ( RndState (..)
     )
 import Cardano.Wallet.Address.Discovery.Sequential
     ( SeqState
@@ -63,6 +63,9 @@ import Fmt
     ( Buildable (..)
     , pretty
     )
+import System.Random
+    ( mkStdGen
+    )
 import Test.Hspec
     ( Spec
     , around
@@ -98,7 +101,7 @@ spec = do
                 $ property . prop_prologue_load_write @(SeqState 'Mainnet ShelleyKey) id
 
             it "loadPrologue . insertPrologue = id  for RndState"
-                $ property . prop_prologue_load_write @(RndState 'Mainnet) id
+                $ property . prop_rnd_prologue_roundtrip
 
             it "loadPrologue . insertPrologue = id  for SharedState"
                 $ property
@@ -124,6 +127,26 @@ prop_prologue_load_write preprocess db (wid, s) =
     prop =
         prop_loadAfterWrite toIO (insertPrologue wid) (loadPrologue wid) pro
     pro = getPrologue $ preprocess s
+
+-- | Roundtrip property for 'RndState' that normalizes 'gen' on both sides,
+-- since 'loadPrologue' reseeds it from the CSPRNG.
+prop_rnd_prologue_roundtrip
+    :: SqliteContext -> (WalletId, RndState 'Mainnet) -> Property
+prop_rnd_prologue_roundtrip db (wid, s) =
+    monadicIO $ run (toIO setup) >> prop
+  where
+    toIO = runQuery db
+    setup = initializeWalletTable wid
+    normalize st = st{gen = mkStdGen 0}
+    pro = getPrologue $ normalize s
+    prop = do
+        res <- run . toIO $ insertPrologue wid pro >> loadPrologue wid
+        let fa = pure pro
+        let res' = fmap normalizePrologue res
+        monitor $ counterexample $ "\nInserted\n" <> pretty fa
+        monitor $ counterexample $ "\nRead\n" <> pretty res
+        assertWith "Inserted == Read" (res' == fa)
+    normalizePrologue (RndPrologue st) = RndPrologue (normalize st)
 
 -- FIXME during ADP-1043: See note at 'multisigPoolAbsent'
 
