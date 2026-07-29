@@ -5,7 +5,8 @@
 Extend `Test.Hspec.Extra`, the unit-suite runner already used by
 `cardano-wallet-unit`, with two test-only capabilities:
 
-1. A Hspec V2 formatter derived from `specdoc` that emits line-buffered
+1. A Hspec V2 formatter derived from the existing `checks` formatter that
+   preserves the current suite output while emitting line-buffered
    `SQLITE TEST START` and `SQLITE TEST FINISH` events for paths containing
    `Sqlite`.
 2. A diagnostic timeout example helper. The action receives a callback for

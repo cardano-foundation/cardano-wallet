@@ -5,6 +5,7 @@ module Test.Hspec.ExtraSpec (spec) where
 
 import Control.Monad
     ( forM_
+    , replicateM
     , unless
     )
 import Control.Monad.IO.Unlift
@@ -12,6 +13,9 @@ import Control.Monad.IO.Unlift
     )
 import Data.Bifunctor
     ( first
+    )
+import Data.Foldable
+    ( traverse_
     )
 import Data.Function
     ( on
@@ -23,11 +27,16 @@ import Data.IORef
     , writeIORef
     )
 import Data.List
-    ( isPrefixOf
+    ( find
+    , findIndex
+    , isInfixOf
+    , isPrefixOf
     , nubBy
+    , tails
     )
 import Data.Maybe
     ( fromMaybe
+    , isNothing
     , listToMaybe
     )
 import Fmt
@@ -36,15 +45,32 @@ import Fmt
     , (|+)
     , (||+)
     )
+import GHC.Clock
+    ( getMonotonicTimeNSec
+    )
+import GHC.IO.Handle
+    ( hDuplicate
+    , hDuplicateTo
+    )
 import System.Exit
     ( ExitCode (..)
     )
 import System.IO
-    ( stderr
+    ( BufferMode (LineBuffering)
+    , Handle
+    , SeekMode (AbsoluteSeek)
+    , hClose
+    , hFileSize
+    , hFlush
+    , hGetChar
+    , hSeek
+    , hSetBuffering
+    , stderr
     , stdout
     )
 import System.IO.Silently
-    ( capture_
+    ( capture
+    , capture_
     , hCapture
     , silence
     )
@@ -60,6 +86,8 @@ import Test.Hspec
     , it
     , shouldBe
     , shouldContain
+    , shouldNotContain
+    , shouldSatisfy
     )
 import Test.Hspec.Core.Runner
     ( Summary (..)
@@ -99,6 +127,11 @@ import Test.QuickCheck.Monadic
 import Test.Utils.Env
     ( withEnv
     )
+import UnliftIO.Async
+    ( poll
+    , wait
+    , withAsync
+    )
 import UnliftIO.Concurrent
     ( threadDelay
     )
@@ -112,6 +145,7 @@ import UnliftIO.Exception
     , throwString
     , tryAny
     , tryDeep
+    , uninterruptibleMask_
     )
 import UnliftIO.MVar
     ( MVar
@@ -120,6 +154,9 @@ import UnliftIO.MVar
     , putMVar
     , tryReadMVar
     , tryTakeMVar
+    )
+import UnliftIO.Temporary
+    ( withSystemTempFile
     )
 import Prelude
 
@@ -130,6 +167,7 @@ spec = do
     itSpec
     aroundAllSpec
     mainSpec
+    sqliteProgressSpec
 
 itSpec :: Spec
 itSpec = describe "Extra.it" $ before_ (setEnv "TESTS_RETRY_FAILED" "y") $ do
@@ -165,6 +203,71 @@ itSpec = describe "Extra.it" $ before_ (setEnv "TESTS_RETRY_FAILED" "y") $ do
                 expectationFailure "should have timed out"
         res <- runIt (Extra.itWithCustomTimeout 2) timeout
         res `shouldContain` "timed out in 2 seconds"
+
+    describe "diagnostic timeout" $ sequential $ do
+        it "reports the title and latest published state" $ do
+            let timeout (publish :: String -> IO ()) = do
+                    traverse_ publish ["resource=first", "resource=latest"]
+                    threadDelay (2 * 1000 * 1000)
+            res <-
+                runDiagnosticIt
+                    (Extra.itWithDiagnosticTimeout 1)
+                    timeout
+            let failure = lineContaining "timed out" res
+            failure `shouldContain` "<test spec>"
+            failure `shouldContain` "resource=latest"
+            failure `shouldNotContain` "resource=first"
+
+        it "reports when no diagnostic state was published" $ do
+            let timeout (_publish :: String -> IO ()) =
+                    threadDelay (2 * 1000 * 1000)
+            res <-
+                runDiagnosticIt
+                    (Extra.itWithDiagnosticTimeout 1)
+                    timeout
+            let failure = lineContaining "timed out" res
+            failure `shouldContain` "<test spec>"
+            failure `shouldContain` "no diagnostic state published"
+
+        it "emits state before an uninterruptible worker unwinds"
+            $ withCapturedStdoutFile
+            $ \captureHandle -> do
+                let title = "<uninterruptible test spec>"
+                let latestState = "worker-state=inside-safe-call"
+                let nestedSpec =
+                        Extra.itWithDiagnosticTimeout 1 title
+                            $ \publish (_ctx :: ()) -> do
+                                publish latestState
+                                uninterruptibleMask_
+                                    $ threadDelay (5 * 1000 * 1000)
+                withAsync (runSpec nestedSpec defaultConfig) $ \worker -> do
+                    output <- waitForTimeoutLine 30 captureHandle
+                    (isNothing <$> poll worker) `shouldReturn` True
+                    let failure = lineContaining "timed out" output
+                    failure `shouldContain` title
+                    failure `shouldContain` latestState
+                    summary <- wait worker
+                    summaryFailures summary `shouldBe` 1
+
+        it "preserves an action failure" $ do
+            let failure (_publish :: String -> IO ()) =
+                    expectationFailure "original action failure"
+            res <-
+                runDiagnosticIt
+                    (Extra.itWithDiagnosticTimeout 10)
+                    failure
+            res `shouldContain` "original action failure"
+            res `shouldNotContain` "timed out"
+
+        it "returns promptly when the action succeeds" $ do
+            started <- getMonotonicTimeNSec
+            res <-
+                runDiagnosticIt
+                    (Extra.itWithDiagnosticTimeout 10)
+                    (\(_publish :: String -> IO ()) -> pure ())
+            elapsed <- subtract started <$> getMonotonicTimeNSec
+            res `shouldNotContain` "timed out"
+            elapsed `shouldSatisfy` (< 5 * 1000 * 1000 * 1000)
   where
     -- \| lhs `shouldMatchHSpecIt` rhs asserts that the output of running
     -- (Extra.it "" lhs) and (Hspec.it "" rhs) are equal. Modulo random seed-
@@ -188,17 +291,28 @@ itSpec = describe "Extra.it" $ before_ (setEnv "TESTS_RETRY_FAILED" "y") $ do
             $ flip runSpec defaultConfig
             $ beforeAll (return ())
             $ anyIt "<test spec>" (const body)
-      where
-        -- \| Remove time and seed such that we can compare the captured stdout
-        -- of two different hspec runs.
-        stripTime :: String -> String
-        stripTime =
-            unlines
-                . filter (not . ("Finished in" `isPrefixOf`))
-                . filter (not . ("Randomized" `isPrefixOf`))
-                . filter (not . ("retry:" `isPrefixOf`))
-                . filter (not . ("  To rerun use:" `isPrefixOf`))
-                . lines
+
+    runDiagnosticIt
+        :: (String -> ((state -> IO ()) -> ActionWith ()) -> SpecWith ())
+        -> ((state -> IO ()) -> IO ())
+        -> IO String
+    runDiagnosticIt anyIt body =
+        fmap stripTime
+            $ capture_
+            $ flip runSpec defaultConfig
+            $ beforeAll (return ())
+            $ anyIt "<test spec>" (\publish _ -> body publish)
+
+    -- \| Remove time and seed such that we can compare the captured stdout
+    -- of two different hspec runs.
+    stripTime :: String -> String
+    stripTime =
+        unlines
+            . filter (not . ("Finished in" `isPrefixOf`))
+            . filter (not . ("Randomized" `isPrefixOf`))
+            . filter (not . ("retry:" `isPrefixOf`))
+            . filter (not . ("  To rerun use:" `isPrefixOf`))
+            . lines
 
     -- \| Returns an IO action that is different every time you run it!,
     -- according to the supplied IORef of outcomes.
@@ -286,6 +400,107 @@ aroundAllSpec = sequential $ do
 mainSpec :: Spec
 mainSpec = sequential $ describe "hspecMain" $ do
     prop "correctly sets environment variables" prop_hspecMain
+
+sqliteProgressSpec :: Spec
+sqliteProgressSpec =
+    sequential $ describe "hspecMain SQLite progress" $ do
+        it "surrounds a nested SQLite example and ignores other examples" $ do
+            out <-
+                capture_
+                    $ withArgs []
+                    $ hspecMain
+                    $ do
+                        describe "Cardano.DB.Sqlite.Fake" $ do
+                            describe "inner" $ do
+                                it "leaf" $ putStrLn bodyMarker
+                        describe "Cardano.DB.Memory.Fake" $ do
+                            it "other leaf" $ pure @IO ()
+
+            countOccurrences "SQLITE TEST START" out `shouldBe` 1
+            countOccurrences "SQLITE TEST FINISH" out `shouldBe` 1
+            lineContaining "SQLITE TEST START" out
+                `shouldContain` sqlitePath
+            lineContaining "SQLITE TEST FINISH" out
+                `shouldContain` sqlitePath
+            ordered
+                [ "SQLITE TEST START"
+                , bodyMarker
+                , "SQLITE TEST FINISH"
+                ]
+                out
+                `shouldBe` True
+
+        it "finishes a failing SQLite example without hiding the failure" $ do
+            (out, result) <-
+                capture
+                    $ tryDeep
+                    $ withArgs []
+                    $ hspecMain
+                    $ describe "Cardano.DB.Sqlite.Fake"
+                    $ describe "inner"
+                    $ it "failing leaf"
+                    $ expectationFailure failureMarker
+
+            result `shouldBe` Left (ExitFailure 1)
+            lineContaining "SQLITE TEST START" out
+                `shouldContain` failurePath
+            lineContaining "SQLITE TEST FINISH" out
+                `shouldContain` failurePath
+            out `shouldContain` failureMarker
+  where
+    bodyMarker = "SQLITE BODY MARKER"
+    failureMarker = "SQLITE FAILURE MARKER"
+    sqlitePath = "Cardano.DB.Sqlite.Fake/inner/leaf"
+    failurePath = "Cardano.DB.Sqlite.Fake/inner/failing leaf"
+
+countOccurrences :: String -> String -> Int
+countOccurrences needle =
+    length . filter (isPrefixOf needle) . tails
+
+lineContaining :: String -> String -> String
+lineContaining needle =
+    fromMaybe "" . find (needle `isInfixOf`) . lines
+
+ordered :: [String] -> String -> Bool
+ordered [] _ = True
+ordered (needle : needles) haystack =
+    case findIndex (isPrefixOf needle) $ tails haystack of
+        Nothing -> False
+        Just index ->
+            ordered needles
+                $ drop (index + length needle) haystack
+
+withCapturedStdoutFile :: (Handle -> IO a) -> IO a
+withCapturedStdoutFile action =
+    withSystemTempFile "cardano-wallet-timeout-output"
+        $ \_path captureHandle ->
+            bracket
+                (acquire captureHandle)
+                release
+                (const $ action captureHandle)
+  where
+    acquire captureHandle = do
+        hSetBuffering captureHandle LineBuffering
+        originalStdout <- hDuplicate stdout
+        hDuplicateTo captureHandle stdout
+        pure originalStdout
+
+    release originalStdout = do
+        hFlush stdout
+        hDuplicateTo originalStdout stdout
+        hClose originalStdout
+
+waitForTimeoutLine :: Int -> Handle -> IO String
+waitForTimeoutLine attempts captureHandle = do
+    hFlush stdout
+    size <- hFileSize captureHandle
+    hSeek captureHandle AbsoluteSeek 0
+    output <- replicateM (fromIntegral size) $ hGetChar captureHandle
+    if "timed out" `isInfixOf` output || attempts <= 0
+        then pure output
+        else do
+            threadDelay (100 * 1000)
+            waitForTimeoutLine (attempts - 1) captureHandle
 
 prop_hspecMain
     :: [((NiceString, NiceString), ArgStyle)]

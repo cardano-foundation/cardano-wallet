@@ -14,6 +14,7 @@ module Test.Hspec.Extra
     , it
     , xit
     , itWithCustomTimeout
+    , itWithDiagnosticTimeout
     , parallel
     , counterexample
     , appendFailureReason
@@ -39,8 +40,18 @@ import Control.Monad.IO.Class
 import Control.Monad.IO.Unlift
     ( MonadUnliftIO
     )
+import Data.IORef
+    ( newIORef
+    , readIORef
+    , writeIORef
+    )
 import Data.List
     ( elemIndex
+    , intercalate
+    , isInfixOf
+    )
+import Data.Maybe
+    ( fromMaybe
     )
 -- See ADP-1910
 
@@ -50,6 +61,10 @@ import Say
 import System.Environment
     ( lookupEnv
     , withArgs
+    )
+import System.IO
+    ( hFlush
+    , stdout
     )
 import Test.HUnit.Lang
     ( FailureReason (..)
@@ -66,6 +81,16 @@ import Test.Hspec
     , beforeAll
     , beforeWith
     , specify
+    )
+import Test.Hspec.Core.Format
+    ( Event (..)
+    , Format
+    , FormatConfig
+    , Path
+    )
+import Test.Hspec.Core.Formatters.V2
+    ( checks
+    , formatterToFormat
     )
 import Test.Hspec.Core.Runner
     ( Config (..)
@@ -214,6 +239,43 @@ itWithCustomTimeout sec title action = specify title $ \ctx -> do
 
     report = mapM_ (sayString . ("retry: " ++)) . lines
 
+-- | Define an example with a timeout that reports its latest diagnostic
+-- state.
+--
+-- The example action can publish state as it progresses. If it times out, the
+-- failure names the example and reports the last state that was published.
+itWithDiagnosticTimeout
+    :: (HasCallStack, Show state)
+    => Int
+    -- ^ Timeout in seconds.
+    -> String
+    -- ^ Example title.
+    -> ((state -> IO ()) -> ActionWith ctx)
+    -> SpecWith ctx
+itWithDiagnosticTimeout sec title action = specify title $ \ctx -> do
+    latest <- newIORef Nothing
+    let publish state = do
+            let rendered = show state
+            length rendered `seq` writeIORef latest (Just rendered)
+    let timer = do
+            threadDelay (sec * 1000 * 1000)
+            state <- readIORef latest
+            let message =
+                    "timed out in "
+                        <> show sec
+                        <> " seconds while running "
+                        <> show title
+                        <> "; latest diagnostic state: "
+                        <> fromMaybe "no diagnostic state published" state
+            sayString message
+            hFlush stdout
+            pure message
+    race timer (action publish ctx) >>= \case
+        Left message ->
+            assertFailure message
+        Right () ->
+            pure ()
+
 -- | Like Hspec's parallel, except on Windows.
 parallel :: SpecWith a -> SpecWith a
 parallel
@@ -276,8 +338,33 @@ getDefaultConfig = do
     (env, args) <- execParser setEnvParser
     pure
         ( evaluateSummary <=< withArgs args . withAddedEnv env
-        , configWithExecutionTimes defaultConfig
+        , (configWithExecutionTimes defaultConfig)
+            { configFormat = Just sqliteProgressFormat
+            }
         )
+
+sqliteProgressFormat :: FormatConfig -> IO Format
+sqliteProgressFormat config = do
+    format <- formatterToFormat checks config
+    pure $ \event -> do
+        case event of
+            ItemStarted path ->
+                reportSqliteProgress "START" path
+            ItemDone path _ ->
+                reportSqliteProgress "FINISH" path
+            _ ->
+                pure ()
+        format event
+
+reportSqliteProgress :: String -> Path -> IO ()
+reportSqliteProgress event path
+    | "Sqlite" `isInfixOf` fullPath = do
+        putStrLn $ "SQLITE TEST " <> event <> " " <> fullPath
+        hFlush stdout
+    | otherwise =
+        pure ()
+  where
+    fullPath = intercalate "/" $ fst path <> [snd path]
 
 -- | A CLI arguments parser which handles setting environment variables.
 setEnvParser :: ParserInfo ([(String, String)], [String])
