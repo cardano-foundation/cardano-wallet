@@ -2,7 +2,7 @@
 
 ## Slice 1: add the master-push trigger
 
-- [ ] T5126 Prove a manual dispatch executes successfully on the real macOS
+- [X] T5126 Prove a manual dispatch executes successfully on the real macOS
   runner; add the `master`-filtered `push` trigger while retaining
   `workflow_dispatch`; demonstrate RED then GREEN with a focused checker; pass
   Actionlint; and commit as
