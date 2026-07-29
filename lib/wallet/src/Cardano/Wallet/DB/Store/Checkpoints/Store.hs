@@ -866,7 +866,7 @@ instance PersistAddressBook (Rnd.RndState n) where
         assocFromEntity (RndStateAddress _ _ accIx addrIx addr st) =
             ((W.Index accIx, W.Index addrIx), (addr, st))
 
--- | A 64-bit seed drawn from the system CSPRNG, used to reseed the Byron
+-- | A seed drawn from the system CSPRNG, used to reseed the Byron
 -- HD-random address generator on checkpoint load.
 secureSeed :: IO Int
 secureSeed = do

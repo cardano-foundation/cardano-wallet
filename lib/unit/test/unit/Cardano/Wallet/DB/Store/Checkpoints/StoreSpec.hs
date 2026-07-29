@@ -144,7 +144,7 @@ prop_rnd_prologue_roundtrip db (wid, s) =
         let fa = pure pro
         let res' = fmap normalizePrologue res
         monitor $ counterexample $ "\nInserted\n" <> pretty fa
-        monitor $ counterexample $ "\nRead\n" <> pretty res
+        monitor $ counterexample $ "\nRead\n" <> pretty res'
         assertWith "Inserted == Read" (res' == fa)
     normalizePrologue (RndPrologue st) = RndPrologue (normalize st)
 
