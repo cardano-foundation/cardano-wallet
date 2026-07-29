@@ -77,7 +77,7 @@ import Cardano.Wallet.Address.Derivation.Byron
     ( ByronKey
     )
 import Cardano.Wallet.Address.Derivation.Icarus
-    ( IcarusKey (..)
+    ( IcarusKey (IcarusKey)
     )
 import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey (..)
@@ -1086,7 +1086,7 @@ testIcarusAccXPub :: IcarusKey 'AccountK XPub
 testIcarusAccXPub =
     IcarusKey
         $ toXPub
-        $ getKey
+        $ Icarus.getKey
         $ deriveAccountPrivateKey
             (preparePassphrase testPwd)
             testIcarusKey
