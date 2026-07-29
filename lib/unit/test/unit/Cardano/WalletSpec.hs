@@ -84,7 +84,8 @@ import Cardano.Wallet.Address.Derivation.Shelley
     , generateKeyFromSeed
     )
 import Cardano.Wallet.Address.Discovery
-    ( CompareDiscovery (..)
+    ( ChangeAddressMode (..)
+    , CompareDiscovery (..)
     , GenChange (..)
     , IsOurs (..)
     , KnownAddresses (..)
@@ -95,8 +96,7 @@ import Cardano.Wallet.Address.Discovery.Random
     , mkRndState
     )
 import Cardano.Wallet.Address.Discovery.Sequential
-    ( ChangeAddressMode (..)
-    , SeqState
+    ( SeqState
     , mkAddressPoolGap
     , mkSeqStateFromAccountXPub
     , purposeCIP1852
