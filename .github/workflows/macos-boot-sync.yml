@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  XDG_CACHE_HOME: /tmp/nix-eval-cache/${{ github.job }}
+  XDG_CACHE_HOME: /Users/gha-runner/.cache/nix-eval-cache/${{ github.job }}
 
 jobs:
   boot-syncs:
