@@ -106,7 +106,6 @@ library
     , cardano-addresses
     , cardano-api
     , cardano-binary
-    , cardano-cli
     , cardano-data
     , cardano-diffusion:api
     , cardano-ledger-api
