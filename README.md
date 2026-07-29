@@ -35,6 +35,9 @@
     <a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/macos-unit-tests.yml">
         <img src="https://img.shields.io/github/actions/workflow/status/cardano-foundation/cardano-wallet/macos-unit-tests.yml?label=macOS&style=for-the-badge&branch=master"/>
     </a>
+    <a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/macos-integration.yml">
+        <img src="https://img.shields.io/github/actions/workflow/status/cardano-foundation/cardano-wallet/macos-integration.yml?label=macOS%20Integration&style=for-the-badge&branch=master"/>
+    </a>
 </p>
 
 <hr/>
