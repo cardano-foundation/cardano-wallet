@@ -34,7 +34,8 @@ import Cardano.Balance.Tx.SizeEstimation
     ( TxWitnessTag (..)
     )
 import Cardano.Crypto.Wallet
-    ( toXPub
+    ( XPub
+    , toXPub
     , xpub
     )
 import Cardano.Crypto.WalletHD.Encrypted
@@ -75,6 +76,9 @@ import Cardano.Wallet.Address.Derivation
 import Cardano.Wallet.Address.Derivation.Byron
     ( ByronKey
     )
+import Cardano.Wallet.Address.Derivation.Icarus
+    ( IcarusKey (..)
+    )
 import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey (..)
     , generateKeyFromSeed
@@ -91,7 +95,11 @@ import Cardano.Wallet.Address.Discovery.Random
     , mkRndState
     )
 import Cardano.Wallet.Address.Discovery.Sequential
-    ( purposeCIP1852
+    ( ChangeAddressMode (..)
+    , SeqState
+    , mkAddressPoolGap
+    , mkSeqStateFromAccountXPub
+    , purposeCIP1852
     )
 import Cardano.Wallet.Address.States.Features
     ( TestFeatures (..)
@@ -129,7 +137,7 @@ import Cardano.Wallet.DummyTarget.Primitive.Types
 import Cardano.Wallet.Flavor
     ( CredFromOf
     , KeyOf
-    , WalletFlavorS (ByronWallet, TestStateS)
+    , WalletFlavorS (ByronWallet, IcarusWallet, TestStateS)
     )
 import Cardano.Wallet.Gen
     ( genMnemonic
@@ -446,6 +454,7 @@ import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.Address.Book as Sqlite
 import qualified Cardano.Wallet.Address.Derivation.Byron as Byron
+import qualified Cardano.Wallet.Address.Derivation.Icarus as Icarus
 import qualified Cardano.Wallet.Balance.Migration as Migration
 import qualified Cardano.Wallet.DB.Sqlite.Types as DB
 import qualified Cardano.Wallet.DB.Store.Checkpoints.Store as Sqlite
@@ -533,6 +542,12 @@ spec = describe "Cardano.WalletSpec" $ do
         it
             "Byron withRootKey does not migrate V1 to V2"
             byronWithRootKeyNoMigration
+        it
+            "Icarus attachPrivateKeyFromPwd stores V1, never V2"
+            icarusAttachPrivateKeyFromPwdNeverV2
+        it
+            "Icarus withRootKey does not migrate V1 to V2"
+            icarusWithRootKeyNoMigration
 
     describe "Tx fee estimation spread"
         $ it
@@ -1042,6 +1057,88 @@ byronWithRootKeyNoMigration = do
         Nothing ->
             expectationFailure
                 "credentials disappeared after Byron withRootKey"
+
+-- | A fixed (WalletId, WalletName, SeqState) for Icarus migration tests.
+testIcarusWallet
+    :: (WalletId, WalletName, SeqState 'Mainnet IcarusKey)
+testIcarusWallet =
+    ( WalletId (hash @BS.ByteString "icarus-migration-test")
+    , WalletName "Icarus Migration Test"
+    , mkSeqStateFromAccountXPub
+        testIcarusAccXPub
+        Nothing
+        purposeCIP1852
+        ( either
+            (error "testIcarusWallet: invalid gap")
+            id
+            (mkAddressPoolGap 20)
+        )
+        IncreasingChangeAddresses
+    )
+
+testIcarusKey :: IcarusKey 'RootK XPrv
+testIcarusKey =
+    Icarus.generateKeyFromSeed
+        (someDummyMnemonic (Proxy @15))
+        (preparePassphrase testPwd)
+
+testIcarusAccXPub :: IcarusKey 'AccountK XPub
+testIcarusAccXPub =
+    IcarusKey
+        $ toXPub
+        $ getKey
+        $ deriveAccountPrivateKey
+            (preparePassphrase testPwd)
+            testIcarusKey
+            minBound
+
+-- | Icarus attachPrivateKeyFromPwd must store HashedCredentialsV1, never V2.
+icarusAttachPrivateKeyFromPwdNeverV2 :: IO ()
+icarusAttachPrivateKeyFromPwdNeverV2 = do
+    WalletLayerFixture DBLayer{walletState, atomically} wl _wid <-
+        setupFixtureIcarus IcarusWallet testIcarusWallet
+    W.attachPrivateKeyFromPwd wl (testIcarusKey, testPwd)
+    mCreds <- atomically $ readPrivateKey walletState
+    case mCreds of
+        Just (HashedCredentialsV1 _ _) -> pure ()
+        Just (HashedCredentialsV2 _ _) ->
+            expectationFailure
+                "Icarus attachPrivateKeyFromPwd stored HashedCredentialsV2; \
+                \expected HashedCredentialsV1"
+        Nothing ->
+            expectationFailure
+                "Icarus attachPrivateKeyFromPwd stored no credentials"
+
+-- | Icarus withRootKey must NOT migrate V1 → V2 (no-op branch).
+icarusWithRootKeyNoMigration :: IO ()
+icarusWithRootKeyNoMigration = do
+    WalletLayerFixture DBLayer{walletState, atomically} wl wid <-
+        setupFixtureIcarus IcarusWallet testIcarusWallet
+    W.attachPrivateKeyFromPwd wl (testIcarusKey, testPwd)
+    mCreds0 <- atomically $ readPrivateKey walletState
+    case mCreds0 of
+        Just (HashedCredentialsV1 _ _) -> pure ()
+        _ -> expectationFailure "expected HashedCredentialsV1 before unlock"
+    result <-
+        runExceptT
+            $ withRootKey
+                nullTracer
+                (wl ^. dbLayer)
+                wid
+                testPwd
+                id
+                (\_ -> pure ())
+    result `shouldBe` Right ()
+    mCreds1 <- atomically $ readPrivateKey walletState
+    case mCreds1 of
+        Just (HashedCredentialsV1 _ _) -> pure ()
+        Just (HashedCredentialsV2 _ _) ->
+            expectationFailure
+                "Icarus withRootKey migrated to HashedCredentialsV2; \
+                \expected credentials to remain HashedCredentialsV1"
+        Nothing ->
+            expectationFailure
+                "credentials disappeared after Icarus withRootKey"
 
 walletListTransactionsSorted
     :: (WalletId, WalletName, DummyState)
@@ -1983,6 +2080,42 @@ setupFixtureByron wF (wid, wname, wstate) = do
         wal = walletId_ db
     pure $ WalletLayerFixture db' wl wal
 
+setupFixtureIcarus
+    :: forall s m
+     . ( MonadUnliftIO m
+       , IsOurs s Address
+       , IsOurs s RewardAccount
+       , Sqlite.PersistAddressBook s
+       , KeyOf s ~ IcarusKey
+       , CredFromOf s ~ 'CredFromKeyK
+       )
+    => WalletFlavorS s
+    -> (WalletId, WalletName, s)
+    -> m (WalletLayerFixture s m)
+setupFixtureIcarus wF (wid, wname, wstate) = do
+    let initialState = InitialState wstate block0 RestorationPointAtGenesis
+    params <-
+        liftIO
+            $ W.createWallet dummyNetworkParameters wid wname initialState
+    (_kill, db) <-
+        liftIO
+            $ newBootDBLayerInMemory
+                wF
+                nullTracer
+                dummyTimeInterpreter
+                wid
+                params
+    let db' = hoistDBLayer liftIO db
+        wl =
+            WalletLayer
+                nullTracer
+                (block0, dummyNetworkParameters)
+                mockNetworkLayer
+                dummyIcarusTransactionLayer
+                db'
+        wal = walletId_ db
+    pure $ WalletLayerFixture db' wl wal
+
 slotNoTime :: SlotNo -> UTCTime
 slotNoTime = posixSecondsToUTCTime . fromIntegral . unSlotNo
 
@@ -2030,6 +2163,19 @@ dummyByronTransactionLayer =
         , transactionWitnessTag =
             error
                 "dummyByronTransactionLayer: transactionWitnessTag not implemented"
+        }
+
+dummyIcarusTransactionLayer
+    :: TransactionLayer IcarusKey 'CredFromKeyK SealedTx
+dummyIcarusTransactionLayer =
+    TransactionLayer
+        { addVkWitnesses =
+            error "dummyIcarusTransactionLayer: addVkWitnesses not implemented"
+        , decodeTx =
+            error "dummyIcarusTransactionLayer: decodeTx not implemented"
+        , transactionWitnessTag =
+            error
+                "dummyIcarusTransactionLayer: transactionWitnessTag not implemented"
         }
 
 fakeSealedTx :: HasCallStack => (Hash "Tx", [ByteString]) -> SealedTx
