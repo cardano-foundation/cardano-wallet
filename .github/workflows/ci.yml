@@ -571,6 +571,8 @@ jobs:
   build-gate-mac:
     name: "Build Gate (macOS)"
     runs-on: [self-hosted, macOS, ARM64, cardano-wallet]
+    env:
+      XDG_CACHE_HOME: /Users/gha-runner/.cache/nix-eval-cache/${{ github.job }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -597,6 +599,8 @@ jobs:
     name: "Check Nix (macOS)"
     needs: build-gate-mac
     runs-on: [self-hosted, macOS, ARM64, cardano-wallet]
+    env:
+      XDG_CACHE_HOME: /Users/gha-runner/.cache/nix-eval-cache/${{ github.job }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -611,6 +615,8 @@ jobs:
     name: "Local Cluster Tests (macOS)"
     needs: build-gate-mac
     runs-on: [self-hosted, macOS, ARM64, cardano-wallet]
+    env:
+      XDG_CACHE_HOME: /Users/gha-runner/.cache/nix-eval-cache/${{ github.job }}
     timeout-minutes: 30
     steps:
       - name: Checkout
@@ -638,6 +644,8 @@ jobs:
     name: "Build Package (macOS, x86_64)"
     needs: build-gate-mac
     runs-on: [self-hosted, macOS, ARM64, cardano-wallet]
+    env:
+      XDG_CACHE_HOME: /Users/gha-runner/.cache/nix-eval-cache/${{ github.job }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -655,6 +663,8 @@ jobs:
     name: "Build Package (macOS, arm64)"
     needs: build-gate-mac
     runs-on: [self-hosted, macOS, ARM64, cardano-wallet]
+    env:
+      XDG_CACHE_HOME: /Users/gha-runner/.cache/nix-eval-cache/${{ github.job }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
