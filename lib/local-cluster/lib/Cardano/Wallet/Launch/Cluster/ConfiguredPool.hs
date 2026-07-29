@@ -22,19 +22,15 @@ import Cardano.Api
     ( File (..)
     , HasTextEnvelope
     , Key (..)
-    , SerialiseAsBech32
     , SerialiseAsCBOR (..)
     , StakeKey
     , StakePoolKey
     , VerificationKey
     , VrfKey
+    , readFileTextEnvelope
     )
 import Cardano.Binary
     ( FromCBOR (..)
-    )
-import Cardano.CLI.Type.Key
-    ( VerificationKeyOrFile (..)
-    , readVerificationKeyOrFile
     )
 import Cardano.Launcher.Node
     ( CardanoNodeConfig (..)
@@ -183,7 +179,6 @@ import qualified Data.ByteString.Short as SBS
 import qualified Data.ListMap as ListMap
 import qualified Data.Set as Set
 import qualified Data.Text as T
-import qualified RIO
 
 -- | Represents the notion of a fully configured pool. All keys are known, but
 -- not necessarily exposed using this interface.
@@ -324,16 +319,13 @@ genStakeAddrKeyPair (FileOf stakePrv, FileOf stakePub) = do
 
 readFailVerificationKeyOrFile
     :: forall keyrole (s :: Symbol)
-     . ( HasTextEnvelope (VerificationKey keyrole)
-       , SerialiseAsBech32 (VerificationKey keyrole)
-       )
+     . HasTextEnvelope (VerificationKey keyrole)
     => FileOf s
     -> ClusterM (VerificationKey keyrole)
 readFailVerificationKeyOrFile (FileOf op) =
     liftIO
-        $ RIO.runRIO ()
-        $ readVerificationKeyOrFile
-            (VerificationKeyFilePath $ File $ toFilePath op)
+        $ readFileTextEnvelope (File $ toFilePath op)
+            >>= either (error . show) pure
 
 stakePoolIdFromOperatorVerKey
     :: HasCallStack
