@@ -13,7 +13,7 @@ longer consumed in-tree.
 - Silent CHaP, cardano-node, or unrelated dependency bumps.
 - Publishing a new delta-store release (bounds fixes belong upstream).
 
-## Proven dependency facts (2026-07-30, master `@6e3baf8421`)
+## Proven dependency facts (2026-07-30)
 
 | Package | In-tree | Published | Index |
 |---|---|---|---|
@@ -23,6 +23,12 @@ longer consumed in-tree.
 | `delta-table` | `lib/delta-table` | not required by wallet | — |
 
 Neither package is on CHaP (HTTP 404). Resolution path is **Hackage only**.
+The reviewed Hackage archives are:
+
+- `delta-types-1.0.0.0.tar.gz`
+  (`sha256:0fdb3b6572487c6a4ec407cb7c09b4688343b8979168c846f23d0890cbbb0bed`)
+- `delta-store-1.0.0.0.tar.gz`
+  (`sha256:d8048e15430e6e6eb667fd4d935ce7f17907f3449ce3935e5272d06fc8c504a8`)
 
 ### Compatibility notes that shape the plan
 
@@ -36,6 +42,45 @@ Neither package is on CHaP (HTTP 404). Resolution path is **Hackage only**.
    `Data.DBVar`, `Data.Delta.Update` remain valid against published modules.
 4. **No in-tree consumers** of `delta-chain` / `delta-table` packages
    (local `DeltaChain` types in network-layer tests are unrelated).
+
+### Semantic compatibility audit
+
+The published sources were compared with the vendored sources at the original
+PR merge base (`6e3baf8421`). After normalizing formatting and documentation:
+
+1. `Data.Store`, `Data.DBVar`, and `Data.Delta.Update` have equivalent
+   executable code for the APIs used by wallet.
+2. Published `Data.Delta.List` adds `Semigroup` and `Monoid` instances for
+   `DeltaList`; wallet has no consumer of that type, and the change is
+   additive.
+3. Published `Data.Delta.Embedding` no longer re-exports
+   `Data.Semigroupoid`. Wallet does not import that re-export, and the
+   umbrella `Data.Delta` module still exports it.
+4. The published test helper changes from `Test.Store` to
+   `Test.Data.Store`, drops an unnecessary `Buildable` constraint, and wraps
+   its test monad in a newtype. The wallet's eleven consumer specs use the
+   same exported law/DSL operations after the import rename.
+
+The narrow `allow-newer` is therefore supported by compilation and consumer
+tests against `io-classes ==1.8.0.1`, not merely by the vendored package's
+formerly unbounded dependency.
+
+### Test coverage ownership
+
+Externalizing a package also externalizes its package-internal tests. This PR
+does not claim that Cabal runs dependency test suites:
+
+- the deleted `delta-types` suite contained one dummy `True` assertion;
+- the deleted `delta-chain` and `delta-table` suites discovered no specs;
+- the deleted `delta-store` suite covered `CachedStore` laws and equivalence;
+  the published archive retains equivalent package tests and adds DBVar tests;
+- wallet retains eleven real Store consumer specs. The focused Store run
+  executes 39 examples, including `prop_StoreUpdate` against wallet stores,
+  with no assertion or generator changes in this PR.
+
+Thus wallet-specific semantic coverage remains in wallet CI. Package-internal
+coverage belongs to the published delta project and is not silently counted
+as part of wallet CI.
 
 ## User stories
 
@@ -73,12 +118,13 @@ Neither package is on CHaP (HTTP 404). Resolution path is **Hackage only**.
    `delta-store-1.0.0.0` from Hackage (not a local path).
 4. Consumers build without local-source leakage.
 5. Ticket gate passes: absence greps (with positive+negative controls),
-   focused consumer unit tests, and either
-   `nix build .#ci.artifacts.linux64.release` plus full unit/integration
-   **or** a durable blocker note if those expensive gates fail for an
-   unrelated reason.
+   focused consumer unit tests, and
+   `nix build .#ci.artifacts.linux64.release`.
 6. Negative controls prove the absence instruments can fail (seeded
    local package / path reintroduction is detected).
+7. Required exact-head CI is green after rebasing to the current target
+   branch. An unrelated failure may be diagnosed and rerun, but is not
+   silently waived at merge handoff.
 
 ## Acceptance mapping (issue checkboxes)
 

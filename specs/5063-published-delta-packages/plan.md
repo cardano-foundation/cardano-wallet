@@ -15,11 +15,16 @@ for the vendored packages.
 | Versions | `delta-types == 1.0.0.0`, `delta-store == 1.0.0.0` | sole published versions; local types already 1.0.0.0 |
 | `index-state` hackage | keep `2026-03-26T20:21:33Z` | packages uploaded 2025-03-27; already visible |
 | `index-state` CHaP | keep `2026-07-20T14:49:58Z` | no change needed |
-| Bound conflict | `allow-newer: delta-store:io-classes` | published cabal has `io-classes <1.8`; project pins `1.8.0.1`; local tree already builds against 1.8 |
+| Bound conflict | `allow-newer: delta-store:io-classes` | published cabal has `io-classes <1.8`; project pins `1.8.0.1`; published source compiles and its wallet consumers pass against 1.8.0.1 |
 | No source-repository-package | prefer published Hackage tarballs | issue asks for published versions |
 
 Escalate only if: Hackage packages fail to build under GHC 9.12.3 with the
 allow-newer relaxation, or production API symbols diverge.
+
+Before merge handoff, compare the Hackage archive sources with the vendored
+base and record any executable or export-surface differences. Account
+separately for package-internal tests that leave wallet CI and wallet consumer
+tests that remain. Dependency test suites are not implicitly run by Cabal.
 
 ## Owned files (implementation slice)
 
@@ -110,7 +115,7 @@ Exact list for the driver:
 ```
 chore: use published delta-types and delta-store
 
-Tasks: T5063-S1
+Tasks: T002, T003, T004, T005
 ```
 
 ## Evidence the orchestrator will re-derive
@@ -119,6 +124,9 @@ Tasks: T5063-S1
 - Freeze/plan snippet for the two package ids
 - Gate exit 0 on the exact commit
 - Navigator `NAVIGATOR-VERIFIED <sha>`
+- Compatibility review of Hackage archive source against the vendored base
+- Explicit package-test versus wallet-consumer coverage accounting
+- Required CI green on the rebased exact head
 
 ## Queue position
 
