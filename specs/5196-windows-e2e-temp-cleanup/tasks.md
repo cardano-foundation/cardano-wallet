@@ -33,7 +33,7 @@ Canonical numeric task IDs only (`T###`). Trailers must match
 
 ## Orchestrator docs/gate remediation
 
-- [ ] T007 Correct spec/plan/tasks so SC4 live cancel proof is mandatory
+- [X] T007 Correct spec/plan/tasks so SC4 live cancel proof is mandatory
       pre-merge with named artifact; extend untracked gate so soft cleanup
       is RED; commit docs+task correction only
 
