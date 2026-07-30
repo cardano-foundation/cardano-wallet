@@ -62,7 +62,7 @@ import Test.QuickCheck
     , arbitrary
     , property
     )
-import Test.Store
+import Test.Data.Store
     ( prop_StoreUpdate
     )
 import Prelude

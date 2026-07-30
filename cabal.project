@@ -64,10 +64,6 @@ packages:
   lib/benchmarks
   lib/cardano-api-extra
   lib/crypto-primitives
-  lib/delta-chain
-  lib/delta-store
-  lib/delta-table
-  lib/delta-types
   lib/flaky-tests
   lib/faucet
   lib/integration
@@ -165,6 +161,7 @@ allow-newer:
   , cardano-lmdb:base
   , cardano-cli:cardano-api
   , hkd:base
+  , delta-store:io-classes
 constraints:
     base >= 4.18.2.0 && < 5
   , openapi3 >= 3.2.0
@@ -172,6 +169,8 @@ constraints:
   , text >= 2.0 && < 2.2
   -- bytesmith 0.3.14.0 uses text API incompatible with text-2.x
   , bytesmith < 0.3.14
+  , delta-types ==1.0.0.0
+  , delta-store ==1.0.0.0
 
   -- Force newer version of `lobemo-backend-ekg` here,
   -- because older versions depend on `snap-server`,
@@ -267,17 +266,9 @@ test-show-details: direct
 package flaky-tests
   tests: True
 
-package delta-chain
-  tests: True
 
-package delta-store
-  tests: True
 
-package delta-types
-  tests: True
 
-package delta-table
-  tests: True
 
 package cardano-coin-selection
   tests: False

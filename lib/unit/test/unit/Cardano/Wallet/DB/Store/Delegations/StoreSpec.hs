@@ -79,7 +79,7 @@ import Test.QuickCheck
     , vectorOf
     , (===)
     )
-import Test.Store
+import Test.Data.Store
     ( applyS
     , checkLaw
     , context

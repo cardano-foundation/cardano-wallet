@@ -31,7 +31,7 @@ import Test.Hspec
 import Test.QuickCheck
     ( property
     )
-import Test.Store
+import Test.Data.Store
     ( prop_StoreUpdate
     )
 import Prelude

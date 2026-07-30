@@ -96,10 +96,6 @@ unit-tests-cabal-match match:
     cardano-wallet-secrets:test \
     cardano-wallet-test-utils:unit \
     cardano-wallet-unit:unit \
-    delta-chain:unit \
-    delta-store:unit \
-    delta-table:unit \
-    delta-types:unit \
     std-gen-seed:unit \
     wai-middleware-logging:unit \
     -O0 -v0 \

@@ -80,7 +80,7 @@ library
     , contra-tracer
     , crypto-primitives
     , deepseq
-    , delta-types
+    , delta-types ^>= 1.0
     , errors
     , extra
     , fmt
@@ -252,7 +252,7 @@ test-suite test
     , containers
     , crypto-primitives
     , deepseq
-    , delta-types
+    , delta-types ^>= 1.0
     , either
     , filepath
     , fmt

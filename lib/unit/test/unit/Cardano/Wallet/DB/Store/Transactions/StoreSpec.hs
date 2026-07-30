@@ -116,7 +116,7 @@ import Test.QuickCheck.Monadic
     ( forAllM
     , pick
     )
-import Test.Store
+import Test.Data.Store
     ( GenDelta
     , prop_StoreUpdate
     )

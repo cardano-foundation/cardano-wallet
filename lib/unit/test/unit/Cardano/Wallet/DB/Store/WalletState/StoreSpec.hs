@@ -79,7 +79,7 @@ import Test.QuickCheck
     , Property
     , property
     )
-import Test.Store
+import Test.Data.Store
     ( GenDelta
     , prop_StoreUpdate
     )
