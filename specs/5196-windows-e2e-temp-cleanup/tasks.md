@@ -23,7 +23,7 @@ Canonical numeric task IDs only (`T###`). Trailers must match
 
 ## Slice S3 — Fail-closed cleanup (driver+navigator)
 
-- [ ] T006 Demonstrate gate RED on soft cleanup, then make the
+- [X] T006 Demonstrate gate RED on soft cleanup, then make the
       `if: always()` cleanup fail-closed (missing RUNNER_TEMP fails;
       enumeration/deletion errors fail; re-enumerate `e2e*` /
       `test-cluster*` and fail on residuals; emit
@@ -39,8 +39,8 @@ Canonical numeric task IDs only (`T###`). Trailers must match
 
 ## Finalization (orchestrator — incomplete until all hold)
 
-- [ ] T008 Stamp tasks, independently gate + final audit, push rebased
+- [X] T008 Stamp tasks, independently gate + final audit, push rebased
       branch via explicit SSH lease, refresh PR body, **leave draft**
-- [ ] T009 SC4 live cancel proof artifact on exact remote head
+- [X] T009 SC4 live cancel proof artifact on exact remote head
       (`sc4-cancel-proof.md`) + exact-head CI green (desk-owned live
       cancel; ticket owner records/verifies)

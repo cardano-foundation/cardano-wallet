@@ -65,11 +65,27 @@ jobs:
         run: |
           # Only remove job-private paths under RUNNER_TEMP.
           # Do not glob shared %TEMP% — sibling jobs share the machine temp root.
+          $ErrorActionPreference = 'Stop'
           $root = $env:RUNNER_TEMP
-          if (-not $root) { Write-Host "RUNNER_TEMP unset; skip"; exit 0 }
-          Get-ChildItem -Path $root -Directory -ErrorAction SilentlyContinue |
-            Where-Object { $_.Name -like 'e2e*' -or $_.Name -like 'test-cluster*' } |
-            ForEach-Object {
-              Write-Host "Removing $($_.FullName)"
-              Remove-Item -Recurse -Force -ErrorAction Continue $_.FullName
-            }
+          if ([string]::IsNullOrWhiteSpace($root)) {
+            Write-Error 'RUNNER_TEMP is missing or empty'
+            exit 1
+          }
+          if (-not (Test-Path -LiteralPath $root)) {
+            Write-Error "RUNNER_TEMP path does not exist: $root"
+            exit 1
+          }
+          $dirs = @(Get-ChildItem -Path $root -Directory -ErrorAction Stop |
+            Where-Object { $_.Name -like 'e2e*' -or $_.Name -like 'test-cluster*' })
+          foreach ($d in $dirs) {
+            Write-Host "Removing $($d.FullName)"
+            Remove-Item -LiteralPath $d.FullName -Recurse -Force -ErrorAction Stop
+          }
+          $residual = @(Get-ChildItem -Path $root -Directory -ErrorAction Stop |
+            Where-Object { $_.Name -like 'e2e*' -or $_.Name -like 'test-cluster*' })
+          if ($residual.Count -gt 0) {
+            $residual | ForEach-Object { Write-Host "Residual: $($_.FullName)" }
+            Write-Error "Cleanup left $($residual.Count) residual E2E temp directories"
+            exit 1
+          }
+          Write-Host 'Cleanup verified: 0 residual E2E temp directories'
