@@ -93,6 +93,10 @@ import System.FilePath
 import System.IO.Temp
     ( withSystemTempDirectory
     )
+import Test.Data.Store
+    ( GenDelta
+    , prop_StoreUpdate
+    )
 import Test.Hspec
     ( Spec
     , around
@@ -115,10 +119,6 @@ import Test.QuickCheck
 import Test.QuickCheck.Monadic
     ( forAllM
     , pick
-    )
-import Test.Data.Store
-    ( GenDelta
-    , prop_StoreUpdate
     )
 import Test.Utils.Paths
     ( getTestData

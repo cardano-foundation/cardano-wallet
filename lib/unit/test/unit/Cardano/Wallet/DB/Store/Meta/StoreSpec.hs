@@ -67,6 +67,9 @@ import Data.Store
 import GHC.Natural
     ( Natural
     )
+import Test.Data.Store
+    ( prop_StoreUpdate
+    )
 import Test.Hspec
     ( Spec
     , around
@@ -83,9 +86,6 @@ import Test.QuickCheck
 import Test.QuickCheck.Monadic
     ( forAllM
     , pick
-    )
-import Test.Data.Store
-    ( prop_StoreUpdate
     )
 import Prelude
 

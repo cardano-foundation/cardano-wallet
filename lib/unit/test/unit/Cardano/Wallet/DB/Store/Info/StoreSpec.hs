@@ -20,6 +20,9 @@ import Cardano.Wallet.DB.Store.Info.Store
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( dummyGenesisParameters
     )
+import Test.Data.Store
+    ( prop_StoreUpdate
+    )
 import Test.Hspec
     ( Spec
     , around
@@ -30,9 +33,6 @@ import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
     , property
-    )
-import Test.Data.Store
-    ( prop_StoreUpdate
     )
 import Prelude
 

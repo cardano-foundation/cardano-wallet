@@ -37,6 +37,9 @@ import Cardano.Wallet.DB.Store.UTxOHistory.Store
 import Fmt
     ( Buildable (..)
     )
+import Test.Data.Store
+    ( prop_StoreUpdate
+    )
 import Test.Hspec
     ( Spec
     , around
@@ -47,9 +50,6 @@ import Test.QuickCheck
     ( Gen
     , frequency
     , property
-    )
-import Test.Data.Store
-    ( prop_StoreUpdate
     )
 import Prelude
 

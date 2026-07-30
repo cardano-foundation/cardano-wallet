@@ -78,8 +78,8 @@ library
     , contra-tracer
     , crypto-primitives
     , deepseq
-    , delta-store ^>= 1.0
-    , delta-types ^>= 1.0
+    , delta-store                   ^>=1.0
+    , delta-types                   ^>=1.0
     , directory
     , either
     , errors

@@ -50,6 +50,9 @@ import Data.Delta
 import Fmt
     ( Buildable (..)
     )
+import Test.Data.Store
+    ( prop_StoreUpdate
+    )
 import Test.Hspec
     ( Spec
     , around
@@ -61,9 +64,6 @@ import Test.QuickCheck
     , Gen
     , arbitrary
     , property
-    )
-import Test.Data.Store
-    ( prop_StoreUpdate
     )
 import Prelude
 

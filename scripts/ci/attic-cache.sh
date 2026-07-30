@@ -39,10 +39,6 @@ nix build --quiet \
   .#ci.artifacts.win64.tests.wallet-launcher \
   .#ci.artifacts.win64.tests.cardano-numeric \
   .#ci.artifacts.win64.tests.wallet-blackbox-benchmarks \
-  .#ci.artifacts.win64.tests.delta-chain \
-  .#ci.artifacts.win64.tests.delta-store \
-  .#ci.artifacts.win64.tests.delta-table \
-  .#ci.artifacts.win64.tests.delta-types \
   .#ci.artifacts.win64.tests.std-gen-seed \
   .#ci.artifacts.win64.tests.wai-middleware-logging \
   -o win-cross

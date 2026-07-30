@@ -68,6 +68,10 @@ import Data.Generics.Internal.VL.Lens
 import Data.Maybe
     ( fromJust
     )
+import Test.Data.Store
+    ( GenDelta
+    , prop_StoreUpdate
+    )
 import Test.Hspec
     ( Spec
     , around
@@ -78,10 +82,6 @@ import Test.QuickCheck
     ( Arbitrary (..)
     , Property
     , property
-    )
-import Test.Data.Store
-    ( GenDelta
-    , prop_StoreUpdate
     )
 import Prelude
 

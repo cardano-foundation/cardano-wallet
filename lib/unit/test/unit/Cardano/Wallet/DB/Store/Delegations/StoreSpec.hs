@@ -63,6 +63,16 @@ import Control.Monad.IO.Class
 import Data.List
     ( nub
     )
+import Test.Data.Store
+    ( applyS
+    , checkLaw
+    , context
+    , ignore
+    , observe
+    , prop_StoreUpdate
+    , reset
+    , unitTestStore
+    )
 import Test.Hspec
     ( Spec
     , around
@@ -78,16 +88,6 @@ import Test.QuickCheck
     , suchThat
     , vectorOf
     , (===)
-    )
-import Test.Data.Store
-    ( applyS
-    , checkLaw
-    , context
-    , ignore
-    , observe
-    , prop_StoreUpdate
-    , reset
-    , unitTestStore
     )
 import Prelude
 

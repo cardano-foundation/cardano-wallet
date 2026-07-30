@@ -22,6 +22,9 @@ import Cardano.Wallet.DB.Store.Wallets.Layer
 import Cardano.Wallet.DB.Store.Wallets.StoreSpec
     ( genDeltaTxWallets
     )
+import Test.Data.Store
+    ( prop_StoreUpdate
+    )
 import Test.Hspec
     ( Spec
     , around
@@ -30,9 +33,6 @@ import Test.Hspec
     )
 import Test.QuickCheck
     ( property
-    )
-import Test.Data.Store
-    ( prop_StoreUpdate
     )
 import Prelude
 

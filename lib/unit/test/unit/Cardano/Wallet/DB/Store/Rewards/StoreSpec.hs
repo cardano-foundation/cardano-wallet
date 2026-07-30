@@ -31,6 +31,9 @@ import Cardano.Wallet.DB.Store.Rewards.Store
 import Data.Delta
     ( Replace (..)
     )
+import Test.Data.Store
+    ( prop_StoreUpdate
+    )
 import Test.Hspec
     ( Spec
     , around
@@ -42,9 +45,6 @@ import Test.QuickCheck
     , Property
     , arbitrary
     , property
-    )
-import Test.Data.Store
-    ( prop_StoreUpdate
     )
 import Prelude
 
