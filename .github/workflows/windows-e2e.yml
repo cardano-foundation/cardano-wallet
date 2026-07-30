@@ -39,9 +39,14 @@ jobs:
           name: win-e2e
           path: e2e-bundle
 
+      # RUNNER_TEMP / ${{ runner.temp }} is per-job; do not glob shared Windows
+      # TEMP — sibling jobs share the machine temp root.
       - name: Run Windows smoke (create wallet + single tx)
         working-directory: e2e-bundle
         env:
+          TEMP: ${{ runner.temp }}
+          TMP: ${{ runner.temp }}
+          TMPDIR: ${{ runner.temp }}
           LOCAL_CLUSTER_CONFIGS: test\data\cluster-configs
           CARDANO_WALLET_TEST_DATA: test\data
         shell: pwsh
@@ -51,3 +56,36 @@ jobs:
             --fail-on=empty `
             --match "TRANS_CREATE_01x - Single Output Transaction" `
             -j1
+
+      - name: Cleanup E2E temp directories
+        if: always()
+        shell: pwsh
+        env:
+          RUNNER_TEMP: ${{ runner.temp }}
+        run: |
+          # Only remove job-private paths under RUNNER_TEMP.
+          # Do not glob shared %TEMP% — sibling jobs share the machine temp root.
+          $ErrorActionPreference = 'Stop'
+          $root = $env:RUNNER_TEMP
+          if ([string]::IsNullOrWhiteSpace($root)) {
+            Write-Error 'RUNNER_TEMP is missing or empty'
+            exit 1
+          }
+          if (-not (Test-Path -LiteralPath $root)) {
+            Write-Error "RUNNER_TEMP path does not exist: $root"
+            exit 1
+          }
+          $dirs = @(Get-ChildItem -Path $root -Directory -ErrorAction Stop |
+            Where-Object { $_.Name -like 'e2e*' -or $_.Name -like 'test-cluster*' })
+          foreach ($d in $dirs) {
+            Write-Host "Removing $($d.FullName)"
+            Remove-Item -LiteralPath $d.FullName -Recurse -Force -ErrorAction Stop
+          }
+          $residual = @(Get-ChildItem -Path $root -Directory -ErrorAction Stop |
+            Where-Object { $_.Name -like 'e2e*' -or $_.Name -like 'test-cluster*' })
+          if ($residual.Count -gt 0) {
+            $residual | ForEach-Object { Write-Host "Residual: $($_.FullName)" }
+            Write-Error "Cleanup left $($residual.Count) residual E2E temp directories"
+            exit 1
+          }
+          Write-Host 'Cleanup verified: 0 residual E2E temp directories'
