@@ -14,7 +14,7 @@
 ## Slice 2 — Production-wiring / boundary verification
 
 - [X] T006: Production live PATH probe via `downloadMithril` with impossible working dir (no fallback/HTTP); record static E2E call site
-- [ ] T007: Finalization (commit-gate trailers, signed commits, desk push authorization)
+- [X] T007: Finalization (commit-gate trailers, signed commits, desk push authorization)
 
 ## Notes
 
