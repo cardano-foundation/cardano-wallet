@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 -- | Copyright: © 2023 IOHK License: Apache-2.0
@@ -37,8 +38,10 @@ import System.IO.Temp
 import Test.Hspec
     ( Spec
     , describe
-    , it
     , shouldReturn
+    )
+import Test.Hspec.Extra
+    ( itWithDiagnosticTimeout
     )
 import UnliftIO
     ( MonadUnliftIO
@@ -55,28 +58,77 @@ import qualified Database.Persist.Sqlite as Sqlite
 spec :: Spec
 spec = do
     describe "new migrations" $ do
-        it "handles backupDatabaseFile and withDatabaseFile" $ do
-            withSystemTempDirectory "test" $ \dir -> do
-                let interface = newMigrationInterface nullTracer
-                let dbf = dir <> "/db"
-                execute interface dbf createTable
-                backupDatabaseFile interface dbf $ Version 1
-                execute interface dbf populateTable
-                backupDatabaseFile interface dbf $ Version 2
-                sort <$> listDirectory dir
-                    `shouldReturn` sort ["db", "db.v1.bak", "db.v2.bak"]
+        itWithDiagnosticTimeout
+            60
+            "handles backupDatabaseFile and withDatabaseFile"
+            $ \publish _ ->
+                withSystemTempDirectory "test" $ \dir -> do
+                    let interface = newMigrationInterface nullTracer
+                    let dbf = dir <> "/db"
+                    execute publish interface dbf CreateTable createTable
+                    publish $ diagnostic dbf (BackupTo $ Version 1) LockExpected
+                    backupDatabaseFile interface dbf $ Version 1
+                    publish
+                        $ diagnostic dbf (BackupTo $ Version 1) NoConnectionExpected
+                    execute publish interface dbf PopulateTable populateTable
+                    publish $ diagnostic dbf (BackupTo $ Version 2) LockExpected
+                    backupDatabaseFile interface dbf $ Version 2
+                    publish
+                        $ diagnostic dbf (BackupTo $ Version 2) NoConnectionExpected
+                    publish $ diagnostic dbf InspectFiles NoConnectionExpected
+                    sort <$> listDirectory dir
+                        `shouldReturn` sort ["db", "db.v1.bak", "db.v2.bak"]
 
 execute
     :: MonadUnliftIO m
-    => MigrationInterface m DBHandle
+    => (MigrationDiagnostic -> m ())
+    -> MigrationInterface m DBHandle
     -> FilePath
+    -> MigrationOperation
     -> Text
     -> m ()
-execute interface dbf t =
+execute publish interface dbf operation t = do
+    publish $ diagnostic dbf operation ConnectionOpening
     withDatabaseFile interface dbf $ \handle ->
-        Sqlite.runSqlConn
-            (Sqlite.rawExecute t [])
-            (dbBackend handle)
+        do
+            publish $ diagnostic dbf operation ConnectionOpen
+            Sqlite.runSqlConn
+                (Sqlite.rawExecute t [])
+                (dbBackend handle)
+    publish $ diagnostic dbf operation NoConnectionExpected
+
+data MigrationDiagnostic = MigrationDiagnostic
+    { databaseFile :: FilePath
+    , currentOperation :: MigrationOperation
+    , connectionOrLockExpectation :: ConnectionOrLockExpectation
+    }
+    deriving (Show)
+
+data MigrationOperation
+    = CreateTable
+    | BackupTo Version
+    | PopulateTable
+    | InspectFiles
+    deriving (Show)
+
+data ConnectionOrLockExpectation
+    = NoConnectionExpected
+    | ConnectionOpening
+    | ConnectionOpen
+    | LockExpected
+    deriving (Show)
+
+diagnostic
+    :: FilePath
+    -> MigrationOperation
+    -> ConnectionOrLockExpectation
+    -> MigrationDiagnostic
+diagnostic databaseFile currentOperation connectionOrLockExpectation =
+    MigrationDiagnostic
+        { databaseFile
+        , currentOperation
+        , connectionOrLockExpectation
+        }
 
 createTable :: Text
 createTable =
