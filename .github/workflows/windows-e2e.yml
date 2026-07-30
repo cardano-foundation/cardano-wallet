@@ -39,9 +39,14 @@ jobs:
           name: win-e2e
           path: e2e-bundle
 
+      # RUNNER_TEMP / ${{ runner.temp }} is per-job; do not glob shared Windows
+      # TEMP — sibling jobs share the machine temp root.
       - name: Run Windows smoke (create wallet + single tx)
         working-directory: e2e-bundle
         env:
+          TEMP: ${{ runner.temp }}
+          TMP: ${{ runner.temp }}
+          TMPDIR: ${{ runner.temp }}
           LOCAL_CLUSTER_CONFIGS: test\data\cluster-configs
           CARDANO_WALLET_TEST_DATA: test\data
         shell: pwsh
@@ -51,3 +56,20 @@ jobs:
             --fail-on=empty `
             --match "TRANS_CREATE_01x - Single Output Transaction" `
             -j1
+
+      - name: Cleanup E2E temp directories
+        if: always()
+        shell: pwsh
+        env:
+          RUNNER_TEMP: ${{ runner.temp }}
+        run: |
+          # Only remove job-private paths under RUNNER_TEMP.
+          # Do not glob shared %TEMP% — sibling jobs share the machine temp root.
+          $root = $env:RUNNER_TEMP
+          if (-not $root) { Write-Host "RUNNER_TEMP unset; skip"; exit 0 }
+          Get-ChildItem -Path $root -Directory -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -like 'e2e*' -or $_.Name -like 'test-cluster*' } |
+            ForEach-Object {
+              Write-Host "Removing $($_.FullName)"
+              Remove-Item -Recurse -Force -ErrorAction Continue $_.FullName
+            }

@@ -15,7 +15,7 @@ Canonical numeric task IDs only (`T###`). Trailers must match
 
 ## Slice A — Windows workflow scoping (driver+navigator)
 
-- [ ] T005 Demonstrate focused checker RED on baseline `windows-e2e.yml`,
+- [X] T005 Demonstrate focused checker RED on baseline `windows-e2e.yml`,
       then implement FR1–FR3 (TEMP/TMP/TMPDIR → `${{ runner.temp }}`,
       `if: always()` cleanup under job-private root only, sibling-job safety
       comment), then GREEN + actionlint + `./gate.sh`; one bisect-safe commit
