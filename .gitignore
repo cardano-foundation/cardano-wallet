@@ -99,3 +99,4 @@ cabal.project.local
 
 # Local CI gate script
 gate.sh
+/gate.sh
