@@ -39,8 +39,7 @@ jobs:
           .#unit-cardano-wallet-secrets .#unit-cardano-wallet-test-utils
           .#unit-cardano-wallet-launcher .#unit-cardano-wallet-network-layer
           .#unit-cardano-wallet-application-tls .#unit-cardano-wallet-blackbox-benchmarks
-          .#unit-delta-chain .#unit-delta-store .#unit-delta-table
-          .#unit-delta-types .#unit-std-gen-seed .#unit-wai-middleware-logging
+          .#unit-std-gen-seed .#unit-wai-middleware-logging
           .#unit-benchmark-history
           .#wallet-key-export .#wallet-key-export-test
 
@@ -79,10 +78,6 @@ jobs:
           .#ci.artifacts.win64.tests.wallet-launcher
           .#ci.artifacts.win64.tests.cardano-numeric
           .#ci.artifacts.win64.tests.wallet-blackbox-benchmarks
-          .#ci.artifacts.win64.tests.delta-chain
-          .#ci.artifacts.win64.tests.delta-store
-          .#ci.artifacts.win64.tests.delta-table
-          .#ci.artifacts.win64.tests.delta-types
           .#ci.artifacts.win64.tests.std-gen-seed
           .#ci.artifacts.win64.tests.wai-middleware-logging
           .#ci.artifacts.win64.integration
@@ -152,18 +147,6 @@ jobs:
 
           - name: "cardano-wallet-test-utils"
             command: nix run --quiet .#unit-cardano-wallet-test-utils -- +RTS -M2G -s -RTS
-
-          - name: "delta-chain"
-            command: nix run --quiet .#unit-delta-chain -- +RTS -M2G -s -RTS
-
-          - name: "delta-store"
-            command: nix run --quiet .#unit-delta-store -- +RTS -M2G -s -RTS
-
-          - name: "delta-table"
-            command: nix run --quiet .#unit-delta-table -- +RTS -M2G -s -RTS
-
-          - name: "delta-types"
-            command: nix run --quiet .#unit-delta-types -- +RTS -M2G -s -RTS
 
           - name: "std-gen-seed"
             command: nix run --quiet .#unit-std-gen-seed -- +RTS -M2G -s -RTS
@@ -586,8 +569,7 @@ jobs:
           .#unit-cardano-wallet-secrets .#unit-cardano-wallet-test-utils
           .#unit-cardano-wallet-launcher .#unit-cardano-wallet-network-layer
           .#unit-cardano-wallet-application-tls .#unit-cardano-wallet-blackbox-benchmarks
-          .#unit-delta-chain .#unit-delta-store .#unit-delta-table
-          .#unit-delta-types .#unit-std-gen-seed .#unit-wai-middleware-logging
+          .#unit-std-gen-seed .#unit-wai-middleware-logging
           .#unit-benchmark-history
           .#cardano-cli .#cardano-node .#cardano-wallet
           .#local-cluster .#test-local-cluster-exe

@@ -50,10 +50,6 @@ jobs:
           .#ci.artifacts.win64.tests.wallet-launcher
           .#ci.artifacts.win64.tests.cardano-numeric
           .#ci.artifacts.win64.tests.wallet-blackbox-benchmarks
-          .#ci.artifacts.win64.tests.delta-chain
-          .#ci.artifacts.win64.tests.delta-store
-          .#ci.artifacts.win64.tests.delta-table
-          .#ci.artifacts.win64.tests.delta-types
           .#ci.artifacts.win64.tests.std-gen-seed
           .#ci.artifacts.win64.tests.wai-middleware-logging
           .#ci.artifacts.win64.integration
@@ -120,10 +116,6 @@ jobs:
           # wallet-application-tls: skipped pending #5110
           - name: cardano-numeric
           - name: wallet-blackbox-benchmarks
-          - name: delta-chain
-          - name: delta-store
-          - name: delta-table
-          - name: delta-types
           - name: std-gen-seed
           - name: wai-middleware-logging
     steps:
@@ -271,22 +263,6 @@ jobs:
 
           - name: "wallet-blackbox-benchmarks"
             artifact: win-test-wallet-blackbox-benchmarks
-            command: .\unit.exe --color +RTS -M2G -s -N2 -RTS
-
-          - name: "delta-chain"
-            artifact: win-test-delta-chain
-            command: .\unit.exe --color +RTS -M2G -s -N2 -RTS
-
-          - name: "delta-store"
-            artifact: win-test-delta-store
-            command: .\unit.exe --color +RTS -M2G -s -N2 -RTS
-
-          - name: "delta-table"
-            artifact: win-test-delta-table
-            command: .\unit.exe --color +RTS -M2G -s -N2 -RTS
-
-          - name: "delta-types"
-            artifact: win-test-delta-types
             command: .\unit.exe --color +RTS -M2G -s -N2 -RTS
 
           - name: "std-gen-seed"

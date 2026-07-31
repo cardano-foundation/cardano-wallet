@@ -327,10 +327,6 @@
                 unit-cardano-numeric = project.hsPkgs.cardano-numeric.components.tests.unit;
                 unit-cardano-wallet-blackbox-benchmarks =
                   project.hsPkgs.cardano-wallet-blackbox-benchmarks.components.tests.unit;
-                unit-delta-chain = project.hsPkgs.delta-chain.components.tests.unit;
-                unit-delta-store = project.hsPkgs.delta-store.components.tests.unit;
-                unit-delta-table = project.hsPkgs.delta-table.components.tests.unit;
-                unit-delta-types = project.hsPkgs.delta-types.components.tests.unit;
                 unit-std-gen-seed = project.hsPkgs.std-gen-seed.components.tests.unit;
                 unit-wai-middleware-logging = project.hsPkgs.wai-middleware-logging.components.tests.unit;
                 unit-benchmark-history =
@@ -513,10 +509,6 @@
                         test = windowsPackages.unit-cardano-wallet-blackbox-benchmarks;
                         testDataDirs = [ ./lib/wallet-benchmarks/test/data ];
                       };
-                      delta-chain = mkTest "delta-chain" windowsPackages.unit-delta-chain;
-                      delta-store = mkTest "delta-store" windowsPackages.unit-delta-store;
-                      delta-table = mkTest "delta-table" windowsPackages.unit-delta-table;
-                      delta-types = mkTest "delta-types" windowsPackages.unit-delta-types;
                       std-gen-seed = mkTest "std-gen-seed" windowsPackages.unit-std-gen-seed;
                       wai-middleware-logging = mkTest "wai-middleware-logging" windowsPackages.unit-wai-middleware-logging;
                     };

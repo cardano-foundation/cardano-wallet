@@ -54,6 +54,9 @@ import Data.Quantity
 import System.Random
     ( Random
     )
+import Test.Data.Store
+    ( prop_StoreUpdate
+    )
 import Test.Hspec
     ( Spec
     , around
@@ -63,9 +66,6 @@ import Test.Hspec
 import Test.QuickCheck
     ( Arbitrary (..)
     , property
-    )
-import Test.Store
-    ( prop_StoreUpdate
     )
 import Prelude
 

@@ -49,6 +49,10 @@ import Data.Store
     ( UpdateStore
     , newStore
     )
+import Test.Data.Store
+    ( GenDelta
+    , prop_StoreUpdate
+    )
 import Test.Hspec
     ( Spec
     , around
@@ -62,10 +66,6 @@ import Test.QuickCheck
     , choose
     , frequency
     , property
-    )
-import Test.Store
-    ( GenDelta
-    , prop_StoreUpdate
     )
 import Prelude
 
