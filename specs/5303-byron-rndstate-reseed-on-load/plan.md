@@ -54,3 +54,27 @@ Owned files:
 Forbidden scope: `Random.hs` (Show/Buildable already handled by merged
 #5300 — do not touch), `Sqlite/Types.hs` (codec must not change), any
 schema/migration file, `Server.hs` (creation path already correct).
+
+## Slice B — prove reseed (negative control) without dropping structural coverage
+
+**Binding finding:** production reseed on `loadPrologue` is sound.
+Blocking defect is test-side only: `prop_rnd_prologue_roundtrip`
+normalizes `gen` on both sides, so restore-from-DB and CSPRNG reseed
+both pass. Spec success criterion (two loads → different `gen`) is unmet.
+
+Owned files (primary):
+- `lib/unit/test/unit/Cardano/Wallet/DB/Store/Checkpoints/StoreSpec.hs`
+
+Production `Store.hs` may be touched **only** for a temporary negative
+control (revert reseed or install a constant `gen`) that is fully
+reverted before GREEN/commit. No lasting production change is required.
+
+Forbidden: schema/codec/migrations, `Random.hs`, `Server.hs`, new PRs,
+unrelated packages.
+
+Acceptance for Slice B:
+1. Permanent reseed assertion present and green on true reseed.
+2. Negative control recorded: under constant/reverted reseed the
+   assertion fails (non-zero exit).
+3. Non-`gen` field roundtrip coverage preserved (normalize only for
+   structural comparison where appropriate).
