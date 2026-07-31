@@ -103,6 +103,9 @@ spec = do
             it "loadPrologue . insertPrologue = id  for RndState"
                 $ property . prop_rnd_prologue_roundtrip
 
+            it "loadPrologue reseeds RndState.gen from CSPRNG"
+                $ property . prop_rnd_prologue_reseed
+
             it "loadPrologue . insertPrologue = id  for SharedState"
                 $ property
                     . prop_prologue_load_write @(SharedState 'Mainnet SharedKey)
@@ -147,6 +150,49 @@ prop_rnd_prologue_roundtrip db (wid, s) =
         monitor $ counterexample $ "\nRead\n" <> pretty res'
         assertWith "Inserted == Read" (res' == fa)
     normalizePrologue (RndPrologue st) = RndPrologue (normalize st)
+
+-- | Permanent reseed assertion: two loads of the same on-disk checkpoint
+-- yield different raw 'gen' values, and loaded 'gen' differs from the
+-- persisted value. Does not normalize 'gen' on either side.
+prop_rnd_prologue_reseed
+    :: SqliteContext -> (WalletId, RndState 'Mainnet) -> Property
+prop_rnd_prologue_reseed db (wid, s) =
+    monadicIO $ run (toIO setup) >> prop
+  where
+    toIO = runQuery db
+    setup = initializeWalletTable wid
+    -- Fixed persisted seed so loaded-vs-persisted is deterministic
+    -- under a broken restore-from-DB implementation.
+    persisted = s{gen = mkStdGen 0}
+    pro = getPrologue persisted
+    prop = do
+        (res1, res2) <- run . toIO $ do
+            insertPrologue wid pro
+            r1 <- loadPrologue wid
+            r2 <- loadPrologue wid
+            pure (r1, r2)
+        case (res1, res2) of
+            (Just (RndPrologue st1), Just (RndPrologue st2)) -> do
+                let gen1 = gen st1
+                    gen2 = gen st2
+                    genPersisted = gen persisted
+                monitor
+                    $ counterexample
+                    $ "persisted gen = " <> show genPersisted
+                monitor
+                    $ counterexample
+                    $ "loaded gen1 = " <> show gen1
+                monitor
+                    $ counterexample
+                    $ "loaded gen2 = " <> show gen2
+                assertWith
+                    "Reseed: two loads yield different gen"
+                    (gen1 /= gen2)
+                assertWith
+                    "Reseed: loaded gen differs from persisted gen"
+                    (gen1 /= genPersisted)
+            _ ->
+                assertWith "loadPrologue returned Just twice" False
 
 -- FIXME during ADP-1043: See note at 'multisigPoolAbsent'
 

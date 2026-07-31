@@ -20,14 +20,14 @@
 Production reseed on PR head is accepted as sound. The suite still does
 not prove reseed: `prop_rnd_prologue_roundtrip` normalizes `gen` away.
 
-- [ ] T5303-S6 Add a permanent assertion that reseed happens on load
+- [X] T5303-S6 Add a permanent assertion that reseed happens on load
       (e.g. two loads of the same on-disk checkpoint yield different
       `gen`, and/or loaded `gen` differs from persisted `gen`), without
       weakening non-`gen` structural roundtrip coverage
-- [ ] T5303-S7 Negative control: show the new assertion fails when
+- [X] T5303-S7 Negative control: show the new assertion fails when
       reseed is reverted or made constant (record commands + exit codes);
       restore production reseed after the control
-- [ ] T5303-S8 Focused unit proof green for RndState prologue / reseed
+- [X] T5303-S8 Focused unit proof green for RndState prologue / reseed
       properties; structural non-`gen` coverage retained
-- [ ] T5303-S9 Commit with Tasks trailer covering T5303-S6, T5303-S7,
+- [X] T5303-S9 Commit with Tasks trailer covering T5303-S6, T5303-S7,
       T5303-S8 (and any gate-adjacent notes)
