@@ -19,6 +19,7 @@ import Cardano.Slotting.Slot
     )
 import Cardano.Wallet.Api.Http.Shelley.Server
     ( IsServerError (..)
+    , depositReturnedFromCertificates
     , getNetworkClock
     , getNetworkInformation
     , liftHandler
@@ -56,8 +57,19 @@ import Cardano.Wallet.Primitive.SyncProgress
     )
 import Cardano.Wallet.Primitive.Types
     ( Block (..)
+    , Certificate (..)
+    , DelegationCertificate (..)
+    , NonWalletCertificate (..)
+    , PoolCertificate (..)
+    , PoolRetirementCertificate (..)
     , SlotNo (..)
     , StartTime (..)
+    )
+import Cardano.Wallet.Primitive.Types.Coin
+    ( Coin (..)
+    )
+import Cardano.Wallet.Primitive.Types.RewardAccount
+    ( RewardAccount (..)
     )
 import Cardano.Wallet.Unsafe
     ( unsafeFromText
@@ -141,6 +153,8 @@ import UnliftIO.Concurrent
 import Prelude
 
 import qualified Cardano.Wallet.Primitive.SyncProgress as S
+import qualified Cardano.Wallet.Primitive.Types.EpochNo as Epoch
+import qualified Cardano.Wallet.Primitive.Types.Pool as Pool
 import qualified Cardano.Wallet.Read as Read
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
@@ -153,6 +167,7 @@ spec = do
     serverSpec
     networkInfoSpec
     errorHandlingSpec
+    depositReturnedSpec
 
 serverSpec :: Spec
 serverSpec = describe "API Server" $ do
@@ -352,3 +367,74 @@ errorHandlingSpec = describe "liftHandler and toServerError" $ do
 
         runHandler (getNetworkClock (error "bomb") True)
             `shouldReturn` Left expectedErr
+
+depositReturnedSpec :: Spec
+depositReturnedSpec = describe "depositReturnedFromCertificates" $ do
+    let
+        dummyAcct = FromKeyHash ""
+        dummyPoolId = Pool.PoolId ""
+        refundCert n =
+            CertificateOfDelegation (Just (Coin n)) (CertDelegateNone dummyAcct)
+        registrationCert n =
+            CertificateOfDelegation
+                (Just (Coin n))
+                (CertVoteAndDelegate dummyAcct Nothing Nothing)
+        registrationAndDelegationCert n =
+            CertificateOfDelegation
+                (Just (Coin n))
+                (CertVoteAndDelegate dummyAcct (Just dummyPoolId) Nothing)
+        ordinaryDelegationCert =
+            CertificateOfDelegation
+                Nothing
+                (CertVoteAndDelegate dummyAcct (Just dummyPoolId) Nothing)
+        poolCert =
+            CertificateOfPool
+                $ Retirement
+                $ PoolRetirementCertificate dummyPoolId (Epoch.EpochNo 0)
+        governanceCert = CertificateOther RegDRep
+
+    it "absent CBOR contributes 0" $ do
+        depositReturnedFromCertificates Nothing `shouldBe` 0
+
+    it "empty certificate lists contribute 0" $ do
+        depositReturnedFromCertificates (Just []) `shouldBe` 0
+
+    it "one explicit deregistration refund contributes its exact coin" $ do
+        depositReturnedFromCertificates
+            (Just [refundCert 2_000_000])
+            `shouldBe` 2_000_000
+
+    it "registration deposits with an explicit coin contribute 0" $ do
+        depositReturnedFromCertificates
+            ( Just
+                [ registrationCert 2_000_000
+                , registrationAndDelegationCert 3_000_000
+                ]
+            )
+            `shouldBe` 0
+
+    it "legacy deregistration without an explicit refund contributes 0" $ do
+        depositReturnedFromCertificates
+            (Just [CertificateOfDelegation Nothing (CertDelegateNone dummyAcct)])
+            `shouldBe` 0
+
+    it
+        "pool, governance, and ordinary delegation certificates contribute 0"
+        $ do
+            depositReturnedFromCertificates
+                (Just [poolCert, governanceCert, ordinaryDelegationCert])
+                `shouldBe` 0
+
+    it "multiple explicit deregistration refunds sum exactly" $ do
+        depositReturnedFromCertificates
+            ( Just
+                [ refundCert 2_000_000
+                , registrationCert 5_000_000
+                , poolCert
+                , refundCert 500_000
+                , governanceCert
+                , ordinaryDelegationCert
+                , registrationAndDelegationCert 7_000_000
+                ]
+            )
+            `shouldBe` 2_500_000

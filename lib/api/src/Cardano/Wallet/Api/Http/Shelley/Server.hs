@@ -117,6 +117,7 @@ module Cardano.Wallet.Api.Http.Shelley.Server
     , withWorkerCtx
     , getCurrentEpoch
     , MkApiWallet
+    , depositReturnedFromCertificates
 
       -- * Workers
     , manageRewardBalance
@@ -916,7 +917,7 @@ import qualified Cardano.Wallet.Primitive.Types.Tx.Tx as W
     , TxScriptValidity
     )
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxMeta as W
-    ( Direction (Incoming, Outgoing)
+    ( Direction (Outgoing)
     , TxMeta
     )
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
@@ -5374,7 +5375,7 @@ mkApiTransaction timeInterpreter wrk timeRefLens tx = do
             , amount = ApiAmount.fromCoin $ tx ^. #txMeta . #amount
             , fee = maybe mempty ApiAmount.fromCoin (tx ^. #txFee)
             , depositTaken = ApiAmount depositIfAny
-            , depositReturned = ApiAmount reclaimIfAny
+            , depositReturned = ApiAmount $ reclaimIfAny parsedValues
             , insertedAt = Nothing
             , pendingSince = Nothing
             , expiresAt = expRef
@@ -5442,29 +5443,9 @@ mkApiTransaction timeInterpreter wrk timeRefLens tx = do
                 else totalIn - totalOut
         | otherwise = 0
 
-    -- (pending) when reclaim is coming we have (fee+out) - inp = deposit
-    -- tx is incoming, and the wallet spent for fee and received deposit - fee as out
-    -- (inLedger) when reclaim is accommodated we have out - inp < deposit as fee was incurred
-    -- So in order to detect this we need to have
-    -- 1. deposit
-    -- 2. have inpsWithoutFee of the wallet non-empty
-    -- 3. outs of the wallet non-empty
-    -- 4. tx Incoming
-    -- 5. outs - inpsWithoutFee <= deposit
-    -- assumption: this should work when
-    depositValue :: Natural
-    depositValue = fromIntegral . unCoin $ tx ^. #txDeposit
-
-    reclaimIfAny :: Natural
-    reclaimIfAny
-        | tx ^. (#txMeta . #direction) == W.Incoming =
-            if (totalIn > 0 && totalOut > 0 && totalOut > totalIn)
-                && (totalOut - totalIn <= depositValue)
-                then
-                    depositValue
-                else
-                    0
-        | otherwise = 0
+    reclaimIfAny :: Maybe ParsedTxCBOR -> Natural
+    reclaimIfAny parsed =
+        depositReturnedFromCertificates (view #certificates <$> parsed)
 
     totalIn :: Natural
     totalIn =
@@ -5484,6 +5465,18 @@ mkApiTransaction timeInterpreter wrk timeRefLens tx = do
         -> AddressAmountNoAssets (ApiAddress n)
     toAddressAmountNoAssets (TxOut addr (TokenBundle.TokenBundle coin _)) =
         AddressAmountNoAssets (ApiAddress addr) (ApiAmount.fromCoin coin)
+
+-- | Sum the exact deposit refund amounts from delegation certificates
+-- parsed from the transaction CBOR. Returns 0 when there is no CBOR,
+-- no certificates, or no refund-bearing certificates.
+depositReturnedFromCertificates :: Maybe [W.Certificate] -> Natural
+depositReturnedFromCertificates =
+    maybe 0 (sum . mapMaybe refund)
+  where
+    refund
+        (W.CertificateOfDelegation (Just coin) (W.CertDelegateNone _)) =
+            Just (unCoin coin)
+    refund _ = Nothing
 
 toAddressAmount
     :: forall n
