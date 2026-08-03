@@ -3090,6 +3090,149 @@ components:
       description: |
         The result of signing a transaction (serialized and encoded).
 
+    ApiDRepInfo: &ApiDRepInfo
+      type: object
+      required:
+        - id
+        - credential
+        - status
+        - expiry_epoch
+        - voting_power
+        - deposit
+        - anchor
+      properties:
+        id:
+          type: string
+          description: CIP-129 bech32-encoded DRep credential ID.
+          example: "drep1y4yzl4zeuh3r0l8t0j8k4r9p3wz2m9qv3k7xnvnmme4kk04lgq7xm6f"
+        credential:
+          type: object
+          required:
+            - type
+            - hash
+          properties:
+            type:
+              type: string
+              enum:
+                - key_hash
+                - script_hash
+            hash:
+              type: string
+              description: Lowercase hex-encoded 28-byte hash.
+              example: "25d64e9a9da17b6c6b5bde0e5b15ff059ba7e9e55ee6e6e55b04b13c"
+        status:
+          type: string
+          enum:
+            - active
+            - inactive
+          description: Active when expiry_epoch >= current epoch, inactive otherwise.
+        expiry_epoch:
+          type: integer
+          description: Epoch number at which the DRep's registration expires.
+          example: 520
+        voting_power:
+          type: object
+          required:
+            - quantity
+            - unit
+          properties:
+            quantity:
+              type: string
+              description: Voting power in lovelace, as a string to avoid precision loss.
+              example: "123456789012345"
+            unit:
+              type: string
+              enum:
+                - lovelace
+        deposit:
+          type: object
+          required:
+            - quantity
+            - unit
+          properties:
+            quantity:
+              type: integer
+              description: Registration deposit in lovelace.
+              example: 500000000
+            unit:
+              type: string
+              enum:
+                - lovelace
+        anchor:
+          nullable: true
+          type: object
+          required:
+            - url
+            - data_hash
+          properties:
+            url:
+              type: string
+              description: URL pointing to the DRep's metadata document.
+              example: "https://example.com/drep.jsonld"
+            data_hash:
+              type: string
+              description: Blake2b-256 hash of the metadata document, lowercase hex.
+              example: "a14a5ad4f36bddc00f92ddb39fd9ac633c0fd43f8bfa57758f9163d10ef916de"
+        metadata:
+          nullable: true
+          description: |
+            Off-chain CIP-0119 metadata fetched from the DRep's anchor URL.
+            Null when the DRep has no anchor, when the fetch has not yet
+            succeeded, or when hash verification failed.
+          allOf:
+            - $ref: '#/components/schemas/ApiDRepMetadata'
+
+    ApiDRepMetadata: &ApiDRepMetadata
+      type: object
+      required:
+        - name
+        - do_not_list
+        - references
+      properties:
+        name:
+          type: string
+          description: Human-readable DRep name (CIP-0119 givenName).
+          example: "Alice the DRep"
+        objectives:
+          type: string
+          nullable: true
+          description: DRep's stated governance objectives.
+        motivations:
+          type: string
+          nullable: true
+          description: DRep's stated motivations for participating in governance.
+        qualifications:
+          type: string
+          nullable: true
+          description: DRep's stated qualifications.
+        payment_address:
+          type: string
+          nullable: true
+          description: Optional Cardano payment address for the DRep.
+        do_not_list:
+          type: boolean
+          description: Advisory flag from CIP-0119; filtering is the client's responsibility.
+          example: false
+        references:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApiDRepMetaReference'
+
+    ApiDRepMetaReference: &ApiDRepMetaReference
+      type: object
+      required:
+        - label
+        - uri
+      properties:
+        label:
+          type: string
+          description: Human-readable label for the reference link.
+          example: "Website"
+        uri:
+          type: string
+          description: URI for the reference.
+          example: "https://alice.example.com"
+
     ApiDRep: &ApiDRep
       description: |
         Decentralized representative (DRep)
@@ -7651,6 +7794,30 @@ paths:
           application/json:
             schema: *ApiWalletPassphrase
       responses: *responsesJoinStakePool
+
+  /dreps:
+    get:
+      operationId: listDReps
+      tags: ["DReps"]
+      summary: List Registered DReps
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Returns all DRep registrations known to the local node, with voting
+        power inline. Only credential-based DReps (key-hash and script-hash)
+        are included; the always-abstain and always-no-confidence sentinel DReps
+        are not returned.
+
+        Returns an empty array when the connected node is running a pre-Conway
+        era (Byron through Babbage).
+      responses:
+        '200':
+          description: List of all registered DReps.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: *ApiDRepInfo
 
   /dreps/{drepId}/wallets/{walletId}:
     put:
