@@ -1,4 +1,6 @@
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE RecordWildCards #-}
 
 -- |
 -- Copyright: © 2026 Cardano Foundation
@@ -15,7 +17,16 @@ import Cardano.Ledger.BaseTypes
     , urlToText
     )
 import Cardano.Ledger.Coin
+    ( Coin (..)
+    )
+import Cardano.Ledger.Compactible
     ( fromCompact
+    )
+import Cardano.Ledger.Conway.Governance
+    ( ConwayEraGov
+    )
+import Cardano.Ledger.Conway.State
+    ( ConwayEraCertState
     )
 import Cardano.Ledger.DRep
     ( DRepState (..)
@@ -59,7 +70,6 @@ import qualified Cardano.Ledger.DRep as Ledger
 import qualified Cardano.Ledger.Hashes as Hashes
 import qualified Cardano.Ledger.Keys as SL
 import qualified Cardano.Wallet.Primitive.Ledger.Convert as Ledger
-import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Ouroboros.Consensus.Shelley.Ledger as Shelley
@@ -83,13 +93,13 @@ listDReps =
         (pure Nothing) -- Mary
         (pure Nothing) -- Alonzo
         (pure Nothing) -- Babbage
-        conwayQuery    -- Conway
-        conwayQuery    -- Dijkstra
-  where
-    conwayQuery = Just <$> queryAndMerge
+        (Just <$> drepQuery) -- Conway
+        (Just <$> drepQuery) -- Dijkstra
 
-queryAndMerge :: LSQ' [DRepRegistration]
-queryAndMerge = do
+drepQuery
+    :: (ConwayEraGov era, ConwayEraCertState era)
+    => LSQ (Shelley.ShelleyBlock proto era) IO [DRepRegistration]
+drepQuery = do
     epochNo <- LSQry Shelley.GetEpochNo
     states  <- LSQry (Shelley.GetDRepState Set.empty)
     distr   <- LSQry (Shelley.GetDRepStakeDistr Set.empty)
@@ -97,8 +107,8 @@ queryAndMerge = do
 
 buildEntry
     :: EpochNo
-    -> Map Ledger.DRep W.Coin
-    -> SL.Credential 'SL.DRepRole
+    -> Map Ledger.DRep Coin
+    -> SL.Credential SL.DRepRole
     -> DRepState
     -> [DRepRegistration]
     -> [DRepRegistration]
@@ -108,7 +118,8 @@ buildEntry (EpochNo currentEpoch) distr cred DRepState{..} acc =
         Just drepId ->
             let ledgerDRep = Ledger.DRepCredential cred
                 votingPower =
-                    fromMaybe (W.Coin 0)
+                    Ledger.toWalletCoin
+                        $ fromMaybe (Coin 0)
                         $ Map.lookup ledgerDRep distr
                 reg = DRepRegistration
                     { drepRegId          = drepId
@@ -121,7 +132,7 @@ buildEntry (EpochNo currentEpoch) distr cred DRepState{..} acc =
             in  reg : acc
 
 credToDRepID
-    :: SL.Credential 'SL.DRepRole
+    :: SL.Credential SL.DRepRole
     -> Maybe DRepID
 credToDRepID = \case
     SL.KeyHashObj (SL.KeyHash h) ->

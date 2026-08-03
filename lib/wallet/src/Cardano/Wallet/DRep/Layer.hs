@@ -55,14 +55,13 @@ newDRepLayer :: NetworkLayer IO block -> DBLayer IO -> DRepLayer IO
 newDRepLayer netLayer db =
     DRepLayer { listDRepInfos = fetchAndMerge }
   where
-    DBLayer { atomically, getAllDRepMetadata } = db
-
-    fetchAndMerge = do
-        mRegs    <- listDReps netLayer
-        cached   <- atomically getAllDRepMetadata
-        pure $ case mRegs of
-            Nothing   -> []
-            Just regs -> map (enrich cached) regs
+    fetchAndMerge = case db of
+        DBLayer { atomically, getAllDRepMetadata } -> do
+            mRegs  <- listDReps netLayer
+            cached <- atomically getAllDRepMetadata
+            pure $ case mRegs of
+                Nothing   -> []
+                Just regs -> map (enrich cached) regs
 
     enrich :: Map Text DRepMetadata -> DRepRegistration -> DRepInfo
     enrich cached reg =
