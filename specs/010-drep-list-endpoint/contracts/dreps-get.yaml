@@ -1,4 +1,4 @@
-# OpenAPI fragments: GET /v2/dreps, GET /v2/dreps/suggested, GET /v2/dreps/{drepId}/metadata
+# OpenAPI fragments: GET /v2/dreps, GET /v2/dreps/suggested, GET /v2/dreps/{drepId}
 # Merged into specifications/api/swagger.yaml under the DReps tag.
 
 # ---------------------------------------------------------------------------
@@ -22,7 +22,8 @@
 
       The `name` field is populated from the DRep's CIP-0119 off-chain
       metadata (givenName) once the background worker has fetched and verified
-      it. Use GET /v2/dreps/{drepId}/metadata for the full metadata document.
+      it. Use GET /v2/dreps/{drepId} for the full DRep record with embedded
+      metadata.
     responses:
       '200':
         description: List of all registered DReps.
@@ -83,8 +84,8 @@
       considered. A random sample of up to `count` is returned.
 
       The `name` field is always non-null for entries returned here (it is
-      a filter criterion). Full metadata is available via
-      GET /v2/dreps/{drepId}/metadata.
+      a filter criterion). Full DRep data with embedded metadata is available
+      via GET /v2/dreps/{drepId}.
     parameters:
       - in: query
         name: count
@@ -106,18 +107,19 @@
                 $ref: '#/components/schemas/ApiDRepInfo'
 
 # ---------------------------------------------------------------------------
-# GET /v2/dreps/{drepId}/metadata — full CIP-0119 metadata for one DRep
+# GET /v2/dreps/{drepId} — full DRep record with embedded metadata
 # ---------------------------------------------------------------------------
 
-/dreps/{drepId}/metadata:
+/dreps/{drepId}:
   get:
-    operationId: getDRepMetadata
+    operationId: getDRep
     tags:
       - DReps
-    summary: Get DRep Metadata
+    summary: Get DRep
     description: |
-      Returns the full CIP-0119 off-chain metadata for the given DRep.
-      Returns null when the DRep has no anchor, when metadata has not yet
+      Returns the full DRep record for the given DRep, including on-chain
+      fields and the embedded CIP-0119 off-chain metadata. The `metadata`
+      field is null when the DRep has no anchor, when metadata has not yet
       been fetched, or when hash verification failed.
 
       Only credential-based DRep IDs (key-hash and script-hash) are
@@ -131,18 +133,46 @@
         description: CIP-129 bech32-encoded DRep credential ID.
     responses:
       '200':
-        description: Full CIP-0119 metadata for the DRep, or null if unavailable.
+        description: Full DRep record with embedded metadata, or null if the DRep is not found.
         content:
           application/json:
             schema:
               nullable: true
-              $ref: '#/components/schemas/ApiDRepMetadata'
+              allOf:
+                - $ref: '#/components/schemas/ApiDRepInfo'
+            example:
+              id: "drep1y4yzl4zeuh3r0l8t0j8k4r9p3wz2m9qv3k7xnvnmme4kk04lgq7xm6f"
+              credential:
+                type: key_hash
+                hash: "25d64e9a9da17b6c6b5bde0e5b15ff059ba7e9e55ee6e6e55b04b13c"
+              status: active
+              expiry_epoch: 520
+              voting_power:
+                quantity: "123456789012345"
+                unit: lovelace
+              deposit:
+                quantity: 500000000
+                unit: lovelace
+              anchor:
+                url: "https://example.com/drep.jsonld"
+                data_hash: "a14a5ad4f36bddc00f92ddb39fd9ac633c0fd43f8bfa57758f9163d10ef916de"
+              name: "Alice the DRep"
+              metadata:
+                name: "Alice the DRep"
+                objectives: "Promote decentralisation and fair governance."
+                motivations: "Long-time Cardano community member."
+                qualifications: "10 years in distributed systems."
+                payment_address: "addr1..."
+                do_not_list: false
+                references:
+                  - label: "Website"
+                    uri: "https://alice.example.com"
 
 # ---------------------------------------------------------------------------
 # Schema definitions (to add under components/schemas)
 # ---------------------------------------------------------------------------
 
-# ApiDRepInfo — returned by GET /v2/dreps and GET /v2/dreps/suggested
+# ApiDRepInfo — returned by GET /v2/dreps, GET /v2/dreps/suggested, and GET /v2/dreps/{drepId}
 ApiDRepInfo:
   type: object
   required:
@@ -235,10 +265,18 @@ ApiDRepInfo:
       description: |
         DRep's human-readable name (CIP-0119 givenName). Null when the DRep
         has no anchor, when metadata has not yet been fetched, or when hash
-        verification failed. For the full metadata document use
-        GET /v2/dreps/{drepId}/metadata.
+        verification failed. For the full DRep record with embedded metadata
+        use GET /v2/dreps/{drepId}.
+    metadata:
+      nullable: true
+      description: |
+        Full CIP-0119 off-chain metadata for the DRep. Always null in list
+        and suggested responses. Populated (or null if unavailable) in the
+        GET /v2/dreps/{drepId} detail response.
+      allOf:
+        - $ref: '#/components/schemas/ApiDRepMetadata'
 
-# ApiDRepMetadata — returned by GET /v2/dreps/{drepId}/metadata
+# ApiDRepMetadata — embedded in GET /v2/dreps/{drepId} detail response
 ApiDRepMetadata:
   type: object
   required:

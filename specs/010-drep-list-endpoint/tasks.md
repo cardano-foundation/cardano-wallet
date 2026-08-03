@@ -145,14 +145,14 @@
 
 ---
 
-## Phase 15: GET /v2/dreps/{drepId}/metadata endpoint
+## Phase 15: GET /v2/dreps/{drepId} endpoint
 
-**Purpose**: Provide the full CIP-0119 metadata document for a single DRep on demand.
+**Purpose**: Provide the full DRep record with embedded CIP-0119 metadata for a single DRep on demand.
 
-- [x] T028 Add `GetDRepMetadata` Servant type to `lib/api/src/Cardano/Wallet/Api.hs`; extend `DReps n`
-- [x] T029 Implement `getDRepMetadata` handler in `lib/api/src/Cardano/Wallet/Api/Http/Shelley/Server.hs`
-- [x] T030 Wire `getDRepMetadata` in `lib/api/src/Cardano/Wallet/Api/Http/Server.hs`
-- [x] T031 Add `GET /v2/dreps/{drepId}/metadata` to `specifications/api/swagger.yaml`
+- [x] T028 Add `GetDRep` Servant type (renamed from `GetDRepMetadata`) to `lib/api/src/Cardano/Wallet/Api.hs`; extend `DReps n` with path `/dreps/{drepId}` returning `Maybe ApiDRepInfo`
+- [x] T029 Implement `getDRep` handler (renamed from `getDRepMetadata`) in `lib/api/src/Cardano/Wallet/Api/Http/Shelley/Server.hs`; returns full `ApiDRepInfo` with `metadata` field populated
+- [x] T030 Wire `getDRep` in `lib/api/src/Cardano/Wallet/Api/Http/Server.hs`
+- [x] T031 Add `GET /v2/dreps/{drepId}` to `specifications/api/swagger.yaml` with `ApiDRepInfo` response schema
 
 ---
 

@@ -25,7 +25,7 @@ data DRepMetaReference = DRepMetaReference
 
 Maps from CIP-0119 fields: `givenName → name`, `objectives`, `motivations`, `qualifications`, `paymentAddress → payment_address`, `doNotList → do_not_list`, `references`.
 
-### ApiDRepMetadata (response for GET /v2/dreps/{drepId}/metadata)
+### ApiDRepMetadata (embedded in ApiDRepInfo for GET /v2/dreps/{drepId})
 
 ```haskell
 data ApiDRepMetadata = ApiDRepMetadata
@@ -46,7 +46,7 @@ data ApiDRepMetaReference = ApiDRepMetaReference
 
 JSON field names: `name`, `objectives`, `motivations`, `qualifications`, `payment_address`, `do_not_list`, `references`.
 
-### ApiDRepInfo (response element for list endpoints)
+### ApiDRepInfo (response element for list endpoints and GET /v2/dreps/{drepId})
 
 ```haskell
 data ApiDRepInfo = ApiDRepInfo
@@ -58,11 +58,13 @@ data ApiDRepInfo = ApiDRepInfo
     , deposit     :: ApiT Coin          -- serialised as integer quantity (< MAX_SAFE_INTEGER)
     , anchor      :: Maybe ApiAnchor
     , name        :: Maybe Text         -- CIP-0119 givenName; null until fetched and verified
+    , metadata    :: Maybe ApiDRepMetadata  -- null in list/suggested; populated in GET /v2/dreps/{drepId}
     }
 ```
 
-Only the DRep's name (CIP-0119 `givenName`) is inlined in the list response.
-Full metadata is available on demand via `GET /v2/dreps/{drepId}/metadata`.
+Only the DRep's name (CIP-0119 `givenName`) is inlined in the list response;
+`metadata` is always `null` there. The full `ApiDRepInfo` with embedded
+`metadata` is returned by `GET /v2/dreps/{drepId}`.
 
 ### ApiDRepCredential
 
@@ -95,6 +97,8 @@ data ApiAnchor = ApiAnchor
 
 ### GET /v2/dreps and GET /v2/dreps/suggested
 
+The `metadata` field is always `null` in list and suggested responses.
+
 ```json
 [
   {
@@ -111,7 +115,8 @@ data ApiAnchor = ApiAnchor
       "url": "https://example.com/drep.jsonld",
       "data_hash": "a14a5ad4f36bddc00f92ddb39fd9ac633c0fd43f8bfa57758f9163d10ef916de"
     },
-    "name": "Alice the DRep"
+    "name": "Alice the DRep",
+    "metadata": null
   },
   {
     "id": "drep_script1rl5lq4n9t4zm7...",
@@ -121,28 +126,58 @@ data ApiAnchor = ApiAnchor
     "voting_power": { "quantity": "0", "unit": "lovelace" },
     "deposit": { "quantity": 500000000, "unit": "lovelace" },
     "anchor": null,
-    "name": null
+    "name": null,
+    "metadata": null
   }
 ]
 ```
 
-### GET /v2/dreps/{drepId}/metadata
+### GET /v2/dreps/{drepId}
+
+Returns the full `ApiDRepInfo` with the `metadata` field populated when
+available, or `null` for the whole response when the DRep ID is not found or
+is a sentinel.
 
 ```json
 {
+  "id": "drep1y4yzl4zeuh3r0l8t0j8k4r9p3wz2m9qv3k7xn...",
+  "credential": {
+    "type": "key_hash",
+    "hash": "deadbeef..."
+  },
+  "status": "active",
+  "expiry_epoch": 520,
+  "voting_power": { "quantity": "123456789012345", "unit": "lovelace" },
+  "deposit": { "quantity": 500000000, "unit": "lovelace" },
+  "anchor": {
+    "url": "https://example.com/drep.jsonld",
+    "data_hash": "a14a5ad4f36bddc00f92ddb39fd9ac633c0fd43f8bfa57758f9163d10ef916de"
+  },
   "name": "Alice the DRep",
-  "objectives": "Promote decentralisation and fair governance.",
-  "motivations": "Long-time Cardano community member.",
-  "qualifications": "10 years in distributed systems.",
-  "payment_address": "addr1...",
-  "do_not_list": false,
-  "references": [
-    { "label": "Website", "uri": "https://alice.example.com" }
-  ]
+  "metadata": {
+    "name": "Alice the DRep",
+    "objectives": "Promote decentralisation and fair governance.",
+    "motivations": "Long-time Cardano community member.",
+    "qualifications": "10 years in distributed systems.",
+    "payment_address": "addr1...",
+    "do_not_list": false,
+    "references": [
+      { "label": "Website", "uri": "https://alice.example.com" }
+    ]
+  }
 }
 ```
 
-Or `null` when the DRep has no anchor, fetch failed, or hash verification failed.
+When the DRep exists but has no anchor, or fetch/verification failed:
+
+```json
+{
+  "id": "drep_script1rl5lq4n9t4zm7...",
+  ...
+  "name": null,
+  "metadata": null
+}
+```
 
 ## Ledger → API Mapping
 
@@ -159,7 +194,7 @@ Or `null` when the DRep has no anchor, fetch failed, or hash verification failed
 | `anchor.url` | `anchorUrl :: Url` | Text; may be `ipfs://` scheme |
 | `anchor.data_hash` | `anchorDataHash :: SafeHash Blake2b_256 AnchorData` | hex |
 | `name` | `drepMetaName` from SQLite cache | null until fetched & verified |
-| `metadata.*` (detail endpoint) | SQLite cache keyed on `(DRepID, anchorDataHash)` | full CIP-0119 document |
+| `metadata` | SQLite cache keyed on `(DRepID, anchorDataHash)` | null in list/suggested; full CIP-0119 document in GET /v2/dreps/{drepId} |
 
 ## State Transitions
 
