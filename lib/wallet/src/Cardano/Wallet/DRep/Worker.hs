@@ -24,6 +24,7 @@ import Cardano.Wallet.Network
 import Cardano.Wallet.Primitive.Types.DRep
     ( DRepAnchor (..)
     , DRepRegistration (..)
+    , encodeDRepIDBech32
     )
 import Control.Concurrent
     ( threadDelay
@@ -70,7 +71,7 @@ monitorDRepMetadata netLayer db manager intervalMicros =
         loop
 
     runCycle = case db of
-        DBLayer { atomically, getAllDRepMetadata, recentlyFailedDRepHashes, putDRepMetadata, putDRepFetchAttempt } -> do
+        DBLayer { atomically, getAllDRepMetadata, recentlyFailedDRepHashes, putDRepMetadata, putDRepFetchAttempt, putDRepAnchorHash } -> do
             mRegs <- listDReps netLayer
             case mRegs of
                 Nothing   -> pure ()
@@ -86,13 +87,16 @@ monitorDRepMetadata netLayer db manager intervalMicros =
                             , h `Set.notMember` cachedHashes
                             , h `Set.notMember` failed
                             ]
-                    forM_ toFetch $ \(_reg, anchor) -> do
-                        let url  = drepAnchorUrl anchor
-                            hash = drepAnchorHash anchor
-                            hexH = hexBS hash
+                    forM_ toFetch $ \(reg, anchor) -> do
+                        let url    = drepAnchorUrl anchor
+                            hash   = drepAnchorHash anchor
+                            hexH   = hexBS hash
+                            drepId = encodeDRepIDBech32 (drepRegId reg)
                         result <- runExceptT $ fetchDRepMetadata manager url hash
                         case result of
-                            Right meta -> atomically $ putDRepMetadata hexH meta
+                            Right meta -> atomically $ do
+                                putDRepMetadata hexH meta
+                                putDRepAnchorHash drepId hexH
                             Left _     -> atomically $ putDRepFetchAttempt (url, hexH)
 
 hexBS :: ByteString -> Text

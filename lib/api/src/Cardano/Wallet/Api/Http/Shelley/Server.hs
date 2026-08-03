@@ -51,6 +51,7 @@ module Cardano.Wallet.Api.Http.Shelley.Server
     , getWalletUtxoSnapshot
     , getWallet
     , listDReps
+    , getDRepMetadata
     , joinDRep
     , joinStakePool
     , listAssets
@@ -615,10 +616,12 @@ import Cardano.Wallet.Primitive.Types.Credentials
     )
 import Cardano.Wallet.DRep.Layer
     ( DRepInfo (..)
-    , DRepLayer (..)
+    , DRepLayer
+    , listDRepInfos
     )
+import qualified Cardano.Wallet.DRep.Layer as DRepLayer
 import Cardano.Wallet.Primitive.Types.DRep
-    ( DRep
+    ( DRep (..)
     , DRepAnchor (..)
     , DRepID (..)
     , DRepKeyHash (..)
@@ -4416,25 +4419,8 @@ listDReps drepLayer = do
             , drepInfoVotingPower = unCoin drepRegVotingPower
             , drepInfoDeposit     = unCoin drepRegDeposit
             , drepInfoAnchor      = fmap toApiDRepAnchor drepRegAnchor
-            , drepInfoMetadata    = fmap toApiDRepMetadata drepInfoMetadata
+            , drepInfoName        = drepMetaName <$> drepInfoMetadata
             }
-
-    toApiDRepMetadata :: DRepMetadata -> ApiDRepMetadata
-    toApiDRepMetadata m = ApiDRepMetadata
-        { apiDRepMetaName           = drepMetaName m
-        , apiDRepMetaObjectives     = drepMetaObjectives m
-        , apiDRepMetaMotivations    = drepMetaMotivations m
-        , apiDRepMetaQualifications = drepMetaQualifications m
-        , apiDRepMetaPaymentAddress = drepMetaPaymentAddress m
-        , apiDRepMetaDoNotList      = drepMetaDoNotList m
-        , apiDRepMetaReferences     = map toApiRef (drepMetaReferences m)
-        }
-
-    toApiRef :: DRepMetaReference -> ApiDRepMetaReference
-    toApiRef r = ApiDRepMetaReference
-        { apiDRepRefLabel = drepMetaRefLabel r
-        , apiDRepRefUri   = drepMetaRefUri r
-        }
 
     toApiDRepCredential :: DRepID -> ApiDRepCredential
     toApiDRepCredential = \case
@@ -4455,6 +4441,34 @@ listDReps drepLayer = do
 
     unCoin :: Coin -> Natural
     unCoin (Coin n) = n
+
+getDRepMetadata
+    :: DRepLayer IO
+    -> ApiDRepSpecifier
+    -> Handler (Maybe ApiDRepMetadata)
+getDRepMetadata drepLayer specifier =
+    case specifier of
+        SpecificDRep (FromDRepID drepId) ->
+            fmap toApiDRepMetadata
+                <$> liftIO (DRepLayer.getDRepMetadata drepLayer (encodeDRepIDBech32 drepId))
+        _ -> pure Nothing
+  where
+    toApiDRepMetadata :: DRepMetadata -> ApiDRepMetadata
+    toApiDRepMetadata m = ApiDRepMetadata
+        { apiDRepMetaName           = drepMetaName m
+        , apiDRepMetaObjectives     = drepMetaObjectives m
+        , apiDRepMetaMotivations    = drepMetaMotivations m
+        , apiDRepMetaQualifications = drepMetaQualifications m
+        , apiDRepMetaPaymentAddress = drepMetaPaymentAddress m
+        , apiDRepMetaDoNotList      = drepMetaDoNotList m
+        , apiDRepMetaReferences     = map toApiRef (drepMetaReferences m)
+        }
+
+    toApiRef :: DRepMetaReference -> ApiDRepMetaReference
+    toApiRef r = ApiDRepMetaReference
+        { apiDRepRefLabel = drepMetaRefLabel r
+        , apiDRepRefUri   = drepMetaRefUri r
+        }
 
 joinDRep
     :: forall s n k

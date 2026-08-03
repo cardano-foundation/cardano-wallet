@@ -208,4 +208,13 @@ DRepMetadataFetchAttempts sql=drep_metadata_fetch_attempts
 
     Primary drepFetchAttemptsHash drepFetchAttemptsUrl
     deriving Show Generic
+
+-- Mapping from bech32 DRep ID to anchor data hash (hex), populated by the
+-- metadata worker so the metadata endpoint needs no LSQ.
+DRepAnchor sql=drep_anchor
+    drepAnchorDrepId    Text sql=drep_id
+    drepAnchorHash      Text sql=anchor_hash
+
+    Primary drepAnchorDrepId
+    deriving Show Generic
 |]

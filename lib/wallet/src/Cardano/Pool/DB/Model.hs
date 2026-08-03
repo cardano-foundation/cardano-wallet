@@ -72,6 +72,8 @@ module Cardano.Pool.DB.Model
     , mPutSettings
     , mPutLastMetadataGC
     , mReadLastMetadataGC
+    , mPutDRepAnchorHash
+    , mGetDRepAnchorHash
     ) where
 
 import Cardano.Pool.DB
@@ -197,6 +199,8 @@ data PoolDatabase = PoolDatabase
     -- ^ Off-chain DRep metadata (CIP-0119) cached in database, keyed by hex hash
     , drepFetchAttempts :: !(Map (Text, Text) (Int, UTCTime))
     -- ^ DRep metadata (failed) fetch attempts (url, hash) → (count, retry_after)
+    , drepAnchors :: !(Map Text Text)
+    -- ^ bech32 DRep ID → anchor data hash (hex)
     , seed :: !SystemSeed
     -- ^ Store an arbitrary random generator seed
     , blockHeaders :: [BlockHeader]
@@ -223,6 +227,7 @@ instance Eq SystemSeed where
 emptyPoolDatabase :: PoolDatabase
 emptyPoolDatabase =
     PoolDatabase
+        mempty
         mempty
         mempty
         mempty
@@ -569,6 +574,14 @@ mClearDRepMetadata :: ModelOp ()
 mClearDRepMetadata = do
     modify #drepMetadata $ const Map.empty
     modify #drepFetchAttempts $ const Map.empty
+    modify #drepAnchors $ const Map.empty
+
+mPutDRepAnchorHash :: Text -> Text -> ModelOp ()
+mPutDRepAnchorHash drepId anchorHash =
+    modify #drepAnchors $ Map.insert drepId anchorHash
+
+mGetDRepAnchorHash :: Text -> ModelOp (Maybe Text)
+mGetDRepAnchorHash drepId = Map.lookup drepId <$> get #drepAnchors
 
 mPutDRepFetchAttempt :: UTCTime -> (Text, Text) -> ModelOp ()
 mPutDRepFetchAttempt retryAfter key =
