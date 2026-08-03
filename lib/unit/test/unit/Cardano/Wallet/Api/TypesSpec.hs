@@ -2299,7 +2299,9 @@ instance Arbitrary DRepStatus where
     arbitrary = elements [Active, Inactive]
 
 instance Arbitrary ApiDRepCredential where
-    arbitrary = genericArbitrary
+    arbitrary = ApiDRepCredential
+        <$> elements ["key_hash", "script_hash"]
+        <*> arbitrary
 
 instance Arbitrary ApiDRepAnchor where
     arbitrary = genericArbitrary
