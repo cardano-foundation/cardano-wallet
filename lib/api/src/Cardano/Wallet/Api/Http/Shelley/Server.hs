@@ -51,6 +51,7 @@ module Cardano.Wallet.Api.Http.Shelley.Server
     , getWalletUtxoSnapshot
     , getWallet
     , listDReps
+    , suggestedDReps
     , getDRepMetadata
     , joinDRep
     , joinStakePool
@@ -810,6 +811,12 @@ import Data.IntCast
 import Data.List
     ( sortOn
     , (\\)
+    )
+import Data.Ord
+    ( Down (..)
+    )
+import System.Random
+    ( randomRIO
     )
 import Data.List.NonEmpty
     ( NonEmpty (..)
@@ -4409,6 +4416,79 @@ listDReps drepLayer = do
     infos <- liftIO $ listDRepInfos drepLayer
     pure $ map toApiDRepInfo infos
   where
+    toApiDRepInfo :: DRepInfo -> ApiDRepInfo
+    toApiDRepInfo DRepInfo{drepInfoReg = DRepRegistration{..}, drepInfoMetadata} =
+        ApiDRepInfo
+            { drepInfoId          = encodeDRepIDBech32 drepRegId
+            , drepInfoCredential  = toApiDRepCredential drepRegId
+            , drepInfoStatus      = if drepRegIsActive then Active else Inactive
+            , drepInfoExpiryEpoch = drepRegExpiryEpoch
+            , drepInfoVotingPower = unCoin drepRegVotingPower
+            , drepInfoDeposit     = unCoin drepRegDeposit
+            , drepInfoAnchor      = fmap toApiDRepAnchor drepRegAnchor
+            , drepInfoName        = drepMetaName <$> drepInfoMetadata
+            }
+
+    toApiDRepCredential :: DRepID -> ApiDRepCredential
+    toApiDRepCredential = \case
+        DRepFromKeyHash (DRepKeyHash bs) ->
+            ApiDRepCredential "key_hash" (hexBS bs)
+        DRepFromScriptHash (DRepScriptHash bs) ->
+            ApiDRepCredential "script_hash" (hexBS bs)
+
+    toApiDRepAnchor :: DRepAnchor -> ApiDRepAnchor
+    toApiDRepAnchor a =
+        ApiDRepAnchor
+            { anchorUrl      = drepAnchorUrl a
+            , anchorDataHash = hexBS (drepAnchorHash a)
+            }
+
+    hexBS :: BS.ByteString -> T.Text
+    hexBS = T.pack . B8.unpack . BA.convertToBase BA.Base16
+
+    unCoin :: Coin -> Natural
+    unCoin (Coin n) = n
+
+suggestedDReps
+    :: DRepLayer IO
+    -> Maybe Word
+    -> Handler [ApiDRepInfo]
+suggestedDReps drepLayer mCount = do
+    infos <- liftIO $ listDRepInfos drepLayer
+    let count = maybe 20 (min 200 . fromIntegral) mCount
+        pool  = eligiblePool infos
+    liftIO $ sampleN count pool
+  where
+    -- Rank by voting power descending, drop the top 35, then filter:
+    -- active, metadata present, do_not_list = False.
+    eligiblePool :: [DRepInfo] -> [ApiDRepInfo]
+    eligiblePool infos =
+        let ranked   = sortOn (Down . drepRegVotingPower . drepInfoReg) infos
+            filtered = filter isEligible (drop 35 ranked)
+        in  map toApiDRepInfo filtered
+
+    isEligible :: DRepInfo -> Bool
+    isEligible DRepInfo{drepInfoReg, drepInfoMetadata} =
+        drepRegIsActive drepInfoReg
+            && maybe False (not . drepMetaDoNotList) drepInfoMetadata
+
+    -- Sample n items uniformly at random without replacement via partial
+    -- Fisher-Yates on a list index.
+    sampleN :: Int -> [a] -> IO [a]
+    sampleN n xs
+        | n <= 0 || null xs = pure []
+        | otherwise = do
+            let arr = zip [0 :: Int ..] xs
+                len = length arr
+                k   = min n len
+            go k len arr []
+      where
+        go 0 _ _ acc = pure acc
+        go k len arr acc = do
+            i <- randomRIO (0, len - 1)
+            let (chosen, rest) = (snd (arr !! i), take i arr ++ drop (i + 1) arr)
+            go (k - 1) (len - 1) rest (chosen : acc)
+
     toApiDRepInfo :: DRepInfo -> ApiDRepInfo
     toApiDRepInfo DRepInfo{drepInfoReg = DRepRegistration{..}, drepInfoMetadata} =
         ApiDRepInfo
