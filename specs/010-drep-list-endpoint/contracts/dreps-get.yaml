@@ -1,5 +1,9 @@
-# OpenAPI fragment: GET /v2/dreps
-# To be merged into specifications/api/swagger.yaml under /v2/dreps
+# OpenAPI fragments: GET /v2/dreps, GET /v2/dreps/suggested, GET /v2/dreps/{drepId}/metadata
+# Merged into specifications/api/swagger.yaml under the DReps tag.
+
+# ---------------------------------------------------------------------------
+# GET /v2/dreps — list all registered DReps
+# ---------------------------------------------------------------------------
 
 /dreps:
   get:
@@ -15,6 +19,10 @@
 
       Returns an empty array when the connected node is running a pre-Conway
       era (Byron through Babbage).
+
+      The `name` field is populated from the DRep's CIP-0119 off-chain
+      metadata (givenName) once the background worker has fetched and verified
+      it. Use GET /v2/dreps/{drepId}/metadata for the full metadata document.
     responses:
       '200':
         description: List of all registered DReps.
@@ -40,6 +48,7 @@
                 anchor:
                   url: "https://example.com/drep.jsonld"
                   data_hash: "a14a5ad4f36bddc00f92ddb39fd9ac633c0fd43f8bfa57758f9163d10ef916de"
+                name: "Alice the DRep"
               - id: "drep_script1rl5lq4n9t4zm7xt7v02kz4rw5hzp3m7s8y3knmdq69gxxqlc0r3"
                 credential:
                   type: script_hash
@@ -53,18 +62,87 @@
                   quantity: 500000000
                   unit: lovelace
                 anchor: null
-                metadata:
-                  name: "Alice the DRep"
-                  objectives: "Promote decentralisation and fair governance."
-                  motivations: "Long-time Cardano community member."
-                  qualifications: "10 years in distributed systems."
-                  payment_address: "addr1..."
-                  do_not_list: false
-                  references:
-                    - label: "Website"
-                      uri: "https://alice.example.com"
+                name: null
 
-# Schema definition to add under components/schemas:
+# ---------------------------------------------------------------------------
+# GET /v2/dreps/suggested — random sample suitable for delegation
+# ---------------------------------------------------------------------------
+
+/dreps/suggested:
+  get:
+    operationId: suggestedDReps
+    tags:
+      - DReps
+    summary: Suggested DReps
+    description: |
+      Returns a random selection of DReps suitable for delegation.
+
+      DReps are ranked by delegated voting power. The top 35 (largest) are
+      excluded to encourage stake distribution. From the remainder, only
+      active DReps with off-chain metadata and `do_not_list: false` are
+      considered. A random sample of up to `count` is returned.
+
+      The `name` field is always non-null for entries returned here (it is
+      a filter criterion). Full metadata is available via
+      GET /v2/dreps/{drepId}/metadata.
+    parameters:
+      - in: query
+        name: count
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 20
+        description: Number of DReps to return (default 20, max 200).
+    responses:
+      '200':
+        description: Random sample of suggested DReps.
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/ApiDRepInfo'
+
+# ---------------------------------------------------------------------------
+# GET /v2/dreps/{drepId}/metadata — full CIP-0119 metadata for one DRep
+# ---------------------------------------------------------------------------
+
+/dreps/{drepId}/metadata:
+  get:
+    operationId: getDRepMetadata
+    tags:
+      - DReps
+    summary: Get DRep Metadata
+    description: |
+      Returns the full CIP-0119 off-chain metadata for the given DRep.
+      Returns null when the DRep has no anchor, when metadata has not yet
+      been fetched, or when hash verification failed.
+
+      Only credential-based DRep IDs (key-hash and script-hash) are
+      supported; passing `abstain` or `no-confidence` returns null.
+    parameters:
+      - in: path
+        name: drepId
+        required: true
+        schema:
+          type: string
+        description: CIP-129 bech32-encoded DRep credential ID.
+    responses:
+      '200':
+        description: Full CIP-0119 metadata for the DRep, or null if unavailable.
+        content:
+          application/json:
+            schema:
+              nullable: true
+              $ref: '#/components/schemas/ApiDRepMetadata'
+
+# ---------------------------------------------------------------------------
+# Schema definitions (to add under components/schemas)
+# ---------------------------------------------------------------------------
+
+# ApiDRepInfo — returned by GET /v2/dreps and GET /v2/dreps/suggested
 ApiDRepInfo:
   type: object
   required:
@@ -142,63 +220,25 @@ ApiDRepInfo:
       properties:
         url:
           type: string
-          description: URL pointing to the DRep's metadata document.
+          description: |
+            URL pointing to the DRep's metadata document.
+            https:// and ipfs:// schemes are both valid; the wallet rewrites
+            ipfs:// URLs to the Blockfrost IPFS gateway when fetching.
           example: "https://example.com/drep.jsonld"
         data_hash:
           type: string
           description: Blake2b-256 hash of the metadata document, lowercase hex.
           example: "a14a5ad4f36bddc00f92ddb39fd9ac633c0fd43f8bfa57758f9163d10ef916de"
-    metadata:
+    name:
+      type: string
       nullable: true
       description: |
-        Off-chain CIP-0119 metadata fetched from the DRep's anchor URL.
-        Null when the DRep has no anchor, when the fetch has not yet
-        succeeded, or when hash verification failed.
-      type: object
-      required:
-        - name
-        - do_not_list
-        - references
-      properties:
-        name:
-          type: string
-          description: Human-readable DRep name (CIP-0119 givenName).
-          example: "Alice the DRep"
-        objectives:
-          type: string
-          nullable: true
-          description: DRep's stated governance objectives.
-        motivations:
-          type: string
-          nullable: true
-          description: DRep's stated motivations for participating in governance.
-        qualifications:
-          type: string
-          nullable: true
-          description: DRep's stated qualifications.
-        payment_address:
-          type: string
-          nullable: true
-          description: Optional Cardano payment address for the DRep.
-        do_not_list:
-          type: boolean
-          description: Advisory flag from CIP-0119; filtering is the client's responsibility.
-          example: false
-        references:
-          type: array
-          items:
-            type: object
-            required:
-              - label
-              - uri
-            properties:
-              label:
-                type: string
-                example: "Website"
-              uri:
-                type: string
-                example: "https://alice.example.com"
+        DRep's human-readable name (CIP-0119 givenName). Null when the DRep
+        has no anchor, when metadata has not yet been fetched, or when hash
+        verification failed. For the full metadata document use
+        GET /v2/dreps/{drepId}/metadata.
 
+# ApiDRepMetadata — returned by GET /v2/dreps/{drepId}/metadata
 ApiDRepMetadata:
   type: object
   required:
@@ -208,20 +248,28 @@ ApiDRepMetadata:
   properties:
     name:
       type: string
+      description: Human-readable DRep name (CIP-0119 givenName).
+      example: "Alice the DRep"
     objectives:
       type: string
       nullable: true
+      description: DRep's stated governance objectives.
     motivations:
       type: string
       nullable: true
+      description: DRep's stated motivations for participating in governance.
     qualifications:
       type: string
       nullable: true
+      description: DRep's stated qualifications.
     payment_address:
       type: string
       nullable: true
+      description: Optional Cardano payment address for the DRep.
     do_not_list:
       type: boolean
+      description: Advisory flag from CIP-0119; filtering is the client's responsibility.
+      example: false
     references:
       type: array
       items:
@@ -235,5 +283,7 @@ ApiDRepMetaReference:
   properties:
     label:
       type: string
+      example: "Website"
     uri:
       type: string
+      example: "https://alice.example.com"

@@ -1,42 +1,56 @@
-# Implementation Plan: Add GET /v2/dreps Endpoint
+# Implementation Plan: DRep Listing and Discovery Endpoints
 
-**Branch**: `010-drep-list-endpoint` | **Date**: 2026-08-02 | **Spec**: [spec.md](spec.md)
+**Branch**: `010-drep-list-endpoint` | **Date**: 2026-08-02 | **Updated**: 2026-08-03 | **Spec**: [spec.md](spec.md)
 **Input**: Feature specification from `/specs/010-drep-list-endpoint/spec.md`
 
 ## Summary
 
-Add `GET /v2/dreps` to the cardano-wallet Servant API. The handler queries two Conway-era ledger state queries (`GetDRepState` and `GetDRepStakeDistr`) via the existing local state query infrastructure, joins the results on the DRep credential, maps them to a new `ApiDRepInfo` response type, and returns `[]` for pre-Conway eras. The OpenAPI spec, the Link module, and the Shelley client module are updated in lockstep.
+Add three DRep read endpoints to the cardano-wallet Servant API:
+
+- `GET /v2/dreps` — list all registered DReps with on-chain fields + `name`
+- `GET /v2/dreps/suggested` — random sample of active, identified DReps (excludes top 35 by voting power)
+- `GET /v2/dreps/{drepId}/metadata` — full CIP-0119 off-chain metadata for one DRep
+
+All three endpoints share a `DRepLayer` facade that merges live Conway-era
+LSQ results (cached with a 900-second TTL) with off-chain metadata persisted
+in SQLite. A background worker fetches and hash-verifies metadata from anchor
+URLs (including IPFS), writing results to the SQLite cache.
 
 ## Technical Context
 
 **Language/Version**: Haskell (GHC 9.6+, as pinned in flake.nix)
-**Primary Dependencies**: `ouroboros-consensus-cardano` (Shelley.GetDRepState tag 25, Shelley.GetDRepStakeDistr tag 26), `cardano-ledger-core` (DRepState, Credential DRepRole, Anchor), `servant` (API type), `aeson` (JSON serialisation)
-**Storage**: N/A — read-only ledger query, no wallet DB involved
+**Primary Dependencies**: `ouroboros-consensus-cardano` (Shelley.GetDRepState tag 25, Shelley.GetDRepStakeDistr tag 26), `cardano-ledger-core` (DRepState, Credential DRepRole, Anchor), `servant` (API types), `aeson` (JSON serialisation), `random` (Fisher-Yates sampling)
+**Storage**: SQLite (`drep_metadata` table keyed on `(drep_id, data_hash)`)
 **Testing**: `cardano-wallet-integration` test suite (local Conway cluster), `cabal test` unit tests
 **Target Platform**: Linux, Windows, macOS (same as the rest of the wallet)
 **Project Type**: web-service (REST API library + application)
-**Performance Goals**: Ledger LSQ dominates; wallet processing overhead < 10 ms for 1 000 DReps
+**Performance Goals**: Ledger LSQ dominates; wallet processing overhead < 10 ms for 1 000 DReps; LSQ cached for 900 s
 **Constraints**: Must not break existing DRep endpoint (`PUT /v2/dreps/:id/wallets/:id`); must compile with -Wall
 
 ## Constitution Check
 
 ### I. Maintenance-First Stability
-This change adds a read-only query endpoint with no wallet DB writes and no transaction signing. Risk is low. The only new code path is a ledger LSQ and a JSON serialiser.
+All three endpoints are read-only query paths with no wallet DB writes and no transaction signing. Risk is low.
 
 ### II. Era-Aware Design
-The new `DReps.hs` LSQ module uses `onAnyEra` to return `Nothing` for pre-Conway eras and `Just result` for Conway and Dijkstra. The API handler maps `Nothing` to `[]`.
+The `DReps.hs` LSQ module uses `onAnyEra` to return `Nothing` for pre-Conway eras. All list handlers map `Nothing` to `[]`.
 
 ### III. Type Safety as Security
-New types (`ApiDRepInfo`, `DRepRegistration`) are newtypes or records with explicit JSON instances. No stringly-typed shortcuts. Haddock on all exported functions.
+New types (`ApiDRepInfo`, `ApiDRepMetadata`, `DRepRegistration`) are records with explicit JSON instances. The `suggestedDReps` handler's Fisher-Yates implementation operates on typed lists, not raw indices. No stringly-typed shortcuts.
 
 ### IV. Formal Specification
-`specifications/api/swagger.yaml` is updated with the new endpoint before the implementation is merged. The Haskell types are derived from the spec, not the other way around.
+`specifications/api/swagger.yaml` and the OpenAPI contract fragments in `specs/010-drep-list-endpoint/contracts/` are updated with all three endpoints. Haskell types are derived from the spec.
 
 ### V. Reproducible Builds
-No new Cabal dependencies; all required packages (`ouroboros-consensus`, `cardano-ledger-core`) are already in `cabal.project`. No `.cabal` file version pins are added.
+One new Cabal dependency (`random`) added to `cardano-wallet-api.cabal`. All other required packages are already in `cabal.project`.
 
 ### VI. Comprehensive Testing
-Integration test in `lib/integration/scenarios/Test/Integration/Scenario/API/Voting.hs` covering US1 (list DReps on Conway cluster) and US2 (empty list pre-Conway).
+Integration tests in `lib/integration/scenarios/Test/Integration/Scenario/API/Voting.hs` covering:
+- List DReps on Conway cluster (DREPS_01)
+- Empty list pre-Conway (DREPS_02)
+- Metadata populated after worker tick (DREPS_03)
+- Metadata null on unreachable anchor (DREPS_04)
+- `doNotList: true` entry still appears in list (DREPS_05)
 
 ### VII. Code Quality Gates
 Fourmolu, HLint, -Wall compilation, and integration tests must all pass before merge.
@@ -48,11 +62,12 @@ Fourmolu, HLint, -Wall compilation, and integration tests must all pass before m
 ```text
 specs/010-drep-list-endpoint/
 ├── plan.md              # This file
-├── research.md          # LSQ query research
-├── data-model.md        # ApiDRepInfo type design
+├── spec.md              # Feature specification
+├── research.md          # Design decisions
+├── data-model.md        # Type design and wire format
 ├── contracts/
-│   └── dreps-get.yaml   # OpenAPI fragment for GET /v2/dreps
-└── tasks.md             # Implementation tasks
+│   └── dreps-get.yaml   # OpenAPI fragments for all three endpoints
+└── tasks.md             # Implementation tasks (T001–T041)
 ```
 
 ### Source Code (repository root)
@@ -60,21 +75,30 @@ specs/010-drep-list-endpoint/
 ```text
 lib/
 ├── network-layer/src/Cardano/Wallet/Network/
-│   ├── Network.hs                          # add listDReps field
-│   ├── LocalStateQuery.hs                  # re-export DReps module
-│   ├── LocalStateQuery/DReps.hs            # NEW: GetDRepState + GetDRepStakeDistr LSQs
-│   └── Implementation.hs                   # implement listDReps
+│   ├── Network.hs                              # listDReps field on NetworkLayer
+│   ├── LocalStateQuery.hs                      # re-export DReps module
+│   ├── LocalStateQuery/DReps.hs                # NEW: GetDRepState + GetDRepStakeDistr LSQs
+│   └── Implementation.hs                       # implement listDReps
+├── primitive/lib/Cardano/Wallet/Primitive/Types/
+│   └── DRep.hs                                 # DRepMetadata, DRepMetaReference primitives
+├── wallet/src/Cardano/Wallet/
+│   ├── DRep/
+│   │   ├── Layer.hs                            # NEW: DRepLayer facade + LSQ cache (900s TTL)
+│   │   ├── Metadata.hs                         # NEW: fetch + parse + verify + ipfs:// resolve
+│   │   └── Worker.hs                           # NEW: background metadata fetch worker
+│   ├── DB/Layer/DRep.hs                        # NEW: DRepMetadataDB SQLite interface + migration
+│   └── Shelley.hs                              # wire DRepLayer + worker into serveWallet
 ├── api/src/Cardano/Wallet/Api/
-│   ├── Api.hs                              # add ListDReps type, extend DReps n
-│   ├── Types.hs                            # add ApiDRepInfo, ApiDRepCredential
-│   ├── Link.hs                             # add listDReps link
-│   ├── Clients/Shelley.hs                  # add listDReps client function
-│   ├── Http/Server.hs                      # wire listDReps into dreps server
-│   └── Http/Shelley/Server.hs              # implement listDReps handler
+│   ├── Api.hs                                  # ListDReps, SuggestedDReps, GetDRepMetadata types
+│   ├── Types.hs                                # ApiDRepInfo (with name field), ApiDRepMetadata
+│   ├── Link.hs                                 # listDReps link helper
+│   ├── Clients/Shelley.hs                      # listDReps client function
+│   ├── Http/Server.hs                          # wire all three handlers into dreps server
+│   └── Http/Shelley/Server.hs                  # listDReps, suggestedDReps, getDRepMetadata
 └── integration/scenarios/Test/Integration/Scenario/API/
-    └── Voting.hs                           # add list-dreps integration tests
+    └── Voting.hs                               # DREPS_01–DREPS_05 integration tests
 
-specifications/api/swagger.yaml             # add GET /v2/dreps endpoint
+specifications/api/swagger.yaml                 # GET /v2/dreps, /suggested, /{drepId}/metadata
 ```
 
-**Structure Decision**: Single monorepo library layout (existing pattern). No new Cabal packages needed — the new LSQ module lives in `cardano-wallet-network-layer`, the new API types in `cardano-wallet-api`.
+**Structure Decision**: Single monorepo library layout (existing pattern). No new Cabal packages. The `DRepLayer` + worker modules are co-located with other service facades (`StakePoolLayer`) in `lib/wallet`.

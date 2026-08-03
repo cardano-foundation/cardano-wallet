@@ -25,7 +25,7 @@ data DRepMetaReference = DRepMetaReference
 
 Maps from CIP-0119 fields: `givenName → name`, `objectives`, `motivations`, `qualifications`, `paymentAddress → payment_address`, `doNotList → do_not_list`, `references`.
 
-### ApiDRepMetadata (API response element)
+### ApiDRepMetadata (response for GET /v2/dreps/{drepId}/metadata)
 
 ```haskell
 data ApiDRepMetadata = ApiDRepMetadata
@@ -46,7 +46,7 @@ data ApiDRepMetaReference = ApiDRepMetaReference
 
 JSON field names: `name`, `objectives`, `motivations`, `qualifications`, `payment_address`, `do_not_list`, `references`.
 
-### ApiDRepInfo (response element)
+### ApiDRepInfo (response element for list endpoints)
 
 ```haskell
 data ApiDRepInfo = ApiDRepInfo
@@ -57,9 +57,12 @@ data ApiDRepInfo = ApiDRepInfo
     , votingPower :: ApiT Coin          -- serialised as string quantity
     , deposit     :: ApiT Coin          -- serialised as integer quantity (< MAX_SAFE_INTEGER)
     , anchor      :: Maybe ApiAnchor
-    , metadata    :: Maybe ApiDRepMetadata  -- null until fetched and verified
+    , name        :: Maybe Text         -- CIP-0119 givenName; null until fetched and verified
     }
 ```
+
+Only the DRep's name (CIP-0119 `givenName`) is inlined in the list response.
+Full metadata is available on demand via `GET /v2/dreps/{drepId}/metadata`.
 
 ### ApiDRepCredential
 
@@ -90,6 +93,8 @@ data ApiAnchor = ApiAnchor
 
 ## JSON Wire Format
 
+### GET /v2/dreps and GET /v2/dreps/suggested
+
 ```json
 [
   {
@@ -106,17 +111,7 @@ data ApiAnchor = ApiAnchor
       "url": "https://example.com/drep.jsonld",
       "data_hash": "a14a5ad4f36bddc00f92ddb39fd9ac633c0fd43f8bfa57758f9163d10ef916de"
     },
-    "metadata": {
-      "name": "Alice the DRep",
-      "objectives": "Promote decentralisation and fair governance.",
-      "motivations": "Long-time Cardano community member.",
-      "qualifications": "10 years in distributed systems.",
-      "payment_address": "addr1...",
-      "do_not_list": false,
-      "references": [
-        { "label": "Website", "uri": "https://alice.example.com" }
-      ]
-    }
+    "name": "Alice the DRep"
   },
   {
     "id": "drep_script1rl5lq4n9t4zm7...",
@@ -126,10 +121,28 @@ data ApiAnchor = ApiAnchor
     "voting_power": { "quantity": "0", "unit": "lovelace" },
     "deposit": { "quantity": 500000000, "unit": "lovelace" },
     "anchor": null,
-    "metadata": null
+    "name": null
   }
 ]
 ```
+
+### GET /v2/dreps/{drepId}/metadata
+
+```json
+{
+  "name": "Alice the DRep",
+  "objectives": "Promote decentralisation and fair governance.",
+  "motivations": "Long-time Cardano community member.",
+  "qualifications": "10 years in distributed systems.",
+  "payment_address": "addr1...",
+  "do_not_list": false,
+  "references": [
+    { "label": "Website", "uri": "https://alice.example.com" }
+  ]
+}
+```
+
+Or `null` when the DRep has no anchor, fetch failed, or hash verification failed.
 
 ## Ledger → API Mapping
 
@@ -143,16 +156,10 @@ data ApiAnchor = ApiAnchor
 | `voting_power` | `Map DRep Coin` from `GetDRepStakeDistr`, lookup `DRepCredential cred` | String quantity |
 | `deposit` | `drepDeposit :: CompactForm Coin` → `fromCompact` | Integer quantity |
 | `anchor` | `drepAnchor :: StrictMaybe Anchor` | null if SNothing |
-| `anchor.url` | `anchorUrl :: Url` | Text |
+| `anchor.url` | `anchorUrl :: Url` | Text; may be `ipfs://` scheme |
 | `anchor.data_hash` | `anchorDataHash :: SafeHash Blake2b_256 AnchorData` | hex |
-| `metadata` | SQLite cache keyed on `(DRepID, anchorDataHash)` | null until fetched & verified |
-| `metadata.name` | CIP-0119 `givenName` | |
-| `metadata.objectives` | CIP-0119 `objectives` | optional |
-| `metadata.motivations` | CIP-0119 `motivations` | optional |
-| `metadata.qualifications` | CIP-0119 `qualifications` | optional |
-| `metadata.payment_address` | CIP-0119 `paymentAddress` | optional |
-| `metadata.do_not_list` | CIP-0119 `doNotList` | default false |
-| `metadata.references` | CIP-0119 `references[].{label,uri}` | |
+| `name` | `drepMetaName` from SQLite cache | null until fetched & verified |
+| `metadata.*` (detail endpoint) | SQLite cache keyed on `(DRepID, anchorDataHash)` | full CIP-0119 document |
 
 ## State Transitions
 
@@ -161,3 +168,10 @@ DRep status is a derived field, not stored:
 - `Inactive`: `drepExpiry < currentEpoch`
 
 DReps are only removed from the ledger state via a de-registration certificate. An expired DRep remains in the registry with `status: "inactive"` until explicitly de-registered.
+
+## LSQ Caching
+
+`DRepLayer` caches the `GetDRepState` + `GetDRepStakeDistr` LSQ result in an
+`IORef` with a 900-second TTL. The cache is pre-warmed on wallet startup so
+the first API request is fast. Both `GET /v2/dreps` and `GET /v2/dreps/suggested`
+read from the same cache.
