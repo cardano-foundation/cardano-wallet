@@ -651,6 +651,9 @@ import "cardano-addresses" Codec.Binary.Encoding
     , detectEncoding
     , encode
     )
+import Data.Maybe
+    ( fromMaybe
+    )
 import Prelude
 
 import qualified Cardano.Address.Script as CA
@@ -1705,8 +1708,8 @@ instance FromJSON ApiDRepMetadata where
             <*> o Aeson..:? "motivations"
             <*> o Aeson..:? "qualifications"
             <*> o Aeson..:? "payment_address"
-            <*> (maybe False id <$> o Aeson..:? "do_not_list")
-            <*> (maybe [] id <$> o Aeson..:? "references")
+            <*> (fromMaybe False <$> o Aeson..:? "do_not_list")
+            <*> (fromMaybe [] <$> o Aeson..:? "references")
 
 data ApiDRepMetaReference = ApiDRepMetaReference
     { apiDRepRefLabel :: !Text

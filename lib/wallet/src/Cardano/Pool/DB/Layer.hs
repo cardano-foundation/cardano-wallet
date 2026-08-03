@@ -61,6 +61,7 @@ import Cardano.Pool.DB.Log
     )
 import Cardano.Pool.DB.Sqlite.TH hiding
     ( BlockHeader
+    , DRepMetadata
     , blockHeight
     )
 import Cardano.Pool.Metadata.Types
@@ -132,9 +133,7 @@ import Data.Generics.Internal.VL.Lens
 import Data.Map.Strict
     ( Map
     )
-import Data.Set
-    ( Set
-    )
+
 import Data.Quantity
     ( Quantity (..)
     )
@@ -208,11 +207,15 @@ import Prelude
 import qualified Cardano.Pool.DB.Sqlite.TH as TH
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
+import Data.Aeson.Types
+    ( parseEither
+    )
 import qualified Data.Aeson as Aeson
 import qualified Data.Map.Strict as Map
 import qualified Data.Percentage as Percentage
 import qualified Data.Set as Set
 import qualified Data.Text as T
+import qualified Data.ByteString.Lazy as BSL
 import qualified Data.Text.Encoding as TE
 import qualified Database.Sqlite as Sqlite
 
@@ -1223,7 +1226,7 @@ fromDRepMetadataRow row = DRepMetadata
 
 encodeReferences :: [DRepMetaReference] -> T.Text
 encodeReferences refs =
-    TE.decodeUtf8 . Aeson.encode
+    TE.decodeUtf8 . BSL.toStrict . Aeson.encode
         $ [ Aeson.object
               [ "label" Aeson..= drepMetaRefLabel r
               , "uri"   Aeson..= drepMetaRefUri r
@@ -1237,7 +1240,7 @@ decodeReferences txt =
         Right vs ->
             [ ref
             | v <- vs
-            , Right ref <- [Aeson.parseEither parseRef v]
+            , Right ref <- [parseEither parseRef v]
             ]
         Left _ -> []
   where

@@ -531,7 +531,7 @@ import Cardano.Wallet.Flavor
     )
 import Cardano.Wallet.Network
     ( ErrFetchBlock (..)
-    , NetworkLayer (..)
+    , NetworkLayer
     , fetchRewardAccountBalances
     , timeInterpreter
     )

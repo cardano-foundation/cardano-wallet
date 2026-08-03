@@ -184,6 +184,7 @@ import Cardano.Wallet.Api.Types
     , ApiCoinSelectionT
     , ApiConstructTransactionDataT
     , ApiConstructTransactionT
+    , ApiDRepInfo
     , ApiDRepSpecifier
     , ApiDecodeTransactionPostData
     , ApiDecodedTransactionT

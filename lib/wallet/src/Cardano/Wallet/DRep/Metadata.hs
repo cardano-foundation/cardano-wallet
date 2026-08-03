@@ -1,6 +1,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE TypeApplications #-}
 
 -- |
 -- Copyright: © 2026 Cardano Foundation
@@ -29,8 +30,13 @@ import Cryptography.Hash.Blake
     )
 import Data.Aeson
     ( Object
+    , Value
     , (.:)
     , (.:?)
+    )
+import Data.Aeson.Types
+    ( Parser
+    , parseEither
     )
 import Data.ByteString
     ( ByteString
@@ -94,7 +100,7 @@ fetchDRepMetadata manager url expectedHash = do
         then throwE FetchHashMismatch
         else case Aeson.eitherDecodeStrict raw of
             Left err  -> throwE $ FetchParseError err
-            Right val -> case Aeson.parseEither parseCip0119 val of
+            Right val -> case parseEither parseCip0119 val of
                 Left err  -> throwE $ FetchParseError err
                 Right meta -> pure meta
 
@@ -103,14 +109,14 @@ fetchDRepMetadata manager url expectedHash = do
 -- Supports two layouts:
 --   * Nested: top-level "body" object containing the fields (canonical CIP-0119)
 --   * Flat: fields at the top level (common in practice)
-parseCip0119 :: Aeson.Value -> Aeson.Parser DRepMetadata
+parseCip0119 :: Value -> Parser DRepMetadata
 parseCip0119 = Aeson.withObject "CIP-0119" $ \top -> do
     mBody <- top .:? "body"
     case mBody of
         Just body -> parseBody body
         Nothing   -> parseBody top
 
-parseBody :: Aeson.Object -> Aeson.Parser DRepMetadata
+parseBody :: Object -> Parser DRepMetadata
 parseBody body = do
     drepMetaName           <- body .: "givenName"
     drepMetaObjectives     <- body .:? "objectives"
@@ -122,7 +128,7 @@ parseBody body = do
     drepMetaReferences     <- mapM parseReference rawRefs
     pure DRepMetadata{..}
 
-parseReference :: Aeson.Value -> Aeson.Parser DRepMetaReference
+parseReference :: Value -> Parser DRepMetaReference
 parseReference = Aeson.withObject "reference" $ \o -> do
     drepMetaRefLabel <- o .: "label"
     drepMetaRefUri   <- o .: "uri"
