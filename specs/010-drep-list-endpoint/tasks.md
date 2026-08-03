@@ -133,6 +133,63 @@
 
 ---
 
+---
+
+## Phase 14: Refactor — split metadata out of list response
+
+**Purpose**: Reduce list response payload; expose full metadata on a separate endpoint.
+
+- [x] T025 Change `ApiDRepInfo.metadata :: Maybe ApiDRepMetadata` to `ApiDRepInfo.name :: Maybe Text` in `lib/api/src/Cardano/Wallet/Api/Types.hs`
+- [x] T026 Update `listDReps` handler to populate `name` from `drepMetaName` instead of the full `ApiDRepMetadata` object
+- [x] T027 Update `ApiDRepInfo` schema in `specifications/api/swagger.yaml` (add `name`, remove embedded `metadata`)
+
+---
+
+## Phase 15: GET /v2/dreps/{drepId}/metadata endpoint
+
+**Purpose**: Provide the full CIP-0119 metadata document for a single DRep on demand.
+
+- [x] T028 Add `GetDRepMetadata` Servant type to `lib/api/src/Cardano/Wallet/Api.hs`; extend `DReps n`
+- [x] T029 Implement `getDRepMetadata` handler in `lib/api/src/Cardano/Wallet/Api/Http/Shelley/Server.hs`
+- [x] T030 Wire `getDRepMetadata` in `lib/api/src/Cardano/Wallet/Api/Http/Server.hs`
+- [x] T031 Add `GET /v2/dreps/{drepId}/metadata` to `specifications/api/swagger.yaml`
+
+---
+
+## Phase 16: IPFS anchor URL resolution
+
+**Purpose**: Support DReps whose metadata is hosted on IPFS.
+
+- [x] T032 Add `resolveUrl` to `lib/wallet/src/Cardano/Wallet/DRep/Metadata.hs`: rewrites `ipfs://<CID>` to `https://ipfs.blockfrost.dev/ipfs/<CID>` before the HTTP fetch
+- [x] T033 Update `fetchDRepMetadata` to call `resolveUrl` so the worker transparently handles both `https://` and `ipfs://` anchor URLs
+
+---
+
+## Phase 17: LSQ result caching in DRepLayer
+
+**Purpose**: Avoid redundant LSQ round-trips when multiple endpoints read the same DRep list.
+
+- [x] T034 Add `IORef (Maybe (UTCTime, [DRepRegistration]))` cache to `DRepLayer` in `lib/wallet/src/Cardano/Wallet/DRep/Layer.hs`
+- [x] T035 Implement `cachedLSQ` helper (TTL = 900 s) and pre-warm the cache with a `forkIO` at construction
+- [x] T036 Use the cache in `listDRepInfos` so both `listDReps` and `suggestedDReps` share a single LSQ result
+
+---
+
+## Phase 18: GET /v2/dreps/suggested endpoint
+
+**Purpose**: Provide a pre-filtered random sample of DReps suitable for delegation.
+
+- [x] T037 Add `SuggestedDReps` Servant type to `lib/api/src/Cardano/Wallet/Api.hs`; extend `DReps n`
+- [x] T038 Implement `suggestedDReps` handler in `lib/api/src/Cardano/Wallet/Api/Http/Shelley/Server.hs`:
+  - rank by voting power descending, drop top 35
+  - filter: active + metadata present + `doNotList = False`
+  - partial Fisher-Yates sample of up to `count` (default 20, max 200)
+- [x] T039 Wire `suggestedDReps` in `lib/api/src/Cardano/Wallet/Api/Http/Server.hs`
+- [x] T040 Add `GET /v2/dreps/suggested` to `specifications/api/swagger.yaml`
+- [x] T041 Add `random` dependency to `lib/api/cardano-wallet-api.cabal`
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase 1–5 (complete)
@@ -141,7 +198,7 @@
 - T007 → T008, T009 (parallel) → T010 → T011
 - T012 independent; T013 after T011
 
-### Phase 6–13 (metadata enrichment)
+### Phase 6–13 (metadata enrichment, complete)
 - T014 before T015, T016, T017 (need primitive type)
 - T015 + T016 together (DB interface + migration)
 - T017 independent of DB work
@@ -152,3 +209,10 @@
 - T022 after T021
 - T023 after T022
 - T024 after T020 + T022
+
+### Phase 14–18 (split + new endpoints, complete)
+- T025–T027 independent refactor (after T022)
+- T028–T031 after T025 (need updated ApiDRepInfo)
+- T032–T033 independent of API work
+- T034–T036 after T019 (extend DRepLayer)
+- T037–T041 after T034–T036 (suggestedDReps uses cache)
