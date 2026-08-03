@@ -85,26 +85,27 @@ the matching entry has a non-null `name` field set to `givenName`.
 
 ---
 
-### User Story 5 - Full DRep Metadata On Demand (Priority: P2)
+### User Story 5 - Full DRep Detail On Demand (Priority: P2)
 
 A Daedalus user opens a DRep's detail page and sees their full governance
 profile: objectives, motivations, qualifications, payment address, and
-references, not just the name.
+references, not just the name — alongside all on-chain fields.
 
 **Why this priority**: Full metadata is only needed for one DRep at a time
 (the one the user clicked on), so it should be a separate targeted request
 rather than embedded in every list response.
 
-**Independent Test**: Call `GET /v2/dreps/{drepId}/metadata` for a DRep with a
-reachable anchor URL and confirm all CIP-0119 fields are populated.
+**Independent Test**: Call `GET /v2/dreps/{drepId}` for a DRep with a
+reachable anchor URL and confirm all on-chain fields are present and
+`metadata` is populated with all CIP-0119 fields.
 
 **Acceptance Scenarios**:
 
-1. **Given** a DRep with successfully fetched CIP-0119 metadata, **When** `GET /v2/dreps/{drepId}/metadata` is called, **Then** the response contains `name`, `do_not_list`, `references`, and any populated optional fields.
+1. **Given** a DRep with successfully fetched CIP-0119 metadata, **When** `GET /v2/dreps/{drepId}` is called, **Then** the response is a full `ApiDRepInfo` object with a non-null `metadata` containing `name`, `do_not_list`, `references`, and any populated optional fields.
 
-2. **Given** a DRep with no anchor or unfetched/failed metadata, **When** `GET /v2/dreps/{drepId}/metadata` is called, **Then** the response is `null` (not an error).
+2. **Given** a DRep with no anchor or unfetched/failed metadata, **When** `GET /v2/dreps/{drepId}` is called, **Then** the response is a full `ApiDRepInfo` object with `metadata: null` (not an error).
 
-3. **Given** an always-abstain or always-no-confidence DRep ID, **When** `GET /v2/dreps/{drepId}/metadata` is called, **Then** the response is `null`.
+3. **Given** an always-abstain or always-no-confidence DRep ID, **When** `GET /v2/dreps/{drepId}` is called, **Then** the response body is `null`.
 
 ---
 
@@ -180,7 +181,7 @@ populated in `GET /v2/dreps`.
 - **FR-009**: Metadata MUST be verified against `anchor.data_hash` (Blake2b-256) before being stored; mismatches MUST be discarded.
 - **FR-010**: The list endpoints MUST NOT block on metadata fetches; they serve whatever is cached.
 - **FR-011**: Metadata fetching MUST be re-attempted on a configurable interval for DReps whose fetch has not yet succeeded.
-- **FR-012**: System MUST expose `GET /v2/dreps/{drepId}/metadata` returning the full CIP-0119 metadata document (or null) for a single DRep.
+- **FR-012**: System MUST expose `GET /v2/dreps/{drepId}` returning the full `ApiDRepInfo` record with an embedded `metadata :: Maybe ApiDRepMetadata` field for a single DRep (or null if the DRep ID is not found / is a sentinel).
 - **FR-013**: System MUST expose `GET /v2/dreps/suggested` returning a random sample of active, identified, opt-in DReps, excluding the top 35 by voting power.
 - **FR-014**: `GET /v2/dreps/suggested` MUST accept a `count` query parameter (default 20, max 200).
 - **FR-015**: System MUST resolve `ipfs://` anchor URLs to the Blockfrost IPFS gateway (`https://ipfs.blockfrost.dev/ipfs/`) before fetching metadata.

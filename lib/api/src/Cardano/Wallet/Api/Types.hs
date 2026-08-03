@@ -1638,6 +1638,7 @@ data ApiDRepInfo = ApiDRepInfo
     , drepInfoDeposit     :: !Natural
     , drepInfoAnchor      :: !(Maybe ApiDRepAnchor)
     , drepInfoName        :: !(Maybe Text)
+    , drepInfoMetadata    :: !(Maybe ApiDRepMetadata)
     }
     deriving (Eq, Generic, Show)
     deriving anyclass (NFData)
@@ -1658,6 +1659,7 @@ instance ToJSON ApiDRepInfo where
             ]
         , "anchor"       Aeson..= drepInfoAnchor
         , "name"         Aeson..= drepInfoName
+        , "metadata"     Aeson..= drepInfoMetadata
         ]
 
 instance FromJSON ApiDRepInfo where
@@ -1675,6 +1677,7 @@ instance FromJSON ApiDRepInfo where
         drepInfoDeposit     <- depObj Aeson..: "quantity"
         drepInfoAnchor      <- o Aeson..: "anchor"
         drepInfoName        <- o Aeson..:? "name"
+        drepInfoMetadata    <- o Aeson..:? "metadata"
         pure ApiDRepInfo{..}
 
 data ApiDRepMetadata = ApiDRepMetadata

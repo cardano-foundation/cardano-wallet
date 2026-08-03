@@ -3180,6 +3180,13 @@ components:
             DRep's human-readable name (CIP-0119 givenName).
             Null when the DRep has no anchor, when metadata has not yet
             been fetched, or when hash verification failed.
+        metadata:
+          nullable: true
+          description: |
+            Full CIP-0119 off-chain metadata. Populated only on
+            GET /v2/dreps/{id}; always null in list responses.
+          allOf:
+            - $ref: '#/components/schemas/ApiDRepMetadata'
 
     ApiDRepMetadata: &ApiDRepMetadata
       type: object
@@ -7851,31 +7858,31 @@ paths:
                 type: array
                 items: *ApiDRepInfo
 
-  /dreps/{drepId}/metadata:
+  /dreps/{drepId}:
     get:
-      operationId: getDRepMetadata
+      operationId: getDRep
       tags: ["DReps"]
-      summary: Get DRep Metadata
+      summary: Get DRep
       description: |
         <p align="right">status: <strong>stable</strong></p>
 
-        Returns the full CIP-0119 off-chain metadata for the given DRep.
-        Returns null when the DRep has no anchor, when metadata has not yet
-        been fetched, or when hash verification failed.
+        Returns full data for the given DRep, including the complete CIP-0119
+        off-chain metadata in the `metadata` field (or null if the DRep has no
+        anchor, metadata has not yet been fetched, or hash verification failed).
 
-        Only credential-based DRep IDs (key-hash and script-hash) are
-        supported; passing `abstain` or `no-confidence` returns null.
+        Returns null for the always-abstain and always-no-confidence sentinels,
+        and for unknown DRep IDs.
       parameters:
         - *parametersDRepId
       responses:
         '200':
-          description: Full CIP-0119 metadata for the DRep, or null if unavailable.
+          description: DRep data with embedded metadata, or null if not found.
           content:
             application/json:
               schema:
                 nullable: true
                 allOf:
-                  - *ApiDRepMetadata
+                  - *ApiDRepInfo
 
   /dreps/{drepId}/wallets/{walletId}:
     put:

@@ -113,20 +113,28 @@ DRep:
 ## Decision: Split metadata out of list response; expose via separate endpoint
 
 **Decision**: `GET /v2/dreps` and `GET /v2/dreps/suggested` return only `name`
-(the CIP-0119 `givenName`) from the off-chain document. The full metadata
-object is available via a new `GET /v2/dreps/{drepId}/metadata` endpoint.
+(the CIP-0119 `givenName`) from the off-chain document; the `metadata` field
+is always `null` in list responses. The full DRep record with embedded
+metadata is available via `GET /v2/dreps/{drepId}`, which returns an
+`ApiDRepInfo` object with the `metadata :: Maybe ApiDRepMetadata` field
+populated (or null if unavailable).
 
 **Rationale**: The list endpoints may return hundreds of DReps. Embedding the
 full metadata object (objectives, motivations, qualifications, references) in
 every list entry balloons the response payload and is rarely needed by a
 directory-style UI. Clients that need full metadata for a specific DRep make
-one additional targeted request. This pattern also lets the list response
-remain stable even if the metadata schema grows.
+one additional targeted request to `GET /v2/dreps/{drepId}`. Returning the
+full `ApiDRepInfo` (rather than metadata alone) means the client does not need
+to merge data from two sources to render the detail view. This pattern also
+lets the list response remain stable even if the metadata schema grows.
 
 **Alternatives considered**:
 - Full metadata on list: Rejected — payload size and schema-coupling concerns.
 - No metadata on list at all: Rejected — clients need at least the name to
   render a DRep directory without a second round-trip per entry.
+- Metadata-only detail endpoint (original design): Superseded — returning the
+  full `ApiDRepInfo` with embedded metadata is simpler for clients and avoids
+  a separate merge step in the UI.
 
 ---
 
