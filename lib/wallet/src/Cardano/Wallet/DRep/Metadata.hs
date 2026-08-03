@@ -56,7 +56,8 @@ import Network.HTTP.Types.Status
     ( status200
     )
 import Network.URI
-    ( parseURI
+    ( URI
+    , parseURI
     )
 import Prelude
 
@@ -72,18 +73,30 @@ data FetchError
     | FetchHashMismatch
     deriving (Eq, Show)
 
+ipfsGateway :: String
+ipfsGateway = "https://ipfs.blockfrost.dev/ipfs/"
+
+-- | Resolve a URL to an HTTP URI, rewriting ipfs:// to the Blockfrost gateway.
+resolveUrl :: Text -> ExceptT FetchError IO URI
+resolveUrl url =
+    let urlStr = case T.stripPrefix "ipfs://" url of
+            Just cid -> ipfsGateway <> T.unpack cid
+            Nothing  -> T.unpack url
+    in case parseURI urlStr of
+        Nothing  -> throwE $ FetchInvalidUri url
+        Just uri -> pure uri
+
 -- | Fetch a CIP-0119 metadata document from 'url', verify its Blake2b-256
 -- hash matches 'expectedHash' (raw bytes), and parse it into 'DRepMetadata'.
--- Returns 'Left FetchError' on any failure.
+-- Returns 'Left FetchError' on any failure. Supports ipfs:// URLs via the
+-- Blockfrost IPFS gateway.
 fetchDRepMetadata
     :: Manager
     -> Text
     -> ByteString
     -> ExceptT FetchError IO DRepMetadata
 fetchDRepMetadata manager url expectedHash = do
-    uri <- case parseURI (T.unpack url) of
-        Nothing  -> throwE $ FetchInvalidUri url
-        Just uri -> pure uri
+    uri <- resolveUrl url
     raw <- ExceptT $ do
         eitherResult <- try @SomeException $ do
             req <- requestFromURI uri
