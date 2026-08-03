@@ -348,7 +348,7 @@ serveWallet
                     netParams
                     shelleyGenesisPools
                     netLayer
-                let drl = DRep.newDRepLayer netLayer stakePoolDbLayer
+                drl <- lift $ DRep.newDRepLayer netLayer stakePoolDbLayer
                 lift $ do
                     mgr <- HTTPS.newTlsManager
                     void $ Concurrent.forkIO $ DRep.monitorDRepMetadata

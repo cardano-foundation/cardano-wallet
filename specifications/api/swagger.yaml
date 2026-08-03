@@ -3173,14 +3173,13 @@ components:
               type: string
               description: Blake2b-256 hash of the metadata document, lowercase hex.
               example: "a14a5ad4f36bddc00f92ddb39fd9ac633c0fd43f8bfa57758f9163d10ef916de"
-        metadata:
+        name:
+          type: string
           nullable: true
           description: |
-            Off-chain CIP-0119 metadata fetched from the DRep's anchor URL.
-            Null when the DRep has no anchor, when the fetch has not yet
-            succeeded, or when hash verification failed.
-          allOf:
-            - $ref: '#/components/schemas/ApiDRepMetadata'
+            DRep's human-readable name (CIP-0119 givenName).
+            Null when the DRep has no anchor, when metadata has not yet
+            been fetched, or when hash verification failed.
 
     ApiDRepMetadata: &ApiDRepMetadata
       type: object
@@ -7818,6 +7817,32 @@ paths:
               schema:
                 type: array
                 items: *ApiDRepInfo
+
+  /dreps/{drepId}/metadata:
+    get:
+      operationId: getDRepMetadata
+      tags: ["DReps"]
+      summary: Get DRep Metadata
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Returns the full CIP-0119 off-chain metadata for the given DRep.
+        Returns null when the DRep has no anchor, when metadata has not yet
+        been fetched, or when hash verification failed.
+
+        Only credential-based DRep IDs (key-hash and script-hash) are
+        supported; passing `abstain` or `no-confidence` returns null.
+      parameters:
+        - *parametersDRepId
+      responses:
+        '200':
+          description: Full CIP-0119 metadata for the DRep, or null if unavailable.
+          content:
+            application/json:
+              schema:
+                nullable: true
+                allOf:
+                  - *ApiDRepMetadata
 
   /dreps/{drepId}/wallets/{walletId}:
     put:

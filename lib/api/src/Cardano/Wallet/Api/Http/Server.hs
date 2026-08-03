@@ -118,6 +118,7 @@ import Cardano.Wallet.Api.Http.Shelley.Server
     , getWalletUtxoSnapshot
     , idleWorker
     , listDReps
+    , getDRepMetadata
     , joinDRep
     , joinStakePool
     , liftHandler
@@ -449,7 +450,7 @@ server byron icarus shelley multisig spl drepLayer ntp blockchainSource =
             liftIO (ApiMaintenanceAction . ApiT <$> getGCMetadataStatus spl)
 
     dreps :: Server (DReps n)
-    dreps = listDReps drepLayer :<|> joinDRep shelley
+    dreps = listDReps drepLayer :<|> getDRepMetadata drepLayer :<|> joinDRep shelley
 
     byronWallets :: Server ByronWallets
     byronWallets =
