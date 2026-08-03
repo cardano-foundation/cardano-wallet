@@ -19,6 +19,7 @@ import Cardano.Wallet.Api
     , InspectAddress
     , JoinStakePool
     , ListAddresses
+    , ListDReps
     , ListStakePools
     , ListTransactions
     , MigrateShelleyWallet
@@ -33,6 +34,7 @@ import Cardano.Wallet.Api
 import Cardano.Wallet.Api.Types
     ( AnyAddress
     , ApiAddressData
+    , ApiDRepInfo
     , ApiAddressInspect
     , ApiAddressInspectData
     , ApiAddressWithPath
@@ -307,3 +309,6 @@ migrate
     -> ApiWalletMigrationPostData network "user"
     -> ClientM (NonEmpty (ApiTransaction network))
 migrate = client (Proxy @("v2" :> MigrateShelleyWallet network))
+
+listDReps :: ClientM [ApiDRepInfo]
+listDReps = client (Proxy @("v2" :> ListDReps))

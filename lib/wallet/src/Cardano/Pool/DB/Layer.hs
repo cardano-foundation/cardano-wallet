@@ -67,6 +67,10 @@ import Cardano.Pool.Metadata.Types
     ( StakePoolMetadata (..)
     , StakePoolMetadataHash
     )
+import Cardano.Wallet.Primitive.Types.DRep
+    ( DRepMetadata (..)
+    , DRepMetaReference (..)
+    )
 import Cardano.Pool.Types
     ( PoolId (..)
     )
@@ -127,6 +131,9 @@ import Data.Generics.Internal.VL.Lens
     )
 import Data.Map.Strict
     ( Map
+    )
+import Data.Set
+    ( Set
     )
 import Data.Quantity
     ( Quantity (..)
@@ -201,9 +208,12 @@ import Prelude
 import qualified Cardano.Pool.DB.Sqlite.TH as TH
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
+import qualified Data.Aeson as Aeson
 import qualified Data.Map.Strict as Map
 import qualified Data.Percentage as Percentage
+import qualified Data.Set as Set
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as TE
 import qualified Database.Sqlite as Sqlite
 
 -- | Return the preferred @FilePath@ for the stake pool .sqlite file, given a
@@ -707,6 +717,51 @@ newDBLayer tr ti SqliteContext{runQuery} =
         deleteWhere ([] :: [Filter TH.BlockHeader])
         deleteWhere ([] :: [Filter Settings])
         deleteWhere ([] :: [Filter InternalState])
+        deleteWhere ([] :: [Filter TH.DRepMetadata])
+        deleteWhere ([] :: [Filter TH.DRepMetadataFetchAttempts])
+
+    putDRepMetadata hash meta = do
+        repsert (TH.DRepMetadataKey hash) $ TH.DRepMetadata
+            { drepMetadataHash             = hash
+            , drepMetadataName             = drepMetaName meta
+            , drepMetadataObjectives       = drepMetaObjectives meta
+            , drepMetadataMotivations      = drepMetaMotivations meta
+            , drepMetadataQualifications   = drepMetaQualifications meta
+            , drepMetadataPaymentAddress   = drepMetaPaymentAddress meta
+            , drepMetadataDoNotList        = drepMetaDoNotList meta
+            , drepMetadataReferences       = encodeReferences (drepMetaReferences meta)
+            }
+        deleteWhere [TH.DrepFetchAttemptsHash ==. hash]
+
+    getDRepMetadata hash = do
+        mRow <- selectFirst [TH.DrepMetadataHash ==. hash] []
+        pure $ fromDRepMetadataRow . entityVal <$> mRow
+
+    getAllDRepMetadata =
+        Map.fromList . map (rowToEntry . entityVal)
+            <$> selectList [] []
+      where
+        rowToEntry r = (TH.drepMetadataHash r, fromDRepMetadataRow r)
+
+    clearDRepMetadata = do
+        deleteWhere ([] :: [Filter TH.DRepMetadata])
+        deleteWhere ([] :: [Filter TH.DRepMetadataFetchAttempts])
+
+    putDRepFetchAttempt (url, hash) = do
+        now <- liftIO getCurrentTime
+        mExisting <- selectFirst
+            [ TH.DrepFetchAttemptsHash ==. hash
+            , TH.DrepFetchAttemptsUrl  ==. url
+            ] []
+        let retryCount = maybe 0 (TH.drepFetchAttemptsRetryCount . entityVal) mExisting
+            retryAfter = backoff now retryCount
+        repsert (TH.DRepMetadataFetchAttemptsKey hash url)
+            (TH.DRepMetadataFetchAttempts hash url retryAfter (retryCount + 1))
+
+    recentlyFailedDRepHashes = do
+        now <- liftIO getCurrentTime
+        rows <- selectList [TH.DrepFetchAttemptsRetryAfter >. now] []
+        pure $ Set.fromList $ map (TH.drepFetchAttemptsHash . entityVal) rows
 
     atomically :: forall a. (SqlPersistT IO a -> IO a)
     atomically = runQuery
@@ -1154,3 +1209,39 @@ toSettings (W.Settings pms) = Settings pms
 
 fromInternalState :: InternalState -> W.InternalState
 fromInternalState (InternalState utc) = W.InternalState utc
+
+fromDRepMetadataRow :: TH.DRepMetadata -> DRepMetadata
+fromDRepMetadataRow row = DRepMetadata
+    { drepMetaName           = TH.drepMetadataName row
+    , drepMetaObjectives     = TH.drepMetadataObjectives row
+    , drepMetaMotivations    = TH.drepMetadataMotivations row
+    , drepMetaQualifications = TH.drepMetadataQualifications row
+    , drepMetaPaymentAddress = TH.drepMetadataPaymentAddress row
+    , drepMetaDoNotList      = TH.drepMetadataDoNotList row
+    , drepMetaReferences     = decodeReferences (TH.drepMetadataReferences row)
+    }
+
+encodeReferences :: [DRepMetaReference] -> T.Text
+encodeReferences refs =
+    TE.decodeUtf8 . Aeson.encode
+        $ [ Aeson.object
+              [ "label" Aeson..= drepMetaRefLabel r
+              , "uri"   Aeson..= drepMetaRefUri r
+              ]
+          | r <- refs
+          ]
+
+decodeReferences :: T.Text -> [DRepMetaReference]
+decodeReferences txt =
+    case Aeson.eitherDecodeStrict (TE.encodeUtf8 txt) of
+        Right vs ->
+            [ ref
+            | v <- vs
+            , Right ref <- [Aeson.parseEither parseRef v]
+            ]
+        Left _ -> []
+  where
+    parseRef = Aeson.withObject "DRepMetaReference" $ \o ->
+        DRepMetaReference
+            <$> o Aeson..: "label"
+            <*> o Aeson..: "uri"

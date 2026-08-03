@@ -50,6 +50,7 @@ module Cardano.Wallet.Api.Http.Shelley.Server
     , getUTxOsStatistics
     , getWalletUtxoSnapshot
     , getWallet
+    , listDReps
     , joinDRep
     , joinStakePool
     , listAssets
@@ -368,8 +369,14 @@ import Cardano.Wallet.Api.Types
     , ApiCoinSelectionWithdrawal (..)
     , ApiConstructTransaction (..)
     , ApiConstructTransactionData (..)
+    , ApiDRepAnchor (..)
+    , ApiDRepCredential (..)
+    , ApiDRepInfo (..)
+    , ApiDRepMetadata (..)
+    , ApiDRepMetaReference (..)
     , ApiDRepSpecifier (..)
     , ApiDecodeTransactionPostData (..)
+    , DRepStatus (..)
     , ApiDecodedTransaction (..)
     , ApiExternalInput (..)
     , ApiFee (..)
@@ -606,8 +613,20 @@ import Cardano.Wallet.Primitive.Types.Credentials
     ( ClearCredentials
     , RootCredentials (..)
     )
+import Cardano.Wallet.DRep.Layer
+    ( DRepInfo (..)
+    , DRepLayer (..)
+    )
 import Cardano.Wallet.Primitive.Types.DRep
     ( DRep
+    , DRepAnchor (..)
+    , DRepID (..)
+    , DRepKeyHash (..)
+    , DRepMetadata (..)
+    , DRepMetaReference (..)
+    , DRepRegistration (..)
+    , DRepScriptHash (..)
+    , encodeDRepIDBech32
     )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
@@ -927,7 +946,9 @@ import qualified Cardano.Wallet.Read.Hash as Hash
 import qualified Cardano.Wallet.Registry as Registry
 import qualified Control.Concurrent.Concierge as Concierge
 import qualified Data.ByteArray as BA
+import qualified Data.ByteArray.Encoding as BA
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Foldable as F
 import qualified Data.List as L
@@ -4377,6 +4398,63 @@ joinStakePool
                     , txMetadataSchema = TxMetadataDetailedSchema
                     , txCBOR = builtTx ^. #txCBOR
                     }
+
+listDReps
+    :: DRepLayer IO
+    -> Handler [ApiDRepInfo]
+listDReps drepLayer = do
+    infos <- liftIO $ listDRepInfos drepLayer
+    pure $ map toApiDRepInfo infos
+  where
+    toApiDRepInfo :: DRepInfo -> ApiDRepInfo
+    toApiDRepInfo DRepInfo{drepInfoReg = DRepRegistration{..}, drepInfoMetadata} =
+        ApiDRepInfo
+            { drepInfoId          = encodeDRepIDBech32 drepRegId
+            , drepInfoCredential  = toApiDRepCredential drepRegId
+            , drepInfoStatus      = if drepRegIsActive then Active else Inactive
+            , drepInfoExpiryEpoch = drepRegExpiryEpoch
+            , drepInfoVotingPower = unCoin drepRegVotingPower
+            , drepInfoDeposit     = unCoin drepRegDeposit
+            , drepInfoAnchor      = fmap toApiDRepAnchor drepRegAnchor
+            , drepInfoMetadata    = fmap toApiDRepMetadata drepInfoMetadata
+            }
+
+    toApiDRepMetadata :: DRepMetadata -> ApiDRepMetadata
+    toApiDRepMetadata m = ApiDRepMetadata
+        { apiDRepMetaName           = drepMetaName m
+        , apiDRepMetaObjectives     = drepMetaObjectives m
+        , apiDRepMetaMotivations    = drepMetaMotivations m
+        , apiDRepMetaQualifications = drepMetaQualifications m
+        , apiDRepMetaPaymentAddress = drepMetaPaymentAddress m
+        , apiDRepMetaDoNotList      = drepMetaDoNotList m
+        , apiDRepMetaReferences     = map toApiRef (drepMetaReferences m)
+        }
+
+    toApiRef :: DRepMetaReference -> ApiDRepMetaReference
+    toApiRef r = ApiDRepMetaReference
+        { apiDRepRefLabel = drepMetaRefLabel r
+        , apiDRepRefUri   = drepMetaRefUri r
+        }
+
+    toApiDRepCredential :: DRepID -> ApiDRepCredential
+    toApiDRepCredential = \case
+        DRepFromKeyHash (DRepKeyHash bs) ->
+            ApiDRepCredential "key_hash" (hexBS bs)
+        DRepFromScriptHash (DRepScriptHash bs) ->
+            ApiDRepCredential "script_hash" (hexBS bs)
+
+    toApiDRepAnchor :: DRepAnchor -> ApiDRepAnchor
+    toApiDRepAnchor a =
+        ApiDRepAnchor
+            { anchorUrl      = drepAnchorUrl a
+            , anchorDataHash = hexBS (drepAnchorHash a)
+            }
+
+    hexBS :: BS.ByteString -> T.Text
+    hexBS = T.pack . B8.unpack . BA.convertToBase BA.Base16
+
+    unCoin :: Coin -> Natural
+    unCoin (Coin n) = n
 
 joinDRep
     :: forall s n k

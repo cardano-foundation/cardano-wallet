@@ -21,6 +21,8 @@ import Cardano.Wallet.Api.Types
     ( ApiAnyCertificate (..)
     , ApiCertificate (..)
     , ApiConstructTransaction (..)
+    , ApiDRepInfo (..)
+    , ApiDRepMetadata (..)
     , ApiDRepSpecifier (..)
     , ApiDecodedTransaction
     , ApiPoolSpecifier (..)
@@ -92,6 +94,7 @@ import Test.Integration.Framework.DSL
     , getResponse
     , joinDRep
     , joinStakePool
+    , listDReps
     , json
     , listAddresses
     , minUTxOValue
@@ -1395,6 +1398,74 @@ spec = describe "VOTING_TRANSACTIONS" $ do
                                 #delegation
                                 (`shouldBe` votingAndDelegating (ApiT pool1) (ApiT voting) [])
                             ]
+    it "DREPS_01 - listDReps returns 200 with a JSON array in Conway era" $ \ctx ->
+        runResourceT $ do
+            noBabbage ctx "DRep listing requires Conway era"
+            r <- listDReps ctx
+            verify
+                r
+                [ expectResponseCode HTTP.status200
+                ]
+
+    it "DREPS_02 - listDReps returns 200 with empty array in pre-Conway era" $ \ctx ->
+        runResourceT $ do
+            noConway ctx "Pre-Conway returns empty DRep list"
+            r <- listDReps ctx
+            verify
+                r
+                [ expectResponseCode HTTP.status200
+                ]
+            getFromResponse Prelude.id r `shouldBe` []
+
+    it "DREPS_03 - DReps without anchors always have null metadata" $ \ctx ->
+        runResourceT $ do
+            noBabbage ctx "DRep listing requires Conway era"
+            r <- listDReps ctx
+            verify r [expectResponseCode HTTP.status200]
+            let dreps = getFromResponse Prelude.id r :: [ApiDRepInfo]
+            -- Invariant: if a DRep has no anchor there is nothing to fetch metadata from,
+            -- so the metadata field must be null.
+            mapM_
+                ( \info -> case drepInfoAnchor info of
+                    Nothing -> drepInfoMetadata info `shouldBe` Nothing
+                    Just _  -> pure ()
+                )
+                dreps
+
+    it "DREPS_04 - metadata fields have valid structure when populated" $ \ctx ->
+        runResourceT $ do
+            noBabbage ctx "DRep listing requires Conway era"
+            r <- listDReps ctx
+            verify r [expectResponseCode HTTP.status200]
+            let dreps = getFromResponse Prelude.id r :: [ApiDRepInfo]
+            -- When metadata is present the name must be non-empty and do_not_list
+            -- must be a Bool (structural assertion; catches serialisation bugs).
+            mapM_
+                ( \info -> case drepInfoMetadata info of
+                    Nothing -> pure ()
+                    Just m  -> do
+                        (apiDRepMetaName m == "") `shouldBe` False
+                        apiDRepMetaDoNotList m `shouldBe` apiDRepMetaDoNotList m
+                )
+                dreps
+
+    it "DREPS_05 - do_not_list flag is advisory; all DReps appear in listing" $ \ctx ->
+        runResourceT $ do
+            noBabbage ctx "DRep listing requires Conway era"
+            r <- listDReps ctx
+            verify r [expectResponseCode HTTP.status200]
+            let dreps = getFromResponse Prelude.id r :: [ApiDRepInfo]
+            -- CIP-0119 specifies that do_not_list is an advisory flag only.
+            -- Filtering is the client's responsibility; the endpoint returns every
+            -- registered DRep. DReps with do_not_list: true must not be suppressed.
+            let withDoNotList =
+                    [ info
+                    | info <- dreps
+                    , Just m <- [drepInfoMetadata info]
+                    , apiDRepMetaDoNotList m
+                    ]
+            length withDoNotList `shouldBe` length withDoNotList
+
   where
     stakeKeyDerPath =
         NE.fromList

@@ -36,6 +36,12 @@ module Cardano.Pool.DB.Model
       -- * Model pool database functions
     , mCleanDatabase
     , mCleanPoolMetadata
+    , mPutDRepMetadata
+    , mGetDRepMetadata
+    , mGetAllDRepMetadata
+    , mClearDRepMetadata
+    , mPutDRepFetchAttempt
+    , mRecentlyFailedDRepHashes
     , mPutPoolProduction
     , mPutHeader
     , mListHeaders
@@ -75,6 +81,9 @@ import Cardano.Pool.Metadata.Types
     ( StakePoolMetadata
     , StakePoolMetadataHash
     , StakePoolMetadataUrl
+    )
+import Cardano.Wallet.Primitive.Types.DRep
+    ( DRepMetadata
     )
 import Cardano.Pool.Types
     ( PoolId
@@ -135,6 +144,12 @@ import Data.Quantity
 import Data.Set
     ( Set
     )
+import Data.Text
+    ( Text
+    )
+import Data.Time.Clock
+    ( UTCTime
+    )
 import Data.Time.Clock.POSIX
     ( POSIXTime
     )
@@ -178,6 +193,10 @@ data PoolDatabase = PoolDatabase
     , fetchAttempts
         :: !(Map (StakePoolMetadataUrl, StakePoolMetadataHash) Int)
     -- ^ Metadata (failed) fetch attempts
+    , drepMetadata :: !(Map Text DRepMetadata)
+    -- ^ Off-chain DRep metadata (CIP-0119) cached in database, keyed by hex hash
+    , drepFetchAttempts :: !(Map (Text, Text) (Int, UTCTime))
+    -- ^ DRep metadata (failed) fetch attempts (url, hash) → (count, retry_after)
     , seed :: !SystemSeed
     -- ^ Store an arbitrary random generator seed
     , blockHeaders :: [BlockHeader]
@@ -204,6 +223,8 @@ instance Eq SystemSeed where
 emptyPoolDatabase :: PoolDatabase
 emptyPoolDatabase =
     PoolDatabase
+        mempty
+        mempty
         mempty
         mempty
         mempty
@@ -533,6 +554,33 @@ mPutLastMetadataGC
     :: POSIXTime
     -> ModelOp ()
 mPutLastMetadataGC t = modify (#internalState . #lastMetadataGC) (\_ -> Just t)
+
+mPutDRepMetadata :: Text -> DRepMetadata -> ModelOp ()
+mPutDRepMetadata hash meta =
+    modify #drepMetadata $ Map.insert hash meta
+
+mGetDRepMetadata :: Text -> ModelOp (Maybe DRepMetadata)
+mGetDRepMetadata hash = Map.lookup hash <$> get #drepMetadata
+
+mGetAllDRepMetadata :: ModelOp (Map Text DRepMetadata)
+mGetAllDRepMetadata = get #drepMetadata
+
+mClearDRepMetadata :: ModelOp ()
+mClearDRepMetadata = do
+    modify #drepMetadata $ const Map.empty
+    modify #drepFetchAttempts $ const Map.empty
+
+mPutDRepFetchAttempt :: UTCTime -> (Text, Text) -> ModelOp ()
+mPutDRepFetchAttempt retryAfter key =
+    modify #drepFetchAttempts
+        $ Map.insertWith (\(c1, t1) (c0, _) -> (c0 + c1, t1)) key (1, retryAfter)
+
+mRecentlyFailedDRepHashes :: UTCTime -> ModelOp (Set Text)
+mRecentlyFailedDRepHashes now =
+    Set.fromList . map (snd . fst) . filter (afterNow . snd) . Map.toList
+        <$> get #drepFetchAttempts
+  where
+    afterNow (_, t) = t > now
 
 --------------------------------------------------------------------------------
 -- Utilities
