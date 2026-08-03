@@ -97,6 +97,7 @@ module Cardano.Wallet.Api.Link
     , getPoolMaintenance
 
       -- * DReps
+    , listDReps
     , joinDRep
 
       -- * Network
@@ -899,6 +900,9 @@ getDelegationFee
 getDelegationFee w = endpoint @Api.DelegationFee (wid &)
   where
     wid = w ^. typed @(ApiT WalletId)
+
+listDReps :: (Method, Text)
+listDReps = endpoint @Api.ListDReps id
 
 joinDRep
     :: forall s w

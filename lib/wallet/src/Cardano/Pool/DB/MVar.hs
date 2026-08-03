@@ -25,11 +25,16 @@ import Cardano.Pool.DB.Model
     , emptyPoolDatabase
     , mCleanDatabase
     , mCleanPoolMetadata
+    , mClearDRepMetadata
+    , mGetAllDRepMetadata
+    , mGetDRepMetadata
     , mListHeaders
     , mListPoolLifeCycleData
     , mListRegisteredPools
     , mListRetiredPools
     , mPutDelistedPools
+    , mPutDRepFetchAttempt
+    , mPutDRepMetadata
     , mPutFetchAttempt
     , mPutHeader
     , mPutLastMetadataGC
@@ -53,6 +58,7 @@ import Cardano.Pool.DB.Model
     , mReadTotalProduction
     , mRemovePools
     , mRemoveRetiredPools
+    , mRecentlyFailedDRepHashes
     , mRollbackTo
     , mUnfetchedPoolMetadataRefs
     )
@@ -61,6 +67,9 @@ import Cardano.Wallet.Primitive.Slotting
     )
 import Control.DeepSeq
     ( deepseq
+    )
+import Data.Time.Clock
+    ( getCurrentTime
     )
 import Control.Monad
     ( void
@@ -200,6 +209,26 @@ newDBLayer timeInterpreter = do
             void $ alterPoolDB (const Nothing) db mCleanDatabase
 
         readPoolMetadata = readPoolDB db mReadPoolMetadata
+
+        putDRepMetadata hash meta =
+            void $ alterPoolDB (const Nothing) db (mPutDRepMetadata hash meta)
+
+        getDRepMetadata =
+            readPoolDB db . mGetDRepMetadata
+
+        getAllDRepMetadata =
+            readPoolDB db mGetAllDRepMetadata
+
+        clearDRepMetadata =
+            void $ alterPoolDB (const Nothing) db mClearDRepMetadata
+
+        putDRepFetchAttempt key = do
+            now <- getCurrentTime
+            void $ alterPoolDB (const Nothing) db (mPutDRepFetchAttempt now key)
+
+        recentlyFailedDRepHashes = do
+            now <- getCurrentTime
+            readPoolDB db (mRecentlyFailedDRepHashes now)
 
         atomically = id
 

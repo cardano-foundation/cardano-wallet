@@ -157,6 +157,9 @@ library
     Cardano.Pool.Metadata
     Cardano.Pool.Metadata.Types
     Cardano.Pool.Types
+    Cardano.Wallet.DRep.Layer
+    Cardano.Wallet.DRep.Metadata
+    Cardano.Wallet.DRep.Worker
     Cardano.Wallet
     Cardano.Wallet.Address.Keys.BoundedAddressLength
     Cardano.Wallet.Address.Keys.MintBurn

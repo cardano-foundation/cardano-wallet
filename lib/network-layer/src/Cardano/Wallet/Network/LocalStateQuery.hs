@@ -5,12 +5,16 @@
 -- Root of module hierarchy about local state queries.
 module Cardano.Wallet.Network.LocalStateQuery
     ( currentEra
+    , module Cardano.Wallet.Network.LocalStateQuery.DReps
     , module Cardano.Wallet.Network.LocalStateQuery.PParams
     , module Cardano.Wallet.Network.LocalStateQuery.RewardAccount
     , module Cardano.Wallet.Network.LocalStateQuery.StakeDistribution
     , module Cardano.Wallet.Network.LocalStateQuery.UTxO
     ) where
 
+import Cardano.Wallet.Network.LocalStateQuery.DReps
+    ( listDReps
+    )
 import Cardano.Wallet.Network.LocalStateQuery.Extra
     ( currentEra
     )

@@ -86,6 +86,7 @@ library shelley
     , contra-tracer
     , extra
     , generic-lens
+    , http-client-tls
     , network
     , network-uri
     , servant-server
