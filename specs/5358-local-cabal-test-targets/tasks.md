@@ -14,22 +14,22 @@ Issue: https://github.com/cardano-foundation/cardano-wallet/issues/5358
 
 ## Slice `local-test-targets` (PAIR)
 
-- [ ] T010 Add `scripts/ci/check-local-test-targets.sh` reconciling the suites
+- [x] T010 Add `scripts/ci/check-local-test-targets.sh` reconciling the suites
       selected by the Cabal test recipes against the suites declared by local
       project packages
-- [ ] T011 Observe the detector fail on the unfixed `justfile`, naming
+- [x] T011 Observe the detector fail on the unfixed `justfile`, naming
       `cardano-balance-tx:unit` — the slice RED
-- [ ] T012 Prove the detector refuses to pass vacuously when either side parses
+- [x] T012 Prove the detector refuses to pass vacuously when either side parses
       to the empty set
-- [ ] T013 Remove `cardano-balance-tx:unit` from `unit-tests-cabal-match`
-- [ ] T014 Observe the detector pass and
+- [x] T013 Remove `cardano-balance-tx:unit` from `unit-tests-cabal-match`
+- [x] T014 Observe the detector pass and
       `just unit-tests-cabal-match "Store"` exit 0 with a non-zero executed
       example count and no `Cabal-7043`
-- [ ] T015 Confirm the selection still covers all 11 locally testable suites
+- [x] T015 Confirm the selection still covers all 11 locally testable suites
       listed in `spec.md`
-- [ ] T016 Wire the detector into the existing `quality-checks` matrix in
+- [x] T016 Wire the detector into the existing `quality-checks` matrix in
       `.github/workflows/ci.yml`
-- [ ] T017 Confirm `scripts/shellcheck.sh` covers the new script and passes
+- [x] T017 Confirm `scripts/shellcheck.sh` covers the new script and passes
 
 ## Acceptance (ticket owner)
 

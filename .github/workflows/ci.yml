@@ -681,6 +681,9 @@ jobs:
           - name: "Check Cabal Configure"
             command: nix develop --quiet --command scripts/ci/check-haskell-nix-cabal.sh
 
+          - name: "Check Local Cabal Test Targets"
+            command: scripts/ci/check-local-test-targets.sh
+
           - name: "Lint Bash Scripts"
             command: ./scripts/shellcheck.sh
 
