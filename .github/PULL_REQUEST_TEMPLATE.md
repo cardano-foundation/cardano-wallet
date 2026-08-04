@@ -35,4 +35,8 @@ Before you submit, don't forget to:
 ### Issue Number
 
 <!-- Reference the Jira/GitHub issue that this PR relates to, and which requirements it tackles.
-  Note: Jira issues of the form ADP- will be auto-linked. -->
+  Note: Jira issues of the form ADP- will be auto-linked.
+  To close a GitHub issue when this PR is merged, use an explicit closing reference:
+  Closes #123
+  Fixes #123
+-->
