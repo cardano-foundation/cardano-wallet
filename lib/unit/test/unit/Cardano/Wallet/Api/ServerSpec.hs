@@ -371,22 +371,27 @@ errorHandlingSpec = describe "liftHandler and toServerError" $ do
 depositReturnedSpec :: Spec
 depositReturnedSpec = describe "depositReturnedFromCertificates" $ do
     let
-        dummyAcct = FromKeyHash ""
+        walletAcct = FromKeyHash ""
+        externalAcct = FromKeyHash "external"
         dummyPoolId = Pool.PoolId ""
         refundCert n =
-            CertificateOfDelegation (Just (Coin n)) (CertDelegateNone dummyAcct)
+            CertificateOfDelegation (Just (Coin n)) (CertDelegateNone walletAcct)
+        externalRefundCert n =
+            CertificateOfDelegation
+                (Just (Coin n))
+                (CertDelegateNone externalAcct)
         registrationCert n =
             CertificateOfDelegation
                 (Just (Coin n))
-                (CertVoteAndDelegate dummyAcct Nothing Nothing)
+                (CertVoteAndDelegate walletAcct Nothing Nothing)
         registrationAndDelegationCert n =
             CertificateOfDelegation
                 (Just (Coin n))
-                (CertVoteAndDelegate dummyAcct (Just dummyPoolId) Nothing)
+                (CertVoteAndDelegate walletAcct (Just dummyPoolId) Nothing)
         ordinaryDelegationCert =
             CertificateOfDelegation
                 Nothing
-                (CertVoteAndDelegate dummyAcct (Just dummyPoolId) Nothing)
+                (CertVoteAndDelegate walletAcct (Just dummyPoolId) Nothing)
         poolCert =
             CertificateOfPool
                 $ Retirement
@@ -394,18 +399,33 @@ depositReturnedSpec = describe "depositReturnedFromCertificates" $ do
         governanceCert = CertificateOther RegDRep
 
     it "absent CBOR contributes 0" $ do
-        depositReturnedFromCertificates Nothing `shouldBe` 0
+        depositReturnedFromCertificates (Just walletAcct) Nothing `shouldBe` 0
 
     it "empty certificate lists contribute 0" $ do
-        depositReturnedFromCertificates (Just []) `shouldBe` 0
+        depositReturnedFromCertificates (Just walletAcct) (Just [])
+            `shouldBe` 0
 
-    it "one explicit deregistration refund contributes its exact coin" $ do
+    it "one explicit own deregistration refund contributes its exact coin" $ do
         depositReturnedFromCertificates
+            (Just walletAcct)
             (Just [refundCert 2_000_000])
             `shouldBe` 2_000_000
 
+    it "deregistrations of external stake credentials contribute 0" $ do
+        depositReturnedFromCertificates
+            (Just walletAcct)
+            (Just [externalRefundCert 2_000_000])
+            `shouldBe` 0
+
+    it "an unknown wallet reward account claims no refunds" $ do
+        depositReturnedFromCertificates
+            Nothing
+            (Just [refundCert 2_000_000])
+            `shouldBe` 0
+
     it "registration deposits with an explicit coin contribute 0" $ do
         depositReturnedFromCertificates
+            (Just walletAcct)
             ( Just
                 [ registrationCert 2_000_000
                 , registrationAndDelegationCert 3_000_000
@@ -415,22 +435,28 @@ depositReturnedSpec = describe "depositReturnedFromCertificates" $ do
 
     it "legacy deregistration without an explicit refund contributes 0" $ do
         depositReturnedFromCertificates
-            (Just [CertificateOfDelegation Nothing (CertDelegateNone dummyAcct)])
+            (Just walletAcct)
+            ( Just
+                [CertificateOfDelegation Nothing (CertDelegateNone walletAcct)]
+            )
             `shouldBe` 0
 
     it
         "pool, governance, and ordinary delegation certificates contribute 0"
         $ do
             depositReturnedFromCertificates
+                (Just walletAcct)
                 (Just [poolCert, governanceCert, ordinaryDelegationCert])
                 `shouldBe` 0
 
-    it "multiple explicit deregistration refunds sum exactly" $ do
+    it "multiple explicit own deregistration refunds sum exactly" $ do
         depositReturnedFromCertificates
+            (Just walletAcct)
             ( Just
                 [ refundCert 2_000_000
                 , registrationCert 5_000_000
                 , poolCert
+                , externalRefundCert 3_000_000
                 , refundCert 500_000
                 , governanceCert
                 , ordinaryDelegationCert
