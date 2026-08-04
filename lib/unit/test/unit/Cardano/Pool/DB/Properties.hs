@@ -62,6 +62,10 @@ import Cardano.Wallet.Primitive.Types
     , getPoolCertificatePoolId
     , getPoolRetirementCertificate
     )
+import Cardano.Wallet.Primitive.Types.DRep
+    ( DRepMetaReference (..)
+    , DRepMetadata (..)
+    )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT
     )
@@ -313,8 +317,63 @@ properties withDB = do
             "clearing metadata also clears delisted pools"
             (property (prop_removePoolMetadataDelistedPools withDB))
 
+    describe "DRep metadata properties" $ do
+        it "roundtrips metadata and anchor hashes, then clears both"
+            $ withDB
+            $ \DBLayer{..} -> do
+                atomically $ do
+                    putDRepMetadata drepMetadataHash drepMetadata
+                    putDRepAnchorHash drepId drepMetadataHash
+
+                atomically (getDRepMetadata drepMetadataHash)
+                    `shouldReturn` Just drepMetadata
+                atomically getAllDRepMetadata
+                    `shouldReturn` Map.singleton drepMetadataHash drepMetadata
+                atomically (getDRepAnchorHash drepId)
+                    `shouldReturn` Just drepMetadataHash
+
+                atomically clearDRepMetadata
+
+                atomically (getDRepMetadata drepMetadataHash)
+                    `shouldReturn` Nothing
+                atomically getAllDRepMetadata `shouldReturn` Map.empty
+                atomically (getDRepAnchorHash drepId) `shouldReturn` Nothing
+
+        it "suppresses a recently failed metadata hash"
+            $ withDB
+            $ \DBLayer{..} -> do
+                atomically $ putDRepFetchAttempt (drepMetadataUrl, drepMetadataHash)
+                failed <- atomically recentlyFailedDRepHashes
+                Set.member drepMetadataHash failed `shouldBe` True
+
 okayConfidence :: Confidence
 okayConfidence = Confidence{certainty = 10 ^ (6 :: Int), tolerance = 0.9}
+
+drepId :: T.Text
+drepId = "drep1test"
+
+drepMetadataUrl :: T.Text
+drepMetadataUrl = "https://example.com/drep.json"
+
+drepMetadataHash :: T.Text
+drepMetadataHash = "0123456789abcdef"
+
+drepMetadata :: DRepMetadata
+drepMetadata =
+    DRepMetadata
+        { drepMetaName = "Test DRep"
+        , drepMetaObjectives = Just "Test objectives"
+        , drepMetaMotivations = Just "Test motivations"
+        , drepMetaQualifications = Just "Test qualifications"
+        , drepMetaPaymentAddress = Just "addr_test1"
+        , drepMetaDoNotList = False
+        , drepMetaReferences =
+            [ DRepMetaReference
+                { drepMetaRefLabel = "Website"
+                , drepMetaRefUri = "https://example.com"
+                }
+            ]
+        }
 
 {-------------------------------------------------------------------------------
                                     Properties

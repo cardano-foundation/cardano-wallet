@@ -3029,9 +3029,9 @@ getDRep
     :: MonadUnliftIO m
     => Context
     -> ApiDRepSpecifier
-    -> m (HTTP.Status, Either RequestException (Maybe ApiDRepInfo))
+    -> m (HTTP.Status, Either RequestException ApiDRepInfo)
 getDRep ctx specifier =
-    request @(Maybe ApiDRepInfo)
+    request @ApiDRepInfo
         ctx
         (Link.getDRep specifier)
         Default

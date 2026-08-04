@@ -45,12 +45,11 @@ New types (`ApiDRepInfo`, `ApiDRepMetadata`, `DRepRegistration`) are records wit
 One new Cabal dependency (`random`) added to `cardano-wallet-api.cabal`. All other required packages are already in `cabal.project`.
 
 ### VI. Comprehensive Testing
-Integration tests in `lib/integration/scenarios/Test/Integration/Scenario/API/Voting.hs` covering:
-- List DReps on Conway cluster (DREPS_01)
-- Empty list pre-Conway (DREPS_02)
-- Metadata populated after worker tick (DREPS_03)
-- Metadata null on unreachable anchor (DREPS_04)
-- `doNotList: true` entry still appears in list (DREPS_05)
+Tests cover the HTTP handlers and their filtering/count boundaries, both
+SQLite and in-memory DRep metadata stores, and the background worker against
+a real local HTTPS server (success, hash mismatch with retry backoff, and
+invalid CIP-0119). Integration tests cover routing, era behavior, response
+shape, and sentinel 404 responses.
 
 ### VII. Code Quality Gates
 Fourmolu, HLint, -Wall compilation, and integration tests must all pass before merge.
@@ -96,7 +95,7 @@ lib/
 │   ├── Http/Server.hs                          # wire all three handlers into dreps server
 │   └── Http/Shelley/Server.hs                  # listDReps, suggestedDReps, getDRep
 └── integration/scenarios/Test/Integration/Scenario/API/
-    └── Voting.hs                               # DREPS_01–DREPS_05 integration tests
+    └── Voting.hs                               # DRep endpoint integration tests
 
 specifications/api/swagger.yaml                 # GET /v2/dreps, /suggested, /{drepId}
 ```

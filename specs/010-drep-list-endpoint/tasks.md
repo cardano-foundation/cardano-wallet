@@ -124,12 +124,14 @@
 
 ## Phase 13: Update Integration Tests
 
-**Purpose**: Cover metadata enrichment in end-to-end tests.
+**Purpose**: Cover metadata enrichment and endpoint behavior without vacuous assertions.
 
-- [x] T024 Extend `lib/integration/scenarios/Test/Integration/Scenario/API/Voting.hs`:
-  - DREPS_03: DRep with reachable CIP-0119 anchor URL → `metadata.name` populated after worker tick
-  - DREPS_04: DRep with unreachable anchor URL → `metadata` is `null`, endpoint returns 200
-  - DREPS_05: DRep with `doNotList: true` → entry appears with `metadata.do_not_list: true`
+- [x] T024 Add DRep test coverage matching the stake-pool metadata pattern:
+  - exercise the metadata worker against a real local HTTP server
+  - cover valid metadata, hash mismatch with retry backoff, and invalid CIP-0119
+  - run metadata persistence properties against SQLite and the in-memory model
+  - test list/detail/suggested handlers with non-empty fixtures, all filters, and count boundaries
+  - keep integration coverage for era behavior, response shape, and sentinel 404 responses
 
 ---
 
@@ -149,8 +151,8 @@
 
 **Purpose**: Provide the full DRep record with embedded CIP-0119 metadata for a single DRep on demand.
 
-- [x] T028 Add `GetDRep` Servant type (renamed from `GetDRepMetadata`) to `lib/api/src/Cardano/Wallet/Api.hs`; extend `DReps n` with path `/dreps/{drepId}` returning `Maybe ApiDRepInfo`
-- [x] T029 Implement `getDRep` handler (renamed from `getDRepMetadata`) in `lib/api/src/Cardano/Wallet/Api/Http/Shelley/Server.hs`; returns full `ApiDRepInfo` with `metadata` field populated
+- [x] T028 Add `GetDRep` Servant type (renamed from `GetDRepMetadata`) to `lib/api/src/Cardano/Wallet/Api.hs`; extend `DReps n` with path `/dreps/{drepId}` returning `ApiDRepInfo`
+- [x] T029 Implement `getDRep` handler (renamed from `getDRepMetadata`) in `lib/api/src/Cardano/Wallet/Api/Http/Shelley/Server.hs`; returns full `ApiDRepInfo` with `metadata` populated, or 404 for unknown/sentinel IDs
 - [x] T030 Wire `getDRep` in `lib/api/src/Cardano/Wallet/Api/Http/Server.hs`
 - [x] T031 Add `GET /v2/dreps/{drepId}` to `specifications/api/swagger.yaml` with `ApiDRepInfo` response schema
 
