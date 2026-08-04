@@ -117,6 +117,7 @@ module Cardano.Wallet.Api.Http.Shelley.Server
     , withWorkerCtx
     , getCurrentEpoch
     , MkApiWallet
+    , depositReturnedFromCertificates
 
       -- * Workers
     , manageRewardBalance
@@ -916,7 +917,7 @@ import qualified Cardano.Wallet.Primitive.Types.Tx.Tx as W
     , TxScriptValidity
     )
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxMeta as W
-    ( Direction (Incoming, Outgoing)
+    ( Direction (Outgoing)
     , TxMeta
     )
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
@@ -5356,13 +5357,14 @@ mkApiTransaction timeInterpreter wrk timeRefLens tx = do
     expRef <-
         liftIO $ traverse makeApiSlotReference' (tx ^. #txMeta . #expiry)
     parsedValues <- traverse parseTxCBOR $ tx ^. #txCBOR
+    rewardAcctM <- case parsedValues of
+        Nothing -> pure Nothing
+        Just _
+            | hasDelegation (Proxy @s) ->
+                readRewardAccount db (keyFlavorFromState @s)
+            | otherwise -> pure Nothing
     parsedCertificates <-
-        if hasDelegation (Proxy @s)
-            then
-                traverse
-                    (getApiAnyCertificates db (keyFlavorFromState @s))
-                    parsedValues
-            else pure Nothing
+        traverse (getApiAnyCertificates rewardAcctM) parsedValues
     parsedMintBurn <-
         forM parsedValues
             $ getTxApiAssetMintBurn wrk
@@ -5374,7 +5376,8 @@ mkApiTransaction timeInterpreter wrk timeRefLens tx = do
             , amount = ApiAmount.fromCoin $ tx ^. #txMeta . #amount
             , fee = maybe mempty ApiAmount.fromCoin (tx ^. #txFee)
             , depositTaken = ApiAmount depositIfAny
-            , depositReturned = ApiAmount reclaimIfAny
+            , depositReturned =
+                ApiAmount $ reclaimIfAny (fst <$> rewardAcctM) parsedValues
             , insertedAt = Nothing
             , pendingSince = Nothing
             , expiresAt = expRef
@@ -5415,23 +5418,26 @@ mkApiTransaction timeInterpreter wrk timeRefLens tx = do
         makeApiSlotReference
             $ unsafeExtendSafeZone timeInterpreter
 
-    -- \| Promote certificates of a transaction to API type,
-    -- using additional context from the 'WorkerCtx'.
-    getApiAnyCertificates db flavor ParsedTxCBOR{certificates} = case flavor of
+    -- \| Read the wallet's own reward account and derivation path, when
+    -- the wallet flavor tracks one.
+    readRewardAccount db = \case
         ShelleyKeyS -> do
             (rewardAcct, _, path) <-
                 liftHandler
                     $ W.shelleyOnlyReadRewardAccount @s db
-            pure $ mkApiAnyCertificate (Just rewardAcct) path <$> certificates
-        SharedKeyS -> do
-            infoM <-
-                liftHandler
-                    $ W.sharedOnlyReadRewardAccount @s db
-            case infoM of
-                Just (rewardAcct, path) ->
-                    pure $ mkApiAnyCertificate (Just rewardAcct) path <$> certificates
-                _ -> pure []
+            pure $ Just (rewardAcct, path)
+        SharedKeyS ->
+            liftHandler
+                $ W.sharedOnlyReadRewardAccount @s db
         _ ->
+            pure Nothing
+
+    -- \| Promote certificates of a transaction to API type, using the
+    -- wallet's reward account to mark wallet-owned certificates.
+    getApiAnyCertificates acctM ParsedTxCBOR{certificates} = case acctM of
+        Just (rewardAcct, path) ->
+            pure $ mkApiAnyCertificate (Just rewardAcct) path <$> certificates
+        Nothing ->
             pure []
 
     depositIfAny :: Natural
@@ -5442,29 +5448,9 @@ mkApiTransaction timeInterpreter wrk timeRefLens tx = do
                 else totalIn - totalOut
         | otherwise = 0
 
-    -- (pending) when reclaim is coming we have (fee+out) - inp = deposit
-    -- tx is incoming, and the wallet spent for fee and received deposit - fee as out
-    -- (inLedger) when reclaim is accommodated we have out - inp < deposit as fee was incurred
-    -- So in order to detect this we need to have
-    -- 1. deposit
-    -- 2. have inpsWithoutFee of the wallet non-empty
-    -- 3. outs of the wallet non-empty
-    -- 4. tx Incoming
-    -- 5. outs - inpsWithoutFee <= deposit
-    -- assumption: this should work when
-    depositValue :: Natural
-    depositValue = fromIntegral . unCoin $ tx ^. #txDeposit
-
-    reclaimIfAny :: Natural
-    reclaimIfAny
-        | tx ^. (#txMeta . #direction) == W.Incoming =
-            if (totalIn > 0 && totalOut > 0 && totalOut > totalIn)
-                && (totalOut - totalIn <= depositValue)
-                then
-                    depositValue
-                else
-                    0
-        | otherwise = 0
+    reclaimIfAny :: Maybe RewardAccount -> Maybe ParsedTxCBOR -> Natural
+    reclaimIfAny acctM parsed =
+        depositReturnedFromCertificates acctM (view #certificates <$> parsed)
 
     totalIn :: Natural
     totalIn =
@@ -5484,6 +5470,22 @@ mkApiTransaction timeInterpreter wrk timeRefLens tx = do
         -> AddressAmountNoAssets (ApiAddress n)
     toAddressAmountNoAssets (TxOut addr (TokenBundle.TokenBundle coin _)) =
         AddressAmountNoAssets (ApiAddress addr) (ApiAmount.fromCoin coin)
+
+-- | Sum the exact deposit refund amounts from the wallet's own
+-- deregistration certificates parsed from the transaction CBOR.
+-- Deregistrations of other parties' stake credentials are ignored, as
+-- are certificates without an explicit refund amount. Returns 0 when
+-- there is no CBOR, no certificates, no refund-bearing certificates,
+-- or no wallet reward account to match against.
+depositReturnedFromCertificates
+    :: Maybe RewardAccount -> Maybe [W.Certificate] -> Natural
+depositReturnedFromCertificates acctM =
+    maybe 0 (sum . mapMaybe refund)
+  where
+    refund
+        (W.CertificateOfDelegation (Just coin) (W.CertDelegateNone acct))
+            | Just acct == acctM = Just (unCoin coin)
+    refund _ = Nothing
 
 toAddressAmount
     :: forall n
