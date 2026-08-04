@@ -249,7 +249,6 @@ import qualified Cardano.Pool.DB.Layer as Pool
 import qualified Cardano.Wallet.Api.Http.Shelley.Server as Server
 import qualified Cardano.Wallet.DB.Layer as Sqlite
 import qualified Cardano.Wallet.DRep.Layer as DRep
-import qualified Cardano.Wallet.DRep.Metadata as DRep
 import qualified Cardano.Wallet.DRep.Worker as DRep
 import qualified Cardano.Wallet.UI.Common.Layer as Ui
 import qualified Cardano.Wallet.UI.Shelley.API as ShelleyUi

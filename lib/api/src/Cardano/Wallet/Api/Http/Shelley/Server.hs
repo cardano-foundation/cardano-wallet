@@ -836,9 +836,6 @@ import Data.Proxy
 import Data.Quantity
     ( Quantity (..)
     )
-import Data.Sequence
-    ( Seq
-    )
 import Data.Set
     ( Set
     )
@@ -4485,7 +4482,7 @@ suggestedDReps drepLayer mCount = do
       where
         k = min n (length xs)
         go i acc sq
-            | i >= acc = pure $ toList $ Sequence.take acc sq
+            | i >= acc = pure $ F.toList $ Sequence.take acc sq
             | otherwise = do
                 j <- randomRIO (i, Sequence.length sq - 1)
                 let a = Sequence.index sq i
