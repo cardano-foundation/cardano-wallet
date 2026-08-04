@@ -84,9 +84,6 @@ import Cardano.Pool.Metadata.Types
     , StakePoolMetadataHash
     , StakePoolMetadataUrl
     )
-import Cardano.Wallet.Primitive.Types.DRep
-    ( DRepMetadata
-    )
 import Cardano.Pool.Types
     ( PoolId
     , PoolOwner
@@ -108,6 +105,9 @@ import Cardano.Wallet.Primitive.Types
     , SlotNo (..)
     , defaultInternalState
     , defaultSettings
+    )
+import Cardano.Wallet.Primitive.Types.DRep
+    ( DRepMetadata
     )
 import Control.Monad.Trans.Class
     ( lift
@@ -586,7 +586,10 @@ mGetDRepAnchorHash drepId = Map.lookup drepId <$> get #drepAnchors
 mPutDRepFetchAttempt :: UTCTime -> (Text, Text) -> ModelOp ()
 mPutDRepFetchAttempt retryAfter key =
     modify #drepFetchAttempts
-        $ Map.insertWith (\(c1, t1) (c0, _) -> (c0 + c1, t1)) key (1, retryAfter)
+        $ Map.insertWith
+            (\(c1, t1) (c0, _) -> (c0 + c1, t1))
+            key
+            (1, retryAfter)
 
 mRecentlyFailedDRepHashes :: UTCTime -> ModelOp (Set Text)
 mRecentlyFailedDRepHashes now =
