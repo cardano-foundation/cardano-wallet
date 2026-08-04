@@ -9,7 +9,7 @@ Add three DRep read endpoints to the cardano-wallet Servant API:
 
 - `GET /v2/dreps` — list all registered DReps with on-chain fields + `name`
 - `GET /v2/dreps/suggested` — random sample of active, identified DReps (excludes top 35 by voting power)
-- `GET /v2/dreps/{drepId}/metadata` — full CIP-0119 off-chain metadata for one DRep
+- `GET /v2/dreps/{drepId}` — full `ApiDRepInfo` with embedded CIP-0119 metadata for one DRep
 
 All three endpoints share a `DRepLayer` facade that merges live Conway-era
 LSQ results (cached with a 900-second TTL) with off-chain metadata persisted
@@ -89,16 +89,16 @@ lib/
 │   ├── DB/Layer/DRep.hs                        # NEW: DRepMetadataDB SQLite interface + migration
 │   └── Shelley.hs                              # wire DRepLayer + worker into serveWallet
 ├── api/src/Cardano/Wallet/Api/
-│   ├── Api.hs                                  # ListDReps, SuggestedDReps, GetDRepMetadata types
+│   ├── Api.hs                                  # ListDReps, SuggestedDReps, GetDRep types
 │   ├── Types.hs                                # ApiDRepInfo (with name field), ApiDRepMetadata
 │   ├── Link.hs                                 # listDReps link helper
 │   ├── Clients/Shelley.hs                      # listDReps client function
 │   ├── Http/Server.hs                          # wire all three handlers into dreps server
-│   └── Http/Shelley/Server.hs                  # listDReps, suggestedDReps, getDRepMetadata
+│   └── Http/Shelley/Server.hs                  # listDReps, suggestedDReps, getDRep
 └── integration/scenarios/Test/Integration/Scenario/API/
     └── Voting.hs                               # DREPS_01–DREPS_05 integration tests
 
-specifications/api/swagger.yaml                 # GET /v2/dreps, /suggested, /{drepId}/metadata
+specifications/api/swagger.yaml                 # GET /v2/dreps, /suggested, /{drepId}
 ```
 
 **Structure Decision**: Single monorepo library layout (existing pattern). No new Cabal packages. The `DRepLayer` + worker modules are co-located with other service facades (`StakePoolLayer`) in `lib/wallet`.

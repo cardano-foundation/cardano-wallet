@@ -59,6 +59,7 @@ import Network.HTTP.Client
     )
 import Network.HTTP.Types.Status
     ( status200
+    , statusCode
     )
 import Network.URI
     ( URI
@@ -115,7 +116,7 @@ fetchDRepMetadata ipfsGateway manager url expectedHash = do
                         pure
                             $ Left
                             $ FetchNotOk
-                                (fromIntegral (fromEnum (responseStatus resp)))
+                                (statusCode (responseStatus resp))
         pure $ case eitherResult of
             Left exc -> Left (FetchHttpError (show exc))
             Right (Left fe) -> Left fe
