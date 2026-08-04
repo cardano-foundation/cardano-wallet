@@ -53,6 +53,7 @@ module Cardano.Wallet.Application.CLI
     , tlsOption
     , poolMetadataSourceOption
     , tokenMetadataSourceOption
+    , ipfsGatewayUrlOption
     , metadataOption
     , timeToLiveOption
     , modeOption
@@ -210,6 +211,9 @@ import Cardano.Wallet.Application.Version
     ( gitRevision
     , showFullVersion
     , version
+    )
+import Cardano.Wallet.DRep.Metadata
+    ( defaultIpfsGatewayUrl
     )
 import Cardano.Wallet.Network.RestorationMode
     ( RestorationMode (..)
@@ -1918,6 +1922,19 @@ tokenMetadataSourceOption =
                     <> "By using this option, you are fully trusting the operator of "
                     <> "the metadata server to provide authentic token metadata."
                 )
+
+-- | [--ipfs-gateway-url=URL]
+ipfsGatewayUrlOption :: Parser String
+ipfsGatewayUrlOption =
+    option str
+        $ mempty
+            <> long "ipfs-gateway-url"
+            <> metavar "URL"
+            <> value defaultIpfsGatewayUrl
+            <> showDefault
+            <> help
+                "Base URL of the IPFS gateway used to resolve ipfs:// \
+                \DRep anchor URLs. Must end with a trailing slash."
 
 -- | <wallet-id=WALLET_ID>
 walletIdArgument :: Parser WalletId

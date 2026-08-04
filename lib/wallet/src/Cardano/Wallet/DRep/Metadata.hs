@@ -12,6 +12,7 @@ module Cardano.Wallet.DRep.Metadata
     , FetchError (..)
     , parseCip0119
     , resolveUrl
+    , defaultIpfsGatewayUrl
     ) where
 
 import Cardano.Wallet.Primitive.Types.DRep
@@ -77,12 +78,13 @@ data FetchError
     | FetchHashMismatch
     deriving (Eq, Show)
 
-ipfsGateway :: String
-ipfsGateway = "https://ipfs.blockfrost.dev/ipfs/"
+-- | Default IPFS gateway used when no override is supplied.
+defaultIpfsGatewayUrl :: String
+defaultIpfsGatewayUrl = "https://ipfs.blockfrost.dev/ipfs/"
 
--- | Resolve a URL to an HTTP URI, rewriting ipfs:// to the Blockfrost gateway.
-resolveUrl :: Text -> ExceptT FetchError IO URI
-resolveUrl url =
+-- | Resolve a URL to an HTTP URI, rewriting ipfs:// to the given gateway.
+resolveUrl :: String -> Text -> ExceptT FetchError IO URI
+resolveUrl ipfsGateway url =
     let urlStr = case T.stripPrefix "ipfs://" url of
             Just cid -> ipfsGateway <> T.unpack cid
             Nothing -> T.unpack url
@@ -93,14 +95,16 @@ resolveUrl url =
 -- | Fetch a CIP-0119 metadata document from 'url', verify its Blake2b-256
 -- hash matches 'expectedHash' (raw bytes), and parse it into 'DRepMetadata'.
 -- Returns 'Left FetchError' on any failure. Supports ipfs:// URLs via the
--- Blockfrost IPFS gateway.
+-- given IPFS gateway URL.
 fetchDRepMetadata
-    :: Manager
+    :: String
+    -- ^ IPFS gateway base URL (e.g. \"https://ipfs.blockfrost.dev/ipfs/\")
+    -> Manager
     -> Text
     -> ByteString
     -> ExceptT FetchError IO DRepMetadata
-fetchDRepMetadata manager url expectedHash = do
-    uri <- resolveUrl url
+fetchDRepMetadata ipfsGateway manager url expectedHash = do
+    uri <- resolveUrl ipfsGateway url
     raw <- ExceptT $ do
         eitherResult <- try @SomeException $ do
             req <- requestFromURI uri

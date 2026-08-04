@@ -58,10 +58,12 @@ monitorDRepMetadata
     :: NetworkLayer IO block
     -> DBLayer IO
     -> Manager
+    -> String
+    -- ^ IPFS gateway base URL for resolving ipfs:// anchor URLs.
     -> Int
     -- ^ Interval between fetch cycles, in microseconds.
     -> IO ()
-monitorDRepMetadata netLayer db manager intervalMicros =
+monitorDRepMetadata netLayer db manager ipfsGateway intervalMicros =
     loop
   where
     loop = do
@@ -98,7 +100,7 @@ monitorDRepMetadata netLayer db manager intervalMicros =
                                 hash = drepAnchorHash anchor
                                 hexH = hexBS hash
                                 drepId = encodeDRepIDBech32 (drepRegId reg)
-                            result <- runExceptT $ fetchDRepMetadata manager url hash
+                            result <- runExceptT $ fetchDRepMetadata ipfsGateway manager url hash
                             case result of
                                 Right meta -> atomically $ do
                                     putDRepMetadata hexH meta
