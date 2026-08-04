@@ -64,6 +64,7 @@ import Network.HTTP.Types.Status
 import Network.URI
     ( URI
     , parseURI
+    , uriScheme
     )
 import Prelude
 
@@ -83,7 +84,9 @@ data FetchError
 defaultIpfsGatewayUrl :: String
 defaultIpfsGatewayUrl = "https://ipfs.blockfrost.dev/ipfs/"
 
--- | Resolve a URL to an HTTP URI, rewriting ipfs:// to the given gateway.
+-- | Resolve a URL to an HTTPS URI, rewriting ipfs:// to the given gateway.
+-- Rejects any URL whose final scheme is not https to prevent SSRF via
+-- on-chain anchor URLs.
 resolveUrl :: String -> Text -> ExceptT FetchError IO URI
 resolveUrl ipfsGateway url =
     let urlStr = case T.stripPrefix "ipfs://" url of
@@ -91,7 +94,9 @@ resolveUrl ipfsGateway url =
             Nothing -> T.unpack url
     in  case parseURI urlStr of
             Nothing -> throwE $ FetchInvalidUri url
-            Just uri -> pure uri
+            Just uri
+                | uriScheme uri /= "https:" -> throwE $ FetchInvalidUri url
+                | otherwise -> pure uri
 
 -- | Fetch a CIP-0119 metadata document from 'url', verify its Blake2b-256
 -- hash matches 'expectedHash' (raw bytes), and parse it into 'DRepMetadata'.

@@ -836,6 +836,9 @@ import Data.Proxy
 import Data.Quantity
     ( Quantity (..)
     )
+import Data.Sequence
+    ( Seq
+    )
 import Data.Set
     ( Set
     )
@@ -964,6 +967,7 @@ import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
+import qualified Data.Sequence as Sequence
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Network.Ntp as Ntp
@@ -4473,22 +4477,23 @@ suggestedDReps drepLayer mCount = do
         drepRegIsActive drepInfoReg
             && maybe False (not . drepMetaDoNotList) drepInfoMetadata
 
-    -- Sample n items uniformly at random without replacement via partial
-    -- Fisher-Yates on a list index.
+    -- Partial Fisher-Yates using Data.Sequence for O(k log n) swaps.
     sampleN :: Int -> [a] -> IO [a]
     sampleN n xs
         | n <= 0 || null xs = pure []
-        | otherwise = do
-            let arr = zip [0 :: Int ..] xs
-                len = length arr
-                k = min n len
-            go k len arr []
+        | otherwise = go 0 k (Sequence.fromList xs)
       where
-        go 0 _ _ acc = pure acc
-        go k len arr acc = do
-            i <- randomRIO (0, len - 1)
-            let (chosen, rest) = (snd (arr !! i), take i arr ++ drop (i + 1) arr)
-            go (k - 1) (len - 1) rest (chosen : acc)
+        k = min n (length xs)
+        go i acc sq
+            | i >= acc = pure $ toList $ Sequence.take acc sq
+            | otherwise = do
+                j <- randomRIO (i, Sequence.length sq - 1)
+                let a = Sequence.index sq i
+                    b = Sequence.index sq j
+                    sq' =
+                        Sequence.adjust' (const b) i
+                            $ Sequence.adjust' (const a) j sq
+                go (i + 1) acc sq'
 
     toApiDRepInfo :: DRepInfo -> ApiDRepInfo
     toApiDRepInfo DRepInfo{drepInfoReg = DRepRegistration{..}, drepInfoMetadata} =

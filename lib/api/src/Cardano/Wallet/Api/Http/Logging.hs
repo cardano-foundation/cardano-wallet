@@ -23,6 +23,9 @@ import Cardano.BM.Tracing
 import Cardano.Launcher.Node
     ( CardanoNodeConn
     )
+import Control.Exception
+    ( SomeException
+    )
 import Data.Text
     ( Text
     )
@@ -45,7 +48,8 @@ data ApiApplicationLog
     = MsgStartingNode CardanoNodeConn
     | MsgNetworkName Text
     | MsgFailedConnectSMASH URI
-    deriving (Generic, Show, Eq)
+    | MsgDRepWorkerCrashed SomeException
+    deriving (Generic, Show)
 
 instance ToText ApiApplicationLog where
     toText = \case
@@ -60,6 +64,10 @@ instance ToText ApiApplicationLog where
                 , "SMASH uri was: "
                 , T.pack $ uriToString id uri ""
                 ]
+        MsgDRepWorkerCrashed e ->
+            "DRep metadata worker crashed ("
+                <> T.pack (show e)
+                <> "); restarting in 60s."
 
 instance HasPrivacyAnnotation ApiApplicationLog
 instance HasSeverityAnnotation ApiApplicationLog where
@@ -67,3 +75,4 @@ instance HasSeverityAnnotation ApiApplicationLog where
         MsgStartingNode _ -> Info
         MsgNetworkName _ -> Info
         MsgFailedConnectSMASH _ -> Warning
+        MsgDRepWorkerCrashed _ -> Error
