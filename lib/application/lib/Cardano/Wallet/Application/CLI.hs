@@ -1931,7 +1931,7 @@ ipfsGatewayUrlOption =
             <> long "ipfs-gateway-url"
             <> metavar "URL"
             <> value defaultIpfsGatewayUrl
-            <> showDefault
+            <> showDefaultWith id
             <> help
                 "Base URL of the IPFS gateway used to resolve ipfs:// \
                 \DRep anchor URLs. Must end with a trailing slash."
