@@ -154,6 +154,8 @@ populated in `GET /v2/dreps`.
 
 2. **Given** an `ipfs://` URL whose CID does not resolve, **When** the metadata worker runs, **Then** the entry has `"name": null` (same as any other failed fetch).
 
+3. **Given** the wallet is started with `--ipfs-gateway-url=https://my-gateway.example.com/ipfs/`, **When** the metadata worker processes a DRep with an `ipfs://` anchor URL, **Then** it fetches from `https://my-gateway.example.com/ipfs/<CID>` instead of the Blockfrost default.
+
 ---
 
 ### Edge Cases
@@ -184,7 +186,8 @@ populated in `GET /v2/dreps`.
 - **FR-012**: System MUST expose `GET /v2/dreps/{drepId}` returning the full `ApiDRepInfo` record with an embedded `metadata :: Maybe ApiDRepMetadata` field for a single DRep (or null if the DRep ID is not found / is a sentinel).
 - **FR-013**: System MUST expose `GET /v2/dreps/suggested` returning a random sample of active, identified, opt-in DReps, excluding the top 35 by voting power.
 - **FR-014**: `GET /v2/dreps/suggested` MUST accept a `count` query parameter (default 20, max 200).
-- **FR-015**: System MUST resolve `ipfs://` anchor URLs to the Blockfrost IPFS gateway (`https://ipfs.blockfrost.dev/ipfs/`) before fetching metadata.
+- **FR-015**: System MUST resolve `ipfs://` anchor URLs via a configurable IPFS gateway base URL before fetching metadata. The default gateway is `https://ipfs.blockfrost.dev/ipfs/`.
+- **FR-016**: The IPFS gateway base URL MUST be configurable at startup via the `--ipfs-gateway-url` CLI flag (e.g. `--ipfs-gateway-url=https://my-gateway.example.com/ipfs/`). The flag MUST default to the Blockfrost public gateway so no configuration is required for typical deployments.
 
 ### Key Entities
 

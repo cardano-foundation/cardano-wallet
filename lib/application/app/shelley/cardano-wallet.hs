@@ -83,6 +83,7 @@ import Cardano.Wallet.Application.CLI
     , enableWindowsANSI
     , helperTracing
     , hostPreferenceOption
+    , ipfsGatewayUrlOption
     , listenShelleyOption
     , listenShelleyUiOption
     , loggingMinSeverity
@@ -235,6 +236,7 @@ data ServeArgs = ServeArgs
     , _enableShutdownHandler :: Bool
     , _poolMetadataSourceOpt :: Maybe PoolMetadataSource
     , _tokenMetadataSourceOpt :: Maybe TokenMetadataServer
+    , _ipfsGatewayUrl :: String
     , _logging :: LoggingOptions TracerSeverities
     }
     deriving (Show)
@@ -260,6 +262,7 @@ cmdServe =
                 <*> shutdownHandlerFlag
                 <*> optional poolMetadataSourceOption
                 <*> optional tokenMetadataSourceOption
+                <*> ipfsGatewayUrlOption
                 <*> loggingOptions tracerSeveritiesOption
 
     exec :: ServeArgs -> IO ()
@@ -275,6 +278,7 @@ cmdServe =
                     enableShutdownHandler
                     poolMetadataFetching
                     tokenMetadataServerURI
+                    ipfsGatewayUrl
                     logOpt
                 ) = withTracers logOpt $ \tr tracers -> do
             withShutdownHandlerMaybe tr enableShutdownHandler $ do
@@ -309,6 +313,7 @@ cmdServe =
                         tlsConfig
                         (Settings <$> poolMetadataFetching)
                         tokenMetadataServerURI
+                        ipfsGatewayUrl
                         block0
                         (beforeMainLoop tr)
 

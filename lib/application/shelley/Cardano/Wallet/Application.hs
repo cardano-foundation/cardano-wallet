@@ -248,6 +248,7 @@ import qualified Cardano.Pool.DB.Layer as Pool
 import qualified Cardano.Wallet.Api.Http.Shelley.Server as Server
 import qualified Cardano.Wallet.DB.Layer as Sqlite
 import qualified Cardano.Wallet.DRep.Layer as DRep
+import qualified Cardano.Wallet.DRep.Metadata as DRep
 import qualified Cardano.Wallet.DRep.Worker as DRep
 import qualified Cardano.Wallet.UI.Common.Layer as Ui
 import qualified Cardano.Wallet.UI.Shelley.API as ShelleyUi
@@ -289,6 +290,8 @@ serveWallet
     -> Maybe Settings
     -- ^ Settings to be set at application start, will be written into DB.
     -> Maybe TokenMetadataServer
+    -> String
+    -- ^ IPFS gateway base URL for resolving ipfs:// DRep anchor URLs.
     -> Block
     -- ^ The genesis block, or some starting point.
     -- See also: 'Cardano.Wallet.Primitive.Ledger.Shelley#KnownNetwork'.
@@ -313,6 +316,7 @@ serveWallet
     tlsConfig
     settings
     tokenMetaUri
+    ipfsGatewayUrl
     block0
     beforeMainLoop = withSNetworkId network $ \sNetwork -> evalContT $ do
         lift cryptoInit
@@ -358,6 +362,7 @@ serveWallet
                             netLayer
                             stakePoolDbLayer
                             mgr
+                            ipfsGatewayUrl
                             drepMetadataFetchIntervalMicros
                 pure (spl, drl)
         randomApi <- withRandomApi netId netLayer

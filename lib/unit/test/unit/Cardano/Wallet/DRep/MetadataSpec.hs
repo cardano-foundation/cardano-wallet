@@ -6,6 +6,7 @@ module Cardano.Wallet.DRep.MetadataSpec
 
 import Cardano.Wallet.DRep.Metadata
     ( FetchError (..)
+    , defaultIpfsGatewayUrl
     , parseCip0119
     , resolveUrl
     )
@@ -37,21 +38,45 @@ spec :: Spec
 spec = describe "Cardano.Wallet.DRep.Metadata" $ do
     describe "resolveUrl" $ do
         it "passes https:// URLs through unchanged" $ do
-            result <- runExceptT $ resolveUrl "https://example.com/drep.jsonld"
+            result <-
+                runExceptT
+                    $ resolveUrl
+                        defaultIpfsGatewayUrl
+                        "https://example.com/drep.jsonld"
             case result of
                 Left e -> fail $ "Expected Right, got: " <> show e
                 Right _ -> pure ()
 
-        it "rewrites ipfs:// to the Blockfrost gateway" $ do
-            result <- runExceptT $ resolveUrl "ipfs://QmTestCid123"
+        it "rewrites ipfs:// to the default Blockfrost gateway" $ do
+            result <-
+                runExceptT
+                    $ resolveUrl
+                        defaultIpfsGatewayUrl
+                        "ipfs://QmTestCid123"
             case result of
                 Left e -> fail $ "Expected Right, got: " <> show e
                 Right uri ->
                     show uri
-                        `shouldSatisfy` isPrefixOf "https://ipfs.blockfrost.dev/ipfs/QmTestCid123"
+                        `shouldSatisfy` isPrefixOf
+                            "https://ipfs.blockfrost.dev/ipfs/QmTestCid123"
+
+        it "rewrites ipfs:// to a custom gateway" $ do
+            result <-
+                runExceptT
+                    $ resolveUrl
+                        "https://my-gateway.example.com/ipfs/"
+                        "ipfs://QmTestCid123"
+            case result of
+                Left e -> fail $ "Expected Right, got: " <> show e
+                Right uri ->
+                    show uri
+                        `shouldSatisfy` isPrefixOf
+                            "https://my-gateway.example.com/ipfs/QmTestCid123"
 
         it "rejects strings that are not valid URIs" $ do
-            result <- runExceptT $ resolveUrl ":::not-a-uri:::"
+            result <-
+                runExceptT
+                    $ resolveUrl defaultIpfsGatewayUrl ":::not-a-uri:::"
             result `shouldBe` Left (FetchInvalidUri ":::not-a-uri:::")
 
     describe "parseCip0119" $ do
