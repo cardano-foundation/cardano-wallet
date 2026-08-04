@@ -663,11 +663,12 @@ voteAction ctx action = do
     isDRepSame (DelegatingVoting _ drep) = drep == action
     isDRepSame _ = False
 
-    isSameNext (WalletDelegationNext _ deleg) = isDRepSame deleg
-
     sameWalletDelegation (WalletDelegation current coming) =
-        if isDRepSame current || any isSameNext coming
-            then
-                VotedSameAsBefore
-            else
-                VotedDifferently
+        let effective = case coming of
+                [] -> current
+                _ -> status (last coming)
+        in  if isDRepSame effective
+                then
+                    VotedSameAsBefore
+                else
+                    VotedDifferently
