@@ -175,8 +175,9 @@ import Cardano.Wallet.UI.Common.Layer
     ( UILayer
     , sourceOfNewTip
     )
-import Control.Exception.Extra
-    ( handle
+import Control.Exception
+    ( SomeException
+    , handle
     )
 import Control.Monad
     ( void
@@ -356,14 +357,21 @@ serveWallet
                 drl <- lift $ DRep.newDRepLayer netLayer stakePoolDbLayer
                 lift $ do
                     mgr <- HTTPS.newTlsManager
-                    void
-                        $ Concurrent.forkIO
-                        $ DRep.monitorDRepMetadata
-                            netLayer
-                            stakePoolDbLayer
-                            mgr
-                            ipfsGatewayUrl
-                            drepMetadataFetchIntervalMicros
+                    let worker =
+                            DRep.monitorDRepMetadata
+                                netLayer
+                                stakePoolDbLayer
+                                mgr
+                                ipfsGatewayUrl
+                                drepMetadataFetchIntervalMicros
+                        supervised = handle onCrash worker
+                        onCrash e = do
+                            traceWith applicationTracer
+                                $ ApiApplicationLog
+                                $ MsgDRepWorkerCrashed (e :: SomeException)
+                            Concurrent.threadDelay (60 * 1_000_000)
+                            supervised
+                    void $ Concurrent.forkIO supervised
                 pure (spl, drl)
         randomApi <- withRandomApi netId netLayer
         icarusApi <- withIcarusApi netId netLayer

@@ -34,7 +34,7 @@ import Cardano.Pool.DB.Model
     , mListRegisteredPools
     , mListRetiredPools
     , mPutDRepAnchorHash
-    , mPutDRepFetchAttempt
+    , mPutDRepFetchAttemptNow
     , mPutDRepMetadata
     , mPutDelistedPools
     , mPutFetchAttempt
@@ -226,7 +226,8 @@ newDBLayer timeInterpreter = do
 
         putDRepFetchAttempt key = do
             now <- getCurrentTime
-            void $ alterPoolDB (const Nothing) db (mPutDRepFetchAttempt now key)
+            void
+                $ alterPoolDB (const Nothing) db (mPutDRepFetchAttemptNow now key)
 
         recentlyFailedDRepHashes = do
             now <- getCurrentTime

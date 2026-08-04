@@ -41,6 +41,7 @@ module Cardano.Pool.DB.Model
     , mGetAllDRepMetadata
     , mClearDRepMetadata
     , mPutDRepFetchAttempt
+    , mPutDRepFetchAttemptNow
     , mRecentlyFailedDRepHashes
     , mPutPoolProduction
     , mPutHeader
@@ -151,6 +152,7 @@ import Data.Text
     )
 import Data.Time.Clock
     ( UTCTime
+    , addUTCTime
     )
 import Data.Time.Clock.POSIX
     ( POSIXTime
@@ -590,6 +592,19 @@ mPutDRepFetchAttempt retryAfter key =
             (\(c1, t1) (c0, _) -> (c0 + c1, t1))
             key
             (1, retryAfter)
+
+-- | Like 'mPutDRepFetchAttempt' but computes 'retryAfter' from the existing
+-- retry count using the same exponential backoff as the SQLite implementation
+-- (3^(n+1) seconds: 3s, 9s, 27s, ...).
+mPutDRepFetchAttemptNow :: UTCTime -> (Text, Text) -> ModelOp ()
+mPutDRepFetchAttemptNow now key = do
+    existing <- Map.lookup key <$> get #drepFetchAttempts
+    let retryCount = maybe 0 fst existing
+        delay =
+            fromIntegral @Integer
+                $ foldr (*) 3 (replicate retryCount 3)
+        retryAfter = addUTCTime delay now
+    mPutDRepFetchAttempt retryAfter key
 
 mRecentlyFailedDRepHashes :: UTCTime -> ModelOp (Set Text)
 mRecentlyFailedDRepHashes now =
