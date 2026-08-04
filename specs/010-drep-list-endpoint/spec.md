@@ -18,7 +18,7 @@ A Daedalus user opens the governance section and sees a list of all registered D
 
 **Acceptance Scenarios**:
 
-1. **Given** a running wallet connected to a Conway-era (or later) node, **When** `GET /v2/dreps` is called, **Then** the response is a JSON array of DRep objects, each containing `id`, `credential`, `status`, `expiry_epoch`, `voting_power`, `deposit`, `anchor`, and `metadata`.
+1. **Given** a running wallet connected to a Conway-era (or later) node, **When** `GET /v2/dreps` is called, **Then** the response is a JSON array of DRep objects, each containing `id`, `credential`, `status`, `expiry_epoch`, `voting_power`, `deposit`, `anchor`, `name`, and `metadata` (always null in list responses; use `GET /v2/dreps/{id}` for the populated value).
 
 2. **Given** a DRep registered with an anchor, **When** `GET /v2/dreps` is called, **Then** the matching entry contains a non-null `anchor` with `url` and `data_hash` fields.
 
