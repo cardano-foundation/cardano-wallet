@@ -98,6 +98,8 @@ module Cardano.Wallet.Api.Link
 
       -- * DReps
     , listDReps
+    , suggestedDReps
+    , getDRep
     , joinDRep
 
       -- * Network
@@ -903,6 +905,12 @@ getDelegationFee w = endpoint @Api.DelegationFee (wid &)
 
 listDReps :: (Method, Text)
 listDReps = endpoint @Api.ListDReps id
+
+suggestedDReps :: Maybe Word -> (Method, Text)
+suggestedDReps count = endpoint @Api.SuggestedDReps ($ count)
+
+getDRep :: ApiDRepSpecifier -> (Method, Text)
+getDRep specifier = endpoint @Api.GetDRep ($ specifier)
 
 joinDRep
     :: forall s w

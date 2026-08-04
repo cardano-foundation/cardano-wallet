@@ -118,6 +118,8 @@ module Test.Integration.Framework.DSL
     , json
     , joinDRep
     , listDReps
+    , suggestedDReps
+    , getDRep
     , joinStakePool
     , joinStakePoolUnsigned
     , delegationFee
@@ -3014,6 +3016,26 @@ listDReps
     -> m (HTTP.Status, Either RequestException [ApiDRepInfo])
 listDReps ctx =
     request @[ApiDRepInfo] ctx Link.listDReps Default Empty
+
+suggestedDReps
+    :: MonadUnliftIO m
+    => Context
+    -> Maybe Word
+    -> m (HTTP.Status, Either RequestException [ApiDRepInfo])
+suggestedDReps ctx count =
+    request @[ApiDRepInfo] ctx (Link.suggestedDReps count) Default Empty
+
+getDRep
+    :: MonadUnliftIO m
+    => Context
+    -> ApiDRepSpecifier
+    -> m (HTTP.Status, Either RequestException (Maybe ApiDRepInfo))
+getDRep ctx specifier =
+    request @(Maybe ApiDRepInfo)
+        ctx
+        (Link.getDRep specifier)
+        Default
+        Empty
 
 selectCoins
     :: forall n style w m

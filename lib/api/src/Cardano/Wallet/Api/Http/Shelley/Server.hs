@@ -374,11 +374,10 @@ import Cardano.Wallet.Api.Types
     , ApiDRepAnchor (..)
     , ApiDRepCredential (..)
     , ApiDRepInfo (..)
-    , ApiDRepMetadata (..)
     , ApiDRepMetaReference (..)
+    , ApiDRepMetadata (..)
     , ApiDRepSpecifier (..)
     , ApiDecodeTransactionPostData (..)
-    , DRepStatus (..)
     , ApiDecodedTransaction (..)
     , ApiExternalInput (..)
     , ApiFee (..)
@@ -455,6 +454,7 @@ import Cardano.Wallet.Api.Types
     , ByronWalletFromXPrvPostData
     , ByronWalletPostData (..)
     , ByronWalletPutPassphraseData (..)
+    , DRepStatus (..)
     , Iso8601Time (..)
     , KeyFormat (..)
     , KnownDiscovery (..)
@@ -513,6 +513,11 @@ import Cardano.Wallet.Compat
 import Cardano.Wallet.DB
     ( DBFactory (..)
     , DBLayer
+    )
+import Cardano.Wallet.DRep.Layer
+    ( DRepInfo (..)
+    , DRepLayer
+    , listDRepInfos
     )
 import Cardano.Wallet.Flavor
     ( AllFlavors
@@ -615,18 +620,13 @@ import Cardano.Wallet.Primitive.Types.Credentials
     ( ClearCredentials
     , RootCredentials (..)
     )
-import Cardano.Wallet.DRep.Layer
-    ( DRepInfo (..)
-    , DRepLayer
-    , listDRepInfos
-    )
 import Cardano.Wallet.Primitive.Types.DRep
     ( DRep (..)
     , DRepAnchor (..)
     , DRepID (..)
     , DRepKeyHash (..)
-    , DRepMetadata (..)
     , DRepMetaReference (..)
+    , DRepMetadata (..)
     , DRepRegistration (..)
     , DRepScriptHash (..)
     , encodeDRepIDBech32
@@ -812,12 +812,6 @@ import Data.List
     , sortOn
     , (\\)
     )
-import Data.Ord
-    ( Down (..)
-    )
-import System.Random
-    ( randomRIO
-    )
 import Data.List.NonEmpty
     ( NonEmpty (..)
     )
@@ -832,6 +826,9 @@ import Data.Maybe
     , isNothing
     , mapMaybe
     , maybeToList
+    )
+import Data.Ord
+    ( Down (..)
     )
 import Data.Proxy
     ( Proxy (..)
@@ -882,6 +879,9 @@ import Servant
 import Servant.Server
     ( Handler (..)
     , runHandler
+    )
+import System.Random
+    ( randomRIO
     )
 import UnliftIO.Async
     ( race_
@@ -4419,15 +4419,15 @@ listDReps drepLayer = do
     toApiDRepInfo :: DRepInfo -> ApiDRepInfo
     toApiDRepInfo DRepInfo{drepInfoReg = DRepRegistration{..}, drepInfoMetadata} =
         ApiDRepInfo
-            { drepInfoId          = encodeDRepIDBech32 drepRegId
-            , drepInfoCredential  = toApiDRepCredential drepRegId
-            , drepInfoStatus      = if drepRegIsActive then Active else Inactive
+            { drepInfoId = encodeDRepIDBech32 drepRegId
+            , drepInfoCredential = toApiDRepCredential drepRegId
+            , drepInfoStatus = if drepRegIsActive then Active else Inactive
             , drepInfoExpiryEpoch = drepRegExpiryEpoch
             , drepInfoVotingPower = unCoin drepRegVotingPower
-            , drepInfoDeposit     = unCoin drepRegDeposit
-            , drepInfoAnchor      = fmap toApiDRepAnchor drepRegAnchor
-            , drepInfoName        = drepMetaName <$> drepInfoMetadata
-            , drepInfoMetadata    = Nothing
+            , drepInfoDeposit = unCoin drepRegDeposit
+            , drepInfoAnchor = fmap toApiDRepAnchor drepRegAnchor
+            , drepInfoName = drepMetaName <$> drepInfoMetadata
+            , drepInfoMetadata = Nothing
             }
 
     toApiDRepCredential :: DRepID -> ApiDRepCredential
@@ -4440,7 +4440,7 @@ listDReps drepLayer = do
     toApiDRepAnchor :: DRepAnchor -> ApiDRepAnchor
     toApiDRepAnchor a =
         ApiDRepAnchor
-            { anchorUrl      = drepAnchorUrl a
+            { anchorUrl = drepAnchorUrl a
             , anchorDataHash = hexBS (drepAnchorHash a)
             }
 
@@ -4457,14 +4457,14 @@ suggestedDReps
 suggestedDReps drepLayer mCount = do
     infos <- liftIO $ listDRepInfos drepLayer
     let count = maybe 20 (min 200 . fromIntegral) mCount
-        pool  = eligiblePool infos
+        pool = eligiblePool infos
     liftIO $ sampleN count pool
   where
     -- Rank by voting power descending, drop the top 35, then filter:
     -- active, metadata present, do_not_list = False.
     eligiblePool :: [DRepInfo] -> [ApiDRepInfo]
     eligiblePool infos =
-        let ranked   = sortOn (Down . drepRegVotingPower . drepInfoReg) infos
+        let ranked = sortOn (Down . drepRegVotingPower . drepInfoReg) infos
             filtered = filter isEligible (drop 35 ranked)
         in  map toApiDRepInfo filtered
 
@@ -4481,7 +4481,7 @@ suggestedDReps drepLayer mCount = do
         | otherwise = do
             let arr = zip [0 :: Int ..] xs
                 len = length arr
-                k   = min n len
+                k = min n len
             go k len arr []
       where
         go 0 _ _ acc = pure acc
@@ -4493,15 +4493,15 @@ suggestedDReps drepLayer mCount = do
     toApiDRepInfo :: DRepInfo -> ApiDRepInfo
     toApiDRepInfo DRepInfo{drepInfoReg = DRepRegistration{..}, drepInfoMetadata} =
         ApiDRepInfo
-            { drepInfoId          = encodeDRepIDBech32 drepRegId
-            , drepInfoCredential  = toApiDRepCredential drepRegId
-            , drepInfoStatus      = if drepRegIsActive then Active else Inactive
+            { drepInfoId = encodeDRepIDBech32 drepRegId
+            , drepInfoCredential = toApiDRepCredential drepRegId
+            , drepInfoStatus = if drepRegIsActive then Active else Inactive
             , drepInfoExpiryEpoch = drepRegExpiryEpoch
             , drepInfoVotingPower = unCoin drepRegVotingPower
-            , drepInfoDeposit     = unCoin drepRegDeposit
-            , drepInfoAnchor      = fmap toApiDRepAnchor drepRegAnchor
-            , drepInfoName        = drepMetaName <$> drepInfoMetadata
-            , drepInfoMetadata    = Nothing
+            , drepInfoDeposit = unCoin drepRegDeposit
+            , drepInfoAnchor = fmap toApiDRepAnchor drepRegAnchor
+            , drepInfoName = drepMetaName <$> drepInfoMetadata
+            , drepInfoMetadata = Nothing
             }
 
     toApiDRepCredential :: DRepID -> ApiDRepCredential
@@ -4514,7 +4514,7 @@ suggestedDReps drepLayer mCount = do
     toApiDRepAnchor :: DRepAnchor -> ApiDRepAnchor
     toApiDRepAnchor a =
         ApiDRepAnchor
-            { anchorUrl      = drepAnchorUrl a
+            { anchorUrl = drepAnchorUrl a
             , anchorDataHash = hexBS (drepAnchorHash a)
             }
 
@@ -4532,40 +4532,45 @@ getDRep drepLayer specifier =
     case specifier of
         SpecificDRep (FromDRepID drepId) -> do
             infos <- liftIO $ listDRepInfos drepLayer
-            pure $ fmap toApiDRepDetail
-                $ find (\DRepInfo{drepInfoReg} -> drepRegId drepInfoReg == drepId) infos
+            pure
+                $ toApiDRepDetail
+                    <$> find
+                        (\DRepInfo{drepInfoReg} -> drepRegId drepInfoReg == drepId)
+                        infos
         _ -> pure Nothing
   where
     toApiDRepDetail :: DRepInfo -> ApiDRepInfo
     toApiDRepDetail DRepInfo{drepInfoReg = DRepRegistration{..}, drepInfoMetadata} =
         ApiDRepInfo
-            { drepInfoId          = encodeDRepIDBech32 drepRegId
-            , drepInfoCredential  = toApiDRepCredential drepRegId
-            , drepInfoStatus      = if drepRegIsActive then Active else Inactive
+            { drepInfoId = encodeDRepIDBech32 drepRegId
+            , drepInfoCredential = toApiDRepCredential drepRegId
+            , drepInfoStatus = if drepRegIsActive then Active else Inactive
             , drepInfoExpiryEpoch = drepRegExpiryEpoch
             , drepInfoVotingPower = unCoin drepRegVotingPower
-            , drepInfoDeposit     = unCoin drepRegDeposit
-            , drepInfoAnchor      = fmap toApiDRepAnchor drepRegAnchor
-            , drepInfoName        = drepMetaName <$> drepInfoMetadata
-            , drepInfoMetadata    = fmap toApiDRepMetadata drepInfoMetadata
+            , drepInfoDeposit = unCoin drepRegDeposit
+            , drepInfoAnchor = fmap toApiDRepAnchor drepRegAnchor
+            , drepInfoName = drepMetaName <$> drepInfoMetadata
+            , drepInfoMetadata = fmap toApiDRepMetadata drepInfoMetadata
             }
 
     toApiDRepMetadata :: DRepMetadata -> ApiDRepMetadata
-    toApiDRepMetadata m = ApiDRepMetadata
-        { apiDRepMetaName           = drepMetaName m
-        , apiDRepMetaObjectives     = drepMetaObjectives m
-        , apiDRepMetaMotivations    = drepMetaMotivations m
-        , apiDRepMetaQualifications = drepMetaQualifications m
-        , apiDRepMetaPaymentAddress = drepMetaPaymentAddress m
-        , apiDRepMetaDoNotList      = drepMetaDoNotList m
-        , apiDRepMetaReferences     = map toApiRef (drepMetaReferences m)
-        }
+    toApiDRepMetadata m =
+        ApiDRepMetadata
+            { apiDRepMetaName = drepMetaName m
+            , apiDRepMetaObjectives = drepMetaObjectives m
+            , apiDRepMetaMotivations = drepMetaMotivations m
+            , apiDRepMetaQualifications = drepMetaQualifications m
+            , apiDRepMetaPaymentAddress = drepMetaPaymentAddress m
+            , apiDRepMetaDoNotList = drepMetaDoNotList m
+            , apiDRepMetaReferences = map toApiRef (drepMetaReferences m)
+            }
 
     toApiRef :: DRepMetaReference -> ApiDRepMetaReference
-    toApiRef r = ApiDRepMetaReference
-        { apiDRepRefLabel = drepMetaRefLabel r
-        , apiDRepRefUri   = drepMetaRefUri r
-        }
+    toApiRef r =
+        ApiDRepMetaReference
+            { apiDRepRefLabel = drepMetaRefLabel r
+            , apiDRepRefUri = drepMetaRefUri r
+            }
 
     toApiDRepCredential :: DRepID -> ApiDRepCredential
     toApiDRepCredential = \case
@@ -4577,7 +4582,7 @@ getDRep drepLayer specifier =
     toApiDRepAnchor :: DRepAnchor -> ApiDRepAnchor
     toApiDRepAnchor a =
         ApiDRepAnchor
-            { anchorUrl      = drepAnchorUrl a
+            { anchorUrl = drepAnchorUrl a
             , anchorDataHash = hexBS (drepAnchorHash a)
             }
 

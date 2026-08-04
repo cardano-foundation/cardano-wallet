@@ -1,4 +1,3 @@
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 
 -- |
@@ -49,7 +48,7 @@ import Prelude
 import qualified Data.ByteArray.Encoding as BA
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
-import qualified Data.Text.Encoding as TE
+import qualified Data.Text.Encoding as T
 
 -- | Worker that fetches CIP-0119 metadata for all DReps with unfetched anchors.
 --
@@ -71,33 +70,40 @@ monitorDRepMetadata netLayer db manager intervalMicros =
         loop
 
     runCycle = case db of
-        DBLayer { atomically, getAllDRepMetadata, recentlyFailedDRepHashes, putDRepMetadata, putDRepFetchAttempt, putDRepAnchorHash } -> do
-            mRegs <- listDReps netLayer
-            case mRegs of
-                Nothing   -> pure ()
-                Just regs -> do
-                    cached <- atomically getAllDRepMetadata
-                    failed <- atomically recentlyFailedDRepHashes
-                    let cachedHashes = Map.keysSet cached
-                    let toFetch =
-                            [ (reg, anchor)
-                            | reg <- regs
-                            , Just anchor <- [drepRegAnchor reg]
-                            , let h = hexBS (drepAnchorHash anchor)
-                            , h `Set.notMember` cachedHashes
-                            , h `Set.notMember` failed
-                            ]
-                    forM_ toFetch $ \(reg, anchor) -> do
-                        let url    = drepAnchorUrl anchor
-                            hash   = drepAnchorHash anchor
-                            hexH   = hexBS hash
-                            drepId = encodeDRepIDBech32 (drepRegId reg)
-                        result <- runExceptT $ fetchDRepMetadata manager url hash
-                        case result of
-                            Right meta -> atomically $ do
-                                putDRepMetadata hexH meta
-                                putDRepAnchorHash drepId hexH
-                            Left _     -> atomically $ putDRepFetchAttempt (url, hexH)
+        DBLayer
+            { atomically
+            , getAllDRepMetadata
+            , recentlyFailedDRepHashes
+            , putDRepMetadata
+            , putDRepFetchAttempt
+            , putDRepAnchorHash
+            } -> do
+                mRegs <- listDReps netLayer
+                case mRegs of
+                    Nothing -> pure ()
+                    Just regs -> do
+                        cached <- atomically getAllDRepMetadata
+                        failed <- atomically recentlyFailedDRepHashes
+                        let cachedHashes = Map.keysSet cached
+                        let toFetch =
+                                [ (reg, anchor)
+                                | reg <- regs
+                                , Just anchor <- [drepRegAnchor reg]
+                                , let h = hexBS (drepAnchorHash anchor)
+                                , h `Set.notMember` cachedHashes
+                                , h `Set.notMember` failed
+                                ]
+                        forM_ toFetch $ \(reg, anchor) -> do
+                            let url = drepAnchorUrl anchor
+                                hash = drepAnchorHash anchor
+                                hexH = hexBS hash
+                                drepId = encodeDRepIDBech32 (drepRegId reg)
+                            result <- runExceptT $ fetchDRepMetadata manager url hash
+                            case result of
+                                Right meta -> atomically $ do
+                                    putDRepMetadata hexH meta
+                                    putDRepAnchorHash drepId hexH
+                                Left _ -> atomically $ putDRepFetchAttempt (url, hexH)
 
 hexBS :: ByteString -> Text
-hexBS = TE.decodeUtf8 . BA.convertToBase BA.Base16
+hexBS = T.decodeUtf8 . BA.convertToBase BA.Base16
