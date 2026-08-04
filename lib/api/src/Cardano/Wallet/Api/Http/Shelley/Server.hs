@@ -4457,7 +4457,7 @@ suggestedDReps
     -> Handler [ApiDRepInfo]
 suggestedDReps drepLayer mCount = do
     infos <- liftIO $ listDRepInfos drepLayer
-    let count = maybe 20 (min 200 . fromIntegral) mCount
+    let count = maybe 20 (fromIntegral . min 200) mCount
         pool = eligiblePool infos
     liftIO $ sampleN count pool
   where

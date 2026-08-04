@@ -135,8 +135,8 @@ The `metadata` field is always `null` in list and suggested responses.
 ### GET /v2/dreps/{drepId}
 
 Returns the full `ApiDRepInfo` with the `metadata` field populated when
-available, or `null` for the whole response when the DRep ID is not found or
-is a sentinel.
+available. Unknown DRep IDs and the abstain/no-confidence sentinels return
+`404 Not Found`.
 
 ```json
 {

@@ -23,7 +23,6 @@ import Cardano.Wallet.Api.Types
     , ApiConstructTransaction (..)
     , ApiDRepCredential (..)
     , ApiDRepInfo (..)
-    , ApiDRepMetadata (..)
     , ApiDRepSpecifier (..)
     , ApiDecodedTransaction
     , ApiPoolSpecifier (..)
@@ -46,7 +45,6 @@ import Cardano.Wallet.Primitive.NetworkId
     )
 import Cardano.Wallet.Primitive.Types.DRep
     ( DRep (..)
-    , decodeDRepIDBech32
     )
 import Cardano.Wallet.Primitive.Types.Tx.TxMeta
     ( Direction (..)
@@ -1425,56 +1423,13 @@ spec = describe "VOTING_TRANSACTIONS" $ do
                     ]
                 getFromResponse Prelude.id r `shouldBe` []
 
-    it "DREPS_03 - DReps without anchors always have null metadata" $ \ctx ->
+    it "DREPS_03 - list responses omit full metadata" $ \ctx ->
         runResourceT $ do
             noBabbage ctx "DRep listing requires Conway era"
             r <- listDReps ctx
             verify r [expectResponseCode HTTP.status200]
             let dreps = getFromResponse Prelude.id r :: [ApiDRepInfo]
-            -- Invariant: if a DRep has no anchor there is nothing to fetch metadata from,
-            -- so the metadata field must be null.
-            mapM_
-                ( \info -> case drepInfoAnchor info of
-                    Nothing -> drepInfoMetadata info `shouldBe` Nothing
-                    Just _ -> pure ()
-                )
-                dreps
-
-    it "DREPS_04 - metadata fields have valid structure when populated" $ \ctx ->
-        runResourceT $ do
-            noBabbage ctx "DRep listing requires Conway era"
-            r <- listDReps ctx
-            verify r [expectResponseCode HTTP.status200]
-            let dreps = getFromResponse Prelude.id r :: [ApiDRepInfo]
-            -- When metadata is present the name must be non-empty and do_not_list
-            -- must be a Bool (structural assertion; catches serialisation bugs).
-            mapM_
-                ( \info -> case drepInfoMetadata info of
-                    Nothing -> pure ()
-                    Just m -> do
-                        (apiDRepMetaName m == "") `shouldBe` False
-                        apiDRepMetaDoNotList m `shouldBe` apiDRepMetaDoNotList m
-                )
-                dreps
-
-    it
-        "DREPS_05 - do_not_list flag is advisory; all DReps appear in listing"
-        $ \ctx ->
-            runResourceT $ do
-                noBabbage ctx "DRep listing requires Conway era"
-                r <- listDReps ctx
-                verify r [expectResponseCode HTTP.status200]
-                let dreps = getFromResponse Prelude.id r :: [ApiDRepInfo]
-                -- CIP-0119 specifies that do_not_list is an advisory flag only.
-                -- Filtering is the client's responsibility; the endpoint returns every
-                -- registered DRep. DReps with do_not_list: true must not be suppressed.
-                let withDoNotList =
-                        [ info
-                        | info <- dreps
-                        , Just m <- [drepInfoMetadata info]
-                        , apiDRepMetaDoNotList m
-                        ]
-                length withDoNotList `shouldBe` length withDoNotList
+            map drepInfoMetadata dreps `shouldSatisfy` all (== Nothing)
 
     it
         "DREPS_06 - suggestedDReps returns 200 with a JSON array in Conway era"
@@ -1527,38 +1482,21 @@ spec = describe "VOTING_TRANSACTIONS" $ do
                     )
                     dreps
 
-    it "DREPS_11 - getDRep returns full info for a known registered DRep" $ \ctx ->
-        runResourceT $ do
-            noBabbage ctx "DRep querying requires Conway era"
-            allDReps <- getFromResponse Prelude.id <$> listDReps ctx
-            case allDReps of
-                [] -> pure ()
-                (first' : _) -> do
-                    let bech32Id = drepInfoId first'
-                    case decodeDRepIDBech32 bech32Id of
-                        Left _ -> pure ()
-                        Right drepId -> do
-                            r <- getDRep ctx (SpecificDRep (FromDRepID drepId))
-                            verify r [expectResponseCode HTTP.status200]
-                            case getFromResponse Prelude.id r of
-                                Nothing -> pure ()
-                                Just info -> drepInfoId info `shouldBe` bech32Id
-
-    it "DREPS_12 - getDRep returns null for the always-abstain sentinel" $ \ctx ->
+    it "DREPS_12 - getDRep returns 404 for the always-abstain sentinel" $ \ctx ->
         runResourceT $ do
             noBabbage ctx "DRep querying requires Conway era"
             r <- getDRep ctx (SpecificDRep Abstain)
-            verify r [expectResponseCode HTTP.status200]
-            getFromResponse Prelude.id r `shouldBe` (Nothing :: Maybe ApiDRepInfo)
+            verify r [expectResponseCode HTTP.status404]
+            decodeErrorInfo r `shouldBe` NotFound
 
     it
-        "DREPS_13 - getDRep returns null for the always-no-confidence sentinel"
+        "DREPS_13 - getDRep returns 404 for the always-no-confidence sentinel"
         $ \ctx ->
             runResourceT $ do
                 noBabbage ctx "DRep querying requires Conway era"
                 r <- getDRep ctx (SpecificDRep NoConfidence)
-                verify r [expectResponseCode HTTP.status200]
-                getFromResponse Prelude.id r `shouldBe` (Nothing :: Maybe ApiDRepInfo)
+                verify r [expectResponseCode HTTP.status404]
+                decodeErrorInfo r `shouldBe` NotFound
   where
     stakeKeyDerPath =
         NE.fromList

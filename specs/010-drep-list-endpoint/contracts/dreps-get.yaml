@@ -123,7 +123,8 @@
       been fetched, or when hash verification failed.
 
       Only credential-based DRep IDs (key-hash and script-hash) are
-      supported; passing `abstain` or `no-confidence` returns null.
+      supported; passing `abstain`, `no-confidence`, or an unknown ID returns
+      404 Not Found.
     parameters:
       - in: path
         name: drepId
@@ -133,13 +134,11 @@
         description: CIP-129 bech32-encoded DRep credential ID.
     responses:
       '200':
-        description: Full DRep record with embedded metadata, or null if the DRep is not found.
+        description: Full DRep record with embedded metadata.
         content:
           application/json:
             schema:
-              nullable: true
-              allOf:
-                - $ref: '#/components/schemas/ApiDRepInfo'
+              $ref: '#/components/schemas/ApiDRepInfo'
             example:
               id: "drep1y4yzl4zeuh3r0l8t0j8k4r9p3wz2m9qv3k7xnvnmme4kk04lgq7xm6f"
               credential:
@@ -167,6 +166,8 @@
                 references:
                   - label: "Website"
                     uri: "https://alice.example.com"
+      '404':
+        description: The requested DRep was not found.
 
 # ---------------------------------------------------------------------------
 # Schema definitions (to add under components/schemas)

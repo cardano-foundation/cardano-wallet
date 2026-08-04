@@ -103,6 +103,7 @@ test-suite unit
     , containers
     , contra-tracer
     , crypto-primitives
+    , crypton-connection
     , data-default
     , data-interval
     , deepseq
@@ -166,6 +167,7 @@ test-suite unit
     , servant-server
     , sop-extras
     , splitmix
+    , streaming-commons
     , string-interpolate
     , temporary
     , temporary-extra
@@ -181,6 +183,7 @@ test-suite unit
     , wai-extra
     , wai-middleware-logging
     , warp
+    , warp-tls
     , with-utf8
     , x509
     , x509-store
@@ -205,6 +208,7 @@ test-suite unit
     Cardano.Wallet.Address.DiscoverySpec
     Cardano.Wallet.Address.Keys.PersistPrivateKeySpec
     Cardano.Wallet.Address.PoolSpec
+    Cardano.Wallet.Api.DRepSpec
     Cardano.Wallet.Api.Malformed
     Cardano.Wallet.Api.ServerSpec
     Cardano.Wallet.Api.TypesSpec
@@ -244,6 +248,7 @@ test-suite unit
     Cardano.Wallet.DelegationSpec
     Cardano.Wallet.DRep.LayerSpec
     Cardano.Wallet.DRep.MetadataSpec
+    Cardano.Wallet.DRep.WorkerSpec
     Cardano.Wallet.Network.PortsSpec
     Cardano.Wallet.NetworkSpec
     Cardano.Wallet.Primitive.Delegation.StateSpec

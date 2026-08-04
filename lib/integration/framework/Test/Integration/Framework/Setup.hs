@@ -120,6 +120,9 @@ import Cardano.Wallet.DB
 import Cardano.Wallet.DB.Layer
     ( withBootDBLayerFromFile
     )
+import Cardano.Wallet.DRep.Metadata
+    ( defaultIpfsGatewayUrl
+    )
 import Cardano.Wallet.Faucet
     ( FaucetM
     , runFaucetM
@@ -726,6 +729,7 @@ onClusterStart
                         Nothing
                         Nothing
                         (Just tokenMetaUrl)
+                        defaultIpfsGatewayUrl
                         block0
                         (\uri -> k (networkParameters, uri))
                         `withException` (traceWith tr . MsgServerError)

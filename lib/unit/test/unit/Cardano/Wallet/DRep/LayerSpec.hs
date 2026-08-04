@@ -52,6 +52,13 @@ import qualified Data.Text.Encoding as T
 spec :: Spec
 spec = describe "Cardano.Wallet.DRep.Layer" $ do
     describe "listDRepInfos" $ do
+        it "returns an empty list when the node is pre-Conway" $ do
+            db <- newDBLayer dummyTimeInterpreter
+            let nl = dummyNetworkLayer{listDReps = pure Nothing}
+            layer <- newDRepLayer nl db
+            infos <- listDRepInfos layer
+            infos `shouldBe` []
+
         it "returns empty list when network layer has no DReps" $ do
             db <- newDBLayer dummyTimeInterpreter
             let nl = dummyNetworkLayer{listDReps = pure (Just [])}

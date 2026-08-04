@@ -105,7 +105,7 @@ reachable anchor URL and confirm all on-chain fields are present and
 
 2. **Given** a DRep with no anchor or unfetched/failed metadata, **When** `GET /v2/dreps/{drepId}` is called, **Then** the response is a full `ApiDRepInfo` object with `metadata: null` (not an error).
 
-3. **Given** an always-abstain or always-no-confidence DRep ID, **When** `GET /v2/dreps/{drepId}` is called, **Then** the response body is `null`.
+3. **Given** an always-abstain, always-no-confidence, or unknown DRep ID, **When** `GET /v2/dreps/{drepId}` is called, **Then** the response is `404 Not Found`.
 
 ---
 
@@ -183,7 +183,7 @@ populated in `GET /v2/dreps`.
 - **FR-009**: Metadata MUST be verified against `anchor.data_hash` (Blake2b-256) before being stored; mismatches MUST be discarded.
 - **FR-010**: The list endpoints MUST NOT block on metadata fetches; they serve whatever is cached.
 - **FR-011**: Metadata fetching MUST be re-attempted on a configurable interval for DReps whose fetch has not yet succeeded.
-- **FR-012**: System MUST expose `GET /v2/dreps/{drepId}` returning the full `ApiDRepInfo` record with an embedded `metadata :: Maybe ApiDRepMetadata` field for a single DRep (or null if the DRep ID is not found / is a sentinel).
+- **FR-012**: System MUST expose `GET /v2/dreps/{drepId}` returning the full `ApiDRepInfo` record with an embedded `metadata :: Maybe ApiDRepMetadata` field for a single DRep, and `404 Not Found` if the DRep ID is unknown or is a sentinel.
 - **FR-013**: System MUST expose `GET /v2/dreps/suggested` returning a random sample of active, identified, opt-in DReps, excluding the top 35 by voting power.
 - **FR-014**: `GET /v2/dreps/suggested` MUST accept a `count` query parameter (default 20, max 200).
 - **FR-015**: System MUST resolve `ipfs://` anchor URLs via a configurable IPFS gateway base URL before fetching metadata. The default gateway is `https://ipfs.blockfrost.dev/ipfs/`.
