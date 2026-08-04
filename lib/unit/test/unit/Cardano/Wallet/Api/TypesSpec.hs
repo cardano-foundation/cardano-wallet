@@ -142,14 +142,13 @@ import Cardano.Wallet.Api.Types
     , ApiCosignerIndex (..)
     , ApiCredential (..)
     , ApiCredentialType (..)
-    , ApiDecodeTransactionPostData (..)
-    , ApiDecodedTransaction (..)
     , ApiDRepAnchor (..)
     , ApiDRepCredential (..)
     , ApiDRepInfo (..)
-    , ApiDRepMetadata (..)
     , ApiDRepMetaReference (..)
-    , DRepStatus (..)
+    , ApiDRepMetadata (..)
+    , ApiDecodeTransactionPostData (..)
+    , ApiDecodedTransaction (..)
     , ApiDelegationAction (..)
     , ApiDeregisterPool (..)
     , ApiEncryptMetadata (..)
@@ -246,6 +245,7 @@ import Cardano.Wallet.Api.Types
     , ByronWalletFromXPrvPostData (..)
     , ByronWalletPostData (..)
     , ByronWalletPutPassphraseData (..)
+    , DRepStatus (..)
     , Iso8601Time (..)
     , KeyFormat (..)
     , NtpSyncingStatus (..)
@@ -2299,9 +2299,10 @@ instance Arbitrary DRepStatus where
     arbitrary = elements [Active, Inactive]
 
 instance Arbitrary ApiDRepCredential where
-    arbitrary = ApiDRepCredential
-        <$> elements ["key_hash", "script_hash"]
-        <*> arbitrary
+    arbitrary =
+        ApiDRepCredential
+            <$> elements ["key_hash", "script_hash"]
+            <*> arbitrary
 
 instance Arbitrary ApiDRepAnchor where
     arbitrary = genericArbitrary
@@ -3491,7 +3492,10 @@ instance ToSchema ApiBlockHeader where
     declareNamedSchema _ = declareSchemaForDefinition "ApiBlockHeader"
 
 instance ToSchema ApiDRepInfo where
-    declareNamedSchema _ = declareSchemaForDefinition "ApiDRepInfo"
+    declareNamedSchema _ = do
+        addDefinition =<< declareSchemaForDefinition "ApiDRepMetaReference"
+        addDefinition =<< declareSchemaForDefinition "ApiDRepMetadata"
+        declareSchemaForDefinition "ApiDRepInfo"
 
 instance ToSchema ApiDRepMetadata where
     declareNamedSchema _ = declareSchemaForDefinition "ApiDRepMetadata"
