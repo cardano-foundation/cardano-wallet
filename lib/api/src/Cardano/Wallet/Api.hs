@@ -814,9 +814,9 @@ type GetPoolMaintenance =
 
 type DReps n =
     ListDReps
-    :<|> SuggestedDReps
-    :<|> GetDRep
-    :<|> JoinDRep n
+        :<|> SuggestedDReps
+        :<|> GetDRep
+        :<|> JoinDRep n
 
 type ListDReps =
     "dreps"
@@ -830,8 +830,8 @@ type SuggestedDReps =
 
 type GetDRep =
     "dreps"
-        :> Capture "id" ApiDRepSpecifier
-        :> Get '[JSON] (Maybe ApiDRepInfo)
+        :> Capture "drepId" ApiDRepSpecifier
+        :> Get '[JSON] ApiDRepInfo
 
 type JoinDRep n =
     "dreps"

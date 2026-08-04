@@ -3099,7 +3099,6 @@ components:
         - expiry_epoch
         - voting_power
         - deposit
-        - anchor
       properties:
         id:
           type: string
@@ -3184,7 +3183,7 @@ components:
           nullable: true
           description: |
             Full CIP-0119 off-chain metadata. Populated only on
-            GET /v2/dreps/{id}; always null in list responses.
+            GET /v2/dreps/{drepId}; always null in list responses.
           allOf:
             - $ref: '#/components/schemas/ApiDRepMetadata'
 
@@ -7870,19 +7869,21 @@ paths:
         off-chain metadata in the `metadata` field (or null if the DRep has no
         anchor, metadata has not yet been fetched, or hash verification failed).
 
-        Returns null for the always-abstain and always-no-confidence sentinels,
-        and for unknown DRep IDs.
+        Returns 404 for the always-abstain and always-no-confidence sentinels,
+        and for unknown or malformed DRep IDs.
       parameters:
         - *parametersDRepId
       responses:
         '200':
-          description: DRep data with embedded metadata, or null if not found.
+          description: DRep data with embedded metadata.
           content:
             application/json:
-              schema:
-                nullable: true
-                allOf:
-                  - *ApiDRepInfo
+              schema: *ApiDRepInfo
+        '404':
+          description: The requested DRep was not found.
+          content:
+            application/json:
+              schema: *errNotFound
 
   /dreps/{drepId}/wallets/{walletId}:
     put:

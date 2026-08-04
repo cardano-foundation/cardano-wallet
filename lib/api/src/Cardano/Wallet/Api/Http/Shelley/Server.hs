@@ -4527,17 +4527,27 @@ suggestedDReps drepLayer mCount = do
 getDRep
     :: DRepLayer IO
     -> ApiDRepSpecifier
-    -> Handler (Maybe ApiDRepInfo)
+    -> Handler ApiDRepInfo
 getDRep drepLayer specifier =
     case specifier of
         SpecificDRep (FromDRepID drepId) -> do
             infos <- liftIO $ listDRepInfos drepLayer
-            pure
-                $ toApiDRepDetail
-                    <$> find
-                        (\DRepInfo{drepInfoReg} -> drepRegId drepInfoReg == drepId)
-                        infos
-        _ -> pure Nothing
+            case find
+                (\DRepInfo{drepInfoReg} -> drepRegId drepInfoReg == drepId)
+                infos of
+                Nothing ->
+                    throwError
+                        $ apiError
+                            err404
+                            NotFound
+                            "No DRep found for the given identifier."
+                Just info -> pure $ toApiDRepDetail info
+        _ ->
+            throwError
+                $ apiError
+                    err404
+                    NotFound
+                    "No DRep found for the given identifier."
   where
     toApiDRepDetail :: DRepInfo -> ApiDRepInfo
     toApiDRepDetail DRepInfo{drepInfoReg = DRepRegistration{..}, drepInfoMetadata} =
@@ -4624,6 +4634,7 @@ joinDRep
         drep <- case apiDRep of
             AllDReps -> liftE ErrUnexpectedPoolIdPlaceholder
             SpecificDRep drep -> pure drep
+            SuggestedSpecifier -> liftE ErrUnexpectedDRepPlaceholder
 
         withWorkerCtx ctx walletId liftE liftE $ \wrk -> do
             (BuiltTx{..}, txTime) <-
