@@ -1,4 +1,3 @@
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeApplications #-}
@@ -11,11 +10,13 @@
 module Cardano.Wallet.DRep.Metadata
     ( fetchDRepMetadata
     , FetchError (..)
+    , parseCip0119
+    , resolveUrl
     ) where
 
 import Cardano.Wallet.Primitive.Types.DRep
-    ( DRepMetadata (..)
-    , DRepMetaReference (..)
+    ( DRepMetaReference (..)
+    , DRepMetadata (..)
     )
 import Control.Exception
     ( SomeException
@@ -40,6 +41,9 @@ import Data.Aeson.Types
     )
 import Data.ByteString
     ( ByteString
+    )
+import Data.Maybe
+    ( fromMaybe
     )
 import Data.Text
     ( Text
@@ -81,10 +85,10 @@ resolveUrl :: Text -> ExceptT FetchError IO URI
 resolveUrl url =
     let urlStr = case T.stripPrefix "ipfs://" url of
             Just cid -> ipfsGateway <> T.unpack cid
-            Nothing  -> T.unpack url
-    in case parseURI urlStr of
-        Nothing  -> throwE $ FetchInvalidUri url
-        Just uri -> pure uri
+            Nothing -> T.unpack url
+    in  case parseURI urlStr of
+            Nothing -> throwE $ FetchInvalidUri url
+            Just uri -> pure uri
 
 -- | Fetch a CIP-0119 metadata document from 'url', verify its Blake2b-256
 -- hash matches 'expectedHash' (raw bytes), and parse it into 'DRepMetadata'.
@@ -103,18 +107,21 @@ fetchDRepMetadata manager url expectedHash = do
             withResponse req manager $ \resp ->
                 if responseStatus resp == status200
                     then Right . BS.concat <$> brConsume (responseBody resp)
-                    else pure $ Left $ FetchNotOk
-                        (fromIntegral (fromEnum (responseStatus resp)))
+                    else
+                        pure
+                            $ Left
+                            $ FetchNotOk
+                                (fromIntegral (fromEnum (responseStatus resp)))
         pure $ case eitherResult of
-            Left exc         -> Left (FetchHttpError (show exc))
-            Right (Left fe)  -> Left fe
+            Left exc -> Left (FetchHttpError (show exc))
+            Right (Left fe) -> Left fe
             Right (Right bs) -> Right bs
     if blake2b256 raw /= expectedHash
         then throwE FetchHashMismatch
         else case Aeson.eitherDecodeStrict raw of
-            Left err  -> throwE $ FetchParseError err
+            Left err -> throwE $ FetchParseError err
             Right val -> case parseEither parseCip0119 val of
-                Left err  -> throwE $ FetchParseError err
+                Left err -> throwE $ FetchParseError err
                 Right meta -> pure meta
 
 -- | Parse a CIP-0119 JSON document.
@@ -127,22 +134,22 @@ parseCip0119 = Aeson.withObject "CIP-0119" $ \top -> do
     mBody <- top .:? "body"
     case mBody of
         Just body -> parseBody body
-        Nothing   -> parseBody top
+        Nothing -> parseBody top
 
 parseBody :: Object -> Parser DRepMetadata
 parseBody body = do
-    drepMetaName           <- body .: "givenName"
-    drepMetaObjectives     <- body .:? "objectives"
-    drepMetaMotivations    <- body .:? "motivations"
+    drepMetaName <- body .: "givenName"
+    drepMetaObjectives <- body .:? "objectives"
+    drepMetaMotivations <- body .:? "motivations"
     drepMetaQualifications <- body .:? "qualifications"
     drepMetaPaymentAddress <- body .:? "paymentAddress"
-    drepMetaDoNotList      <- maybe False id <$> body .:? "doNotList"
-    rawRefs                <- maybe [] id <$> body .:? "references"
-    drepMetaReferences     <- mapM parseReference rawRefs
+    drepMetaDoNotList <- fromMaybe False <$> body .:? "doNotList"
+    rawRefs <- fromMaybe [] <$> body .:? "references"
+    drepMetaReferences <- mapM parseReference rawRefs
     pure DRepMetadata{..}
 
 parseReference :: Value -> Parser DRepMetaReference
 parseReference = Aeson.withObject "reference" $ \o -> do
     drepMetaRefLabel <- o .: "label"
-    drepMetaRefUri   <- o .: "uri"
+    drepMetaRefUri <- o .: "uri"
     pure DRepMetaReference{..}

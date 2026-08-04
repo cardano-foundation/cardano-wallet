@@ -1,5 +1,5 @@
+{-# LANGUAGE DisambiguateRecordFields #-}
 {-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE RecordWildCards #-}
 
 -- |
 -- Copyright: © 2026 Cardano Foundation
@@ -54,17 +54,18 @@ import Prelude
 import qualified Data.ByteArray.Encoding as BA
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Map.Strict as Map
-import qualified Data.Text.Encoding as TE
+import qualified Data.Text.Encoding as T
 
 -- | A DRep registration enriched with cached off-chain metadata.
 data DRepInfo = DRepInfo
-    { drepInfoReg      :: !DRepRegistration
+    { drepInfoReg :: !DRepRegistration
     , drepInfoMetadata :: !(Maybe DRepMetadata)
-    } deriving (Eq, Show)
+    }
+    deriving (Eq, Show)
 
 -- | Service facade for DRep data. Merges live LSQ data with cached metadata.
 data DRepLayer m = DRepLayer
-    { listDRepInfos  :: m [DRepInfo]
+    { listDRepInfos :: m [DRepInfo]
     , getDRepMetadata :: Text -> m (Maybe DRepMetadata)
     -- ^ Look up full CIP-0119 metadata for a bech32 DRep ID. Returns Nothing
     -- if the DRep has no anchor or the worker has not yet fetched its metadata.
@@ -77,47 +78,50 @@ lsqCacheTtl = 900
 -- | Build a 'DRepLayer' from a 'NetworkLayer' (live LSQ) and a 'DBLayer'
 -- (cached metadata). The LSQ result is cached for 'lsqCacheTtl' seconds to
 -- avoid hitting the node on every API call.
-newDRepLayer :: NetworkLayer IO block -> DBLayer IO -> IO (DRepLayer IO)
+newDRepLayer
+    :: NetworkLayer IO block -> DBLayer IO -> IO (DRepLayer IO)
 newDRepLayer netLayer db = do
     cacheRef <- newIORef Nothing
     -- Pre-warm the LSQ cache immediately so the first API request is fast.
     _ <- forkIO $ warmCache cacheRef
-    pure DRepLayer
-        { listDRepInfos  = fetchAndMerge cacheRef
-        , getDRepMetadata = lookupMetadata
-        }
+    pure
+        DRepLayer
+            { listDRepInfos = fetchAndMerge cacheRef
+            , getDRepMetadata = lookupMetadata
+            }
   where
     lookupMetadata drepId = case db of
-        DBLayer { atomically, getDRepAnchorHash, getDRepMetadata } -> do
+        DBLayer{atomically, getDRepAnchorHash, getDRepMetadata} -> do
             mHash <- atomically $ getDRepAnchorHash drepId
             case mHash of
                 Nothing -> pure Nothing
-                Just h  -> atomically $ getDRepMetadata h
+                Just h -> atomically $ getDRepMetadata h
 
     fetchAndMerge
         :: IORef (Maybe (UTCTime, [DRepRegistration]))
         -> IO [DRepInfo]
     fetchAndMerge cacheRef = case db of
-        DBLayer { atomically, getAllDRepMetadata } -> do
-            regs   <- cachedLSQ cacheRef
+        DBLayer{atomically, getAllDRepMetadata} -> do
+            regs <- cachedLSQ cacheRef
             cached <- atomically getAllDRepMetadata
             pure $ map (enrich cached) regs
 
     warmCache :: IORef (Maybe (UTCTime, [DRepRegistration])) -> IO ()
     warmCache cacheRef = do
         mRegs <- listDReps netLayer
-        now   <- getCurrentTime
+        now <- getCurrentTime
         writeIORef cacheRef (Just (now, fromMaybe [] mRegs))
 
     cachedLSQ
         :: IORef (Maybe (UTCTime, [DRepRegistration]))
         -> IO [DRepRegistration]
     cachedLSQ cacheRef = do
-        now    <- getCurrentTime
+        now <- getCurrentTime
         cached <- readIORef cacheRef
         case cached of
-            Just (ts, regs) | diffUTCTime now ts < lsqCacheTtl ->
-                pure regs
+            Just (ts, regs)
+                | diffUTCTime now ts < lsqCacheTtl ->
+                    pure regs
             _ -> do
                 mRegs <- listDReps netLayer
                 let regs = fromMaybe [] mRegs
@@ -129,7 +133,7 @@ newDRepLayer netLayer db = do
         let meta = do
                 anchor <- drepRegAnchor reg
                 Map.lookup (hexBS (drepAnchorHash anchor)) cached
-        in  DRepInfo { drepInfoReg = reg, drepInfoMetadata = meta }
+        in  DRepInfo{drepInfoReg = reg, drepInfoMetadata = meta}
 
 hexBS :: B8.ByteString -> Text
-hexBS = TE.decodeUtf8 . BA.convertToBase BA.Base16
+hexBS = T.decodeUtf8 . BA.convertToBase BA.Base16
