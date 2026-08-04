@@ -341,18 +341,24 @@ serveWallet
                         databaseDir
                         mPoolDatabaseDecorator
                         netLayer
-                spl <- withNodeStakePoolLayer
-                    poolsEngineTracer
-                    settings
-                    stakePoolDbLayer
-                    netParams
-                    shelleyGenesisPools
-                    netLayer
+                spl <-
+                    withNodeStakePoolLayer
+                        poolsEngineTracer
+                        settings
+                        stakePoolDbLayer
+                        netParams
+                        shelleyGenesisPools
+                        netLayer
                 drl <- lift $ DRep.newDRepLayer netLayer stakePoolDbLayer
                 lift $ do
                     mgr <- HTTPS.newTlsManager
-                    void $ Concurrent.forkIO $ DRep.monitorDRepMetadata
-                        netLayer stakePoolDbLayer mgr drepMetadataFetchIntervalMicros
+                    void
+                        $ Concurrent.forkIO
+                        $ DRep.monitorDRepMetadata
+                            netLayer
+                            stakePoolDbLayer
+                            mgr
+                            drepMetadataFetchIntervalMicros
                 pure (spl, drl)
         randomApi <- withRandomApi netId netLayer
         icarusApi <- withIcarusApi netId netLayer

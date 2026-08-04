@@ -25,9 +25,6 @@ import Cardano.Pool.Metadata.Types
     , StakePoolMetadataHash
     , StakePoolMetadataUrl
     )
-import Cardano.Wallet.Primitive.Types.DRep
-    ( DRepMetadata
-    )
 import Cardano.Pool.Types
     ( PoolId
     )
@@ -41,6 +38,9 @@ import Cardano.Wallet.Primitive.Types
     , Settings
     , SlotNo (..)
     )
+import Cardano.Wallet.Primitive.Types.DRep
+    ( DRepMetadata
+    )
 import Control.Monad.IO.Class
     ( MonadIO
     )
@@ -53,14 +53,14 @@ import Data.Generics.Internal.VL.Lens
 import Data.Map.Strict
     ( Map
     )
+import Data.Quantity
+    ( Quantity (..)
+    )
 import Data.Set
     ( Set
     )
 import Data.Text
     ( Text
-    )
-import Data.Quantity
-    ( Quantity (..)
     )
 import Data.Time.Clock.POSIX
     ( POSIXTime

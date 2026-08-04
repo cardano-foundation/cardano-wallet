@@ -101,8 +101,8 @@ drepQuery
     => LSQ (Shelley.ShelleyBlock proto era) IO [DRepRegistration]
 drepQuery = do
     epochNo <- LSQry Shelley.GetEpochNo
-    states  <- LSQry (Shelley.GetDRepState Set.empty)
-    distr   <- LSQry (Shelley.GetDRepStakeDistr Set.empty)
+    states <- LSQry (Shelley.GetDRepState Set.empty)
+    distr <- LSQry (Shelley.GetDRepStakeDistr Set.empty)
     pure $ Map.foldrWithKey (buildEntry epochNo distr) [] states
 
 buildEntry
@@ -114,21 +114,22 @@ buildEntry
     -> [DRepRegistration]
 buildEntry (EpochNo currentEpoch) distr cred DRepState{..} acc =
     case credToDRepID cred of
-        Nothing    -> acc
+        Nothing -> acc
         Just drepId ->
             let ledgerDRep = Ledger.DRepCredential cred
                 votingPower =
                     Ledger.toWalletCoin
                         $ fromMaybe (Coin 0)
                         $ Map.lookup ledgerDRep distr
-                reg = DRepRegistration
-                    { drepRegId          = drepId
-                    , drepRegExpiryEpoch = unEpochNo drepExpiry
-                    , drepRegAnchor      = fromAnchor <$> strictMaybeToMaybe drepAnchor
-                    , drepRegDeposit     = Ledger.toWalletCoin (fromCompact drepDeposit)
-                    , drepRegVotingPower = votingPower
-                    , drepRegIsActive    = unEpochNo drepExpiry >= currentEpoch
-                    }
+                reg =
+                    DRepRegistration
+                        { drepRegId = drepId
+                        , drepRegExpiryEpoch = unEpochNo drepExpiry
+                        , drepRegAnchor = fromAnchor <$> strictMaybeToMaybe drepAnchor
+                        , drepRegDeposit = Ledger.toWalletCoin (fromCompact drepDeposit)
+                        , drepRegVotingPower = votingPower
+                        , drepRegIsActive = unEpochNo drepExpiry >= currentEpoch
+                        }
             in  reg : acc
 
 credToDRepID
@@ -136,14 +137,22 @@ credToDRepID
     -> Maybe DRepID
 credToDRepID = \case
     SL.KeyHashObj (SL.KeyHash h) ->
-        Just $ DRepFromKeyHash $ DRepKeyHash $ fromShort $ Crypto.hashToBytesShort h
+        Just
+            $ DRepFromKeyHash
+            $ DRepKeyHash
+            $ fromShort
+            $ Crypto.hashToBytesShort h
     SL.ScriptHashObj (Hashes.ScriptHash h) ->
-        Just $ DRepFromScriptHash $ DRepScriptHash $ fromShort $ Crypto.hashToBytesShort h
+        Just
+            $ DRepFromScriptHash
+            $ DRepScriptHash
+            $ fromShort
+            $ Crypto.hashToBytesShort h
 
 fromAnchor :: Anchor -> DRepAnchor
 fromAnchor anchor =
     DRepAnchor
-        { drepAnchorUrl  = urlToText (anchorUrl anchor)
+        { drepAnchorUrl = urlToText (anchorUrl anchor)
         , drepAnchorHash =
             Crypto.hashToBytes . Hashes.extractHash $ anchorDataHash anchor
         }

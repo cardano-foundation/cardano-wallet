@@ -33,10 +33,10 @@ import Cardano.Pool.DB.Model
     , mListPoolLifeCycleData
     , mListRegisteredPools
     , mListRetiredPools
-    , mPutDelistedPools
     , mPutDRepAnchorHash
     , mPutDRepFetchAttempt
     , mPutDRepMetadata
+    , mPutDelistedPools
     , mPutFetchAttempt
     , mPutHeader
     , mPutLastMetadataGC
@@ -58,9 +58,9 @@ import Cardano.Pool.DB.Model
     , mReadStakeDistribution
     , mReadSystemSeed
     , mReadTotalProduction
+    , mRecentlyFailedDRepHashes
     , mRemovePools
     , mRemoveRetiredPools
-    , mRecentlyFailedDRepHashes
     , mRollbackTo
     , mUnfetchedPoolMetadataRefs
     )
@@ -69,9 +69,6 @@ import Cardano.Wallet.Primitive.Slotting
     )
 import Control.DeepSeq
     ( deepseq
-    )
-import Data.Time.Clock
-    ( getCurrentTime
     )
 import Control.Monad
     ( void
@@ -87,6 +84,9 @@ import Data.Either
     )
 import Data.Functor.Identity
     ( Identity
+    )
+import Data.Time.Clock
+    ( getCurrentTime
     )
 import Data.Tuple
     ( swap
@@ -233,8 +233,11 @@ newDBLayer timeInterpreter = do
             readPoolDB db (mRecentlyFailedDRepHashes now)
 
         putDRepAnchorHash drepId anchorHash =
-            void $ alterPoolDB (const Nothing) db
-                (mPutDRepAnchorHash drepId anchorHash)
+            void
+                $ alterPoolDB
+                    (const Nothing)
+                    db
+                    (mPutDRepAnchorHash drepId anchorHash)
 
         getDRepAnchorHash =
             readPoolDB db . mGetDRepAnchorHash

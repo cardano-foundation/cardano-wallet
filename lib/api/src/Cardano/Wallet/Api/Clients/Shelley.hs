@@ -34,7 +34,6 @@ import Cardano.Wallet.Api
 import Cardano.Wallet.Api.Types
     ( AnyAddress
     , ApiAddressData
-    , ApiDRepInfo
     , ApiAddressInspect
     , ApiAddressInspectData
     , ApiAddressWithPath
@@ -42,6 +41,7 @@ import Cardano.Wallet.Api.Types
     , ApiBalanceTransactionPostData
     , ApiConstructTransaction
     , ApiConstructTransactionData
+    , ApiDRepInfo
     , ApiDecodeTransactionPostData
     , ApiFee
     , ApiPoolSpecifier
