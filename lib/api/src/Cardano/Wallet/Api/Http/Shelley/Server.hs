@@ -964,7 +964,7 @@ import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
-import qualified Data.Sequence as Sequence
+import qualified Data.Sequence as Seq
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Network.Ntp as Ntp
@@ -4478,18 +4478,18 @@ suggestedDReps drepLayer mCount = do
     sampleN :: Int -> [a] -> IO [a]
     sampleN n xs
         | n <= 0 || null xs = pure []
-        | otherwise = go 0 k (Sequence.fromList xs)
+        | otherwise = go 0 k (Seq.fromList xs)
       where
         k = min n (length xs)
         go i acc sq
-            | i >= acc = pure $ F.toList $ Sequence.take acc sq
+            | i >= acc = pure $ F.toList $ Seq.take acc sq
             | otherwise = do
-                j <- randomRIO (i, Sequence.length sq - 1)
-                let a = Sequence.index sq i
-                    b = Sequence.index sq j
+                j <- randomRIO (i, Seq.length sq - 1)
+                let a = Seq.index sq i
+                    b = Seq.index sq j
                     sq' =
-                        Sequence.adjust' (const b) i
-                            $ Sequence.adjust' (const a) j sq
+                        Seq.adjust' (const b) i
+                            $ Seq.adjust' (const a) j sq
                 go (i + 1) acc sq'
 
     toApiDRepInfo :: DRepInfo -> ApiDRepInfo
