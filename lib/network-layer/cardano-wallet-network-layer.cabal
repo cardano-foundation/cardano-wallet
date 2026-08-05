@@ -51,6 +51,7 @@ library
     Cardano.Wallet.Network.Implementation.UnliftIO
     Cardano.Wallet.Network.Light
     Cardano.Wallet.Network.LocalStateQuery
+    Cardano.Wallet.Network.LocalStateQuery.DReps
     Cardano.Wallet.Network.LocalStateQuery.Extra
     Cardano.Wallet.Network.LocalStateQuery.PParams
     Cardano.Wallet.Network.LocalStateQuery.RewardAccount
@@ -78,11 +79,13 @@ library
     , cardano-ledger-api
     , cardano-ledger-babbage
     , cardano-ledger-byron
+    , cardano-ledger-conway
     , cardano-ledger-core
     , cardano-ledger-mary
     , cardano-ledger-read
     , cardano-ledger-shelley
     , cardano-slotting
+    , cardano-strict-containers
     , cardano-wallet-launcher
     , cardano-wallet-primitive
     , cardano-wallet-read

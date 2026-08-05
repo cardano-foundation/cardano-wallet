@@ -523,6 +523,9 @@ withNodeNetworkLayerBase
                     _postSealedTx txSubmissionQ
                 , postTx =
                     postTxToQueue tr txSubmissionQ
+                , listDReps =
+                    bracketQuery "listDReps" tr
+                        $ queryRewardQ `send` SomeLSQ LSQ.listDReps
                 , stakeDistribution =
                     _stakeDistribution queryRewardQ
                 , getUTxOByTxIn =

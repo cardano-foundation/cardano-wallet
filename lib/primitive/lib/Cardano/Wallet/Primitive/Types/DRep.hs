@@ -10,6 +10,10 @@ module Cardano.Wallet.Primitive.Types.DRep
     , DRepKeyHash (..)
     , DRepScriptHash (..)
     , DRep (..)
+    , DRepAnchor (..)
+    , DRepRegistration (..)
+    , DRepMetadata (..)
+    , DRepMetaReference (..)
     , encodeDRepIDBech32
     , decodeDRepIDBech32
     , fstByteDRepKeyHash
@@ -17,6 +21,9 @@ module Cardano.Wallet.Primitive.Types.DRep
     )
 where
 
+import Cardano.Wallet.Primitive.Types.Coin
+    ( Coin
+    )
 import Control.DeepSeq
     ( NFData
     )
@@ -36,7 +43,8 @@ import Data.Text.Class
     , ToText (..)
     )
 import Data.Word
-    ( Word8
+    ( Word64
+    , Word8
     )
 import Fmt
     ( Buildable (..)
@@ -159,3 +167,41 @@ instance FromText DRep where
 
 instance Buildable DRep where
     build = build . toText
+
+data DRepAnchor = DRepAnchor
+    { drepAnchorUrl :: !Text
+    , drepAnchorHash :: !ByteString
+    }
+    deriving (Generic, Eq, Show)
+    deriving anyclass (NFData)
+
+data DRepRegistration = DRepRegistration
+    { drepRegId :: !DRepID
+    , drepRegExpiryEpoch :: !Word64
+    , drepRegAnchor :: !(Maybe DRepAnchor)
+    , drepRegDeposit :: !Coin
+    , drepRegVotingPower :: !Coin
+    , drepRegIsActive :: !Bool
+    }
+    deriving (Generic, Eq, Show)
+    deriving anyclass (NFData)
+
+-- | Off-chain CIP-0119 metadata fetched from a DRep's anchor URL.
+data DRepMetadata = DRepMetadata
+    { drepMetaName :: !Text
+    , drepMetaObjectives :: !(Maybe Text)
+    , drepMetaMotivations :: !(Maybe Text)
+    , drepMetaQualifications :: !(Maybe Text)
+    , drepMetaPaymentAddress :: !(Maybe Text)
+    , drepMetaDoNotList :: !Bool
+    , drepMetaReferences :: ![DRepMetaReference]
+    }
+    deriving (Generic, Eq, Show)
+    deriving anyclass (NFData)
+
+data DRepMetaReference = DRepMetaReference
+    { drepMetaRefLabel :: !Text
+    , drepMetaRefUri :: !Text
+    }
+    deriving (Generic, Eq, Show)
+    deriving anyclass (NFData)

@@ -184,4 +184,37 @@ PoolMetadataFetchAttempts sql=pool_metadata_fetch_attempts
 
     Primary poolFetchAttemptsMetadataHash poolFetchAttemptsMetadataUrl
     deriving Show Generic
+
+-- Cached DRep off-chain metadata (CIP-0119) fetched from anchor URLs.
+DRepMetadata sql=drep_metadata
+    drepMetadataHash             Text     sql=metadata_hash
+    drepMetadataName             Text     sql=name
+    drepMetadataObjectives       Text Maybe sql=objectives
+    drepMetadataMotivations      Text Maybe sql=motivations
+    drepMetadataQualifications   Text Maybe sql=qualifications
+    drepMetadataPaymentAddress   Text Maybe sql=payment_address
+    drepMetadataDoNotList        Bool     sql=do_not_list
+    drepMetadataReferences       Text     sql=references
+
+    Primary drepMetadataHash
+    deriving Show Generic
+
+-- Failed/pending fetch attempts for DRep metadata.
+DRepMetadataFetchAttempts sql=drep_metadata_fetch_attempts
+    drepFetchAttemptsHash        Text     sql=metadata_hash
+    drepFetchAttemptsUrl         Text     sql=metadata_url
+    drepFetchAttemptsRetryAfter  UTCTime  sql=retry_after
+    drepFetchAttemptsRetryCount  Word8    sql=retry_count
+
+    Primary drepFetchAttemptsHash drepFetchAttemptsUrl
+    deriving Show Generic
+
+-- Mapping from bech32 DRep ID to anchor data hash (hex), populated by the
+-- metadata worker so the metadata endpoint needs no LSQ.
+DRepAnchor sql=drep_anchor
+    drepAnchorDrepId    Text sql=drep_id
+    drepAnchorHash      Text sql=anchor_hash
+
+    Primary drepAnchorDrepId
+    deriving Show Generic
 |]

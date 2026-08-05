@@ -175,6 +175,7 @@ dummyNetworkLayer =
         , fetchRewardAccountBalances = err "fetchRewardAccountBalances"
         , timeInterpreter = err "timeInterpreter"
         , syncProgress = err "syncProgress"
+        , listDReps = err "listDReps"
         }
   where
     err subject =

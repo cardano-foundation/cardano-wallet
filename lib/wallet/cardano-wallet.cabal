@@ -221,6 +221,9 @@ library
     Cardano.Wallet.Delegation
     Cardano.Wallet.Delegation.Model
     Cardano.Wallet.Delegation.Properties
+    Cardano.Wallet.DRep.Layer
+    Cardano.Wallet.DRep.Metadata
+    Cardano.Wallet.DRep.Worker
     Cardano.Wallet.Flavor
     Cardano.Wallet.Gen
     Cardano.Wallet.IO.Delegation

@@ -142,6 +142,11 @@ import Cardano.Wallet.Api.Types
     , ApiCosignerIndex (..)
     , ApiCredential (..)
     , ApiCredentialType (..)
+    , ApiDRepAnchor (..)
+    , ApiDRepCredential (..)
+    , ApiDRepInfo (..)
+    , ApiDRepMetaReference (..)
+    , ApiDRepMetadata (..)
     , ApiDecodeTransactionPostData (..)
     , ApiDecodedTransaction (..)
     , ApiDelegationAction (..)
@@ -240,6 +245,7 @@ import Cardano.Wallet.Api.Types
     , ByronWalletFromXPrvPostData (..)
     , ByronWalletPostData (..)
     , ByronWalletPutPassphraseData (..)
+    , DRepStatus (..)
     , Iso8601Time (..)
     , KeyFormat (..)
     , NtpSyncingStatus (..)
@@ -2289,6 +2295,27 @@ instance Arbitrary DRep where
     arbitrary =
         oneof [pure Abstain, pure NoConfidence, FromDRepID <$> arbitrary]
 
+instance Arbitrary DRepStatus where
+    arbitrary = elements [Active, Inactive]
+
+instance Arbitrary ApiDRepCredential where
+    arbitrary =
+        ApiDRepCredential
+            <$> elements ["key_hash", "script_hash"]
+            <*> arbitrary
+
+instance Arbitrary ApiDRepAnchor where
+    arbitrary = genericArbitrary
+
+instance Arbitrary ApiDRepMetaReference where
+    arbitrary = genericArbitrary
+
+instance Arbitrary ApiDRepMetadata where
+    arbitrary = genericArbitrary
+
+instance Arbitrary ApiDRepInfo where
+    arbitrary = genericArbitrary
+
 instance HasSNetworkId n => Arbitrary (ApiConstructTransactionData n) where
     arbitrary =
         ApiConstructTransactionData
@@ -3463,6 +3490,18 @@ instance Typeable n => ToSchema (ApiDecodedTransaction n) where
 
 instance ToSchema ApiBlockHeader where
     declareNamedSchema _ = declareSchemaForDefinition "ApiBlockHeader"
+
+instance ToSchema ApiDRepInfo where
+    declareNamedSchema _ = do
+        addDefinition =<< declareSchemaForDefinition "ApiDRepMetaReference"
+        addDefinition =<< declareSchemaForDefinition "ApiDRepMetadata"
+        declareSchemaForDefinition "ApiDRepInfo"
+
+instance ToSchema ApiDRepMetadata where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiDRepMetadata"
+
+instance ToSchema ApiDRepMetaReference where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiDRepMetaReference"
 
 -- | Utility function to provide an ad-hoc 'ToSchema' instance for a definition:
 -- we simply look it up within the Swagger specification.

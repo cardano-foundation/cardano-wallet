@@ -50,6 +50,9 @@ module Cardano.Wallet.Api.Http.Shelley.Server
     , getUTxOsStatistics
     , getWalletUtxoSnapshot
     , getWallet
+    , listDReps
+    , suggestedDReps
+    , getDRep
     , joinDRep
     , joinStakePool
     , listAssets
@@ -368,6 +371,11 @@ import Cardano.Wallet.Api.Types
     , ApiCoinSelectionWithdrawal (..)
     , ApiConstructTransaction (..)
     , ApiConstructTransactionData (..)
+    , ApiDRepAnchor (..)
+    , ApiDRepCredential (..)
+    , ApiDRepInfo (..)
+    , ApiDRepMetaReference (..)
+    , ApiDRepMetadata (..)
     , ApiDRepSpecifier (..)
     , ApiDecodeTransactionPostData (..)
     , ApiDecodedTransaction (..)
@@ -446,6 +454,7 @@ import Cardano.Wallet.Api.Types
     , ByronWalletFromXPrvPostData
     , ByronWalletPostData (..)
     , ByronWalletPutPassphraseData (..)
+    , DRepStatus (..)
     , Iso8601Time (..)
     , KeyFormat (..)
     , KnownDiscovery (..)
@@ -505,6 +514,11 @@ import Cardano.Wallet.DB
     ( DBFactory (..)
     , DBLayer
     )
+import Cardano.Wallet.DRep.Layer
+    ( DRepInfo (..)
+    , DRepLayer
+    , listDRepInfos
+    )
 import Cardano.Wallet.Flavor
     ( AllFlavors
     , CredFromOf
@@ -524,7 +538,7 @@ import Cardano.Wallet.Flavor
     )
 import Cardano.Wallet.Network
     ( ErrFetchBlock (..)
-    , NetworkLayer (..)
+    , NetworkLayer
     , fetchRewardAccountBalances
     , timeInterpreter
     )
@@ -607,7 +621,15 @@ import Cardano.Wallet.Primitive.Types.Credentials
     , RootCredentials (..)
     )
 import Cardano.Wallet.Primitive.Types.DRep
-    ( DRep
+    ( DRep (..)
+    , DRepAnchor (..)
+    , DRepID (..)
+    , DRepKeyHash (..)
+    , DRepMetaReference (..)
+    , DRepMetadata (..)
+    , DRepRegistration (..)
+    , DRepScriptHash (..)
+    , encodeDRepIDBech32
     )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
@@ -786,7 +808,8 @@ import Data.IntCast
     ( intCastMaybe
     )
 import Data.List
-    ( sortOn
+    ( find
+    , sortOn
     , (\\)
     )
 import Data.List.NonEmpty
@@ -803,6 +826,9 @@ import Data.Maybe
     , isNothing
     , mapMaybe
     , maybeToList
+    )
+import Data.Ord
+    ( Down (..)
     )
 import Data.Proxy
     ( Proxy (..)
@@ -853,6 +879,9 @@ import Servant
 import Servant.Server
     ( Handler (..)
     , runHandler
+    )
+import System.Random
+    ( randomRIO
     )
 import UnliftIO.Async
     ( race_
@@ -927,12 +956,15 @@ import qualified Cardano.Wallet.Read.Hash as Hash
 import qualified Cardano.Wallet.Registry as Registry
 import qualified Control.Concurrent.Concierge as Concierge
 import qualified Data.ByteArray as BA
+import qualified Data.ByteArray.Encoding as BA
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
+import qualified Data.Sequence as Seq
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Network.Ntp as Ntp
@@ -4378,6 +4410,200 @@ joinStakePool
                     , txCBOR = builtTx ^. #txCBOR
                     }
 
+listDReps
+    :: DRepLayer IO
+    -> Handler [ApiDRepInfo]
+listDReps drepLayer = do
+    infos <- liftIO $ listDRepInfos drepLayer
+    pure $ map toApiDRepInfo infos
+  where
+    toApiDRepInfo :: DRepInfo -> ApiDRepInfo
+    toApiDRepInfo DRepInfo{drepInfoReg = DRepRegistration{..}, drepInfoMetadata} =
+        ApiDRepInfo
+            { drepInfoId = encodeDRepIDBech32 drepRegId
+            , drepInfoCredential = toApiDRepCredential drepRegId
+            , drepInfoStatus = if drepRegIsActive then Active else Inactive
+            , drepInfoExpiryEpoch = drepRegExpiryEpoch
+            , drepInfoVotingPower = unCoin drepRegVotingPower
+            , drepInfoDeposit = unCoin drepRegDeposit
+            , drepInfoAnchor = fmap toApiDRepAnchor drepRegAnchor
+            , drepInfoName = drepMetaName <$> drepInfoMetadata
+            , drepInfoMetadata = Nothing
+            }
+
+    toApiDRepCredential :: DRepID -> ApiDRepCredential
+    toApiDRepCredential = \case
+        DRepFromKeyHash (DRepKeyHash bs) ->
+            ApiDRepCredential "key_hash" (hexBS bs)
+        DRepFromScriptHash (DRepScriptHash bs) ->
+            ApiDRepCredential "script_hash" (hexBS bs)
+
+    toApiDRepAnchor :: DRepAnchor -> ApiDRepAnchor
+    toApiDRepAnchor a =
+        ApiDRepAnchor
+            { anchorUrl = drepAnchorUrl a
+            , anchorDataHash = hexBS (drepAnchorHash a)
+            }
+
+    hexBS :: BS.ByteString -> T.Text
+    hexBS = T.pack . B8.unpack . BA.convertToBase BA.Base16
+
+    unCoin :: Coin -> Natural
+    unCoin (Coin n) = n
+
+suggestedDReps
+    :: DRepLayer IO
+    -> Maybe Word
+    -> Handler [ApiDRepInfo]
+suggestedDReps drepLayer mCount = do
+    infos <- liftIO $ listDRepInfos drepLayer
+    let count = maybe 20 (fromIntegral . min 200) mCount
+        pool = eligiblePool infos
+    liftIO $ sampleN count pool
+  where
+    -- Rank by voting power descending, drop the top 35, then filter:
+    -- active, metadata present, do_not_list = False.
+    eligiblePool :: [DRepInfo] -> [ApiDRepInfo]
+    eligiblePool infos =
+        let ranked = sortOn (Down . drepRegVotingPower . drepInfoReg) infos
+            filtered = filter isEligible (drop 35 ranked)
+        in  map toApiDRepInfo filtered
+
+    isEligible :: DRepInfo -> Bool
+    isEligible DRepInfo{drepInfoReg, drepInfoMetadata} =
+        drepRegIsActive drepInfoReg
+            && maybe False (not . drepMetaDoNotList) drepInfoMetadata
+
+    -- Partial Fisher-Yates using Data.Sequence for O(k log n) swaps.
+    sampleN :: Int -> [a] -> IO [a]
+    sampleN n xs
+        | n <= 0 || null xs = pure []
+        | otherwise = go 0 k (Seq.fromList xs)
+      where
+        k = min n (length xs)
+        go i acc sq
+            | i >= acc = pure $ F.toList $ Seq.take acc sq
+            | otherwise = do
+                j <- randomRIO (i, Seq.length sq - 1)
+                let a = Seq.index sq i
+                    b = Seq.index sq j
+                    sq' =
+                        Seq.adjust' (const b) i
+                            $ Seq.adjust' (const a) j sq
+                go (i + 1) acc sq'
+
+    toApiDRepInfo :: DRepInfo -> ApiDRepInfo
+    toApiDRepInfo DRepInfo{drepInfoReg = DRepRegistration{..}, drepInfoMetadata} =
+        ApiDRepInfo
+            { drepInfoId = encodeDRepIDBech32 drepRegId
+            , drepInfoCredential = toApiDRepCredential drepRegId
+            , drepInfoStatus = if drepRegIsActive then Active else Inactive
+            , drepInfoExpiryEpoch = drepRegExpiryEpoch
+            , drepInfoVotingPower = unCoin drepRegVotingPower
+            , drepInfoDeposit = unCoin drepRegDeposit
+            , drepInfoAnchor = fmap toApiDRepAnchor drepRegAnchor
+            , drepInfoName = drepMetaName <$> drepInfoMetadata
+            , drepInfoMetadata = Nothing
+            }
+
+    toApiDRepCredential :: DRepID -> ApiDRepCredential
+    toApiDRepCredential = \case
+        DRepFromKeyHash (DRepKeyHash bs) ->
+            ApiDRepCredential "key_hash" (hexBS bs)
+        DRepFromScriptHash (DRepScriptHash bs) ->
+            ApiDRepCredential "script_hash" (hexBS bs)
+
+    toApiDRepAnchor :: DRepAnchor -> ApiDRepAnchor
+    toApiDRepAnchor a =
+        ApiDRepAnchor
+            { anchorUrl = drepAnchorUrl a
+            , anchorDataHash = hexBS (drepAnchorHash a)
+            }
+
+    hexBS :: BS.ByteString -> T.Text
+    hexBS = T.pack . B8.unpack . BA.convertToBase BA.Base16
+
+    unCoin :: Coin -> Natural
+    unCoin (Coin n) = n
+
+getDRep
+    :: DRepLayer IO
+    -> ApiDRepSpecifier
+    -> Handler ApiDRepInfo
+getDRep drepLayer specifier =
+    case specifier of
+        SpecificDRep (FromDRepID drepId) -> do
+            infos <- liftIO $ listDRepInfos drepLayer
+            case find
+                (\DRepInfo{drepInfoReg} -> drepRegId drepInfoReg == drepId)
+                infos of
+                Nothing ->
+                    throwError
+                        $ apiError
+                            err404
+                            NotFound
+                            "No DRep found for the given identifier."
+                Just info -> pure $ toApiDRepDetail info
+        _ ->
+            throwError
+                $ apiError
+                    err404
+                    NotFound
+                    "No DRep found for the given identifier."
+  where
+    toApiDRepDetail :: DRepInfo -> ApiDRepInfo
+    toApiDRepDetail DRepInfo{drepInfoReg = DRepRegistration{..}, drepInfoMetadata} =
+        ApiDRepInfo
+            { drepInfoId = encodeDRepIDBech32 drepRegId
+            , drepInfoCredential = toApiDRepCredential drepRegId
+            , drepInfoStatus = if drepRegIsActive then Active else Inactive
+            , drepInfoExpiryEpoch = drepRegExpiryEpoch
+            , drepInfoVotingPower = unCoin drepRegVotingPower
+            , drepInfoDeposit = unCoin drepRegDeposit
+            , drepInfoAnchor = fmap toApiDRepAnchor drepRegAnchor
+            , drepInfoName = drepMetaName <$> drepInfoMetadata
+            , drepInfoMetadata = fmap toApiDRepMetadata drepInfoMetadata
+            }
+
+    toApiDRepMetadata :: DRepMetadata -> ApiDRepMetadata
+    toApiDRepMetadata m =
+        ApiDRepMetadata
+            { apiDRepMetaName = drepMetaName m
+            , apiDRepMetaObjectives = drepMetaObjectives m
+            , apiDRepMetaMotivations = drepMetaMotivations m
+            , apiDRepMetaQualifications = drepMetaQualifications m
+            , apiDRepMetaPaymentAddress = drepMetaPaymentAddress m
+            , apiDRepMetaDoNotList = drepMetaDoNotList m
+            , apiDRepMetaReferences = map toApiRef (drepMetaReferences m)
+            }
+
+    toApiRef :: DRepMetaReference -> ApiDRepMetaReference
+    toApiRef r =
+        ApiDRepMetaReference
+            { apiDRepRefLabel = drepMetaRefLabel r
+            , apiDRepRefUri = drepMetaRefUri r
+            }
+
+    toApiDRepCredential :: DRepID -> ApiDRepCredential
+    toApiDRepCredential = \case
+        DRepFromKeyHash (DRepKeyHash bs) ->
+            ApiDRepCredential "key_hash" (hexBS bs)
+        DRepFromScriptHash (DRepScriptHash bs) ->
+            ApiDRepCredential "script_hash" (hexBS bs)
+
+    toApiDRepAnchor :: DRepAnchor -> ApiDRepAnchor
+    toApiDRepAnchor a =
+        ApiDRepAnchor
+            { anchorUrl = drepAnchorUrl a
+            , anchorDataHash = hexBS (drepAnchorHash a)
+            }
+
+    hexBS :: BS.ByteString -> T.Text
+    hexBS = T.pack . B8.unpack . BA.convertToBase BA.Base16
+
+    unCoin :: Coin -> Natural
+    unCoin (Coin n) = n
+
 joinDRep
     :: forall s n k
      . ( s ~ SeqState n k
@@ -4410,6 +4636,7 @@ joinDRep
         drep <- case apiDRep of
             AllDReps -> liftE ErrUnexpectedPoolIdPlaceholder
             SpecificDRep drep -> pure drep
+            SuggestedSpecifier -> liftE ErrUnexpectedDRepPlaceholder
 
         withWorkerCtx ctx walletId liftE liftE $ \wrk -> do
             (BuiltTx{..}, txTime) <-

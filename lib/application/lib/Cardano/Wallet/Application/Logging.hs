@@ -29,7 +29,7 @@ import Prelude
 data ApplicationLog
     = ApiApplicationLog ApiApplicationLog
     | MsgServerStartupError ListenError
-    deriving (Generic, Show, Eq)
+    deriving (Generic, Show)
 
 instance ToText ApplicationLog where
     toText = \case

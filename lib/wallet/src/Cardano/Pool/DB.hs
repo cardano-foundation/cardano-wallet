@@ -38,6 +38,9 @@ import Cardano.Wallet.Primitive.Types
     , Settings
     , SlotNo (..)
     )
+import Cardano.Wallet.Primitive.Types.DRep
+    ( DRepMetadata
+    )
 import Control.Monad.IO.Class
     ( MonadIO
     )
@@ -52,6 +55,12 @@ import Data.Map.Strict
     )
 import Data.Quantity
     ( Quantity (..)
+    )
+import Data.Set
+    ( Set
+    )
+import Data.Text
+    ( Text
     )
 import Data.Time.Clock.POSIX
     ( POSIXTime
@@ -250,6 +259,32 @@ data DBLayer m = forall stm. (MonadFail stm, MonadIO stm) => DBLayer
     , cleanDB
         :: stm ()
     -- ^ Clean a database
+    , putDRepMetadata
+        :: Text -> DRepMetadata -> stm ()
+    -- ^ Cache off-chain DRep metadata keyed by anchor data hash (hex).
+    , getDRepMetadata
+        :: Text -> stm (Maybe DRepMetadata)
+    -- ^ Retrieve cached DRep metadata by anchor data hash (hex).
+    , getAllDRepMetadata
+        :: stm (Map Text DRepMetadata)
+    -- ^ Retrieve all cached DRep metadata (hash → metadata).
+    , clearDRepMetadata
+        :: stm ()
+    -- ^ Remove all cached DRep metadata and fetch attempts.
+    , putDRepFetchAttempt
+        :: (Text, Text) -> stm ()
+    -- ^ Record a failed/pending DRep metadata fetch attempt (url, hash) with
+    -- exponential-backoff retry tracking.
+    , recentlyFailedDRepHashes
+        :: stm (Set Text)
+    -- ^ Return the set of anchor data hashes whose last fetch attempt has a
+    -- retry_after timestamp in the future (i.e. should not be retried yet).
+    , putDRepAnchorHash
+        :: Text -> Text -> stm ()
+    -- ^ Store a bech32 DRep ID → anchor data hash (hex) mapping.
+    , getDRepAnchorHash
+        :: Text -> stm (Maybe Text)
+    -- ^ Look up the anchor data hash (hex) for a bech32 DRep ID.
     , atomically
         :: forall a. stm a -> m a
     -- ^ Run an operation.

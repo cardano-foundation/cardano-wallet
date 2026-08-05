@@ -70,6 +70,9 @@ module Cardano.Wallet.Api
     , PostPoolMaintenance
     , GetPoolMaintenance
     , DReps
+    , ListDReps
+    , SuggestedDReps
+    , GetDRep
     , JoinDRep
     , ShelleyMigrations
     , MigrateShelleyWallet
@@ -183,6 +186,7 @@ import Cardano.Wallet.Api.Types
     , ApiCoinSelectionT
     , ApiConstructTransactionDataT
     , ApiConstructTransactionT
+    , ApiDRepInfo
     , ApiDRepSpecifier
     , ApiDecodeTransactionPostData
     , ApiDecodedTransactionT
@@ -809,7 +813,25 @@ type GetPoolMaintenance =
 -------------------------------------------------------------------------------}
 
 type DReps n =
-    JoinDRep n
+    ListDReps
+        :<|> SuggestedDReps
+        :<|> GetDRep
+        :<|> JoinDRep n
+
+type ListDReps =
+    "dreps"
+        :> Get '[JSON] [ApiDRepInfo]
+
+type SuggestedDReps =
+    "dreps"
+        :> "suggested"
+        :> QueryParam "count" Word
+        :> Get '[JSON] [ApiDRepInfo]
+
+type GetDRep =
+    "dreps"
+        :> Capture "drepId" ApiDRepSpecifier
+        :> Get '[JSON] ApiDRepInfo
 
 type JoinDRep n =
     "dreps"

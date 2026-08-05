@@ -175,8 +175,9 @@ import Cardano.Wallet.UI.Common.Layer
     ( UILayer
     , sourceOfNewTip
     )
-import Control.Exception.Extra
-    ( handle
+import Control.Exception
+    ( SomeException
+    , handle
     )
 import Control.Monad
     ( void
@@ -247,9 +248,13 @@ import Prelude
 import qualified Cardano.Pool.DB.Layer as Pool
 import qualified Cardano.Wallet.Api.Http.Shelley.Server as Server
 import qualified Cardano.Wallet.DB.Layer as Sqlite
+import qualified Cardano.Wallet.DRep.Layer as DRep
+import qualified Cardano.Wallet.DRep.Worker as DRep
 import qualified Cardano.Wallet.UI.Common.Layer as Ui
 import qualified Cardano.Wallet.UI.Shelley.API as ShelleyUi
 import qualified Cardano.Wallet.UI.Shelley.Server as ShelleyUi
+import qualified Control.Concurrent as Concurrent
+import qualified Network.HTTP.Client.TLS as HTTPS
 import qualified Network.Wai.Handler.Warp as Warp
 import qualified Servant.Server as Servant
 
@@ -285,6 +290,8 @@ serveWallet
     -> Maybe Settings
     -- ^ Settings to be set at application start, will be written into DB.
     -> Maybe TokenMetadataServer
+    -> String
+    -- ^ IPFS gateway base URL for resolving ipfs:// DRep anchor URLs.
     -> Block
     -- ^ The genesis block, or some starting point.
     -- See also: 'Cardano.Wallet.Primitive.Ledger.Shelley#KnownNetwork'.
@@ -309,6 +316,7 @@ serveWallet
     tlsConfig
     settings
     tokenMetaUri
+    ipfsGatewayUrl
     block0
     beforeMainLoop = withSNetworkId network $ \sNetwork -> evalContT $ do
         lift cryptoInit
@@ -329,7 +337,7 @@ serveWallet
                 blockchainSource
                 network
                 netParams
-        stakePoolLayer <- case blockchainSource of
+        (stakePoolLayer, drepLayer) <- case blockchainSource of
             NodeSource{} -> do
                 stakePoolDbLayer <-
                     withStakePoolDbLayer
@@ -337,13 +345,33 @@ serveWallet
                         databaseDir
                         mPoolDatabaseDecorator
                         netLayer
-                withNodeStakePoolLayer
-                    poolsEngineTracer
-                    settings
-                    stakePoolDbLayer
-                    netParams
-                    shelleyGenesisPools
-                    netLayer
+                spl <-
+                    withNodeStakePoolLayer
+                        poolsEngineTracer
+                        settings
+                        stakePoolDbLayer
+                        netParams
+                        shelleyGenesisPools
+                        netLayer
+                drl <- lift $ DRep.newDRepLayer netLayer stakePoolDbLayer
+                lift $ do
+                    mgr <- HTTPS.newTlsManager
+                    let worker =
+                            DRep.monitorDRepMetadata
+                                netLayer
+                                stakePoolDbLayer
+                                mgr
+                                ipfsGatewayUrl
+                                drepMetadataFetchIntervalMicros
+                        supervised = handle onCrash worker
+                        onCrash e = do
+                            traceWith applicationTracer
+                                $ ApiApplicationLog
+                                $ MsgDRepWorkerCrashed (e :: SomeException)
+                            Concurrent.threadDelay (60 * 1_000_000)
+                            supervised
+                    void $ Concurrent.forkIO supervised
+                pure (spl, drl)
         randomApi <- withRandomApi netId netLayer
         icarusApi <- withIcarusApi netId netLayer
         shelleyApi <- withShelleyApi netId netLayer
@@ -372,6 +400,7 @@ serveWallet
                                         shelleyApi
                                         multisigApi
                                         stakePoolLayer
+                                        drepLayer
                                         ntpClient
                                         blockchainSource
                             ContT $ \k ->
@@ -391,6 +420,7 @@ serveWallet
                             shelleyApi
                             multisigApi
                             stakePoolLayer
+                            drepLayer
                             ntpClient
                     exit ExitSuccess
       where
@@ -450,6 +480,7 @@ serveWallet
             -> ApiLayer (SeqState n ShelleyKey)
             -> ApiLayer (SharedState n SharedKey)
             -> StakePoolLayer
+            -> DRep.DRepLayer IO
             -> NtpClient
             -> BlockchainSource
             -> IO ()
@@ -462,6 +493,7 @@ serveWallet
             shelleyApi
             multisigApi
             spl
+            _drepLayer
             ntp
             bs = do
                 let serverSettings = Warp.defaultSettings
@@ -497,6 +529,7 @@ serveWallet
             -> ApiLayer (SeqState n ShelleyKey)
             -> ApiLayer (SharedState n SharedKey)
             -> StakePoolLayer
+            -> DRep.DRepLayer IO
             -> NtpClient
             -> IO ()
         startApiServer
@@ -507,6 +540,7 @@ serveWallet
             shelley
             multisig
             spl
+            drl
             ntp = do
                 serverUrl <- getServerUrl tlsConfig socket
                 let serverSettings =
@@ -522,6 +556,7 @@ serveWallet
                                 shelley
                                 multisig
                                 spl
+                                drl
                                 ntp
                                 blockchainSource
                 start
@@ -611,6 +646,10 @@ withNtpClient :: Tracer IO NtpTrace -> ContT r IO NtpClient
 withNtpClient tr = do
     iom <- ContT withIOManager
     ContT $ withWalletNtpClient iom tr
+
+-- | Default DRep metadata fetch interval: 15 minutes in microseconds.
+drepMetadataFetchIntervalMicros :: Int
+drepMetadataFetchIntervalMicros = 15 * 60 * 1_000_000
 
 -- | Failure status codes for HTTP API server errors.
 exitCodeApiServer :: ListenError -> Int
