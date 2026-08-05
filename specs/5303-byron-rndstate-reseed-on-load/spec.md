@@ -38,6 +38,14 @@ persisted seed verbatim.
   asserts `gen` survives load byte-identical, while still asserting
   every other field round-trips exactly.
 
+## Security guarantee
+
+The reseeded `gen` is itself re-persisted on the next checkpoint write
+(FR3), so an attacker with live DB read access still sees the current
+value. The guarantee is **forward-unpredictability** of future
+change-address paths from a stale/known seed across restarts — not
+secrecy of the persisted value.
+
 ## Success criteria
 
 - `./gate.sh` green (build + focused unit tests + fmt + hlint).

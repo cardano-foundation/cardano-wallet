@@ -840,8 +840,14 @@ instance PersistAddressBook (Rnd.RndState n) where
                     [ RndStateWalletId ==. wid
                     ]
                     []
-        let (RndState _ ix _gen (HDPassphrase pwd)) = entityVal st
+        -- The persisted 'gen' is decoded here (via 'entityVal', through
+        -- 'stdGenFromString') and then discarded below: it is logically
+        -- ignored, but a corrupt on-disk value still fails the load.
+        let (RndState _ ix _ (HDPassphrase pwd)) = entityVal st
         pendingAddresses <- lift $ selectRndStatePending wid
+        -- Reseeded from the OS CSPRNG on every load, inside the DB
+        -- transaction: if 'genSalt' ever throws, a previously-loadable
+        -- wallet fails to load. Was previously DB-read-only on this path.
         gen <- liftIO $ mkStdGen <$> secureSeed
         pure
             $ RndPrologue
