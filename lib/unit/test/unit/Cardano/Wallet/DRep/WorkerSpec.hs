@@ -279,14 +279,14 @@ withHttpsServer certificatePath keyPath servedMetadata action =
 serverCertificate :: ByteString
 serverCertificate =
     $( makeRelativeToProject
-        "../application-tls/test/data/PKIs/1/server/server.crt"
+        "test/data/PKIs/1/server/server.crt"
         >>= embedFile
      )
 
 serverKey :: ByteString
 serverKey =
     $( makeRelativeToProject
-        "../application-tls/test/data/PKIs/1/server/server.key"
+        "test/data/PKIs/1/server/server.key"
         >>= embedFile
      )
 
