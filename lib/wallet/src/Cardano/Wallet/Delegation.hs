@@ -267,9 +267,9 @@ joinDRepVotingAction era targetDRep dlg stakeKeyIsRegistered = do
     isDRepSame (W.Voting drep) = drep == targetDRep
     isDRepSame (W.DelegatingVoting _ drep) = drep == targetDRep
     isDRepSame _ = False
-    isSameNext (W.WalletDelegationNext _ deleg) = isDRepSame deleg
+
     sameWalletDelegation (W.WalletDelegation current coming) =
-        isDRepSame current || any isSameNext coming
+        isDRepSame $ maybe current (view #status) (lastMay coming)
 
     guardEraIsConway
         :: Write.IsRecentEra era

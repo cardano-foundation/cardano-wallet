@@ -49,6 +49,7 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
     )
 import Cardano.Wallet.Transaction
     ( ErrCannotJoin (..)
+    , VotingAction (..)
     , Withdrawal (..)
     )
 import Data.Function
@@ -266,7 +267,42 @@ spec = describe "Cardano.Wallet.DelegationSpec" $ do
                         , next = [next1]
                         }
             WD.guardQuit dlg NoWithdrawal (Coin 0) False `shouldBe` Right ()
+
+    describe "joinDRepVotingAction" $ do
+        it "allows re-delegating to A after A -> B delegation (#5350)" $ do
+            let next1 = WalletDelegationNext (EpochNo 1) (Voting drepA)
+            let next2 = WalletDelegationNext (EpochNo 2) (Voting drepB)
+            let dlg =
+                    WalletDelegation
+                        { active = NotDelegating
+                        , next = [next1, next2]
+                        }
+            WD.joinDRepVotingAction
+                Write.RecentEraConway
+                drepA
+                dlg
+                True
+                `shouldBe` Right (Vote drepA)
+
+        it
+            "rejects re-delegating to B when effective delegation is B (A -> B -> B)"
+            $ do
+                let next1 = WalletDelegationNext (EpochNo 1) (Voting drepA)
+                let next2 = WalletDelegationNext (EpochNo 2) (Voting drepB)
+                let dlg =
+                        WalletDelegation
+                            { active = NotDelegating
+                            , next = [next1, next2]
+                            }
+                WD.joinDRepVotingAction
+                    Write.RecentEraConway
+                    drepB
+                    dlg
+                    True
+                    `shouldBe` Left (W.ErrAlreadyVoted drepB)
   where
+    drepA = FromDRepID (DRepFromKeyHash (DRepKeyHash (BS.replicate 28 1)))
+    drepB = FromDRepID (DRepFromKeyHash (DRepKeyHash (BS.replicate 28 2)))
     pidA = PoolId "A"
     pidB = PoolId "B"
     pidUnknown = PoolId "unknown"
