@@ -684,6 +684,12 @@ jobs:
           - name: "Check Local Cabal Test Targets"
             command: scripts/ci/check-local-test-targets.sh
 
+          - name: "Test PR Body Closing Link"
+            command: scripts/ci/test-pr-body-closing-link.sh
+
+          - name: "Validate PR Body Closing Link"
+            command: scripts/ci/check-pr-body-closing-link.sh
+
           - name: "Lint Bash Scripts"
             command: ./scripts/shellcheck.sh
 
