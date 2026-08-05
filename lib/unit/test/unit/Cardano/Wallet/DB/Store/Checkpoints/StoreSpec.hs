@@ -16,7 +16,7 @@ import Cardano.DB.Sqlite
     )
 import Cardano.Wallet.Address.Book
     ( AddressBookIso (..)
-    , Prologue
+    , Prologue (RndPrologue)
     , getPrologue
     )
 import Cardano.Wallet.Address.Derivation.Shared
@@ -26,7 +26,7 @@ import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey
     )
 import Cardano.Wallet.Address.Discovery.Random
-    ( RndState
+    ( RndState (..)
     )
 import Cardano.Wallet.Address.Discovery.Sequential
     ( SeqState
@@ -63,6 +63,9 @@ import Fmt
     ( Buildable (..)
     , pretty
     )
+import System.Random
+    ( mkStdGen
+    )
 import Test.Hspec
     ( Spec
     , around
@@ -98,7 +101,10 @@ spec = do
                 $ property . prop_prologue_load_write @(SeqState 'Mainnet ShelleyKey) id
 
             it "loadPrologue . insertPrologue = id  for RndState"
-                $ property . prop_prologue_load_write @(RndState 'Mainnet) id
+                $ property . prop_rnd_prologue_roundtrip
+
+            it "loadPrologue reseeds RndState.gen from CSPRNG"
+                $ property . prop_rnd_prologue_reseed
 
             it "loadPrologue . insertPrologue = id  for SharedState"
                 $ property
@@ -124,6 +130,69 @@ prop_prologue_load_write preprocess db (wid, s) =
     prop =
         prop_loadAfterWrite toIO (insertPrologue wid) (loadPrologue wid) pro
     pro = getPrologue $ preprocess s
+
+-- | Roundtrip property for 'RndState' that normalizes 'gen' on both sides,
+-- since 'loadPrologue' reseeds it from the CSPRNG.
+prop_rnd_prologue_roundtrip
+    :: SqliteContext -> (WalletId, RndState 'Mainnet) -> Property
+prop_rnd_prologue_roundtrip db (wid, s) =
+    monadicIO $ run (toIO setup) >> prop
+  where
+    toIO = runQuery db
+    setup = initializeWalletTable wid
+    normalize st = st{gen = mkStdGen 0}
+    pro = getPrologue $ normalize s
+    prop = do
+        res <- run . toIO $ insertPrologue wid pro >> loadPrologue wid
+        let fa = pure pro
+        let res' = fmap normalizePrologue res
+        monitor $ counterexample $ "\nInserted\n" <> pretty fa
+        monitor $ counterexample $ "\nRead\n" <> pretty res'
+        assertWith "Inserted == Read" (res' == fa)
+    normalizePrologue (RndPrologue st) = RndPrologue (normalize st)
+
+-- | Permanent reseed assertion: two loads of the same on-disk checkpoint
+-- yield different raw 'gen' values, and loaded 'gen' differs from the
+-- persisted value. Does not normalize 'gen' on either side.
+prop_rnd_prologue_reseed
+    :: SqliteContext -> (WalletId, RndState 'Mainnet) -> Property
+prop_rnd_prologue_reseed db (wid, s) =
+    monadicIO $ run (toIO setup) >> prop
+  where
+    toIO = runQuery db
+    setup = initializeWalletTable wid
+    -- Fixed persisted seed so loaded-vs-persisted is deterministic
+    -- under a broken restore-from-DB implementation.
+    persisted = s{gen = mkStdGen 0}
+    pro = getPrologue persisted
+    prop = do
+        (res1, res2) <- run . toIO $ do
+            insertPrologue wid pro
+            r1 <- loadPrologue wid
+            r2 <- loadPrologue wid
+            pure (r1, r2)
+        case (res1, res2) of
+            (Just (RndPrologue st1), Just (RndPrologue st2)) -> do
+                let gen1 = gen st1
+                    gen2 = gen st2
+                    genPersisted = gen persisted
+                monitor
+                    $ counterexample
+                    $ "persisted gen = " <> show genPersisted
+                monitor
+                    $ counterexample
+                    $ "loaded gen1 = " <> show gen1
+                monitor
+                    $ counterexample
+                    $ "loaded gen2 = " <> show gen2
+                assertWith
+                    "Reseed: two loads yield different gen"
+                    (gen1 /= gen2)
+                assertWith
+                    "Reseed: loaded gen differs from persisted gen"
+                    (gen1 /= genPersisted)
+            _ ->
+                assertWith "loadPrologue returned Just twice" False
 
 -- FIXME during ADP-1043: See note at 'multisigPoolAbsent'
 

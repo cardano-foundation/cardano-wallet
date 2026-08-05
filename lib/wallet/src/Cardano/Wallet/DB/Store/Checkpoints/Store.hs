@@ -134,11 +134,17 @@ import Control.Monad
     , void
     , when
     )
+import Control.Monad.IO.Class
+    ( liftIO
+    )
 import Control.Monad.Trans.Class
     ( lift
     )
 import Control.Monad.Trans.Maybe
     ( MaybeT (..)
+    )
+import Cryptography.Core
+    ( genSalt
     )
 import Data.Bifunctor
     ( bimap
@@ -177,6 +183,9 @@ import Data.Type.Equality
 import Data.Typeable
     ( Typeable
     )
+import Data.Word
+    ( Word64
+    )
 import Database.Persist.Sql
     ( Entity (..)
     , SelectOpt (..)
@@ -193,6 +202,9 @@ import Database.Persist.Sql
     )
 import Database.Persist.Sqlite
     ( SqlPersistT
+    )
+import System.Random
+    ( mkStdGen
     )
 import UnliftIO.Exception
     ( toException
@@ -217,6 +229,7 @@ import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
     )
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W.TxOut
 import qualified Cardano.Wallet.Primitive.Types.UTxO as W
+import qualified Data.ByteString as BS
 import qualified Data.Map.Merge.Strict as Map
 import qualified Data.Map.Strict as Map
 
@@ -827,8 +840,15 @@ instance PersistAddressBook (Rnd.RndState n) where
                     [ RndStateWalletId ==. wid
                     ]
                     []
-        let (RndState _ ix gen (HDPassphrase pwd)) = entityVal st
+        -- The persisted 'gen' is decoded here (via 'entityVal', through
+        -- 'stdGenFromString') and then discarded below: it is logically
+        -- ignored, but a corrupt on-disk value still fails the load.
+        let (RndState _ ix _ (HDPassphrase pwd)) = entityVal st
         pendingAddresses <- lift $ selectRndStatePending wid
+        -- Reseeded from the OS CSPRNG on every load, inside the DB
+        -- transaction: if 'genSalt' ever throws, a previously-loadable
+        -- wallet fails to load. Was previously DB-read-only on this path.
+        gen <- liftIO $ mkStdGen <$> secureSeed
         pure
             $ RndPrologue
             $ Rnd.RndState
@@ -851,6 +871,15 @@ instance PersistAddressBook (Rnd.RndState n) where
       where
         assocFromEntity (RndStateAddress _ _ accIx addrIx addr st) =
             ((W.Index accIx, W.Index addrIx), (addr, st))
+
+-- | A seed drawn from the system CSPRNG, used to reseed the Byron
+-- HD-random address generator on checkpoint load.
+secureSeed :: IO Int
+secureSeed = do
+    bytes <- genSalt 8
+    pure
+        $ fromIntegral
+        $ BS.foldl' (\acc w -> acc * 256 + fromIntegral w) (0 :: Word64) bytes
 
 insertRndStatePending
     :: W.WalletId
