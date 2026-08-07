@@ -175,7 +175,10 @@ parseCip0119 = Aeson.withObject "CIP-0119" $ \top -> do
     drepMetaDoNotList <- fromMaybe False <$> (top .:? "doNotList" <|> fields .:? "doNotList")
     drepMetaReferences <- mapM parseReference rawRefs
     meta <- parseBodyFields fields
-    pure meta{drepMetaReferences, drepMetaDoNotList}
+    pure meta
+        { drepMetaReferences = drepMetaReferences
+        , drepMetaDoNotList = drepMetaDoNotList
+        }
 
 -- | Parse the scalar body fields from either a @body@ object or a flat
 -- top-level object.  @drepMetaReferences@ and @drepMetaDoNotList@ are
