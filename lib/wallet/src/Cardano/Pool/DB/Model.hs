@@ -564,8 +564,9 @@ mPutLastMetadataGC
 mPutLastMetadataGC t = modify (#internalState . #lastMetadataGC) (\_ -> Just t)
 
 mPutDRepMetadata :: Text -> DRepMetadata -> ModelOp ()
-mPutDRepMetadata hash meta =
+mPutDRepMetadata hash meta = do
     modify #drepMetadata $ Map.insert hash meta
+    modify #drepFetchAttempts $ Map.filterWithKey (\(_, h) _ -> h /= hash)
 
 mGetDRepMetadata :: Text -> ModelOp (Maybe DRepMetadata)
 mGetDRepMetadata hash = Map.lookup hash <$> get #drepMetadata
