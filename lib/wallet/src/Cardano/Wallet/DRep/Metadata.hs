@@ -53,8 +53,8 @@ import Data.Text
     ( Text
     )
 import Network.HTTP.Client
-    ( Manager
-    , brConsume
+    ( BodyReader
+    , Manager
     , requestFromURI
     , responseBody
     , responseStatus
@@ -86,6 +86,26 @@ data FetchError
 -- | Default IPFS gateway used when no override is supplied.
 defaultIpfsGatewayUrl :: String
 defaultIpfsGatewayUrl = "https://ipfs.blockfrost.dev/ipfs/"
+
+-- | Maximum number of bytes we will read from a metadata response body.
+-- Responses larger than this are rejected with 'FetchHttpError'.
+maxMetadataBytes :: Int
+maxMetadataBytes = 1024 * 1024
+
+-- | Read a response body up to 'maxMetadataBytes'.  Returns
+-- 'Left (FetchHttpError ...)' if the body exceeds the limit.
+readLimited :: BodyReader -> IO (Either FetchError ByteString)
+readLimited br = go 0 []
+  where
+    go !total !acc = do
+        chunk <- br
+        if BS.null chunk
+            then pure $ Right (BS.concat (reverse acc))
+            else do
+                let total' = total + BS.length chunk
+                if total' > maxMetadataBytes
+                    then pure $ Left (FetchHttpError "response body exceeds 1 MiB limit")
+                    else go total' (chunk : acc)
 
 -- | Resolve a URL to an HTTPS URI, rewriting ipfs:// to the given gateway.
 -- Rejects any URL whose final scheme is not https to prevent SSRF via
@@ -119,7 +139,7 @@ fetchDRepMetadata ipfsGateway manager url expectedHash = do
             req <- requestFromURI uri
             withResponse req manager $ \resp ->
                 if responseStatus resp == status200
-                    then Right . BS.concat <$> brConsume (responseBody resp)
+                    then readLimited (responseBody resp)
                     else
                         pure
                             $ Left
