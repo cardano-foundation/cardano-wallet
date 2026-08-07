@@ -30,6 +30,9 @@ import Control.Monad.Trans.Except
 import Cryptography.Hash.Blake
     ( blake2b256
     )
+import Control.Applicative
+    ( (<|>)
+    )
 import Data.Aeson
     ( Object
     , Value
@@ -139,23 +142,32 @@ fetchDRepMetadata ipfsGateway manager url expectedHash = do
 -- Supports two layouts:
 --   * Nested: top-level "body" object containing the fields (canonical CIP-0119)
 --   * Flat: fields at the top level (common in practice)
+--
+-- In the nested layout, CIP-0119 places @references@ and @doNotList@ at the
+-- top level (alongside @body@/@authors@), not inside @body@.  We read them
+-- from @top@ first and fall back to @body@ for non-conforming documents.
 parseCip0119 :: Value -> Parser DRepMetadata
 parseCip0119 = Aeson.withObject "CIP-0119" $ \top -> do
     mBody <- top .:? "body"
-    case mBody of
-        Just body -> parseBody body
-        Nothing -> parseBody top
+    let fields = fromMaybe top mBody
+    rawRefs <- fromMaybe [] <$> (top .:? "references" <|> fields .:? "references")
+    drepMetaDoNotList <- fromMaybe False <$> (top .:? "doNotList" <|> fields .:? "doNotList")
+    drepMetaReferences <- mapM parseReference rawRefs
+    meta <- parseBodyFields fields
+    pure meta{drepMetaReferences, drepMetaDoNotList}
 
-parseBody :: Object -> Parser DRepMetadata
-parseBody body = do
+-- | Parse the scalar body fields from either a @body@ object or a flat
+-- top-level object.  @drepMetaReferences@ and @drepMetaDoNotList@ are
+-- placeholder values that will be overridden by the caller.
+parseBodyFields :: Object -> Parser DRepMetadata
+parseBodyFields body = do
     drepMetaName <- body .: "givenName"
     drepMetaObjectives <- body .:? "objectives"
     drepMetaMotivations <- body .:? "motivations"
     drepMetaQualifications <- body .:? "qualifications"
     drepMetaPaymentAddress <- body .:? "paymentAddress"
-    drepMetaDoNotList <- fromMaybe False <$> body .:? "doNotList"
-    rawRefs <- fromMaybe [] <$> body .:? "references"
-    drepMetaReferences <- mapM parseReference rawRefs
+    let drepMetaDoNotList = False
+        drepMetaReferences = []
     pure DRepMetadata{..}
 
 parseReference :: Value -> Parser DRepMetaReference

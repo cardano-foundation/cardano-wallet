@@ -157,6 +157,28 @@ spec = describe "Cardano.Wallet.DRep.Metadata" $ do
             case parseEither parseCip0119 val of
                 Left e -> fail e
                 Right m -> drepMetaReferences m `shouldBe` []
+
+        it "reads references from top level in nested-body layout (CIP-0119 canonical)" $ do
+            let ref =
+                    Aeson.object
+                        [ "label" Aeson..= ("Website" :: String)
+                        , "uri" Aeson..= ("https://grace.example.com" :: String)
+                        ]
+            let body = Aeson.object ["givenName" Aeson..= ("Grace" :: String)]
+            let val =
+                    Aeson.object
+                        [ "body" Aeson..= body
+                        , "references" Aeson..= [ref]
+                        ]
+            case parseEither parseCip0119 val of
+                Left e -> fail e
+                Right m ->
+                    drepMetaReferences m
+                        `shouldBe` [ DRepMetaReference
+                                        { drepMetaRefLabel = "Website"
+                                        , drepMetaRefUri = "https://grace.example.com"
+                                        }
+                                   ]
   where
     minimalMeta name =
         DRepMetadata
