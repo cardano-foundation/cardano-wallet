@@ -25,6 +25,8 @@ data DRepMetaReference = DRepMetaReference
 
 Maps from CIP-0119 fields: `givenName → name`, `objectives`, `motivations`, `qualifications`, `paymentAddress → payment_address`, `doNotList → do_not_list`, `references`.
 
+**Parsing note**: CIP-0119 places `references` at the document top level (alongside `body`/`authors`), not inside `body`. The parser must read it from the top level. `doNotList` is an informal extension (not canonical CIP-0119); it defaults to `false` when absent.
+
 ### ApiDRepMetadata (embedded in ApiDRepInfo for GET /v2/dreps/{drepId})
 
 ```haskell
@@ -210,3 +212,22 @@ DReps are only removed from the ledger state via a de-registration certificate. 
 `IORef` with a 900-second TTL. The cache is pre-warmed on wallet startup so
 the first API request is fast. Both `GET /v2/dreps` and `GET /v2/dreps/suggested`
 read from the same cache.
+
+## Metadata Cache (drep_metadata table)
+
+The `drep_metadata` SQLite table is keyed by content hash (Blake2b-256) and
+grows unboundedly as DReps update their anchor. It must be garbage-collected
+periodically, pruning rows whose hash is no longer referenced by any active
+DRep's anchor. This mirrors the `lastMetadataGC` mechanism used by pool
+metadata (see `Cardano.Pool.DB.Layer`).
+
+The `drepFetchAttempts` table tracks failed/in-progress fetch attempts per
+hash. On a successful `putDRepMetadata`, both the SQLite layer and the
+in-memory Model layer MUST delete the corresponding `drepFetchAttempts` row
+to maintain pool-DB property-test equivalence.
+
+## Dead Code (post-consolidation)
+
+The `drep_anchor` table, `DRepLayer.getDRepMetadata`, and the worker's
+`putDRepAnchorHash` write are write-only after the `GET /v2/dreps/{id}/metadata`
+endpoint was consolidated into `GET /v2/dreps/{id}`. These should be removed.

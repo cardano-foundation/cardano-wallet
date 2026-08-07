@@ -2,7 +2,7 @@
 
 **Feature Branch**: `010-drep-list-endpoint`
 **Created**: 2026-08-02
-**Updated**: 2026-08-03
+**Updated**: 2026-08-07
 **Status**: Implementation complete
 **Input**: Expose DRep registry data through the wallet REST API so Daedalus can replace cardano-cli subprocess calls with a single wallet endpoint.
 
@@ -167,6 +167,10 @@ populated in `GET /v2/dreps`.
 - What happens when the metadata worker has not yet run since wallet startup? `name` is `null` for all entries; it will be populated after the first background fetch cycle.
 - What happens when `GET /v2/dreps/suggested` is called on a pre-Conway node? Returns `200 OK` with `[]`.
 - What happens when fewer eligible DReps exist than `count`? All eligible DReps are returned.
+- What happens when a metadata fetch response body exceeds the size limit? The download is aborted and the entry treated as a failed fetch (`name: null`); the oversized document is never written to SQLite.
+- What happens when a metadata anchor URL is unreachable or very slow? The per-request HTTP timeout fires; that one DRep's fetch fails without delaying any other DRep's fetch in the same cycle.
+- What happens when `count=0` is passed to `GET /v2/dreps/suggested`? An empty array `[]` is returned; this is valid and distinct from "no eligible DReps."
+- What happens when a malformed (non-bech32) DRep ID is passed to `GET /v2/dreps/{drepId}`? A `400 Bad Request` is returned, not `404`. The OpenAPI schema for `drepId` should not imply 404 for parse failures.
 
 ## Requirements *(mandatory)*
 
@@ -188,6 +192,12 @@ populated in `GET /v2/dreps`.
 - **FR-014**: `GET /v2/dreps/suggested` MUST accept a `count` query parameter (default 20, max 200).
 - **FR-015**: System MUST resolve `ipfs://` anchor URLs via a configurable IPFS gateway base URL before fetching metadata. The default gateway is `https://ipfs.blockfrost.dev/ipfs/`.
 - **FR-016**: The IPFS gateway base URL MUST be configurable at startup via the `--ipfs-gateway-url` CLI flag (e.g. `--ipfs-gateway-url=https://my-gateway.example.com/ipfs/`). The flag MUST default to the Blockfrost public gateway so no configuration is required for typical deployments.
+- **FR-017**: Metadata fetch responses MUST be capped at a configurable maximum body size (default 1 MiB). Downloads that exceed this limit MUST be aborted and treated as failed fetches; the oversized body MUST NOT be written to SQLite.
+- **FR-018**: Each metadata HTTP fetch MUST be subject to a per-request timeout independent of other concurrent fetches. A single unresponsive anchor MUST NOT stall the rest of the worker cycle.
+- **FR-019**: The `drep_metadata` SQLite table MUST be garbage-collected periodically, pruning rows whose content hash is no longer referenced by any active DRep anchor. This mirrors the `lastMetadataGC` pattern used for pool metadata.
+- **FR-020**: The SQLite and in-memory (Model) implementations of `putDRepMetadata` MUST maintain equivalent state: specifically, both MUST delete the corresponding `drepFetchAttempts` row on a successful store (the Model currently leaves this row in place, breaking the equivalence invariant relied on by property-based tests).
+- **FR-021**: CIP-0119 `references` MUST be read from the top-level document object (alongside `body`/`authors`), not from inside the `body` object. The current implementation reads `references` from `body`, which means the field will be empty for most real-world DReps whose documents follow the canonical CIP-0119 layout.
+- **FR-022**: The `drep_anchor` table, `DRepLayer.getDRepMetadata`, and the worker's `putDRepAnchorHash` write path are dead code following the consolidation of `GET /v2/dreps/{id}/metadata` into `GET /v2/dreps/{id}`. These MUST be removed to prevent confusion and maintenance burden.
 
 ### Key Entities
 
@@ -217,4 +227,14 @@ populated in `GET /v2/dreps`.
 - No authentication or wallet-scoping is required; this is a node-level read query.
 - The optional `stake` query parameter for non-myopic rewards is out of scope for this iteration.
 - Metadata is fetched directly from anchor URLs (no SMASH-equivalent registry for DReps yet); a registry integration can be added later without breaking the API contract.
-- The `doNotList` field in CIP-0119 metadata is advisory; the wallet exposes it but does not enforce it.
+- The `doNotList` field is an informal extension to CIP-0119 (not part of the canonical spec); the wallet surfaces it as-is and defaults to `false` when absent. This should be documented in the swagger field description.
+- CIP-0119 places `references` at the document top level (alongside `body` and `authors`), not inside `body`. The parser MUST handle both layouts: (a) top-level `references`, and (b) `references` inside `body` for non-conforming documents.
+- List and suggested responses are served from a 15-minute (900 s) LSQ cache. Clients (e.g. Daedalus) must accept that a just-deregistered DRep may linger in responses for up to one cache interval.
+- All attacker-controlled string fields (`name`, `objectives`, `references[].uri`, `payment_address`) are passed through verbatim to API consumers. Clients MUST treat these as untrusted user input and apply appropriate sanitisation before rendering.
+
+## Security Considerations
+
+- **SSRF mitigation**: The worker only follows `https://` URLs (after `ipfs://` rewriting); redirects are not followed; the fetched body is hash-verified against the on-chain anchor before storage. This limits SSRF to internal probing, since an attacker must know the SHA-256 preimage to register a matching anchor hash.
+- **Residual SSRF**: Private IP ranges and loopback addresses are not currently blocked at the HTTP level. An attacker-registered anchor pointing at an internal HTTPS endpoint could be used to probe the wallet host's internal network. Blocking RFC-1918 / loopback ranges in the HTTP manager, or routing fetches through a restricted egress proxy, would close this.
+- **Response size**: Without a cap (FR-017), an anchor pointing at a very large document causes unbounded memory growth in the worker and oversized rows in SQLite. The 1 MiB default limit is sufficient for any real CIP-0119 document.
+- **Untrusted content**: All string fields sourced from off-chain metadata are attacker-controlled. They must be treated as untrusted by API consumers.
