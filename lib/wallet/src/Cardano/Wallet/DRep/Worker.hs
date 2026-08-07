@@ -8,7 +8,6 @@
 -- metadata from CIP-0119 anchor URLs.
 module Cardano.Wallet.DRep.Worker
     ( monitorDRepMetadata
-    , runDRepMetadataCycle
     ) where
 
 import Cardano.Pool.DB
@@ -24,7 +23,6 @@ import Cardano.Wallet.Network
 import Cardano.Wallet.Primitive.Types.DRep
     ( DRepAnchor (..)
     , DRepRegistration (..)
-    , encodeDRepIDBech32
     )
 import Control.Concurrent
     ( threadDelay
@@ -68,55 +66,40 @@ monitorDRepMetadata netLayer db manager ipfsGateway intervalMicros =
     loop
   where
     loop = do
-        runDRepMetadataCycle netLayer db manager ipfsGateway
+        runCycle
         threadDelay intervalMicros
         loop
-
--- | Run one metadata fetch cycle.
-runDRepMetadataCycle
-    :: NetworkLayer IO block
-    -> DBLayer IO
-    -> Manager
-    -> String
-    -- ^ IPFS gateway base URL for resolving ipfs:// anchor URLs.
-    -> IO ()
-runDRepMetadataCycle netLayer db manager ipfsGateway = case db of
-    DBLayer
-        { atomically
-        , getAllDRepMetadata
-        , recentlyFailedDRepHashes
-        , putDRepMetadata
-        , putDRepFetchAttempt
-        , putDRepAnchorHash
-        } -> do
-            mRegs <- listDReps netLayer
-            case mRegs of
-                Nothing -> pure ()
-                Just regs -> do
-                    cached <- atomically getAllDRepMetadata
-                    failed <- atomically recentlyFailedDRepHashes
-                    let cachedHashes = Map.keysSet cached
-                    let toFetch =
-                            [ (reg, anchor)
-                            | reg <- regs
-                            , Just anchor <- [drepRegAnchor reg]
-                            , let h = hexBS (drepAnchorHash anchor)
-                            , h `Set.notMember` cachedHashes
-                            , h `Set.notMember` failed
-                            ]
-                    forM_ toFetch $ \(reg, anchor) -> do
-                        let url = drepAnchorUrl anchor
-                            hash = drepAnchorHash anchor
-                            hexH = hexBS hash
-                            drepId = encodeDRepIDBech32 (drepRegId reg)
-                        result <-
-                            runExceptT
-                                $ fetchDRepMetadata ipfsGateway manager url hash
-                        case result of
-                            Right meta -> atomically $ do
-                                putDRepMetadata hexH meta
-                                putDRepAnchorHash drepId hexH
-                            Left _ -> atomically $ putDRepFetchAttempt (url, hexH)
+    runCycle = case db of
+        DBLayer
+            { atomically
+            , getAllDRepMetadata
+            , recentlyFailedDRepHashes
+            , putDRepMetadata
+            , putDRepFetchAttempt
+            } -> do
+                mRegs <- listDReps netLayer
+                case mRegs of
+                    Nothing -> pure ()
+                    Just regs -> do
+                        cached <- atomically getAllDRepMetadata
+                        failed <- atomically recentlyFailedDRepHashes
+                        let cachedHashes = Map.keysSet cached
+                        let toFetch =
+                                [ anchor
+                                | reg <- regs
+                                , Just anchor <- [drepRegAnchor reg]
+                                , let h = hexBS (drepAnchorHash anchor)
+                                , h `Set.notMember` cachedHashes
+                                , h `Set.notMember` failed
+                                ]
+                        forM_ toFetch $ \anchor -> do
+                            let url = drepAnchorUrl anchor
+                                hash = drepAnchorHash anchor
+                                hexH = hexBS hash
+                            result <- runExceptT $ fetchDRepMetadata ipfsGateway manager url hash
+                            case result of
+                                Right meta -> atomically $ putDRepMetadata hexH meta
+                                Left _ -> atomically $ putDRepFetchAttempt (url, hexH)
 
 hexBS :: ByteString -> Text
 hexBS = T.decodeUtf8 . BA.convertToBase BA.Base16

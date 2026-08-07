@@ -66,9 +66,6 @@ data DRepInfo = DRepInfo
 -- | Service facade for DRep data. Merges live LSQ data with cached metadata.
 data DRepLayer m = DRepLayer
     { listDRepInfos :: m [DRepInfo]
-    , getDRepMetadata :: Text -> m (Maybe DRepMetadata)
-    -- ^ Look up full CIP-0119 metadata for a bech32 DRep ID. Returns Nothing
-    -- if the DRep has no anchor or the worker has not yet fetched its metadata.
     }
 
 -- 15 minutes, matching the metadata worker interval.
@@ -87,16 +84,8 @@ newDRepLayer netLayer db = do
     pure
         DRepLayer
             { listDRepInfos = fetchAndMerge cacheRef
-            , getDRepMetadata = lookupMetadata
             }
   where
-    lookupMetadata drepId = case db of
-        DBLayer{atomically, getDRepAnchorHash, getDRepMetadata} -> do
-            mHash <- atomically $ getDRepAnchorHash drepId
-            case mHash of
-                Nothing -> pure Nothing
-                Just h -> atomically $ getDRepMetadata h
-
     fetchAndMerge
         :: IORef (Maybe (UTCTime, [DRepRegistration]))
         -> IO [DRepInfo]

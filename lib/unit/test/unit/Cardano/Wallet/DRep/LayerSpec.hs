@@ -119,30 +119,6 @@ spec = describe "Cardano.Wallet.DRep.Layer" $ do
                 [] -> fail "expected one DRepInfo"
                 (info : _) -> drepInfoMetadata info `shouldBe` Nothing
 
-    describe "getDRepMetadata" $ do
-        it "returns Nothing for an unrecognised DRep ID" $ do
-            db <- newDBLayer dummyTimeInterpreter
-            let nl = dummyNetworkLayer{listDReps = pure (Just [])}
-            layer <- newDRepLayer nl db
-            let DRepLayer{getDRepMetadata = lookupMeta} = layer
-            result <- lookupMeta "drep1unknown"
-            result `shouldBe` Nothing
-
-        it "returns cached metadata when DRep ID maps to a known anchor hash" $ do
-            let anchorHash = BS.replicate 32 0xEF
-            let hexHash = hexBS anchorHash
-            let drepId = "drep1testid000" :: Text
-            db <- newDBLayer dummyTimeInterpreter
-            case db of
-                DBLayer{atomically, putDRepAnchorHash, putDRepMetadata} ->
-                    atomically $ do
-                        putDRepAnchorHash drepId hexHash
-                        putDRepMetadata hexHash testMeta
-            let nl = dummyNetworkLayer{listDReps = pure (Just [])}
-            layer <- newDRepLayer nl db
-            let DRepLayer{getDRepMetadata = lookupMeta} = layer
-            result <- lookupMeta drepId
-            result `shouldBe` Just testMeta
   where
     testReg1 :: DRepRegistration
     testReg1 =

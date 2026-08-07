@@ -721,7 +721,6 @@ newDBLayer tr ti SqliteContext{runQuery} =
         deleteWhere ([] :: [Filter InternalState])
         deleteWhere ([] :: [Filter TH.DRepMetadata])
         deleteWhere ([] :: [Filter TH.DRepMetadataFetchAttempts])
-        deleteWhere ([] :: [Filter TH.DRepAnchor])
 
     putDRepMetadata hash meta = do
         repsert (TH.DRepMetadataKey hash)
@@ -738,10 +737,6 @@ newDBLayer tr ti SqliteContext{runQuery} =
                 }
         deleteWhere [TH.DrepFetchAttemptsHash ==. hash]
 
-    getDRepMetadata hash = do
-        mRow <- selectFirst [TH.DrepMetadataHash ==. hash] []
-        pure $ fromDRepMetadataRow . entityVal <$> mRow
-
     getAllDRepMetadata =
         Map.fromList . map (rowToEntry . entityVal)
             <$> selectList [] []
@@ -751,7 +746,6 @@ newDBLayer tr ti SqliteContext{runQuery} =
     clearDRepMetadata = do
         deleteWhere ([] :: [Filter TH.DRepMetadata])
         deleteWhere ([] :: [Filter TH.DRepMetadataFetchAttempts])
-        deleteWhere ([] :: [Filter TH.DRepAnchor])
 
     putDRepFetchAttempt (url, hash) = do
         now <- liftIO getCurrentTime
@@ -771,15 +765,6 @@ newDBLayer tr ti SqliteContext{runQuery} =
         now <- liftIO getCurrentTime
         rows <- selectList [TH.DrepFetchAttemptsRetryAfter >. now] []
         pure $ Set.fromList $ map (TH.drepFetchAttemptsHash . entityVal) rows
-
-    putDRepAnchorHash drepId anchorHash =
-        repsert
-            (TH.DRepAnchorKey drepId)
-            (TH.DRepAnchor drepId anchorHash)
-
-    getDRepAnchorHash drepId =
-        fmap (TH.drepAnchorHash . entityVal)
-            <$> selectFirst [TH.DrepAnchorDrepId ==. drepId] []
 
     atomically :: forall a. (SqlPersistT IO a -> IO a)
     atomically = runQuery

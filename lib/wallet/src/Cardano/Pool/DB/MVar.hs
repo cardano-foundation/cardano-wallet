@@ -27,13 +27,10 @@ import Cardano.Pool.DB.Model
     , mCleanPoolMetadata
     , mClearDRepMetadata
     , mGetAllDRepMetadata
-    , mGetDRepAnchorHash
-    , mGetDRepMetadata
     , mListHeaders
     , mListPoolLifeCycleData
     , mListRegisteredPools
     , mListRetiredPools
-    , mPutDRepAnchorHash
     , mPutDRepFetchAttemptNow
     , mPutDRepMetadata
     , mPutDelistedPools
@@ -215,9 +212,6 @@ newDBLayer timeInterpreter = do
         putDRepMetadata hash meta =
             void $ alterPoolDB (const Nothing) db (mPutDRepMetadata hash meta)
 
-        getDRepMetadata =
-            readPoolDB db . mGetDRepMetadata
-
         getAllDRepMetadata =
             readPoolDB db mGetAllDRepMetadata
 
@@ -232,16 +226,6 @@ newDBLayer timeInterpreter = do
         recentlyFailedDRepHashes = do
             now <- getCurrentTime
             readPoolDB db (mRecentlyFailedDRepHashes now)
-
-        putDRepAnchorHash drepId anchorHash =
-            void
-                $ alterPoolDB
-                    (const Nothing)
-                    db
-                    (mPutDRepAnchorHash drepId anchorHash)
-
-        getDRepAnchorHash =
-            readPoolDB db . mGetDRepAnchorHash
 
         atomically = id
 
