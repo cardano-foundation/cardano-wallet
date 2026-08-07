@@ -181,6 +181,23 @@ When the DRep exists but has no anchor, or fetch/verification failed:
 }
 ```
 
+### ApiDRepSummary (returned by GET /v2/dreps/summary)
+
+```haskell
+data ApiDRepSummary = ApiDRepSummary
+    { apiDRepSummaryTotalStake    :: !(ApiT Coin)   -- string quantity
+    , apiDRepSummaryActiveCount   :: !Word64
+    , apiDRepSummaryInactiveCount :: !Word64
+    , apiDRepSummaryTotalCount    :: !Word64        -- = active + inactive
+    } deriving (Generic, Eq, Show)
+```
+
+JSON field names: `total_drep_stake`, `active_drep_count`, `inactive_drep_count`, `total_drep_count`.
+
+`total_drep_stake` uses the same string-quantity serialisation as `voting_power` in `ApiDRepInfo`.
+
+Computed by a single fold over the same cached `[DRepRegistration]` used by `listDRepInfos`, so no additional LSQ is needed.
+
 ## Ledger → API Mapping
 
 | API field | Source | Notes |
@@ -212,6 +229,38 @@ DReps are only removed from the ledger state via a de-registration certificate. 
 `IORef` with a 900-second TTL. The cache is pre-warmed on wallet startup so
 the first API request is fast. Both `GET /v2/dreps` and `GET /v2/dreps/suggested`
 read from the same cache.
+
+## Worker: Per-request Timeout (FR-018)
+
+Each call to `fetchDRepMetadata` in the worker MUST be wrapped in
+`System.Timeout.timeout fetchTimeoutMicros`. If the timeout fires (`Nothing`),
+the result is treated identically to any other fetch failure: a
+`putDRepFetchAttempt` entry is written with the normal exponential backoff. This
+ensures one dead anchor cannot stall the whole worker cycle.
+
+Default timeout: 30 s (`30_000_000` µs). Should be shorter than the HTTP
+manager's `responseTimeout` so the application layer fires first.
+
+## Worker: Metadata GC (FR-019)
+
+The `drep_metadata` table grows as DReps update their anchors. Rows are keyed
+by content hash, so a DRep that changes its anchor leaves an orphan row. GC is
+modelled after the `cleanPoolMetadata` / `lastMetadataGC` pattern in
+`Cardano.Pool.DB`:
+
+1. Add `lastDRepMetadataGC :: Maybe POSIXTime` to `InternalState` in the pool DB
+   (alongside the existing `lastMetadataGC`).
+2. After each worker fetch cycle, check if `now − lastDRepMetadataGC > gcInterval`
+   (default 24 h).
+3. If yes: collect all live anchor hashes from the current `GetDRepState` result,
+   delete `drep_metadata` rows whose hash is absent from that set, and update
+   `lastDRepMetadataGC`.
+
+New DB operations needed:
+- `removeStaleMetadata :: Set Text -> stm ()` — deletes `drep_metadata` rows
+  not in the provided hash set.
+- `readLastDRepMetadataGC :: stm (Maybe POSIXTime)`
+- `putLastDRepMetadataGC :: POSIXTime -> stm ()`
 
 ## Metadata Cache (drep_metadata table)
 

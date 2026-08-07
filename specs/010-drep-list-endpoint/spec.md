@@ -3,7 +3,7 @@
 **Feature Branch**: `010-drep-list-endpoint`
 **Created**: 2026-08-02
 **Updated**: 2026-08-07
-**Status**: Implementation complete
+**Status**: Implementation in progress
 **Input**: Expose DRep registry data through the wallet REST API so Daedalus can replace cardano-cli subprocess calls with a single wallet endpoint.
 
 ## User Scenarios & Testing *(mandatory)*
@@ -158,6 +158,36 @@ populated in `GET /v2/dreps`.
 
 ---
 
+### User Story 8 - Governance Dashboard Summary (Priority: P2)
+
+A Daedalus governance dashboard screen shows headline numbers — total stake
+under DRep management, how many DReps are active, how many are inactive —
+without having to download and aggregate the full DRep list on the client.
+
+**Why this priority**: A summary endpoint is cheap to compute server-side
+(one pass over the cached LSQ result) and avoids forcing clients to fetch
+potentially hundreds of DRep rows just to display three numbers. It is also
+composable: new aggregate fields can be added in future without changing the
+list or suggested endpoints.
+
+**Independent Test**: Call `GET /v2/dreps/summary` and confirm the response
+contains `total_drep_stake`, `active_drep_count`, and `inactive_drep_count`;
+verify `active_drep_count + inactive_drep_count == total_drep_count` and
+`total_drep_stake` equals the sum of all `voting_power.quantity` values from
+`GET /v2/dreps`.
+
+**Acceptance Scenarios**:
+
+1. **Given** a Conway-era node with registered DReps, **When** `GET /v2/dreps/summary` is called, **Then** the response is a single JSON object with `total_drep_stake` (quantity string + unit), `active_drep_count`, `inactive_drep_count`, and `total_drep_count` fields.
+
+2. **Given** a pre-Conway node, **When** `GET /v2/dreps/summary` is called, **Then** the response is `200 OK` with `total_drep_stake: { quantity: "0", unit: "lovelace" }`, and all counts set to `0`.
+
+3. **Given** a Conway-era node, **When** `GET /v2/dreps/summary` and `GET /v2/dreps` are called within the same cache window, **Then** `active_drep_count + inactive_drep_count == total_drep_count` and `total_drep_stake.quantity` equals the arithmetic sum of all `voting_power.quantity` values from the list response.
+
+4. **Given** a Conway-era node, **When** `GET /v2/dreps/summary` is called, **Then** `total_drep_stake` is serialised as a string quantity (not a number) to preserve precision for large values.
+
+---
+
 ### Edge Cases
 
 - What happens when `voting_power` exceeds JavaScript's `Number.MAX_SAFE_INTEGER`? The field MUST be a JSON string (not a number) to preserve precision.
@@ -171,6 +201,8 @@ populated in `GET /v2/dreps`.
 - What happens when a metadata anchor URL is unreachable or very slow? The per-request HTTP timeout fires; that one DRep's fetch fails without delaying any other DRep's fetch in the same cycle.
 - What happens when `count=0` is passed to `GET /v2/dreps/suggested`? An empty array `[]` is returned; this is valid and distinct from "no eligible DReps."
 - What happens when a malformed (non-bech32) DRep ID is passed to `GET /v2/dreps/{drepId}`? A `400 Bad Request` is returned, not `404`. The OpenAPI schema for `drepId` should not imply 404 for parse failures.
+- What happens when `GET /v2/dreps/summary` is called on a pre-Conway node? Returns `200 OK` with all fields zeroed.
+- What happens if `total_drep_stake` overflows a JS number? It is serialised as a string quantity, same as `voting_power.quantity` in the list endpoint.
 
 ## Requirements *(mandatory)*
 
@@ -193,11 +225,12 @@ populated in `GET /v2/dreps`.
 - **FR-015**: System MUST resolve `ipfs://` anchor URLs via a configurable IPFS gateway base URL before fetching metadata. The default gateway is `https://ipfs.blockfrost.dev/ipfs/`.
 - **FR-016**: The IPFS gateway base URL MUST be configurable at startup via the `--ipfs-gateway-url` CLI flag (e.g. `--ipfs-gateway-url=https://my-gateway.example.com/ipfs/`). The flag MUST default to the Blockfrost public gateway so no configuration is required for typical deployments.
 - **FR-017**: Metadata fetch responses MUST be capped at a configurable maximum body size (default 1 MiB). Downloads that exceed this limit MUST be aborted and treated as failed fetches; the oversized body MUST NOT be written to SQLite.
-- **FR-018**: Each metadata HTTP fetch MUST be subject to a per-request timeout independent of other concurrent fetches. A single unresponsive anchor MUST NOT stall the rest of the worker cycle.
-- **FR-019**: The `drep_metadata` SQLite table MUST be garbage-collected periodically, pruning rows whose content hash is no longer referenced by any active DRep anchor. This mirrors the `lastMetadataGC` pattern used for pool metadata.
+- **FR-018**: Each metadata HTTP fetch MUST be subject to a per-request timeout independent of other concurrent fetches. A single unresponsive anchor MUST NOT stall the rest of the worker cycle. Implementation: wrap each `fetchDRepMetadata` call in `System.Timeout.timeout` (default 30 s); a `Nothing` result is treated the same as any other fetch failure and records a `putDRepFetchAttempt` entry.
+- **FR-019**: The `drep_metadata` SQLite table MUST be garbage-collected periodically, pruning rows whose content hash is no longer referenced by any active DRep's `anchor.data_hash`. Implementation mirrors the `lastMetadataGC` / `cleanPoolMetadata` pattern in `Cardano.Pool.DB`: store a `last_drep_metadata_gc` timestamp in `InternalState`; after each worker cycle, if more than a configurable interval has elapsed (default 24 h), collect all current anchor hashes from `GetDRepState`, delete `drep_metadata` rows whose hash is absent from that set, and update the timestamp.
 - **FR-020**: The SQLite and in-memory (Model) implementations of `putDRepMetadata` MUST maintain equivalent state: specifically, both MUST delete the corresponding `drepFetchAttempts` row on a successful store (the Model currently leaves this row in place, breaking the equivalence invariant relied on by property-based tests).
 - **FR-021**: CIP-0119 `references` MUST be read from the top-level document object (alongside `body`/`authors`), not from inside the `body` object. The current implementation reads `references` from `body`, which means the field will be empty for most real-world DReps whose documents follow the canonical CIP-0119 layout.
 - **FR-022**: The `drep_anchor` table, `DRepLayer.getDRepMetadata`, and the worker's `putDRepAnchorHash` write path are dead code following the consolidation of `GET /v2/dreps/{id}/metadata` into `GET /v2/dreps/{id}`. These MUST be removed to prevent confusion and maintenance burden.
+- **FR-023**: System MUST expose `GET /v2/dreps/summary` returning a single `ApiDRepSummary` object with: `total_drep_stake` (sum of all DRep voting power, string quantity), `active_drep_count` (DReps with `status: active`), `inactive_drep_count` (DReps with `status: inactive`), and `total_drep_count` (= active + inactive). The response is served from the same LSQ cache as the list endpoint, so no additional node query is required. Returns zeroed values on a pre-Conway node.
 
 ### Key Entities
 
@@ -205,6 +238,7 @@ populated in `GET /v2/dreps`.
 - **DRepCredential**: The on-chain identity of a DRep (key hash or script hash), distinct from sentinel types.
 - **DRepMetadata**: Off-chain CIP-0119 metadata document fields: name, objectives, motivations, qualifications, payment address, do-not-list flag, references.
 - **DRepLayer**: Service facade that merges live LSQ data with cached metadata, analogous to `StakePoolLayer`.
+- **DRepSummary**: Aggregate view over the DRep registry — total stake, active count, inactive count.
 
 ## Success Criteria *(mandatory)*
 
@@ -217,6 +251,7 @@ populated in `GET /v2/dreps`.
 - **SC-005**: For a DRep with a reachable CIP-0119 anchor URL (https:// or ipfs://), `name` is populated within one metadata fetch cycle (configurable, default 15 minutes) of wallet startup.
 - **SC-006**: `GET /v2/dreps/suggested` returns only active DReps with a non-null `name` and `do_not_list: false`, excluding the top 35 by voting power.
 - **SC-007**: The LSQ result serving both list endpoints is cached for 900 seconds to avoid repeated node queries.
+- **SC-008**: `GET /v2/dreps/summary` is consistent with `GET /v2/dreps` within a single cache window: `active_drep_count + inactive_drep_count == total_drep_count` and `total_drep_stake` equals the sum of all `voting_power.quantity` values from the list response.
 
 ## Assumptions
 
