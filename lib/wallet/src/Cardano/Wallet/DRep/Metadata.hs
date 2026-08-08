@@ -20,6 +20,9 @@ import Cardano.Wallet.Primitive.Types.DRep
     ( DRepMetaReference (..)
     , DRepMetadata (..)
     )
+import Control.Applicative
+    ( (<|>)
+    )
 import Control.Exception
     ( SomeException
     , try
@@ -30,9 +33,6 @@ import Control.Monad.Trans.Except
     )
 import Cryptography.Hash.Blake
     ( blake2b256
-    )
-import Control.Applicative
-    ( (<|>)
     )
 import Data.Aeson
     ( Object
@@ -171,14 +171,17 @@ parseCip0119 :: Value -> Parser DRepMetadata
 parseCip0119 = Aeson.withObject "CIP-0119" $ \top -> do
     mBody <- top .:? "body"
     let fields = fromMaybe top mBody
-    rawRefs <- fromMaybe [] <$> (top .:? "references" <|> fields .:? "references")
-    drepMetaDoNotList <- fromMaybe False <$> (top .:? "doNotList" <|> fields .:? "doNotList")
+    rawRefs <-
+        fromMaybe [] <$> (top .:? "references" <|> fields .:? "references")
+    drepMetaDoNotList <-
+        fromMaybe False <$> (top .:? "doNotList" <|> fields .:? "doNotList")
     drepMetaReferences <- mapM parseReference rawRefs
     meta <- parseBodyFields fields
-    pure meta
-        { drepMetaReferences = drepMetaReferences
-        , drepMetaDoNotList = drepMetaDoNotList
-        }
+    pure
+        meta
+            { drepMetaReferences = drepMetaReferences
+            , drepMetaDoNotList = drepMetaDoNotList
+            }
 
 -- | Parse the scalar body fields from either a @body@ object or a flat
 -- top-level object.  @drepMetaReferences@ and @drepMetaDoNotList@ are

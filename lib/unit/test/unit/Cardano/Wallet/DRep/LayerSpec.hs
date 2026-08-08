@@ -118,7 +118,6 @@ spec = describe "Cardano.Wallet.DRep.Layer" $ do
             case infos of
                 [] -> fail "expected one DRepInfo"
                 (info : _) -> drepInfoMetadata info `shouldBe` Nothing
-
   where
     testReg1 :: DRepRegistration
     testReg1 =
