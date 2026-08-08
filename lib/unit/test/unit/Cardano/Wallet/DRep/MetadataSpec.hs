@@ -7,7 +7,9 @@ module Cardano.Wallet.DRep.MetadataSpec
 import Cardano.Wallet.DRep.Metadata
     ( FetchError (..)
     , defaultIpfsGatewayUrl
+    , maxMetadataBytes
     , parseCip0119
+    , readLimited
     , resolveUrl
     )
 import Cardano.Wallet.Primitive.Types.DRep
@@ -20,8 +22,13 @@ import Control.Monad.Trans.Except
 import Data.Aeson.Types
     ( parseEither
     )
+import Data.IORef
+    ( atomicModifyIORef
+    , newIORef
+    )
 import Data.List
-    ( isPrefixOf
+    ( isInfixOf
+    , isPrefixOf
     )
 import Test.Hspec
     ( Spec
@@ -33,6 +40,7 @@ import Test.Hspec
 import Prelude
 
 import qualified Data.Aeson as Aeson
+import qualified Data.ByteString as BS
 
 spec :: Spec
 spec = describe "Cardano.Wallet.DRep.Metadata" $ do
@@ -181,6 +189,36 @@ spec = describe "Cardano.Wallet.DRep.Metadata" $ do
                                             , drepMetaRefUri = "https://grace.example.com"
                                             }
                                        ]
+
+    describe "readLimited" $ do
+        it "accepts a body exactly at the limit" $ do
+            let body = BS.replicate maxMetadataBytes 0x00
+            ref <- newIORef body
+            let br = atomicModifyIORef ref $ \b ->
+                    if BS.null b
+                        then (b, BS.empty)
+                        else
+                            let (chunk, rest) = BS.splitAt 4096 b
+                            in  (rest, chunk)
+            result <- readLimited br
+            result `shouldBe` Right body
+
+        it "rejects a body one byte over the limit" $ do
+            let body = BS.replicate (maxMetadataBytes + 1) 0x00
+            ref <- newIORef body
+            let br = atomicModifyIORef ref $ \b ->
+                    if BS.null b
+                        then (b, BS.empty)
+                        else
+                            let (chunk, rest) = BS.splitAt 4096 b
+                            in  (rest, chunk)
+            result <- readLimited br
+            case result of
+                Left (FetchHttpError msg) ->
+                    msg `shouldSatisfy` ("exceeds" `isInfixOf`)
+                other ->
+                    fail $ "Expected FetchHttpError, got: " <> show other
+
   where
     minimalMeta name =
         DRepMetadata
