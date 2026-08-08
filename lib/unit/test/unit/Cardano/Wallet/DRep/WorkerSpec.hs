@@ -116,7 +116,8 @@ import qualified Network.Wai.Handler.WarpTLS as WarpTLS
 spec :: Spec
 spec = describe "Cardano.Wallet.DRep.Worker" $ do
     describe "runOneCycle (logic)" $ around withLogicServer logicTests
-    describe "runOneCycle (HTTPS)" $ around withHttpsIntegrationServer httpsTests
+    describe "runOneCycle (HTTPS)"
+        $ around withHttpsIntegrationServer httpsTests
 
 -- ---------------------------------------------------------------------------
 -- Logic tests — driven by a real local HTTPS server
@@ -258,7 +259,8 @@ logicTests = do
 
 httpsTests :: SpecWith (Int, Manager)
 httpsTests = do
-    it "successfully fetches and stores CIP-0119 metadata from a real HTTPS server"
+    it
+        "successfully fetches and stores CIP-0119 metadata from a real HTTPS server"
         $ \(port, mgr) -> do
             db <- newDBLayer dummyTimeInterpreter
             let url = mkUrl port "/valid.json"
@@ -342,7 +344,8 @@ withHttpsIntegrationServer action =
             action (port, mgr)
 
 -- | Start a warp-tls server on a random port, run the action, then stop.
-withHttpsServer :: FilePath -> FilePath -> Application -> (Int -> IO ()) -> IO ()
+withHttpsServer
+    :: FilePath -> FilePath -> Application -> (Int -> IO ()) -> IO ()
 withHttpsServer certPath keyPath app action =
     bracket (SN.bindRandomPortTCP "127.0.0.1") (close . snd) $ \(port, sock) ->
         bracket
@@ -445,7 +448,8 @@ hexBS = T.decodeUtf8 . BA.convertToBase BA.Base16
 mkReg :: Int -> Maybe DRepAnchor -> DRepRegistration
 mkReg n anchor =
     DRepRegistration
-        { drepRegId = DRepFromKeyHash (DRepKeyHash (BS.replicate 28 (fromIntegral n)))
+        { drepRegId =
+            DRepFromKeyHash (DRepKeyHash (BS.replicate 28 (fromIntegral n)))
         , drepRegExpiryEpoch = 500
         , drepRegAnchor = anchor
         , drepRegDeposit = Coin 500_000_000
@@ -456,8 +460,7 @@ mkReg n anchor =
 -- | A 'WorkerConfig' for tests: 5-second fetch timeout and instant GC.
 testCfg :: POSIXTime -> WorkerConfig
 testCfg now =
-    ( defaultWorkerConfig "https://ipfs.example.com/ipfs/" 1_000_000
-    )
+    (defaultWorkerConfig "https://ipfs.example.com/ipfs/" 1_000_000)
         { workerFetchTimeoutMicros = 5_000_000
         , workerGCIntervalSeconds = 0
         , workerGetTime = pure now

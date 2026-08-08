@@ -218,7 +218,6 @@ spec = describe "Cardano.Wallet.DRep.Metadata" $ do
                     msg `shouldSatisfy` ("exceeds" `isInfixOf`)
                 other ->
                     fail $ "Expected FetchHttpError, got: " <> show other
-
   where
     minimalMeta name =
         DRepMetadata

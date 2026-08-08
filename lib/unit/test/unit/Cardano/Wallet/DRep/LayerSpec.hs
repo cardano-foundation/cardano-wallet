@@ -206,7 +206,6 @@ spec = describe "Cardano.Wallet.DRep.Layer" $ do
                         atomically $ putLastDRepMetadataGC t
                         after <- atomically readLastDRepMetadataGC
                         after `shouldBe` Just t
-
   where
     testReg1 :: DRepRegistration
     testReg1 =
