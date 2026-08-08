@@ -14,7 +14,8 @@ import Cardano.Pool.DB
     ( DBLayer (..)
     )
 import Cardano.Wallet.DRep.Metadata
-    ( fetchDRepMetadata
+    ( FetchError (FetchHttpError)
+    , fetchDRepMetadata
     )
 import Cardano.Wallet.Network
     ( NetworkLayer
@@ -36,11 +37,17 @@ import Control.Monad.Trans.Except
 import Data.ByteString
     ( ByteString
     )
+import Data.Maybe
+    ( fromMaybe
+    )
 import Data.Text
     ( Text
     )
 import Network.HTTP.Client
     ( Manager
+    )
+import System.Timeout
+    ( timeout
     )
 import Prelude
 
@@ -96,10 +103,21 @@ monitorDRepMetadata netLayer db manager ipfsGateway intervalMicros =
                             let url = drepAnchorUrl anchor
                                 hash = drepAnchorHash anchor
                                 hexH = hexBS hash
-                            result <- runExceptT $ fetchDRepMetadata ipfsGateway manager url hash
+                            mResult <-
+                                timeout fetchTimeoutMicros
+                                    $ runExceptT
+                                    $ fetchDRepMetadata ipfsGateway manager url hash
+                            let result =
+                                    fromMaybe
+                                        (Left (FetchHttpError "fetch timed out"))
+                                        mResult
                             case result of
                                 Right meta -> atomically $ putDRepMetadata hexH meta
                                 Left _ -> atomically $ putDRepFetchAttempt (url, hexH)
+
+-- | Per-request timeout for DRep metadata fetches: 30 seconds.
+fetchTimeoutMicros :: Int
+fetchTimeoutMicros = 30000000
 
 hexBS :: ByteString -> Text
 hexBS = T.decodeUtf8 . BA.convertToBase BA.Base16
