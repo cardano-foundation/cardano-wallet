@@ -20,10 +20,14 @@ import Cardano.Wallet.Network
     ( NetworkLayer
     , listDReps
     )
+import Cardano.Wallet.Primitive.Types.Coin
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.DRep
     ( DRepAnchor (..)
     , DRepMetadata
     , DRepRegistration (..)
+    , DRepSummary (..)
     )
 import Control.Concurrent
     ( forkIO
@@ -66,6 +70,7 @@ data DRepInfo = DRepInfo
 -- | Service facade for DRep data. Merges live LSQ data with cached metadata.
 data DRepLayer m = DRepLayer
     { listDRepInfos :: m [DRepInfo]
+    , getDRepSummary :: m DRepSummary
     }
 
 -- 15 minutes, matching the metadata worker interval.
@@ -84,6 +89,7 @@ newDRepLayer netLayer db = do
     pure
         DRepLayer
             { listDRepInfos = fetchAndMerge cacheRef
+            , getDRepSummary = summarise cacheRef
             }
   where
     fetchAndMerge
@@ -123,6 +129,23 @@ newDRepLayer netLayer db = do
                 anchor <- drepRegAnchor reg
                 Map.lookup (hexBS (drepAnchorHash anchor)) cached
         in  DRepInfo{drepInfoReg = reg, drepInfoMetadata = meta}
+
+    summarise
+        :: IORef (Maybe (UTCTime, [DRepRegistration]))
+        -> IO DRepSummary
+    summarise cacheRef = do
+        regs <- cachedLSQ cacheRef
+        pure $ foldr accum (DRepSummary (Coin 0) 0 0) regs
+      where
+        accum reg (DRepSummary tot act inact) =
+            DRepSummary
+                { drepSummaryTotalStake =
+                    tot <> drepRegVotingPower reg
+                , drepSummaryActiveCount =
+                    if drepRegIsActive reg then act + 1 else act
+                , drepSummaryInactiveCount =
+                    if drepRegIsActive reg then inact else inact + 1
+                }
 
 hexBS :: B8.ByteString -> Text
 hexBS = T.decodeUtf8 . BA.convertToBase BA.Base16

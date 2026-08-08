@@ -3238,6 +3238,41 @@ components:
           description: URI for the reference.
           example: "https://alice.example.com"
 
+    ApiDRepSummary: &ApiDRepSummary
+      type: object
+      required:
+        - total_drep_stake
+        - active_drep_count
+        - inactive_drep_count
+        - total_drep_count
+      properties:
+        total_drep_stake:
+          type: object
+          required:
+            - quantity
+            - unit
+          properties:
+            quantity:
+              type: string
+              description: Total voting power delegated to all DReps, in lovelace, as a string to avoid precision loss.
+              example: "123456789012345"
+            unit:
+              type: string
+              enum:
+                - lovelace
+        active_drep_count:
+          type: integer
+          description: Number of active DReps (expiry_epoch >= current epoch).
+          example: 42
+        inactive_drep_count:
+          type: integer
+          description: Number of inactive DReps (expiry_epoch < current epoch).
+          example: 7
+        total_drep_count:
+          type: integer
+          description: Total number of registered DReps (active + inactive).
+          example: 49
+
     ApiDRep: &ApiDRep
       description: |
         Decentralized representative (DRep)
@@ -7823,6 +7858,23 @@ paths:
               schema:
                 type: array
                 items: *ApiDRepInfo
+
+  /dreps/summary:
+    get:
+      operationId: getDRepSummary
+      tags: ["DReps"]
+      summary: DRep Summary
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Returns aggregate statistics for all registered DReps: total staked
+        voting power, active count, inactive count, and total count.
+      responses:
+        '200':
+          description: Aggregate DRep statistics.
+          content:
+            application/json:
+              schema: *ApiDRepSummary
 
   /dreps/suggested:
     get:

@@ -88,6 +88,7 @@ module Cardano.Wallet.Api.Types
     , ApiDelegationAction (..)
     , ApiDeregisterPool (..)
     , ApiDRepInfo (..)
+    , ApiDRepSummary (..)
     , ApiDRepCredential (..)
     , ApiDRepAnchor (..)
     , ApiDRepMetadata (..)
@@ -1748,6 +1749,40 @@ instance FromJSON ApiDRepMetaReference where
         ApiDRepMetaReference
             <$> o Aeson..: "label"
             <*> o Aeson..: "uri"
+
+data ApiDRepSummary = ApiDRepSummary
+    { apiDRepSummaryTotalStake :: !Natural
+    , apiDRepSummaryActiveCount :: !Word64
+    , apiDRepSummaryInactiveCount :: !Word64
+    }
+    deriving (Generic, Eq, Show)
+    deriving anyclass (NFData)
+
+instance ToJSON ApiDRepSummary where
+    toJSON ApiDRepSummary{..} =
+        Aeson.object
+            [ "total_drep_stake"
+                Aeson..= Aeson.object
+                    [ "quantity" Aeson..= T.pack (show apiDRepSummaryTotalStake)
+                    , "unit" Aeson..= T.pack "lovelace"
+                    ]
+            , "active_drep_count" Aeson..= apiDRepSummaryActiveCount
+            , "inactive_drep_count" Aeson..= apiDRepSummaryInactiveCount
+            , "total_drep_count"
+                Aeson..= (apiDRepSummaryActiveCount + apiDRepSummaryInactiveCount)
+            ]
+
+instance FromJSON ApiDRepSummary where
+    parseJSON = Aeson.withObject "ApiDRepSummary" $ \o -> do
+        stakeObj <- o Aeson..: "total_drep_stake"
+        stakeQty <- stakeObj Aeson..: "quantity"
+        apiDRepSummaryTotalStake <- case T.decimal stakeQty of
+            Right (n, "") -> pure n
+            _ ->
+                fail "total_drep_stake.quantity: not a valid natural number string"
+        apiDRepSummaryActiveCount <- o Aeson..: "active_drep_count"
+        apiDRepSummaryInactiveCount <- o Aeson..: "inactive_drep_count"
+        pure ApiDRepSummary{..}
 
 newtype ApiTxId = ApiTxId {id :: ApiT (Hash "Tx")}
     deriving (Eq, Generic)

@@ -145,6 +145,7 @@ import Cardano.Wallet.Api.Types
     , ApiDRepAnchor (..)
     , ApiDRepCredential (..)
     , ApiDRepInfo (..)
+    , ApiDRepSummary (..)
     , ApiDRepMetaReference (..)
     , ApiDRepMetadata (..)
     , ApiDecodeTransactionPostData (..)
@@ -2316,6 +2317,9 @@ instance Arbitrary ApiDRepMetadata where
 instance Arbitrary ApiDRepInfo where
     arbitrary = genericArbitrary
 
+instance Arbitrary ApiDRepSummary where
+    arbitrary = genericArbitrary
+
 instance HasSNetworkId n => Arbitrary (ApiConstructTransactionData n) where
     arbitrary =
         ApiConstructTransactionData
@@ -3496,6 +3500,9 @@ instance ToSchema ApiDRepInfo where
         addDefinition =<< declareSchemaForDefinition "ApiDRepMetaReference"
         addDefinition =<< declareSchemaForDefinition "ApiDRepMetadata"
         declareSchemaForDefinition "ApiDRepInfo"
+
+instance ToSchema ApiDRepSummary where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiDRepSummary"
 
 instance ToSchema ApiDRepMetadata where
     declareNamedSchema _ = declareSchemaForDefinition "ApiDRepMetadata"

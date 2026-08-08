@@ -99,6 +99,7 @@ module Cardano.Wallet.Api.Link
       -- * DReps
     , listDReps
     , suggestedDReps
+    , getDRepSummary
     , getDRep
     , joinDRep
 
@@ -908,6 +909,9 @@ listDReps = endpoint @Api.ListDReps id
 
 suggestedDReps :: Maybe Word -> (Method, Text)
 suggestedDReps count = endpoint @Api.SuggestedDReps ($ count)
+
+getDRepSummary :: (Method, Text)
+getDRepSummary = endpoint @Api.GetDRepSummary id
 
 getDRep :: ApiDRepSpecifier -> (Method, Text)
 getDRep specifier = endpoint @Api.GetDRep ($ specifier)

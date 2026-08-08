@@ -14,6 +14,7 @@ module Cardano.Wallet.Primitive.Types.DRep
     , DRepRegistration (..)
     , DRepMetadata (..)
     , DRepMetaReference (..)
+    , DRepSummary (..)
     , encodeDRepIDBech32
     , decodeDRepIDBech32
     , fstByteDRepKeyHash
@@ -204,4 +205,13 @@ data DRepMetaReference = DRepMetaReference
     , drepMetaRefUri :: !Text
     }
     deriving (Generic, Eq, Show)
+    deriving anyclass (NFData)
+
+-- | Aggregate summary of all registered DReps.
+data DRepSummary = DRepSummary
+    { drepSummaryTotalStake :: !Coin
+    , drepSummaryActiveCount :: !Word64
+    , drepSummaryInactiveCount :: !Word64
+    }
+    deriving (Eq, Show, Generic)
     deriving anyclass (NFData)

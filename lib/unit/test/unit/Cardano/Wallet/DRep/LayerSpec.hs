@@ -33,6 +33,7 @@ import Cardano.Wallet.Primitive.Types.DRep
     , DRepKeyHash (..)
     , DRepMetadata (..)
     , DRepRegistration (..)
+    , DRepSummary (..)
     )
 import Data.Text
     ( Text
@@ -118,6 +119,43 @@ spec = describe "Cardano.Wallet.DRep.Layer" $ do
             case infos of
                 [] -> fail "expected one DRepInfo"
                 (info : _) -> drepInfoMetadata info `shouldBe` Nothing
+
+    describe "getDRepSummary" $ do
+        it "returns zeroes when no DReps" $ do
+            db <- newDBLayer dummyTimeInterpreter
+            let nl = dummyNetworkLayer{listDReps = pure (Just [])}
+            layer <- newDRepLayer nl db
+            summary <- getDRepSummary layer
+            summary
+                `shouldBe` DRepSummary
+                    { drepSummaryTotalStake = Coin 0
+                    , drepSummaryActiveCount = 0
+                    , drepSummaryInactiveCount = 0
+                    }
+
+        it "counts active and inactive correctly" $ do
+            let regActive = testReg1{drepRegIsActive = True}
+                regInactive = testReg2{drepRegIsActive = False}
+            db <- newDBLayer dummyTimeInterpreter
+            let nl =
+                    dummyNetworkLayer
+                        { listDReps = pure (Just [regActive, regInactive])
+                        }
+            layer <- newDRepLayer nl db
+            summary <- getDRepSummary layer
+            drepSummaryActiveCount summary `shouldBe` 1
+            drepSummaryInactiveCount summary `shouldBe` 1
+
+        it "sums total stake correctly" $ do
+            let regs =
+                    [ testReg1{drepRegVotingPower = Coin 1000000}
+                    , testReg2{drepRegVotingPower = Coin 2000000}
+                    ]
+            db <- newDBLayer dummyTimeInterpreter
+            let nl = dummyNetworkLayer{listDReps = pure (Just regs)}
+            layer <- newDRepLayer nl db
+            summary <- getDRepSummary layer
+            drepSummaryTotalStake summary `shouldBe` Coin 3000000
   where
     testReg1 :: DRepRegistration
     testReg1 =

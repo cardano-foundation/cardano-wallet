@@ -52,6 +52,7 @@ module Cardano.Wallet.Api.Http.Shelley.Server
     , getWallet
     , listDReps
     , suggestedDReps
+    , getDRepSummary
     , getDRep
     , joinDRep
     , joinStakePool
@@ -374,6 +375,7 @@ import Cardano.Wallet.Api.Types
     , ApiDRepAnchor (..)
     , ApiDRepCredential (..)
     , ApiDRepInfo (..)
+    , ApiDRepSummary (..)
     , ApiDRepMetaReference (..)
     , ApiDRepMetadata (..)
     , ApiDRepSpecifier (..)
@@ -519,6 +521,7 @@ import Cardano.Wallet.DRep.Layer
     , DRepLayer
     , listDRepInfos
     )
+import qualified Cardano.Wallet.DRep.Layer as DRepLayer
 import Cardano.Wallet.Flavor
     ( AllFlavors
     , CredFromOf
@@ -629,6 +632,7 @@ import Cardano.Wallet.Primitive.Types.DRep
     , DRepMetadata (..)
     , DRepRegistration (..)
     , DRepScriptHash (..)
+    , DRepSummary (..)
     , encodeDRepIDBech32
     )
 import Cardano.Wallet.Primitive.Types.Hash
@@ -4523,6 +4527,21 @@ suggestedDReps drepLayer mCount = do
     hexBS :: BS.ByteString -> T.Text
     hexBS = T.pack . B8.unpack . BA.convertToBase BA.Base16
 
+    unCoin :: Coin -> Natural
+    unCoin (Coin n) = n
+
+getDRepSummary
+    :: DRepLayer IO
+    -> Handler ApiDRepSummary
+getDRepSummary drepLayer = do
+    summary <- liftIO $ DRepLayer.getDRepSummary drepLayer
+    pure
+        $ ApiDRepSummary
+            { apiDRepSummaryTotalStake = unCoin (drepSummaryTotalStake summary)
+            , apiDRepSummaryActiveCount = drepSummaryActiveCount summary
+            , apiDRepSummaryInactiveCount = drepSummaryInactiveCount summary
+            }
+  where
     unCoin :: Coin -> Natural
     unCoin (Coin n) = n
 

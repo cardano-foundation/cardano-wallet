@@ -109,6 +109,7 @@ import Cardano.Wallet.Api.Http.Shelley.Server
     , getBlocksLatestHeader
     , getCurrentEpoch
     , getDRep
+    , getDRepSummary
     , getNetworkClock
     , getNetworkInformation
     , getNetworkParameters
@@ -454,6 +455,7 @@ server byron icarus shelley multisig spl drepLayer ntp blockchainSource =
     dreps =
         listDReps drepLayer
             :<|> suggestedDReps drepLayer
+            :<|> getDRepSummary drepLayer
             :<|> getDRep drepLayer
             :<|> joinDRep shelley
 
