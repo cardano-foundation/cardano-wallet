@@ -256,6 +256,17 @@ data DBLayer m = forall stm. (MonadFail stm, MonadIO stm) => DBLayer
         :: POSIXTime
         -> stm ()
     -- ^ Set the last metadata GC time.
+    , readLastDRepMetadataGC
+        :: stm (Maybe POSIXTime)
+    -- ^ Get the last DRep metadata GC time.
+    , putLastDRepMetadataGC
+        :: POSIXTime
+        -> stm ()
+    -- ^ Set the last DRep metadata GC time.
+    , removeStaleMetadata
+        :: Set Text -> stm ()
+    -- ^ Delete drep_metadata rows whose hash is NOT in the provided set.
+    -- Call after each worker cycle when GC interval has elapsed.
     , cleanDB
         :: stm ()
     -- ^ Clean a database

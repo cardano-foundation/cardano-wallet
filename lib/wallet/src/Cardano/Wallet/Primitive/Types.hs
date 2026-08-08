@@ -619,6 +619,7 @@ defaultSettings =
 {- HLINT ignore InternalState "Use newtype instead of data" -}
 data InternalState = InternalState
     { lastMetadataGC :: Maybe POSIXTime
+    , lastDRepMetadataGC :: Maybe POSIXTime
     }
     deriving (Generic, Show, Eq)
 
@@ -626,6 +627,7 @@ defaultInternalState :: InternalState
 defaultInternalState =
     InternalState
         { lastMetadataGC = Nothing
+        , lastDRepMetadataGC = Nothing
         }
 
 instance FromJSON PoolMetadataSource where

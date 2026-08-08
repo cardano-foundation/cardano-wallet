@@ -30,6 +30,7 @@ import Control.Concurrent
     )
 import Control.Monad
     ( forM_
+    , when
     )
 import Control.Monad.Trans.Except
     ( runExceptT
@@ -42,6 +43,12 @@ import Data.Maybe
     )
 import Data.Text
     ( Text
+    )
+import Data.Time.Clock
+    ( NominalDiffTime
+    )
+import Data.Time.Clock.POSIX
+    ( getPOSIXTime
     )
 import Network.HTTP.Client
     ( Manager
@@ -114,10 +121,41 @@ monitorDRepMetadata netLayer db manager ipfsGateway intervalMicros =
                             case result of
                                 Right meta -> atomically $ putDRepMetadata hexH meta
                                 Left _ -> atomically $ putDRepFetchAttempt (url, hexH)
+                        runGCIfDue db regs
 
 -- | Per-request timeout for DRep metadata fetches: 30 seconds.
 fetchTimeoutMicros :: Int
 fetchTimeoutMicros = 30000000
+
+-- | How often to run the DRep metadata GC: 24 hours.
+gcIntervalSeconds :: NominalDiffTime
+gcIntervalSeconds = 86400
+
+-- | Remove drep_metadata rows no longer referenced by any active DRep,
+-- but only if the GC interval has elapsed since the last run.
+runGCIfDue
+    :: DBLayer IO
+    -> [DRepRegistration]
+    -> IO ()
+runGCIfDue db regs = case db of
+    DBLayer
+        { atomically
+        , readLastDRepMetadataGC
+        , putLastDRepMetadataGC
+        , removeStaleMetadata
+        } -> do
+            now <- getPOSIXTime
+            mLast <- atomically readLastDRepMetadataGC
+            let elapsed = maybe gcIntervalSeconds (\t -> now - t) mLast
+            when (elapsed >= gcIntervalSeconds) $ do
+                let liveHashes =
+                        Set.fromList
+                            [ hexBS (drepAnchorHash anchor)
+                            | reg <- regs
+                            , Just anchor <- [drepRegAnchor reg]
+                            ]
+                atomically $ removeStaleMetadata liveHashes
+                atomically $ putLastDRepMetadataGC now
 
 hexBS :: ByteString -> Text
 hexBS = T.decodeUtf8 . BA.convertToBase BA.Base16

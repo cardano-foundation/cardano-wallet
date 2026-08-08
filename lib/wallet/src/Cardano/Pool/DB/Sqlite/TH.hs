@@ -79,6 +79,7 @@ share
 
 InternalState sql=internal_state
     lastGCMetadata                   POSIXTime Maybe   sql=last_gc_metadata
+    lastGCDRepMetadata               UTCTime   Maybe   sql=last_gc_drep_metadata
 
     deriving Show Generic
 

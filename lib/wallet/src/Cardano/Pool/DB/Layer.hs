@@ -155,6 +155,10 @@ import Data.Time.Clock
     , addUTCTime
     , getCurrentTime
     )
+import Data.Time.Clock.POSIX
+    ( posixSecondsToUTCTime
+    , utcTimeToPOSIXSeconds
+    )
 import Data.Word
     ( Word64
     , Word8
@@ -177,6 +181,7 @@ import Database.Persist.Sql
     , toPersistValue
     , update
     , (<.)
+    , (/<-.)
     , (=.)
     , (==.)
     , (>.)
@@ -705,7 +710,31 @@ newDBLayer tr ti SqliteContext{runQuery} =
                 []
         case result of
             Just _ -> update (InternalStateKey 1) [LastGCMetadata =. Just utc]
-            Nothing -> insert_ (InternalState $ Just utc)
+            Nothing -> insert_ (InternalState (Just utc) Nothing)
+
+    readLastDRepMetadataGC = do
+        result <- selectFirst [] [Asc InternalStateId, LimitTo 1]
+        pure $ case result of
+            Nothing -> Nothing
+            Just entity ->
+                let InternalState _gc drepGC = entityVal entity
+                in  fmap utcTimeToPOSIXSeconds drepGC
+
+    putLastDRepMetadataGC t = do
+        let utc = posixSecondsToUTCTime t
+        result <-
+            selectFirst
+                [InternalStateId ==. (InternalStateKey 1)]
+                []
+        case result of
+            Just _ ->
+                update
+                    (InternalStateKey 1)
+                    [LastGCDRepMetadata =. Just utc]
+            Nothing -> insert_ (InternalState Nothing (Just utc))
+
+    removeStaleMetadata liveHashes =
+        deleteWhere [TH.DrepMetadataHash /<-. Set.toList liveHashes]
 
     cleanDB = do
         deleteWhere ([] :: [Filter PoolProduction])
@@ -1211,7 +1240,7 @@ toSettings :: W.Settings -> Settings
 toSettings (W.Settings pms) = Settings pms
 
 fromInternalState :: InternalState -> W.InternalState
-fromInternalState (InternalState utc) = W.InternalState utc
+fromInternalState (InternalState utc _drepUtc) = W.InternalState utc Nothing
 
 fromDRepMetadataRow :: TH.DRepMetadata -> DRepMetadata
 fromDRepMetadataRow row =

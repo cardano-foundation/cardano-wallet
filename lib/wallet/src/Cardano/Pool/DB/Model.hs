@@ -73,6 +73,9 @@ module Cardano.Pool.DB.Model
     , mPutSettings
     , mPutLastMetadataGC
     , mReadLastMetadataGC
+    , mReadLastDRepMetadataGC
+    , mPutLastDRepMetadataGC
+    , mRemoveStaleMetadata
     ) where
 
 import Cardano.Pool.DB
@@ -556,6 +559,23 @@ mPutLastMetadataGC
     :: POSIXTime
     -> ModelOp ()
 mPutLastMetadataGC t = modify (#internalState . #lastMetadataGC) (\_ -> Just t)
+
+mReadLastDRepMetadataGC
+    :: ModelOp (Maybe POSIXTime)
+mReadLastDRepMetadataGC = get (#internalState . #lastDRepMetadataGC)
+
+mPutLastDRepMetadataGC
+    :: POSIXTime
+    -> ModelOp ()
+mPutLastDRepMetadataGC t =
+    modify (#internalState . #lastDRepMetadataGC) (const (Just t))
+
+mRemoveStaleMetadata
+    :: Set Text
+    -> ModelOp ()
+mRemoveStaleMetadata liveHashes =
+    modify #drepMetadata
+        $ Map.filterWithKey (\h _ -> h `Set.member` liveHashes)
 
 mPutDRepMetadata :: Text -> DRepMetadata -> ModelOp ()
 mPutDRepMetadata hash meta = do
