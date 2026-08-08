@@ -48,6 +48,8 @@ import Prelude
 
 import qualified Data.ByteArray.Encoding as BA
 import qualified Data.ByteString as BS
+import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
 import qualified Data.Text.Encoding as T
 
 spec :: Spec
@@ -156,6 +158,55 @@ spec = describe "Cardano.Wallet.DRep.Layer" $ do
             layer <- newDRepLayer nl db
             summary <- getDRepSummary layer
             drepSummaryTotalStake summary `shouldBe` Coin 3000000
+
+    describe "GC DB operations" $ do
+        it "removeStaleMetadata prunes orphaned hashes" $ do
+            db <- newDBLayer dummyTimeInterpreter
+            case db of
+                DBLayer
+                    { atomically
+                    , putDRepMetadata
+                    , removeStaleMetadata
+                    , getAllDRepMetadata
+                    } -> do
+                        atomically $ putDRepMetadata "aabbcc" testMeta
+                        atomically $ putDRepMetadata "ddeeff" testMeta
+                        atomically
+                            $ removeStaleMetadata (Set.fromList ["aabbcc"])
+                        remaining <- atomically getAllDRepMetadata
+                        Map.keys remaining `shouldBe` ["aabbcc"]
+
+        it "removeStaleMetadata keeps all rows when all are live" $ do
+            db <- newDBLayer dummyTimeInterpreter
+            case db of
+                DBLayer
+                    { atomically
+                    , putDRepMetadata
+                    , removeStaleMetadata
+                    , getAllDRepMetadata
+                    } -> do
+                        atomically $ putDRepMetadata "aabbcc" testMeta
+                        atomically
+                            $ removeStaleMetadata
+                                (Set.fromList ["aabbcc", "extra"])
+                        remaining <- atomically getAllDRepMetadata
+                        Map.keys remaining `shouldBe` ["aabbcc"]
+
+        it "putLastDRepMetadataGC / readLastDRepMetadataGC roundtrip" $ do
+            db <- newDBLayer dummyTimeInterpreter
+            case db of
+                DBLayer
+                    { atomically
+                    , putLastDRepMetadataGC
+                    , readLastDRepMetadataGC
+                    } -> do
+                        before <- atomically readLastDRepMetadataGC
+                        before `shouldBe` Nothing
+                        let t = 1234567890
+                        atomically $ putLastDRepMetadataGC t
+                        after <- atomically readLastDRepMetadataGC
+                        after `shouldBe` Just t
+
   where
     testReg1 :: DRepRegistration
     testReg1 =
