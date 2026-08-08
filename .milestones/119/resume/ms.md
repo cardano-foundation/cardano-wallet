@@ -1,7 +1,22 @@
 # Resume — cardano-wallet technical-debt cleanup desk (#119)
 
-- **State:** PARKED under `OMNIA-PAUSA-2026-08-07.md` (declared 15:28Z; Claude 11%, budget not the trigger; pointer `POINTER-OMNIA-1786217300`). Supersedes the 2026-08-05 pause. No test suite making signed commits is owned by this desk (special instruction N/A). Zero live children again -- no master commits/merges since the 2026-08-05 park (verified: last two merges remain #5343/#5362, both already recorded). Nothing in flight, nothing to land.
+- **State:** PARKED under `OMNIA-PAUSA-2026-08-08.md` (declared 20:55Z; Claude 20%, Codex reads 0%-unverified; pointer `POINTER-OMNIA-1786323300`). Public state refreshed BEFORE parking (see below). No signed-commit test suite owned (N/A). Zero live children -- no master commits/merges since 2026-08-05. Nothing in flight, nothing to land.
 - **Desk Window:** `cardano-wallet-ms119-technical-debt` (session `wallet`, window `@3639`)
+
+## Public state refresh (done before parking, per instruction)
+
+- Static description converted to the new split format (Outcome + bare wiki
+  URL, no dated stamp) and published: `.milestones/119/description.md`.
+- Live state page created at `M119-State` on the wiki (did not exist before):
+  `.milestones/119/state.md`, pushed commit `e394d8a`.
+- **Render verification: COULD-NOT-EVALUATE, treated as RED, not silently
+  passed.** `curl`-based check failed to fetch the page after 3 retries
+  (rate-limited/challenged). A WebFetch-based by-eye check then reported the
+  mermaid block rendering as plain source, not a diagram -- inconclusive but
+  concerning. Content is confirmed live and byte-correct (git push read-back
+  matched); whether it *renders* as a diagram is unverified. Re-check at next
+  sweep, by eye, logged in.
+
 - **Runtime:** `/tmp/ms-cw-tech-debt`
 
 ---
