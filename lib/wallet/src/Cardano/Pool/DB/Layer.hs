@@ -180,8 +180,8 @@ import Database.Persist.Sql
     , selectList
     , toPersistValue
     , update
-    , (<.)
     , (/<-.)
+    , (<.)
     , (=.)
     , (==.)
     , (>.)

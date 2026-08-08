@@ -15,12 +15,12 @@ import Cardano.Wallet.Api
     , CreateTransactionOld
     , DecodeTransaction
     , DeleteTransaction
+    , GetDRepSummary
     , GetTransaction
     , InspectAddress
     , JoinStakePool
     , ListAddresses
     , ListDReps
-    , GetDRepSummary
     , ListStakePools
     , ListTransactions
     , MigrateShelleyWallet

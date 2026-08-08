@@ -375,10 +375,10 @@ import Cardano.Wallet.Api.Types
     , ApiDRepAnchor (..)
     , ApiDRepCredential (..)
     , ApiDRepInfo (..)
-    , ApiDRepSummary (..)
     , ApiDRepMetaReference (..)
     , ApiDRepMetadata (..)
     , ApiDRepSpecifier (..)
+    , ApiDRepSummary (..)
     , ApiDecodeTransactionPostData (..)
     , ApiDecodedTransaction (..)
     , ApiExternalInput (..)
@@ -521,7 +521,6 @@ import Cardano.Wallet.DRep.Layer
     , DRepLayer
     , listDRepInfos
     )
-import qualified Cardano.Wallet.DRep.Layer as DRepLayer
 import Cardano.Wallet.Flavor
     ( AllFlavors
     , CredFromOf
@@ -935,6 +934,7 @@ import qualified Cardano.Wallet.Api.Types as Api
 import qualified Cardano.Wallet.Api.Types.Amount as ApiAmount
 import qualified Cardano.Wallet.Api.Types.WalletAssets as ApiWalletAssets
 import qualified Cardano.Wallet.DB as W
+import qualified Cardano.Wallet.DRep.Layer as DRepLayer
 import qualified Cardano.Wallet.Delegation as WD
 import qualified Cardano.Wallet.IO.Delegation as IODeleg
 import qualified Cardano.Wallet.Network as NW

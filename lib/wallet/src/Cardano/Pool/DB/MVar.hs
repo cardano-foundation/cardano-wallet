@@ -36,8 +36,8 @@ import Cardano.Pool.DB.Model
     , mPutDelistedPools
     , mPutFetchAttempt
     , mPutHeader
-    , mPutLastMetadataGC
     , mPutLastDRepMetadataGC
+    , mPutLastMetadataGC
     , mPutPoolMetadata
     , mPutPoolProduction
     , mPutPoolRegistration
@@ -48,7 +48,6 @@ import Cardano.Pool.DB.Model
     , mReadDelistedPools
     , mReadLastDRepMetadataGC
     , mReadLastMetadataGC
-    , mRemoveStaleMetadata
     , mReadPoolLifeCycleStatus
     , mReadPoolMetadata
     , mReadPoolProduction
@@ -61,6 +60,7 @@ import Cardano.Pool.DB.Model
     , mRecentlyFailedDRepHashes
     , mRemovePools
     , mRemoveRetiredPools
+    , mRemoveStaleMetadata
     , mRollbackTo
     , mUnfetchedPoolMetadataRefs
     )
