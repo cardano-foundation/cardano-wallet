@@ -26,6 +26,7 @@ import Cardano.Wallet.Primitive.Types.DRep
     , DRepKeyHash (..)
     , DRepMetadata (..)
     , DRepRegistration (..)
+    , DRepSummary (..)
     , encodeDRepIDBech32
     )
 import Data.Either
@@ -169,7 +170,13 @@ layer :: [DRep.DRepInfo] -> DRep.DRepLayer IO
 layer infos =
     DRep.DRepLayer
         { DRep.listDRepInfos = pure infos
-        , DRep.getDRepMetadata = const $ pure Nothing
+        , DRep.getDRepSummary =
+            pure
+                DRepSummary
+                    { drepSummaryTotalStake = Coin 0
+                    , drepSummaryActiveCount = 0
+                    , drepSummaryInactiveCount = 0
+                    }
         }
 
 mkInfo :: Word8 -> Bool -> Maybe DRepMetadata -> DRep.DRepInfo

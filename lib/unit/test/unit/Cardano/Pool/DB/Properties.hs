@@ -318,26 +318,17 @@ properties withDB = do
             (property (prop_removePoolMetadataDelistedPools withDB))
 
     describe "DRep metadata properties" $ do
-        it "roundtrips metadata and anchor hashes, then clears both"
+        it "roundtrips metadata via getAllDRepMetadata and clearDRepMetadata"
             $ withDB
             $ \DBLayer{..} -> do
-                atomically $ do
-                    putDRepMetadata drepMetadataHash drepMetadata
-                    putDRepAnchorHash drepId drepMetadataHash
+                atomically $ putDRepMetadata drepMetadataHash drepMetadata
 
-                atomically (getDRepMetadata drepMetadataHash)
-                    `shouldReturn` Just drepMetadata
                 atomically getAllDRepMetadata
                     `shouldReturn` Map.singleton drepMetadataHash drepMetadata
-                atomically (getDRepAnchorHash drepId)
-                    `shouldReturn` Just drepMetadataHash
 
                 atomically clearDRepMetadata
 
-                atomically (getDRepMetadata drepMetadataHash)
-                    `shouldReturn` Nothing
                 atomically getAllDRepMetadata `shouldReturn` Map.empty
-                atomically (getDRepAnchorHash drepId) `shouldReturn` Nothing
 
         it "suppresses a recently failed metadata hash"
             $ withDB
@@ -348,9 +339,6 @@ properties withDB = do
 
 okayConfidence :: Confidence
 okayConfidence = Confidence{certainty = 10 ^ (6 :: Int), tolerance = 0.9}
-
-drepId :: T.Text
-drepId = "drep1test"
 
 drepMetadataUrl :: T.Text
 drepMetadataUrl = "https://example.com/drep.json"

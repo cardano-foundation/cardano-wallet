@@ -1,8 +1,8 @@
+{-# LANGUAGE DisambiguateRecordFields #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 module Cardano.Wallet.DRep.WorkerSpec
@@ -12,11 +12,13 @@ module Cardano.Wallet.DRep.WorkerSpec
 import Cardano.Pool.DB
     ( DBLayer (..)
     )
-import Cardano.Wallet.DRep.Metadata
-    ( defaultIpfsGatewayUrl
+import Cardano.Pool.DB.MVar
+    ( newDBLayer
     )
 import Cardano.Wallet.DRep.Worker
-    ( runDRepMetadataCycle
+    ( WorkerConfig (..)
+    , defaultWorkerConfig
+    , runOneCycle
     )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( dummyNetworkLayer
@@ -32,16 +34,14 @@ import Cardano.Wallet.Primitive.Types.DRep
     ( DRepAnchor (..)
     , DRepID (..)
     , DRepKeyHash (..)
-    , DRepMetaReference (..)
     , DRepMetadata (..)
     , DRepRegistration (..)
-    , encodeDRepIDBech32
+    )
+import Control.Concurrent
+    ( threadDelay
     )
 import Cryptography.Hash.Blake
     ( blake2b256
-    )
-import Data.ByteString
-    ( ByteString
     )
 import Data.Default
     ( def
@@ -50,17 +50,11 @@ import Data.FileEmbed
     ( embedFile
     , makeRelativeToProject
     )
-import Data.IORef
-    ( IORef
-    , newIORef
-    , readIORef
-    , writeIORef
-    )
-import Data.Streaming.Network
-    ( bindRandomPortTCP
-    )
 import Data.Text
     ( Text
+    )
+import Data.Time.Clock.POSIX
+    ( POSIXTime
     )
 import Network.Connection
     ( TLSSettings (..)
@@ -83,14 +77,17 @@ import Network.Wai
     ( Application
     , responseLBS
     )
-import System.FilePath
-    ( (</>)
+import System.IO.Temp
+    ( withSystemTempDirectory
     )
 import Test.Hspec
     ( Spec
+    , SpecWith
+    , around
     , describe
     , it
     , shouldBe
+    , shouldSatisfy
     )
 import UnliftIO
     ( async
@@ -98,238 +95,383 @@ import UnliftIO
     , cancel
     , link
     )
-import UnliftIO.Temporary
-    ( withSystemTempDirectory
-    )
 import Prelude
 
-import qualified Cardano.Pool.DB.MVar as MVar
 import qualified Data.ByteArray.Encoding as BA
 import qualified Data.ByteString as BS
-import qualified Data.ByteString.Char8 as B8
-import qualified Data.ByteString.Lazy as BL
+import qualified Data.ByteString.Lazy as LBS
+import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
+import qualified Data.Streaming.Network as SN
+import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
+import qualified Network.Wai as Wai
 import qualified Network.Wai.Handler.Warp as Warp
 import qualified Network.Wai.Handler.WarpTLS as WarpTLS
 
+-- ---------------------------------------------------------------------------
+-- Spec
+-- ---------------------------------------------------------------------------
+
 spec :: Spec
 spec = describe "Cardano.Wallet.DRep.Worker" $ do
-    it "fetches and stores hash-verified metadata over HTTPS"
-        $ withMetadataFixture validMetadataBytes
-        $ \Fixture{..} -> do
-            runDRepMetadataCycle
-                networkLayer
-                db
-                manager
-                defaultIpfsGatewayUrl
+    describe "runOneCycle (logic)" $ around withLogicServer logicTests
+    describe "runOneCycle (HTTPS)" $ around withHttpsIntegrationServer httpsTests
 
-            cached <- readMetadata db anchorHashHex
-            cached `shouldBe` Just validMetadata
+-- ---------------------------------------------------------------------------
+-- Logic tests — driven by a real local HTTPS server
+-- ---------------------------------------------------------------------------
 
-            mappedHash <- readAnchorHash db $ encodeDRepIDBech32 drepId
-            mappedHash `shouldBe` Just anchorHashHex
+logicTests :: SpecWith (Int, Manager)
+logicTests = do
+    it "fetches metadata for DReps with unfetched anchors" $ \(port, mgr) -> do
+        db <- newDBLayer dummyTimeInterpreter
+        let url = mkUrl port "/valid.json"
+        let anchor = DRepAnchor{drepAnchorUrl = url, drepAnchorHash = validJsonHash}
+        let nl = dummyNetworkLayer{listDReps = pure (Just [mkReg 1 (Just anchor)])}
+        runOneCycle nl db mgr (testCfg 0)
+        case db of
+            DBLayer{atomically, getAllDRepMetadata} -> do
+                meta <- atomically getAllDRepMetadata
+                Map.size meta `shouldBe` 1
 
-    it "backs off after an HTTPS metadata hash mismatch"
-        $ withMetadataFixture invalidMetadataBytes
-        $ \Fixture{..} -> do
-            runDRepMetadataCycle
-                networkLayer
-                db
-                manager
-                defaultIpfsGatewayUrl
+    it "skips DReps with no anchor" $ \(_, mgr) -> do
+        db <- newDBLayer dummyTimeInterpreter
+        let nl = dummyNetworkLayer{listDReps = pure (Just [mkReg 1 Nothing])}
+        runOneCycle nl db mgr (testCfg 0)
+        case db of
+            DBLayer{atomically, getAllDRepMetadata} -> do
+                meta <- atomically getAllDRepMetadata
+                Map.size meta `shouldBe` 0
 
-            cachedAfterFailure <- readMetadata db anchorHashHex
-            cachedAfterFailure `shouldBe` Nothing
-            isFailed <- isRecentlyFailed db anchorHashHex
-            isFailed `shouldBe` True
+    it "skips DReps whose anchor is already cached" $ \(port, mgr) -> do
+        db <- newDBLayer dummyTimeInterpreter
+        let url = mkUrl port "/valid.json"
+        let anchor = DRepAnchor{drepAnchorUrl = url, drepAnchorHash = validJsonHash}
+        let hexH = hexBS validJsonHash
+        let nl = dummyNetworkLayer{listDReps = pure (Just [mkReg 1 (Just anchor)])}
+        case db of
+            DBLayer{atomically, putDRepMetadata} ->
+                atomically $ putDRepMetadata hexH testMeta
+        runOneCycle nl db mgr (testCfg 0)
+        case db of
+            DBLayer{atomically, getAllDRepMetadata} -> do
+                meta <- atomically getAllDRepMetadata
+                Map.size meta `shouldBe` 1
 
-            writeIORef servedMetadata $ Just validMetadataBytes
-            runDRepMetadataCycle
-                networkLayer
-                db
-                manager
-                defaultIpfsGatewayUrl
+    it "records a fetch attempt on hash mismatch" $ \(port, mgr) -> do
+        db <- newDBLayer dummyTimeInterpreter
+        let url = mkUrl port "/valid.json"
+        let wrongHash = BS.replicate 32 0xFF
+        let anchor = DRepAnchor{drepAnchorUrl = url, drepAnchorHash = wrongHash}
+        let nl = dummyNetworkLayer{listDReps = pure (Just [mkReg 1 (Just anchor)])}
+        runOneCycle nl db mgr (testCfg 0)
+        case db of
+            DBLayer{atomically, getAllDRepMetadata, recentlyFailedDRepHashes} -> do
+                meta <- atomically getAllDRepMetadata
+                Map.size meta `shouldBe` 0
+                failed <- atomically recentlyFailedDRepHashes
+                Set.size failed `shouldBe` 1
 
-            cachedDuringBackoff <- readMetadata db anchorHashHex
-            cachedDuringBackoff `shouldBe` Nothing
+    it "records a fetch attempt on HTTP error (404)" $ \(port, mgr) -> do
+        db <- newDBLayer dummyTimeInterpreter
+        let url = mkUrl port "/not-found"
+        let anchor =
+                DRepAnchor
+                    { drepAnchorUrl = url
+                    , drepAnchorHash = BS.replicate 32 0x00
+                    }
+        let nl = dummyNetworkLayer{listDReps = pure (Just [mkReg 1 (Just anchor)])}
+        runOneCycle nl db mgr (testCfg 0)
+        case db of
+            DBLayer{atomically, getAllDRepMetadata, recentlyFailedDRepHashes} -> do
+                meta <- atomically getAllDRepMetadata
+                Map.size meta `shouldBe` 0
+                failed <- atomically recentlyFailedDRepHashes
+                Set.size failed `shouldBe` 1
 
-    it "does not cache hash-valid but invalid CIP-0119 metadata"
-        $ withMetadataFixtureExpecting invalidCip0119Bytes invalidCip0119Bytes
-        $ \Fixture{..} -> do
-            runDRepMetadataCycle
-                networkLayer
-                db
-                manager
-                defaultIpfsGatewayUrl
+    it "records a fetch attempt when fetch times out" $ \(port, mgr) -> do
+        db <- newDBLayer dummyTimeInterpreter
+        let url = mkUrl port "/slow"
+        let anchor =
+                DRepAnchor
+                    { drepAnchorUrl = url
+                    , drepAnchorHash = BS.replicate 32 0x00
+                    }
+        let nl = dummyNetworkLayer{listDReps = pure (Just [mkReg 1 (Just anchor)])}
+        let timeoutCfg = (testCfg 0){workerFetchTimeoutMicros = 1}
+        runOneCycle nl db mgr timeoutCfg
+        case db of
+            DBLayer{atomically, getAllDRepMetadata, recentlyFailedDRepHashes} -> do
+                meta <- atomically getAllDRepMetadata
+                Map.size meta `shouldBe` 0
+                failed <- atomically recentlyFailedDRepHashes
+                Set.size failed `shouldBe` 1
 
-            cached <- readMetadata db anchorHashHex
-            cached `shouldBe` Nothing
-            isFailed <- isRecentlyFailed db anchorHashHex
-            isFailed `shouldBe` True
+    it "skips DReps in the backoff window" $ \(port, mgr) -> do
+        db <- newDBLayer dummyTimeInterpreter
+        let url = mkUrl port "/valid.json"
+        let anchor = DRepAnchor{drepAnchorUrl = url, drepAnchorHash = validJsonHash}
+        let hexH = hexBS validJsonHash
+        let nl = dummyNetworkLayer{listDReps = pure (Just [mkReg 1 (Just anchor)])}
+        case db of
+            DBLayer{atomically, putDRepFetchAttempt} ->
+                atomically $ putDRepFetchAttempt (url, hexH)
+        runOneCycle nl db mgr (testCfg 0)
+        case db of
+            DBLayer{atomically, getAllDRepMetadata} -> do
+                meta <- atomically getAllDRepMetadata
+                Map.size meta `shouldBe` 0
 
-    it "records a missing HTTPS resource as a failed fetch"
-        $ withMetadataFixture validMetadataBytes
-        $ \Fixture{..} -> do
-            writeIORef servedMetadata Nothing
-            runDRepMetadataCycle
-                networkLayer
-                db
-                manager
-                defaultIpfsGatewayUrl
+    it "triggers GC when interval has elapsed" $ \(port, mgr) -> do
+        db <- newDBLayer dummyTimeInterpreter
+        let url = mkUrl port "/valid.json"
+        let anchor = DRepAnchor{drepAnchorUrl = url, drepAnchorHash = validJsonHash}
+        let nl = dummyNetworkLayer{listDReps = pure (Just [mkReg 1 (Just anchor)])}
+        case db of
+            DBLayer{atomically, putDRepMetadata} ->
+                atomically $ putDRepMetadata "orphan" testMeta
+        let gcCfg = (testCfg 0){workerGCIntervalSeconds = 0}
+        runOneCycle nl db mgr gcCfg
+        case db of
+            DBLayer{atomically, readLastDRepMetadataGC} -> do
+                mGCTime <- atomically readLastDRepMetadataGC
+                mGCTime `shouldSatisfy` (Nothing /=)
 
-            cached <- readMetadata db anchorHashHex
-            cached `shouldBe` Nothing
-            isFailed <- isRecentlyFailed db anchorHashHex
-            isFailed `shouldBe` True
+    it "does not trigger GC before interval" $ \(_, mgr) -> do
+        db <- newDBLayer dummyTimeInterpreter
+        let nl = dummyNetworkLayer{listDReps = pure (Just [])}
+        let now = 1_000_000
+        case db of
+            DBLayer{atomically, putLastDRepMetadataGC} ->
+                atomically $ putLastDRepMetadataGC now
+        let noGcCfg = (testCfg now){workerGCIntervalSeconds = 3600}
+        runOneCycle nl db mgr noGcCfg
+        case db of
+            DBLayer{atomically, readLastDRepMetadataGC} -> do
+                mGCTime <- atomically readLastDRepMetadataGC
+                mGCTime `shouldBe` Just now
 
-data Fixture = Fixture
-    { db :: DBLayer IO
-    , manager :: Manager
-    , networkLayer :: NetworkLayer IO ()
-    , servedMetadata :: IORef (Maybe ByteString)
-    , anchorHashHex :: Text
-    , drepId :: DRepID
-    }
+-- ---------------------------------------------------------------------------
+-- HTTPS integration tests
+-- ---------------------------------------------------------------------------
 
-withMetadataFixture
-    :: ByteString
-    -> (Fixture -> IO a)
-    -> IO a
-withMetadataFixture servedBytes =
-    withMetadataFixtureExpecting servedBytes validMetadataBytes
-
-withMetadataFixtureExpecting
-    :: ByteString
-    -> ByteString
-    -> (Fixture -> IO a)
-    -> IO a
-withMetadataFixtureExpecting servedBytes expectedBytes action =
-    withSystemTempDirectory "drep-metadata" $ \dir -> do
-        let certificatePath = dir </> "server.crt"
-            keyPath = dir </> "server.key"
-        BS.writeFile certificatePath serverCertificate
-        BS.writeFile keyPath serverKey
-        servedMetadata <- newIORef $ Just servedBytes
-        withHttpsServer certificatePath keyPath servedMetadata $ \baseUrl -> do
-            manager <-
-                newManager
-                    $ mkManagerSettings
-                        (TLSSettingsSimple True False False def)
-                        Nothing
-            db <- MVar.newDBLayer dummyTimeInterpreter
-            let drepId =
-                    DRepFromKeyHash
-                        $ DRepKeyHash
-                        $ BS.replicate 28 0x01
-                anchorHash = blake2b256 expectedBytes
-                anchorHashHex = hexBS anchorHash
-                registration =
-                    DRepRegistration
-                        { drepRegId = drepId
-                        , drepRegExpiryEpoch = 500
-                        , drepRegAnchor =
-                            Just
-                                DRepAnchor
-                                    { drepAnchorUrl =
-                                        T.decodeUtf8
-                                            $ B8.pack
-                                            $ baseUrl <> "drep.json"
-                                    , drepAnchorHash = anchorHash
-                                    }
-                        , drepRegDeposit = Coin 500_000_000
-                        , drepRegVotingPower = Coin 1_000_000
-                        , drepRegIsActive = True
+httpsTests :: SpecWith (Int, Manager)
+httpsTests = do
+    it "successfully fetches and stores CIP-0119 metadata from a real HTTPS server"
+        $ \(port, mgr) -> do
+            db <- newDBLayer dummyTimeInterpreter
+            let url = mkUrl port "/valid.json"
+            let anchor =
+                    DRepAnchor
+                        { drepAnchorUrl = url
+                        , drepAnchorHash = validJsonHash
                         }
-                networkLayer =
-                    dummyNetworkLayer
-                        { listDReps = pure $ Just [registration]
-                        }
-            action Fixture{..}
+            let nl = dummyNetworkLayer{listDReps = pure (Just [mkReg 1 (Just anchor)])}
+            runOneCycle
+                nl
+                db
+                mgr
+                (defaultWorkerConfig "https://ipfs.example.com/ipfs/" 0)
+            case db of
+                DBLayer{atomically, getAllDRepMetadata} -> do
+                    meta <- atomically getAllDRepMetadata
+                    Map.size meta `shouldBe` 1
 
-withHttpsServer
-    :: FilePath
-    -> FilePath
-    -> IORef (Maybe ByteString)
-    -> (String -> IO a)
-    -> IO a
-withHttpsServer certificatePath keyPath servedMetadata action =
-    bracket (bindRandomPortTCP "127.0.0.1") (close . snd)
-        $ \(port, socket) ->
-            bracket
-                (async $ WarpTLS.runTLSSocket tlsSettings warpSettings socket app)
-                cancel
-                $ \server -> do
-                    link server
-                    action $ "https://localhost:" <> show port <> "/"
-  where
-    tlsSettings = WarpTLS.tlsSettings certificatePath keyPath
-    warpSettings = Warp.setHost "127.0.0.1" Warp.defaultSettings
-    app :: Application
-    app _ respond = do
-        readIORef servedMetadata >>= \case
-            Just bytes ->
-                respond
-                    $ responseLBS
-                        status200
-                        [("Content-Type", "application/json")]
-                        (BL.fromStrict bytes)
-            Nothing -> respond $ responseLBS status404 [] ""
+    it "records a fetch attempt when the server returns 404" $ \(port, mgr) -> do
+        db <- newDBLayer dummyTimeInterpreter
+        let url = mkUrl port "/missing"
+        let anchor =
+                DRepAnchor
+                    { drepAnchorUrl = url
+                    , drepAnchorHash = BS.replicate 32 0x00
+                    }
+        let nl = dummyNetworkLayer{listDReps = pure (Just [mkReg 1 (Just anchor)])}
+        runOneCycle
+            nl
+            db
+            mgr
+            (defaultWorkerConfig "https://ipfs.example.com/ipfs/" 0)
+        case db of
+            DBLayer{atomically, recentlyFailedDRepHashes} -> do
+                failed <- atomically recentlyFailedDRepHashes
+                Set.size failed `shouldBe` 1
 
-serverCertificate :: ByteString
-serverCertificate =
-    $( makeRelativeToProject
-        "test/data/PKIs/1/server/server.crt"
+    it "records a fetch attempt when the hash does not match" $ \(port, mgr) -> do
+        db <- newDBLayer dummyTimeInterpreter
+        let url = mkUrl port "/valid.json"
+        let wrongHash = BS.replicate 32 0xAB
+        let anchor =
+                DRepAnchor
+                    { drepAnchorUrl = url
+                    , drepAnchorHash = wrongHash
+                    }
+        let nl = dummyNetworkLayer{listDReps = pure (Just [mkReg 1 (Just anchor)])}
+        runOneCycle
+            nl
+            db
+            mgr
+            (defaultWorkerConfig "https://ipfs.example.com/ipfs/" 0)
+        case db of
+            DBLayer{atomically, recentlyFailedDRepHashes} -> do
+                failed <- atomically recentlyFailedDRepHashes
+                Set.size failed `shouldBe` 1
+
+-- ---------------------------------------------------------------------------
+-- Server setup
+-- ---------------------------------------------------------------------------
+
+-- | Build an HTTPS URL pointing to the local test server.
+mkUrl :: Int -> Text -> Text
+mkUrl port path = "https://127.0.0.1:" <> T.pack (show port) <> path
+
+-- | Set up a local HTTPS server for logic tests.
+withLogicServer :: ((Int, Manager) -> IO ()) -> IO ()
+withLogicServer action =
+    withTempCerts $ \certPath keyPath -> do
+        mgr <- insecureManager
+        withHttpsServer certPath keyPath logicApp $ \port ->
+            action (port, mgr)
+
+-- | Set up a local HTTPS integration server for httpsTests.
+withHttpsIntegrationServer :: ((Int, Manager) -> IO ()) -> IO ()
+withHttpsIntegrationServer action =
+    withTempCerts $ \certPath keyPath -> do
+        mgr <- insecureManager
+        withHttpsServer certPath keyPath httpsApp $ \port ->
+            action (port, mgr)
+
+-- | Start a warp-tls server on a random port, run the action, then stop.
+withHttpsServer :: FilePath -> FilePath -> Application -> (Int -> IO ()) -> IO ()
+withHttpsServer certPath keyPath app action =
+    bracket (SN.bindRandomPortTCP "127.0.0.1") (close . snd) $ \(port, sock) ->
+        bracket
+            ( async
+                $ WarpTLS.runTLSSocket
+                    (WarpTLS.tlsSettings certPath keyPath)
+                    (Warp.setHost "127.0.0.1" Warp.defaultSettings)
+                    sock
+                    app
+            )
+            cancel
+            $ \server -> do
+                link server
+                threadDelay 50_000
+                action port
+
+-- | WAI application used for logic tests.
+logicApp :: Application
+logicApp req respond = case Wai.rawPathInfo req of
+    "/valid.json" ->
+        respond
+            $ responseLBS
+                status200
+                [("Content-Type", "application/json")]
+                (LBS.fromStrict validJsonBody)
+    "/not-found" ->
+        respond $ responseLBS status404 [] "Not Found"
+    "/slow" -> do
+        threadDelay 10_000_000
+        respond $ responseLBS status200 [] "{\"givenName\":\"Slow\"}"
+    _ ->
+        respond $ responseLBS status404 [] "Not Found"
+
+-- | WAI application used for HTTPS integration tests.
+httpsApp :: Application
+httpsApp req respond = case Wai.rawPathInfo req of
+    "/valid.json" ->
+        respond
+            $ responseLBS
+                status200
+                [("Content-Type", "application/json")]
+                (LBS.fromStrict validJsonBody)
+    _ ->
+        respond $ responseLBS status404 [] "Not Found"
+
+-- ---------------------------------------------------------------------------
+-- TLS infrastructure
+-- ---------------------------------------------------------------------------
+
+-- | Write embedded test cert and key to temp files, run action with paths.
+withTempCerts :: (FilePath -> FilePath -> IO a) -> IO a
+withTempCerts action =
+    withSystemTempDirectory "drep-worker-test" $ \dir -> do
+        let certPath = dir <> "/server.crt"
+            keyPath = dir <> "/server.key"
+        BS.writeFile certPath serverCertBytes
+        BS.writeFile keyPath serverKeyBytes
+        action certPath keyPath
+
+-- | Build an HTTP 'Manager' that skips TLS certificate validation.
+-- Used only in tests; never in production code.
+insecureManager :: IO Manager
+insecureManager =
+    newManager
+        $ mkManagerSettings
+            (TLSSettingsSimple True False False def)
+            Nothing
+
+-- | Embedded TLS server certificate (from test PKI).
+serverCertBytes :: BS.ByteString
+serverCertBytes =
+    $( makeRelativeToProject "test/data/PKIs/1/server/server.crt"
         >>= embedFile
      )
 
-serverKey :: ByteString
-serverKey =
-    $( makeRelativeToProject
-        "test/data/PKIs/1/server/server.key"
+-- | Embedded TLS server private key (from test PKI).
+serverKeyBytes :: BS.ByteString
+serverKeyBytes =
+    $( makeRelativeToProject "test/data/PKIs/1/server/server.key"
         >>= embedFile
      )
 
-validMetadataBytes :: ByteString
-validMetadataBytes =
-    "{\"body\":{\"givenName\":\"Alice\",\"objectives\":\"Promote decentralisation\",\"motivations\":\"Long-time community member\",\"qualifications\":\"10 years in DLT\",\"paymentAddress\":\"addr_test1\",\"doNotList\":false,\"references\":[{\"label\":\"Website\",\"uri\":\"https://alice.example.com\"}]}}"
+-- ---------------------------------------------------------------------------
+-- Test data
+-- ---------------------------------------------------------------------------
 
-invalidMetadataBytes :: ByteString
-invalidMetadataBytes =
-    "{\"body\":{\"givenName\":\"Mallory\",\"doNotList\":false}}"
+-- | A minimal valid CIP-0119 JSON body.
+validJsonBody :: BS.ByteString
+validJsonBody = "{\"givenName\":\"Test DRep\"}"
 
-invalidCip0119Bytes :: ByteString
-invalidCip0119Bytes =
-    "{\"body\":{\"doNotList\":false}}"
+-- | The Blake2b-256 hash of 'validJsonBody'.
+validJsonHash :: BS.ByteString
+validJsonHash = blake2b256 validJsonBody
 
-validMetadata :: DRepMetadata
-validMetadata =
-    DRepMetadata
-        { drepMetaName = "Alice"
-        , drepMetaObjectives = Just "Promote decentralisation"
-        , drepMetaMotivations = Just "Long-time community member"
-        , drepMetaQualifications = Just "10 years in DLT"
-        , drepMetaPaymentAddress = Just "addr_test1"
-        , drepMetaDoNotList = False
-        , drepMetaReferences =
-            [ DRepMetaReference
-                { drepMetaRefLabel = "Website"
-                , drepMetaRefUri = "https://alice.example.com"
-                }
-            ]
-        }
-
-hexBS :: ByteString -> Text
+-- | Hex-encode a ByteString.
+hexBS :: BS.ByteString -> Text
 hexBS = T.decodeUtf8 . BA.convertToBase BA.Base16
 
-readMetadata :: DBLayer IO -> Text -> IO (Maybe DRepMetadata)
-readMetadata DBLayer{atomically, getDRepMetadata} hash =
-    atomically $ getDRepMetadata hash
+-- | Build a minimal 'DRepRegistration' with the given anchor.
+mkReg :: Int -> Maybe DRepAnchor -> DRepRegistration
+mkReg n anchor =
+    DRepRegistration
+        { drepRegId = DRepFromKeyHash (DRepKeyHash (BS.replicate 28 (fromIntegral n)))
+        , drepRegExpiryEpoch = 500
+        , drepRegAnchor = anchor
+        , drepRegDeposit = Coin 500_000_000
+        , drepRegVotingPower = Coin 0
+        , drepRegIsActive = True
+        }
 
-readAnchorHash :: DBLayer IO -> Text -> IO (Maybe Text)
-readAnchorHash DBLayer{atomically, getDRepAnchorHash} drepId =
-    atomically $ getDRepAnchorHash drepId
+-- | A 'WorkerConfig' for tests: 5-second fetch timeout and instant GC.
+testCfg :: POSIXTime -> WorkerConfig
+testCfg now =
+    ( defaultWorkerConfig "https://ipfs.example.com/ipfs/" 1_000_000
+    )
+        { workerFetchTimeoutMicros = 5_000_000
+        , workerGCIntervalSeconds = 0
+        , workerGetTime = pure now
+        }
 
-isRecentlyFailed :: DBLayer IO -> Text -> IO Bool
-isRecentlyFailed DBLayer{atomically, recentlyFailedDRepHashes} hash =
-    Set.member hash <$> atomically recentlyFailedDRepHashes
+-- | A minimal 'DRepMetadata' fixture.
+testMeta :: DRepMetadata
+testMeta =
+    DRepMetadata
+        { drepMetaName = "Test DRep"
+        , drepMetaObjectives = Nothing
+        , drepMetaMotivations = Nothing
+        , drepMetaQualifications = Nothing
+        , drepMetaPaymentAddress = Nothing
+        , drepMetaDoNotList = False
+        , drepMetaReferences = []
+        }
