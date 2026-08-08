@@ -14,6 +14,8 @@ module Cardano.Wallet.DRep.Metadata
     , parseCip0119
     , resolveUrl
     , defaultIpfsGatewayUrl
+    , readLimited
+    , maxMetadataBytes
     ) where
 
 import Cardano.Wallet.Primitive.Types.DRep

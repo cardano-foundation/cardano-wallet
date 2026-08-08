@@ -361,8 +361,10 @@ serveWallet
                                 netLayer
                                 stakePoolDbLayer
                                 mgr
-                                ipfsGatewayUrl
-                                drepMetadataFetchIntervalMicros
+                                ( DRep.defaultWorkerConfig
+                                    ipfsGatewayUrl
+                                    drepMetadataFetchIntervalMicros
+                                )
                         supervised = handle onCrash worker
                         onCrash e = do
                             traceWith applicationTracer
