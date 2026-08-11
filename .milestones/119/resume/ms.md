@@ -1,21 +1,27 @@
 # Resume — cardano-wallet technical-debt cleanup desk (#119)
 
-- **State:** PARKED under `OMNIA-PAUSA-2026-08-08.md` (declared 20:55Z; Claude 20%, Codex reads 0%-unverified; pointer `POINTER-OMNIA-1786323300`). Public state refreshed BEFORE parking (see below). No signed-commit test suite owned (N/A). Zero live children -- no master commits/merges since 2026-08-05. Nothing in flight, nothing to land.
+- **State:** PARKED under `OMNIA-PAUSA-2026-08-11.md` (declared 18:35Z; Claude 51%, CI-runner outage restored -- unrelated to our two flakes; pointer `POINTER-OMNIA-1786516500`). Public state refreshed BEFORE parking (see below, updated finding). No signed-commit test suite owned (N/A). Zero live children -- verified no master commits/merges since 2026-08-05 (head still d3d170d0). Nothing in flight, nothing to land.
 - **Desk Window:** `cardano-wallet-ms119-technical-debt` (session `wallet`, window `@3639`)
 
 ## Public state refresh (done before parking, per instruction)
 
-- Static description converted to the new split format (Outcome + bare wiki
-  URL, no dated stamp) and published: `.milestones/119/description.md`.
-- Live state page created at `M119-State` on the wiki (did not exist before):
-  `.milestones/119/state.md`, pushed commit `e394d8a`.
-- **Render verification: COULD-NOT-EVALUATE, treated as RED, not silently
-  passed.** `curl`-based check failed to fetch the page after 3 retries
-  (rate-limited/challenged). A WebFetch-based by-eye check then reported the
-  mermaid block rendering as plain source, not a diagram -- inconclusive but
-  concerning. Content is confirmed live and byte-correct (git push read-back
-  matched); whether it *renders* as a diagram is unverified. Re-check at next
-  sweep, by eye, logged in.
+- description.md (static, new split format) unchanged since 2026-08-08 --
+  no republish needed, definition has not changed.
+- state.md republished for 2026-08-11 (commit `70ba223`): dates refreshed,
+  explicit note that master hasn't moved and both badges are confirmed
+  still red on the same runs.
+- **Render verification: now CONFIRMED FAILING, not merely unverified.**
+  Second independent WebFetch by-eye check (2026-08-08 and 2026-08-11, two
+  different pushes) both report the mermaid block displaying as plain
+  syntax-highlighted source, not a rendered diagram. The `curl`-based check
+  in publish-description.sh also failed to fetch the page both times
+  (rate-limited/challenged) -- could-not-evaluate, correctly treated as RED
+  by that instrument. Two consistent by-eye readings now outweigh
+  coincidence: **this repo's wiki is not rendering Mermaid for this page,
+  contrary to the skill's documented premise.** This is a shared instrument
+  (publish-description.sh, used by other milestones too) -- not this desk's
+  to fix, but worth surfacing to whoever maintains milestone-orchestrator.
+  Content itself remains live and byte-correct either way.
 
 - **Runtime:** `/tmp/ms-cw-tech-debt`
 
