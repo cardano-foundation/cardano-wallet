@@ -337,6 +337,24 @@ properties withDB = do
                 failed <- atomically recentlyFailedDRepHashes
                 Set.member drepMetadataHash failed `shouldBe` True
 
+        it "removeStaleMetadata prunes orphaned rows"
+            $ withDB
+            $ \DBLayer{..} -> do
+                atomically $ putDRepMetadata "aabbcc" drepMetadata
+                atomically $ putDRepMetadata "ddeeff" drepMetadata
+                atomically $ removeStaleMetadata (Set.singleton "aabbcc")
+                remaining <- atomically getAllDRepMetadata
+                Map.keys remaining `shouldBe` ["aabbcc"]
+
+        it "removeStaleMetadata with empty set removes all rows"
+            $ withDB
+            $ \DBLayer{..} -> do
+                atomically $ putDRepMetadata "aabbcc" drepMetadata
+                atomically $ putDRepMetadata "ddeeff" drepMetadata
+                atomically $ removeStaleMetadata Set.empty
+                remaining <- atomically getAllDRepMetadata
+                remaining `shouldBe` Map.empty
+
 okayConfidence :: Confidence
 okayConfidence = Confidence{certainty = 10 ^ (6 :: Int), tolerance = 0.9}
 

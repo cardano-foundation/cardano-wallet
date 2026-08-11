@@ -210,6 +210,8 @@ data PoolDatabase = PoolDatabase
     , internalState :: InternalState
     -- ^ Various internal states that need to persist across
     -- wallet restarts.
+    , lastDRepMetadataGC :: !(Maybe POSIXTime)
+    -- ^ Timestamp of the last DRep metadata GC run.
     }
     deriving (Generic, Show, Eq)
 
@@ -242,6 +244,7 @@ emptyPoolDatabase =
         mempty
         defaultSettings
         defaultInternalState
+        Nothing
 
 {-------------------------------------------------------------------------------
                                   Model Operation Types
@@ -562,13 +565,12 @@ mPutLastMetadataGC t = modify (#internalState . #lastMetadataGC) (\_ -> Just t)
 
 mReadLastDRepMetadataGC
     :: ModelOp (Maybe POSIXTime)
-mReadLastDRepMetadataGC = get (#internalState . #lastDRepMetadataGC)
+mReadLastDRepMetadataGC = get #lastDRepMetadataGC
 
 mPutLastDRepMetadataGC
     :: POSIXTime
     -> ModelOp ()
-mPutLastDRepMetadataGC t =
-    modify (#internalState . #lastDRepMetadataGC) (const (Just t))
+mPutLastDRepMetadataGC t = modify #lastDRepMetadataGC (const (Just t))
 
 mRemoveStaleMetadata
     :: Set Text

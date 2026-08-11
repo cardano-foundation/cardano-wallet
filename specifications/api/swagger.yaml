@@ -7850,6 +7850,9 @@ paths:
 
         Returns an empty array when the connected node is running a pre-Conway
         era (Byron through Babbage).
+
+        **Note:** Results are served from a cache with a ~15-minute TTL. A
+        recently deregistered DRep may still appear until the next cache refresh.
       responses:
         '200':
           description: List of all registered DReps.
@@ -7896,10 +7899,10 @@ paths:
           required: false
           schema:
             type: integer
-            minimum: 1
+            minimum: 0
             maximum: 200
             default: 20
-          description: Number of DReps to return (default 20, max 200).
+          description: Number of DReps to return (default 20, max 200). A value of 0 returns an empty array.
       responses:
         '200':
           description: Random sample of suggested DReps.
@@ -7921,8 +7924,15 @@ paths:
         off-chain metadata in the `metadata` field (or null if the DRep has no
         anchor, metadata has not yet been fetched, or hash verification failed).
 
+        **Note:** Results are served from a cache with a ~15-minute TTL. A
+        recently deregistered DRep may still appear until the next cache refresh.
+
+        **Security note:** Metadata fields (name, objectives, references, payment
+        address) are attacker-controlled content passed through verbatim from the
+        DRep's anchor URL. Clients must treat this data as untrusted.
+
         Returns 404 for the always-abstain and always-no-confidence sentinels,
-        and for unknown or malformed DRep IDs.
+        and for unknown DRep IDs. Returns 400 for malformed DRep IDs.
       parameters:
         - *parametersDRepId
       responses:
@@ -7931,6 +7941,11 @@ paths:
           content:
             application/json:
               schema: *ApiDRepInfo
+        '400':
+          description: Malformed DRep ID.
+          content:
+            application/json:
+              schema: *errBadRequest
         '404':
           description: The requested DRep was not found.
           content:

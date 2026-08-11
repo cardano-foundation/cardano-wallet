@@ -616,19 +616,13 @@ defaultSettings =
 --  that need to survive wallet restarts. These aren't
 --  exposed settings.
 
-{- HLINT ignore InternalState "Use newtype instead of data" -}
-data InternalState = InternalState
+newtype InternalState = InternalState
     { lastMetadataGC :: Maybe POSIXTime
-    , lastDRepMetadataGC :: Maybe POSIXTime
     }
     deriving (Generic, Show, Eq)
 
 defaultInternalState :: InternalState
-defaultInternalState =
-    InternalState
-        { lastMetadataGC = Nothing
-        , lastDRepMetadataGC = Nothing
-        }
+defaultInternalState = InternalState{lastMetadataGC = Nothing}
 
 instance FromJSON PoolMetadataSource where
     parseJSON = parseJSON >=> either (fail . show . ShowFmt) pure . fromText

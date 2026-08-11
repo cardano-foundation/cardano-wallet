@@ -1240,7 +1240,7 @@ toSettings :: W.Settings -> Settings
 toSettings (W.Settings pms) = Settings pms
 
 fromInternalState :: InternalState -> W.InternalState
-fromInternalState (InternalState utc _drepUtc) = W.InternalState utc Nothing
+fromInternalState (InternalState utc _) = W.InternalState{lastMetadataGC = utc}
 
 fromDRepMetadataRow :: TH.DRepMetadata -> DRepMetadata
 fromDRepMetadataRow row =

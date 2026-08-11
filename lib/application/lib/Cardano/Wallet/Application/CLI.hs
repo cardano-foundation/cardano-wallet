@@ -1934,7 +1934,8 @@ ipfsGatewayUrlOption =
             <> showDefaultWith id
             <> help
                 "Base URL of the IPFS gateway used to resolve ipfs:// \
-                \DRep anchor URLs. Must end with a trailing slash."
+                \DRep anchor URLs. Must be an https:// URL ending with a \
+                \trailing slash. http:// URLs are rejected."
 
 -- | <wallet-id=WALLET_ID>
 walletIdArgument :: Parser WalletId
