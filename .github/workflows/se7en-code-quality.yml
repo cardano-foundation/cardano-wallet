@@ -38,9 +38,10 @@ jobs:
           - name: "Check Local Cabal Test Targets"
             command: scripts/ci/check-local-test-targets.sh
 
-          - name: "Validate PR Body Closing Link"
-            command: scripts/ci/check-pr-body-closing-link.sh
-
+          # The fixture suite for the closing-link validator: 27 deterministic
+          # cases against synthetic payloads, no pull request context needed.
+          # The validator itself runs from se7en-pr-policy.yml, which checks the
+          # pull request rather than the repository.
           - name: "Test PR Body Closing Link"
             command: scripts/ci/test-pr-body-closing-link.sh
 

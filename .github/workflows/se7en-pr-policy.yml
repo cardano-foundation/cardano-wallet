@@ -1,0 +1,45 @@
+name: Se7en PR Policy
+
+# Checks that validate the pull request itself rather than the contents of the
+# repository.
+#
+# This is kept apart from se7en-code-quality.yml because it wants the opposite
+# triggers on both axes. It needs the `edited` activity type, since the event
+# payload is captured when the event fires: re-running a job replays the old
+# payload, so a corrected body is only ever seen by a fresh event. And it has no
+# push trigger, because the validator exits successfully for any event that is
+# not a pull request.
+#
+# Jobs are skipped unless the repository belongs to this organisation, so the
+# file is inert wherever else it is checked out.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+
+concurrency:
+  # Distinct from the other se7en-* workflows: a shared group would have them
+  # cancelling one another.
+  group: se7en-pr-policy-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  closing-link:
+    name: "Validate PR Body Closing Link"
+    # Branches that import upstream history are exempt. The check exists to tie
+    # our own changes to a tracked issue; a merge of upstream commits is not one
+    # of our changes and has no issue to close.
+    if: >-
+      github.repository_owner == 'se7en-labs-inc'
+      && !startsWith(github.head_ref, 'sync/upstream')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Run check
+        run: scripts/ci/check-pr-body-closing-link.sh
