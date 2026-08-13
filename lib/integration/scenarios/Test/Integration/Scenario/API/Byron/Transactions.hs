@@ -98,6 +98,7 @@ import Test.Integration.Framework.DSL
     , Payload (..)
     , between
     , decodeErrorInfo
+    , emptyByronWalletWith
     , emptyIcarusWallet
     , emptyRandomWallet
     , emptyWallet
@@ -121,10 +122,13 @@ import Test.Integration.Framework.DSL
     , json
     , listAddresses
     , minUTxOValue
+    , mismatchedIndexAddresses
     , mkTxPayloadMA
+    , moveByronCoins
     , pickAnAsset
     , postByronWallet
     , postTx
+    , randomAddresses
     , request
     , toQueryString
     , verify
@@ -139,6 +143,7 @@ import Test.Integration.Framework.TestData
     )
 import Prelude
 
+import qualified Cardano.Faucet.Mnemonics as Mnemonics
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Cardano.Wallet.Primitive.Types.AssetName as AssetName
 import qualified Cardano.Wallet.Primitive.Types.TokenPolicyId as TokenPolicy
@@ -682,6 +687,107 @@ spec = describe "BYRON_TRANSACTIONS" $ do
                             , faucetAmt - feeEstMin - amt
                             )
                     ]
+
+    it
+        "BYRON_TRANS_CREATE_01b -\
+        \ Can spend from an address whose recorded index is not its key's index"
+        $ \ctx -> runResourceT $ do
+            -- Addresses created before cardano-sl always hardened generated
+            -- indexes record an index that does not identify the key they were
+            -- built from. Fund one of those and one ordinary address of the
+            -- same wallet, then spend an amount that needs both UTxOs: every
+            -- bootstrap witness must validate for the node to accept it.
+            mnemonic <- Mnemonics.generateSome Mnemonics.M12
+            wSrc <- fixtureRandomWallet ctx
+            wAffected <-
+                emptyByronWalletWith
+                    ctx
+                    "random"
+                    ("Mismatched index wallet", mnemonic, fixturePassphrase)
+
+            let amt = 10 * minUTxOValue (_mainEra ctx) :: Natural
+                -- Distinct recorded indexes, so the two addresses do not share
+                -- a derivation path.
+                affected = mismatchedIndexAddresses @n mnemonic !! 1
+                unaffected = randomAddresses @n mnemonic !! 0
+
+            liftIO
+                $ moveByronCoins @n
+                    ctx
+                    wSrc
+                    (wAffected, [affected, unaffected])
+                    [amt, amt]
+
+            wDest <- emptyRandomWallet ctx
+            destination <- do
+                let payloadAddr =
+                        Json [json|{ "passphrase": #{fixturePassphrase} }|]
+                rA <-
+                    request @(ApiAddressWithPath n)
+                        ctx
+                        (Link.postRandomAddress wDest)
+                        Default
+                        payloadAddr
+                pure $ getFromResponse #id rA
+
+            -- More than either UTxO holds, so both must be selected and both
+            -- must be witnessed.
+            let spent = amt + minUTxOValue (_mainEra ctx)
+            let payloadTx =
+                    Json
+                        [json|{
+                "payments": [{
+                    "address": #{destination},
+                    "amount": {
+                        "quantity": #{spent},
+                        "unit": "lovelace"
+                    }
+                }],
+                "passphrase": #{fixturePassphrase}
+            }|]
+            rTx <-
+                request @(ApiTransaction n)
+                    ctx
+                    (Link.createTransactionOld @'Byron wAffected)
+                    Default
+                    payloadTx
+            verify
+                rTx
+                [ expectSuccess
+                , expectResponseCode HTTP.status202
+                ]
+            let txId = getFromResponse #id rTx
+
+            eventually "transaction is in ledger and destination is credited"
+                $ do
+                    rTxSrc <-
+                        request @(ApiTransaction n)
+                            ctx
+                            ( Link.getTransaction @'Byron
+                                wAffected
+                                (ApiTxId txId)
+                            )
+                            Default
+                            Empty
+                    verify
+                        rTxSrc
+                        [ expectSuccess
+                        , expectField
+                            (#status . #getApiT)
+                            (`shouldBe` InLedger)
+                        ]
+                    rDest <-
+                        request @ApiByronWallet
+                            ctx
+                            (Link.getWallet @'Byron wDest)
+                            Default
+                            Empty
+                    verify
+                        rDest
+                        [ expectField
+                            (#balance . #available)
+                            (`shouldBe` ApiAmount spent)
+                        ]
 
     it
         "BYRON_TRANS_CREATE_02 -\
