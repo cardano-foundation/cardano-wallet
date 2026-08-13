@@ -99,7 +99,7 @@ import Prelude
 
 import qualified Data.ByteArray.Encoding as BA
 import qualified Data.ByteString as BS
-import qualified Data.ByteString.Lazy as LBS
+import qualified Data.ByteString.Lazy as BL
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Streaming.Network as SN
@@ -370,7 +370,7 @@ logicApp req respond = case Wai.rawPathInfo req of
             $ responseLBS
                 status200
                 [("Content-Type", "application/json")]
-                (LBS.fromStrict validJsonBody)
+                (BL.fromStrict validJsonBody)
     "/not-found" ->
         respond $ responseLBS status404 [] "Not Found"
     "/slow" -> do
@@ -387,7 +387,7 @@ httpsApp req respond = case Wai.rawPathInfo req of
             $ responseLBS
                 status200
                 [("Content-Type", "application/json")]
-                (LBS.fromStrict validJsonBody)
+                (BL.fromStrict validJsonBody)
     _ ->
         respond $ responseLBS status404 [] "Not Found"
 

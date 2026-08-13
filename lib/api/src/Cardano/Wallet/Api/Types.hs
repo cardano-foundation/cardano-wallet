@@ -1561,16 +1561,18 @@ instance ToHttpApiData ApiPoolSpecifier where
 -- This is a hack to work around Servant's problem with capturing path params.
 data ApiDRepSpecifier
     = AllDReps
-    | -- | The literal segment "suggested", parsed non-fatally so that the
-      -- sibling SuggestedDReps route can return 405/406 rather than being
+    | -- | Literal route segments parsed non-fatally so that sibling routes
+      -- (/suggested, /summary) can return 405/406 rather than being
       -- overridden by this capture's FailFatal 400.
       SpecificDRep DRep
     | SuggestedSpecifier
+    | SummarySpecifier
 
 instance FromHttpApiData ApiDRepSpecifier where
     parseUrlPiece t
         | t == "*" = Right AllDReps
         | t == "suggested" = Right SuggestedSpecifier
+        | t == "summary" = Right SummarySpecifier
         | otherwise =
             SpecificDRep <$> case fromText t of
                 Left err -> left (T.pack . show . ShowFmt) $ Left err
@@ -1581,6 +1583,7 @@ instance ToHttpApiData ApiDRepSpecifier where
         AllDReps -> "*"
         SpecificDRep drep -> toText drep
         SuggestedSpecifier -> "suggested"
+        SummarySpecifier -> "summary"
 
 {-----------------------------------------------------------------------------
     DRep registry types (GET /v2/dreps)

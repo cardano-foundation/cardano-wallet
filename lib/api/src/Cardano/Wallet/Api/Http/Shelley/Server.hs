@@ -4656,6 +4656,7 @@ joinDRep
             AllDReps -> liftE ErrUnexpectedPoolIdPlaceholder
             SpecificDRep drep -> pure drep
             SuggestedSpecifier -> liftE ErrUnexpectedDRepPlaceholder
+            SummarySpecifier -> liftE ErrUnexpectedDRepPlaceholder
 
         withWorkerCtx ctx walletId liftE liftE $ \wrk -> do
             (BuiltTx{..}, txTime) <-

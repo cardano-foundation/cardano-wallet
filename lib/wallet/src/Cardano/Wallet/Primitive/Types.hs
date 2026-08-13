@@ -615,7 +615,6 @@ defaultSettings =
 -- | Various internal states of the pool DB
 --  that need to survive wallet restarts. These aren't
 --  exposed settings.
-
 newtype InternalState = InternalState
     { lastMetadataGC :: Maybe POSIXTime
     }

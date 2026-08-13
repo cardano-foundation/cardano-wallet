@@ -90,7 +90,7 @@ defaultWorkerConfig ipfsGateway intervalMicros =
         { workerIpfsGateway = ipfsGateway
         , workerIntervalMicros = intervalMicros
         , workerFetchTimeoutMicros = 30_000_000
-        , workerGCIntervalSeconds = 86400
+        , workerGCIntervalSeconds = 86_400
         , workerGetTime = getPOSIXTime
         }
 
@@ -179,7 +179,7 @@ runGCIfDue db regs cfg = case db of
         } -> do
             now <- workerGetTime cfg
             mLast <- atomically readLastDRepMetadataGC
-            let elapsed = maybe (workerGCIntervalSeconds cfg) (\t -> now - t) mLast
+            let elapsed = maybe (workerGCIntervalSeconds cfg) (now -) mLast
             when (elapsed >= workerGCIntervalSeconds cfg) $ do
                 let liveHashes =
                         Set.fromList
