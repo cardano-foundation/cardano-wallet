@@ -119,7 +119,6 @@ jobs:
       LOCAL_CLUSTER_CONFIGS: lib/local-cluster/test/data/cluster-configs
       LOCAL_CLUSTER_ERA: conway
       CARDANO_WALLET_TEST_DATA: lib/integration/test/data
-      TMPDIR: ${{ runner.temp }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -127,6 +126,10 @@ jobs:
           fetch-depth: 0
 
       - name: Run integration tests
+        # Scope cluster temp dirs to the job-private runner temp. The runner
+        # context is only available to steps, not to job-level env.
+        env:
+          TMPDIR: ${{ runner.temp }}
         run: |
           mkdir -p integration-test-dir/cluster.logs
           export CLUSTER_LOGS_DIR_PATH=integration-test-dir/cluster.logs
