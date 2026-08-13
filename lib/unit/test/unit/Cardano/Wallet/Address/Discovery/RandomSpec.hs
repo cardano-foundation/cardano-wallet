@@ -15,6 +15,12 @@ module Cardano.Wallet.Address.Discovery.RandomSpec
 
 import Cardano.Address.Derivation
     ( XPrv
+    , toXPub
+    )
+import Cardano.Byron.Codec.Cbor
+    ( encodeAddress
+    , encodeDerivationPathAttr
+    , encodeProtocolMagicAttr
     )
 import Cardano.Mnemonic
     ( MkSomeMnemonic (..)
@@ -42,7 +48,9 @@ import Cardano.Wallet.Address.Discovery
     , KnownAddresses (..)
     )
 import Cardano.Wallet.Address.Discovery.Random
-    ( RndState (..)
+    ( DerivationPath
+    , RndState (..)
+    , deriveCredFromKeyKeyFromPath
     , findUnusedPath
     , mkRndState
     )
@@ -70,12 +78,16 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..)
     , AddressState (..)
     )
+import Cardano.Wallet.Primitive.Types.ProtocolMagic
+    ( ProtocolMagic (..)
+    )
 import Control.Monad
     ( forM_
     )
 import Data.ByteArray.Encoding
     ( Base (..)
     , convertFromBase
+    , convertToBase
     )
 import Data.ByteString
     ( ByteString
@@ -117,6 +129,7 @@ import Test.QuickCheck
     )
 import Prelude
 
+import qualified Codec.CBOR.Write as CBOR
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.Map as Map
@@ -126,7 +139,54 @@ spec :: Spec
 spec = do
     goldenSpecMainnet
     goldenSpecTestnet
+    golden03Provenance
     propSpec
+
+{-------------------------------------------------------------------------------
+                        Provenance of the golden03 address
+-------------------------------------------------------------------------------}
+
+-- The testnet 'golden03' address records a soft derivation path (14, 42), so it
+-- is worth pinning down which key it actually commits to: a soft index does not
+-- by itself mean the recorded index is the wrong one. Rebuilding the address
+-- from the wallet's own key material shows that it commits to the key at the
+-- recorded path, and not to the key at the hardened form of that path. It is
+-- therefore an address whose recorded path must keep resolving on the first
+-- attempt.
+golden03Provenance :: Spec
+golden03Provenance = describe "golden03 provenance" $ do
+    it "commits to the key at its recorded soft path"
+        $ hex (addressAt (Index 14, Index 42))
+        `shouldBe` hex golden03Address
+
+golden03Address :: Address
+golden03Address =
+    let Right bytes =
+            convertFromBase @ByteString
+                Base16
+                "82d818584083581cf26d102b29332fd6c244a9915b6cad7890f5b54ac3\
+                \4dcd62975b525aa201565522f6c70e9b236c753e50a3758e18e8bbf7c3\
+                \f9e34e02451a2d964a09001a3993f9ea"
+    in  Address bytes
+
+-- | Rebuild the golden03 address from the key at a given path, keeping the
+-- attributes the address itself records.
+addressAt :: DerivationPath -> Address
+addressAt path =
+    Address
+        $ CBOR.toStrictByteString
+        $ encodeAddress
+            (toXPub $ getKey $ deriveCredFromKeyKeyFromPath rootK pwd path)
+            [ encodeDerivationPathAttr hdPwd (Index 14) (Index 42)
+            , encodeProtocolMagicAttr (ProtocolMagic 764824073)
+            ]
+  where
+    pwd = Passphrase ""
+    rootK = generateKeyFromSeed arbitraryMnemonic pwd
+    hdPwd = payloadPassphrase rootK
+
+hex :: Address -> ByteString
+hex (Address bytes) = convertToBase Base16 bytes
 
 {-------------------------------------------------------------------------------
                                   Golden tests

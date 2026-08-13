@@ -13,7 +13,7 @@ git status --short --branch
 just check-fmt
 nix develop --quiet -c cabal build cardano-wallet-address-derivation-discovery -O0 -v0
 nix develop --quiet -c cabal test cardano-wallet-unit:unit -O0 -v0 \
-  --test-options '--match="Random Address Discovery"'
+  --test-options '--match="Cardano.Wallet.Address.Discovery.Random"'
 ```
 
 Expected: green. This is the suite that must stay green for FR-004 / SC-002.
@@ -25,44 +25,39 @@ Expected: green. This is the suite that must stay green for FR-004 / SC-002.
 else, because the answer decides whether an existing golden is evidence for the fix or a casualty of
 it.
 
-```sh
-nix develop --quiet -c cabal repl cardano-wallet-unit:unit
-```
+Do this as a spec case, not a REPL session. The answer changes an existing golden's expectation, so
+the evidence has to be something a reviewer can re-run — and in one of the two outcomes the probe
+becomes the regression test for FR-002 over a real pre-2018 address, which is stronger evidence than
+any fixture this feature can construct.
 
-Load the spec module so its unexported `arbitraryMnemonic` is in scope, then build both candidate
-addresses and compare against the golden bytes:
+Add to `lib/unit/test/unit/Cardano/Wallet/Address/Discovery/RandomSpec.hs` a pair of assertions that
+rebuild `golden03`'s address from the wallet's own key material — the recorded path in the
+derivation-path attribute either way, only the key's path differing:
 
 ```haskell
-:l Cardano.Wallet.Address.Discovery.RandomSpec
-import Cardano.Address.Derivation (toXPub)
-import Cardano.Wallet.Address.Derivation (Index (..))
-import Cardano.Wallet.Address.Derivation.Byron
-import Cardano.Wallet.Address.Discovery.Random
-import Cardano.Wallet.Primitive.Passphrase (Passphrase (..))
-import Cardano.Wallet.Primitive.Types.ProtocolMagic (ProtocolMagic (..))
-import Data.ByteArray.Encoding (Base (..), convertToBase)
-import Data.ByteString (ByteString)
-import qualified Cardano.Byron.Codec.Cbor as CBOR
-import qualified Codec.CBOR.Write as CBOR
-
-let pwd = Passphrase "" :: Passphrase "encryption"
-let root = generateKeyFromSeed arbitraryMnemonic pwd
-let hd = payloadPassphrase root
-let hex bs = convertToBase Base16 bs :: ByteString
-let mk a i = hex $ CBOR.toStrictByteString $ CBOR.encodeAddress
-        (toXPub $ getKey $ deriveCredFromKeyKeyFromPath root pwd (Index a, Index i))
-        [ CBOR.encodeDerivationPathAttr hd (Index 14) (Index 42)
-        , CBOR.encodeProtocolMagicAttr (ProtocolMagic 764824073)
-        ]
-mk 14 42                                 -- recorded path
-mk (14 + 0x80000000) (42 + 0x80000000)   -- hardened candidate
+golden03Provenance :: Spec
+golden03Provenance = describe "golden03 provenance" $ do
+    it "is reproduced by the key at its recorded path"
+        $ hex (addressAt (Index 14, Index 42)) `shouldBe` hex golden03Address
+    it "is reproduced by the key at the hardened path"
+        $ hex (addressAt (Index (14 + h), Index (42 + h)))
+            `shouldBe` hex golden03Address
+  where
+    h = 0x80000000
 ```
 
-Compare each against the golden's bytes (`RandomSpec.hs:241`). Record which one matches in
-research.md §"Open item", then either leave the golden alone or update its `accIndex`/`addrIndex` to
-the hardened values as part of the implementation commit.
+Exactly one must pass. Run:
 
-If neither matches, stop and report: the address carries something neither candidate class explains,
+```sh
+nix develop --quiet -c cabal test cardano-wallet-unit:unit -O0 -v0 \
+  --test-options '--match="golden03 provenance"'
+```
+
+Keep the passing assertion, renamed to state the finding, and delete the other. Record the outcome
+in research.md §"Open item", then either leave the golden alone or update its `accIndex`/`addrIndex`
+to the hardened values as part of the implementation commit.
+
+If neither passes, stop and report: the address carries something neither candidate class explains,
 and the candidate set in data-model.md needs revisiting before any code is written.
 
 ## Step 2 — RED
@@ -79,7 +74,7 @@ Add to `lib/unit/test/unit/Cardano/Wallet/Address/Discovery/RandomSpec.hs`:
 
 ```sh
 nix develop --quiet -c cabal test cardano-wallet-unit:unit -O0 -v0 \
-  --test-options '--match="Random Address Discovery"'
+  --test-options '--match="Cardano.Wallet.Address.Discovery.Random"'
 ```
 
 Capture the failures. (1) and (3) fail on the returned key; (2) fails for the affected fixture.
@@ -97,7 +92,7 @@ Capture the failures. (1) and (3) fail on the returned key; (2) fails for the af
 
 ```sh
 nix develop --quiet -c cabal test cardano-wallet-unit:unit -O0 -v0 \
-  --test-options '--match="Random Address Discovery"'
+  --test-options '--match="Cardano.Wallet.Address.Discovery.Random"'
 nix develop --quiet -c cabal test cardano-wallet-unit:unit -O0 -v0 \
   --test-options '--match="Cardano.Byron.Codec.Cbor"'
 ```
@@ -130,7 +125,7 @@ wrong; if funding never lands, the fixture is wrong.
 ```sh
 just check-fmt
 just hlint
-just unit-tests-cabal-match "Random Address"
+just unit-tests-cabal-match "Cardano.Wallet.Address.Discovery.Random"
 just unit-tests-cabal-match "Cardano.Byron.Codec"
 git diff --name-only master...HEAD
 ```

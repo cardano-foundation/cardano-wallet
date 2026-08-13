@@ -113,7 +113,28 @@ property the latency wording was reaching for. No benchmark is added.
 An optional refinement, not required: candidates sharing an account index can share the account key,
 reducing the worst case from eight `deriveXPrv` calls to six. Only reachable on the fallback path.
 
-## Open item: `golden03` may already encode the defect
+## Resolved: `golden03` does not encode the defect
+
+**Measured 2026-08-13**, by rebuilding the address from the test's own mnemonic at both candidate
+paths and comparing bytes (`RandomSpec.hs`, `golden03 provenance`):
+
+| Key derived at | Reconstructed root | Verdict |
+|---|---|---|
+| recorded path (14, 42) | `f26d102b29332fd6c244a9915b6cad7890f5b54ac34dcd62975b525a` | matches the golden |
+| hardened (14+2³¹, 42+2³¹) | `9a29bd1f8515c49428c5b2a10049768fcfd70c4e2f757cd5b065ac74` | does not match |
+
+So `golden03`'s key genuinely is at the soft path it records. Its `accIndex`/`addrIndex` expectation
+stands unchanged, and the address is now a worked example of the spec's own caveat that a soft index
+does not by itself imply the defect. It is direct evidence for FR-004: an address of this shape must
+keep resolving on the first candidate, with no fallback derivation.
+
+The passing assertion is kept in `RandomSpec.hs` as `golden03Provenance`, so the claim above is
+re-runnable rather than a transcript.
+
+The original reasoning that made this worth checking is preserved below, since it explains why the
+address looked suspicious.
+
+## Why `golden03` was suspect
 
 `RandomSpec.hs:237` carries a golden whose recorded path is soft — account 14, address 42 — and
 asserts that `isOwned` returns the key at exactly that path (`checkIsOwned`, `RandomSpec.hs:295`).
@@ -130,17 +151,8 @@ Two features of the address make this worth checking rather than assuming:
 - It is the only golden in the file with a soft recorded path. The mainnet goldens and testnet
   `golden01`/`golden02` all record indexes ≥ 2³¹.
 
-Both outcomes are fine, and neither blocks the design:
-
-- Root is at the soft path → the golden is unchanged and becomes direct evidence for FR-004.
-- Root is at the hardened path → the golden was asserting a key that the chain would have rejected.
-  Its `accIndex`/`addrIndex` expectation is updated to the hardened values and it becomes a
-  regression test for FR-002 over a real address rather than a constructed one, which is stronger
-  coverage than anything this feature can fabricate.
-
-Resolve it before writing the candidate ladder; the probe is step 1 of quickstart.md. Do not update
-the golden's expectation on the assumption that the fix is right — confirm which key reproduces the
-address first, and record the answer in this section.
+The mainnet-magic oddity turned out to be a red herring for provenance: whatever produced the
+address, it derived the key at the path it recorded. The measurement above settles it.
 
 ## Known limitation, out of scope
 
