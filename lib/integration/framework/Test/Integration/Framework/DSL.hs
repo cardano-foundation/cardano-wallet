@@ -140,6 +140,7 @@ module Test.Integration.Framework.DSL
     , fixtureRandomWalletMws
     , fixtureRandomWalletAddrs
     , fixtureRandomWalletWith
+    , moveByronCoins
     , fixtureIcarusWallet
     , fixtureIcarusWalletMws
     , fixtureIcarusWalletAddrs

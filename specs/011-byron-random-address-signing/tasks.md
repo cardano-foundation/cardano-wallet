@@ -78,7 +78,7 @@ its recorded soft path, so the golden stands unchanged and becomes FR-004 eviden
 - [X] T013 [US1] Add a unit assertion to `lib/unit/test/unit/Cardano/Wallet/Address/Discovery/RandomSpec.hs` that `candidatePaths` on an already-hardened path is a singleton, which is the structural form of the one-derivation-one-reconstruction bound (FR-008, SC-006)
 - [X] T014 [US1] Confirm SC-002: the existing mainnet and testnet goldens and `prop_derivedKeysAreOwned` (`RandomSpec.hs:354`) pass unmodified, with the single exception permitted by T011
 - [X] T015 [P] [US1] Add an affected-address constructor to `lib/integration/framework/Test/Integration/Framework/DSL.hs` next to `randomAddresses` (`DSL.hs:3062`), building the address from the public key at the hardened path with the soft path recorded, and the protocol-magic attribute for testnet
-- [ ] T016 [US1] Add the spend scenario to `lib/integration/scenarios/Test/Integration/Scenario/API/Byron/Transactions.hs`: empty random wallet from a fresh mnemonic, fund one affected and one unaffected address with `moveByronCoins` (`DSL.hs:2811`), submit a payment that selects both UTxOs, expect `202` and the transaction reaching `in_ledger` (SC-001, SC-003)
+- [X] T016 [US1] Add the spend scenario to `lib/integration/scenarios/Test/Integration/Scenario/API/Byron/Transactions.hs`: empty random wallet from a fresh mnemonic, fund one affected and one unaffected address with `moveByronCoins` (`DSL.hs:2811`), submit a payment that selects both UTxOs, expect `202` and the transaction reaching `in_ledger` (SC-001, SC-003)
 - [ ] T017 [US1] Run `just integration-tests-cabal-match "BYRON_TRANS"` and confirm the new scenario passes
 
 **Checkpoint**: Affected addresses are spendable and every bootstrap witness validates. This is the
@@ -98,7 +98,7 @@ phase is the proof, not the fix.
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T018 [P] [US2] Add the migration scenario to `lib/integration/scenarios/Test/Integration/Scenario/API/Byron/Migrations.hs`: fund an affected address on a fresh random wallet with the T015 constructor, create a migration plan and assert it includes that UTxO, execute it, and assert the wallet balance reaches zero (SC-004)
+- [X] T018 [P] [US2] Add the migration scenario to `lib/integration/scenarios/Test/Integration/Scenario/API/Byron/Migrations.hs`: fund an affected address on a fresh random wallet with the T015 constructor, create a migration plan and assert it includes that UTxO, execute it, and assert the wallet balance reaches zero (SC-004)
 - [ ] T019 [US2] Run `just integration-tests-cabal-match "BYRON_MIGRATE"` and confirm the new scenario passes alongside the existing migration scenarios
 
 **Checkpoint**: The recommended path off legacy wallets works for affected wallets.
