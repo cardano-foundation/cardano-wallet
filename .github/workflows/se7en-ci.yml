@@ -42,6 +42,25 @@ jobs:
           .#local-cluster .#integration-exe .#test-local-cluster-exe
           .#unit-cardano-wallet-unit
 
+      # Daedalus consumes this repository through flake-compat and takes
+      # cardano-wallet, cardano-address and mock-token-metadata-server from
+      # staticPackages on Linux and from windowsPackages for Windows. Build
+      # them here so a break in that path surfaces on a pull request rather
+      # than in Daedalus.
+      - name: Build the packages Daedalus consumes (Linux, static)
+        run: >-
+          nix build --quiet
+          .#staticPackages.cardano-wallet
+          .#staticPackages.cardano-address
+          .#staticPackages.mock-token-metadata-server
+
+      - name: Build the packages Daedalus consumes (Windows, cross)
+        run: >-
+          nix build --quiet
+          .#windowsPackages.cardano-wallet
+          .#windowsPackages.cardano-address
+          .#windowsPackages.mock-token-metadata-server
+
   unit-tests:
     name: "Unit Tests"
     needs: build-gate
