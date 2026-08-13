@@ -3216,7 +3216,7 @@ components:
           description: Optional Cardano payment address for the DRep.
         do_not_list:
           type: boolean
-          description: Advisory flag from CIP-0119; filtering is the client's responsibility.
+          description: Informal extension (not part of CIP-0119); when true the DRep asks not to appear in suggestion lists. Filtering is the client's responsibility.
           example: false
         references:
           type: array

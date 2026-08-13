@@ -155,10 +155,6 @@ import Data.Time.Clock
     , addUTCTime
     , getCurrentTime
     )
-import Data.Time.Clock.POSIX
-    ( posixSecondsToUTCTime
-    , utcTimeToPOSIXSeconds
-    )
 import Data.Word
     ( Word64
     , Word8
@@ -718,10 +714,9 @@ newDBLayer tr ti SqliteContext{runQuery} =
             Nothing -> Nothing
             Just entity ->
                 let InternalState _gc drepGC = entityVal entity
-                in  fmap utcTimeToPOSIXSeconds drepGC
+                in  drepGC
 
     putLastDRepMetadataGC t = do
-        let utc = posixSecondsToUTCTime t
         result <-
             selectFirst
                 [InternalStateId ==. (InternalStateKey 1)]
@@ -730,8 +725,8 @@ newDBLayer tr ti SqliteContext{runQuery} =
             Just _ ->
                 update
                     (InternalStateKey 1)
-                    [LastGCDRepMetadata =. Just utc]
-            Nothing -> insert_ (InternalState Nothing (Just utc))
+                    [LastGCDRepMetadata =. Just t]
+            Nothing -> insert_ (InternalState Nothing (Just t))
 
     removeStaleMetadata liveHashes =
         deleteWhere [TH.DrepMetadataHash /<-. Set.toList liveHashes]

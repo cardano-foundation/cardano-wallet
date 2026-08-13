@@ -138,6 +138,12 @@ fetchDRepMetadata
 fetchDRepMetadata ipfsGateway manager url expectedHash = do
     uri <- resolveUrl ipfsGateway url
     raw <- ExceptT $ do
+        -- 'try @SomeException' catches the async 'Timeout' exception thrown
+        -- by the outer 'timeout' call in the worker if the per-request timer
+        -- fires during the HTTP response.  The practical effect is identical
+        -- to a 'Nothing' result from 'timeout': the fetch is recorded as a
+        -- failure via 'putDRepFetchAttempt'.  Re-throwing would propagate
+        -- to the worker supervisor, which restarts the whole loop.
         eitherResult <- try @SomeException $ do
             req <- requestFromURI uri
             withResponse req manager $ \resp ->
