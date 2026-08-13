@@ -177,6 +177,7 @@ module Test.Integration.Framework.DSL
     , addField
     , icarusAddresses
     , randomAddresses
+    , mismatchedIndexAddresses
     , shelleyAddresses
     , rootPrvKeyFromMnemonics
     , unsafeGetTransactionTime
@@ -248,6 +249,7 @@ module Test.Integration.Framework.DSL
 
 import Cardano.Address.Derivation
     ( XPub
+    , toXPub
     , xpubFromBytes
     , xpubToBytes
     )
@@ -377,6 +379,7 @@ import Cardano.Wallet.Pools
     )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId (..)
+    , SNetworkId (..)
     )
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..)
@@ -413,6 +416,9 @@ import Cardano.Wallet.Primitive.Types.DRep
     )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
+    )
+import Cardano.Wallet.Primitive.Types.ProtocolMagic
+    ( magicSNetworkId
     )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..)
@@ -661,6 +667,7 @@ import "cardano-addresses" Codec.Binary.Encoding
     )
 import Prelude
 
+import qualified Cardano.Byron.Codec.Cbor as CBOR
 import qualified Cardano.Faucet.Mnemonics as Mnemonics
 import qualified Cardano.Wallet.Address.Derivation.Byron as Byron
 import qualified Cardano.Wallet.Address.Derivation.Icarus as Icarus
@@ -674,6 +681,7 @@ import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Codec.Binary.Bech32.TH as Bech32
+import qualified Codec.CBOR.Write as CBOR
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Key as Aeson
 import qualified Data.ByteArray as BA
@@ -3109,6 +3117,56 @@ randomAddresses mw =
         [ paymentAddressS @n (publicKey ByronKeyS $ addrXPrv ix)
         | ix <- [minBound .. maxBound]
         ]
+
+-- | Generate an infinite list of Byron random addresses that record a soft
+-- address index while their key is at the hardened form of that index.
+--
+-- Addresses created before @cardano-sl@ always hardened generated indexes have
+-- this shape: the index recovered from the address does not identify the key
+-- the address was built from. They are discovered and funded like any other
+-- address, and can only be spent by deriving at the hardened index.
+--
+-- The wallet, account index and address indexes match 'randomAddresses', so the
+-- two lists describe the same wallet and differ only in which key each address
+-- commits to.
+mismatchedIndexAddresses
+    :: forall n
+     . HasSNetworkId n
+    => SomeMnemonic
+    -> [Address]
+mismatchedIndexAddresses mw =
+    [ addressRecordingIndex ix
+    | ix <- [minBound .. maxBound]
+    ]
+  where
+    pwd = mempty
+    rootXPrv = Byron.generateKeyFromSeed mw pwd
+    accIx = minBound :: Index 'WholeDomain 'AccountK
+    accXPrv = Byron.deriveAccountPrivateKey pwd rootXPrv accIx
+
+    addressRecordingIndex ix =
+        Address
+            $ CBOR.toStrictByteString
+            $ CBOR.encodeAddress
+                (toXPub $ Byron.getKey $ keyAt (hardenIndex ix))
+                ( CBOR.encodeDerivationPathAttr
+                    (Byron.payloadPassphrase rootXPrv)
+                    accIx
+                    ix
+                    : protocolMagicAttr
+                )
+
+    keyAt = Byron.deriveAddressPrivateKey pwd accXPrv
+
+    protocolMagicAttr = case sNetworkId @n of
+        SMainnet -> []
+        s@(STestnet _) -> [CBOR.encodeProtocolMagicAttr (magicSNetworkId s)]
+
+    hardenIndex (Index i)
+        | i >= firstHardened = Index i
+        | otherwise = Index (i + firstHardened)
+      where
+        firstHardened = getIndex (minBound :: Index 'Hardened 'AccountK)
 
 -- | Generate an infinite list of addresses for icarus wallets
 --

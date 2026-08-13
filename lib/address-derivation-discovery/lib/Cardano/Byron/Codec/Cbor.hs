@@ -20,7 +20,8 @@
 -- by components like the Rust <https://github.com/input-output-hk/cardano-http-bridge cardano-http-bridge>.
 module Cardano.Byron.Codec.Cbor
     ( -- * Decoding
-      decodeAddressDerivationPath
+      decodeAddressAttributes
+    , decodeAddressDerivationPath
     , decodeAddressPayload
     , decodeAllAttributes
     , decodeDerivationPathAttr
@@ -32,6 +33,7 @@ module Cardano.Byron.Codec.Cbor
     , encodeDerivationPathAttr
     , encodeProtocolMagicAttr
     , encodeTx
+    , reconstructAddress
 
       -- * Helpers
     , deserialiseCbor
@@ -212,6 +214,16 @@ decodeEmptyAttributes = do
     _ <- CBOR.decodeMapLenCanonical -- Empty map of attributes
     return ((), CBOR.encodeMapLen 0)
 
+-- | Decode the attributes of an address payload, skipping the address root and
+-- leaving the address type unread. The payload is what 'decodeAddressPayload'
+-- returns, not a whole address.
+decodeAddressAttributes
+    :: CBOR.Decoder s [(Word8, ByteString)]
+decodeAddressAttributes = do
+    _ <- CBOR.decodeListLenCanonicalOf 3
+    _ <- CBOR.decodeBytes -- Address root
+    decodeAllAttributes
+
 -- | The attributes are pairs of numeric tags and bytes, where the bytes will be
 -- CBOR-encoded stuff. This decoder does not enforce "canonicity" of entries.
 decodeAllAttributes
@@ -375,6 +387,30 @@ encodeAddress xpub attrs =
         CBOR.encodeListLen 2
             <> CBOR.encodeWord8 0
             <> encodeXPub
+
+-- | Rebuild the Byron address that a public key produces under the attributes
+-- carried by a given address. Returns 'Nothing' when the given bytes are not a
+-- Byron address payload.
+--
+-- The attributes are copied from the target address verbatim, so no network
+-- identifier is needed and no derivation path is re-encrypted. This mirrors
+-- what the ledger checks when validating a bootstrap witness: the address root
+-- is recomputed from the witness's public key and the address's own attributes.
+-- A key that reconstructs the address is therefore a key the node accepts for
+-- it.
+reconstructAddress :: XPub -> Address -> Maybe Address
+reconstructAddress xpub (Address bytes) = do
+    payload <- deserialiseCbor decodeAddressPayload bytes
+    attrs <- deserialiseCbor decodeAddressAttributes payload
+    pure
+        $ Address
+        $ CBOR.toStrictByteString
+        $ encodeAddress xpub (encodeAttribute <$> attrs)
+
+-- | Re-encode a single address attribute decoded by 'decodeAllAttributes'.
+encodeAttribute :: (Word8, ByteString) -> CBOR.Encoding
+encodeAttribute (tag, bytes) =
+    CBOR.encodeWord8 tag <> CBOR.encodeBytes bytes
 
 encodeAddressPayload :: ByteString -> CBOR.Encoding
 encodeAddressPayload payload =
