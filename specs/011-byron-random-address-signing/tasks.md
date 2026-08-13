@@ -79,10 +79,14 @@ its recorded soft path, so the golden stands unchanged and becomes FR-004 eviden
 - [X] T014 [US1] Confirm SC-002: the existing mainnet and testnet goldens and `prop_derivedKeysAreOwned` (`RandomSpec.hs:354`) pass unmodified, with the single exception permitted by T011
 - [X] T015 [P] [US1] Add an affected-address constructor to `lib/integration/framework/Test/Integration/Framework/DSL.hs` next to `randomAddresses` (`DSL.hs:3062`), building the address from the public key at the hardened path with the soft path recorded, and the protocol-magic attribute for testnet
 - [X] T016 [US1] Add the spend scenario to `lib/integration/scenarios/Test/Integration/Scenario/API/Byron/Transactions.hs`: empty random wallet from a fresh mnemonic, fund one affected and one unaffected address with `moveByronCoins` (`DSL.hs:2811`), submit a payment that selects both UTxOs, expect `202` and the transaction reaching `in_ledger` (SC-001, SC-003)
-- [ ] T017 [US1] Run `just integration-tests-cabal-match "BYRON_TRANS"` and confirm the new scenario passes
+- [X] T017 [US1] Run `just integration-tests-cabal-match "BYRON_TRANS"` and confirm the new scenario passes
 
 **Checkpoint**: Affected addresses are spendable and every bootstrap witness validates. This is the
 MVP — it closes the defect for ordinary payments.
+
+**Outcome (2026-08-13)**: `BYRON_TRANS_CREATE_01b` passes against a local cluster in 87s — a
+transaction spending an affected and an unaffected UTxO together was accepted and reached the
+ledger. SC-001 and SC-003 verified.
 
 ---
 
@@ -99,9 +103,25 @@ phase is the proof, not the fix.
 ### Tests for User Story 2 ⚠️
 
 - [X] T018 [P] [US2] Add the migration scenario to `lib/integration/scenarios/Test/Integration/Scenario/API/Byron/Migrations.hs`: fund an affected address on a fresh random wallet with the T015 constructor, create a migration plan and assert it includes that UTxO, execute it, and assert the wallet balance reaches zero (SC-004)
-- [ ] T019 [US2] Run `just integration-tests-cabal-match "BYRON_MIGRATE"` and confirm the new scenario passes alongside the existing migration scenarios
+- [X] T019 [US2] Run `just integration-tests-cabal-match "BYRON_MIGRATE"` and confirm the new scenario passes alongside the existing migration scenarios
 
 **Checkpoint**: The recommended path off legacy wallets works for affected wallets.
+
+**Outcome (2026-08-13)**: `BYRON_MIGRATE_01b` passes against a local cluster in 104s — the plan
+selected both UTxOs with zero leftover, the migration executed, and the wallet reached a zero
+balance. SC-004 verified.
+
+Both scenarios were run with `integration-exe` as CI invokes it, not through the justfile:
+
+```sh
+nix shell --quiet '.#cardano-node' '.#cardano-cli' -c \
+  nix shell --quiet '.#cardano-wallet' '.#local-cluster' '.#integration-exe' \
+    -c integration-exe --match "BYRON_TRANS_CREATE_01b"
+```
+
+with `LOCAL_CLUSTER_CONFIGS`, `CARDANO_WALLET_TEST_DATA`, `LOCAL_CLUSTER_ERA=conway`,
+`CLUSTER_LOGS_DIR_PATH` and `INTEGRATION_TEST_DIR` set to absolute paths. `INTEGRATION_TEST_DIR`
+must be removed between runs.
 
 ---
 
@@ -134,7 +154,7 @@ was introduced.
 - [X] T023 [P] Run `just check-fmt` and `just hlint`, and fix any finding in the files touched
 - [X] T024 Run the full focused unit set: `just unit-tests-cabal-match "Cardano.Wallet.Address.Discovery.Random"` and `just unit-tests-cabal-match "Cardano.Byron.Codec"`
 - [X] T025 Confirm the write set: `git diff --name-only master...HEAD` lists only the files in plan.md §"Project Structure", and none of `lib/wallet/src/Cardano/Wallet/Address/States/IsOwned.hs`, `lib/wallet/src/Cardano/Wallet.hs`, `lib/api/src/Cardano/Wallet/Api/Http/Shelley/Server.hs`, `specifications/api/swagger.yaml`
-- [ ] T026 Commit as `fix(byron): verify derived keys reproduce the address before signing`, single concern, Conventional Commits
+- [X] T026 Commit as `fix(byron): verify derived keys reproduce the address before signing`, single concern, Conventional Commits
 
 ---
 
