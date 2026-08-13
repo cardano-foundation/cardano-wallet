@@ -44,7 +44,6 @@ jobs:
 
   unit-tests:
     name: "Unit Tests"
-    if: github.repository_owner == 'se7en-labs-inc'
     needs: build-gate
     runs-on: nix-enabled-runners
     timeout-minutes: 60
@@ -65,7 +64,6 @@ jobs:
 
   local-cluster:
     name: "Local Cluster Tests"
-    if: github.repository_owner == 'se7en-labs-inc'
     needs: build-gate
     runs-on: nix-enabled-runners
     timeout-minutes: 30
@@ -95,7 +93,6 @@ jobs:
 
   integration:
     name: "Conway Integration Tests"
-    if: github.repository_owner == 'se7en-labs-inc'
     needs: build-gate
     runs-on: nix-enabled-runners
     timeout-minutes: 120
