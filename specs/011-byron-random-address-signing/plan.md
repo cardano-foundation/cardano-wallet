@@ -59,11 +59,10 @@ new constraint threaded into the wallet-flavour dispatch
 No violations, so **Complexity Tracking** is empty.
 
 Re-checked after Phase 1: the design adds two functions to one package and changes no type, no
-persisted shape and no API contract, so every row above stands. One item moved from unknown to
-tracked — `RandomSpec`'s `golden03` asserts a key at a soft path for an address this codebase did not
-generate, and may itself encode the defect. It is resolved by the probe in quickstart.md step 1
-before any code is written, and either outcome is compatible with the design (research.md §"Open
-item").
+persisted shape and no API contract, so every row above stands. The one item that was open —
+whether `RandomSpec`'s `golden03` itself encodes the defect — was measured on 2026-08-13 and does
+not: that address commits to the key at its recorded soft path, so the golden stands unchanged and
+becomes evidence for FR-004 (research.md §"Resolved").
 
 ## Project Structure
 
@@ -145,7 +144,7 @@ Focused development loop:
 
 ```sh
 nix develop --quiet -c cabal test cardano-wallet-unit:unit -O0 -v0 \
-  --test-options '--match="Random Address Discovery"'
+  --test-options '--match="Cardano.Wallet.Address.Discovery.Random"'
 nix develop --quiet -c cabal test cardano-wallet-unit:unit -O0 -v0 \
   --test-options '--match="Cardano.Byron.Codec.Cbor"'
 ```
@@ -154,7 +153,7 @@ Acceptance:
 
 ```sh
 just check-fmt && just hlint
-just unit-tests-cabal-match "Random Address"
+just unit-tests-cabal-match "Cardano.Wallet.Address.Discovery.Random"
 just integration-tests-cabal-match "BYRON_MIGRATE"
 just integration-tests-cabal-match "BYRON_TRANS"
 ```
@@ -191,11 +190,9 @@ The first must list only the expected write set. The second must be unchanged fr
 - **Integration fixture cannot produce an affected address.** Mitigated by constructing the address
   directly from `CBOR.encodeAddress` and `CBOR.encodeDerivationPathAttr` and funding it with
   `moveByronCoins`, which already sends to caller-supplied addresses.
-- **An existing golden goes red for the right reason.** `RandomSpec`'s `golden03` records a soft path
-  and asserts the key at it. If that address's key is really at the hardened form, the golden was
-  asserting a key the chain would reject and its expectation must be updated. Resolve first
-  (quickstart.md step 1); never update a golden to match new behaviour without confirming which key
-  actually reproduces the address.
+- ~~**An existing golden goes red for the right reason.**~~ Closed 2026-08-13: `golden03`'s key is at
+  its recorded soft path, so its expectation must not move. If it goes red after the candidate ladder
+  lands, the ladder is wrong, not the golden.
 - **Scope creep into discovery.** FR-005 is explicit; `isOurs`, `addressToPath` and
   `discoveredAddresses` keying stay as they are, including the pre-existing path-collision behaviour
   noted in research.md.

@@ -28,11 +28,15 @@ Haskell monorepo. Library under `lib/address-derivation-discovery/lib/`, unit sp
 **Purpose**: Establish the baseline and settle the one open question that changes an existing test's
 expectation.
 
-- [ ] T001 Confirm the baseline is green: `nix develop --quiet -c cabal test cardano-wallet-unit:unit -O0 -v0 --test-options '--match="Random Address Discovery"'` and `just check-fmt`
-- [ ] T002 Resolve the `golden03` question with the REPL probe in quickstart.md step 1 against `lib/unit/test/unit/Cardano/Wallet/Address/Discovery/RandomSpec.hs:241`, then record which candidate reproduces that address in `specs/011-byron-random-address-signing/research.md` §"Open item"
+- [ ] T001 Confirm the baseline is green: `nix develop --quiet -c cabal test cardano-wallet-unit:unit -O0 -v0 --test-options '--match="Cardano.Wallet.Address.Discovery.Random"'` and `just check-fmt`
+- [ ] T002 Resolve the `golden03` question with the paired spec case in quickstart.md step 1, added to `lib/unit/test/unit/Cardano/Wallet/Address/Discovery/RandomSpec.hs` and run with `--match="golden03 provenance"`; keep the passing assertion renamed to state the finding, delete the other, and record the outcome in `specs/011-byron-random-address-signing/research.md` §"Open item"
 
 **Blocking**: If T002 shows neither the recorded nor the hardened path reproduces `golden03`, stop and
 report — the candidate set in data-model.md needs revisiting before any code is written.
+
+**Outcome (2026-08-13)**: T001 green at 19 examples; T002 resolved — `golden03` commits to the key at
+its recorded soft path, so the golden stands unchanged and becomes FR-004 evidence (research.md
+§"Resolved"). Phase 1 complete.
 
 ---
 
@@ -69,7 +73,7 @@ report — the candidate set in data-model.md needs revisiting before any code i
 
 - [ ] T009 [US1] Add index hardening and `candidatePaths :: DerivationPath -> [DerivationPath]` to `lib/address-derivation-discovery/lib/Cardano/Wallet/Address/Discovery/Random.hs` — recorded, address index hardened, account index hardened, both, order-preserving dedup — and export `candidatePaths` for tests (data-model.md §"Candidate derivation")
 - [ ] T010 [US1] Rewrite `isOwned` in `lib/address-derivation-discovery/lib/Cardano/Wallet/Address/Discovery/Random.hs` to derive each candidate, verify with `reconstructAddress`, return the first match and `Nothing` otherwise; add the Haddock note that only `getKey` may be relied upon, since the returned key's `derivationPath` is the candidate path
-- [ ] T011 [US1] Reconcile `golden03` in `lib/unit/test/unit/Cardano/Wallet/Address/Discovery/RandomSpec.hs:237` with the T002 finding — leave it unchanged if its key is at the recorded path, or update `accIndex`/`addrIndex` to the hardened values if it is not
+- [ ] T011 [US1] Confirm `golden03` still passes unmodified. T002 established that its key is at its recorded soft path, so its `accIndex`/`addrIndex` expectation must **not** change; a failure here means the candidate ladder is not returning the recorded-path key first (FR-004)
 - [ ] T012 [US1] Add unit coverage to `lib/unit/test/unit/Cardano/Wallet/Address/Discovery/RandomSpec.hs` for the account-index-hardened and both-hardened variants (FR-007, SC-007)
 - [ ] T013 [US1] Add a unit assertion to `lib/unit/test/unit/Cardano/Wallet/Address/Discovery/RandomSpec.hs` that `candidatePaths` on an already-hardened path is a singleton, which is the structural form of the one-derivation-one-reconstruction bound (FR-008, SC-006)
 - [ ] T014 [US1] Confirm SC-002: the existing mainnet and testnet goldens and `prop_derivedKeysAreOwned` (`RandomSpec.hs:354`) pass unmodified, with the single exception permitted by T011
@@ -128,7 +132,7 @@ was introduced.
 ## Phase 6: Polish & Cross-Cutting Concerns
 
 - [ ] T023 [P] Run `just check-fmt` and `just hlint`, and fix any finding in the files touched
-- [ ] T024 Run the full focused unit set: `just unit-tests-cabal-match "Random Address"` and `just unit-tests-cabal-match "Cardano.Byron.Codec"`
+- [ ] T024 Run the full focused unit set: `just unit-tests-cabal-match "Cardano.Wallet.Address.Discovery.Random"` and `just unit-tests-cabal-match "Cardano.Byron.Codec"`
 - [ ] T025 Confirm the write set: `git diff --name-only master...HEAD` lists only the files in plan.md §"Project Structure", and none of `lib/wallet/src/Cardano/Wallet/Address/States/IsOwned.hs`, `lib/wallet/src/Cardano/Wallet.hs`, `lib/api/src/Cardano/Wallet/Api/Http/Shelley/Server.hs`, `specifications/api/swagger.yaml`
 - [ ] T026 Commit as `fix(byron): verify derived keys reproduce the address before signing`, single concern, Conventional Commits
 
