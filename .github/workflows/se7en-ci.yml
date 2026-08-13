@@ -1,0 +1,127 @@
+name: Se7en CI
+
+# Linux-only gate for pull requests raised against this fork.
+#
+# The main CI workflow spans Linux, macOS and Windows in a single run, so on a
+# fork whose runners are Linux-only the macOS and Windows jobs queue forever and
+# the run never reaches a conclusion. This workflow covers the Linux half on its
+# own so that fork pull requests get a green or red answer.
+#
+# Jobs are skipped unless the repository belongs to this organisation, so the
+# file is inert wherever else it is checked out.
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: se7en-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Nix eval-cache uses POSIX write locks on ~/.cache/nix/eval-cache-v5/*.sqlite.
+  # Per-job XDG_CACHE_HOME keeps concurrent jobs from blocking one another.
+  XDG_CACHE_HOME: /tmp/nix-eval-cache/${{ github.job }}
+
+jobs:
+  build-gate:
+    name: "Build Gate (Linux)"
+    if: github.repository_owner == 'se7en-labs-inc'
+    runs-on: nix-enabled-runners
+    timeout-minutes: 240
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Build test and runtime derivations
+        run: >-
+          nix build --quiet
+          .#cardano-wallet .#cardano-node .#cardano-cli
+          .#local-cluster .#integration-exe .#test-local-cluster-exe
+          .#unit-cardano-wallet-unit
+
+  unit-tests:
+    name: "Unit Tests"
+    if: github.repository_owner == 'se7en-labs-inc'
+    needs: build-gate
+    runs-on: nix-enabled-runners
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: lib/unit
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Run unit tests
+        run: >-
+          nix shell --quiet ../../.#cardano-cli ../../.#cardano-node -c
+          nix run --quiet ../../.#unit-cardano-wallet-unit --
+          -j1 +RTS -M4G -s -RTS
+
+  local-cluster:
+    name: "Local Cluster Tests"
+    if: github.repository_owner == 'se7en-labs-inc'
+    needs: build-gate
+    runs-on: nix-enabled-runners
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Run tests
+        env:
+          LOCAL_CLUSTER_CONFIGS: lib/local-cluster/test/data/cluster-configs
+          CLUSTER_LOGS_DIR_PATH: local-cluster-logs
+          TMPDIR: ${{ runner.temp }}
+        run: |
+          mkdir -p local-cluster-logs
+          nix shell --quiet .#local-cluster .#test-local-cluster-exe \
+            .#cardano-cli .#cardano-node .#cardano-wallet \
+            -c test-local-cluster-exe
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: local-cluster-logs
+          path: local-cluster-logs/
+
+  integration:
+    name: "Conway Integration Tests"
+    if: github.repository_owner == 'se7en-labs-inc'
+    needs: build-gate
+    runs-on: nix-enabled-runners
+    timeout-minutes: 120
+    env:
+      LOCAL_CLUSTER_CONFIGS: lib/local-cluster/test/data/cluster-configs
+      LOCAL_CLUSTER_ERA: conway
+      CARDANO_WALLET_TEST_DATA: lib/integration/test/data
+      TMPDIR: ${{ runner.temp }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Run integration tests
+        run: |
+          mkdir -p integration-test-dir/cluster.logs
+          export CLUSTER_LOGS_DIR_PATH=integration-test-dir/cluster.logs
+          export INTEGRATION_TEST_DIR=integration-test-dir
+          nix shell --quiet .#cardano-node .#cardano-cli -c \
+            nix shell --quiet .#cardano-wallet .#local-cluster .#integration-exe \
+              -c integration-exe -j6
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: integration-test-logs
+          path: integration-test-dir/
