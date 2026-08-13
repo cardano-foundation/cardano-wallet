@@ -8,7 +8,6 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
@@ -32,6 +31,7 @@ module Cardano.Wallet.Address.Discovery.Random
       -- ** Low-level API
     , importAddress
     , addressToPath
+    , candidatePaths
     , ErrImportAddress (..)
     , addPendingAddress
     , deriveRndStateAddress
@@ -51,6 +51,7 @@ import Cardano.Byron.Codec.Cbor
     ( decodeAddressDerivationPath
     , decodeAddressPayload
     , deserialiseCbor
+    , reconstructAddress
     )
 import Cardano.Wallet.Address.Derivation
     ( Depth (..)
@@ -94,6 +95,10 @@ import Control.Lens
     )
 import Control.Monad
     ( join
+    )
+import Data.List
+    ( find
+    , nub
     )
 import Data.List.NonEmpty
     ( NonEmpty (..)
@@ -245,15 +250,59 @@ instance IsOurs (RndState n) Address where
 instance IsOurs (RndState n) RewardAccount where
     isOurs _account state = (Nothing, state)
 
+-- | Find the signing key for an address the wallet owns.
+--
+-- An address records the derivation path it was created at, but for addresses
+-- created before @cardano-sl@ always hardened generated indexes, that path does
+-- not necessarily identify the key the address was built from. Every candidate
+-- path is therefore derived and checked against the address; only a key that
+-- reproduces the address is returned, and an address that no candidate
+-- reproduces yields 'Nothing'.
+--
+-- The returned key's 'derivationPath' is the candidate it was found at, which
+-- for such an address is /not/ the path the address records. Callers must use
+-- 'getKey' alone: rebuilding an address from the returned key would not give
+-- back the address it was resolved for.
 isOwned
     :: forall (network :: NetworkDiscriminant)
      . RndState network
     -> (ByronKey 'RootK XPrv, Passphrase "encryption")
     -> Address
     -> Maybe (ByronKey 'CredFromKeyK XPrv, Passphrase "encryption")
-isOwned st (key, pwd) addr =
-    (,pwd) . deriveCredFromKeyKeyFromPath key pwd
-        <$> addressToPath addr (hdPassphrase st)
+isOwned st (key, pwd) addr = do
+    path <- addressToPath addr (hdPassphrase st)
+    let candidates =
+            deriveCredFromKeyKeyFromPath key pwd <$> candidatePaths path
+    k <- find reproducesAddress candidates
+    pure (k, pwd)
+  where
+    reproducesAddress k =
+        reconstructAddress (toXPub $ getKey k) addr == Just addr
+
+-- | The paths at which the signing key for an address may lie, most likely
+-- first: the path the address records, then that path with the address index
+-- hardened, with the account index hardened, and with both.
+--
+-- Candidates are de-duplicated, so a path already hardened at both levels
+-- yields a single candidate. Together with stopping at the first candidate that
+-- reproduces the address, this keeps the common case at one derivation.
+candidatePaths :: DerivationPath -> [DerivationPath]
+candidatePaths (accIx, addrIx) =
+    nub
+        [ (accIx, addrIx)
+        , (accIx, hardenIndex addrIx)
+        , (hardenIndex accIx, addrIx)
+        , (hardenIndex accIx, hardenIndex addrIx)
+        ]
+
+-- | The hardened form of an index. Indexes already in the hardened domain are
+-- returned unchanged.
+hardenIndex :: Index 'WholeDomain level -> Index 'WholeDomain level
+hardenIndex (Index ix)
+    | ix >= firstHardened = Index ix
+    | otherwise = Index (ix + firstHardened)
+  where
+    firstHardened = getIndex (minBound :: Index 'Hardened 'AccountK)
 
 -- Updates a 'RndState' by adding an address and its derivation path to the
 -- set of discovered addresses. If the address was in the 'pendingAddresses' set

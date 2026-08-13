@@ -11,6 +11,11 @@ module Cardano.Byron.Codec.CborSpec
     ( spec
     ) where
 
+import Cardano.Address.Derivation
+    ( XPrv
+    , XPub
+    , toXPub
+    )
 import Cardano.Byron.Codec.Cbor
     ( decodeAddressDerivationPath
     , decodeAddressPayload
@@ -18,9 +23,12 @@ import Cardano.Byron.Codec.Cbor
     , decodeDerivationPathAttr
     , decodeTx
     , deserialiseCbor
+    , encodeAddress
     , encodeAttributes
     , encodeDerivationPathAttr
+    , encodeProtocolMagicAttr
     , encodeTx
+    , reconstructAddress
     )
 import Cardano.Mnemonic
     ( MkSomeMnemonic (..)
@@ -32,6 +40,7 @@ import Cardano.Wallet.Address.Derivation
     )
 import Cardano.Wallet.Address.Derivation.Byron
     ( ByronKey (..)
+    , deriveAccountPrivateKey
     , generateKeyFromSeed
     )
 import Cardano.Wallet.Primitive.Passphrase.Types
@@ -42,6 +51,9 @@ import Cardano.Wallet.Primitive.Types.Address
     )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
+    )
+import Cardano.Wallet.Primitive.Types.ProtocolMagic
+    ( ProtocolMagic (..)
     )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle
@@ -72,6 +84,7 @@ import Test.Hspec
     , describe
     , it
     , shouldBe
+    , shouldNotBe
     )
 import Test.QuickCheck
     ( Arbitrary (..)
@@ -87,6 +100,7 @@ import Prelude
 
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
+import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
@@ -111,6 +125,27 @@ spec = do
 
     describe "decodeAddress <-> encodeAddress roundtrip" $ do
         it "DerivationPath roundtrip" (property prop_derivationPathRoundTrip)
+
+    describe "reconstructAddress" $ do
+        it "rebuilds a mainnet-shaped address from its own key"
+            $ reconstructAddress addressXPub mainnetAddress
+            `shouldBe` Just mainnetAddress
+
+        it "rebuilds a testnet-shaped address from its own key"
+            $ reconstructAddress addressXPub testnetAddress
+            `shouldBe` Just testnetAddress
+
+        it "does not rebuild an address from a different key"
+            $ reconstructAddress otherXPub mainnetAddress
+            `shouldNotBe` Just mainnetAddress
+
+        it "preserves attributes it does not interpret"
+            $ reconstructAddress addressXPub extraAttrAddress
+            `shouldBe` Just extraAttrAddress
+
+        it "returns Nothing for bytes that are not a Byron address"
+            $ reconstructAddress addressXPub (Address "not-an-address")
+            `shouldBe` Nothing
 
     describe "Golden Tests for Byron Addresses w/ random scheme (Mainnet)" $ do
         it "decodeDerivationPath - mainnet - initial account"
@@ -173,6 +208,64 @@ spec = do
                     , addrIndex =
                         3234874775
                     }
+
+{-------------------------------------------------------------------------------
+                            Address reconstruction
+-------------------------------------------------------------------------------}
+
+-- Addresses below are built the way cardano-sl builds them: a root computed
+-- from the public key and the attributes, wrapped with a CRC. Reconstruction
+-- must reproduce them byte for byte from the public key alone, taking the
+-- attributes from the address it is given.
+
+reconstructionRootKey :: ByronKey 'RootK XPrv
+reconstructionRootKey = generateKeyFromSeed seed mempty
+  where
+    Right seed = mkSomeMnemonic @'[12] arbitraryMnemonic
+
+-- | The key an address is built from.
+addressXPub :: XPub
+addressXPub = toXPub $ getKey reconstructionRootKey
+
+-- | A different key of the same wallet, for the negative case.
+otherXPub :: XPub
+otherXPub =
+    toXPub
+        $ getKey
+        $ deriveAccountPrivateKey mempty reconstructionRootKey minBound
+
+addressWith :: XPub -> [CBOR.Encoding] -> Address
+addressWith xpub attrs =
+    Address $ CBOR.toStrictByteString $ encodeAddress xpub attrs
+
+derivationPathAttr :: CBOR.Encoding
+derivationPathAttr =
+    encodeDerivationPathAttr
+        (payloadPassphrase reconstructionRootKey)
+        (Index 14)
+        (Index 42)
+
+-- | Mainnet addresses carry the derivation path only.
+mainnetAddress :: Address
+mainnetAddress = addressWith addressXPub [derivationPathAttr]
+
+-- | Testnet addresses additionally carry the protocol magic.
+testnetAddress :: Address
+testnetAddress =
+    addressWith
+        addressXPub
+        [ derivationPathAttr
+        , encodeProtocolMagicAttr (ProtocolMagic 1097911063)
+        ]
+
+-- | An attribute tag this codebase does not interpret must survive untouched.
+extraAttrAddress :: Address
+extraAttrAddress =
+    addressWith
+        addressXPub
+        [ derivationPathAttr
+        , CBOR.encodeWord8 3 <> CBOR.encodeBytes "unknown-attribute"
+        ]
 
 {-------------------------------------------------------------------------------
                     Golden tests for Address derivation path
