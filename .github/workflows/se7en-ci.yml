@@ -119,6 +119,11 @@ jobs:
       LOCAL_CLUSTER_CONFIGS: lib/local-cluster/test/data/cluster-configs
       LOCAL_CLUSTER_ERA: conway
       CARDANO_WALLET_TEST_DATA: lib/integration/test/data
+      # Retry failed examples once. Several scenarios race against reward
+      # accrual on the test cluster: the expected coin value shifts between
+      # the query and the submission, so a transaction that was correct when
+      # built is rejected when it lands. A genuine failure still fails, twice.
+      TESTS_RETRY_FAILED: 1
     steps:
       - name: Checkout
         uses: actions/checkout@v6
