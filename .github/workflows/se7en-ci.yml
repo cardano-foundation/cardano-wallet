@@ -76,10 +76,12 @@ jobs:
           fetch-depth: 0
 
       - name: Run unit tests
+        env:
+          UNIT_MAX_HEAP: ${{ vars.UNIT_MAX_HEAP || '4G' }}
         run: >-
           nix shell --quiet ../../.#cardano-cli ../../.#cardano-node -c
           nix run --quiet ../../.#unit-cardano-wallet-unit --
-          -j1 +RTS -M4G -s -RTS
+          -j1 +RTS -M"$UNIT_MAX_HEAP" -s -RTS
 
   local-cluster:
     name: "Local Cluster Tests"
@@ -117,13 +119,14 @@ jobs:
     timeout-minutes: 120
     env:
       LOCAL_CLUSTER_CONFIGS: lib/local-cluster/test/data/cluster-configs
-      LOCAL_CLUSTER_ERA: conway
       CARDANO_WALLET_TEST_DATA: lib/integration/test/data
-      # Retry failed examples once. Several scenarios race against reward
-      # accrual on the test cluster: the expected coin value shifts between
-      # the query and the submission, so a transaction that was correct when
-      # built is rejected when it lands. A genuine failure still fails, twice.
-      TESTS_RETRY_FAILED: 1
+      # Tunable without editing this file: set repository variables of the same
+      # name. The defaults apply when a variable is unset, so the workflow
+      # stands alone. Several scenarios race against reward accrual and block
+      # production on the test cluster, and those races widen under load, so
+      # retrying once and lowering concurrency are the two knobs worth having.
+      LOCAL_CLUSTER_ERA: ${{ vars.LOCAL_CLUSTER_ERA || 'conway' }}
+      TESTS_RETRY_FAILED: ${{ vars.TESTS_RETRY_FAILED || '1' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -135,13 +138,15 @@ jobs:
         # context is only available to steps, not to job-level env.
         env:
           TMPDIR: ${{ runner.temp }}
+          INTEGRATION_JOBS: ${{ vars.INTEGRATION_JOBS || '6' }}
         run: |
           mkdir -p integration-test-dir/cluster.logs
           export CLUSTER_LOGS_DIR_PATH=integration-test-dir/cluster.logs
           export INTEGRATION_TEST_DIR=integration-test-dir
+          echo "era=$LOCAL_CLUSTER_ERA retry=$TESTS_RETRY_FAILED jobs=$INTEGRATION_JOBS"
           nix shell --quiet .#cardano-node .#cardano-cli -c \
             nix shell --quiet .#cardano-wallet .#local-cluster .#integration-exe \
-              -c integration-exe -j6
+              -c integration-exe -j"$INTEGRATION_JOBS"
 
       - name: Upload logs
         if: always()
