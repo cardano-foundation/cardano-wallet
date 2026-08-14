@@ -21,6 +21,8 @@ import Cardano.Wallet.Api.Types
     ( ApiAnyCertificate (..)
     , ApiCertificate (..)
     , ApiConstructTransaction (..)
+    , ApiDRepCredential (..)
+    , ApiDRepInfo (..)
     , ApiDRepSpecifier (..)
     , ApiDecodedTransaction
     , ApiPoolSpecifier (..)
@@ -29,6 +31,7 @@ import Cardano.Wallet.Api.Types
     , ApiTransaction
     , ApiTxId (..)
     , ApiWallet (..)
+    , DRepStatus (..)
     , WalletStyle (..)
     )
 import Cardano.Wallet.Api.Types.Amount
@@ -69,6 +72,7 @@ import Test.Hspec
     )
 import Test.Hspec.Expectations.Lifted
     ( shouldBe
+    , shouldSatisfy
     )
 import Test.Hspec.Extra
     ( it
@@ -88,12 +92,14 @@ import Test.Integration.Framework.DSL
     , fixturePassphrase
     , fixtureShelleyWallet
     , fixtureWallet
+    , getDRep
     , getFromResponse
     , getResponse
     , joinDRep
     , joinStakePool
     , json
     , listAddresses
+    , listDReps
     , minUTxOValue
     , noBabbage
     , noConway
@@ -105,6 +111,7 @@ import Test.Integration.Framework.DSL
     , request
     , signTx
     , submitTxWithWid
+    , suggestedDReps
     , verify
     , votingAndDelegating
     , waitForNextEpoch
@@ -1395,6 +1402,101 @@ spec = describe "VOTING_TRANSACTIONS" $ do
                                 #delegation
                                 (`shouldBe` votingAndDelegating (ApiT pool1) (ApiT voting) [])
                             ]
+    it "DREPS_01 - listDReps returns 200 with a JSON array in Conway era" $ \ctx ->
+        runResourceT $ do
+            noBabbage ctx "DRep listing requires Conway era"
+            r <- listDReps ctx
+            verify
+                r
+                [ expectResponseCode HTTP.status200
+                ]
+
+    it
+        "DREPS_02 - listDReps returns 200 with empty array in pre-Conway era"
+        $ \ctx ->
+            runResourceT $ do
+                noConway ctx "Pre-Conway returns empty DRep list"
+                r <- listDReps ctx
+                verify
+                    r
+                    [ expectResponseCode HTTP.status200
+                    ]
+                getFromResponse Prelude.id r `shouldBe` []
+
+    it "DREPS_03 - list responses omit full metadata" $ \ctx ->
+        runResourceT $ do
+            noBabbage ctx "DRep listing requires Conway era"
+            r <- listDReps ctx
+            verify r [expectResponseCode HTTP.status200]
+            let dreps = getFromResponse Prelude.id r :: [ApiDRepInfo]
+            map drepInfoMetadata dreps `shouldSatisfy` all (== Nothing)
+
+    it
+        "DREPS_06 - suggestedDReps returns 200 with a JSON array in Conway era"
+        $ \ctx ->
+            runResourceT $ do
+                noBabbage ctx "DRep suggested requires Conway era"
+                r <- suggestedDReps ctx Nothing
+                verify r [expectResponseCode HTTP.status200]
+
+    it
+        "DREPS_07 - suggestedDReps returns 200 with empty array in pre-Conway era"
+        $ \ctx ->
+            runResourceT $ do
+                noConway ctx "Pre-Conway returns empty suggested DRep list"
+                r <- suggestedDReps ctx Nothing
+                verify r [expectResponseCode HTTP.status200]
+                getFromResponse Prelude.id r `shouldBe` ([] :: [ApiDRepInfo])
+
+    it "DREPS_08 - all suggested DReps have active status" $ \ctx ->
+        runResourceT $ do
+            noBabbage ctx "DRep suggested requires Conway era"
+            r <- suggestedDReps ctx Nothing
+            verify r [expectResponseCode HTTP.status200]
+            let dreps = getFromResponse Prelude.id r :: [ApiDRepInfo]
+            -- The suggested endpoint must only return active DReps.
+            mapM_ (\info -> drepInfoStatus info `shouldBe` Active) dreps
+
+    it
+        "DREPS_09 - count=1 limits suggested DRep results to at most one entry"
+        $ \ctx ->
+            runResourceT $ do
+                noBabbage ctx "DRep suggested requires Conway era"
+                r <- suggestedDReps ctx (Just 1)
+                verify r [expectResponseCode HTTP.status200]
+                let dreps = getFromResponse Prelude.id r :: [ApiDRepInfo]
+                length dreps `shouldSatisfy` (<= 1)
+
+    it
+        "DREPS_10 - suggested DReps only have key_hash or script_hash credentials"
+        $ \ctx ->
+            runResourceT $ do
+                noBabbage ctx "DRep suggested requires Conway era"
+                r <- suggestedDReps ctx Nothing
+                verify r [expectResponseCode HTTP.status200]
+                let dreps = getFromResponse Prelude.id r :: [ApiDRepInfo]
+                mapM_
+                    ( \info ->
+                        credentialType (drepInfoCredential info)
+                            `shouldSatisfy` (`elem` ["key_hash", "script_hash"])
+                    )
+                    dreps
+
+    it "DREPS_12 - getDRep returns 404 for the always-abstain sentinel" $ \ctx ->
+        runResourceT $ do
+            noBabbage ctx "DRep querying requires Conway era"
+            r <- getDRep ctx (SpecificDRep Abstain)
+            verify r [expectResponseCode HTTP.status404]
+            decodeErrorInfo r `shouldBe` NotFound
+
+    it
+        "DREPS_13 - getDRep returns 404 for the always-no-confidence sentinel"
+        $ \ctx ->
+            runResourceT $ do
+                noBabbage ctx "DRep querying requires Conway era"
+                r <- getDRep ctx (SpecificDRep NoConfidence)
+                verify r [expectResponseCode HTTP.status404]
+                decodeErrorInfo r `shouldBe` NotFound
   where
     stakeKeyDerPath =
         NE.fromList

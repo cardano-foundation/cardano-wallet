@@ -87,6 +87,13 @@ module Cardano.Wallet.Api.Types
     , ApiDecodedTransaction (..)
     , ApiDelegationAction (..)
     , ApiDeregisterPool (..)
+    , ApiDRepInfo (..)
+    , ApiDRepSummary (..)
+    , ApiDRepCredential (..)
+    , ApiDRepAnchor (..)
+    , ApiDRepMetadata (..)
+    , ApiDRepMetaReference (..)
+    , DRepStatus (..)
     , ApiDRepSpecifier (..)
     , ApiEraInfo (..)
     , ApiExternalCertificate (..)
@@ -556,6 +563,9 @@ import Data.List.NonEmpty
     )
 import Data.Map.Strict
     ( Map
+    )
+import Data.Maybe
+    ( fromMaybe
     )
 import Data.Percentage
     ( Percentage
@@ -1549,11 +1559,20 @@ instance ToHttpApiData ApiPoolSpecifier where
 -- | This type is used in URLs where there is a '*' in place of a drep id,
 -- which means "for all dreps"
 -- This is a hack to work around Servant's problem with capturing path params.
-data ApiDRepSpecifier = AllDReps | SpecificDRep DRep
+data ApiDRepSpecifier
+    = AllDReps
+    | -- | Literal route segments parsed non-fatally so that sibling routes
+      -- (/suggested, /summary) can return 405/406 rather than being
+      -- overridden by this capture's FailFatal 400.
+      SpecificDRep DRep
+    | SuggestedSpecifier
+    | SummarySpecifier
 
 instance FromHttpApiData ApiDRepSpecifier where
     parseUrlPiece t
         | t == "*" = Right AllDReps
+        | t == "suggested" = Right SuggestedSpecifier
+        | t == "summary" = Right SummarySpecifier
         | otherwise =
             SpecificDRep <$> case fromText t of
                 Left err -> left (T.pack . show . ShowFmt) $ Left err
@@ -1563,6 +1582,210 @@ instance ToHttpApiData ApiDRepSpecifier where
     toUrlPiece = \case
         AllDReps -> "*"
         SpecificDRep drep -> toText drep
+        SuggestedSpecifier -> "suggested"
+        SummarySpecifier -> "summary"
+
+{-----------------------------------------------------------------------------
+    DRep registry types (GET /v2/dreps)
+------------------------------------------------------------------------------}
+
+data DRepStatus = Active | Inactive
+    deriving (Eq, Generic, Show)
+    deriving anyclass (NFData)
+
+instance ToJSON DRepStatus where
+    toJSON Active = Aeson.String "active"
+    toJSON Inactive = Aeson.String "inactive"
+
+instance FromJSON DRepStatus where
+    parseJSON = Aeson.withText "DRepStatus" $ \t -> case t of
+        "active" -> pure Active
+        "inactive" -> pure Inactive
+        _ -> fail $ "Invalid DRepStatus: " <> T.unpack t
+
+data ApiDRepCredential = ApiDRepCredential
+    { credentialType :: !Text
+    , credentialHash :: !Text
+    }
+    deriving (Eq, Generic, Show)
+    deriving anyclass (NFData)
+
+instance ToJSON ApiDRepCredential where
+    toJSON ApiDRepCredential{..} =
+        Aeson.object
+            [ "type" Aeson..= credentialType
+            , "hash" Aeson..= credentialHash
+            ]
+
+instance FromJSON ApiDRepCredential where
+    parseJSON = Aeson.withObject "ApiDRepCredential" $ \o ->
+        ApiDRepCredential
+            <$> o Aeson..: "type"
+            <*> o Aeson..: "hash"
+
+data ApiDRepAnchor = ApiDRepAnchor
+    { anchorUrl :: !Text
+    , anchorDataHash :: !Text
+    }
+    deriving (Eq, Generic, Show)
+    deriving anyclass (NFData)
+
+instance ToJSON ApiDRepAnchor where
+    toJSON ApiDRepAnchor{..} =
+        Aeson.object
+            [ "url" Aeson..= anchorUrl
+            , "data_hash" Aeson..= anchorDataHash
+            ]
+
+instance FromJSON ApiDRepAnchor where
+    parseJSON = Aeson.withObject "ApiDRepAnchor" $ \o ->
+        ApiDRepAnchor
+            <$> o Aeson..: "url"
+            <*> o Aeson..: "data_hash"
+
+data ApiDRepInfo = ApiDRepInfo
+    { drepInfoId :: !Text
+    , drepInfoCredential :: !ApiDRepCredential
+    , drepInfoStatus :: !DRepStatus
+    , drepInfoExpiryEpoch :: !Word64
+    , drepInfoVotingPower :: !Natural
+    , drepInfoDeposit :: !Natural
+    , drepInfoAnchor :: !(Maybe ApiDRepAnchor)
+    , drepInfoName :: !(Maybe Text)
+    , drepInfoMetadata :: !(Maybe ApiDRepMetadata)
+    }
+    deriving (Eq, Generic, Show)
+    deriving anyclass (NFData)
+
+instance ToJSON ApiDRepInfo where
+    toJSON ApiDRepInfo{..} =
+        Aeson.object
+            [ "id" Aeson..= drepInfoId
+            , "credential" Aeson..= drepInfoCredential
+            , "status" Aeson..= drepInfoStatus
+            , "expiry_epoch" Aeson..= drepInfoExpiryEpoch
+            , "voting_power"
+                Aeson..= Aeson.object
+                    [ "quantity" Aeson..= T.pack (show drepInfoVotingPower)
+                    , "unit" Aeson..= T.pack "lovelace"
+                    ]
+            , "deposit"
+                Aeson..= Aeson.object
+                    [ "quantity" Aeson..= drepInfoDeposit
+                    , "unit" Aeson..= T.pack "lovelace"
+                    ]
+            , "anchor" Aeson..= drepInfoAnchor
+            , "name" Aeson..= drepInfoName
+            , "metadata" Aeson..= drepInfoMetadata
+            ]
+
+instance FromJSON ApiDRepInfo where
+    parseJSON = Aeson.withObject "ApiDRepInfo" $ \o -> do
+        drepInfoId <- o Aeson..: "id"
+        drepInfoCredential <- o Aeson..: "credential"
+        drepInfoStatus <- o Aeson..: "status"
+        drepInfoExpiryEpoch <- o Aeson..: "expiry_epoch"
+        vpObj <- o Aeson..: "voting_power"
+        vpQty <- vpObj Aeson..: "quantity"
+        drepInfoVotingPower <- case T.decimal vpQty of
+            Right (n, "") -> pure n
+            _ ->
+                fail "voting_power.quantity: not a valid natural number string"
+        depObj <- o Aeson..: "deposit"
+        drepInfoDeposit <- depObj Aeson..: "quantity"
+        drepInfoAnchor <- o Aeson..: "anchor"
+        drepInfoName <- o Aeson..:? "name"
+        drepInfoMetadata <- o Aeson..:? "metadata"
+        pure ApiDRepInfo{..}
+
+data ApiDRepMetadata = ApiDRepMetadata
+    { apiDRepMetaName :: !Text
+    , apiDRepMetaObjectives :: !(Maybe Text)
+    , apiDRepMetaMotivations :: !(Maybe Text)
+    , apiDRepMetaQualifications :: !(Maybe Text)
+    , apiDRepMetaPaymentAddress :: !(Maybe Text)
+    , apiDRepMetaDoNotList :: !Bool
+    , apiDRepMetaReferences :: ![ApiDRepMetaReference]
+    }
+    deriving (Eq, Generic, Show)
+    deriving anyclass (NFData)
+
+instance ToJSON ApiDRepMetadata where
+    toJSON ApiDRepMetadata{..} =
+        Aeson.object
+            [ "name" Aeson..= apiDRepMetaName
+            , "objectives" Aeson..= apiDRepMetaObjectives
+            , "motivations" Aeson..= apiDRepMetaMotivations
+            , "qualifications" Aeson..= apiDRepMetaQualifications
+            , "payment_address" Aeson..= apiDRepMetaPaymentAddress
+            , "do_not_list" Aeson..= apiDRepMetaDoNotList
+            , "references" Aeson..= apiDRepMetaReferences
+            ]
+
+instance FromJSON ApiDRepMetadata where
+    parseJSON = Aeson.withObject "ApiDRepMetadata" $ \o ->
+        ApiDRepMetadata
+            <$> o Aeson..: "name"
+            <*> o Aeson..:? "objectives"
+            <*> o Aeson..:? "motivations"
+            <*> o Aeson..:? "qualifications"
+            <*> o Aeson..:? "payment_address"
+            <*> (fromMaybe False <$> o Aeson..:? "do_not_list")
+            <*> (fromMaybe [] <$> o Aeson..:? "references")
+
+data ApiDRepMetaReference = ApiDRepMetaReference
+    { apiDRepRefLabel :: !Text
+    , apiDRepRefUri :: !Text
+    }
+    deriving (Eq, Generic, Show)
+    deriving anyclass (NFData)
+
+instance ToJSON ApiDRepMetaReference where
+    toJSON ApiDRepMetaReference{..} =
+        Aeson.object
+            [ "label" Aeson..= apiDRepRefLabel
+            , "uri" Aeson..= apiDRepRefUri
+            ]
+
+instance FromJSON ApiDRepMetaReference where
+    parseJSON = Aeson.withObject "ApiDRepMetaReference" $ \o ->
+        ApiDRepMetaReference
+            <$> o Aeson..: "label"
+            <*> o Aeson..: "uri"
+
+data ApiDRepSummary = ApiDRepSummary
+    { apiDRepSummaryTotalStake :: !Natural
+    , apiDRepSummaryActiveCount :: !Word64
+    , apiDRepSummaryInactiveCount :: !Word64
+    }
+    deriving (Generic, Eq, Show)
+    deriving anyclass (NFData)
+
+instance ToJSON ApiDRepSummary where
+    toJSON ApiDRepSummary{..} =
+        Aeson.object
+            [ "total_drep_stake"
+                Aeson..= Aeson.object
+                    [ "quantity" Aeson..= T.pack (show apiDRepSummaryTotalStake)
+                    , "unit" Aeson..= T.pack "lovelace"
+                    ]
+            , "active_drep_count" Aeson..= apiDRepSummaryActiveCount
+            , "inactive_drep_count" Aeson..= apiDRepSummaryInactiveCount
+            , "total_drep_count"
+                Aeson..= (apiDRepSummaryActiveCount + apiDRepSummaryInactiveCount)
+            ]
+
+instance FromJSON ApiDRepSummary where
+    parseJSON = Aeson.withObject "ApiDRepSummary" $ \o -> do
+        stakeObj <- o Aeson..: "total_drep_stake"
+        stakeQty <- stakeObj Aeson..: "quantity"
+        apiDRepSummaryTotalStake <- case T.decimal stakeQty of
+            Right (n, "") -> pure n
+            _ ->
+                fail "total_drep_stake.quantity: not a valid natural number string"
+        apiDRepSummaryActiveCount <- o Aeson..: "active_drep_count"
+        apiDRepSummaryInactiveCount <- o Aeson..: "inactive_drep_count"
+        pure ApiDRepSummary{..}
 
 newtype ApiTxId = ApiTxId {id :: ApiT (Hash "Tx")}
     deriving (Eq, Generic)

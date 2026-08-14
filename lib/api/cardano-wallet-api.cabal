@@ -74,6 +74,7 @@ library
     , network-uri
     , OddWord
     , quiet
+    , random
     , safe
     , servant
     , servant-client

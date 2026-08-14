@@ -1,0 +1,436 @@
+# OpenAPI fragments: GET /v2/dreps, GET /v2/dreps/suggested, GET /v2/dreps/{drepId}, GET /v2/dreps/summary
+# Merged into specifications/api/swagger.yaml under the DReps tag.
+
+# ---------------------------------------------------------------------------
+# GET /v2/dreps — list all registered DReps
+# ---------------------------------------------------------------------------
+
+/dreps:
+  get:
+    operationId: listDReps
+    tags:
+      - DReps
+    summary: List Registered DReps
+    description: |
+      Returns all DRep registrations known to the local node, with voting
+      power inline. Only credential-based DReps (key-hash and script-hash)
+      are included; the always-abstain and always-no-confidence sentinel DReps
+      are not returned.
+
+      Returns an empty array when the connected node is running a pre-Conway
+      era (Byron through Babbage).
+
+      The `name` field is populated from the DRep's CIP-0119 off-chain
+      metadata (givenName) once the background worker has fetched and verified
+      it. Use GET /v2/dreps/{drepId} for the full DRep record with embedded
+      metadata.
+
+      **Cache**: The underlying ledger query result is cached for up to 900
+      seconds (15 minutes). A recently de-registered DRep may still appear for
+      up to one cache interval.
+    responses:
+      '200':
+        description: List of all registered DReps.
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/ApiDRepInfo'
+            example:
+              - id: "drep1y4yzl4zeuh3r0l8t0j8k4r9p3wz2m9qv3k7xnvnmme4kk04lgq7xm6f"
+                credential:
+                  type: key_hash
+                  hash: "25d64e9a9da17b6c6b5bde0e5b15ff059ba7e9e55ee6e6e55b04b13c"
+                status: active
+                expiry_epoch: 520
+                voting_power:
+                  quantity: "123456789012345"
+                  unit: lovelace
+                deposit:
+                  quantity: 500000000
+                  unit: lovelace
+                anchor:
+                  url: "https://example.com/drep.jsonld"
+                  data_hash: "a14a5ad4f36bddc00f92ddb39fd9ac633c0fd43f8bfa57758f9163d10ef916de"
+                name: "Alice the DRep"
+              - id: "drep_script1rl5lq4n9t4zm7xt7v02kz4rw5hzp3m7s8y3knmdq69gxxqlc0r3"
+                credential:
+                  type: script_hash
+                  hash: "ff8d9e2a6f4e5c1b0a3d7f8e2c5b9a1d4e6f3c2a5b8d7e0f1c4a9b2"
+                status: inactive
+                expiry_epoch: 315
+                voting_power:
+                  quantity: "0"
+                  unit: lovelace
+                deposit:
+                  quantity: 500000000
+                  unit: lovelace
+                anchor: null
+                name: null
+
+# ---------------------------------------------------------------------------
+# GET /v2/dreps/suggested — random sample suitable for delegation
+# ---------------------------------------------------------------------------
+
+/dreps/suggested:
+  get:
+    operationId: suggestedDReps
+    tags:
+      - DReps
+    summary: Suggested DReps
+    description: |
+      Returns a random selection of DReps suitable for delegation.
+
+      DReps are ranked by delegated voting power. The top 35 (largest) are
+      excluded to encourage stake distribution. From the remainder, only
+      active DReps with off-chain metadata and `do_not_list: false` are
+      considered. A random sample of up to `count` is returned.
+
+      The `name` field is always non-null for entries returned here (it is
+      a filter criterion). Full DRep data with embedded metadata is available
+      via GET /v2/dreps/{drepId}.
+
+      **Cache**: The underlying ledger query result is cached for up to 900
+      seconds (15 minutes). A recently de-registered DRep may still appear for
+      up to one cache interval.
+    parameters:
+      - in: query
+        name: count
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          maximum: 200
+          default: 20
+        description: Number of DReps to return (default 20, max 200). count=0 returns an empty array.
+    responses:
+      '200':
+        description: Random sample of suggested DReps.
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/ApiDRepInfo'
+
+# ---------------------------------------------------------------------------
+# GET /v2/dreps/summary — aggregate statistics over the DRep registry
+# ---------------------------------------------------------------------------
+
+/dreps/summary:
+  get:
+    operationId: getDRepSummary
+    tags:
+      - DReps
+    summary: DRep Registry Summary
+    description: |
+      Returns aggregate statistics computed over all registered DReps known to
+      the local node.
+
+      Fields are derived from the same LSQ cache used by `GET /v2/dreps` and
+      `GET /v2/dreps/suggested`, so results are consistent within a single 900 s
+      cache window. No additional node query is required.
+
+      Returns zeroed values when the connected node is running a pre-Conway era.
+
+      **Cache**: Results are served from the same 900 s LSQ cache as the list
+      endpoints.
+    responses:
+      '200':
+        description: Aggregate DRep registry statistics.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApiDRepSummary'
+            example:
+              total_drep_stake:
+                quantity: "9876543210000000"
+                unit: lovelace
+              active_drep_count: 142
+              inactive_drep_count: 17
+              total_drep_count: 159
+
+# ---------------------------------------------------------------------------
+# GET /v2/dreps/{drepId} — full DRep record with embedded metadata
+# ---------------------------------------------------------------------------
+
+/dreps/{drepId}:
+  get:
+    operationId: getDRep
+    tags:
+      - DReps
+    summary: Get DRep
+    description: |
+      Returns the full DRep record for the given DRep, including on-chain
+      fields and the embedded CIP-0119 off-chain metadata. The `metadata`
+      field is null when the DRep has no anchor, when metadata has not yet
+      been fetched, or when hash verification failed.
+
+      Only credential-based DRep IDs (key-hash and script-hash) are
+      supported; passing `abstain` or `no-confidence` returns a null body
+      with status 200.
+
+      A malformed (non-bech32) DRep ID returns 400, not 404.
+    parameters:
+      - in: path
+        name: drepId
+        required: true
+        schema:
+          type: string
+        description: CIP-129 bech32-encoded DRep credential ID.
+    responses:
+      '200':
+        description: Full DRep record with embedded metadata, or null if the DRep is not found / is a sentinel.
+        content:
+          application/json:
+            schema:
+              nullable: true
+              allOf:
+                - $ref: '#/components/schemas/ApiDRepInfo'
+            example:
+              id: "drep1y4yzl4zeuh3r0l8t0j8k4r9p3wz2m9qv3k7xnvnmme4kk04lgq7xm6f"
+              credential:
+                type: key_hash
+                hash: "25d64e9a9da17b6c6b5bde0e5b15ff059ba7e9e55ee6e6e55b04b13c"
+              status: active
+              expiry_epoch: 520
+              voting_power:
+                quantity: "123456789012345"
+                unit: lovelace
+              deposit:
+                quantity: 500000000
+                unit: lovelace
+              anchor:
+                url: "https://example.com/drep.jsonld"
+                data_hash: "a14a5ad4f36bddc00f92ddb39fd9ac633c0fd43f8bfa57758f9163d10ef916de"
+              name: "Alice the DRep"
+              metadata:
+                name: "Alice the DRep"
+                objectives: "Promote decentralisation and fair governance."
+                motivations: "Long-time Cardano community member."
+                qualifications: "10 years in distributed systems."
+                payment_address: "addr1..."
+                do_not_list: false
+                references:
+                  - label: "Website"
+                    uri: "https://alice.example.com"
+      '400':
+        description: Malformed DRep ID (not valid bech32 / CIP-129).
+      '404':
+        description: The requested DRep was not found.
+
+# ---------------------------------------------------------------------------
+# Schema definitions (to add under components/schemas)
+# ---------------------------------------------------------------------------
+
+# ApiDRepInfo — returned by GET /v2/dreps, GET /v2/dreps/suggested, and GET /v2/dreps/{drepId}
+ApiDRepInfo:
+  type: object
+  required:
+    - id
+    - credential
+    - status
+    - expiry_epoch
+    - voting_power
+    - deposit
+    - anchor
+  properties:
+    id:
+      type: string
+      description: CIP-129 bech32-encoded DRep credential ID.
+      example: "drep1y4yzl4zeuh3r0l8t0j8k4r9p3wz2m9qv3k7xnvnmme4kk04lgq7xm6f"
+    credential:
+      type: object
+      required:
+        - type
+        - hash
+      properties:
+        type:
+          type: string
+          enum:
+            - key_hash
+            - script_hash
+        hash:
+          type: string
+          description: Lowercase hex-encoded 28-byte hash.
+          example: "25d64e9a9da17b6c6b5bde0e5b15ff059ba7e9e55ee6e6e55b04b13c"
+    status:
+      type: string
+      enum:
+        - active
+        - inactive
+      description: Active when expiry_epoch >= current epoch, inactive otherwise.
+    expiry_epoch:
+      type: integer
+      description: Epoch number at which the DRep's registration expires.
+      example: 520
+    voting_power:
+      type: object
+      required:
+        - quantity
+        - unit
+      properties:
+        quantity:
+          type: string
+          description: Voting power in lovelace, as a string to avoid precision loss.
+          example: "123456789012345"
+        unit:
+          type: string
+          enum:
+            - lovelace
+    deposit:
+      type: object
+      required:
+        - quantity
+        - unit
+      properties:
+        quantity:
+          type: integer
+          description: Registration deposit in lovelace.
+          example: 500000000
+        unit:
+          type: string
+          enum:
+            - lovelace
+    anchor:
+      nullable: true
+      type: object
+      required:
+        - url
+        - data_hash
+      properties:
+        url:
+          type: string
+          description: |
+            URL pointing to the DRep's metadata document.
+            https:// and ipfs:// schemes are both valid; the wallet rewrites
+            ipfs:// URLs to the Blockfrost IPFS gateway when fetching.
+          example: "https://example.com/drep.jsonld"
+        data_hash:
+          type: string
+          description: Blake2b-256 hash of the metadata document, lowercase hex.
+          example: "a14a5ad4f36bddc00f92ddb39fd9ac633c0fd43f8bfa57758f9163d10ef916de"
+    name:
+      type: string
+      nullable: true
+      description: |
+        DRep's human-readable name (CIP-0119 givenName). Null when the DRep
+        has no anchor, when metadata has not yet been fetched, or when hash
+        verification failed. For the full DRep record with embedded metadata
+        use GET /v2/dreps/{drepId}.
+    metadata:
+      nullable: true
+      description: |
+        Full CIP-0119 off-chain metadata for the DRep. Always null in list
+        and suggested responses. Populated (or null if unavailable) in the
+        GET /v2/dreps/{drepId} detail response.
+      allOf:
+        - $ref: '#/components/schemas/ApiDRepMetadata'
+
+# ApiDRepMetadata — embedded in GET /v2/dreps/{drepId} detail response
+ApiDRepMetadata:
+  type: object
+  required:
+    - name
+    - do_not_list
+    - references
+  properties:
+    name:
+      type: string
+      description: |
+        Human-readable DRep name (CIP-0119 givenName).
+        **Untrusted**: this value is DRep-supplied; clients must sanitise before rendering.
+      example: "Alice the DRep"
+    objectives:
+      type: string
+      nullable: true
+      description: |
+        DRep's stated governance objectives.
+        **Untrusted**: DRep-supplied; sanitise before rendering.
+    motivations:
+      type: string
+      nullable: true
+      description: |
+        DRep's stated motivations for participating in governance.
+        **Untrusted**: DRep-supplied; sanitise before rendering.
+    qualifications:
+      type: string
+      nullable: true
+      description: |
+        DRep's stated qualifications.
+        **Untrusted**: DRep-supplied; sanitise before rendering.
+    payment_address:
+      type: string
+      nullable: true
+      description: |
+        Optional Cardano payment address for the DRep.
+        **Untrusted**: DRep-supplied; validate as a Cardano address before use.
+    do_not_list:
+      type: boolean
+      description: |
+        Advisory opt-out flag. This is an informal extension to CIP-0119 (not
+        part of the canonical spec); the wallet surfaces it verbatim and defaults
+        to false when absent. Filtering is the client's responsibility.
+      example: false
+    references:
+      type: array
+      items:
+        $ref: '#/components/schemas/ApiDRepMetaReference'
+
+ApiDRepMetaReference:
+  type: object
+  required:
+    - label
+    - uri
+  properties:
+    label:
+      type: string
+      description: |
+        Human-readable label for the reference.
+        **Untrusted**: DRep-supplied; sanitise before rendering.
+      example: "Website"
+    uri:
+      type: string
+      description: |
+        URI for the reference.
+        **Untrusted**: DRep-supplied; do not automatically follow or embed this URI.
+      example: "https://alice.example.com"
+
+# ApiDRepSummary — returned by GET /v2/dreps/summary
+ApiDRepSummary:
+  type: object
+  required:
+    - total_drep_stake
+    - active_drep_count
+    - inactive_drep_count
+    - total_drep_count
+  properties:
+    total_drep_stake:
+      type: object
+      required:
+        - quantity
+        - unit
+      properties:
+        quantity:
+          type: string
+          description: |
+            Sum of all registered DReps' voting power in lovelace, serialised as
+            a string to avoid precision loss for large values.
+          example: "9876543210000000"
+        unit:
+          type: string
+          enum:
+            - lovelace
+    active_drep_count:
+      type: integer
+      description: Number of DReps whose expiry_epoch >= current epoch.
+      example: 142
+    inactive_drep_count:
+      type: integer
+      description: Number of DReps whose expiry_epoch < current epoch.
+      example: 17
+    total_drep_count:
+      type: integer
+      description: Total registered DReps (active_drep_count + inactive_drep_count).
+      example: 159

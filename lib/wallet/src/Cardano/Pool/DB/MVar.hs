@@ -25,13 +25,18 @@ import Cardano.Pool.DB.Model
     , emptyPoolDatabase
     , mCleanDatabase
     , mCleanPoolMetadata
+    , mClearDRepMetadata
+    , mGetAllDRepMetadata
     , mListHeaders
     , mListPoolLifeCycleData
     , mListRegisteredPools
     , mListRetiredPools
+    , mPutDRepFetchAttemptNow
+    , mPutDRepMetadata
     , mPutDelistedPools
     , mPutFetchAttempt
     , mPutHeader
+    , mPutLastDRepMetadataGC
     , mPutLastMetadataGC
     , mPutPoolMetadata
     , mPutPoolProduction
@@ -41,6 +46,7 @@ import Cardano.Pool.DB.Model
     , mPutStakeDistribution
     , mReadCursor
     , mReadDelistedPools
+    , mReadLastDRepMetadataGC
     , mReadLastMetadataGC
     , mReadPoolLifeCycleStatus
     , mReadPoolMetadata
@@ -51,8 +57,10 @@ import Cardano.Pool.DB.Model
     , mReadStakeDistribution
     , mReadSystemSeed
     , mReadTotalProduction
+    , mRecentlyFailedDRepHashes
     , mRemovePools
     , mRemoveRetiredPools
+    , mRemoveStaleMetadata
     , mRollbackTo
     , mUnfetchedPoolMetadataRefs
     )
@@ -76,6 +84,9 @@ import Data.Either
     )
 import Data.Functor.Identity
     ( Identity
+    )
+import Data.Time.Clock
+    ( getCurrentTime
     )
 import Data.Tuple
     ( swap
@@ -196,10 +207,36 @@ newDBLayer timeInterpreter = do
         putLastMetadataGC =
             void . alterPoolDB (const Nothing) db . mPutLastMetadataGC
 
+        readLastDRepMetadataGC = readPoolDB db mReadLastDRepMetadataGC
+
+        putLastDRepMetadataGC =
+            void . alterPoolDB (const Nothing) db . mPutLastDRepMetadataGC
+
+        removeStaleMetadata =
+            void . alterPoolDB (const Nothing) db . mRemoveStaleMetadata
+
         cleanDB =
             void $ alterPoolDB (const Nothing) db mCleanDatabase
 
         readPoolMetadata = readPoolDB db mReadPoolMetadata
+
+        putDRepMetadata hash meta =
+            void $ alterPoolDB (const Nothing) db (mPutDRepMetadata hash meta)
+
+        getAllDRepMetadata =
+            readPoolDB db mGetAllDRepMetadata
+
+        clearDRepMetadata =
+            void $ alterPoolDB (const Nothing) db mClearDRepMetadata
+
+        putDRepFetchAttempt key = do
+            now <- getCurrentTime
+            void
+                $ alterPoolDB (const Nothing) db (mPutDRepFetchAttemptNow now key)
+
+        recentlyFailedDRepHashes = do
+            now <- getCurrentTime
+            readPoolDB db (mRecentlyFailedDRepHashes now)
 
         atomically = id
 

@@ -62,6 +62,10 @@ import Cardano.Wallet.Primitive.Types
     , getPoolCertificatePoolId
     , getPoolRetirementCertificate
     )
+import Cardano.Wallet.Primitive.Types.DRep
+    ( DRepMetaReference (..)
+    , DRepMetadata (..)
+    )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT
     )
@@ -313,8 +317,69 @@ properties withDB = do
             "clearing metadata also clears delisted pools"
             (property (prop_removePoolMetadataDelistedPools withDB))
 
+    describe "DRep metadata properties" $ do
+        it "roundtrips metadata via getAllDRepMetadata and clearDRepMetadata"
+            $ withDB
+            $ \DBLayer{..} -> do
+                atomically $ putDRepMetadata drepMetadataHash drepMetadata
+
+                atomically getAllDRepMetadata
+                    `shouldReturn` Map.singleton drepMetadataHash drepMetadata
+
+                atomically clearDRepMetadata
+
+                atomically getAllDRepMetadata `shouldReturn` Map.empty
+
+        it "suppresses a recently failed metadata hash"
+            $ withDB
+            $ \DBLayer{..} -> do
+                atomically $ putDRepFetchAttempt (drepMetadataUrl, drepMetadataHash)
+                failed <- atomically recentlyFailedDRepHashes
+                Set.member drepMetadataHash failed `shouldBe` True
+
+        it "removeStaleMetadata prunes orphaned rows"
+            $ withDB
+            $ \DBLayer{..} -> do
+                atomically $ putDRepMetadata "aabbcc" drepMetadata
+                atomically $ putDRepMetadata "ddeeff" drepMetadata
+                atomically $ removeStaleMetadata (Set.singleton "aabbcc")
+                remaining <- atomically getAllDRepMetadata
+                Map.keys remaining `shouldBe` ["aabbcc"]
+
+        it "removeStaleMetadata with empty set removes all rows"
+            $ withDB
+            $ \DBLayer{..} -> do
+                atomically $ putDRepMetadata "aabbcc" drepMetadata
+                atomically $ putDRepMetadata "ddeeff" drepMetadata
+                atomically $ removeStaleMetadata Set.empty
+                remaining <- atomically getAllDRepMetadata
+                remaining `shouldBe` Map.empty
+
 okayConfidence :: Confidence
 okayConfidence = Confidence{certainty = 10 ^ (6 :: Int), tolerance = 0.9}
+
+drepMetadataUrl :: T.Text
+drepMetadataUrl = "https://example.com/drep.json"
+
+drepMetadataHash :: T.Text
+drepMetadataHash = "0123456789abcdef"
+
+drepMetadata :: DRepMetadata
+drepMetadata =
+    DRepMetadata
+        { drepMetaName = "Test DRep"
+        , drepMetaObjectives = Just "Test objectives"
+        , drepMetaMotivations = Just "Test motivations"
+        , drepMetaQualifications = Just "Test qualifications"
+        , drepMetaPaymentAddress = Just "addr_test1"
+        , drepMetaDoNotList = False
+        , drepMetaReferences =
+            [ DRepMetaReference
+                { drepMetaRefLabel = "Website"
+                , drepMetaRefUri = "https://example.com"
+                }
+            ]
+        }
 
 {-------------------------------------------------------------------------------
                                     Properties

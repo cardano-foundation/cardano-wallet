@@ -12,6 +12,7 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 
@@ -36,6 +37,12 @@ module Cardano.Pool.DB.Model
       -- * Model pool database functions
     , mCleanDatabase
     , mCleanPoolMetadata
+    , mPutDRepMetadata
+    , mGetAllDRepMetadata
+    , mClearDRepMetadata
+    , mPutDRepFetchAttempt
+    , mPutDRepFetchAttemptNow
+    , mRecentlyFailedDRepHashes
     , mPutPoolProduction
     , mPutHeader
     , mListHeaders
@@ -66,6 +73,9 @@ module Cardano.Pool.DB.Model
     , mPutSettings
     , mPutLastMetadataGC
     , mReadLastMetadataGC
+    , mReadLastDRepMetadataGC
+    , mPutLastDRepMetadataGC
+    , mRemoveStaleMetadata
     ) where
 
 import Cardano.Pool.DB
@@ -97,6 +107,9 @@ import Cardano.Wallet.Primitive.Types
     , SlotNo (..)
     , defaultInternalState
     , defaultSettings
+    )
+import Cardano.Wallet.Primitive.Types.DRep
+    ( DRepMetadata
     )
 import Control.Monad.Trans.Class
     ( lift
@@ -134,6 +147,13 @@ import Data.Quantity
     )
 import Data.Set
     ( Set
+    )
+import Data.Text
+    ( Text
+    )
+import Data.Time.Clock
+    ( UTCTime
+    , addUTCTime
     )
 import Data.Time.Clock.POSIX
     ( POSIXTime
@@ -178,6 +198,10 @@ data PoolDatabase = PoolDatabase
     , fetchAttempts
         :: !(Map (StakePoolMetadataUrl, StakePoolMetadataHash) Int)
     -- ^ Metadata (failed) fetch attempts
+    , drepMetadata :: !(Map Text DRepMetadata)
+    -- ^ Off-chain DRep metadata (CIP-0119) cached in database, keyed by hex hash
+    , drepFetchAttempts :: !(Map (Text, Text) (Int, UTCTime))
+    -- ^ DRep metadata (failed) fetch attempts (url, hash) → (count, retry_after)
     , seed :: !SystemSeed
     -- ^ Store an arbitrary random generator seed
     , blockHeaders :: [BlockHeader]
@@ -186,6 +210,8 @@ data PoolDatabase = PoolDatabase
     , internalState :: InternalState
     -- ^ Various internal states that need to persist across
     -- wallet restarts.
+    , lastDRepMetadataGC :: !(Maybe POSIXTime)
+    -- ^ Timestamp of the last DRep metadata GC run.
     }
     deriving (Generic, Show, Eq)
 
@@ -212,10 +238,13 @@ emptyPoolDatabase =
         mempty
         mempty
         mempty
+        mempty
+        mempty
         NotSeededYet
         mempty
         defaultSettings
         defaultInternalState
+        Nothing
 
 {-------------------------------------------------------------------------------
                                   Model Operation Types
@@ -533,6 +562,63 @@ mPutLastMetadataGC
     :: POSIXTime
     -> ModelOp ()
 mPutLastMetadataGC t = modify (#internalState . #lastMetadataGC) (\_ -> Just t)
+
+mReadLastDRepMetadataGC
+    :: ModelOp (Maybe POSIXTime)
+mReadLastDRepMetadataGC = get #lastDRepMetadataGC
+
+mPutLastDRepMetadataGC
+    :: POSIXTime
+    -> ModelOp ()
+mPutLastDRepMetadataGC t = modify #lastDRepMetadataGC (const (Just t))
+
+mRemoveStaleMetadata
+    :: Set Text
+    -> ModelOp ()
+mRemoveStaleMetadata liveHashes =
+    modify #drepMetadata
+        $ Map.filterWithKey (\h _ -> h `Set.member` liveHashes)
+
+mPutDRepMetadata :: Text -> DRepMetadata -> ModelOp ()
+mPutDRepMetadata hash meta = do
+    modify #drepMetadata $ Map.insert hash meta
+    modify #drepFetchAttempts $ Map.filterWithKey (\(_, h) _ -> h /= hash)
+
+mGetAllDRepMetadata :: ModelOp (Map Text DRepMetadata)
+mGetAllDRepMetadata = get #drepMetadata
+
+mClearDRepMetadata :: ModelOp ()
+mClearDRepMetadata = do
+    modify #drepMetadata $ const Map.empty
+    modify #drepFetchAttempts $ const Map.empty
+
+mPutDRepFetchAttempt :: UTCTime -> (Text, Text) -> ModelOp ()
+mPutDRepFetchAttempt retryAfter key =
+    modify #drepFetchAttempts
+        $ Map.insertWith
+            (\(c1, t1) (c0, _) -> (c0 + c1, t1))
+            key
+            (1, retryAfter)
+
+-- | Like 'mPutDRepFetchAttempt' but computes 'retryAfter' from the existing
+-- retry count using the same exponential backoff as the SQLite implementation
+-- (3^(n+1) seconds: 3s, 9s, 27s, ...).
+mPutDRepFetchAttemptNow :: UTCTime -> (Text, Text) -> ModelOp ()
+mPutDRepFetchAttemptNow now key = do
+    existing <- Map.lookup key <$> get #drepFetchAttempts
+    let retryCount = maybe 0 fst existing
+        delay =
+            fromIntegral @Integer
+                $ foldr (*) 3 (replicate retryCount 3)
+        retryAfter = addUTCTime delay now
+    mPutDRepFetchAttempt retryAfter key
+
+mRecentlyFailedDRepHashes :: UTCTime -> ModelOp (Set Text)
+mRecentlyFailedDRepHashes now =
+    Set.fromList . map (snd . fst) . filter (afterNow . snd) . Map.toList
+        <$> get #drepFetchAttempts
+  where
+    afterNow (_, t) = t > now
 
 --------------------------------------------------------------------------------
 -- Utilities

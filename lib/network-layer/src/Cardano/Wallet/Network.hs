@@ -55,6 +55,9 @@ import Cardano.Wallet.Primitive.SyncProgress
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin
     )
+import Cardano.Wallet.Primitive.Types.DRep
+    ( DRepRegistration
+    )
 import Cardano.Wallet.Primitive.Types.ProtocolParameters
     ( ProtocolParameters
     )
@@ -154,6 +157,10 @@ data NetworkLayer m block = NetworkLayer
         => Read.Tx era
         -> ExceptT ErrPostTx m ()
     -- ^ Broadcast a transaction to the chain producer
+    , listDReps
+        :: m (Maybe [DRepRegistration])
+    -- ^ Query all registered DReps with their voting power and status.
+    -- Returns 'Nothing' when the connected node is running a pre-Conway era.
     , stakeDistribution
         :: Coin -- Stake to consider for rewards
         -> m StakePoolsSummary

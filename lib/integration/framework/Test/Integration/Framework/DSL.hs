@@ -117,6 +117,9 @@ module Test.Integration.Framework.DSL
     , getFromResponseList
     , json
     , joinDRep
+    , listDReps
+    , suggestedDReps
+    , getDRep
     , joinStakePool
     , joinStakePoolUnsigned
     , delegationFee
@@ -303,6 +306,7 @@ import Cardano.Wallet.Api.Types
     , ApiByronWallet
     , ApiCoinSelection
     , ApiConstructTransaction
+    , ApiDRepInfo
     , ApiDRepSpecifier
     , ApiFee (..)
     , ApiMaintenanceAction (..)
@@ -3005,6 +3009,33 @@ joinDRep ctx p (w, pass) = do
         (Link.joinDRep (Identity p) w)
         Default
         payload
+
+listDReps
+    :: MonadUnliftIO m
+    => Context
+    -> m (HTTP.Status, Either RequestException [ApiDRepInfo])
+listDReps ctx =
+    request @[ApiDRepInfo] ctx Link.listDReps Default Empty
+
+suggestedDReps
+    :: MonadUnliftIO m
+    => Context
+    -> Maybe Word
+    -> m (HTTP.Status, Either RequestException [ApiDRepInfo])
+suggestedDReps ctx count =
+    request @[ApiDRepInfo] ctx (Link.suggestedDReps count) Default Empty
+
+getDRep
+    :: MonadUnliftIO m
+    => Context
+    -> ApiDRepSpecifier
+    -> m (HTTP.Status, Either RequestException ApiDRepInfo)
+getDRep ctx specifier =
+    request @ApiDRepInfo
+        ctx
+        (Link.getDRep specifier)
+        Default
+        Empty
 
 selectCoins
     :: forall n style w m
