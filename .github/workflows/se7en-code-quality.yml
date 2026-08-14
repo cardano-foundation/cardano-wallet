@@ -1,0 +1,82 @@
+name: Se7en Code Quality
+
+# Code quality checks that need neither nix nor a self-hosted runner.
+#
+# These are kept apart from se7en-ci.yml on purpose. That workflow depends on
+# self-hosted capacity and grows as more of it comes online; this one runs
+# entirely on GitHub-hosted runners and is stable once written. Separating them
+# also lets the cheap checks run on pushes to master, where a merge that lands
+# without a pull request would otherwise get no coverage at all.
+#
+# Every job is skipped unless the repository belongs to this organisation, so
+# the file is inert wherever else it is checked out.
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  # Distinct from se7en-ci.yml: workflows sharing a group cancel one another.
+  group: se7en-code-quality-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: ${{ matrix.name }}
+    if: github.repository_owner == 'se7en-labs-inc'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: "Check Local Cabal Test Targets"
+            command: scripts/ci/check-local-test-targets.sh
+
+          # The fixture suite for the closing-link validator: 27 deterministic
+          # cases against synthetic payloads, no pull request context needed.
+          # The validator itself runs from se7en-pr-policy.yml, which checks the
+          # pull request rather than the repository.
+          - name: "Test PR Body Closing Link"
+            command: scripts/ci/test-pr-body-closing-link.sh
+
+          - name: "Check Docker Boot Sync Cleanup"
+            command: scripts/ci/check-docker-boot-sync-cleanup.sh
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      # Each script resolves its own paths relative to the repository root and
+      # needs only coreutils and jq, both present on the runner image.
+      - name: Run check
+        run: ${{ matrix.command }}
+
+  shellcheck:
+    name: "Lint Bash Scripts"
+    if: github.repository_owner == 'se7en-labs-inc'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      # scripts/shellcheck.sh declares `#! /usr/bin/env nix-shell` and asks that
+      # shell for shellcheck, figlet and lolcat. Invoking it through bash below
+      # bypasses the shebang, so those three have to be present already.
+      # shellcheck is on the runner image; figlet and lolcat are not. They are
+      # reached only on the success path, but the script does not set -e, so the
+      # exit status of that final pipeline becomes the script's — without them
+      # the check would fail precisely when it passes.
+      - name: Install success-path dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends figlet lolcat
+
+      - name: Run check
+        run: bash scripts/shellcheck.sh
