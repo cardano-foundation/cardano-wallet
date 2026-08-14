@@ -78,7 +78,7 @@ get_current_branch() {
                         latest_timestamp="$ts"
                         latest_feature=$dirname
                     fi
-                elif [[ "$dirname" =~ ^([0-9]{3})- ]]; then
+                elif [[ "$dirname" =~ ^([0-9]{3,6})- ]]; then
                     local number=${BASH_REMATCH[1]}
                     number=$((10#$number))
                     if [[ "$number" -gt "$highest" ]]; then
@@ -124,9 +124,9 @@ check_feature_branch() {
         return 0
     fi
 
-    if [[ ! "$branch" =~ ^[0-9]{3}- ]] && [[ ! "$branch" =~ ^[0-9]{8}-[0-9]{6}- ]]; then
+    if [[ ! "$branch" =~ ^[0-9]{3,6}- ]] && [[ ! "$branch" =~ ^[0-9]{8}-[0-9]{6}- ]]; then
         echo "ERROR: Not on a feature branch. Current branch: $branch" >&2
-        echo "Feature branches should be named like: 001-feature-name or 20260319-143022-feature-name" >&2
+        echo "Feature branches should be named like: 001-feature-name, 5063-feature-name or 20260319-143022-feature-name" >&2
         return 1
     fi
 
@@ -146,7 +146,7 @@ find_feature_dir_by_prefix() {
     local prefix=""
     if [[ "$branch_name" =~ ^([0-9]{8}-[0-9]{6})- ]]; then
         prefix="${BASH_REMATCH[1]}"
-    elif [[ "$branch_name" =~ ^([0-9]{3})- ]]; then
+    elif [[ "$branch_name" =~ ^([0-9]{3,6})- ]]; then
         prefix="${BASH_REMATCH[1]}"
     else
         # If branch doesn't have a recognized prefix, fall back to exact match
