@@ -118,8 +118,8 @@ implementation. On 2026-08-03 a later scoped release authorized #5358 alone;
 | #5326 | PREPARED in `new-ticket` shape and attached to milestone #119. Acceptance covers idempotent registry drain, finalizer completion, all wallet API layers, a bounded shutdown smoke, and preservation of deletion and signal semantics. Required post-delivery reviewer: Pawel; eventual durable wait state `AWAITING-EXTERNAL-REVIEW`. | PARKED without implementation, dispatch, lane, branch or PR. One vertical PR is sufficient; no epic escalation or split is needed. |
 | #5358 / PR #5361 | MERGED by operator (2026-08-04T11:32:45Z), 54/54 checks green. Issue #5358 CLOSED. | lane already retired. |
 | #5359 / PR #5362 | MERGED by operator at `7aa34da8939e70e69305b15f7e9ace629ee5af58` (2026-08-05T09:50:51Z), 57/57 checks green. Issue #5359 CLOSED. | lane already retired. |
-| Windows-flake ticket (unfiled) | Not yet a GitHub issue. `wallet-test-utils` diagnostic-timeout test throws `UnliftIO` EOF on Windows CI, reproduced on 3 consecutive master heads. In scope only because of the 2026-08-05 CI-green outcome-test amendment. | Blocked on machine-owner release of wallet from `OMNIA-PAUSA-2026-08-04`. |
-| macOS-Integration-flake ticket (unfiled) | Not yet a GitHub issue. 8 Conway stake-pool timing failures (metadata-fetch / non-myopic-reward 90s waits) on macOS Integration Tests, first red at head `d3d170d0`. In scope only because of the 2026-08-05 CI-green outcome-test amendment. | Blocked on machine-owner release of wallet from `OMNIA-PAUSA-2026-08-04`. |
+| #5373 / PR #5374 | Root cause found (hFileSize bytes vs hGetChar chars, Windows CRLF text-mode translation); fix implemented (byte-exact BS.hGet + decodeLatin1); local Linux suite green (77/0), fourmolu/cabal-fmt/hlint clean; PR open, CI running -- Windows CI check itself has not yet reported, so the fix is NOT yet proven, only argued+locally-consistent. Dispatched under explicit operator override of OMNIA-PAUSA-2026-08-14, escalated to machine owner. | Agent-dispatched LIGHT single seat (no live tmux in this context); operator retains sole merge authority. |
+| macOS Integration (was flaking) | SELF-RESOLVED, no ticket needed. Confirmed green again at head `5996795098` (2026-08-14), same Conway stake-pool timing tests that failed at `d3d170d0` (2026-08-05) now pass. Left off the outcome-test ticket list. | n/a |
 
 GitHub issue readback lists #5325, #5326, #5358 and #5359 on milestone
 `M7 — Technical debt cleanup`. The milestone REST object's aggregate counters
@@ -132,4 +132,4 @@ readback until GitHub recomputes them.
   2026-08-03 release as draft PR #5361.
 - #5330: choose its failure-alerting option before dispatch.
 - #5341: choose timeout increase versus root-cause work before dispatch.
-- CI-green amendment (2026-08-05): Windows flake and macOS Integration flake both need root-caused/fixed before milestone close. Prepare as two standalone tickets once wallet is released from OMNIA-PAUSA-2026-08-04; do not dispatch under the pause.
+- CI-green amendment (2026-08-05): macOS Integration self-resolved (see current state). Windows flake fixed and dispatched as #5373/PR #5374 on 2026-08-17 under explicit operator override of the standing pause (escalated to machine owner via inbox note); awaiting Windows CI result on the PR, then operator merge.
