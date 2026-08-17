@@ -5,7 +5,6 @@ module Test.Hspec.ExtraSpec (spec) where
 
 import Control.Monad
     ( forM_
-    , replicateM
     , unless
     )
 import Control.Monad.IO.Unlift
@@ -62,7 +61,6 @@ import System.IO
     , hClose
     , hFileSize
     , hFlush
-    , hGetChar
     , hSeek
     , hSetBuffering
     , stderr
@@ -160,6 +158,9 @@ import UnliftIO.Temporary
     )
 import Prelude
 
+import qualified Data.ByteString as BS
+import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 import qualified Test.Hspec.Extra as Extra
 
 spec :: Spec
@@ -495,7 +496,13 @@ waitForTimeoutLine attempts captureHandle = do
     hFlush stdout
     size <- hFileSize captureHandle
     hSeek captureHandle AbsoluteSeek 0
-    output <- replicateM (fromIntegral size) $ hGetChar captureHandle
+    -- Read exactly 'size' *bytes*, not characters: on a text-mode handle
+    -- (e.g. Windows, where CRLF is translated to LF on read) the byte
+    -- count reported by 'hFileSize' can exceed the number of characters
+    -- actually obtainable, which would make a character-oriented read
+    -- run past EOF. Bytes are decoded afterwards instead.
+    bytes <- BS.hGet captureHandle (fromIntegral size)
+    let output = T.unpack $ T.decodeLatin1 bytes
     if "timed out" `isInfixOf` output || attempts <= 0
         then pure output
         else do
