@@ -96,6 +96,9 @@ import Cardano.Wallet.Benchmarks.Latency.Measure
     ( meanAvg
     , withLatencyLogging
     )
+import Cardano.Wallet.DRep.Metadata
+    ( defaultIpfsGatewayUrl
+    )
 import Cardano.Wallet.Faucet
     ( Faucet (massiveWalletMnemonic)
     )
@@ -776,6 +779,7 @@ withShelleyServer tracers action = withFaucet $ \faucetClientEnv -> do
             Nothing -- tls configuration
             Nothing -- settings
             Nothing -- token metadata server
+            defaultIpfsGatewayUrl
             block0
             (setupAction networkParameters)
 

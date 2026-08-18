@@ -42,6 +42,7 @@ jobs:
           .#unit-std-gen-seed .#unit-wai-middleware-logging
           .#unit-benchmark-history
           .#wallet-key-export .#wallet-key-export-test
+          .#ci.benchmarks.all
 
   build-gate-artifacts:
     name: "Build Gate (Linux Artifacts)"
