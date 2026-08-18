@@ -31,6 +31,7 @@ jobs:
       NODE_LOGS_FILE: ./logs/node.log
       WALLET_LOGS_FILE: ./logs/wallet.log
       CLEANUP_DB: "true"
+      MITHRIL_UTXO_HD_FLAVOR: LMDB
       NETWORK: mainnet
     steps:
       - name: Checkout
@@ -44,7 +45,9 @@ jobs:
           rm -rf logs databases
           mkdir -p logs
           ./snapshot.sh
-          ./run.sh sync 14400
+          runtime_path=$(nix shell --quiet .#cardano-wallet .#cardano-node .#cardano-cli --command printenv PATH)
+          export PATH="$runtime_path"
+          exec bash ./run.sh sync 14400
 
       - name: Upload logs
         if: always()
