@@ -13,6 +13,9 @@ import Control.Monad.IO.Unlift
 import Data.Bifunctor
     ( first
     )
+import Data.Char
+    ( toUpper
+    )
 import Data.Foldable
     ( traverse_
     )
@@ -541,11 +544,20 @@ prop_hspecMain vars (NiceString other) (HspecArgs argsBefore) (HspecArgs argsAft
     failure = not pass
     argsError = any (\((n, _), _) -> null n || elem '=' n) env
 
-    vars' = nubBy ((==) `on` (fst . fst)) vars
+    -- Environment variable names are case-insensitive on Windows (though
+    -- case-preserving), so two generated names that differ only by case
+    -- would collide into a single variable there -- unlike on POSIX, where
+    -- they're distinct. Compare names case-insensitively everywhere so the
+    -- property holds on every platform, not just the ones where case
+    -- happens to matter.
+    sameName = (==) `on` map toUpper
+    vars' = nubBy (\a b -> nameOf a `sameName` nameOf b) vars
+      where
+        nameOf ((NiceString n, _), _) = n
     env =
         [ ((n, v), s)
         | ((NiceString n, NiceString v), s) <- vars'
-        , n /= other
+        , not (n `sameName` other)
         ]
 
     mainArgs =
