@@ -64,7 +64,9 @@ import Data.Generics.Internal.VL.Lens
     , (^.)
     )
 import Data.Maybe
-    ( mapMaybe
+    ( fromMaybe
+    , listToMaybe
+    , mapMaybe
     )
 import Data.Text
     ( Text
@@ -361,7 +363,9 @@ spec = describe "BYRON_MIGRATIONS" $ do
 
             let amt = 10 * minUTxOValue (_mainEra ctx)
                 affected = mismatchedIndexAddresses @n mnemonic !! 1
-                unaffected = randomAddresses @n mnemonic !! 0
+                unaffected =
+                    fromMaybe (error "randomAddresses must be infinite")
+                        $ listToMaybe (randomAddresses @n mnemonic)
 
             liftIO
                 $ moveByronCoins @n

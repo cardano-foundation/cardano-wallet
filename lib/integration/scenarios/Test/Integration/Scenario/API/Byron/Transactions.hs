@@ -73,6 +73,10 @@ import Data.Bifunctor
 import Data.Generics.Internal.VL.Lens
     ( (^.)
     )
+import Data.Maybe
+    ( fromMaybe
+    , listToMaybe
+    )
 import Data.Text.Class
     ( FromText (..)
     , TextDecodingError (..)
@@ -709,7 +713,9 @@ spec = describe "BYRON_TRANSACTIONS" $ do
                 -- Distinct recorded indexes, so the two addresses do not share
                 -- a derivation path.
                 affected = mismatchedIndexAddresses @n mnemonic !! 1
-                unaffected = randomAddresses @n mnemonic !! 0
+                unaffected =
+                    fromMaybe (error "randomAddresses must be infinite")
+                        $ listToMaybe (randomAddresses @n mnemonic)
 
             liftIO
                 $ moveByronCoins @n
