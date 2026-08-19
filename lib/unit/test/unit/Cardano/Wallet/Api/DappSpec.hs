@@ -135,6 +135,14 @@ spec = do
                     err400{errBody = "{\"code\":\"bad_request\",\"message\":\"details\"}"}
             toServerError (request, generic)
                 `shouldBe` dappServerError InvalidDappRequest
+        it "rejects extra fields on otherwise fixed errors" $ do
+            let injected =
+                    err400
+                        { errBody =
+                            "{\"code\":\"dapp_invalid_request\",\"message\":\"Invalid backend request\",\"detail\":\"SENSITIVE_DAPP_SENTINEL\"}"
+                        }
+            toServerError (request, injected)
+                `shouldBe` dappServerError InvalidDappRequest
         it "normalizes unexpected failures without leaking their body" $ do
             let generic =
                     err500

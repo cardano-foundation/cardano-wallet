@@ -244,6 +244,7 @@ import Data.Text.Class
     )
 import Data.Word
     ( Word32
+    , Word64
     )
 import Database.Persist.Sql
     ( Entity (..)
@@ -421,7 +422,8 @@ withContextClock
     -> IO a
 withContextClock clocks wid action db = do
     clock <- contextClockFor clocks wid
-    action $ decorateDBLayer clock db
+    incarnation <- contextIncarnation <$> readMVar clock
+    action $ decorateDBLayer incarnation clock db
 
 contextClockFor
     :: MVar (Map.Map W.WalletId (MVar ContextClock))
@@ -430,24 +432,38 @@ contextClockFor
 contextClockFor clocks wid = modifyMVar clocks $ \values -> case Map.lookup wid values of
     Just clock -> pure (values, clock)
     Nothing -> do
-        clock <- newMVar $ ContextClock 0 0 False
+        clock <- newMVar $ ContextClock 0 0 0 False
         pure (Map.insert wid clock values, clock)
 
-decorateDBLayer :: MVar ContextClock -> DBLayer IO s -> DBLayer IO s
-decorateDBLayer clock DBLayer{..} =
+decorateDBLayer
+    :: Word64 -> MVar ContextClock -> DBLayer IO s -> DBLayer IO s
+decorateDBLayer incarnation clock DBLayer{..} =
     DBLayer
-        { atomically = \action -> withMVar clock $ \_ -> atomically action
+        { atomically = \action -> withMVar clock $ \current -> do
+            ensureCurrent current
+            atomically action
         , atomicallyWithContextChange = \change action ->
             modifyMVar clock $ \before -> do
+                ensureCurrent before
                 after <-
                     either (throwIO . userError) pure $ advanceClock change before
                 result <- atomically action
                 pure (after, result)
         , atomicallyReadContext = \action ->
             withMVar clock $ \current ->
-                (\result -> (result, current)) <$> atomically action
+                (\result -> (result, observed current)) <$> atomically action
         , ..
         }
+  where
+    ensureCurrent current =
+        unless (contextIncarnation current == incarnation)
+            $ throwIO
+            $ userError "wallet database incarnation changed"
+    observed current =
+        current
+            { contextDeleted =
+                contextDeleted current || contextIncarnation current /= incarnation
+            }
 
 advanceDeletedClock
     :: MVar (Map.Map W.WalletId (MVar ContextClock)) -> W.WalletId -> IO ()
@@ -457,7 +473,11 @@ advanceDeletedClock clocks wid = do
         after <-
             either (throwIO . userError) pure
                 $ advanceClock WalletAndPendingContextChange before
-        pure after{contextDeleted = True}
+        incarnation <-
+            either (throwIO . userError) pure
+                $ checkedIncrement
+                $ contextIncarnation after
+        pure after{contextIncarnation = incarnation, contextDeleted = True}
 
 reviveContextClock
     :: MVar (Map.Map W.WalletId (MVar ContextClock)) -> W.WalletId -> IO ()
@@ -467,23 +487,34 @@ reviveContextClock clocks wid = do
 
 advanceClock
     :: ContextChange -> ContextClock -> Either String ContextClock
-advanceClock change ContextClock{walletGeneration, pendingGeneration, contextDeleted} =
+advanceClock
+    change
     ContextClock
-        <$> advanceWallet walletGeneration
-        <*> advancePending pendingGeneration
-        <*> pure contextDeleted
-  where
-    checked value
-        | value == maxBound = Left "dApp context generation exhausted"
-        | otherwise = Right $ value + 1
-    advanceWallet = case change of
-        WalletContextChange -> checked
-        WalletAndPendingContextChange -> checked
-        _ -> Right
-    advancePending = case change of
-        PendingContextChange -> checked
-        WalletAndPendingContextChange -> checked
-        _ -> Right
+        { walletGeneration
+        , pendingGeneration
+        , contextIncarnation
+        , contextDeleted
+        } =
+        ContextClock
+            <$> advanceWallet walletGeneration
+            <*> advancePending pendingGeneration
+            <*> pure contextIncarnation
+            <*> pure contextDeleted
+      where
+        checked = checkedIncrement
+        advanceWallet = case change of
+            WalletContextChange -> checked
+            WalletAndPendingContextChange -> checked
+            _ -> Right
+        advancePending = case change of
+            PendingContextChange -> checked
+            WalletAndPendingContextChange -> checked
+            _ -> Right
+
+checkedIncrement :: Word64 -> Either String Word64
+checkedIncrement value
+    | value == maxBound = Left "dApp context generation exhausted"
+    | otherwise = Right $ value + 1
 
 -- | Return all wallet databases that match the specified key type within the
 --   specified directory.

@@ -84,7 +84,7 @@ withBootDBLayer
     -> m ()
 withBootDBLayer timeInterpreter wid params k = do
     lock <- liftIO $ newMVar ()
-    contextClock <- liftIO $ newMVar $ ContextClock 0 0 False
+    contextClock <- liftIO $ newMVar $ ContextClock 0 0 0 False
     db <- liftIO $ newMVar $ mInitializeWallet wid params
     k
         $ DBLayer
@@ -170,20 +170,28 @@ withBootDBLayer timeInterpreter wid params k = do
                     pure (result, clock)
             }
   where
-    advance change ContextClock{walletGeneration, pendingGeneration, contextDeleted} =
+    advance
+        change
         ContextClock
-            <$> bump
-                [WalletContextChange, WalletAndPendingContextChange]
-                walletGeneration
-            <*> bump
-                [PendingContextChange, WalletAndPendingContextChange]
-                pendingGeneration
-            <*> pure contextDeleted
-      where
-        bump changes value
-            | change `notElem` changes = Right value
-            | value == maxBound = Left "dApp context generation exhausted"
-            | otherwise = Right $ value + 1
+            { walletGeneration
+            , pendingGeneration
+            , contextIncarnation
+            , contextDeleted
+            } =
+            ContextClock
+                <$> bump
+                    [WalletContextChange, WalletAndPendingContextChange]
+                    walletGeneration
+                <*> bump
+                    [PendingContextChange, WalletAndPendingContextChange]
+                    pendingGeneration
+                <*> pure contextIncarnation
+                <*> pure contextDeleted
+          where
+            bump changes value
+                | change `notElem` changes = Right value
+                | value == maxBound = Left "dApp context generation exhausted"
+                | otherwise = Right $ value + 1
 
 -- | Read the database, but return 'Nothing' if the operation fails.
 readDBMaybe

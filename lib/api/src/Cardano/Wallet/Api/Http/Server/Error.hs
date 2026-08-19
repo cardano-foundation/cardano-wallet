@@ -1465,14 +1465,15 @@ instance IsServerError (Request, ServerError) where
         utf8 = T.replace "\"" "'" . T.decodeUtf8 . BL.toStrict
         isJSON = isJust . Aeson.decode @Aeson.Value
         isAllowedDappError status payload = case Aeson.decode @ApiError payload of
-            Just (ApiError info (ApiErrorMessage message)) ->
-                (status, info, message)
-                    `elem` [ (400, DappInvalidRequest, "Invalid backend request")
-                           , (400, DappContextConflict, "Backend context conflict")
-                           , (409, DappAccountChanged, "Wallet or network changed")
-                           , (503, DappContextUnavailable, "Wallet context unavailable")
-                           , (500, DappInternalError, "Backend operation failed")
-                           ]
+            Just decodedError@(ApiError info (ApiErrorMessage message)) ->
+                Aeson.encode decodedError == payload
+                    && (status, info, message)
+                        `elem` [ (400, DappInvalidRequest, "Invalid backend request")
+                               , (400, DappContextConflict, "Backend context conflict")
+                               , (409, DappAccountChanged, "Wallet or network changed")
+                               , (503, DappContextUnavailable, "Wallet context unavailable")
+                               , (500, DappInternalError, "Backend operation failed")
+                               ]
             Nothing -> False
         normalizeDappError status = dappServerError $ case status of
             409 -> DappAccountChangedError
