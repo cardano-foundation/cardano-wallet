@@ -92,6 +92,7 @@ import Cardano.Wallet.DB
     , DBLayerCollection (..)
     , DBLayerParams (..)
     , DBTxHistory (..)
+    , ErrContextAccountChanged (..)
     , ErrNoSuchWallet (..)
     , ErrNotGenesisBlockHeader (ErrNotGenesisBlockHeader)
     , ErrWalletAlreadyInitialized (ErrWalletAlreadyInitialized)
@@ -354,6 +355,7 @@ newDBFactory wf tr defaultFieldValues ti = \case
                     traceWith tr $ MsgRemoving (pretty wid)
                     advanceDeletedClock clocks wid
                     modifyMVar_ mvar (pure . Map.delete wid)
+                , markDatabaseDeleted = advanceDeletedClock clocks
                 , listDatabases =
                     Map.keys <$> readMVar mvar
                 }
@@ -401,6 +403,7 @@ newDBFactory wf tr defaultFieldValues ti = \case
                         advanceDeletedClock clocks wid
                         deleteSqliteDatabase trDel (databaseFile wid)
                             `onException` reviveContextClock clocks wid
+                , markDatabaseDeleted = advanceDeletedClock clocks
                 , listDatabases =
                     findDatabases key tr databaseDir
                 }
@@ -450,34 +453,35 @@ decorateDBLayer incarnation clock DBLayer{..} =
                 result <- atomically action
                 pure (after, result)
         , atomicallyReadContext = \action ->
-            withMVar clock $ \current ->
-                (\result -> (result, observed current)) <$> atomically action
+            withMVar clock $ \current -> do
+                ensureCurrent current
+                (\result -> (result, current)) <$> atomically action
         , ..
         }
   where
     ensureCurrent current =
-        unless (contextIncarnation current == incarnation)
-            $ throwIO
-            $ userError "wallet database incarnation changed"
-    observed current =
-        current
-            { contextDeleted =
-                contextDeleted current || contextIncarnation current /= incarnation
-            }
+        unless
+            ( contextIncarnation current == incarnation
+                && not (contextDeleted current)
+            )
+            $ throwIO ErrContextAccountChanged
 
 advanceDeletedClock
     :: MVar (Map.Map W.WalletId (MVar ContextClock)) -> W.WalletId -> IO ()
 advanceDeletedClock clocks wid = do
     clock <- contextClockFor clocks wid
     modifyMVar_ clock $ \before -> do
-        after <-
-            either (throwIO . userError) pure
-                $ advanceClock WalletAndPendingContextChange before
-        incarnation <-
-            either (throwIO . userError) pure
-                $ checkedIncrement
-                $ contextIncarnation after
-        pure after{contextIncarnation = incarnation, contextDeleted = True}
+        if contextDeleted before
+            then pure before
+            else do
+                after <-
+                    either (throwIO . userError) pure
+                        $ advanceClock WalletAndPendingContextChange before
+                incarnation <-
+                    either (throwIO . userError) pure
+                        $ checkedIncrement
+                        $ contextIncarnation after
+                pure after{contextIncarnation = incarnation, contextDeleted = True}
 
 reviveContextClock
     :: MVar (Map.Map W.WalletId (MVar ContextClock)) -> W.WalletId -> IO ()

@@ -193,6 +193,8 @@ data DBFactory m s = DBFactory
     -- connection so long as necessary.
     , removeDatabase :: WalletId -> IO ()
     -- ^ Erase any trace of the database
+    , markDatabaseDeleted :: WalletId -> IO ()
+    -- ^ Mark the current wallet incarnation unavailable before stopping it.
     , listDatabases :: IO [WalletId]
     -- ^ List existing wallet database found on disk.
     }

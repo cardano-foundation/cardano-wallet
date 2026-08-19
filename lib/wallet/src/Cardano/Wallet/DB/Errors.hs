@@ -23,6 +23,11 @@ data ErrBadFormat
 
 instance Exception ErrBadFormat
 
+data ErrContextAccountChanged = ErrContextAccountChanged
+    deriving (Eq, Show)
+
+instance Exception ErrContextAccountChanged
+
 -- | Can't add a transaction to the local tx submission pool.
 data ErrPutLocalTxSubmission
     = ErrPutLocalTxSubmissionNoSuchWallet ErrWalletNotInitialized
