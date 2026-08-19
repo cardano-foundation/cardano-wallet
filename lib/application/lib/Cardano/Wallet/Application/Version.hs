@@ -23,7 +23,9 @@ module Cardano.Wallet.Application.Version
 
       -- * Displaying Versions
     , showVersionAsDate
+    , showVersionAsDateText
     , showFullVersion
+    , gitRevisionText
     ) where
 
 import Cardano.Wallet.Application.Version.TH
@@ -59,6 +61,9 @@ import qualified Data.Text as T
 
 newtype GitRevision = GitRevision Text deriving (Show, Eq)
 
+gitRevisionText :: GitRevision -> Text
+gitRevisionText (GitRevision revision) = revision
+
 -- | Like 'showVersionAsDate', but also show the git revision.
 showFullVersion :: Version -> GitRevision -> String
 showFullVersion v (GitRevision r) =
@@ -74,6 +79,9 @@ showVersionAsDate (Version (y : m : d : vs) tags) =
   where
     digits n = padLeftF n '0'
 showVersionAsDate (Version vs tags) = showVersion (Version vs tags)
+
+showVersionAsDateText :: Version -> Text
+showVersionAsDateText = T.pack . showVersionAsDate
 
 -- | The Git revision ID (40 character hex string) of this build.
 --

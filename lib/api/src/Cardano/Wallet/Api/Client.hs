@@ -60,6 +60,7 @@ import Cardano.Wallet.Api.Types
     , ApiBytesT (..)
     , ApiConstructTransactionDataT
     , ApiConstructTransactionT
+    , ApiDappCapabilities
     , ApiDecodeTransactionPostData
     , ApiDecodedTransactionT
     , ApiFee
@@ -281,6 +282,8 @@ data NetworkClient = NetworkClient
     , networkClock
         :: Bool -- When 'True', block and force NTP check
         -> ClientM ApiNetworkClock
+    , dappCapabilities
+        :: ClientM ApiDappCapabilities
     }
 
 -- | Produces a 'WalletClient' working against the /wallets API.
@@ -472,11 +475,15 @@ stakePoolClient =
 networkClient :: NetworkClient
 networkClient =
     let
-        _networkInformation :<|> _networkParameters :<|> _networkClock =
-            client (Proxy @("v2" :> Network))
+        _networkInformation
+            :<|> _networkParameters
+            :<|> _networkClock
+            :<|> _dappCapabilities =
+                client (Proxy @("v2" :> Network))
     in
         NetworkClient
             { networkInformation = _networkInformation
             , networkParameters = _networkParameters
             , networkClock = _networkClock
+            , dappCapabilities = _dappCapabilities
             }

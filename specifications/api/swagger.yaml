@@ -2454,6 +2454,68 @@ components:
     ApiNetworkClock: &ApiNetworkClock
       <<: *networkInformationNtpStatus
 
+    ApiDappBackendBuild: &ApiDappBackendBuild
+      type: object
+      additionalProperties: false
+      required: [version, source_revision]
+      properties:
+        version:
+          type: string
+        source_revision:
+          type: string
+          pattern: '^[0-9a-f]{40}$'
+
+    ApiDappNetwork: &ApiDappNetwork
+      type: object
+      additionalProperties: false
+      required: [network_id, network_magic, genesis_hash, current_era]
+      properties:
+        network_id:
+          type: integer
+          minimum: 0
+          maximum: 1
+        network_magic:
+          type: integer
+          minimum: 0
+          maximum: 4294967295
+        genesis_hash:
+          type: string
+          pattern: '^[0-9a-f]{64}$'
+        current_era: *ApiEra
+
+    ApiDappCapability: &ApiDappCapability
+      type: object
+      additionalProperties: false
+      required: [name, revision, available_eras]
+      properties:
+        name:
+          type: string
+          pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$'
+        revision:
+          type: integer
+          minimum: 1
+          maximum: 9007199254740991
+        available_eras:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: *ApiEra
+
+    ApiDappCapabilities: &ApiDappCapabilities
+      type: object
+      additionalProperties: false
+      required: [api_version, backend_build, network, capabilities]
+      properties:
+        api_version:
+          type: integer
+          enum: [1]
+        backend_build: *ApiDappBackendBuild
+        network: *ApiDappNetwork
+        capabilities:
+          type: array
+          minItems: 4
+          items: *ApiDappCapability
+
     nullableEpochInfo: &nullableEpochInfo
       <<: *epochInfo
       nullable: True
@@ -4658,6 +4720,90 @@ x-errNotFound: &errNotFound
     code:
       type: string
       enum: ['not_found']
+
+x-errDappInvalidRequest: &errDappInvalidRequest
+  <<: *responsesErr
+  title: dapp_invalid_request
+  properties:
+    message: { type: string, enum: ['Invalid backend request'] }
+    code: { type: string, enum: ['dapp_invalid_request'] }
+
+x-errDappContextConflict: &errDappContextConflict
+  <<: *responsesErr
+  title: dapp_context_conflict
+  properties:
+    message: { type: string, enum: ['Backend context conflict'] }
+    code: { type: string, enum: ['dapp_context_conflict'] }
+
+x-errDappIdentityConflict: &errDappIdentityConflict
+  <<: *responsesErr
+  title: dapp_identity_conflict
+  properties:
+    message: { type: string, enum: ['Submission identity conflict'] }
+    code: { type: string, enum: ['dapp_identity_conflict'] }
+
+x-errDappAccountChanged: &errDappAccountChanged
+  <<: *responsesErr
+  title: dapp_account_changed
+  properties:
+    message: { type: string, enum: ['Wallet or network changed'] }
+    code: { type: string, enum: ['dapp_account_changed'] }
+
+x-errDappContextUnavailable: &errDappContextUnavailable
+  <<: *responsesErr
+  title: dapp_context_unavailable
+  properties:
+    message: { type: string, enum: ['Wallet context unavailable'] }
+    code: { type: string, enum: ['dapp_context_unavailable'] }
+
+x-errDappInternalError: &errDappInternalError
+  <<: *responsesErr
+  title: dapp_internal_error
+  properties:
+    message: { type: string, enum: ['Backend operation failed'] }
+    code: { type: string, enum: ['dapp_internal_error'] }
+
+x-errDappTxProofGeneration: &errDappTxProofGeneration
+  <<: *responsesErr
+  title: dapp_tx_proof_generation
+  properties:
+    message: { type: string, enum: ['Transaction proof unavailable'] }
+    code: { type: string, enum: ['dapp_tx_proof_generation'] }
+
+x-errDappDeprecatedCertificate: &errDappDeprecatedCertificate
+  <<: *responsesErr
+  title: dapp_deprecated_certificate
+  properties:
+    message: { type: string, enum: ['Deprecated certificate'] }
+    code: { type: string, enum: ['dapp_deprecated_certificate'] }
+
+x-errDappDataProofGeneration: &errDappDataProofGeneration
+  <<: *responsesErr
+  title: dapp_data_proof_generation
+  properties:
+    message: { type: string, enum: ['Data proof unavailable'] }
+    code: { type: string, enum: ['dapp_data_proof_generation'] }
+
+x-errDappDataAddressNotPk: &errDappDataAddressNotPk
+  <<: *responsesErr
+  title: dapp_data_address_not_pk
+  properties:
+    message: { type: string, enum: ['Address is not a public-key credential'] }
+    code: { type: string, enum: ['dapp_data_address_not_pk'] }
+
+x-errDappSubmissionFailed: &errDappSubmissionFailed
+  <<: *responsesErr
+  title: dapp_submission_failed
+  properties:
+    message: { type: string, enum: ['Transaction submission failed'] }
+    code: { type: string, enum: ['dapp_submission_failed'] }
+
+x-errDappSubmissionUnavailable: &errDappSubmissionUnavailable
+  <<: *responsesErr
+  title: dapp_submission_unavailable
+  properties:
+    message: { type: string, enum: ['Transaction submission unavailable'] }
+    code: { type: string, enum: ['dapp_submission_unavailable'] }
 
 x-errSoftDerivationRequired: &errSoftDerivationRequired
   <<: *responsesErr
@@ -7023,6 +7169,15 @@ x-responsesGetNetworkParameters: &responsesGetNetworkParameters
       application/json:
         schema: *ApiNetworkParameters
 
+x-responsesGetDappCapabilities: &responsesGetDappCapabilities
+  200:
+    description: Available only after all revision-1 operation families are implemented.
+    content:
+      application/json:
+        schema: *ApiDappCapabilities
+  404:
+    description: The complete dApp backend capability is unavailable.
+
 x-responsesPostRandomAddress: &responsesPostRandomAddress
   <<:
     - *responsesErr400
@@ -8529,6 +8684,17 @@ paths:
 
         Returns the set of network parameters for the current epoch.
       responses: *responsesGetNetworkParameters
+
+  /dapp-capabilities:
+    get:
+      operationId: getDappCapabilities
+      tags: ["Network"]
+      summary: dApp backend capabilities
+      description: |
+        Reports the complete revision-1 dApp backend contract. Until every
+        operation family is implemented, this route returns the ordinary
+        unmatched-route response and does not publish partial capabilities.
+      responses: *responsesGetDappCapabilities
 
   /proxy/transactions:
     post:

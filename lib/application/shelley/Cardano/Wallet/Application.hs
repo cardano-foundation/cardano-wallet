@@ -247,6 +247,8 @@ import Prelude
 
 import qualified Cardano.Pool.DB.Layer as Pool
 import qualified Cardano.Wallet.Api.Http.Shelley.Server as Server
+import qualified Cardano.Wallet.Api.Types.Dapp as Dapp
+import qualified Cardano.Wallet.Application.Version as Version
 import qualified Cardano.Wallet.DB.Layer as Sqlite
 import qualified Cardano.Wallet.DRep.Layer as DRep
 import qualified Cardano.Wallet.DRep.Worker as DRep
@@ -561,6 +563,12 @@ serveWallet
                                 drl
                                 ntp
                                 blockchainSource
+                                Dapp.ApiDappBackendBuild
+                                    { Dapp.version =
+                                        Version.showVersionAsDateText Version.version
+                                    , Dapp.sourceRevision =
+                                        Version.gitRevisionText Version.gitRevision
+                                    }
                 start
                     serverSettings
                     apiServerTracer

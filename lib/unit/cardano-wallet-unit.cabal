@@ -211,6 +211,7 @@ test-suite unit
     Cardano.Wallet.Api.DRepSpec
     Cardano.Wallet.Api.Malformed
     Cardano.Wallet.Api.ServerSpec
+    Cardano.Wallet.Api.DappSpec
     Cardano.Wallet.Api.TypesSpec
     Cardano.Wallet.ApiSpec
     Cardano.Wallet.Balance.Migration.PlanningSpec

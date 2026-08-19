@@ -14,6 +14,7 @@
 -- endpoints reachable through HTTP.
 module Cardano.Wallet.Api.Http.Server
     ( server
+    , dappCapabilitiesUnavailable
     ) where
 
 import Cardano.Address
@@ -177,6 +178,8 @@ import Cardano.Wallet.Api.Types
     , ApiAddressInspect (..)
     , ApiAddressInspectData (..)
     , ApiCredential (..)
+    , ApiDappBackendBuild
+    , ApiDappCapabilities
     , ApiDelegationAction (..)
     , ApiHealthCheck (..)
     , ApiMaintenanceAction (..)
@@ -264,6 +267,7 @@ import Servant
     , NoContent (..)
     , Server
     , err400
+    , err404
     , (:<|>) (..)
     )
 import Servant.Server
@@ -279,6 +283,10 @@ import qualified Cardano.Wallet.Address.Derivation.Shared as Shared
 import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
 import qualified Data.Text as T
 
+dappCapabilitiesUnavailable
+    :: ApiDappBackendBuild -> Handler ApiDappCapabilities
+dappCapabilitiesUnavailable _ = Handler (throwE err404)
+
 server
     :: forall n
      . HasSNetworkId n
@@ -290,8 +298,9 @@ server
     -> DRepLayer IO
     -> NtpClient
     -> BlockchainSource
+    -> ApiDappBackendBuild
     -> Server (Api n)
-server byron icarus shelley multisig spl drepLayer ntp blockchainSource =
+server byron icarus shelley multisig spl drepLayer ntp blockchainSource dappBackendBuild =
     wallets
         :<|> walletKeys
         :<|> assets
@@ -668,6 +677,7 @@ server byron icarus shelley multisig spl drepLayer ntp blockchainSource =
         getNetworkInformation nid nl mode
             :<|> getNetworkParameters genesis nl
             :<|> getNetworkClock ntp
+            :<|> dappCapabilitiesUnavailable dappBackendBuild
       where
         nl = icarus ^. networkLayer
         genesis@(_, _) = icarus ^. genesisData

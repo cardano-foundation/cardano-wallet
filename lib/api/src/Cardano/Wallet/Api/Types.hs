@@ -95,6 +95,11 @@ module Cardano.Wallet.Api.Types
     , ApiDRepMetaReference (..)
     , DRepStatus (..)
     , ApiDRepSpecifier (..)
+    , ApiDappBackendBuild (..)
+    , ApiDappCapabilities (..)
+    , ApiDappCapability (..)
+    , ApiDappNetwork (..)
+    , makeApiDappCapabilities
     , ApiEraInfo (..)
     , ApiExternalCertificate (..)
     , ApiExternalInput (..)
@@ -356,6 +361,13 @@ import Cardano.Wallet.Api.Types.Certificate
     , ApiExternalCertificate (..)
     , ApiRegisterPool (..)
     , ApiRewardAccount (..)
+    )
+import Cardano.Wallet.Api.Types.Dapp
+    ( ApiDappBackendBuild (..)
+    , ApiDappCapabilities (..)
+    , ApiDappCapability (..)
+    , ApiDappNetwork (..)
+    , makeApiDappCapabilities
     )
 import Cardano.Wallet.Api.Types.Era
     ( ApiEra (..)

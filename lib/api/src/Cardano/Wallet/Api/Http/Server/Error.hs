@@ -22,6 +22,7 @@ module Cardano.Wallet.Api.Http.Server.Error
     , liftE
     , apiError
     , err425
+    , dappServerError
     , showT
     , handler
     )
@@ -143,6 +144,7 @@ import Cardano.Wallet.Api.Types.Error
     , ApiErrorTxOutputLovelaceInsufficient (..)
     , ApiErrorUnsupportedEra (..)
     , ApiErrorWrongEncryptionPassphrase (..)
+    , DappError (..)
     )
 import Cardano.Wallet.Primitive.Ledger.Convert
     ( Convert (toWallet)
@@ -234,6 +236,31 @@ import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
+
+dappServerError :: DappError -> ServerError
+dappServerError = \case
+    InvalidDappRequest -> fixed err400 DappInvalidRequest "Invalid backend request"
+    DappContextConflictError -> fixed err400 DappContextConflict "Backend context conflict"
+    DappIdentityConflictError -> fixed err400 DappIdentityConflict "Submission identity conflict"
+    DappAccountChangedError -> fixed err409 DappAccountChanged "Wallet or network changed"
+    DappContextUnavailableError -> fixed err503 DappContextUnavailable "Wallet context unavailable"
+    DappInternalErrorResponse -> fixed err500 DappInternalError "Backend operation failed"
+    DappTxProofGenerationError -> fixed err403 DappTxProofGeneration "Transaction proof unavailable"
+    DappDeprecatedCertificateError -> fixed err403 DappDeprecatedCertificate "Deprecated certificate"
+    DappDataProofGenerationError -> fixed err403 DappDataProofGeneration "Data proof unavailable"
+    DappDataAddressNotPkError ->
+        fixed
+            err403
+            DappDataAddressNotPk
+            "Address is not a public-key credential"
+    DappSubmissionFailedError -> fixed err409 DappSubmissionFailed "Transaction submission failed"
+    DappSubmissionUnavailableError ->
+        fixed
+            err503
+            DappSubmissionUnavailable
+            "Transaction submission unavailable"
+  where
+    fixed status info message = apiError status info message
 
 instance IsServerError WalletException where
     toServerError = \case

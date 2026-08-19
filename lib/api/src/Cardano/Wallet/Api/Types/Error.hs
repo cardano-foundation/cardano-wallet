@@ -20,6 +20,7 @@ module Cardano.Wallet.Api.Types.Error
       ApiError (..)
     , ApiErrorInfo (..)
     , ApiErrorMessage (..)
+    , DappError (..)
 
       -- * Specific API error types
     , ApiErrorSharedWalletNoSuchCosigner (..)
@@ -257,6 +258,18 @@ data ApiErrorInfo
     | BalanceTxInlinePlutusV3ScriptNotSupportedInBabbage
     | BalanceTxInlinePlutusV4ScriptNotSupportedInConway
     | BalanceTxNativeScriptNotSupportedInConway
+    | DappInvalidRequest
+    | DappContextConflict
+    | DappIdentityConflict
+    | DappAccountChanged
+    | DappContextUnavailable
+    | DappInternalError
+    | DappTxProofGeneration
+    | DappDeprecatedCertificate
+    | DappDataProofGeneration
+    | DappDataAddressNotPk
+    | DappSubmissionFailed
+    | DappSubmissionUnavailable
     | UnsupportedEra !ApiErrorUnsupportedEra
     deriving (Eq, Generic, Show, Data)
     deriving anyclass (NFData)
@@ -276,6 +289,21 @@ apiErrorInfoOptions =
                 , contentsFieldName = "info"
                 }
         }
+
+data DappError
+    = InvalidDappRequest
+    | DappContextConflictError
+    | DappIdentityConflictError
+    | DappAccountChangedError
+    | DappContextUnavailableError
+    | DappInternalErrorResponse
+    | DappTxProofGenerationError
+    | DappDeprecatedCertificateError
+    | DappDataProofGenerationError
+    | DappDataAddressNotPkError
+    | DappSubmissionFailedError
+    | DappSubmissionUnavailableError
+    deriving (Eq, Show)
 
 data ApiErrorUnsupportedEra = ApiErrorUnsupportedEra
     { unsupportedEra :: !ApiEra

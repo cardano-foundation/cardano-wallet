@@ -148,6 +148,10 @@ import Cardano.Wallet.Api.Types
     , ApiDRepMetaReference (..)
     , ApiDRepMetadata (..)
     , ApiDRepSummary (..)
+    , ApiDappBackendBuild (..)
+    , ApiDappCapabilities (..)
+    , ApiDappCapability (..)
+    , ApiDappNetwork (..)
     , ApiDecodeTransactionPostData (..)
     , ApiDecodedTransaction (..)
     , ApiDelegationAction (..)
@@ -818,6 +822,7 @@ spec = do
         jsonTest @ApiEncryptMetadata
         jsonTest @ApiEra
         jsonTest @ApiEraInfo
+        jsonTest @ApiDappCapabilities
         jsonTest @ApiError
         jsonTest @ApiErrorMissingWitnessesInTransaction
         jsonTest @ApiErrorSharedWalletNoSuchCosigner
@@ -2060,6 +2065,34 @@ instance Arbitrary ApiWalletMode where
 instance Arbitrary ApiNetworkInformation where
     arbitrary = genericArbitrary
     shrink = genericShrink
+
+instance Arbitrary ApiDappCapabilities where
+    arbitrary =
+        pure
+            ApiDappCapabilities
+                { apiVersion = 1
+                , backendBuild =
+                    ApiDappBackendBuild
+                        { version = "v2026-07-23"
+                        , sourceRevision = T.replicate 40 "a"
+                        }
+                , network =
+                    ApiDappNetwork
+                        { networkId = 0
+                        , networkMagic = 1
+                        , genesisHash = T.replicate 64 "b"
+                        , currentEra = ApiConway
+                        }
+                , capabilities =
+                    [ ApiDappCapability name 1 [ApiConway]
+                    | name <-
+                        [ "transaction-context"
+                        , "reviewed-context-signing"
+                        , "cip8-cip95"
+                        , "durable-wallet-submit"
+                        ]
+                    ]
+                }
 
 instance Arbitrary NtpStatusWithOffset where
     arbitrary = do
@@ -3312,6 +3345,9 @@ instance ToSchema ApiUtxoStatistics where
 
 instance ToSchema ApiNetworkInformation where
     declareNamedSchema _ = declareSchemaForDefinition "ApiNetworkInformation"
+
+instance ToSchema ApiDappCapabilities where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiDappCapabilities"
 
 instance ToSchema ApiNetworkClock where
     declareNamedSchema _ = declareSchemaForDefinition "ApiNetworkClock"
