@@ -663,7 +663,6 @@ data LocalStateQueryCmd block m
     | forall a. SomeLSQAt
         (Point block)
         (LSQ block m a)
-        (m Bool)
         (LocalStateQueryResult a -> m ())
 
 data LocalStateQueryResult a
@@ -714,17 +713,11 @@ localStateQuery queue =
         :: m (LSQ.ClientStIdle block (Point block) (Query block) m Void)
     clientStIdle = do
         cmd <- awaitNextCmd
-        isCancelled cmd >>= \case
-            True -> finalizeCmd >> clientStIdle
-            False -> pure $ LSQ.SendMsgAcquire (target cmd) (clientStAcquiring cmd)
-
-    isCancelled :: LocalStateQueryCmd block m -> m Bool
-    isCancelled SomeLSQ{} = pure False
-    isCancelled (SomeLSQAt _ _ cancelled _) = cancelled
+        pure $ LSQ.SendMsgAcquire (target cmd) (clientStAcquiring cmd)
 
     target :: LocalStateQueryCmd block m -> Target (Point block)
     target SomeLSQ{} = VolatileTip
-    target (SomeLSQAt point _ _ _) = SpecificPoint point
+    target (SomeLSQAt point _ _) = SpecificPoint point
 
     clientStAcquiring
         :: LocalStateQueryCmd block m
@@ -735,7 +728,7 @@ localStateQuery queue =
             , recvMsgFailure = \_failure -> case qry of
                 SomeLSQ{} ->
                     pure $ LSQ.SendMsgAcquire VolatileTip (clientStAcquiring qry)
-                SomeLSQAt _ _ _ respond -> do
+                SomeLSQAt _ _ respond -> do
                     respond LocalStateQueryAcquireFailed
                     finalizeCmd
                     clientStIdle
@@ -746,7 +739,7 @@ localStateQuery queue =
         -> m (LSQ.ClientStAcquired block (Point block) (Query block) m Void)
     clientStAcquired (SomeLSQ cmd respond) = pure $ runLSQ cmd $ \res ->
         release (respond res)
-    clientStAcquired (SomeLSQAt _ cmd _ respond) = pure $ runLSQ cmd $ \res ->
+    clientStAcquired (SomeLSQAt _ cmd respond) = pure $ runLSQ cmd $ \res ->
         release (respond (LocalStateQueryAcquired res))
 
     runLSQ
