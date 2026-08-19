@@ -112,9 +112,14 @@ import Cardano.Wallet.Address.Keys.SequentialAny
     ( mkSeqStateFromRootXPrv
     )
 import Cardano.Wallet.DB
-    ( DBFactory (..)
+    ( ContextChange (..)
+    , ContextClock (..)
+    , DBFactory (..)
     , DBLayer (..)
     , DBLayerParams (..)
+    )
+import Cardano.Wallet.DB.Errors
+    ( ErrContextAccountChanged (..)
     )
 import Cardano.Wallet.DB.Layer
     ( DefaultFieldValues (..)
@@ -662,6 +667,38 @@ fileModeSpec = do
 
                 concurrently conn (threadDelay 50_000 >> rm)
                     `shouldReturn` ((), False)
+
+        it "advances context generations for each change class" $ do
+            withDBFactory $ \_ DBFactory{withDatabaseBoot} ->
+                withDatabaseBoot testWid testDBLayerParams $ \DBLayer{..} -> do
+                    let readClock = snd <$> atomicallyReadContext (pure ())
+                        advance change = atomicallyWithContextChange change (pure ())
+                    readClock `shouldReturn` ContextClock 0 0 0 False
+                    advance NoContextChange
+                    readClock `shouldReturn` ContextClock 0 0 0 False
+                    advance WalletContextChange
+                    readClock `shouldReturn` ContextClock 1 0 0 False
+                    advance PendingContextChange
+                    readClock `shouldReturn` ContextClock 1 1 0 False
+                    advance WalletAndPendingContextChange
+                    readClock `shouldReturn` ContextClock 2 2 0 False
+
+        it "invalidates deleted incarnations across recreation" $ do
+            withDBFactory $ \_ DBFactory{..} -> do
+                old <- withDatabaseBoot testWid testDBLayerParams pure
+                let readClock DBLayer{atomicallyReadContext} =
+                        snd <$> atomicallyReadContext (pure ())
+                    isAccountChanged = (== ErrContextAccountChanged)
+
+                markDatabaseDeleted testWid
+                markDatabaseDeleted testWid
+                readClock old `shouldThrow` isAccountChanged
+                removeDatabase testWid
+
+                newClock <-
+                    withDatabaseBoot testWid testDBLayerParams readClock
+                newClock `shouldBe` ContextClock 1 1 1 False
+                readClock old `shouldThrow` isAccountChanged
 
     describe "Sqlite database file" $ do
         let writeSomething _ = pure ()

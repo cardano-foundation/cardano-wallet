@@ -108,13 +108,31 @@ import Cardano.Wallet.Address.States.Features
 import Cardano.Wallet.Address.States.Test.State
     ( TestState (..)
     )
+import Cardano.Wallet.Api
+    ( ApiLayer (..)
+    )
+import Cardano.Wallet.Api.Http.Shelley.TransactionContext
+    ( resolveTransactionContext
+    )
+import Cardano.Wallet.Api.Lib.ApiT
+    ( ApiT (..)
+    )
+import Cardano.Wallet.Api.Types.Dapp.Context
+    ( ApiDappContextNetwork (..)
+    , ApiDappHex (..)
+    , ApiDappTransactionContextRequest (..)
+    )
+import Cardano.Wallet.Api.Types.Error
+    ( DappError (DappContextUnavailableError)
+    )
 import Cardano.Wallet.Balance.Migration.SelectionSpec
     ( MockTxConstraints (..)
     , genTokenBundleMixed
     , unMockTxConstraints
     )
 import Cardano.Wallet.DB
-    ( DBLayer (..)
+    ( ContextClock (..)
+    , DBLayer (..)
     , hoistDBLayer
     , putTxHistory
     )
@@ -144,7 +162,9 @@ import Cardano.Wallet.Gen
     , genSlotNo
     )
 import Cardano.Wallet.Network
-    ( NetworkLayer (..)
+    ( DappTransactionContext (..)
+    , ErrDappTransactionContext (..)
+    , NetworkLayer (..)
     )
 import Cardano.Wallet.Network.RestorationMode
     ( RestorationPoint (..)
@@ -165,6 +185,7 @@ import Cardano.Wallet.Primitive.Passphrase.Types
     )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
+    , GenesisParameters (getGenesisBlockHash)
     , NetworkParameters (..)
     , SlotNo (..)
     , SlottingParameters (..)
@@ -331,6 +352,12 @@ import Data.Generics.Internal.VL
     , view
     , (^.)
     )
+import Data.IORef
+    ( atomicModifyIORef'
+    , modifyIORef'
+    , newIORef
+    , readIORef
+    )
 import Data.List
     ( nubBy
     , sort
@@ -384,6 +411,7 @@ import Test.Hspec
     , expectationFailure
     , it
     , shouldBe
+    , shouldReturn
     , shouldSatisfy
     , xit
     )
@@ -475,6 +503,87 @@ import qualified Data.Text as T
 
 spec :: Spec
 spec = describe "Cardano.WalletSpec" $ do
+    describe "transaction-context-retries" $ do
+        let mkApi network =
+                ApiLayer
+                    { tracerTxSubmit = nullTracer
+                    , tracerWalletWorker = nullTracer
+                    , netParams = (block0, dummyNetworkParameters)
+                    , netLayer = network
+                    , txLayer = dummyTransactionLayer
+                    , _dbFactory = error "unused db factory"
+                    , _workerRegistry = error "unused worker registry"
+                    , concierge = error "unused concierge"
+                    , _tokenMetadataClient = error "unused token metadata client"
+                    , dappProcessGeneration = BS.replicate 16 1
+                    , dappHmacKey = BS.replicate 32 2
+                    }
+            NetworkParameters genesis _ _ = dummyNetworkParameters
+            Hash genesisHash = getGenesisBlockHash genesis
+            request =
+                ApiDappTransactionContextRequest
+                    1
+                    (ApiDappContextNetwork 1 764_824_073 $ ApiDappHex genesisHash)
+                    []
+
+        it "stops after three unavailable exact-point queries" $ do
+            WalletLayerFixture _ worker wid <- setupFixture dummyStateF testWallet
+            calls <- newIORef (0 :: Int)
+            let network =
+                    dummyNetworkLayer
+                        { getDappTransactionContext = \_ _ -> do
+                            modifyIORef' calls (+ 1)
+                            pure $ Left ErrDappTransactionContextPointUnavailable
+                        }
+
+            result <-
+                resolveTransactionContext @'Mainnet
+                    (mkApi network)
+                    worker
+                    (ApiT wid)
+                    request
+
+            result `shouldBe` Left DappContextUnavailableError
+            readIORef calls `shouldReturn` 3
+
+        it "stops after three capture-confirm clock races" $ do
+            WalletLayerFixture db worker wid <-
+                setupFixture dummyStateF testWallet
+            calls <- newIORef (0 :: Int)
+            clocks <- newIORef (0 :: Word64)
+            let racingDB DBLayer{..} =
+                    DBLayer
+                        { atomicallyReadContext = \action -> do
+                            result <- atomically action
+                            clock <- atomicModifyIORef' clocks $ \n ->
+                                (n + 1, ContextClock n 0 0 False)
+                            pure (result, clock)
+                        , ..
+                        }
+                network =
+                    dummyNetworkLayer
+                        { getDappTransactionContext = \_ _ -> do
+                            modifyIORef' calls (+ 1)
+                            pure
+                                $ Right
+                                $ DappTransactionContext
+                                    (error "context era is not assembled")
+                                    (error "protocol parameters are not assembled")
+                                    (error "UTxO is not assembled")
+                        }
+                racingWorker = worker{dbLayer_ = racingDB db}
+
+            result <-
+                resolveTransactionContext
+                    @'Mainnet
+                    (mkApi network)
+                    racingWorker
+                    (ApiT wid)
+                    request
+
+            result `shouldBe` Left DappContextUnavailableError
+            readIORef calls `shouldReturn` 3
+
     describe
         "Pointless mockEventSource to cover 'Show' instances for errors"
         $ do
