@@ -2,134 +2,83 @@
 
 Home repo: cardano-foundation/cardano-wallet.
 GitHub milestone: #119, `M7 — Technical debt cleanup`.
-Desk session/window: `wallet` / `cardano-wallet-ms119-technical-debt`.
-Desk pane: `%5161`. Runtime root: `/tmp/ms-cw-tech-debt`.
+Desk session/window: `wallet` / `cardano-wallet-ms119-technical-debt`, pane `%5355`.
+Runtime root: `/tmp/ms-cw-tech-debt`.
 
-This is an operator-defined cleanup drive. It is separate from GitHub
-milestone #113, “M1 — Drop cardano-api”; this desk must not dispatch or mutate
-cardano-api-removal work.
+Separate from GitHub milestone #113 "Drop cardano-api"; this desk must not
+dispatch or mutate cardano-api-removal work.
 
 ## Outcome test
 
-Starting set: the 27 open, actionable, non-#113 issues reconciled in
-`qwen-audit/report.md` on 2026-07-30 (the upstream-blocked #5293 is excluded).
+Starting set: 27 open, actionable, non-#113 issues as of 2026-07-30. The
+original `qwen-audit/report.md` was lost from /tmp; the set was reconstructed
+2026-08-19 from GitHub state (issues open at audit time, non-#113, #5293
+excluded) and reconstructs to exactly 27:
+4411 5063 5075 5086 5094 5097 5098 5103 5106 5108 5114 5115 5146 5147 5155
+5159 5170 5182 5196 5233 5246 5252 5325 5326 5330 5334 5341.
 
 Complete when:
+1. all four S tickets #5103, #5115, #5196, #5246 closed by merged PRs or
+   evidence-backed "not planned" — **3/4 done** (#5115 remains);
+2. ≥14 of the 27 closed with merged-PR or evidence-backed disposition —
+   **6/27 done** (#5063, #5103, #5196, #5246, #5325, #5341); 8 more needed;
+3. all master README CI badges green (operator amendment 2026-08-05) —
+   **MET as of 2026-08-18/19** (all 9 badges verified green after #5374,
+   #5376, #5378, #5380 merged; Mithril Sync will show green on its next
+   scheduled 2am run, fix verified on a real dispatch run).
 
-1. all four S tickets #5103, #5115, #5196 and #5246 are closed by merged PRs
-   or evidence-backed “not planned” decisions; and
-2. at least 14 of the 27 starting actionable issues are closed on GitHub with
-   merged-PR or evidence-backed disposition.
+## Closed under this milestone (beyond the starting set)
 
-3. **all master README CI badges are green** at milestone close — operator
-   amendment, 2026-08-05. Audited against the actual workflow-status API
-   (`gh run list --branch master`), not the shields.io cache. As of
-   2026-08-05T10:15Z two are red on head `d3d170d0`, both pre-existing
-   flakiness, not caused by any #119 merge:
-   - `Windows` — `wallet-test-utils` diagnostic-timeout test, `UnliftIO`
-     EOF; identical failure reproduced on the two prior master heads too
-     (`ee8def32be`, `ecf489fad679`), before #5343/#5361/#5362 landed.
-   - `macOS Integration Tests` — 8 Conway stake-pool timing failures
-     (metadata-fetch / non-myopic-reward 90s waits). First red at this
-     head; the only thing that just merged (#5362) touches only
-     `scripts/ci/*`/`specs/5359-*`, nothing near stake pools.
-   Neither issue is filed yet. Wallet is currently parked under
-   `OMNIA-PAUSA-2026-08-04` (machine-wide; `RELEASE-CLAUDE-HOLD.md` at
-   2026-08-05T08:25Z released only the Claude-provider hold and named
-   wallet as still parked) — no ticket dispatch until machine-owner
-   release.
+#5358, #5359 (2026-08-04/05); #5373/PR#5374, #5375/PR#5376, #5377/PR#5378,
+#5379/PR#5380 (2026-08-18/19) — the badge-green drive. All merged by the
+operator; all issues auto-closed.
 
-The operator ratified this as the separate Technical Debt Cleanup milestone
-on 2026-07-31. GitHub milestone #113 remains separate and out of scope.
+## Priority queue (paved 2026-08-19)
 
-## Priority
+1. **#5326** — shutdown drain. Prepared in new-ticket shape since 08-02, one
+   vertical PR, no operator decision pending. NEXT DISPATCH. Pawel review
+   required post-delivery (production shutdown semantics).
+2. **#5334** — Windows golden-sample mismatch warnings (small, CI/CD).
+3. **#5146** — CI docs review after GHA migration (small, docs; feeds the
+   release-runbook accuracy this desk already relies on).
+4. **#5108** — STAKE_POOLS_SMASH_01 flaky timeout (medium; same
+   local-cluster flake family observed repeatedly during the badge drive).
+5. **#5094** — local cluster flakiness umbrella (medium; overlaps 4).
+6. **#5252** — ProtocolParameters type alignment. Spec-only draft PR #5364
+   already exists (operator-authored); implementation undispatched.
+7. **#5097/#5098/#5114/#5155/#5159** — test-performance cluster (larger).
+8. **#4411, #5086, #5147, #5170, #5182, #5233** — unscoped tail.
 
-1. Completed merge train: PRs #5349, #5355, #5356 and #5357 were merged by
-   the operator; completed windows/worktrees were cleaned, with branch refs
-   retained.
-2. #5303 / PR #5343 — `AWAITING-EXTERNAL-REVIEW` by Pawel at accepted exact
-   head `995e82041d83…`. Live readback on 2026-08-02 found 54/54 checks green,
-   zero commits behind master, and `MERGEABLE`; it must not be proposed to the
-   operator before Pawel reviews it. Its execution window was intentionally
-   closed after acceptance, with all recovery artifacts preserved.
-3. #5325 / PR #5345 — DELIVERY COMPLETE at accepted/pushed head
-   `14842f1fbc14…`; 54/54 CI checks green, semantic gate lifecycle accepted,
-   six tasks stamped, and worktree clean. The issue is now attached to milestone
-   #119 and is `AWAITING-EXTERNAL-REVIEW` by Pawel because it changes user-visible
-   `deposit_returned` semantics. The PR remains draft behind #5343 and cannot
-   become the merge proposal until the prior queue entry is resolved.
-4. #5358 — scoped 2026-08-03 release active. Draft PR #5361 is open at planning
-   head `86db1f887e…`; Opus owner `%5298` supervises Sol/xhigh driver `%5299`
-   and Opus/high navigator `%5301` under frozen gate v1. #5359 remains prepared
-   and explicitly held with no lane or PR.
-5. #5326 — PREPARED and attached to milestone #119 as one bounded shutdown-drain
-   ticket. No implementation, dispatch, lane, branch or PR exists. Pawel review
-   is required after any delivery because it changes production shutdown and
-   wallet-worker lifecycle semantics; the eventual wait state is
-   `AWAITING-EXTERNAL-REVIEW`, not `BLOCKED`.
-6. #5246 — PR #5356 merged but the issue remains OPEN; owner-lane closeout is
-   required for the milestone's S-ticket outcome.
-7. #5115 — OPEN and parked under the operator's no-new-work order.
+## Blocked on operator decision
 
-## Merge queue mode
-
-Operator order 2026-07-30 remains: queue only exact rebased, semantically
-accepted heads, one proposal at a time, and only the operator merges. The
-original four-entry queue is merged. PR #5343 is not an operator proposal: the
-operator corrected the desk that it is Pawel's review item. It remains
-`AWAITING-EXTERNAL-REVIEW` despite being exact-head green and mergeable.
-
-The bounded `RELEASE-2026-08-02-wallet.md` exception prepared exactly two
-existing issues, #5325 and #5326, in `new-ticket` shape and attached them to
-milestone #119. It created no issue, PR, lane, branch or implementation. Both
-candidates are one reviewable vertical slice, so neither needed epic escalation
-or a split between semantic core and mechanical remainder.
-
-PR #5345 delivery is complete but remains a draft, not a merge proposal.
-It is parked behind #5343 and awaits Pawel's external semantic review at its
-exact accepted head. The earlier pause after preparing those two tickets was
-later superseded only for the operator-scoped #5358 delivery; only the operator
-may merge.
-
-The second bounded release, `RELEASE-2026-08-02b-wallet.md`, created and
-recorded exactly two additional non-Pawel issues after the operator approved
-their complete drafts:
-
-- #5358 — focused Cabal recipes must select only locally testable suites;
-- #5359 — issue-backed PRs must carry GitHub closing-keyword references.
-
-Both are on milestone #119 and the Planning backlog with Category=Wallet,
-Ownership=Work, and Status unset. That release itself prohibited
-implementation. On 2026-08-03 a later scoped release authorized #5358 alone;
-#5359 remains held and undispatched.
+- **#5330** — macOS/Windows CI only on push:master, no failure alerting.
+  Parked since 07-30 pending choice of alerting option.
+- **#5115** — last S ticket. Parked under the operator no-new-work order of
+  2026-08-03; needs explicit release to dispatch.
+- **#5370** — external contribution (Byron key verification, Crypto2099).
+  Grok-reviewed "merge as-is" 2026-08-18; fork-PR CI approval + review
+  routing (Pawel?) both operator calls. Relates to #5075 but does not close it.
+- **Ancillary-verification enforcement** — open question from #5380 review:
+  does mithril-client actually reject a bad ANCILLARY_VERIFICATION_KEY or
+  warn-and-proceed? Key location resolved (public keys, tracked in
+  run/mainnet/nix/.env, sourced by run.sh:20 and snapshot.sh:37). Negative
+  control designed but not run; ~1-2 cheap CI probes if pursued.
 
 ## Current state
 
-| Item | State | Owner/runtime |
-|---|---|---|
-| Grok boundary audit | COMPLETE | `/tmp/ms-cw-tech-debt/grok-audit` |
-| Qwen inventory audit | COMPLETE | `/tmp/ms-cw-tech-debt/qwen-audit` |
-| PR #5349 / issue #5103 | MERGED by operator; merge commit `320b1abc174ba406d474b006e719204626a903fd` | legacy lane remains parked |
-| #5196 / PR #5355 | MERGED by operator at `efe473937feea6260cfb5e64cb6d0a9d1655aab0`. | completed lane removed; durable runtime `/tmp/ms-cw-tech-debt/t5196` |
-| #5246 / PR #5356 | MERGED by operator at `ac390d1ae4d207e2e1d22d9623dec9f536e937b5`; issue remains OPEN. | completed lane removed; durable runtime `/tmp/ms-cw-tech-debt/t5246` |
-| #5063 / PR #5357 | MERGED by operator at `75cd99bd1754cbda5e255d4bd38d0c6c7bc65c13`. Master protection repaired first by deleting only the four obsolete `delta-*` required contexts; all 53 remaining required contexts were emitted and green. | completed lane removed; durable runtime `/tmp/ms-cw-tech-debt/t5063` |
-| #5303 / PR #5343 | MERGED by operator at `ee8def32be4b689875d0883d5e5bb7b17985d650` (2026-08-05T08:52:40Z), after rebase-onto-master and Pawel review. Issue #5303 CLOSED. | lane already retired; runtime `/tmp/epic-5304` preserved historically. |
-| #5325 / PR #5345 | MERGED by operator at `00d1dde353f15c1ea8f35d89bad781fe167860c8` (2026-08-04T13:03Z), after Pawel approval. Issue #5325 CLOSED. | lane already retired. |
-| #5326 | PREPARED in `new-ticket` shape and attached to milestone #119. Acceptance covers idempotent registry drain, finalizer completion, all wallet API layers, a bounded shutdown smoke, and preservation of deletion and signal semantics. Required post-delivery reviewer: Pawel; eventual durable wait state `AWAITING-EXTERNAL-REVIEW`. | PARKED without implementation, dispatch, lane, branch or PR. One vertical PR is sufficient; no epic escalation or split is needed. |
-| #5358 / PR #5361 | MERGED by operator (2026-08-04T11:32:45Z), 54/54 checks green. Issue #5358 CLOSED. | lane already retired. |
-| #5359 / PR #5362 | MERGED by operator at `7aa34da8939e70e69305b15f7e9ace629ee5af58` (2026-08-05T09:50:51Z), 57/57 checks green. Issue #5359 CLOSED. | lane already retired. |
-| #5373 / PR #5374 | Root cause found (hFileSize bytes vs hGetChar chars, Windows CRLF text-mode translation); fix implemented (byte-exact BS.hGet + decodeLatin1); local Linux suite green (77/0), fourmolu/cabal-fmt/hlint clean; PR open, CI running -- Windows CI check itself has not yet reported, so the fix is NOT yet proven, only argued+locally-consistent. Dispatched under explicit operator override of OMNIA-PAUSA-2026-08-14, escalated to machine owner. | Agent-dispatched LIGHT single seat (no live tmux in this context); operator retains sole merge authority. |
-| macOS Integration (was flaking) | SELF-RESOLVED, no ticket needed. Confirmed green again at head `5996795098` (2026-08-14), same Conway stake-pool timing tests that failed at `d3d170d0` (2026-08-05) now pass. Left off the outcome-test ticket list. | n/a |
+| Item | State |
+|---|---|
+| Master head | `6761259ee9` (#5380 merge), all 9 README badges green |
+| S tickets | #5103 ✅ #5196 ✅ #5246 ✅ #5115 ⛔ parked |
+| 14/27 threshold | 6/27 — honest recount 2026-08-19; the badge drive closed new issues, not starting-set ones |
+| Open PRs (this desk's scope) | none — all merged; #5364 is an operator spec draft, #5370 external |
+| Active lanes | none — all workers archived, windows closed |
 
-GitHub issue readback lists #5325, #5326, #5358 and #5359 on milestone
-`M7 — Technical debt cleanup`. The milestone REST object's aggregate counters
-still report 0 open / 0 closed; treat those counters as stale and use issue
-readback until GitHub recomputes them.
+## Standing constraints
 
-## Parked decisions
-
-- The harness defect found by #5063 is #5358 and is active under the scoped
-  2026-08-03 release as draft PR #5361.
-- #5330: choose its failure-alerting option before dispatch.
-- #5341: choose timeout increase versus root-cause work before dispatch.
-- CI-green amendment (2026-08-05): macOS Integration self-resolved (see current state). Windows flake fixed and dispatched as #5373/PR #5374 on 2026-08-17 under explicit operator override of the standing pause (escalated to machine owner via inbox note); awaiting Windows CI result on the PR, then operator merge.
+Operator alone merges. No cardano-api work. Tickets touching user-visible or
+production semantics route to Pawel post-delivery. No internal Agent-tool
+subagents — tmux/worker-protocol dispatch only (operator directive
+2026-08-18). Disk headroom on this host is tight; no speculative large nix
+closures. Real CI probes against the shared colo2-nix-public pool are
+budgeted per-ticket and capped explicitly in briefs.
