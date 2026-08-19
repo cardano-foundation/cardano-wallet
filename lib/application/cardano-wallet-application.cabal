@@ -136,6 +136,7 @@ library
     , text-class
     , time
     , unliftio
+    , wai
     , wai-middleware-logging
     , warp
     , warp-tls

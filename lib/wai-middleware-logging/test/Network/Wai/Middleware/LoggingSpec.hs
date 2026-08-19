@@ -93,6 +93,7 @@ import Network.Wai.Middleware.Logging
     , HandlerLog (..)
     , newApiLoggerSettings
     , obfuscateKeys
+    , suppressDetails
     , withApiLogger
     )
 import Servant
@@ -168,6 +169,7 @@ import Prelude
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Text as T
+import qualified Network.Wai as Wai
 import qualified Network.Wai.Handler.Warp as Warp
 
 spec :: Spec
@@ -194,6 +196,19 @@ spec = describe "Logging Middleware" $ do
                 , (Debug, "")
                 , (Info, "200 OK")
                 , (Debug, "14")
+                , (Debug, "LogRequestFinish")
+                ]
+
+        it "suppresses transaction-context path and bodies" $ \ctx -> do
+            postIlled
+                ctx
+                "/v2/wallets/wallet-secret/transaction-context?token=secret"
+                "body-secret"
+            expectLogs
+                ctx
+                [ (Debug, "LogRequestStart")
+                , (Info, "[POST] /v2/wallets/<redacted>/transaction-context")
+                , (Info, "404 Not Found")
                 , (Debug, "LogRequestFinish")
                 ]
 
@@ -299,11 +314,16 @@ spec = describe "Logging Middleware" $ do
             logSettings <-
                 newApiLoggerSettings
                     <&> obfuscateKeys (`seq` ["sensitive"])
+                    <&> suppressDetails isTransactionContext
             let warpSettings =
                     Warp.defaultSettings
                         & setBeforeMainLoop (cb (Right p))
             start logSettings warpSettings tr socket
         Left e -> cb (Left (Just e))
+
+    isTransactionContext request = case Wai.pathInfo request of
+        "v2" : "wallets" : _walletId : "transaction-context" : _ -> True
+        _ -> False
 
     bomb err = throwString $ case err of
         Just e -> "Error setting up warp server: " ++ show e

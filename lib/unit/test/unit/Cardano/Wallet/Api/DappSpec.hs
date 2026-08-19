@@ -8,7 +8,8 @@ import Cardano.Wallet.Api.Http.Server
     ( dappCapabilitiesUnavailable
     )
 import Cardano.Wallet.Api.Http.Server.Error
-    ( dappServerError
+    ( IsServerError (toServerError)
+    , dappServerError
     )
 import Cardano.Wallet.Api.Types.Dapp
     ( ApiDappBackendBuild (..)
@@ -34,9 +35,15 @@ import Data.List
 import Data.Text
     ( Text
     )
+import Network.Wai
+    ( defaultRequest
+    , pathInfo
+    )
 import Servant.Server
     ( ServerError (..)
+    , err400
     , err404
+    , err500
     , runHandler
     )
 import Test.Hspec
@@ -114,6 +121,28 @@ spec = do
                         `shouldSatisfy` not . containsSensitiveSentinel
             )
             dappErrors
+
+    describe "transaction-context raw errors" $ do
+        let request =
+                defaultRequest
+                    { pathInfo = ["v2", "wallets", "wallet", "transaction-context"]
+                    }
+        it "passes only exact fixed dApp errors" $ do
+            let expected = dappServerError DappContextConflictError
+            toServerError (request, expected) `shouldBe` expected
+        it "normalizes arbitrary JSON errors" $ do
+            let generic =
+                    err400{errBody = "{\"code\":\"bad_request\",\"message\":\"details\"}"}
+            toServerError (request, generic)
+                `shouldBe` dappServerError InvalidDappRequest
+        it "normalizes unexpected failures without leaking their body" $ do
+            let generic =
+                    err500
+                        { errBody =
+                            "{\"code\":\"internal_server_error\",\"message\":\"SENSITIVE_DAPP_SENTINEL\"}"
+                        }
+            toServerError (request, generic)
+                `shouldBe` dappServerError DappInternalErrorResponse
 
 validDocument :: ByteString
 validDocument = documentWithCapabilities validCapabilities

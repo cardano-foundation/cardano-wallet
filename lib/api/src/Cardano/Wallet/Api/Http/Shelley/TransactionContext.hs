@@ -201,7 +201,7 @@ resolveTransactionContext api worker (ApiT wid) request = runExceptT $ do
         case queried of
             Left _ -> retry (attempts - 1) expectedNetwork requested
             Right context -> do
-                confirmed <- liftIO $ confirmContext worker capture
+                confirmed <- ExceptT $ confirmContext worker capture
                 if not confirmed
                     then retry (attempts - 1) expectedNetwork requested
                     else
@@ -226,6 +226,7 @@ captureContext worker =
             atomicallyReadContext
                 $ (,) <$> readCheckpoint <*> readInSubmissionTransactions
         pure $ do
+            requireEither DappAccountChangedError $ not clock.contextDeleted
             pending <-
                 first (const DappContextUnavailableError)
                     $ mapM (uncurry decodePending) submissions
@@ -251,15 +252,19 @@ captureContext worker =
                     , pending
                     }
 
-confirmContext :: WalletLayer IO s -> Capture s -> IO Bool
+confirmContext
+    :: WalletLayer IO s -> Capture s -> IO (Either DappError Bool)
 confirmContext worker Capture{point, clock} =
     worker ^. dbLayer & \DBLayer{..} -> do
         (wallet, currentClock) <- atomicallyReadContext readCheckpoint
-        pure
-            $ clock == currentClock
-                && point
-                    == fromWalletChainPoint
-                        (chainPointFromBlockHeader $ Wallet.currentTip wallet)
+        pure $ do
+            requireEither DappAccountChangedError
+                $ not currentClock.contextDeleted
+            pure
+                $ clock == currentClock
+                    && point
+                        == fromWalletChainPoint
+                            (chainPointFromBlockHeader $ Wallet.currentTip wallet)
 
 decodePending :: Hash "Tx" -> SealedTx -> Either String DecodedTx
 decodePending (Hash storedId) sealed = do
@@ -346,7 +351,7 @@ assemble api wid configured request requested capture available spent wanted Dap
         walletText = toText wid
         walletBytes = Text.encodeUtf8 walletText
         genesisBytes = getApiDappHex configured.genesisHash
-        ContextClock walletGeneration pendingGeneration = capture.clock
+        ContextClock{walletGeneration, pendingGeneration} = capture.clock
     records <-
         first (const DappInternalErrorResponse)
             $ canonicalContextRecords recordValues

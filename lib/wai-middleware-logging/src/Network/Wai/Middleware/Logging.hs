@@ -19,6 +19,7 @@ module Network.Wai.Middleware.Logging
     , newApiLoggerSettings
     , ApiLoggerSettings
     , obfuscateKeys
+    , suppressDetails
     , HandlerLog (..)
     , ApiLog (..)
     , RequestId (..)
@@ -42,6 +43,9 @@ import Control.Applicative
     )
 import Control.Arrow
     ( second
+    )
+import Control.Monad
+    ( unless
     )
 import Control.Tracer
     ( Tracer
@@ -122,28 +126,39 @@ withApiLogger t0 settings app req0 sendResponse = do
     traceWith t LogRequestStart
     start <- getCurrentTime
     (req, reqBody) <- getRequestBody req0
-    traceWith t (LogRequest req)
-    traceWith t (LogRequestBody (_obfuscateKeys settings req) reqBody)
+    let sensitive = _suppressDetails settings req
+        loggedRequest
+            | sensitive =
+                req
+                    { rawPathInfo = "/v2/wallets/<redacted>/transaction-context"
+                    , rawQueryString = mempty
+                    , pathInfo = ["v2", "wallets", "<redacted>", "transaction-context"]
+                    }
+            | otherwise = req
+    traceWith t (LogRequest loggedRequest)
+    unless sensitive
+        $ traceWith t (LogRequestBody (_obfuscateKeys settings req) reqBody)
     app req $ \res -> do
         builderIO <- newIORef (Nothing, mempty)
         rcvd <- recordChunks builderIO res >>= sendResponse
         time <- flip diffUTCTime start <$> getCurrentTime
         readIORef builderIO
             >>= let fromBuilder = second (BL.toStrict . B.toLazyByteString)
-                in  uncurry (logResponse t time req) . fromBuilder
+                in  uncurry (logResponse sensitive t time loggedRequest) . fromBuilder
         traceWith t LogRequestFinish
         return rcvd
   where
     logResponse
-        :: Tracer IO HandlerLog
+        :: Bool
+        -> Tracer IO HandlerLog
         -> NominalDiffTime
         -> Request
         -> Maybe Status
         -> ByteString
         -> IO ()
-    logResponse t time req status body = do
+    logResponse sensitive t time req status body = do
         traceWith t (LogResponse time req status)
-        traceWith t (LogResponseBody body)
+        unless sensitive $ traceWith t (LogResponseBody body)
 
 -- | API logger settings
 data ApiLoggerSettings = ApiLoggerSettings
@@ -152,6 +167,7 @@ data ApiLoggerSettings = ApiLoggerSettings
     -- given keys from a JSON object payload.
     , _requestCounter :: MVar Integer
     -- ^ A function to get a unique identifier from a 'Request'
+    , _suppressDetails :: Request -> Bool
     }
 
 -- | Just a wrapper for readability
@@ -167,6 +183,7 @@ newApiLoggerSettings = do
         ApiLoggerSettings
             { _obfuscateKeys = const []
             , _requestCounter = counter
+            , _suppressDetails = const False
             }
 
 -- | Define a set of top-level object keys that should be obfuscated for a given
@@ -175,6 +192,10 @@ obfuscateKeys
     :: (Request -> [Text]) -> ApiLoggerSettings -> ApiLoggerSettings
 obfuscateKeys getKeys x =
     x{_obfuscateKeys = getKeys}
+
+suppressDetails
+    :: (Request -> Bool) -> ApiLoggerSettings -> ApiLoggerSettings
+suppressDetails predicate settings = settings{_suppressDetails = predicate}
 
 -- | Get the next request id, incrementing the request counter.
 nextRequestId :: ApiLoggerSettings -> IO RequestId

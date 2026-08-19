@@ -84,7 +84,7 @@ withBootDBLayer
     -> m ()
 withBootDBLayer timeInterpreter wid params k = do
     lock <- liftIO $ newMVar ()
-    contextClock <- liftIO $ newMVar $ ContextClock 0 0
+    contextClock <- liftIO $ newMVar $ ContextClock 0 0 False
     db <- liftIO $ newMVar $ mInitializeWallet wid params
     k
         $ DBLayer
@@ -170,7 +170,7 @@ withBootDBLayer timeInterpreter wid params k = do
                     pure (result, clock)
             }
   where
-    advance change ContextClock{walletGeneration, pendingGeneration} =
+    advance change ContextClock{walletGeneration, pendingGeneration, contextDeleted} =
         ContextClock
             <$> bump
                 [WalletContextChange, WalletAndPendingContextChange]
@@ -178,6 +178,7 @@ withBootDBLayer timeInterpreter wid params k = do
             <*> bump
                 [PendingContextChange, WalletAndPendingContextChange]
                 pendingGeneration
+            <*> pure contextDeleted
       where
         bump changes value
             | change `notElem` changes = Right value

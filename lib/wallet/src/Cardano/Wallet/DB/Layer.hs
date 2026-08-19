@@ -201,6 +201,7 @@ import Control.Exception
 import Control.Monad
     ( forM
     , unless
+    , when
     )
 import Control.Monad.IO.Class
     ( MonadIO (..)
@@ -339,18 +340,19 @@ newDBFactory wf tr defaultFieldValues ti = \case
                 { withDatabaseLoad = \wid _action -> do
                     throw $ ErrNoSuchWallet wid
                 , withDatabaseBoot = \wid params action -> do
-                    db <- modifyMVar mvar $ \m -> case Map.lookup wid m of
-                        Just db -> pure (m, db)
+                    (db, created) <- modifyMVar mvar $ \m -> case Map.lookup wid m of
+                        Just db -> pure (m, (db, False))
                         Nothing -> do
                             let tr' = contramap (MsgWalletDB "") tr
                             (_cleanup, db) <-
                                 newBootDBLayerInMemory wf tr' ti wid params
-                            pure (Map.insert wid db m, db)
+                            pure (Map.insert wid db m, (db, True))
+                    when created $ reviveContextClock clocks wid
                     withContextClock clocks wid action db
                 , removeDatabase = \wid -> do
                     traceWith tr $ MsgRemoving (pretty wid)
-                    modifyMVar_ mvar (pure . Map.delete wid)
                     advanceDeletedClock clocks wid
+                    modifyMVar_ mvar (pure . Map.delete wid)
                 , listDatabases =
                     Map.keys <$> readMVar mvar
                 }
@@ -379,7 +381,9 @@ newDBFactory wf tr defaultFieldValues ti = \case
                             (Just defaultFieldValues)
                             params
                             (databaseFile wid)
-                            (withContextClock clocks wid action)
+                            ( \db ->
+                                reviveContextClock clocks wid >> withContextClock clocks wid action db
+                            )
                 , removeDatabase = \wid -> do
                     let widp = pretty wid
                     -- try to wait for all 'withDatabaseBoot' calls to finish before
@@ -393,8 +397,9 @@ newDBFactory wf tr defaultFieldValues ti = \case
                             $ MsgRemovingInUse widp inUse
                         traceWith tr $ MsgRemoving widp
                         let trDel = contramap (MsgRemovingDatabaseFile widp) tr
-                        deleteSqliteDatabase trDel (databaseFile wid)
                         advanceDeletedClock clocks wid
+                        deleteSqliteDatabase trDel (databaseFile wid)
+                            `onException` reviveContextClock clocks wid
                 , listDatabases =
                     findDatabases key tr databaseDir
                 }
@@ -425,7 +430,7 @@ contextClockFor
 contextClockFor clocks wid = modifyMVar clocks $ \values -> case Map.lookup wid values of
     Just clock -> pure (values, clock)
     Nothing -> do
-        clock <- newMVar $ ContextClock 0 0
+        clock <- newMVar $ ContextClock 0 0 False
         pure (Map.insert wid clock values, clock)
 
 decorateDBLayer :: MVar ContextClock -> DBLayer IO s -> DBLayer IO s
@@ -448,16 +453,25 @@ advanceDeletedClock
     :: MVar (Map.Map W.WalletId (MVar ContextClock)) -> W.WalletId -> IO ()
 advanceDeletedClock clocks wid = do
     clock <- contextClockFor clocks wid
-    modifyMVar_ clock
-        $ either (throwIO . userError) pure
-            . advanceClock WalletAndPendingContextChange
+    modifyMVar_ clock $ \before -> do
+        after <-
+            either (throwIO . userError) pure
+                $ advanceClock WalletAndPendingContextChange before
+        pure after{contextDeleted = True}
+
+reviveContextClock
+    :: MVar (Map.Map W.WalletId (MVar ContextClock)) -> W.WalletId -> IO ()
+reviveContextClock clocks wid = do
+    clock <- contextClockFor clocks wid
+    modifyMVar_ clock $ \current -> pure current{contextDeleted = False}
 
 advanceClock
     :: ContextChange -> ContextClock -> Either String ContextClock
-advanceClock change ContextClock{walletGeneration, pendingGeneration} =
+advanceClock change ContextClock{walletGeneration, pendingGeneration, contextDeleted} =
     ContextClock
         <$> advanceWallet walletGeneration
         <*> advancePending pendingGeneration
+        <*> pure contextDeleted
   where
     checked value
         | value == maxBound = Left "dApp context generation exhausted"

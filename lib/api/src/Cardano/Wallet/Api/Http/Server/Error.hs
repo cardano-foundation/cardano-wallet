@@ -127,8 +127,10 @@ import Cardano.Wallet.Api.Types
     , Iso8601Time (..)
     )
 import Cardano.Wallet.Api.Types.Error
-    ( ApiErrorBalanceTxUnderestimatedFee (..)
+    ( ApiError (..)
+    , ApiErrorBalanceTxUnderestimatedFee (..)
     , ApiErrorInfo (..)
+    , ApiErrorMessage (..)
     , ApiErrorMissingWitnessesInTransaction (..)
     , ApiErrorNoSuchPool (..)
     , ApiErrorNoSuchTransaction (..)
@@ -1381,8 +1383,9 @@ instance IsServerError (ErrInvalidDerivationIndex 'Hardened level) where
 
 instance IsServerError (Request, ServerError) where
     toServerError (req, err@(ServerError code _ body _))
+        | isTransactionContextPath req =
+            if isAllowedDappError code body then err else normalizeDappError code
         | isJSON body = err
-        | isTransactionContextPath req = dappServerError InvalidDappRequest
         | otherwise = case code of
             400
                 | "Failed reading" `BS.isInfixOf` BL.toStrict body ->
@@ -1461,8 +1464,24 @@ instance IsServerError (Request, ServerError) where
       where
         utf8 = T.replace "\"" "'" . T.decodeUtf8 . BL.toStrict
         isJSON = isJust . Aeson.decode @Aeson.Value
+        isAllowedDappError status payload = case Aeson.decode @ApiError payload of
+            Just (ApiError info (ApiErrorMessage message)) ->
+                (status, info, message)
+                    `elem` [ (400, DappInvalidRequest, "Invalid backend request")
+                           , (400, DappContextConflict, "Backend context conflict")
+                           , (409, DappAccountChanged, "Wallet or network changed")
+                           , (503, DappContextUnavailable, "Wallet context unavailable")
+                           , (500, DappInternalError, "Backend operation failed")
+                           ]
+            Nothing -> False
+        normalizeDappError status = dappServerError $ case status of
+            409 -> DappAccountChangedError
+            500 -> DappInternalErrorResponse
+            503 -> DappContextUnavailableError
+            _ -> InvalidDappRequest
         isTransactionContextPath request = case pathInfo request of
             "v2" : "wallets" : _walletId : "transaction-context" : _ -> True
+            "wallets" : _walletId : "transaction-context" : _ -> True
             _ -> False
 
 instance IsServerError WriteTx.ErrInvalidTxOutInEra where

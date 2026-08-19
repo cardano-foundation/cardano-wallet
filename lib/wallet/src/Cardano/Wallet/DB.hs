@@ -307,6 +307,7 @@ data ContextChange
 data ContextClock = ContextClock
     { walletGeneration :: !Word64
     , pendingGeneration :: !Word64
+    , contextDeleted :: !Bool
     }
     deriving (Eq, Show)
 
@@ -476,7 +477,7 @@ mkDBLayerFromParts ti wid_ DBLayerCollection{..} =
         , atomically = atomically_
         , atomicallyWithContextChange = const atomically_
         , atomicallyReadContext = \action ->
-            (\result -> (result, ContextClock 0 0)) <$> atomically_ action
+            (\result -> (result, ContextClock 0 0 False)) <$> atomically_ action
         }
   where
     withSubmissions :: forall a. (TxSubmissions -> stm a) -> stm a

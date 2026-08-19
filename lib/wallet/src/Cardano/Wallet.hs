@@ -2684,7 +2684,7 @@ buildSignSubmitTransaction
                                 Read.EraValue Read.Conway
                             Write.RecentEraDijkstra ->
                                 Read.EraValue Read.Dijkstra
-                    (unsignedTx, wallet, slot) <- atomically $ do
+                    (unsignedTx, wallet, slot) <- atomicallyWithContextChange WalletContextChange $ do
                         pendingTxs <-
                             fmap fromTransactionInfo
                                 <$> readTransactions
@@ -2846,7 +2846,7 @@ buildSignSubmitTransaction
                                 , builtTxMeta
                                 , builtSealedTx
                                 }
-                    atomically
+                    atomicallyWithContextChange PendingContextChange
                         $ Delta.onDBVar walletState
                             . WalletState.updateSubmissions
                             . Delta.update
@@ -2860,7 +2860,7 @@ buildSignSubmitTransaction
                         & fmap (builtTx,)
                         & liftIO
                 RootKeyAccessV1 rootKey scheme -> lift $ do
-                    (BuiltTx{..}, slot) <- atomically $ do
+                    (BuiltTx{..}, slot) <- atomicallyWithContextChange WalletAndPendingContextChange $ do
                         pendingTxs <-
                             fmap fromTransactionInfo
                                 <$> readTransactions

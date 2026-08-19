@@ -82,5 +82,6 @@ test-suite unit
     , text
     , text-class
     , unliftio
+    , wai
     , warp
     , with-utf8
