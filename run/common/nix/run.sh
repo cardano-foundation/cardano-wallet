@@ -71,7 +71,7 @@ cleanup() {
         rm -rf "${NODE_DB:?}"/* || echo "Failed to clean node db"
         rm -rf "${WALLET_DB:?}"/* || echo "Failed to clean wallet db"
     fi
-    trap - ERR INT EXIT
+    trap - ERR INT TERM EXIT
     exit $exit_status
 }
 
@@ -82,7 +82,7 @@ mithril() {
 }
 
 # Trap the cleanup function on exit
-trap cleanup ERR INT EXIT
+trap cleanup ERR INT TERM EXIT
 if [[ -z ${NO_NODE-} ]]; then
 
     if [[ -n "${USE_MITHRIL-}" ]]; then
@@ -94,9 +94,10 @@ if [[ -z ${NO_NODE-} ]]; then
         rm -rf "${NODE_DB:?}"/*
         export AGGREGATOR_ENDPOINT
         export GENESIS_VERIFICATION_KEY
+        export ANCILLARY_VERIFICATION_KEY
         mithril echo "mithril is available" || exit 44
         digest=$(mithril mithril-client cdb snapshot list --json | jq -r .[0].digest)
-        (cd "${NODE_DB}" && mithril mithril-client cdb download "$digest")
+        (cd "${NODE_DB}" && mithril mithril-client cdb download --include-ancillary "$digest")
         (cd "${NODE_DB}" && mv db/* . && rmdir db)
     fi
 
