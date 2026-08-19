@@ -113,6 +113,7 @@ module Cardano.Wallet.Api.Link
     , getNetworkParams
     , getNetworkClock
     , getNetworkClock'
+    , getDappCapabilities
     , getBlocksLatestHeader
 
       -- * Proxy
@@ -997,6 +998,9 @@ getNetworkClock'
     -- ^ When 'True', block and force NTP check
     -> (Method, Text)
 getNetworkClock' forceNtpCheck = endpoint @Api.GetNetworkClock (forceNtpCheck &)
+
+getDappCapabilities :: (Method, Text)
+getDappCapabilities = endpoint @Api.GetDappCapabilities id
 
 --
 -- Proxy

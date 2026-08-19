@@ -125,6 +125,7 @@ module Cardano.Wallet.Api
     , GetNetworkInformation
     , GetNetworkParameters
     , GetNetworkClock
+    , GetDappCapabilities
     , SMASH
     , GetCurrentSMASHHealth
 
@@ -195,6 +196,7 @@ import Cardano.Wallet.Api.Types
     , ApiDRepInfo
     , ApiDRepSpecifier
     , ApiDRepSummary
+    , ApiDappCapabilities
     , ApiDecodeTransactionPostData
     , ApiDecodedTransactionT
     , ApiFee
@@ -1184,6 +1186,7 @@ type Network =
     GetNetworkInformation
         :<|> GetNetworkParameters
         :<|> GetNetworkClock
+        :<|> GetDappCapabilities
 
 type GetNetworkInformation =
     "network"
@@ -1200,6 +1203,10 @@ type GetNetworkClock =
         :> "clock"
         :> QueryFlag "forceNtpCheck"
         :> Get '[JSON] ApiNetworkClock
+
+type GetDappCapabilities =
+    "dapp-capabilities"
+        :> Get '[JSON] ApiDappCapabilities
 
 {-------------------------------------------------------------------------------
                                   Blocks
