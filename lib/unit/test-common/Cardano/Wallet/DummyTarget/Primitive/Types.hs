@@ -167,6 +167,7 @@ dummyNetworkLayer =
         , currentProtocolParameters = err "currentProtocolParameters"
         , currentSlottingParameters = err "currentSlottingParameters"
         , getUTxOByTxIn = err "getUTxOByTxIn"
+        , getDappTransactionContext = err "getDappTransactionContext"
         , getStakeDelegDeposits = error "getStakeDelegDeposits"
         , postSealedTx = err "postSealedTx"
         , postTx = err "postTx"

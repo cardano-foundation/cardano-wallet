@@ -4468,6 +4468,124 @@ components:
           enum: ["base16", "base64"]
           description: Encoding of transaction CBOR returned in response (base64 by default).
 
+    ApiDappTransactionContextRequest: &ApiDappTransactionContextRequest
+      type: object
+      additionalProperties: false
+      required: [revision, network, transactions]
+      properties:
+        revision: { type: integer, enum: [1] }
+        network: &ApiDappContextNetwork
+          type: object
+          additionalProperties: false
+          required: [network_id, network_magic, genesis_hash]
+          properties:
+            network_id: { type: integer, enum: [0, 1] }
+            network_magic: { type: integer, minimum: 0, maximum: 4294967295 }
+            genesis_hash: { type: string, pattern: '^[0-9a-f]{64}$' }
+        transactions:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items: { type: string, pattern: '^(?:[0-9a-f]{2}){1,65536}$' }
+
+    ApiDappTransactionContextResponse: &ApiDappTransactionContextResponse
+      type: object
+      additionalProperties: false
+      required: [revision, wallet_id, network, chain_point, wallet_generation, pending_generation, era, protocol_version, protocol_parameters_cbor, volatile_delta, outputs, pending_overlay, records, context_digest, context_token]
+      properties:
+        revision: { type: integer, enum: [1] }
+        wallet_id: { type: string, pattern: '^[0-9a-f]{40}$' }
+        network: *ApiDappContextNetwork
+        chain_point: &ApiDappChainPoint
+          oneOf:
+            - type: object
+              additionalProperties: false
+              required: [kind]
+              properties:
+                kind: { type: string, enum: [genesis] }
+            - type: object
+              additionalProperties: false
+              required: [kind, slot, block_hash]
+              properties:
+                kind: { type: string, enum: [block] }
+                slot: &ApiDappWord64 { type: string, pattern: '^(0|[1-9][0-9]*)$' }
+                block_hash: { type: string, pattern: '^[0-9a-f]{64}$' }
+        wallet_generation: *ApiDappWord64
+        pending_generation: *ApiDappWord64
+        era: { type: string, enum: [conway] }
+        protocol_version:
+          type: object
+          additionalProperties: false
+          required: [major, minor]
+          properties:
+            major: { type: integer, minimum: 0, maximum: 4294967295 }
+            minor: { type: integer, minimum: 0, maximum: 4294967295 }
+        protocol_parameters_cbor: &ApiDappNonEmptyHex { type: string, pattern: '^(?:[0-9a-f]{2})+$' }
+        volatile_delta:
+          type: object
+          additionalProperties: false
+          required: [point, node_transaction_inputs]
+          properties:
+            point: *ApiDappChainPoint
+            node_transaction_inputs:
+              type: array
+              items: *ApiDappNonEmptyHex
+        outputs:
+          type: array
+          items: &ApiDappContextOutput
+            type: object
+            additionalProperties: false
+            required: [outpoint, transaction_input_cbor, source_transaction_output_cbor, canonical_transaction_output_cbor, transaction_unspent_output_cbor, provenance, roles, wallet_member, pending_state]
+            properties:
+              outpoint: &ApiDappOutpoint
+                type: object
+                additionalProperties: false
+                required: [transaction_id, index]
+                properties:
+                  transaction_id: { type: string, pattern: '^[0-9a-f]{64}$' }
+                  index: { type: integer, minimum: 0, maximum: 4294967295 }
+              transaction_input_cbor: *ApiDappNonEmptyHex
+              source_transaction_output_cbor: *ApiDappNonEmptyHex
+              canonical_transaction_output_cbor: *ApiDappNonEmptyHex
+              transaction_unspent_output_cbor: *ApiDappNonEmptyHex
+              provenance:
+                type: array
+                minItems: 1
+                uniqueItems: true
+                items: { type: string, enum: [pending, node] }
+              roles:
+                type: array
+                minItems: 1
+                uniqueItems: true
+                items: { type: string, enum: [normal, collateral, reference, wallet_snapshot] }
+              wallet_member: { type: boolean }
+              pending_state: { type: string, enum: [none, outcome_unknown] }
+        pending_overlay:
+          type: object
+          additionalProperties: false
+          required: [transactions, spent_wallet_inputs, produced_wallet_outputs]
+          properties:
+            transactions:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required: [transaction_id, state, transaction_cbor, normal_inputs, collateral_inputs, expiry_slot]
+                properties:
+                  transaction_id: { type: string, pattern: '^[0-9a-f]{64}$' }
+                  state: { type: string, enum: [outcome_unknown] }
+                  transaction_cbor: *ApiDappNonEmptyHex
+                  normal_inputs: { type: array, items: *ApiDappOutpoint }
+                  collateral_inputs: { type: array, items: *ApiDappOutpoint }
+                  expiry_slot:
+                    <<: *ApiDappWord64
+                    nullable: true
+            spent_wallet_inputs: { type: array, items: *ApiDappOutpoint }
+            produced_wallet_outputs: { type: array, maxItems: 0, items: *ApiDappOutpoint }
+        records: { type: array, items: *ApiDappNonEmptyHex }
+        context_digest: { type: string, pattern: '^[0-9a-f]{64}$' }
+        context_token: *ApiDappNonEmptyHex
+
     ApiBlockHeader: &ApiBlockHeader
         description: |
           A Block Header.
@@ -7250,6 +7368,36 @@ x-responsesGetSmashHealth: &responsesGetSmashHealth
       application/json:
         schema: *ApiHealthCheck
 
+x-responsesDappTransactionContext: &responsesDappTransactionContext
+  200:
+    description: Exact transaction context captured at one wallet chain point.
+    content:
+      application/json:
+        schema: *ApiDappTransactionContextResponse
+  400:
+    description: Invalid request or conflicting authoritative output bytes.
+    content:
+      application/json:
+        schema:
+          oneOf:
+            - *errDappInvalidRequest
+            - *errDappContextConflict
+  409:
+    description: Wallet or configured network changed.
+    content:
+      application/json:
+        schema: *errDappAccountChanged
+  503:
+    description: Exact wallet context is unavailable.
+    content:
+      application/json:
+        schema: *errDappContextUnavailable
+  500:
+    description: Internal context operation failure.
+    content:
+      application/json:
+        schema: *errDappInternalError
+
 x-responsesBalanceTransaction: &responsesBalanceTransaction
   400:
     description: Bad Request
@@ -8233,6 +8381,24 @@ paths:
           application/json:
             schema: *ApiBalanceTransactionPostData
       responses: *responsesBalanceTransaction
+
+  /wallets/{walletId}/transaction-context:
+    post:
+      operationId: postTransactionContext
+      tags: ["Transactions New"]
+      summary: Resolve exact transaction context
+      description: |
+        Resolves complete Conway ledger outputs, protocol parameters, and the
+        current pending overlay at one coherent wallet chain point. This route
+        does not activate the dApp capability document.
+      parameters:
+        - *parametersWalletId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiDappTransactionContextRequest
+      responses: *responsesDappTransactionContext
 
   /byron-wallets:
     post:

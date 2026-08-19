@@ -86,6 +86,7 @@ module Cardano.Wallet.Api.Link
     , balanceTransaction
     , decodeTransaction
     , submitTransaction
+    , transactionContext
 
       -- * StakePools
     , listStakePools
@@ -861,6 +862,15 @@ submitTransaction w =
         (endpoint @Api.SubmitTransaction (wid &))
         (notSupported "Byron")
         (endpoint @Api.SubmitSharedTransaction (wid &))
+  where
+    wid = w ^. typed @(ApiT WalletId)
+
+transactionContext
+    :: forall w
+     . HasType (ApiT WalletId) w
+    => w
+    -> (Method, Text)
+transactionContext w = endpoint @Api.PostTransactionContext (wid &)
   where
     wid = w ^. typed @(ApiT WalletId)
 

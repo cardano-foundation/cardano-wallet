@@ -20,6 +20,8 @@ module Cardano.Wallet.DB
       DBLayer (..)
     , DBFactory (..)
     , DBLayerParams (..)
+    , ContextChange (..)
+    , ContextClock (..)
 
       -- * DBLayer building blocks
     , DBLayerCollection (..)
@@ -35,6 +37,9 @@ module Cardano.Wallet.DB
 import Cardano.Wallet.DB.Errors
 import Cardano.Wallet.DB.Migration
     ( Version
+    )
+import Cardano.Wallet.DB.Sqlite.Types
+    ( TxId (TxId)
     )
 import Cardano.Wallet.DB.Store.Submissions.Layer
     ( getInSubmissionTransaction
@@ -151,6 +156,9 @@ import Data.Store
 import Data.Traversable
     ( for
     )
+import Data.Word
+    ( Word64
+    )
 import GHC.Num
     ( Natural
     )
@@ -227,6 +235,7 @@ data DBLayer m s = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
     -- ^ 'Store' containing all transactions of all wallets in the database.
     , readCheckpoint :: stm (Wallet s)
     -- ^ Fetch the most recent checkpoint of a given wallet.
+    , readInSubmissionTransactions :: stm [(Hash "Tx", WST.SealedTx)]
     , listCheckpoints
         :: stm [ChainPoint]
     -- ^ List all known checkpoint tips, ordered by slot ids from the oldest
@@ -282,7 +291,24 @@ data DBLayer m s = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
     , atomically
         :: forall a. stm a -> m a
     -- ^ Execute operations of the database in isolation and atomically.
+    , atomicallyWithContextChange
+        :: forall a. ContextChange -> stm a -> m a
+    , atomicallyReadContext
+        :: forall a. stm a -> m (a, ContextClock)
     }
+
+data ContextChange
+    = NoContextChange
+    | WalletContextChange
+    | PendingContextChange
+    | WalletAndPendingContextChange
+    deriving (Eq, Show)
+
+data ContextClock = ContextClock
+    { walletGeneration :: !Word64
+    , pendingGeneration :: !Word64
+    }
+    deriving (Eq, Show)
 
 {- Note [DBLayerRecordFields]
 
@@ -316,7 +342,14 @@ pattern match here!
 -}
 
 hoistDBLayer :: (forall a. m a -> n a) -> DBLayer m s -> DBLayer n s
-hoistDBLayer f DBLayer{..} = DBLayer{atomically = f . atomically, ..}
+hoistDBLayer f DBLayer{..} =
+    DBLayer
+        { atomically = f . atomically
+        , atomicallyWithContextChange = \change ->
+            f . atomicallyWithContextChange change
+        , atomicallyReadContext = f . atomicallyReadContext
+        , ..
+        }
 
 {-----------------------------------------------------------------------------
     Build DBLayer from smaller parts
@@ -364,7 +397,7 @@ data DBLayerCollection stm m s = DBLayerCollection
 -- | Create a legacy 'DBLayer' from smaller database layers.
 mkDBLayerFromParts
     :: forall stm m s
-     . (MonadIO stm, MonadFail stm)
+     . (MonadIO stm, MonadFail stm, Functor m)
     => TimeInterpreter IO
     -> WalletId
     -> DBLayerCollection stm m s
@@ -375,6 +408,12 @@ mkDBLayerFromParts ti wid_ DBLayerCollection{..} =
         , walletState = walletsDB_ dbCheckpoints
         , transactionsStore = transactionsStore_
         , readCheckpoint = readCheckpoint'
+        , readInSubmissionTransactions = withSubmissions $ \submissions ->
+            pure
+                [ (txid, sealed)
+                | TxStatusMeta (Subm.InSubmission _ (TxId txid, sealed)) _ <-
+                    getInSubmissionTransactions submissions
+                ]
         , listCheckpoints = listCheckpoints_ dbCheckpoints
         , putTxHistory = putTxHistory_ dbTxHistory
         , readTransactions = \minWithdrawal order range status limit maddress ->
@@ -435,6 +474,9 @@ mkDBLayerFromParts ti wid_ DBLayerCollection{..} =
         , rollbackTo = rollbackTo_
         , getSchemaVersion = getSchemaVersion_
         , atomically = atomically_
+        , atomicallyWithContextChange = const atomically_
+        , atomicallyReadContext = \action ->
+            (\result -> (result, ContextClock 0 0)) <$> atomically_ action
         }
   where
     withSubmissions :: forall a. (TxSubmissions -> stm a) -> stm a

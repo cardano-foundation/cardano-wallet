@@ -7,6 +7,7 @@
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -83,7 +84,9 @@ import Cardano.Wallet.Checkpoints
     ( DeltaCheckpoints (..)
     )
 import Cardano.Wallet.DB
-    ( DBCheckpoints (..)
+    ( ContextChange (..)
+    , ContextClock (..)
+    , DBCheckpoints (..)
     , DBFactory (..)
     , DBLayer (..)
     , DBLayerCollection (..)
@@ -273,10 +276,12 @@ import UnliftIO.Exception
     , tryJust
     )
 import UnliftIO.MVar
-    ( modifyMVar
+    ( MVar
+    , modifyMVar
     , modifyMVar_
     , newMVar
     , readMVar
+    , withMVar
     )
 import Prelude
 
@@ -328,6 +333,7 @@ newDBFactory wf tr defaultFieldValues ti = \case
         -- called after using the database. In practice, this is only a problem
         -- for testing.
         mvar <- newMVar mempty
+        clocks <- newMVar mempty
         pure
             DBFactory
                 { withDatabaseLoad = \wid _action -> do
@@ -340,15 +346,17 @@ newDBFactory wf tr defaultFieldValues ti = \case
                             (_cleanup, db) <-
                                 newBootDBLayerInMemory wf tr' ti wid params
                             pure (Map.insert wid db m, db)
-                    action db
+                    withContextClock clocks wid action db
                 , removeDatabase = \wid -> do
                     traceWith tr $ MsgRemoving (pretty wid)
                     modifyMVar_ mvar (pure . Map.delete wid)
+                    advanceDeletedClock clocks wid
                 , listDatabases =
                     Map.keys <$> readMVar mvar
                 }
     Just databaseDir -> do
         refs <- newRefCount
+        clocks <- newMVar mempty
         pure
             DBFactory
                 { withDatabaseLoad = \wid action ->
@@ -360,7 +368,7 @@ newDBFactory wf tr defaultFieldValues ti = \case
                             wid
                             (Just defaultFieldValues)
                             (databaseFile wid)
-                            action
+                            (withContextClock clocks wid action)
                 , withDatabaseBoot = \wid params action ->
                     withRef refs wid
                         $ withBootDBLayerFromFile
@@ -371,7 +379,7 @@ newDBFactory wf tr defaultFieldValues ti = \case
                             (Just defaultFieldValues)
                             params
                             (databaseFile wid)
-                            action
+                            (withContextClock clocks wid action)
                 , removeDatabase = \wid -> do
                     let widp = pretty wid
                     -- try to wait for all 'withDatabaseBoot' calls to finish before
@@ -386,6 +394,7 @@ newDBFactory wf tr defaultFieldValues ti = \case
                         traceWith tr $ MsgRemoving widp
                         let trDel = contramap (MsgRemovingDatabaseFile widp) tr
                         deleteSqliteDatabase trDel (databaseFile wid)
+                        advanceDeletedClock clocks wid
                 , listDatabases =
                     findDatabases key tr databaseDir
                 }
@@ -398,6 +407,69 @@ newDBFactory wf tr defaultFieldValues ti = \case
                     <> "."
                     <> T.unpack (toText wid)
                     <> ".sqlite"
+
+withContextClock
+    :: MVar (Map.Map W.WalletId (MVar ContextClock))
+    -> W.WalletId
+    -> (DBLayer IO s -> IO a)
+    -> DBLayer IO s
+    -> IO a
+withContextClock clocks wid action db = do
+    clock <- contextClockFor clocks wid
+    action $ decorateDBLayer clock db
+
+contextClockFor
+    :: MVar (Map.Map W.WalletId (MVar ContextClock))
+    -> W.WalletId
+    -> IO (MVar ContextClock)
+contextClockFor clocks wid = modifyMVar clocks $ \values -> case Map.lookup wid values of
+    Just clock -> pure (values, clock)
+    Nothing -> do
+        clock <- newMVar $ ContextClock 0 0
+        pure (Map.insert wid clock values, clock)
+
+decorateDBLayer :: MVar ContextClock -> DBLayer IO s -> DBLayer IO s
+decorateDBLayer clock DBLayer{..} =
+    DBLayer
+        { atomically = \action -> withMVar clock $ \_ -> atomically action
+        , atomicallyWithContextChange = \change action ->
+            modifyMVar clock $ \before -> do
+                after <-
+                    either (throwIO . userError) pure $ advanceClock change before
+                result <- atomically action
+                pure (after, result)
+        , atomicallyReadContext = \action ->
+            withMVar clock $ \current ->
+                (\result -> (result, current)) <$> atomically action
+        , ..
+        }
+
+advanceDeletedClock
+    :: MVar (Map.Map W.WalletId (MVar ContextClock)) -> W.WalletId -> IO ()
+advanceDeletedClock clocks wid = do
+    clock <- contextClockFor clocks wid
+    modifyMVar_ clock
+        $ either (throwIO . userError) pure
+            . advanceClock WalletAndPendingContextChange
+
+advanceClock
+    :: ContextChange -> ContextClock -> Either String ContextClock
+advanceClock change ContextClock{walletGeneration, pendingGeneration} =
+    ContextClock
+        <$> advanceWallet walletGeneration
+        <*> advancePending pendingGeneration
+  where
+    checked value
+        | value == maxBound = Left "dApp context generation exhausted"
+        | otherwise = Right $ value + 1
+    advanceWallet = case change of
+        WalletContextChange -> checked
+        WalletAndPendingContextChange -> checked
+        _ -> Right
+    advancePending = case change of
+        PendingContextChange -> checked
+        WalletAndPendingContextChange -> checked
+        _ -> Right
 
 -- | Return all wallet databases that match the specified key type within the
 --   specified directory.

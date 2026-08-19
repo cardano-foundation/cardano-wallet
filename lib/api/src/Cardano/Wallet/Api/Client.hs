@@ -88,6 +88,10 @@ import Cardano.Wallet.Api.Types
     , PostTransactionOldDataT
     , WalletPutPassphraseData (..)
     )
+import Cardano.Wallet.Api.Types.Dapp.Context
+    ( ApiDappTransactionContextRequest
+    , ApiDappTransactionContextResponse
+    )
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema
     , toSimpleMetadataFlag
@@ -236,6 +240,10 @@ data TransactionClient = TransactionClient
         :: ApiT WalletId
         -> ApiSerialisedTransaction
         -> ClientM ApiTxId
+    , transactionContext
+        :: ApiT WalletId
+        -> ApiDappTransactionContextRequest
+        -> ClientM ApiDappTransactionContextResponse
     }
 
 data AddressClient = AddressClient
@@ -351,7 +359,8 @@ transactionClient =
             :<|> _postTransactionFee
             :<|> _balanceTransaction
             :<|> _decodeTransaction
-            :<|> _submitTransaction =
+            :<|> _submitTransaction
+            :<|> _transactionContext =
                 client (Proxy @("v2" :> (ShelleyTransactions Aeson.Value)))
 
         _postExternalTransaction =
@@ -371,6 +380,7 @@ transactionClient =
             , balanceTransaction = _balanceTransaction
             , decodeTransaction = _decodeTransaction
             , submitTransaction = _submitTransaction
+            , transactionContext = _transactionContext
             }
 
 fromSerialisedTx :: ApiBytesT base SerialisedTx -> ApiT SealedTx
@@ -404,6 +414,8 @@ byronTransactionClient =
                 error "decode transaction endpoint not supported for byron"
             , submitTransaction =
                 error "submit transaction endpoint not supported for byron"
+            , transactionContext =
+                error "transaction context endpoint not supported for byron"
             , signTransaction =
                 error "sign transaction endpoint not supported for byron"
             , constructTransaction =

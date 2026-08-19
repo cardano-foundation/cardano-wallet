@@ -44,6 +44,7 @@ library
     , cardano-balance-tx
     , cardano-binary
     , cardano-crypto
+    , cardano-crypto-class
     , cardano-ledger-api
     , cardano-ledger-binary
     , cardano-ledger-core
@@ -68,6 +69,7 @@ library
     , http-media
     , http-types
     , int-cast
+    , lens
     , iohk-monitoring
     , memory
     , mtl
@@ -107,6 +109,7 @@ library
     Cardano.Wallet.Api.Http.Server.Handlers.NetworkInformation
     Cardano.Wallet.Api.Http.Server.Handlers.TxCBOR
     Cardano.Wallet.Api.Http.Shelley.Server
+    Cardano.Wallet.Api.Http.Shelley.TransactionContext
     Cardano.Wallet.Api.Lib.ApiAsArray
     Cardano.Wallet.Api.Lib.ApiT
     Cardano.Wallet.Api.Lib.ExtendedObject
@@ -117,6 +120,7 @@ library
     Cardano.Wallet.Api.Types.BlockHeader
     Cardano.Wallet.Api.Types.Certificate
     Cardano.Wallet.Api.Types.Dapp
+    Cardano.Wallet.Api.Types.Dapp.Context
     Cardano.Wallet.Api.Types.Era
     Cardano.Wallet.Api.Types.Error
     Cardano.Wallet.Api.Types.Key
@@ -129,3 +133,26 @@ library
     Cardano.Wallet.Api.Types.WalletAssets
 
   other-modules:   Paths_cardano_wallet_api
+
+test-suite dapp-context
+  import:             language
+  type:               exitcode-stdio-1.0
+  hs-source-dirs:     test src
+  main-is:            dapp-context-test.hs
+  ghc-options:        -Wall
+  build-depends:
+    , aeson
+    , base
+    , binary
+    , bytestring
+    , containers
+    , crypto-primitives
+    , hspec
+    , http-media
+    , memory
+    , servant
+    , text
+
+  other-modules:
+    Cardano.Wallet.Api.Lib.Options
+    Cardano.Wallet.Api.Types.Dapp.Context

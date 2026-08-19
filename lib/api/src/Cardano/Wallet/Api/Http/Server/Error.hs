@@ -1381,7 +1381,9 @@ instance IsServerError (ErrInvalidDerivationIndex 'Hardened level) where
 
 instance IsServerError (Request, ServerError) where
     toServerError (req, err@(ServerError code _ body _))
-        | not (isJSON body) = case code of
+        | isJSON body = err
+        | isTransactionContextPath req = dappServerError InvalidDappRequest
+        | otherwise = case code of
             400
                 | "Failed reading" `BS.isInfixOf` BL.toStrict body ->
                     apiError err BadRequest
@@ -1456,10 +1458,12 @@ instance IsServerError (Request, ServerError) where
                         , "some information about what happened: "
                         , utf8 body
                         ]
-        | otherwise = err
       where
         utf8 = T.replace "\"" "'" . T.decodeUtf8 . BL.toStrict
         isJSON = isJust . Aeson.decode @Aeson.Value
+        isTransactionContextPath request = case pathInfo request of
+            "v2" : "wallets" : _walletId : "transaction-context" : _ -> True
+            _ -> False
 
 instance IsServerError WriteTx.ErrInvalidTxOutInEra where
     toServerError = \case

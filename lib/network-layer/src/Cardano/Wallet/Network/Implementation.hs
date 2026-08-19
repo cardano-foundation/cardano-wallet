@@ -77,6 +77,8 @@ import Cardano.Wallet.Network
     ( ChainFollowLog (..)
     , ChainFollower
     , ChainSyncLog (..)
+    , DappTransactionContext (..)
+    , ErrDappTransactionContext (..)
     , ErrFetchBlock (..)
     , ErrPostTx (..)
     , NetworkLayer (..)
@@ -88,6 +90,7 @@ import Cardano.Wallet.Network.Implementation.Ouroboros
     ( FetchBlockCmd (..)
     , LSQ (..)
     , LocalStateQueryCmd (..)
+    , LocalStateQueryResult (..)
     , LocalTxSubmissionCmd (..)
     , PipeliningStrategy
     , chainSyncFetchNextBlock
@@ -530,6 +533,8 @@ withNodeNetworkLayerBase
                     _stakeDistribution queryRewardQ
                 , getUTxOByTxIn =
                     _getUTxOByTxIn queryRewardQ readCurrentNodeEra
+                , getDappTransactionContext =
+                    _getDappTransactionContext queryRewardQ
                 , getStakeDelegDeposits =
                     _getStakeDelegDeposits queryRewardQ
                 , getCachedRewardAccountBalance =
@@ -681,6 +686,23 @@ withNodeNetworkLayerBase
             | otherwise =
                 bracketQuery "getUTxOByTxIn" tr
                     $ queue `send` SomeLSQ (LSQ.getUTxOByTxIn ins)
+        _getDappTransactionContext queue point ins = do
+            result <-
+                bracketQuery "getDappTransactionContext" tr
+                    $ queue
+                        `send` SomeLSQAt
+                            (toOuroborosPoint point)
+                            (LSQ.getDappTransactionContext ins)
+            pure $ case result of
+                LocalStateQueryAcquireFailed ->
+                    Left ErrDappTransactionContextPointUnavailable
+                LocalStateQueryAcquired (era, pparams, utxo) ->
+                    Right
+                        DappTransactionContext
+                            { contextEra = era
+                            , contextProtocolParameters = pparams
+                            , contextUTxO = utxo
+                            }
         _getStakeDelegDeposits queue creds
             | creds == mempty = mempty
             | otherwise =
