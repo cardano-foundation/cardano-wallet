@@ -73,10 +73,22 @@ import Test.Utils.Paths
 import Prelude
 
 import qualified Cardano.Wallet.Api.Link as Link
+import qualified Data.Aeson as Aeson
 import qualified Network.HTTP.Types.Status as HTTP
 
 spec :: SpecWith Context
 spec = describe "COMMON_NETWORK" $ do
+    it
+        "DAPP_CAPABILITIES - Remains unavailable until aggregate activation"
+        $ \ctx -> do
+            response <-
+                request @Aeson.Value
+                    ctx
+                    Link.getDappCapabilities
+                    Default
+                    Empty
+            expectResponseCode @IO HTTP.status404 response
+
     it "NETWORK - Can query network information" $ \ctx -> do
         eventually "wallet's syncProgress = Ready" $ do
             now <- liftIO getCurrentTime
