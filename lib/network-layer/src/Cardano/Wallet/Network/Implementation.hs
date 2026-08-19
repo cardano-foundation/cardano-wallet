@@ -687,13 +687,24 @@ withNodeNetworkLayerBase
                 bracketQuery "getUTxOByTxIn" tr
                     $ queue `send` SomeLSQ (LSQ.getUTxOByTxIn ins)
         _getDappTransactionContext queue point ins = do
+            cancelled <- newTVarIO False
             result <-
-                bracketQuery "getDappTransactionContext" tr
-                    $ queue
-                        `send` SomeLSQAt
-                            (toOuroborosPoint point)
-                            (LSQ.getDappTransactionContext ins)
-            pure $ case result of
+                race
+                    (threadDelay 30_000_000)
+                    ( bracketQuery "getDappTransactionContext" tr
+                        $ queue
+                            `send` SomeLSQAt
+                                (toOuroborosPoint point)
+                                (LSQ.getDappTransactionContext ins)
+                                (readTVarIO cancelled)
+                    )
+            case result of
+                Left () -> do
+                    atomically $ writeTVar cancelled True
+                    pure $ Left ErrDappTransactionContextPointUnavailable
+                Right queryResult -> pure $ toDappContext queryResult
+          where
+            toDappContext = \case
                 LocalStateQueryAcquireFailed ->
                     Left ErrDappTransactionContextPointUnavailable
                 LocalStateQueryAcquired (era, pparams, utxo) ->

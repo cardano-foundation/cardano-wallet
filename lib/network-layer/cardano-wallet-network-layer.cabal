@@ -136,6 +136,8 @@ test-suite unit
     , contra-tracer
     , hspec
     , io-classes
+    , ouroboros-network:api
+    , ouroboros-network:protocols
     , QuickCheck
     , text
     , transformers
@@ -144,4 +146,5 @@ test-suite unit
   main-is:            Main.hs
   other-modules:
     Cardano.Wallet.Network.Checkpoints.PolicySpec
+    Cardano.Wallet.Network.Implementation.OuroborosSpec
     Cardano.Wallet.Network.LightSpec
