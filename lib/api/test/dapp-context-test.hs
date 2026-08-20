@@ -1,5 +1,6 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedRecordDot #-}
 
 module Main (main) where
 
@@ -9,10 +10,12 @@ import Cardano.Wallet.Api.Types.Dapp.Context
     , ApiDappHex (..)
     , ApiDappCredentialKind (..)
     , ApiDappOwnershipKind (..)
+    , ApiDappOwnership (..)
     , ApiDappOutpoint (..)
     , ApiDappPendingState (..)
     , ApiDappProvenance (..)
     , ApiDappProofKind (..)
+    , ApiDappRequiredWalletProof (..)
     , ApiDappRole (..)
     , ApiDappTransactionContextRequest
     , ApiDappWord64 (..)
@@ -26,6 +29,15 @@ import Cardano.Wallet.Api.Types.Dapp.Context
     , encodeContextRecord
     , encodeContextToken
     , validateContextToken
+    )
+import Cardano.Wallet.Api.Http.Shelley.TransactionContext
+    ( ProofObligation (DirectProofObligation)
+    , ProofObligationResult (..)
+    , dependencySource
+    , evaluateObligation
+    , requiredProofs
+    , scriptProofKinds
+    , validatePendingProvenance
     )
 import Data.ByteString
     ( ByteString
@@ -46,6 +58,8 @@ import qualified Data.ByteArray.Encoding as BAE
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy.Char8 as BL8
 import qualified Data.Text.Encoding as T
+import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
 
 main :: IO ()
 main = hspec $ do
@@ -84,6 +98,32 @@ main = hspec $ do
             decodeContextTokenClaims (BS.drop 1 tokenGolden)
                 `shouldSatisfy` isLeft
 
+        it "ORs requiredness across obligations sharing a frozen row key" $ do
+            requiredProofs [ownedSigner] [optionalSigner, requiredSigner]
+                `shouldBe` [requiredSignerRow True]
+            requiredProofs [ownedSigner] [witnessedSigner]
+                `shouldBe` [requiredSignerRow False]
+            let result = evaluateObligation
+                    (Map.singleton 0 $ Set.singleton proofHash)
+                    (Set.singleton proofHash)
+                    (DirectProofObligation 0 RequiredSignerProof proofHash)
+            result.satisfied `shouldBe` True
+            Map.lookup proofHash result.satisfiedWithoutCandidate `shouldBe` Just True
+
+        it "classifies Plutus spending scripts without native proof ownership" $ do
+            scriptProofKinds NativeScriptProof False `shouldBe` []
+            scriptProofKinds NativeScriptProof True `shouldBe` [NativeScriptProof]
+            scriptProofKinds PolicyProof False `shouldBe` [PolicyProof]
+
+        it "validates pending provenance in both directions and uses authority for dependencies" $ do
+            validatePendingProvenance True [Pending] `shouldBe` Right ()
+            validatePendingProvenance False [Node] `shouldBe` Right ()
+            validatePendingProvenance True [Node] `shouldBe` Left "pending provenance mismatch"
+            validatePendingProvenance False [Pending] `shouldBe` Left "pending provenance mismatch"
+            dependencySource True True `shouldBe` Just Earlier
+            dependencySource False True `shouldBe` Just Pending
+            dependencySource False False `shouldBe` Nothing
+
 decodeRequest
     :: BL8.ByteString -> Either String ApiDappTransactionContextRequest
 decodeRequest = decodeTransactionContextRequest
@@ -100,6 +140,36 @@ invalidRequests =
     , "{\"revision\":1,\"network\":{\"network_id\":0,\"network_magic\":1,\"genesis_hash\":\"0000000000000000000000000000000000000000000000000000000000000000\"},\"transactions\":[\"84A0A0F5F6\"]}"
     , "{\"revision\":1,\"network\":{\"network_id\":0,\"network_magic\":1,\"genesis_hash\":\"0000000000000000000000000000000000000000000000000000000000000000\"},\"transactions\":[],\"inputs\":[]}"
     ]
+
+proofHash :: ByteString
+proofHash = BS.replicate 28 0x42
+
+ownedSigner :: ApiDappOwnership
+ownedSigner =
+    ApiDappOwnership
+        PaymentCredential
+        (ApiDappHex proofHash)
+        OwnedKey
+        [0x8000073c, 0x80000717, 0x80000000, 0, 0]
+        [RequiredSignerProof]
+
+optionalSigner, requiredSigner, witnessedSigner :: ProofObligationResult
+optionalSigner = proofResult True True
+requiredSigner = proofResult True False
+witnessedSigner = proofResult True True
+
+proofResult :: Bool -> Bool -> ProofObligationResult
+proofResult satisfied without =
+    ProofObligationResult
+        (DirectProofObligation 0 RequiredSignerProof proofHash)
+        (Set.singleton proofHash)
+        satisfied
+        (Map.singleton proofHash without)
+
+requiredSignerRow :: Bool -> ApiDappRequiredWalletProof
+requiredSignerRow =
+    ApiDappRequiredWalletProof
+        0 RequiredSignerProof PaymentCredential (ApiDappHex proofHash)
 
 fullOutputRecord :: ContextRecord
 fullOutputRecord =

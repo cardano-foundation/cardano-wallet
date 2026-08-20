@@ -4586,6 +4586,8 @@ components:
             produced_wallet_outputs: { type: array, maxItems: 0, items: *ApiDappOutpoint }
         ownership:
           type: array
+          uniqueItems: true
+          description: Rows are unique by credential kind, credential, ownership, and derivation path.
           items:
             type: object
             additionalProperties: false
@@ -4594,13 +4596,42 @@ components:
               credential_kind: { type: string, enum: [payment, stake, policy] }
               credential: { type: string, pattern: '^[0-9a-f]{56}$' }
               ownership: { type: string, enum: [unowned, owned_key, script] }
-              derivation_path: { type: array, minItems: 0, maxItems: 5, items: { type: integer, minimum: 0, maximum: 4294967295 } }
+              derivation_path:
+                type: array
+                items: { type: integer, minimum: 0, maximum: 4294967295 }
               proof_kinds: &ApiDappProofKinds
                 type: array
+                maxItems: 7
                 uniqueItems: true
                 items: { type: string, enum: [normal_input, collateral, withdrawal, certificate, required_signer, native_script, policy] }
+            oneOf:
+              - description: Unowned credentials have no derivation path.
+                properties:
+                  ownership: { type: string, enum: [unowned] }
+                  derivation_path: { type: array, maxItems: 0 }
+              - description: Script credentials have no derivation path.
+                properties:
+                  ownership: { type: string, enum: [script] }
+                  derivation_path: { type: array, maxItems: 0 }
+              - description: Owned CIP-1852 payment paths have exactly five components.
+                properties:
+                  credential_kind: { type: string, enum: [payment] }
+                  ownership: { type: string, enum: [owned_key] }
+                  derivation_path: { type: array, minItems: 5, maxItems: 5 }
+              - description: Owned CIP-1852 stake paths have exactly five components.
+                properties:
+                  credential_kind: { type: string, enum: [stake] }
+                  ownership: { type: string, enum: [owned_key] }
+                  derivation_path: { type: array, minItems: 5, maxItems: 5 }
+              - description: Owned CIP-1855 policy paths have exactly three components.
+                properties:
+                  credential_kind: { type: string, enum: [policy] }
+                  ownership: { type: string, enum: [owned_key] }
+                  derivation_path: { type: array, minItems: 3, maxItems: 3 }
         required_wallet_proofs:
           type: array
+          uniqueItems: true
+          description: Rows are unique by transaction index, proof kind, credential kind, and credential.
           items:
             type: object
             additionalProperties: false
@@ -4618,6 +4649,8 @@ components:
           properties:
             dependencies:
               type: array
+              uniqueItems: true
+              description: Rows are unique by transaction index, input role, and outpoint.
               items:
                 type: object
                 additionalProperties: false
@@ -4630,6 +4663,8 @@ components:
                   source_transaction_index: { type: integer, minimum: 0, maximum: 49, nullable: true }
             conflicts:
               type: array
+              uniqueItems: true
+              description: Rows are unique by transaction index, input role, and outpoint.
               items:
                 type: object
                 additionalProperties: false

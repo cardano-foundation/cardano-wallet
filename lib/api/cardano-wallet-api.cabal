@@ -141,7 +141,7 @@ library
 test-suite dapp-context
   import:             language
   type:               exitcode-stdio-1.0
-  hs-source-dirs:     test src
+  hs-source-dirs:     test
   main-is:            dapp-context-test.hs
   ghc-options:        -Wall
   build-depends:
@@ -149,6 +149,7 @@ test-suite dapp-context
     , base
     , binary
     , bytestring
+    , cardano-wallet-api
     , containers
     , crypto-primitives
     , hspec
@@ -156,7 +157,3 @@ test-suite dapp-context
     , memory
     , servant
     , text
-
-  other-modules:
-    Cardano.Wallet.Api.Lib.Options
-    Cardano.Wallet.Api.Types.Dapp.Context
