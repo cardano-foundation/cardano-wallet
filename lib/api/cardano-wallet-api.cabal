@@ -46,8 +46,10 @@ library
     , cardano-crypto
     , cardano-crypto-class
     , cardano-ledger-api
+    , cardano-ledger-alonzo
     , cardano-ledger-binary
     , cardano-ledger-core
+    , cardano-ledger-conway
     , cardano-ledger-read
     , cardano-wallet
     , cardano-wallet-launcher
