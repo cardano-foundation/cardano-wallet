@@ -8,6 +8,7 @@ module Cardano.Wallet.Application.TlsSpec
 
 import Cardano.Wallet.Application.Tls
     ( TlsConfiguration (..)
+    , clientManagerSettings
     , requireClientAuth
     )
 import Cardano.X509.Configuration
@@ -34,27 +35,13 @@ import Data.Function
 import Data.Streaming.Network
     ( bindRandomPortTCP
     )
-import Data.X509
-    ( CertificateChain (..)
-    )
-import Data.X509.CertificateStore
-    ( makeCertificateStore
-    )
 import Data.X509.Extra
     ( encodePEM
     , genRSA256KeyPair
     )
-import Data.X509.File
-    ( readKeyFile
-    , readSignedObject
-    )
-import Network.Connection
-    ( TLSSettings (..)
-    )
 import Network.HTTP.Client
     ( HttpException (..)
     , HttpExceptionContent (..)
-    , ManagerSettings (..)
     , Response
     , defaultManagerSettings
     , httpLbs
@@ -71,18 +58,6 @@ import Network.HTTP.Types.Status
 import Network.Socket
     ( Socket
     , close
-    )
-import Network.TLS
-    ( ClientHooks (..)
-    , ClientParams (..)
-    , Credentials (..)
-    , Shared (..)
-    , Supported (..)
-    , defaultParamsClient
-    , noSessionManager
-    )
-import Network.TLS.Extra.Cipher
-    ( ciphersuite_default
     )
 import Network.Wai
     ( responseLBS
@@ -164,6 +139,27 @@ spec = describe "TLS Client Authentication" $ do
                 HttpExceptionRequest _ (InternalException _) -> True
                 _ -> False
 
+    it "Deny server with wrong certificate authority" $ do
+        withListeningSocket "*" $ \(port, socket) -> do
+            tlsSv <- rootPKI 2 "server"
+            tlsCl <- rootPKI 2 "client"
+            wrongCa <- rootPKI 1 "client"
+            link =<< async (start tlsSv socket app)
+            pingHttps tlsCl{tlsCaCert = tlsCaCert wrongCa} port
+                `shouldThrow` \case
+                    HttpExceptionRequest _ (InternalException _) -> True
+                    _ -> False
+
+    it "Deny server with a mismatched IP address" $ do
+        withListeningSocket "*" $ \(port, socket) -> do
+            tlsSv <- rootPKI 1 "server"
+            tlsCl <- rootPKI 1 "client"
+            link =<< async (start tlsSv socket app)
+            pingHttpsHost tlsCl "127.0.0.2" port
+                `shouldThrow` \case
+                    HttpExceptionRequest _ (InternalException _) -> True
+                    _ -> False
+
     it "Properly deny HTTP connection if TLS is enabled" $ do
         withListeningSocket "*" $ \(port, socket) -> do
             tlsSv <- rootPKI 1 "server"
@@ -239,58 +235,14 @@ pingHttp port = do
     httpLbs r m
 
 pingHttps :: TlsConfiguration -> Int -> IO (Response ByteString)
-pingHttps tls port = do
-    r <- parseRequest $ "GET https://127.0.0.1:" <> show port
-    m <- newManager =<< mkHttpsManagerSettings tls
+pingHttps tls = pingHttpsHost tls "127.0.0.1"
+
+pingHttpsHost
+    :: TlsConfiguration -> String -> Int -> IO (Response ByteString)
+pingHttpsHost tls host port = do
+    r <- parseRequest $ "GET https://" <> host <> ":" <> show port
+    m <- newManager =<< clientManagerSettings tls
     httpLbs r m
-
--- | Construct a 'ManagerSettings' for a client application using the given TLS
--- configuration. The 'TlsConfiguration' is slightly _abused_ here as the
--- @tlsSvCert@ and @tlsSvKey@ are actually pointing to **client** credentials.
-mkHttpsManagerSettings
-    :: TlsConfiguration
-    -> IO ManagerSettings
-mkHttpsManagerSettings TlsConfiguration{tlsCaCert, tlsSvCert, tlsSvKey} = do
-    params <-
-        clientParams
-            <$> readSignedObject tlsCaCert
-            <*> readCredentials tlsSvCert tlsSvKey
-    pure $ mkManagerSettings (TLSSettings params) sockSettings
-  where
-    sockSettings = Nothing
-    clientParams caChain credentials =
-        (defaultParamsClient "127.0.0.1" "")
-            { clientUseServerNameIndication = True
-            , clientWantSessionResume = Nothing
-            , clientShared = clientShared caChain credentials
-            , clientHooks = clientHooks credentials
-            , clientSupported = clientSupported
-            }
-
-    clientShared caChain credentials =
-        def
-            { sharedCredentials = Credentials [credentials]
-            , sharedCAStore = makeCertificateStore caChain
-            , sharedSessionManager = noSessionManager
-            }
-
-    clientHooks credentials =
-        def
-            { onCertificateRequest = const . return . Just $ credentials
-            , onServerCertificate = \_ _ _ _ -> pure []
-            }
-
-    clientSupported =
-        def
-            { supportedCiphers = ciphersuite_default
-            }
-
-    readCredentials certFile keyFile = do
-        certs <- readSignedObject certFile
-        keys <- readKeyFile keyFile
-        case keys of
-            (k : _) -> pure (CertificateChain certs, k)
-            [] -> error "readCredentials: no key found in file"
 
 -- | Start the application server, using the given settings and a bound socket.
 start

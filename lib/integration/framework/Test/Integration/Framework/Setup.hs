@@ -113,6 +113,10 @@ import Cardano.Wallet.Application.CLI
 import Cardano.Wallet.Application.Server
     ( walletListenFromEnv
     )
+import Cardano.Wallet.Application.Tls
+    ( TlsConfiguration (..)
+    , clientManagerSettings
+    )
 import Cardano.Wallet.DB
     ( DBLayer (..)
     , DBLayerParams (..)
@@ -636,6 +640,30 @@ data TestingCtx = TestingCtx
     , testDataDir :: DirOf "test-data"
     }
 
+data TestTls = TestTls
+    { serverTls :: TlsConfiguration
+    , clientTls :: TlsConfiguration
+    }
+
+testTlsFromEnv :: IO (Maybe TestTls)
+testTlsFromEnv =
+    lookupEnv "CARDANO_WALLET_TEST_MTLS_PKI" >>= \case
+        Nothing -> pure Nothing
+        Just dir ->
+            pure
+                $ Just
+                $ TestTls
+                    { serverTls = configuration dir "server"
+                    , clientTls = configuration dir "client"
+                    }
+  where
+    configuration dir name =
+        TlsConfiguration
+            { tlsCaCert = dir FilePath.</> "ca.crt"
+            , tlsSvCert = dir FilePath.</> name FilePath.</> name <> ".crt"
+            , tlsSvKey = dir FilePath.</> name FilePath.</> name <> ".key"
+            }
+
 -- A decorator for the pool database that records all calls to the
 -- 'removeRetiredPools' operation.
 --
@@ -665,11 +693,13 @@ withServer
     :: TestingCtx
     -> FaucetFunds
     -> Pool.DBDecorator IO
+    -> Maybe TestTls
     -> ContT () IO (T.Text, NetworkParameters, URI, RunFaucetQ IO)
 withServer
     ctx@TestingCtx{..}
     faucetFunds
-    dbDecorator = do
+    dbDecorator
+    testTls = do
         _ <- ContT $ \k -> bracketTracer' tr "withServer" $ k ()
         ((runMonitorQ, runFaucetQ), ToTextTracer clog) <-
             withLocalCluster
@@ -683,17 +713,20 @@ withServer
                 ctx
                 dbDecorator
                 runMonitorQ
+                testTls
         pure (T.pack smashUrl, np, uri, runFaucetQ)
 
 onClusterStart
     :: TestingCtx
     -> Pool.DBDecorator IO
     -> RunMonitorQ IO
+    -> Maybe TestTls
     -> ContT () IO (NetworkParameters, URI)
 onClusterStart
     TestingCtx{..}
     dbDecorator
-    runMonitorQ =
+    runMonitorQ
+    testTls =
         do
             RunningNode nodeConnection genesisData vData <-
                 liftIO $ waitForRunningNode runMonitorQ
@@ -726,7 +759,7 @@ onClusterStart
                         "127.0.0.1"
                         listen
                         Nothing
-                        Nothing
+                        (serverTls <$> testTls)
                         Nothing
                         (Just tokenMetaUrl)
                         defaultIpfsGatewayUrl
@@ -745,11 +778,16 @@ clusterToApiEra :: ClusterEra -> ApiEra
 clusterToApiEra = \case
     ConwayHardFork -> ApiConway
 
-httpManager :: IO Manager
-httpManager = do
+httpManager :: Maybe TestTls -> IO Manager
+httpManager testTls = do
     let fiveMinutes = 300 * 1_000 * 1_000 -- 5 min in microseconds
+    settings <-
+        maybe
+            (pure defaultManagerSettings)
+            (clientManagerSettings . clientTls)
+            testTls
     newManager
-        $ defaultManagerSettings
+        $ settings
             { managerResponseTimeout =
                 responseTimeoutMicro fiveMinutes
             }
@@ -763,6 +801,7 @@ setupContext
     -> T.Text
     -> NetworkParameters
     -> URI
+    -> Maybe TestTls
     -> IO ()
 setupContext
     TestingCtx{..}
@@ -772,7 +811,8 @@ setupContext
     poolGarbageCollectionEvents
     smashUrl
     networkParameters
-    baseUrl =
+    baseUrl
+    testTls =
         bracketTracer' tr "setupContext" $ do
             faucet <- Faucet.initFaucet faucetClientEnv
             prometheusUrl <-
@@ -784,7 +824,7 @@ setupContext
                         T.pack h <> ":" <> toText @(Port "EKG") p
                 in  maybe "none" packPort <$> getEKGURL
             traceWith tr $ MsgBaseUrl baseUrl ekgUrl prometheusUrl smashUrl
-            manager <- httpManager
+            manager <- httpManager testTls
             mintSeaHorseAssetsLock <- newMVar ()
             putMVar
                 ctx
@@ -811,6 +851,7 @@ withContext testingCtx@TestingCtx{..} action = do
     bracketTracer' tr "withContext" $ withFaucet $ \faucetClientEnv -> do
         ctx <- newEmptyMVar
         poolGarbageCollectionEvents <- newIORef []
+        testTls <- testTlsFromEnv
         faucetFunds <- runFaucetM faucetClientEnv $ mkFaucetFunds testnetMagic
         let dbEventRecorder =
                 recordPoolGarbageCollectionEvents
@@ -827,6 +868,7 @@ withContext testingCtx@TestingCtx{..} action = do
                         testingCtx
                         faucetFunds
                         dbEventRecorder
+                        testTls
                 liftIO
                     $ setupContext
                         testingCtx
@@ -837,6 +879,7 @@ withContext testingCtx@TestingCtx{..} action = do
                         smashUrl
                         networkParams
                         walletURI
+                        testTls
         void $ race wallet delegation
   where
     -- \| Setup delegation for 'rewardWallet' / 'rewardWalletMnemonics'.

@@ -58,6 +58,7 @@ library framework
     , cardano-wallet-api
     , cardano-wallet-application
     , cardano-wallet-application-extras
+    , cardano-wallet-application-tls
     , cardano-wallet-application:shelley
     , cardano-wallet-launcher
     , cardano-wallet-network-layer
