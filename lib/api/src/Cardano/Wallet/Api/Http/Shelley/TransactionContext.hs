@@ -24,8 +24,10 @@ module Cardano.Wallet.Api.Http.Shelley.TransactionContext
     , validateTransactionContextResponseForRequest
     , validVKeyWitnessHashes
     , buildProofInventory
+    , candidateOwnershipAssociations
     , requiredProofs
     , scriptProofKinds
+    , supportedCertificate
     , dependencySource
     , evaluateObligation
     , validatePendingProvenance
@@ -53,7 +55,7 @@ import Cardano.Ledger.Credential
     , StakeReference (StakeRefNull)
     )
 import Cardano.Ledger.Conway.TxCert
-    ( ConwayTxCert (ConwayTxCertDeleg)
+    ( ConwayTxCert (..)
     )
 import Cardano.Ledger.Conway.Governance
     ( VotingProcedures (VotingProcedures)
@@ -319,7 +321,8 @@ data ProofObligation
     deriving (Eq, Show)
 
 data ProducibleCandidate = ProducibleCandidate
-    { candidateCredentialKind :: !ApiDappCredentialKind
+    { candidateTransactionIndex :: !Word32
+    , candidateCredentialKind :: !ApiDappCredentialKind
     , candidatePath :: ![Word32]
     , candidatePublicKey :: !ByteString
     , candidateKeyHash :: !ByteString
@@ -482,8 +485,11 @@ supportedCredentialSurfaces DecodedTx{transaction = Read.Tx ledgerTx} =
         && null (ledgerTx ^. bodyTxL . proposalProceduresTxBodyL)
   where
     VotingProcedures voting = ledgerTx ^. bodyTxL . votingProceduresTxBodyL
-    supportedCertificate ConwayTxCertDeleg{} = True
-    supportedCertificate _ = False
+
+supportedCertificate :: ConwayTxCert era -> Bool
+supportedCertificate ConwayTxCertDeleg{} = True
+supportedCertificate ConwayTxCertPool{} = False
+supportedCertificate ConwayTxCertGov{} = False
 
 contextSets
     :: Set Ledger.TxIn
@@ -764,12 +770,19 @@ buildProofInventory configured discovery requested resolved = do
     (native, nativeObligations) <- nativeEvidence configured discoveryAfterSigners requested resolved
     ownership <- mergeOwnership $ payment <> stake <> signers <> native
     directObligations <- directProofObligations requested resolved
-    candidates <- mapM (candidateFromOwnership discovery) $ filter ((== OwnedKey) . (.ownership)) ownership
     let obligations = directObligations <> nativeObligations
+    candidates <- mapM (uncurry $ candidateFromOwnership discovery)
+        $ candidateOwnershipAssociations obligations ownership
+    let
         existing = Map.fromList
             [(index, validVKeyWitnessHashes tx.transaction) | (index, tx) <- zip [0 :: Word32 ..] requested]
-        producible = Set.fromList $ (.candidateKeyHash) <$> candidates
-        results = evaluateObligation existing producible <$> obligations
+        producible = Map.fromListWith (<>)
+            [ (candidate.candidateTransactionIndex, Set.singleton candidate.candidateKeyHash)
+            | candidate <- candidates
+            ]
+        results = (\obligation -> evaluateObligation existing
+            (Map.findWithDefault mempty (obligationTransactionIndex obligation) producible)
+            obligation) <$> obligations
         aggregate = Map.unionWith (&&)
             (Map.fromList [(index, True) | (index, _) <- zip [0 :: Word32 ..] requested])
             (Map.fromListWith (&&)
@@ -785,11 +798,33 @@ buildProofInventory configured discovery requested resolved = do
         , requiredProofEvidence = requiredWalletProofs
         }
 
+candidateOwnershipAssociations
+    :: [ProofObligation]
+    -> [ApiDappOwnership]
+    -> [(Word32, ApiDappOwnership)]
+candidateOwnershipAssociations obligations ownership = Set.toList $ Set.fromList
+    [ (obligationTransactionIndex obligation, candidate)
+    | candidate@ApiDappOwnership
+        { credential = ApiDappHex credential
+        , ownership = OwnedKey
+        , proofKinds
+        } <- ownership
+    , obligation <- obligations
+    , obligationProofKind obligation `elem` proofKinds
+    , credential `Set.member` proofObligationKeyHashes obligation
+    ]
+
+proofObligationKeyHashes :: ProofObligation -> Set ByteString
+proofObligationKeyHashes = \case
+    DirectProofObligation _ _ keyHash -> Set.singleton keyHash
+    NativeProofObligation _ _ script _ -> Set.map keyBytes $ timelockKeys script
+
 candidateFromOwnership
     :: SeqState n ShelleyKey
+    -> Word32
     -> ApiDappOwnership
     -> Either DappError ProducibleCandidate
-candidateFromOwnership discovery ApiDappOwnership{credentialKind, credential = ApiDappHex keyHash, derivationPath} = do
+candidateFromOwnership discovery transactionIndex ApiDappOwnership{credentialKind, credential = ApiDappHex keyHash, derivationPath} = do
     publicKey <- case (credentialKind, derivationPath) of
         (PaymentCredential, [0x8000073c, 0x80000717, accountIndex, roleIndex, addressIndex])
             | accountIndex == getIndex account && roleIndex <= 1 && addressIndex < 0x80000000 ->
@@ -801,7 +836,7 @@ candidateFromOwnership discovery ApiDappOwnership{credentialKind, credential = A
             maybe (Left DappInternalErrorResponse) (pure . childPublicKey) $ Seq.policyXPub discovery
         _ -> Left DappInternalErrorResponse
     requireEither DappInternalErrorResponse $ blake2b224 publicKey == keyHash
-    pure $ ProducibleCandidate credentialKind derivationPath publicKey keyHash
+    pure $ ProducibleCandidate transactionIndex credentialKind derivationPath publicKey keyHash
   where
     Seq.DerivationPrefix (_, _, account) = Seq.derivationPrefix discovery
     stakePath = map getDerivationIndex $ NE.toList $ stakeDerivationPath $ Seq.derivationPrefix discovery
@@ -828,9 +863,7 @@ evaluateObligation existing producible obligation =
   where
     existingForTransaction = Map.findWithDefault mempty (obligationTransactionIndex obligation) existing
     available = existingForTransaction <> producible
-    keys = case obligation of
-        DirectProofObligation _ _ keyHash -> Set.singleton keyHash
-        NativeProofObligation _ _ script _ -> Set.map keyBytes $ timelockKeys script
+    keys = proofObligationKeyHashes obligation
     evaluate hashes = case obligation of
         DirectProofObligation _ _ keyHash -> keyHash `Set.member` hashes
         NativeProofObligation _ _ script validity ->

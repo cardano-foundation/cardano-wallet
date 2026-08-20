@@ -4587,7 +4587,11 @@ components:
         ownership:
           type: array
           uniqueItems: true
-          description: Rows are unique by credential kind, credential, ownership, and derivation path.
+          description: |
+            Sorted rows. Runtime validation permits exactly one row for each
+            (credential_kind, credential); proof_kinds is a sorted, duplicate-free
+            subset of the seven values below. OpenAPI uniqueItems additionally
+            rejects byte-for-byte duplicate rows but does not express this key.
           items:
             type: object
             additionalProperties: false
@@ -4617,21 +4621,38 @@ components:
                 properties:
                   credential_kind: { type: string, enum: [payment] }
                   ownership: { type: string, enum: [owned_key] }
-                  derivation_path: { type: array, minItems: 5, maxItems: 5 }
-              - description: Owned CIP-1852 stake paths have exactly five components.
+                  derivation_path:
+                    type: array
+                    minItems: 5
+                    maxItems: 5
+                    description: Exactly [2147485500 (0x8000073c, 1852'), 2147485463 (0x80000717, 1815'), account in 2147483648..4294967295 (hardened), role 0 or 1, index in 0..2147483647].
+              - description: Owned CIP-1852 stake paths have exactly five fixed-position components.
                 properties:
                   credential_kind: { type: string, enum: [stake] }
                   ownership: { type: string, enum: [owned_key] }
-                  derivation_path: { type: array, minItems: 5, maxItems: 5 }
-              - description: Owned CIP-1855 policy paths have exactly three components.
+                  derivation_path:
+                    type: array
+                    minItems: 5
+                    maxItems: 5
+                    description: Exactly [2147485500 (0x8000073c, 1852'), 2147485463 (0x80000717, 1815'), account in 2147483648..4294967295 (hardened), 2, 0].
+              - description: Owned CIP-1855 policy paths have exactly three fixed components.
                 properties:
                   credential_kind: { type: string, enum: [policy] }
                   ownership: { type: string, enum: [owned_key] }
-                  derivation_path: { type: array, minItems: 3, maxItems: 3 }
+                  derivation_path:
+                    type: array
+                    minItems: 3
+                    maxItems: 3
+                    description: Exactly [2147485503 (0x8000073f, 1855'), 2147485463 (0x80000717, 1815'), 2147483648 (0x80000000, 0')].
         required_wallet_proofs:
           type: array
           uniqueItems: true
-          description: Rows are unique by transaction index, proof kind, credential kind, and credential.
+          description: |
+            Sorted rows. Runtime validation permits exactly one row for each
+            (transaction_index, proof_kind, credential_kind, credential), and
+            every row must match an owned_key ownership row with the same
+            credential_kind, credential, and proof_kind. OpenAPI uniqueItems
+            alone cannot express either condition.
           items:
             type: object
             additionalProperties: false
@@ -4650,7 +4671,14 @@ components:
             dependencies:
               type: array
               uniqueItems: true
-              description: Rows are unique by transaction index, input role, and outpoint.
+              description: |
+                Sorted rows. Runtime validation permits at most one row for each
+                (transaction_index, input_role, outpoint). Earlier authority
+                takes precedence over pending authority: source earlier requires
+                exactly one source_transaction_index in 0..transaction_index-1;
+                source pending requires null. Node-only authority emits no row.
+                The request-aware validator enforces exact authority cardinality;
+                OpenAPI uniqueItems cannot express the key or request relation.
               items:
                 type: object
                 additionalProperties: false
@@ -4664,7 +4692,13 @@ components:
             conflicts:
               type: array
               uniqueItems: true
-              description: Rows are unique by transaction index, input role, and outpoint.
+              description: |
+                Sorted rows. Runtime validation permits at most one row for each
+                (transaction_index, input_role, outpoint), with exactly the
+                lowest earlier normal consumer in earlier_transaction_index
+                (0..transaction_index-1). Reference inputs never emit conflicts.
+                The request-aware validator enforces exact cardinality;
+                OpenAPI uniqueItems cannot express the key or request relation.
               items:
                 type: object
                 additionalProperties: false

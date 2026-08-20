@@ -149,6 +149,11 @@ test-suite dapp-context
     , base
     , binary
     , bytestring
+    , cardano-crypto-class
+    , cardano-ledger-allegra
+    , cardano-ledger-core
+    , cardano-ledger-conway
+    , cardano-strict-containers
     , cardano-wallet-api
     , containers
     , crypto-primitives

@@ -31,16 +31,43 @@ import Cardano.Wallet.Api.Types.Dapp.Context
     , validateContextToken
     )
 import Cardano.Wallet.Api.Http.Shelley.TransactionContext
-    ( ProofObligation (DirectProofObligation)
+    ( DecodedTx (valid)
+    , ProofObligation (DirectProofObligation, NativeProofObligation)
     , ProofObligationResult (..)
+    , candidateOwnershipAssociations
+    , decodeTx
     , dependencySource
     , evaluateObligation
     , requiredProofs
     , scriptProofKinds
+    , supportedCertificate
     , validatePendingProvenance
+    )
+import Cardano.Ledger.Allegra.Scripts
+    ( ValidityInterval (..)
+    , mkRequireAllOfTimelock
+    , mkRequireAnyOfTimelock
+    , mkRequireMOfTimelock
+    , mkRequireSignatureTimelock
+    , mkTimeExpireTimelock
+    , mkTimeStartTimelock
+    )
+import Cardano.Ledger.BaseTypes
+    ( SlotNo (..)
+    )
+import Cardano.Ledger.Conway.TxCert
+    ( ConwayDelegCert (ConwayRegCert, ConwayUnRegCert)
+    , ConwayGovCert (ConwayUpdateDRep)
+    , ConwayTxCert (ConwayTxCertDeleg, ConwayTxCertGov)
+    )
+import Cardano.Ledger.Credential
+    ( Credential (KeyHashObj)
     )
 import Data.ByteString
     ( ByteString
+    )
+import Data.Coerce
+    ( coerce
     )
 import Data.Text
     ( Text
@@ -59,7 +86,11 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy.Char8 as BL8
 import qualified Data.Text.Encoding as T
 import qualified Data.Map.Strict as Map
+import qualified Data.Maybe.Strict as Strict
+import qualified Data.Sequence.Strict as StrictSeq
 import qualified Data.Set as Set
+import qualified Cardano.Crypto.Hash.Class as Crypto
+import qualified Cardano.Ledger.Keys as LedgerKeys
 
 main :: IO ()
 main = hspec $ do
@@ -69,6 +100,21 @@ main = hspec $ do
             mapM_
                 (\request -> decodeRequest request `shouldSatisfy` isLeft)
                 invalidRequests
+
+        it "decodes the exact accepted and rejected validity boundary" $ do
+            fmap (.valid) (decodeTx $ ApiDappHex acceptedTransaction)
+                `shouldBe` Right True
+            fmap (.valid) (decodeTx $ ApiDappHex rejectedTransaction)
+                `shouldBe` Right False
+
+        it "gates supported and rejected Conway certificate constructors" $ do
+            let stakeCredential = KeyHashObj $ coerce $ witnessKeyHash proofHash
+            mapM_ (\(certificate, expected) ->
+                supportedCertificate certificate `shouldBe` expected)
+                [ (ConwayTxCertDeleg $ ConwayRegCert stakeCredential Strict.SNothing, True)
+                , (ConwayTxCertDeleg $ ConwayUnRegCert stakeCredential Strict.SNothing, True)
+                , (ConwayTxCertGov $ ConwayUpdateDRep (coerce stakeCredential) Strict.SNothing, False)
+                ]
 
         it "matches all frozen record and Blake2b-256 goldens" $ do
             encodeContextRecord fullOutputRecord `shouldBe` Right fullOutputGolden
@@ -109,6 +155,65 @@ main = hspec $ do
                     (DirectProofObligation 0 RequiredSignerProof proofHash)
             result.satisfied `shouldBe` True
             Map.lookup proofHash result.satisfiedWithoutCandidate `shouldBe` Just True
+            mapM_ (\(existing, expected) -> do
+                let witnessResult = evaluateObligation existing mempty
+                        $ DirectProofObligation 0 RequiredSignerProof proofHash
+                witnessResult.satisfied `shouldBe` expected)
+                [ (Map.singleton 0 $ Set.singleton proofHash, True)
+                , (mempty, False)
+                ]
+
+        it "associates producible candidates only with applicable transactions" $ do
+            let obligations =
+                    [ DirectProofObligation 0 RequiredSignerProof proofHash
+                    , DirectProofObligation 2 RequiredSignerProof proofHash
+                    ]
+            candidateOwnershipAssociations obligations
+                [ownedSigner, ownedStakeSigner, walletSnapshotOnly, unrelatedInput]
+                `shouldBe`
+                    [ (0, ownedSigner)
+                    , (0, ownedStakeSigner)
+                    , (2, ownedSigner)
+                    , (2, ownedStakeSigner)
+                    ]
+
+        it "evaluates all, any, threshold, and time native-script requiredness" $ do
+            let keyA = witnessKeyHash proofHash
+                keyB = witnessKeyHash otherProofHash
+                signatureA = mkRequireSignatureTimelock keyA
+                signatureB = mkRequireSignatureTimelock keyB
+                scripts =
+                    [ (mkRequireAllOfTimelock $ StrictSeq.fromList [signatureA, signatureB], False)
+                    , (mkRequireAnyOfTimelock $ StrictSeq.fromList [signatureA, signatureB], True)
+                    , (mkRequireMOfTimelock 1 $ StrictSeq.fromList [signatureA, signatureB], True)
+                    , ( mkRequireAllOfTimelock $ StrictSeq.fromList
+                            [ signatureA
+                            , mkTimeStartTimelock $ SlotNo 10
+                            , mkTimeExpireTimelock $ SlotNo 20
+                            ]
+                      , False
+                      )
+                    ]
+                validity = ValidityInterval (Strict.SJust $ SlotNo 10) (Strict.SJust $ SlotNo 20)
+                evaluate script = evaluateObligation mempty
+                    (Set.fromList [proofHash, otherProofHash])
+                    (NativeProofObligation 0 NativeScriptProof script validity)
+            mapM_ (\(script, remainsSatisfied) -> do
+                let result = evaluate script
+                result.satisfied `shouldBe` True
+                Map.lookup proofHash result.satisfiedWithoutCandidate `shouldBe` Just remainsSatisfied
+                ) scripts
+
+        it "keeps mint policy identity separate from its owned key leaf" $ do
+            let nativeObligation = NativeProofObligation 0 PolicyProof
+                    (mkRequireSignatureTimelock $ witnessKeyHash proofHash)
+                    (ValidityInterval Strict.SNothing Strict.SNothing)
+                policyScript = ApiDappOwnership PolicyCredential (ApiDappHex otherProofHash) ScriptOwned [] [PolicyProof]
+                policyLeaf = ApiDappOwnership PolicyCredential (ApiDappHex proofHash) OwnedKey
+                    [0x8000073f, 0x80000717, 0x80000000] [PolicyProof]
+            candidateOwnershipAssociations [nativeObligation] [policyScript, policyLeaf]
+                `shouldBe` [(0, policyLeaf)]
+            scriptProofKinds PolicyProof True `shouldBe` [PolicyProof]
 
         it "classifies Plutus spending scripts without native proof ownership" $ do
             scriptProofKinds NativeScriptProof False `shouldBe` []
@@ -123,6 +228,16 @@ main = hspec $ do
             dependencySource True True `shouldBe` Just Earlier
             dependencySource False True `shouldBe` Just Pending
             dependencySource False False `shouldBe` Nothing
+            mapM_ (\(earlier, pending, _node, expected) ->
+                dependencySource earlier pending `shouldBe` expected)
+                [ (True, False, False, Just Earlier)
+                , (True, True, False, Just Earlier)
+                , (True, False, True, Just Earlier)
+                , (True, True, True, Just Earlier)
+                , (False, True, False, Just Pending)
+                , (False, True, True, Just Pending)
+                , (False, False, True, Nothing)
+                ]
 
 decodeRequest
     :: BL8.ByteString -> Either String ApiDappTransactionContextRequest
@@ -153,17 +268,36 @@ ownedSigner =
         [0x8000073c, 0x80000717, 0x80000000, 0, 0]
         [RequiredSignerProof]
 
+ownedStakeSigner, walletSnapshotOnly, unrelatedInput :: ApiDappOwnership
+ownedStakeSigner =
+    ApiDappOwnership StakeCredential (ApiDappHex proofHash) OwnedKey
+        [0x8000073c, 0x80000717, 0x80000000, 2, 0] [RequiredSignerProof]
+walletSnapshotOnly =
+    ApiDappOwnership PaymentCredential (ApiDappHex otherProofHash) OwnedKey
+        [0x8000073c, 0x80000717, 0x80000000, 0, 1] []
+unrelatedInput =
+    ApiDappOwnership PaymentCredential (ApiDappHex otherProofHash) OwnedKey
+        [0x8000073c, 0x80000717, 0x80000000, 0, 1] [NormalInputProof]
+
+otherProofHash :: ByteString
+otherProofHash = BS.replicate 28 0x43
+
+witnessKeyHash :: ByteString -> LedgerKeys.KeyHash LedgerKeys.Witness
+witnessKeyHash bytes = case Crypto.hashFromBytes bytes of
+    Just hash -> LedgerKeys.KeyHash hash
+    Nothing -> error "invalid test key hash"
+
 optionalSigner, requiredSigner, witnessedSigner :: ProofObligationResult
 optionalSigner = proofResult True True
 requiredSigner = proofResult True False
 witnessedSigner = proofResult True True
 
 proofResult :: Bool -> Bool -> ProofObligationResult
-proofResult satisfied without =
+proofResult isSatisfied without =
     ProofObligationResult
         (DirectProofObligation 0 RequiredSignerProof proofHash)
         (Set.singleton proofHash)
-        satisfied
+        isSatisfied
         (Map.singleton proofHash without)
 
 requiredSignerRow :: Bool -> ApiDappRequiredWalletProof
@@ -174,12 +308,12 @@ requiredSignerRow =
 fullOutputRecord :: ContextRecord
 fullOutputRecord =
     FullOutputRecord
-        (ApiDappOutpoint (ApiDappHex $ BS.replicate 32 0xaa) 0)
+        (ApiDappOutpoint (ApiDappHex $ hex "35eb18701459203ce42156af66c76e3f00b9e2a1b9d48192fbbf0d233a652c9f") 0)
         [Earlier, Node]
         [Normal]
         True
         None
-        (hex "82011a000f4240")
+        (hex "82581d60aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1a000f4240")
 
 protocolRecord :: ContextRecord
 protocolRecord = ProtocolRecord 0 42 9 0 (hex "a0")
@@ -205,7 +339,7 @@ ownershipRecord =
 requiredProofRecord :: ContextRecord
 requiredProofRecord =
     RequiredProofRecord
-        0
+        1
         NormalInputProof
         PaymentCredential
         (BS.replicate 28 0xaa)
@@ -222,7 +356,7 @@ digestInput =
         )
         7
         9
-        [hex "84a0a0f5f6"]
+        fixtureTransactions
         [protocolRecord, fullOutputRecord, ownershipRecord, requiredProofRecord, pendingRecord]
 
 tokenClaims :: ContextTokenClaims
@@ -254,10 +388,10 @@ key
         :: ByteString
 key = BS.replicate 32 0x55
 digestGolden =
-    hex "14cf3140f56400ae803e79a961fb1d98302ae1fe7d8d2e44638bb51021ea21e4"
+    hex "6e87935bf459d9d6a33dd0df3ad8a1178ffe380bdc33fdbc8bb78d865d082446"
 fullOutputGolden =
     hex
-        "0100000033aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa00000000050101000000000782011a000f4240"
+        "010000005135eb18701459203ce42156af66c76e3f00b9e2a1b9d48192fbbf0d233a652c9f00000000050101000000002582581d60aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1a000f4240"
 protocolGolden =
     hex
         "030000001c00000006636f6e776179000000002a000000090000000000000001a0"
@@ -269,10 +403,28 @@ ownershipGolden =
         "020000003e010000001caaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa01000000058000073c8000071780000000000000000000000000000001"
 requiredProofGolden =
     hex
-        "06000000270000000001010000001caaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa01"
+        "06000000270000000101010000001caaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa01"
 tokenGolden =
     hex
-        "0144444444444444444444444444444444000000010000000b77616c6c65742d74657374010101010101010101010101010101010101010101010101010101010101010114cf3140f56400ae803e79a961fb1d98302ae1fe7d8d2e44638bb51021ea21e44057536bc375dc881d56cd05a793359bbe754786193b4465141774f074d99d7c"
+        "0144444444444444444444444444444444000000010000000b77616c6c65742d7465737401010101010101010101010101010101010101010101010101010101010101016e87935bf459d9d6a33dd0df3ad8a1178ffe380bdc33fdbc8bb78d865d082446e019bfde0ef59a5a9861653b0ae9658e8e3ba6528436f05a59ede65791e21bc5"
+
+fixtureTransactions :: [ByteString]
+fixtureTransactions = hex <$>
+    [ acceptedTransactionHex
+    , "84a3008182582035eb18701459203ce42156af66c76e3f00b9e2a1b9d48192fbbf0d233a652c9f00018182581d60aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1a000dbba0021a000186a0a0f5f6"
+    , "84a40081825820222222222222222222222222222222222222222222222222222222222222222200018182581d60aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1a000c3500021a00030d400d8182582035eb18701459203ce42156af66c76e3f00b9e2a1b9d48192fbbf0d233a652c9f00a0f5f6"
+    ]
+
+acceptedTransaction :: ByteString
+acceptedTransaction = hex acceptedTransactionHex
+
+acceptedTransactionHex :: Text
+acceptedTransactionHex =
+    "84a30081825820111111111111111111111111111111111111111111111111111111111111111100018182581d60aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1a000f42400200a0f5f6"
+
+rejectedTransaction :: ByteString
+rejectedTransaction =
+    hex "84a30081825820111111111111111111111111111111111111111111111111111111111111111100018182581d60aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1a000f42400200a0f4f6"
 
 hex :: Text -> ByteString
 hex =

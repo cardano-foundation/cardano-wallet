@@ -163,7 +163,7 @@ import Cardano.Wallet.DummyTarget.Primitive.Types
 import Cardano.Wallet.Flavor
     ( CredFromOf
     , KeyOf
-    , WalletFlavorS (ByronWallet, IcarusWallet, TestStateS)
+    , WalletFlavorS (ByronWallet, IcarusWallet, ShelleyWallet, TestStateS)
     )
 import Cardano.Wallet.Gen
     ( genMnemonic
@@ -548,7 +548,7 @@ spec = describe "Cardano.WalletSpec" $ do
                     []
 
         it "stops after three unavailable exact-point queries" $ do
-            WalletLayerFixture _ worker wid <- setupFixture dummyStateF testWallet
+            WalletLayerFixture _ worker wid <- setupFixture (ShelleyWallet @'Mainnet) testShelleyWallet
             calls <- newIORef (0 :: Int)
             let network =
                     dummyNetworkLayer
@@ -569,7 +569,7 @@ spec = describe "Cardano.WalletSpec" $ do
 
         it "stops after three capture-confirm clock races" $ do
             WalletLayerFixture db worker wid <-
-                setupFixture dummyStateF testWallet
+                setupFixture (ShelleyWallet @'Mainnet) testShelleyWallet
             calls <- newIORef (0 :: Int)
             clocks <- newIORef (0 :: Word64)
             let racingDB DBLayer{..} =
@@ -653,11 +653,12 @@ spec = describe "Cardano.WalletSpec" $ do
                 sourceValue = (output, source <> "00")
             let roleMap = Map.singleton sourceInput $ Set.singleton Dapp.Normal
                 sources = Map.singleton sourceInput sourceValue
-            (_, resolved) <-
+            (_, resolved, _) <-
                 expectRight
                     $ resolveOutput
                         (Set.singleton sourceInput)
                         roleMap
+                        mempty
                         sources
                         sources
                         sourceInput
@@ -670,11 +671,12 @@ spec = describe "Cardano.WalletSpec" $ do
             resolveOutput
                 mempty
                 mempty
+                mempty
                 sources
                 (Map.singleton sourceInput (output, source))
                 sourceInput
                 `shouldBe` Left DappContextConflictError
-            resolveOutput mempty mempty mempty mempty sourceInput
+            resolveOutput mempty mempty mempty mempty mempty sourceInput
                 `shouldBe` Left DappContextUnavailableError
 
     describe
@@ -1155,6 +1157,25 @@ testWallet =
     ( WalletId (hash @BS.ByteString "migration-test-wallet")
     , WalletName "Migration Test Wallet"
     , TestState mempty
+    )
+
+testShelleyWallet :: (WalletId, WalletName, SeqState 'Mainnet ShelleyKey)
+testShelleyWallet =
+    ( WalletId (hash @BS.ByteString "transaction-context-test-wallet")
+    , WalletName "Transaction Context Test Wallet"
+    , mkSeqStateFromAccountXPub
+        ( ShelleyKey
+            $ toXPub
+            $ getKey
+            $ deriveAccountPrivateKey
+                (preparePassphrase testPwd)
+                testKey
+                minBound
+        )
+        Nothing
+        purposeCIP1852
+        (either (error "testShelleyWallet: invalid gap") id $ mkAddressPoolGap 20)
+        IncreasingChangeAddresses
     )
 
 -- | A fixed test passphrase (>= 10 chars to satisfy 'validatePassphrase').
