@@ -126,7 +126,7 @@ source-repository-package
   type: git
   location: https://github.com/riverArk/cardano-ledger-read
   tag: 44e0a32300ec6d6d03b7578b97b8374820802ba1
-  --sha256: 0ylwfh0dgwknlsr59k5wghbakwxwi3n0vixyfdxd1xsc0iz3kbk0
+  --sha256: 0kcgs4njj9x2x09lkxxyg780jriv6x4s412fg2gg5jwsm1v7ymr0
 
 -- END cardano-ledger-read
 --------------------------------------------------------------------------------
