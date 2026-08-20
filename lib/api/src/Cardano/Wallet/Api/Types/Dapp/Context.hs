@@ -545,7 +545,8 @@ instance ToJSON ApiDappOwnership where
 
 instance FromJSON ApiDappRequiredWalletProof where
     parseJSON value = do
-        result@ApiDappRequiredWalletProof{credential} <- genericParseJSON strictRecordTypeOptions value
+        result@ApiDappRequiredWalletProof{transactionIndex, credential} <- genericParseJSON strictRecordTypeOptions value
+        unless (transactionIndex <= 49) $ fail "transaction_index must be 0 to 49"
         requireLength "credential" 28 credential
         pure result
 instance ToJSON ApiDappRequiredWalletProof where
@@ -553,17 +554,20 @@ instance ToJSON ApiDappRequiredWalletProof where
 
 instance FromJSON ApiDappDependency where
     parseJSON value = do
-        result@ApiDappDependency{inputRole, source, sourceTransactionIndex} <- genericParseJSON explicitStrictOptions value
+        result@ApiDappDependency{transactionIndex, inputRole, source, sourceTransactionIndex} <- genericParseJSON explicitStrictOptions value
+        unless (transactionIndex <= 49) $ fail "transaction_index must be 0 to 49"
         unless (inputRole `elem` [Normal, Collateral, Reference]) $ fail "invalid dependency role"
         unless (source `elem` [Earlier, Pending]) $ fail "invalid dependency source"
         unless ((source == Earlier) == maybe False (const True) sourceTransactionIndex) $ fail "invalid source transaction index"
+        unless (maybe True (< transactionIndex) sourceTransactionIndex) $ fail "source transaction index must be earlier"
         pure result
 instance ToJSON ApiDappDependency where
     toJSON = genericToJSON explicitStrictOptions
 
 instance FromJSON ApiDappConflict where
     parseJSON value = do
-        result@ApiDappConflict{inputRole} <- genericParseJSON strictRecordTypeOptions value
+        result@ApiDappConflict{transactionIndex, inputRole, earlierTransactionIndex} <- genericParseJSON strictRecordTypeOptions value
+        unless (transactionIndex <= 49 && earlierTransactionIndex < transactionIndex) $ fail "invalid conflict transaction index"
         unless (inputRole `elem` [Normal, Collateral]) $ fail "invalid conflict role"
         pure result
 instance ToJSON ApiDappConflict where
@@ -606,6 +610,7 @@ instance FromJSON ApiDappTransactionContextResponse where
         requireNonEmpty "protocol_parameters_cbor" protocolParametersCbor
         requireSortedUnique "records" records
         requireSortedUnique "ownership" ownership
+        requireUniqueBy "ownership" (\ApiDappOwnership{credentialKind, credential} -> (credentialKind, credential)) ownership
         requireSortedUnique "required_wallet_proofs" requiredWalletProofs
         requireSortedUnique "dependencies" dependencies
         requireSortedUnique "conflicts" conflicts

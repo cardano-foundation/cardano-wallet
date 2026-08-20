@@ -4594,7 +4594,7 @@ components:
               credential_kind: { type: string, enum: [payment, stake, policy] }
               credential: { type: string, pattern: '^[0-9a-f]{56}$' }
               ownership: { type: string, enum: [unowned, owned_key, script] }
-              derivation_path: { type: array, items: { type: integer, minimum: 0, maximum: 4294967295 } }
+              derivation_path: { type: array, minItems: 0, maxItems: 5, items: { type: integer, minimum: 0, maximum: 4294967295 } }
               proof_kinds: &ApiDappProofKinds
                 type: array
                 uniqueItems: true

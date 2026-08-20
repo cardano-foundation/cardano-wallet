@@ -3,6 +3,7 @@
 
 module Main (main) where
 
+
 import Cardano.Wallet.Api.Types.Dapp.Context
     ( ApiDappChainPoint (..)
     , ApiDappHex (..)
@@ -104,7 +105,7 @@ fullOutputRecord :: ContextRecord
 fullOutputRecord =
     FullOutputRecord
         (ApiDappOutpoint (ApiDappHex $ BS.replicate 32 0xaa) 0)
-        [Node]
+        [Earlier, Node]
         [Normal]
         True
         None
@@ -183,10 +184,10 @@ key
         :: ByteString
 key = BS.replicate 32 0x55
 digestGolden =
-    hex "affe83d478d48ad55b7625e811c97cfbc4d73642dc9c92f6840e0f0a978dbdd7"
+    hex "14cf3140f56400ae803e79a961fb1d98302ae1fe7d8d2e44638bb51021ea21e4"
 fullOutputGolden =
     hex
-        "0100000033aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa00000000040101000000000782011a000f4240"
+        "0100000033aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa00000000050101000000000782011a000f4240"
 protocolGolden =
     hex
         "030000001c00000006636f6e776179000000002a000000090000000000000001a0"
@@ -201,7 +202,7 @@ requiredProofGolden =
         "06000000270000000001010000001caaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa01"
 tokenGolden =
     hex
-        "0144444444444444444444444444444444000000010000000b77616c6c65742d746573740101010101010101010101010101010101010101010101010101010101010101affe83d478d48ad55b7625e811c97cfbc4d73642dc9c92f6840e0f0a978dbdd73fdf81f358155841353664c84eaeb5c5a0b9ec488e213187c2d1b355c2d96288"
+        "0144444444444444444444444444444444000000010000000b77616c6c65742d74657374010101010101010101010101010101010101010101010101010101010101010114cf3140f56400ae803e79a961fb1d98302ae1fe7d8d2e44638bb51021ea21e44057536bc375dc881d56cd05a793359bbe754786193b4465141774f074d99d7c"
 
 hex :: Text -> ByteString
 hex =
