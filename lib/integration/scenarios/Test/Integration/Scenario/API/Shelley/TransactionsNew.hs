@@ -109,6 +109,12 @@ import Cardano.Wallet.Api.Types.Amount
 import Cardano.Wallet.Api.Types.Certificate
     ( ApiRewardAccount (..)
     )
+import Cardano.Wallet.Api.Types.Dapp.Context
+    ( ApiDappContextNetwork (..)
+    , ApiDappHex (..)
+    , ApiDappTransactionContextRequest (..)
+    , ApiDappTransactionContextResponse
+    )
 import Cardano.Wallet.Api.Types.Era
     ( ApiEra (..)
     )
@@ -143,6 +149,9 @@ import Cardano.Wallet.Faucet
 import Cardano.Wallet.Flavor
     ( KeyFlavorS (..)
     )
+import Cardano.Wallet.Launch.Cluster
+    ( TestnetMagic (testnetMagicToNatural)
+    )
 import Cardano.Wallet.Pools
     ( StakePool
     )
@@ -154,6 +163,8 @@ import Cardano.Wallet.Primitive.Passphrase
     )
 import Cardano.Wallet.Primitive.Types
     ( EpochNo (..)
+    , GenesisParameters (getGenesisBlockHash)
+    , NetworkParameters (..)
     , NonWalletCertificate (..)
     , SlotNo (..)
     )
@@ -222,6 +233,7 @@ import Control.Arrow
 import Control.Monad
     ( foldM_
     , forM_
+    , when
     )
 import Control.Monad.IO.Unlift
     ( MonadIO (..)
@@ -927,6 +939,55 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             [ expectResponseCode HTTP.status202
             , expectField #withdrawals (`shouldSatisfy` (withdrawalWith External))
             ]
+
+    it "TASK_201 - resolves a Conway transaction context over HTTP" $ \ctx ->
+        runResourceT $ do
+            when (_mainEra ctx /= ApiConway) $ liftIO $ pendingWith "Conway only"
+            wa <- fixtureWallet ctx
+            wb <- emptyWallet ctx
+            payload <- liftIO $ mkTxPayload ctx wb (minUTxOValue ApiConway) 1
+            constructed <-
+                request @(ApiConstructTransaction n)
+                    ctx
+                    (Link.createUnsignedTransaction @'Shelley wa)
+                    Default
+                    payload
+            verify constructed [expectResponseCode HTTP.status202]
+
+            let sealed =
+                    getApiT
+                        $ getFromResponse
+                            (#transaction . #serialisedTxSealed)
+                            constructed
+                NetworkParameters genesis _ _ = _networkParameters ctx
+                Hash genesisHashBytes = getGenesisBlockHash genesis
+                contextNetwork =
+                    ApiDappContextNetwork
+                        0
+                        (fromIntegral $ testnetMagicToNatural $ _testnetMagic ctx)
+                        (ApiDappHex genesisHashBytes)
+                contextRequest =
+                    ApiDappTransactionContextRequest
+                        1
+                        contextNetwork
+                        [ApiDappHex $ serialisedTx sealed]
+
+            response <-
+                request @ApiDappTransactionContextResponse
+                    ctx
+                    (Link.transactionContext wa)
+                    Default
+                    (Json $ toJSON contextRequest)
+            verify
+                response
+                [ expectResponseCode HTTP.status200
+                , expectField #revision (`shouldBe` 1)
+                , expectField #walletId (`shouldBe` toText (getApiT $ wa ^. #id))
+                , expectField #network (`shouldBe` contextNetwork)
+                , expectField #era (`shouldBe` "conway")
+                , expectField #outputs (`shouldSatisfy` (not . null))
+                , expectField #records (`shouldSatisfy` (not . null))
+                ]
 
     it
         "TRANS_NEW_CREATE_04a - Single Output Transaction with decode transaction"
