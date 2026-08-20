@@ -20,6 +20,14 @@ module Cardano.Wallet.Api.Types.Dapp.Context
     , ApiDappPendingState (..)
     , ApiDappPendingOverlay (..)
     , ApiDappPendingTransaction (..)
+    , ApiDappCredentialKind (..)
+    , ApiDappOwnershipKind (..)
+    , ApiDappProofKind (..)
+    , ApiDappOwnership (..)
+    , ApiDappRequiredWalletProof (..)
+    , ApiDappDependency (..)
+    , ApiDappConflict (..)
+    , ApiDappBatchOverlay (..)
     , ApiDappHex (..)
     , ApiDappWord64 (..)
     , decodeTransactionContextRequest
@@ -91,6 +99,9 @@ import Data.List
     )
 import Data.Text
     ( Text
+    )
+import Data.Tuple
+    ( swap
     )
 import Data.Word
     ( Word32
@@ -184,7 +195,7 @@ data ApiDappOutpoint = ApiDappOutpoint
     }
     deriving (Eq, Generic, Ord, Show)
 
-data ApiDappProvenance = Pending | Node
+data ApiDappProvenance = Earlier | Pending | Node
     deriving (Eq, Ord, Show)
 
 data ApiDappRole = Normal | Collateral | Reference | WalletSnapshot
@@ -223,6 +234,63 @@ data ApiDappPendingOverlay = ApiDappPendingOverlay
     }
     deriving (Eq, Generic, Show)
 
+data ApiDappCredentialKind = PaymentCredential | StakeCredential | PolicyCredential
+    deriving (Eq, Ord, Show)
+
+data ApiDappOwnershipKind = Unowned | OwnedKey | ScriptOwned
+    deriving (Eq, Ord, Show)
+
+data ApiDappProofKind
+    = NormalInputProof
+    | CollateralProof
+    | WithdrawalProof
+    | CertificateProof
+    | RequiredSignerProof
+    | NativeScriptProof
+    | PolicyProof
+    deriving (Bounded, Enum, Eq, Ord, Show)
+
+data ApiDappOwnership = ApiDappOwnership
+    { credentialKind :: !ApiDappCredentialKind
+    , credential :: !ApiDappHex
+    , ownership :: !ApiDappOwnershipKind
+    , derivationPath :: ![Word32]
+    , proofKinds :: ![ApiDappProofKind]
+    }
+    deriving (Eq, Generic, Ord, Show)
+
+data ApiDappRequiredWalletProof = ApiDappRequiredWalletProof
+    { transactionIndex :: !Word32
+    , proofKind :: !ApiDappProofKind
+    , credentialKind :: !ApiDappCredentialKind
+    , credential :: !ApiDappHex
+    , required :: !Bool
+    }
+    deriving (Eq, Generic, Ord, Show)
+
+data ApiDappDependency = ApiDappDependency
+    { transactionIndex :: !Word32
+    , inputRole :: !ApiDappRole
+    , outpoint :: !ApiDappOutpoint
+    , source :: !ApiDappProvenance
+    , sourceTransactionIndex :: !(Maybe Word32)
+    }
+    deriving (Eq, Generic, Ord, Show)
+
+data ApiDappConflict = ApiDappConflict
+    { transactionIndex :: !Word32
+    , inputRole :: !ApiDappRole
+    , outpoint :: !ApiDappOutpoint
+    , earlierTransactionIndex :: !Word32
+    }
+    deriving (Eq, Generic, Ord, Show)
+
+data ApiDappBatchOverlay = ApiDappBatchOverlay
+    { dependencies :: ![ApiDappDependency]
+    , conflicts :: ![ApiDappConflict]
+    }
+    deriving (Eq, Generic, Show)
+
 data ApiDappTransactionContextResponse = ApiDappTransactionContextResponse
     { revision :: !Word32
     , walletId :: !Text
@@ -236,6 +304,9 @@ data ApiDappTransactionContextResponse = ApiDappTransactionContextResponse
     , volatileDelta :: !ApiDappVolatileDelta
     , outputs :: ![ApiDappContextOutput]
     , pendingOverlay :: !ApiDappPendingOverlay
+    , ownership :: ![ApiDappOwnership]
+    , requiredWalletProofs :: ![ApiDappRequiredWalletProof]
+    , batchOverlay :: !ApiDappBatchOverlay
     , records :: ![ApiDappHex]
     , contextDigest :: !ApiDappHex
     , contextToken :: !ApiDappHex
@@ -343,9 +414,9 @@ instance ToJSON ApiDappOutpoint where
     toJSON = genericToJSON strictRecordTypeOptions
 
 instance FromJSON ApiDappProvenance where
-    parseJSON = parseEnum "provenance" [("pending", Pending), ("node", Node)]
+    parseJSON = parseEnum "provenance" [("earlier", Earlier), ("pending", Pending), ("node", Node)]
 instance ToJSON ApiDappProvenance where
-    toJSON = enumJson [(Pending, "pending"), (Node, "node")]
+    toJSON = enumJson [(Earlier, "earlier"), (Pending, "pending"), (Node, "node")]
 
 instance FromJSON ApiDappRole where
     parseJSON =
@@ -391,7 +462,7 @@ instance FromJSON ApiDappContextOutput where
             , canonicalTransactionOutputCbor
             , transactionUnspentOutputCbor
             ]
-        requireFixedSubset "provenance" [Pending, Node] provenance
+        requireFixedSubset "provenance" [Earlier, Pending, Node] provenance
         requireFixedSubset
             "roles"
             [Normal, Collateral, Reference, WalletSnapshot]
@@ -440,6 +511,67 @@ instance FromJSON ApiDappPendingOverlay where
 instance ToJSON ApiDappPendingOverlay where
     toJSON = genericToJSON strictRecordTypeOptions
 
+instance FromJSON ApiDappCredentialKind where
+    parseJSON = parseEnum "credential kind" [("payment", PaymentCredential), ("stake", StakeCredential), ("policy", PolicyCredential)]
+instance ToJSON ApiDappCredentialKind where
+    toJSON = enumJson [(PaymentCredential, "payment"), (StakeCredential, "stake"), (PolicyCredential, "policy")]
+
+instance FromJSON ApiDappOwnershipKind where
+    parseJSON = parseEnum "ownership" [("unowned", Unowned), ("owned_key", OwnedKey), ("script", ScriptOwned)]
+instance ToJSON ApiDappOwnershipKind where
+    toJSON = enumJson [(Unowned, "unowned"), (OwnedKey, "owned_key"), (ScriptOwned, "script")]
+
+instance FromJSON ApiDappProofKind where
+    parseJSON = parseEnum "proof kind" proofKindJson
+instance ToJSON ApiDappProofKind where
+    toJSON = enumJson $ swap <$> proofKindJson
+
+instance FromJSON ApiDappOwnership where
+    parseJSON value = do
+        result@ApiDappOwnership{credentialKind, credential, ownership, derivationPath, proofKinds} <- genericParseJSON strictRecordTypeOptions value
+        requireLength "credential" 28 credential
+        unless ((ownership == OwnedKey) == not (null derivationPath)) $ fail "invalid ownership path"
+        when (ownership == OwnedKey) $ unless (validPath credentialKind derivationPath) $ fail "invalid derivation path"
+        requireFixedSubsetAllowEmpty "proof_kinds" proofKindOrder proofKinds
+        pure result
+instance ToJSON ApiDappOwnership where
+    toJSON = genericToJSON strictRecordTypeOptions
+
+instance FromJSON ApiDappRequiredWalletProof where
+    parseJSON value = do
+        result@ApiDappRequiredWalletProof{credential} <- genericParseJSON strictRecordTypeOptions value
+        requireLength "credential" 28 credential
+        pure result
+instance ToJSON ApiDappRequiredWalletProof where
+    toJSON = genericToJSON strictRecordTypeOptions
+
+instance FromJSON ApiDappDependency where
+    parseJSON value = do
+        result@ApiDappDependency{inputRole, source, sourceTransactionIndex} <- genericParseJSON explicitStrictOptions value
+        unless (inputRole `elem` [Normal, Collateral, Reference]) $ fail "invalid dependency role"
+        unless (source `elem` [Earlier, Pending]) $ fail "invalid dependency source"
+        unless ((source == Earlier) == maybe False (const True) sourceTransactionIndex) $ fail "invalid source transaction index"
+        pure result
+instance ToJSON ApiDappDependency where
+    toJSON = genericToJSON explicitStrictOptions
+
+instance FromJSON ApiDappConflict where
+    parseJSON value = do
+        result@ApiDappConflict{inputRole} <- genericParseJSON strictRecordTypeOptions value
+        unless (inputRole `elem` [Normal, Collateral]) $ fail "invalid conflict role"
+        pure result
+instance ToJSON ApiDappConflict where
+    toJSON = genericToJSON strictRecordTypeOptions
+
+instance FromJSON ApiDappBatchOverlay where
+    parseJSON value = do
+        result@ApiDappBatchOverlay{dependencies, conflicts} <- genericParseJSON strictRecordTypeOptions value
+        requireSortedUnique "dependencies" dependencies
+        requireSortedUnique "conflicts" conflicts
+        pure result
+instance ToJSON ApiDappBatchOverlay where
+    toJSON = genericToJSON strictRecordTypeOptions
+
 instance FromJSON ApiDappTransactionContextResponse where
     parseJSON value = do
         result@ApiDappTransactionContextResponse
@@ -453,6 +585,9 @@ instance FromJSON ApiDappTransactionContextResponse where
             , volatileDelta
             , outputs
             , pendingOverlay
+            , ownership
+            , requiredWalletProofs
+            , batchOverlay = ApiDappBatchOverlay{dependencies, conflicts}
             , records
             , contextDigest
             , contextToken
@@ -464,6 +599,10 @@ instance FromJSON ApiDappTransactionContextResponse where
         unless (era == "conway") $ fail "era must be conway"
         requireNonEmpty "protocol_parameters_cbor" protocolParametersCbor
         requireSortedUnique "records" records
+        requireSortedUnique "ownership" ownership
+        requireSortedUnique "required_wallet_proofs" requiredWalletProofs
+        requireSortedUnique "dependencies" dependencies
+        requireSortedUnique "conflicts" conflicts
         mapM_ (requireNonEmpty "record") records
         requireLength "context_digest" 32 contextDigest
         validateResponseBindings
@@ -475,6 +614,8 @@ instance FromJSON ApiDappTransactionContextResponse where
             volatileDelta
             outputs
             pendingOverlay
+            ownership
+            requiredWalletProofs
             records
             contextDigest
             contextToken
@@ -491,6 +632,13 @@ data ContextRecord
         , pendingState :: !ApiDappPendingState
         , exactLedgerTxOutCbor :: !ByteString
         }
+    | OwnershipRecord
+        { credentialKind :: !ApiDappCredentialKind
+        , credential :: !ByteString
+        , ownership :: !ApiDappOwnershipKind
+        , derivationPath :: ![Word32]
+        , proofKinds :: ![ApiDappProofKind]
+        }
     | ProtocolRecord
         { networkId :: !Word8
         , networkMagic :: !Word32
@@ -504,6 +652,13 @@ data ContextRecord
         , normalInputs :: ![ApiDappOutpoint]
         , collateralInputs :: ![ApiDappOutpoint]
         , expirySlot :: !(Maybe Word64)
+        }
+    | RequiredProofRecord
+        { transactionIndex :: !Word32
+        , proofKind :: !ApiDappProofKind
+        , credentialKind :: !ApiDappCredentialKind
+        , credential :: !ByteString
+        , required :: !Bool
         }
     deriving (Eq, Show)
 
@@ -549,6 +704,18 @@ encodeContextRecord =
                     putBool walletMember
                     putWord8 $ pendingStateCode pendingState
                     putBytes exactLedgerTxOutCbor
+        OwnershipRecord{credentialKind, credential, ownership, derivationPath, proofKinds} -> do
+            requireByteLength "credential" 28 credential
+            unless ((ownership == OwnedKey) == not (null derivationPath)) $ Left "invalid ownership path"
+            when (ownership == OwnedKey) $ unless (validPath credentialKind derivationPath) $ Left "invalid derivation path"
+            requireCanonicalSubsetAllowEmpty "proof kinds" proofKindOrder proofKinds
+            pure $ record 0x02 $ do
+                putWord8 $ credentialKindCode credentialKind
+                putBytes credential
+                putWord8 $ ownershipCode ownership
+                putWord32be $ fromIntegral $ length derivationPath
+                mapM_ putWord32be derivationPath
+                putWord32be $ sum $ proofBit <$> proofKinds
         ProtocolRecord
             { networkId
             , networkMagic
@@ -586,6 +753,14 @@ encodeContextRecord =
                         (putBool False)
                         (\slot -> putBool True >> putWord64be slot)
                         expirySlot
+        RequiredProofRecord{transactionIndex, proofKind, credentialKind, credential, required} -> do
+            requireByteLength "credential" 28 credential
+            pure $ record 0x06 $ do
+                putWord32be transactionIndex
+                putWord8 $ proofKindCode proofKind
+                putWord8 $ credentialKindCode credentialKind
+                putBytes credential
+                putBool required
 
 canonicalContextRecords
     :: [ContextRecord] -> Either String [ByteString]
@@ -659,6 +834,8 @@ validateResponseBindings
     -> ApiDappVolatileDelta
     -> [ApiDappContextOutput]
     -> ApiDappPendingOverlay
+    -> [ApiDappOwnership]
+    -> [ApiDappRequiredWalletProof]
     -> [ApiDappHex]
     -> ApiDappHex
     -> ApiDappHex
@@ -676,6 +853,8 @@ validateResponseBindings
     ApiDappVolatileDelta{point, nodeTransactionInputs}
     outputs
     ApiDappPendingOverlay{transactions}
+    ownership
+    requiredWalletProofs
     records
     (ApiDappHex contextDigest)
     (ApiDappHex contextToken) = do
@@ -702,7 +881,9 @@ validateResponseBindings
                     minor
                     protocolParametersCbor
                     : outputRecordsToValues outputs
+                        <> map ownershipRecordValue ownership
                         <> pendingRecords
+                        <> map requiredRecordValue requiredWalletProofs
         unless ((getApiDappHex <$> records) == expectedRecords)
             $ fail "records do not exactly match response context"
         claims <- either fail pure $ decodeContextTokenClaims contextToken
@@ -754,6 +935,14 @@ outputRecordValue
             walletMember
             pendingState
             sourceTransactionOutputCbor
+
+ownershipRecordValue :: ApiDappOwnership -> ContextRecord
+ownershipRecordValue ApiDappOwnership{credentialKind, credential = ApiDappHex credential, ownership, derivationPath, proofKinds} =
+    OwnershipRecord credentialKind credential ownership derivationPath proofKinds
+
+requiredRecordValue :: ApiDappRequiredWalletProof -> ContextRecord
+requiredRecordValue ApiDappRequiredWalletProof{transactionIndex, proofKind, credentialKind, credential = ApiDappHex credential, required} =
+    RequiredProofRecord transactionIndex proofKind credentialKind credential required
 
 walletIdBytes :: ContextTokenClaims -> ByteString
 walletIdBytes ContextTokenClaims{walletId} = walletId
@@ -842,8 +1031,8 @@ canonicalOutpoints label values = do
 
 encodeProvenance :: [ApiDappProvenance] -> Either String Word8
 encodeProvenance values = do
-    requireCanonicalSubset "provenance" [Pending, Node] values
-    pure $ sum $ map (\case Pending -> 0x02; Node -> 0x04) values
+    requireCanonicalSubset "provenance" [Earlier, Pending, Node] values
+    pure $ sum $ map (\case Earlier -> 0x01; Pending -> 0x02; Node -> 0x04) values
 
 encodeRoles :: [ApiDappRole] -> Either String Word8
 encodeRoles values = do
@@ -942,6 +1131,54 @@ requireCanonicalSubset label allowed values
     | values /= filter (`elem` values) allowed || hasDuplicates values =
         Left $ label <> " has invalid order or duplicates"
     | otherwise = Right ()
+
+requireFixedSubsetAllowEmpty :: (MonadFail m, Eq a) => String -> [a] -> [a] -> m ()
+requireFixedSubsetAllowEmpty label allowed values =
+    unless (values == filter (`elem` values) allowed && not (hasDuplicates values))
+        $ fail $ label <> " has invalid order or duplicates"
+
+requireCanonicalSubsetAllowEmpty :: Eq a => String -> [a] -> [a] -> Either String ()
+requireCanonicalSubsetAllowEmpty label allowed values =
+    unless (values == filter (`elem` values) allowed && not (hasDuplicates values))
+        $ Left $ label <> " has invalid order or duplicates"
+
+proofKindJson :: [(Text, ApiDappProofKind)]
+proofKindJson =
+    [ ("normal_input", NormalInputProof)
+    , ("collateral", CollateralProof)
+    , ("withdrawal", WithdrawalProof)
+    , ("certificate", CertificateProof)
+    , ("required_signer", RequiredSignerProof)
+    , ("native_script", NativeScriptProof)
+    , ("policy", PolicyProof)
+    ]
+
+proofKindOrder :: [ApiDappProofKind]
+proofKindOrder = snd <$> proofKindJson
+
+credentialKindCode :: ApiDappCredentialKind -> Word8
+credentialKindCode PaymentCredential = 1
+credentialKindCode StakeCredential = 2
+credentialKindCode PolicyCredential = 4
+
+ownershipCode :: ApiDappOwnershipKind -> Word8
+ownershipCode Unowned = 0
+ownershipCode OwnedKey = 1
+ownershipCode ScriptOwned = 2
+
+proofKindCode :: ApiDappProofKind -> Word8
+proofKindCode = (1 +) . fromIntegral . fromEnum
+
+proofBit :: ApiDappProofKind -> Word32
+proofBit = (2 ^) . fromEnum
+
+validPath :: ApiDappCredentialKind -> [Word32] -> Bool
+validPath PaymentCredential [0x8000073c, 0x80000717, account, role, index] =
+    account >= 0x80000000 && role <= 1 && index < 0x80000000
+validPath StakeCredential [0x8000073c, 0x80000717, account, 2, 0] =
+    account >= 0x80000000
+validPath PolicyCredential [0x8000073f, 0x80000717, 0x80000000] = True
+validPath _ _ = False
 
 hasDuplicates :: Eq a => [a] -> Bool
 hasDuplicates = any ((> 1) . length) . group

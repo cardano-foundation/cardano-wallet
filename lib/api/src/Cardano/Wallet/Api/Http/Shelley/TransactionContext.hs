@@ -26,7 +26,13 @@ import Cardano.Balance.Tx.Eras
     ( MaybeInRecentEra (InRecentEraConway)
     )
 import Cardano.Ledger.Api
-    ( ppProtocolVersionL
+    ( Addr (..)
+    , addrTxOutL
+    , ppProtocolVersionL
+    , serialiseAddr
+    )
+import Cardano.Ledger.Credential
+    ( Credential (..)
     )
 import Cardano.Ledger.Api.UTxO
     ( UTxO (UTxO)
@@ -66,6 +72,18 @@ import Cardano.Wallet.Api.Types.Dapp.Context
 import Cardano.Wallet.Api.Types.Error
     ( DappError (..)
     )
+import Cardano.Wallet.Address.Derivation
+    ( DerivationIndex (getDerivationIndex)
+    )
+import Cardano.Wallet.Address.Derivation.Shelley
+    ( ShelleyKey
+    )
+import Cardano.Wallet.Address.Discovery
+    ( IsOurs (isOurs)
+    )
+import Cardano.Wallet.Address.Discovery.Sequential
+    ( SeqState
+    )
 import Cardano.Wallet.DB
     ( ContextClock (..)
     , DBLayer (..)
@@ -87,6 +105,9 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Block
     ( fromWalletChainPoint
     )
+import Cardano.Wallet.Primitive.Types.Address
+    ( Address (Address)
+    )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (Hash)
     )
@@ -103,7 +124,8 @@ import Control.Lens
     , (^.)
     )
 import Control.Monad
-    ( unless
+    ( foldM
+    , unless
     )
 import Control.Monad.IO.Class
     ( liftIO
@@ -126,6 +148,10 @@ import Data.List
     ( sort
     , sortOn
     )
+import Data.List.NonEmpty qualified as NE
+import Data.Maybe
+    ( catMaybes
+    )
 import Data.Map.Strict
     ( Map
     )
@@ -143,6 +169,7 @@ import Prelude
 
 import Cardano.Crypto.Hash.Class qualified as Crypto
 import Cardano.Ledger.Hashes qualified as Ledger
+import Cardano.Ledger.Keys qualified as LedgerKeys
 import Cardano.Ledger.TxIn qualified as Ledger
 import Cardano.Wallet.Primitive.Model qualified as Wallet
 import Cardano.Wallet.Primitive.Types.Tx.TxIn qualified as Wallet
@@ -162,6 +189,7 @@ data DecodedTx = DecodedTx
     , reference :: !(Set Ledger.TxIn)
     , outputs :: !(Map Ledger.TxIn (Output Read.Conway, ByteString))
     , expiry :: !(Maybe Word64)
+    , valid :: !Bool
     }
 
 data Capture s = Capture
@@ -169,13 +197,14 @@ data Capture s = Capture
     , clock :: !ContextClock
     , checkpoint :: !(Set Ledger.TxIn)
     , pending :: ![DecodedTx]
+    , discovery :: !s
     }
 
 resolveTransactionContext
-    :: forall n s
+    :: forall n
      . HasSNetworkId n
-    => ApiLayer s
-    -> WalletLayer IO s
+    => ApiLayer (SeqState n ShelleyKey)
+    -> WalletLayer IO (SeqState n ShelleyKey)
     -> ApiT WalletId
     -> ApiDappTransactionContextRequest
     -> IO (Either DappError ApiDappTransactionContextResponse)
@@ -187,6 +216,7 @@ resolveTransactionContext api worker (ApiT wid) request = runExceptT $ do
             $ first (const InvalidDappRequest)
             $ mapM decodeTx request.transactions
     require InvalidDappRequest $ all noNormalCollateralOverlap requested
+    require InvalidDappRequest $ all (.valid) requested
     retry (3 :: Int) expectedNetwork requested
   where
     retry 0 _ _ = throwE DappContextUnavailableError
@@ -218,7 +248,8 @@ resolveTransactionContext api worker (ApiT wid) request = runExceptT $ do
                                 context
 
 captureContext
-    :: WalletLayer IO s -> IO (Either DappError (Capture s))
+    :: WalletLayer IO (SeqState n ShelleyKey)
+    -> IO (Either DappError (Capture (SeqState n ShelleyKey)))
 captureContext worker =
     worker ^. dbLayer & \DBLayer{..} -> do
         ((wallet, submissions), clock) <-
@@ -249,6 +280,7 @@ captureContext worker =
                     , clock
                     , checkpoint
                     , pending
+                    , discovery = Wallet.getState wallet
                     }
 
 confirmContext
@@ -290,8 +322,9 @@ decodeTx (ApiDappHex bytes) = do
         expiry =
             (\(Read.SlotNo slot) -> fromIntegral slot)
                 <$> Read.invalidHereafter (Read.getValidityInterval transaction)
+        Read.IsValidC valid = Read.getScriptValidity transaction
     pure
-        DecodedTx{bytes, txId, normal, collateral, reference, outputs, expiry}
+        DecodedTx{bytes, txId, normal, collateral, reference, outputs, expiry, valid}
 
 noNormalCollateralOverlap :: DecodedTx -> Bool
 noNormalCollateralOverlap DecodedTx{normal, collateral} = Set.disjoint normal collateral
@@ -312,12 +345,13 @@ contextSets checkpoint pending requested =
             $ concatMap (\tx -> [tx.normal, tx.collateral, tx.reference]) requested
 
 assemble
-    :: ApiLayer s
+    :: HasSNetworkId n
+    => ApiLayer (SeqState n ShelleyKey)
     -> WalletId
     -> ApiDappContextNetwork
     -> ApiDappTransactionContextRequest
     -> [DecodedTx]
-    -> Capture s
+    -> Capture (SeqState n ShelleyKey)
     -> Set Ledger.TxIn
     -> Set Ledger.TxIn
     -> Set Ledger.TxIn
@@ -344,11 +378,13 @@ assemble api wid configured request requested capture available spent wanted Dap
         nodeSources =
             (\output -> (Output output, serialize' shelleyProtVer output))
                 <$> nodeOutputs
+    (earlierOutputs, batchOverlay) <-
+        buildBatchOverlay requested pendingOutputs
     resolved <-
         traverse
-            (resolveOutput available roleMap pendingOutputs nodeSources)
+            (resolveOutput available roleMap earlierOutputs pendingOutputs nodeSources)
             $ Set.toList wanted
-    let outputValues = snd <$> sortOn fst resolved
+    let outputValues = (\(_, value, _) -> value) <$> sortOn (\(encoded, _, _) -> encoded) resolved
         pendingValues = sortOn (.txId) capture.pending
         pendingApi = toPending <$> pendingValues
         protocolRecord =
@@ -360,7 +396,11 @@ assemble api wid configured request requested capture available spent wanted Dap
                 protocolBytes
         outputRecords = outputRecord <$> outputValues
         pendingRecords = pendingRecord <$> pendingValues
-        recordValues = protocolRecord : outputRecords <> pendingRecords
+    ownership <- paymentOwnership capture.discovery resolved
+    requiredWalletProofs <- paymentRequiredProofs requested ownership resolved
+    let ownershipRecords = ownershipRecord <$> ownership
+        requiredRecords = requiredProofRecord <$> requiredWalletProofs
+        recordValues = protocolRecord : outputRecords <> ownershipRecords <> pendingRecords <> requiredRecords
         point = toApiPoint capture.point
         walletText = toText wid
         walletBytes = Text.encodeUtf8 walletText
@@ -416,6 +456,9 @@ assemble api wid configured request requested capture available spent wanted Dap
                     pendingApi
                     (sort $ toOutpoint <$> Set.toList spent)
                     []
+            , ownership
+            , requiredWalletProofs
+            , batchOverlay
             , records = ApiDappHex <$> records
             , contextDigest = ApiDappHex contextDigest
             , contextToken = ApiDappHex contextToken
@@ -425,19 +468,21 @@ resolveOutput
     -> Map Ledger.TxIn (Set ApiDappRole)
     -> Map Ledger.TxIn (Output Read.Conway, ByteString)
     -> Map Ledger.TxIn (Output Read.Conway, ByteString)
+    -> Map Ledger.TxIn (Output Read.Conway, ByteString)
     -> Ledger.TxIn
-    -> Either DappError (ByteString, ApiDappContextOutput)
-resolveOutput available roleMap pending node input = do
-    (output, source, provenance) <- case (Map.lookup input pending, Map.lookup input node) of
-        (Just (pendingOutput, pendingBytes), Just (nodeOutput, nodeBytes)) -> do
-            requireEither DappContextConflictError $ pendingBytes == nodeBytes
-            requireEither DappInternalErrorResponse $ pendingOutput == nodeOutput
-            pure (pendingOutput, pendingBytes, [Pending, Node])
-        (Just (pendingOutput, pendingBytes), Nothing) ->
-            pure (pendingOutput, pendingBytes, [Pending])
-        (Nothing, Just (nodeOutput, nodeBytes)) ->
-            pure (nodeOutput, nodeBytes, [Node])
-        (Nothing, Nothing) -> Left DappContextUnavailableError
+    -> Either DappError (ByteString, ApiDappContextOutput, Output Read.Conway)
+resolveOutput available roleMap earlier pending node input = do
+    let sources = catMaybes
+            [ (\(output, bytes) -> (Earlier, output, bytes)) <$> Map.lookup input earlier
+            , (\(output, bytes) -> (Pending, output, bytes)) <$> Map.lookup input pending
+            , (\(output, bytes) -> (Node, output, bytes)) <$> Map.lookup input node
+            ]
+    (provenance, output, source) <- case sources of
+        [] -> Left DappContextUnavailableError
+        ((_, firstOutput, firstBytes) : _) -> do
+            requireEither DappContextConflictError $ all (\(_, _, bytes) -> bytes == firstBytes) sources
+            requireEither DappInternalErrorResponse $ all (\(_, value, _) -> value == firstOutput) sources
+            pure ((\(kind, _, _) -> kind) <$> sources, firstOutput, firstBytes)
     let walletMember = input `Set.member` available
         roles =
             [Normal | hasRole Normal]
@@ -465,9 +510,167 @@ resolveOutput available roleMap pending node input = do
         first (const DappInternalErrorResponse)
             $ encodeContextRecord
             $ outputRecord value
-    pure (encoded, value)
+    pure (encoded, value, output)
   where
     hasRole role = maybe False (Set.member role) $ Map.lookup input roleMap
+
+paymentOwnership
+    :: forall n
+     . HasSNetworkId n
+    => SeqState n ShelleyKey
+    -> [(ByteString, ApiDappContextOutput, Output Read.Conway)]
+    -> Either DappError [ApiDappOwnership]
+paymentOwnership initial values =
+    fmap (sort . Map.elems . snd)
+        $ foldM classify
+            ( initial
+            , Map.empty :: Map (ByteString, ApiDappOwnershipKind, [Word32]) ApiDappOwnership
+            )
+            values
+  where
+    classify
+        :: ( SeqState n ShelleyKey
+           , Map (ByteString, ApiDappOwnershipKind, [Word32]) ApiDappOwnership
+           )
+        -> (ByteString, ApiDappContextOutput, Output Read.Conway)
+        -> Either DappError
+            ( SeqState n ShelleyKey
+            , Map (ByteString, ApiDappOwnershipKind, [Word32]) ApiDappOwnership
+            )
+    classify (discovery, found) (_, ApiDappContextOutput{roles}, Output ledgerOutput) =
+        case ledgerOutput ^. addrTxOutL of
+            AddrBootstrap{} -> Left InvalidDappRequest
+            address@(Addr _ credential _) -> case credential of
+                ScriptHashObj (Ledger.ScriptHash hash) ->
+                    pure (discovery, insert (Crypto.hashToBytes hash) ScriptOwned [] found)
+                KeyHashObj (LedgerKeys.KeyHash hash) ->
+                    let (path, discovery') = isOurs (Address $ serialiseAddr address) discovery
+                        ownership = maybe Unowned (const OwnedKey) path
+                        indexes = maybe [] (map getDerivationIndex . NE.toList) path
+                    in  pure (discovery', insert (Crypto.hashToBytes hash) ownership indexes found)
+      where
+        proofs =
+            [NormalInputProof | Normal `elem` roles]
+                <> [CollateralProof | Collateral `elem` roles]
+        insert credential ownership derivationPath =
+            Map.insertWith merge (credential, ownership, derivationPath)
+                ApiDappOwnership
+                    { credentialKind = PaymentCredential
+                    , credential = ApiDappHex credential
+                    , ownership
+                    , derivationPath
+                    , proofKinds = proofs
+                    }
+        merge ApiDappOwnership{proofKinds = newProofs}
+            ApiDappOwnership{credentialKind, credential, ownership, derivationPath, proofKinds = oldProofs} =
+                ApiDappOwnership
+                    credentialKind
+                    credential
+                    ownership
+                    derivationPath
+                    (sort $ Set.toList $ Set.fromList $ oldProofs <> newProofs)
+
+ownershipRecord :: ApiDappOwnership -> ContextRecord
+ownershipRecord ApiDappOwnership{credentialKind, credential = ApiDappHex credential, ownership, derivationPath, proofKinds} =
+    OwnershipRecord credentialKind credential ownership derivationPath proofKinds
+
+paymentRequiredProofs
+    :: [DecodedTx]
+    -> [ApiDappOwnership]
+    -> [(ByteString, ApiDappContextOutput, Output Read.Conway)]
+    -> Either DappError [ApiDappRequiredWalletProof]
+paymentRequiredProofs requested ownership values =
+    fmap sort $ concat <$> mapM perTransaction (zip [0 :: Word32 ..] requested)
+  where
+    outputs = Map.fromList [(value.outpoint, output) | (_, value, output) <- values]
+    owned = Set.fromList
+        [ credential
+        | ApiDappOwnership
+            { credentialKind = PaymentCredential
+            , credential = ApiDappHex credential
+            , ownership = OwnedKey
+            } <- ownership
+        ]
+    perTransaction (transactionIndex, tx) =
+        (<>) <$> perRole transactionIndex NormalInputProof tx.normal
+            <*> perRole transactionIndex CollateralProof tx.collateral
+    perRole transactionIndex proofKind inputs = fmap concat $ mapM (\input -> do
+        output <- maybe (Left DappContextUnavailableError) Right $ Map.lookup (toOutpoint input) outputs
+        credential <- paymentKeyCredential output
+        pure $ case credential of
+            Just value | value `Set.member` owned ->
+                [ApiDappRequiredWalletProof transactionIndex proofKind PaymentCredential (ApiDappHex value) True]
+            _ -> []
+        ) $ Set.toList inputs
+
+paymentKeyCredential :: Output Read.Conway -> Either DappError (Maybe ByteString)
+paymentKeyCredential (Output ledgerOutput) = case ledgerOutput ^. addrTxOutL of
+    AddrBootstrap{} -> Left InvalidDappRequest
+    Addr _ (ScriptHashObj _) _ -> Right Nothing
+    Addr _ (KeyHashObj (LedgerKeys.KeyHash hash)) _ -> Right $ Just $ Crypto.hashToBytes hash
+
+requiredProofRecord :: ApiDappRequiredWalletProof -> ContextRecord
+requiredProofRecord ApiDappRequiredWalletProof{transactionIndex, proofKind, credentialKind, credential = ApiDappHex credential, required} =
+    RequiredProofRecord transactionIndex proofKind credentialKind credential required
+
+buildBatchOverlay
+    :: [DecodedTx]
+    -> Map Ledger.TxIn (Output Read.Conway, ByteString)
+    -> Either DappError
+        ( Map Ledger.TxIn (Output Read.Conway, ByteString)
+        , ApiDappBatchOverlay
+        )
+buildBatchOverlay requested pending = do
+    requireEither InvalidDappRequest $ all duplicateIsIdentical txGroups
+    (priorOutputs, _, dependencies, conflicts) <-
+        foldM step (mempty, mempty, [], []) $ zip [0 :: Word32 ..] requested
+    pure
+        ( priorOutputs
+        , ApiDappBatchOverlay (sort dependencies) (sort conflicts)
+        )
+  where
+    txGroups = Map.elems $ Map.fromListWith (<>) [(tx.txId, [tx.bytes]) | tx <- requested]
+    duplicateIsIdentical [] = True
+    duplicateIsIdentical (value : values) = all (== value) values
+    requestedIds = Set.fromList $ (.txId) <$> requested
+
+    step (priorOutputs, consumed, dependencies, conflicts) (txIndex, tx) = do
+        (dependencies', conflicts') <- foldM
+            (inputStep txIndex priorOutputs consumed)
+            (dependencies, conflicts)
+            (inputsWithRoles tx)
+        let priorOutputs' = Map.union priorOutputs tx.outputs
+            consumed' = foldl' (\m input -> Map.insertWith min input txIndex m) consumed $ Set.toList tx.normal
+        pure (priorOutputs', consumed', dependencies', conflicts')
+
+    inputStep txIndex priorOutputs consumed (dependencies, conflicts) (role, input) = do
+        let earlier = Map.member input priorOutputs
+            pendingSource = Map.member input pending
+            sourceIndex = case
+                [ index
+                | (index, parent) <- zip [0 :: Word32 ..] requested
+                , index < txIndex
+                , Map.member input parent.outputs
+                ] of
+                [] -> Nothing
+                indexes -> Just $ minimum indexes
+            dependency
+                | earlier = Just $ ApiDappDependency txIndex role (toOutpoint input) Earlier sourceIndex
+                | pendingSource = Just $ ApiDappDependency txIndex role (toOutpoint input) Pending Nothing
+                | otherwise = Nothing
+            conflict = case (role, Map.lookup input consumed) of
+                (Normal, Just earlierIndex) -> Just $ ApiDappConflict txIndex role (toOutpoint input) earlierIndex
+                (Collateral, Just earlierIndex) -> Just $ ApiDappConflict txIndex role (toOutpoint input) earlierIndex
+                _ -> Nothing
+            Ledger.TxIn inputId _ = input
+        requireEither InvalidDappRequest $ earlier || not (txIdBytes inputId `Set.member` requestedIds)
+        pure (maybe dependencies (: dependencies) dependency, maybe conflicts (: conflicts) conflict)
+
+    inputsWithRoles :: DecodedTx -> [(ApiDappRole, Ledger.TxIn)]
+    inputsWithRoles tx =
+        [(Normal, input) | input <- Set.toAscList tx.normal]
+            <> [(Collateral, input) | input <- Set.toAscList tx.collateral]
+            <> [(Reference, input) | input <- Set.toAscList tx.reference]
 
 addRoles
     :: Map Ledger.TxIn (Set ApiDappRole)

@@ -6,9 +6,12 @@ module Main (main) where
 import Cardano.Wallet.Api.Types.Dapp.Context
     ( ApiDappChainPoint (..)
     , ApiDappHex (..)
+    , ApiDappCredentialKind (..)
+    , ApiDappOwnershipKind (..)
     , ApiDappOutpoint (..)
     , ApiDappPendingState (..)
     , ApiDappProvenance (..)
+    , ApiDappProofKind (..)
     , ApiDappRole (..)
     , ApiDappTransactionContextRequest
     , ApiDappWord64 (..)
@@ -56,6 +59,8 @@ main = hspec $ do
             encodeContextRecord fullOutputRecord `shouldBe` Right fullOutputGolden
             encodeContextRecord protocolRecord `shouldBe` Right protocolGolden
             encodeContextRecord pendingRecord `shouldBe` Right pendingGolden
+            encodeContextRecord ownershipRecord `shouldBe` Right ownershipGolden
+            encodeContextRecord requiredProofRecord `shouldBe` Right requiredProofGolden
             computeContextDigest digestInput `shouldBe` Right digestGolden
 
         it "sorts complete records and rejects duplicates" $ do
@@ -117,6 +122,24 @@ pendingRecord =
         []
         (Just 42)
 
+ownershipRecord :: ContextRecord
+ownershipRecord =
+    OwnershipRecord
+        PaymentCredential
+        (BS.replicate 28 0xaa)
+        OwnedKey
+        [0x8000073c, 0x80000717, 0x80000000, 0, 0]
+        [NormalInputProof]
+
+requiredProofRecord :: ContextRecord
+requiredProofRecord =
+    RequiredProofRecord
+        0
+        NormalInputProof
+        PaymentCredential
+        (BS.replicate 28 0xaa)
+        True
+
 digestInput :: ContextDigestInput
 digestInput =
     ContextDigestInput
@@ -154,6 +177,8 @@ key
     , fullOutputGolden
     , protocolGolden
     , pendingGolden
+    , ownershipGolden
+    , requiredProofGolden
     , tokenGolden
         :: ByteString
 key = BS.replicate 32 0x55
@@ -168,6 +193,12 @@ protocolGolden =
 pendingGolden =
     hex
         "0700000063bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb040000000584a0a0f5f60000000100000024aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa000000010000000001000000000000002a"
+ownershipGolden =
+    hex
+        "020000003e010000001caaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa01000000058000073c8000071780000000000000000000000000000001"
+requiredProofGolden =
+    hex
+        "06000000270000000001010000001caaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa01"
 tokenGolden =
     hex
         "0144444444444444444444444444444444000000010000000b77616c6c65742d74657374010101010101010101010101010101010101010101010101010101010101010194b23b3e24ca884648ef7b7c10b0a5d030d92005789fe9a5ebf16b407072d21cc4e3ce8fa5525dc003484834593821de77deeae83be2e221b55d7aaa6be5a457"
