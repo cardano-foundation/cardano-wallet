@@ -375,8 +375,12 @@ import Test.Integration.Framework.DSL
     , (.<)
     , (.>)
     )
+import UnliftIO.Directory
+    ( renameFile
+    )
 import UnliftIO.Exception
-    ( fromEither
+    ( bracket_
+    , fromEither
     )
 import Prelude
 
@@ -987,6 +991,23 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 , expectField #era (`shouldBe` "conway")
                 , expectField #outputs (`shouldSatisfy` (not . null))
                 , expectField #records (`shouldSatisfy` (not . null))
+                ]
+
+            let socket = _nodeSocketPath ctx
+                unavailableSocket = socket <> ".task-201-unavailable"
+            unavailable <- liftIO $ bracket_
+                (renameFile socket unavailableSocket)
+                (renameFile unavailableSocket socket)
+                $ request @ApiDappTransactionContextResponse
+                    ctx
+                    (Link.transactionContext wa)
+                    Default
+                    (Json $ toJSON contextRequest)
+            verify
+                unavailable
+                [ expectResponseCode HTTP.status503
+                , expectErrorInfo (`shouldBe` DappContextUnavailable)
+                , expectErrorMessage "Wallet context unavailable"
                 ]
 
     it

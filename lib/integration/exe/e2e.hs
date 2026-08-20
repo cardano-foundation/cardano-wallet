@@ -240,6 +240,8 @@ configureContext (E2EConfig preprodMnemonics alreadyRunningWallet) action =
                     { _manager = (baseUri, manager)
                     , _walletPort =
                         Port $ fromIntegral walletPort
+                    , _nodeSocketPath =
+                        error "_nodeSocketPath not implemented"
                     , _mainEra =
                         ApiConway
                     , _faucet =

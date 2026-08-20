@@ -52,6 +52,9 @@ import Cardano.Faucet.Mnemonics
 import Cardano.Launcher
     ( ProcessHasExited (..)
     )
+import Cardano.Launcher.Node
+    ( nodeSocketFile
+    )
 import Cardano.Ledger.Shelley.Genesis
     ( sgNetworkMagic
     )
@@ -694,7 +697,7 @@ withServer
     -> FaucetFunds
     -> Pool.DBDecorator IO
     -> Maybe TestTls
-    -> ContT () IO (T.Text, NetworkParameters, URI, RunFaucetQ IO)
+    -> ContT () IO (T.Text, NetworkParameters, URI, FilePath, RunFaucetQ IO)
 withServer
     ctx@TestingCtx{..}
     faucetFunds
@@ -708,20 +711,20 @@ withServer
                 defaultEnvVars
                 faucetFunds
         smashUrl <- ContT $ withSMASH clog (toFilePath . absDirOf $ testDir)
-        (np, uri) <-
+        (np, uri, socket) <-
             onClusterStart
                 ctx
                 dbDecorator
                 runMonitorQ
                 testTls
-        pure (T.pack smashUrl, np, uri, runFaucetQ)
+        pure (T.pack smashUrl, np, uri, socket, runFaucetQ)
 
 onClusterStart
     :: TestingCtx
     -> Pool.DBDecorator IO
     -> RunMonitorQ IO
     -> Maybe TestTls
-    -> ContT () IO (NetworkParameters, URI)
+    -> ContT () IO (NetworkParameters, URI, FilePath)
 onClusterStart
     TestingCtx{..}
     dbDecorator
@@ -764,7 +767,7 @@ onClusterStart
                         (Just tokenMetaUrl)
                         defaultIpfsGatewayUrl
                         block0
-                        (\uri -> k (networkParameters, uri))
+                        (\uri -> k (networkParameters, uri, nodeSocketFile nodeConnection))
                         `withException` (traceWith tr . MsgServerError)
                 case end of
                     ExitSuccess -> pure ()
@@ -801,6 +804,7 @@ setupContext
     -> T.Text
     -> NetworkParameters
     -> URI
+    -> FilePath
     -> Maybe TestTls
     -> IO ()
 setupContext
@@ -812,6 +816,7 @@ setupContext
     smashUrl
     networkParameters
     baseUrl
+    nodeSocketPath
     testTls =
         bracketTracer' tr "setupContext" $ do
             faucet <- Faucet.initFaucet faucetClientEnv
@@ -831,6 +836,7 @@ setupContext
                 Context
                     { _manager = (baseUrl, manager)
                     , _walletPort = CLI.Port . fromIntegral $ portFromURL baseUrl
+                    , _nodeSocketPath = nodeSocketPath
                     , _faucet = faucet
                     , _networkParameters = networkParameters
                     , _testnetMagic = testnetMagic
@@ -863,7 +869,7 @@ withContext testingCtx@TestingCtx{..} action = do
                     setupDelegation faucetClientEnv x
                     action x
             wallet = evalContT $ do
-                (smashUrl, networkParams, walletURI, runFaucetQ) <-
+                (smashUrl, networkParams, walletURI, nodeSocketPath, runFaucetQ) <-
                     withServer
                         testingCtx
                         faucetFunds
@@ -879,6 +885,7 @@ withContext testingCtx@TestingCtx{..} action = do
                         smashUrl
                         networkParams
                         walletURI
+                        nodeSocketPath
                         testTls
         void $ race wallet delegation
   where
