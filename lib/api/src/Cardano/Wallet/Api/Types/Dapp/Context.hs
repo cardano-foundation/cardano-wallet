@@ -31,6 +31,7 @@ module Cardano.Wallet.Api.Types.Dapp.Context
     , ApiDappHex (..)
     , ApiDappWord64 (..)
     , decodeTransactionContextRequest
+    , decodeTransactionContextResponse
     , ContextRecord (..)
     , ContextDigestInput (..)
     , ContextTokenClaims (..)
@@ -144,7 +145,7 @@ instance MimeRender DappJSON ApiDappTransactionContextRequest where
     mimeRender _ = Aeson.encode
 
 instance MimeUnrender DappJSON ApiDappTransactionContextResponse where
-    mimeUnrender _ = Aeson.eitherDecode
+    mimeUnrender _ = decodeTransactionContextResponse
 
 instance MimeRender DappJSON ApiDappTransactionContextResponse where
     mimeRender _ = Aeson.encode
@@ -363,6 +364,11 @@ instance ToJSON ApiDappTransactionContextRequest where
 decodeTransactionContextRequest
     :: BL.ByteString -> Either String ApiDappTransactionContextRequest
 decodeTransactionContextRequest bytes =
+    rejectDuplicateFields (BL.toStrict bytes) >> eitherDecode bytes
+
+decodeTransactionContextResponse
+    :: BL.ByteString -> Either String ApiDappTransactionContextResponse
+decodeTransactionContextResponse bytes =
     rejectDuplicateFields (BL.toStrict bytes) >> eitherDecode bytes
 
 instance FromJSON ApiDappChainPoint where
@@ -603,6 +609,11 @@ instance FromJSON ApiDappTransactionContextResponse where
         requireSortedUnique "required_wallet_proofs" requiredWalletProofs
         requireSortedUnique "dependencies" dependencies
         requireSortedUnique "conflicts" conflicts
+        requireUniqueBy "required_wallet_proofs" (\ApiDappRequiredWalletProof{transactionIndex, proofKind, credentialKind, credential} -> (transactionIndex, proofKind, credentialKind, credential)) requiredWalletProofs
+        requireUniqueBy "dependencies" (\ApiDappDependency{transactionIndex, inputRole, outpoint} -> (transactionIndex, inputRole, outpoint)) dependencies
+        requireUniqueBy "conflicts" (\ApiDappConflict{transactionIndex, inputRole, outpoint} -> (transactionIndex, inputRole, outpoint)) conflicts
+        unless (all (hasOwnedCandidate ownership) requiredWalletProofs)
+            $ fail "required proof has no matching owned candidate"
         mapM_ (requireNonEmpty "record") records
         requireLength "context_digest" 32 contextDigest
         validateResponseBindings
@@ -1114,6 +1125,23 @@ requireSortedUnique label values =
     unless (values == sort values && not (hasDuplicates values))
         $ fail
         $ label <> " must be sorted and duplicate-free"
+
+requireUniqueBy :: (MonadFail m, Ord b) => String -> (a -> b) -> [a] -> m ()
+requireUniqueBy label project values =
+    when (hasDuplicates $ sort $ project <$> values)
+        $ fail $ label <> " has duplicate uniqueness keys"
+
+hasOwnedCandidate :: [ApiDappOwnership] -> ApiDappRequiredWalletProof -> Bool
+hasOwnedCandidate ownership ApiDappRequiredWalletProof{proofKind, credentialKind, credential} =
+    any matches ownership
+  where
+    matches ApiDappOwnership
+        { credentialKind = candidateKind
+        , credential = candidateCredential
+        , ownership = OwnedKey
+        , proofKinds
+        } = candidateKind == credentialKind && candidateCredential == credential && proofKind `elem` proofKinds
+    matches _ = False
 
 requireFixedSubset
     :: (MonadFail m, Eq a) => String -> [a] -> [a] -> m ()
