@@ -10,7 +10,12 @@
 {-# LANGUAGE TypeApplications #-}
 
 module Cardano.Wallet.Api.Http.Shelley.TransactionContext
-    ( resolveTransactionContext
+    ( DecodedTx (..)
+    , addRoles
+    , contextSets
+    , decodeTx
+    , resolveOutput
+    , resolveTransactionContext
     ) where
 
 import Cardano.Api
@@ -187,14 +192,8 @@ resolveTransactionContext api worker (ApiT wid) request = runExceptT $ do
     retry 0 _ _ = throwE DappContextUnavailableError
     retry attempts expectedNetwork requested = do
         capture <- ExceptT $ captureContext worker
-        let pendingNormal = Set.unions $ normal <$> capture.pending
-            pendingCollateral = Set.unions $ collateral <$> capture.pending
-            available = capture.checkpoint Set.\\ (pendingNormal <> pendingCollateral)
-            spent = capture.checkpoint Set.\\ available
-            requestedInputs =
-                Set.unions
-                    $ concatMap (\tx -> [tx.normal, tx.collateral, tx.reference]) requested
-            wanted = available <> requestedInputs
+        let (available, spent, wanted) =
+                contextSets capture.checkpoint capture.pending requested
         queried <-
             liftIO
                 $ getDappTransactionContext (api ^. networkLayer) capture.point wanted
@@ -296,6 +295,21 @@ decodeTx (ApiDappHex bytes) = do
 
 noNormalCollateralOverlap :: DecodedTx -> Bool
 noNormalCollateralOverlap DecodedTx{normal, collateral} = Set.disjoint normal collateral
+
+contextSets
+    :: Set Ledger.TxIn
+    -> [DecodedTx]
+    -> [DecodedTx]
+    -> (Set Ledger.TxIn, Set Ledger.TxIn, Set Ledger.TxIn)
+contextSets checkpoint pending requested =
+    (available, checkpoint Set.\\ available, available <> requestedInputs)
+  where
+    pendingNormal = Set.unions $ normal <$> pending
+    pendingCollateral = Set.unions $ collateral <$> pending
+    available = checkpoint Set.\\ (pendingNormal <> pendingCollateral)
+    requestedInputs =
+        Set.unions
+            $ concatMap (\tx -> [tx.normal, tx.collateral, tx.reference]) requested
 
 assemble
     :: ApiLayer s

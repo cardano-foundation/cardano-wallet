@@ -129,7 +129,7 @@ digestInput =
         7
         9
         [hex "84a0a0f5f6"]
-        [protocolRecord, fullOutputRecord]
+        [protocolRecord, fullOutputRecord, pendingRecord]
 
 tokenClaims :: ContextTokenClaims
 tokenClaims =
@@ -158,7 +158,7 @@ key
         :: ByteString
 key = BS.replicate 32 0x55
 digestGolden =
-    hex "282df275055e203adbdc00ea80ec82556b0fea423d834c05e18c8ff388ec3846"
+    hex "94b23b3e24ca884648ef7b7c10b0a5d030d92005789fe9a5ebf16b407072d21c"
 fullOutputGolden =
     hex
         "0100000033aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa00000000040101000000000782011a000f4240"
@@ -170,7 +170,7 @@ pendingGolden =
         "0700000063bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb040000000584a0a0f5f60000000100000024aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa000000010000000001000000000000002a"
 tokenGolden =
     hex
-        "0144444444444444444444444444444444000000010000000b77616c6c65742d746573740101010101010101010101010101010101010101010101010101010101010101282df275055e203adbdc00ea80ec82556b0fea423d834c05e18c8ff388ec38463acbbd506128450a4840ea2619e1319fc3286d1ba9d9620b03ba7c4ea3aa2dc0"
+        "0144444444444444444444444444444444000000010000000b77616c6c65742d74657374010101010101010101010101010101010101010101010101010101010101010194b23b3e24ca884648ef7b7c10b0a5d030d92005789fe9a5ebf16b407072d21cc4e3ce8fa5525dc003484834593821de77deeae83be2e221b55d7aaa6be5a457"
 
 hex :: Text -> ByteString
 hex =

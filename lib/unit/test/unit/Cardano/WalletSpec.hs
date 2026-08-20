@@ -10,6 +10,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
@@ -45,6 +46,9 @@ import Cardano.Crypto.WalletHD.Encrypted
     , encryptedDerivePrivate
     , encryptedPublic
     , publicKeyByteString
+    )
+import Cardano.Ledger.BaseTypes
+    ( TxIx (..)
     )
 import Cardano.Mnemonic
     ( SomeMnemonic (..)
@@ -112,7 +116,11 @@ import Cardano.Wallet.Api
     ( ApiLayer (..)
     )
 import Cardano.Wallet.Api.Http.Shelley.TransactionContext
-    ( resolveTransactionContext
+    ( DecodedTx (..)
+    , addRoles
+    , contextSets
+    , resolveOutput
+    , resolveTransactionContext
     )
 import Cardano.Wallet.Api.Lib.ApiT
     ( ApiT (..)
@@ -123,7 +131,7 @@ import Cardano.Wallet.Api.Types.Dapp.Context
     , ApiDappTransactionContextRequest (..)
     )
 import Cardano.Wallet.Api.Types.Error
-    ( DappError (DappContextUnavailableError)
+    ( DappError (..)
     )
 import Cardano.Wallet.Balance.Migration.SelectionSpec
     ( MockTxConstraints (..)
@@ -411,6 +419,7 @@ import Test.Hspec
     , expectationFailure
     , it
     , shouldBe
+    , shouldNotBe
     , shouldReturn
     , shouldSatisfy
     , xit
@@ -479,10 +488,13 @@ import qualified Cardano.Balance.Tx.Eras as Write
     , RecentEra (RecentEraConway, RecentEraDijkstra)
     )
 import qualified Cardano.Crypto.Wallet as CC
+import qualified Cardano.Ledger.TxIn as Ledger
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.Address.Book as Sqlite
 import qualified Cardano.Wallet.Address.Derivation.Byron as Byron
 import qualified Cardano.Wallet.Address.Derivation.Icarus as Icarus
+import qualified Cardano.Wallet.Api.Http.Shelley.TransactionContext as DappResolver
+import qualified Cardano.Wallet.Api.Types.Dapp.Context as Dapp
 import qualified Cardano.Wallet.Balance.Migration as Migration
 import qualified Cardano.Wallet.DB.Sqlite.Types as DB
 import qualified Cardano.Wallet.DB.Store.Checkpoints.Store as Sqlite
@@ -493,13 +505,22 @@ import qualified Cardano.Wallet.Read.Hash as Hash
 import qualified Cardano.Wallet.Submissions.Submissions as Smbs
 import qualified Cardano.Wallet.Submissions.TxStatus as Sbms
 import qualified Data.ByteArray as BA
+import qualified Data.ByteArray.Encoding as BAE
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
 import qualified Data.Text as T
+
+conwayTxHex :: ByteString
+conwayTxHex =
+    "84a700d9010282825820745f04573e7429be1404f9b936d208b81159f3fc4b30037b9d630187eec1875600825820745f04573e7429be1404f9b936d208b81159f3fc4b30037b9d630187eec18756020dd9010281825820745f04573e7429be1404f9b936d208b81159f3fc4b30037b9d630187eec18756010182a21800581d60fdfaa5251e9ed2186a52eeea05ac1d39834eeef09b3e41dc151577a0011a001e8480a200581d60fe920c980dbc1113a01db0156955479f3b91f6fb6a51bdc0c383c1b9011a3b586de610a200581d60fe920c980dbc1113a01db0156955479f3b91f6fb6a51bdc0c383c1b9011a001a65b0111a00041ed0021a0002bf350b5820878c73eb6ec7171b23396f71d7e5adee98b3f72cfc1c0662453ea724a4e27ad5a303d9010281581e581c0100003322323222235004007123500235300300149849848004800504d9010281d8799f182aff0581840000d8799f182aff820000f4f6"
+
+expectRight :: Show e => Either e a -> IO a
+expectRight = either (fail . show) pure
 
 spec :: Spec
 spec = describe "Cardano.WalletSpec" $ do
@@ -583,6 +604,78 @@ spec = describe "Cardano.WalletSpec" $ do
 
             result `shouldBe` Left DappContextUnavailableError
             readIORef calls `shouldReturn` 3
+
+        it "freezes snapshot equations, roles, and exact source conflicts" $ do
+            decoded <-
+                expectRight
+                    $ DappResolver.decodeTx
+                    $ ApiDappHex
+                    $ either (error . show) id
+                    $ BAE.convertFromBase BAE.Base16 conwayTxHex
+            let Ledger.TxIn txId _ = Set.findMin decoded.normal
+                input index = Ledger.TxIn txId (TxIx index)
+                n = input 0
+                k = input 1
+                a = input 2
+                qn = input 3
+                qk = input 4
+                qr = input 5
+                pendingOutput = fst $ Map.findMin decoded.outputs
+                pendingTx =
+                    decoded
+                        { normal = Set.singleton n
+                        , collateral = Set.singleton k
+                        }
+                requested =
+                    decoded
+                        { normal = Set.fromList [qn, pendingOutput]
+                        , collateral = Set.singleton qk
+                        , reference = Set.singleton qr
+                        }
+                checkpoint = Set.fromList [n, k, a]
+                available = Set.singleton a
+                spent = Set.fromList [n, k]
+                wanted = Set.fromList [a, qn, qk, qr, pendingOutput]
+            contextSets checkpoint [pendingTx] [requested]
+                `shouldBe` (available, spent, wanted)
+            contextSets
+                checkpoint
+                [pendingTx]
+                [requested{normal = Set.singleton qn}]
+                `shouldBe` (available, spent, Set.fromList [a, qn, qk, qr])
+
+            let roles = addRoles mempty requested
+            Map.lookup qn roles `shouldBe` Just (Set.singleton Dapp.Normal)
+            Map.lookup qk roles `shouldBe` Just (Set.singleton Dapp.Collateral)
+            Map.lookup qr roles `shouldBe` Just (Set.singleton Dapp.Reference)
+
+            let (sourceInput, (output, source)) = Map.findMin decoded.outputs
+                sourceValue = (output, source <> "00")
+            let roleMap = Map.singleton sourceInput $ Set.singleton Dapp.Normal
+                sources = Map.singleton sourceInput sourceValue
+            (_, resolved) <-
+                expectRight
+                    $ resolveOutput
+                        (Set.singleton sourceInput)
+                        roleMap
+                        sources
+                        sources
+                        sourceInput
+            resolved.provenance `shouldBe` [Dapp.Pending, Dapp.Node]
+            resolved.roles `shouldBe` [Dapp.Normal, Dapp.WalletSnapshot]
+            resolved.walletMember `shouldBe` True
+            resolved.pendingState `shouldBe` Dapp.OutcomeUnknown
+            resolved.sourceTransactionOutputCbor
+                `shouldNotBe` resolved.canonicalTransactionOutputCbor
+            resolveOutput
+                mempty
+                mempty
+                sources
+                (Map.singleton sourceInput (output, source))
+                sourceInput
+                `shouldBe` Left DappContextConflictError
+            resolveOutput mempty mempty mempty mempty sourceInput
+                `shouldBe` Left DappContextUnavailableError
 
     describe
         "Pointless mockEventSource to cover 'Show' instances for errors"
