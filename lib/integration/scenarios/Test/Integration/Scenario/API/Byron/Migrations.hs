@@ -64,7 +64,9 @@ import Data.Generics.Internal.VL.Lens
     , (^.)
     )
 import Data.Maybe
-    ( mapMaybe
+    ( fromMaybe
+    , listToMaybe
+    , mapMaybe
     )
 import Data.Text
     ( Text
@@ -86,6 +88,7 @@ import Test.Integration.Framework.DSL
     , Headers (..)
     , Payload (..)
     , decodeErrorInfo
+    , emptyByronWalletWith
     , emptyIcarusWallet
     , emptyRandomWallet
     , emptyWallet
@@ -100,6 +103,9 @@ import Test.Integration.Framework.DSL
     , icarusAddresses
     , json
     , listAddresses
+    , minUTxOValue
+    , mismatchedIndexAddresses
+    , moveByronCoins
     , postByronWallet
     , randomAddresses
     , request
@@ -341,6 +347,70 @@ spec = describe "BYRON_MIGRATIONS" $ do
             testAddressCycling "Icarus" fixtureIcarusWallet 1
             testAddressCycling "Icarus" fixtureIcarusWallet 3
             testAddressCycling "Icarus" fixtureIcarusWallet 10
+
+    it
+        "BYRON_MIGRATE_01b - \
+        \Can migrate a wallet holding an address whose recorded index is not \
+        \the index its key was derived at."
+        $ \ctx -> runResourceT @IO $ do
+            mnemonic <- Mnemonics.generateSome Mnemonics.M12
+            faucetWallet <- fixtureRandomWallet ctx
+            sourceWallet <-
+                emptyByronWalletWith
+                    ctx
+                    "random"
+                    ("Mismatched index wallet", mnemonic, fixturePassphrase)
+
+            let amt = 10 * minUTxOValue (_mainEra ctx)
+                affected = mismatchedIndexAddresses @n mnemonic !! 1
+                unaffected =
+                    fromMaybe (error "randomAddresses must be infinite")
+                        $ listToMaybe (randomAddresses @n mnemonic)
+
+            liftIO
+                $ moveByronCoins @n
+                    ctx
+                    faucetWallet
+                    (sourceWallet, [affected, unaffected])
+                    [amt, amt]
+
+            targetWallet <- emptyWallet ctx
+            targetAddresses <- listAddresses @n ctx targetWallet
+            let targetAddressIds =
+                    targetAddresses
+                        <&> \(ApiTypes.ApiAddressWithPath addrId _ _) -> addrId
+
+            -- The plan must select both UTxOs, including the affected one.
+            responsePlan <-
+                request @(ApiWalletMigrationPlan n)
+                    ctx
+                    (Link.createMigrationPlan @'Byron sourceWallet)
+                    Default
+                    (Json [json|{addresses: #{targetAddressIds}}|])
+            verify
+                responsePlan
+                [ expectResponseCode HTTP.status202
+                , expectField
+                    (#balanceSelected . #ada)
+                    (`shouldBe` ApiAmount (2 * amt))
+                , expectField (#balanceLeftover . #ada) (`shouldBe` ApiAmount 0)
+                ]
+
+            liftIO $ migrateWallet ctx sourceWallet targetAddressIds
+            waitForTxImmutability ctx
+
+            -- The wallet can be emptied by the supported route.
+            responseFinal <-
+                request @ApiByronWallet
+                    ctx
+                    (Link.getWallet @'Byron sourceWallet)
+                    Default
+                    Empty
+            verify
+                responseFinal
+                [ expectField (#balance . #available) (`shouldBe` ApiAmount 0)
+                , expectField (#balance . #total) (`shouldBe` ApiAmount 0)
+                ]
 
     it
         "BYRON_MIGRATE_02 - \

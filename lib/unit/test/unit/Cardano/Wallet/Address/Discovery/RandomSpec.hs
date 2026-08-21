@@ -15,6 +15,13 @@ module Cardano.Wallet.Address.Discovery.RandomSpec
 
 import Cardano.Address.Derivation
     ( XPrv
+    , toXPub
+    )
+import Cardano.Byron.Codec.Cbor
+    ( encodeAddress
+    , encodeDerivationPathAttr
+    , encodeProtocolMagicAttr
+    , reconstructAddress
     )
 import Cardano.Mnemonic
     ( MkSomeMnemonic (..)
@@ -42,7 +49,10 @@ import Cardano.Wallet.Address.Discovery
     , KnownAddresses (..)
     )
 import Cardano.Wallet.Address.Discovery.Random
-    ( RndState (..)
+    ( DerivationPath
+    , RndState (..)
+    , candidatePaths
+    , deriveCredFromKeyKeyFromPath
     , findUnusedPath
     , mkRndState
     )
@@ -70,12 +80,16 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..)
     , AddressState (..)
     )
+import Cardano.Wallet.Primitive.Types.ProtocolMagic
+    ( ProtocolMagic (..)
+    )
 import Control.Monad
     ( forM_
     )
 import Data.ByteArray.Encoding
     ( Base (..)
     , convertFromBase
+    , convertToBase
     )
 import Data.ByteString
     ( ByteString
@@ -117,6 +131,7 @@ import Test.QuickCheck
     )
 import Prelude
 
+import qualified Codec.CBOR.Write as CBOR
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.Map as Map
@@ -126,7 +141,209 @@ spec :: Spec
 spec = do
     goldenSpecMainnet
     goldenSpecTestnet
+    golden03Provenance
+    mismatchedIndexSpec
+    unresolvableAddressSpec
     propSpec
+
+{-------------------------------------------------------------------------------
+                   Addresses that no candidate derivation owns
+-------------------------------------------------------------------------------}
+
+-- | A second wallet, for addresses that do not belong to the first.
+otherMnemonic :: SomeMnemonic
+otherMnemonic =
+    either (error . show) id
+        $ mkSomeMnemonic @'[12]
+            [ "abandon"
+            , "abandon"
+            , "abandon"
+            , "abandon"
+            , "abandon"
+            , "abandon"
+            , "abandon"
+            , "abandon"
+            , "abandon"
+            , "abandon"
+            , "abandon"
+            , "about"
+            ]
+
+unresolvableAddressSpec :: Spec
+unresolvableAddressSpec =
+    describe "addresses that no candidate derivation reproduces" $ do
+        let pwd = Passphrase ""
+            rootK = generateKeyFromSeed arbitraryMnemonic pwd
+            otherRootK = generateKeyFromSeed otherMnemonic pwd
+            st = mkRndState @'Mainnet rootK 0
+            accIx = liftIndex (accountIndex st)
+            addrIx = Index 7 :: Index 'WholeDomain 'CredFromKeyK
+
+            -- The derivation path is encrypted under this wallet's passphrase,
+            -- so the address decrypts as ours, but its root comes from another
+            -- wallet's key and no candidate can reproduce it.
+            impostor =
+                Address
+                    $ CBOR.toStrictByteString
+                    $ encodeAddress
+                        ( toXPub
+                            $ getKey
+                            $ deriveCredFromKeyKeyFromPath
+                                otherRootK
+                                pwd
+                                (accIx, addrIx)
+                        )
+                        [ encodeDerivationPathAttr
+                            (payloadPassphrase rootK)
+                            accIx
+                            addrIx
+                        ]
+
+            foreign' =
+                addressRecordingWith
+                    otherRootK
+                    pwd
+                    (accIx, addrIx)
+                    (accIx, addrIx)
+
+        it "are still discovered, because their path decrypts"
+            $ isJust (fst $ isOurs impostor st)
+            `shouldBe` True
+
+        it "yield no signing key"
+            $ isOwned ByronWallet st (rootK, pwd) impostor
+            `shouldBe` Nothing
+
+        it "yield no signing key for another wallet's address, as before"
+            $ isOwned ByronWallet st (rootK, pwd) foreign'
+            `shouldBe` Nothing
+
+{-------------------------------------------------------------------------------
+              Addresses whose recorded index is not the key's index
+-------------------------------------------------------------------------------}
+
+-- | An address that records @recorded@ in its derivation-path attribute while
+-- its root is built from the key at @actual@. Addresses created before
+-- cardano-sl always hardened generated indexes have this shape.
+addressRecording
+    :: ByronKey 'RootK XPrv
+    -> DerivationPath
+    -- ^ the path written into the address
+    -> DerivationPath
+    -- ^ the path the key is really at
+    -> Address
+addressRecording rootK = addressRecordingWith rootK (Passphrase "")
+
+-- | The hardened form of an index, as the fix must try it.
+hardened :: Index 'WholeDomain level -> Index 'WholeDomain level
+hardened (Index ix)
+    | ix >= firstHardened = Index ix
+    | otherwise = Index (ix + firstHardened)
+  where
+    firstHardened = getIndex (minBound :: Index 'Hardened 'AccountK)
+
+mismatchedIndexSpec :: Spec
+mismatchedIndexSpec =
+    describe "addresses whose recorded index is not the key's index" $ do
+        let pwd = Passphrase ""
+            rootK = generateKeyFromSeed arbitraryMnemonic pwd
+            st = mkRndState @'Mainnet rootK 0
+            accIx = liftIndex (accountIndex st)
+            addrIx = Index 42 :: Index 'WholeDomain 'CredFromKeyK
+            recorded = (accIx, addrIx)
+            owns actual =
+                isOwned
+                    ByronWallet
+                    st
+                    (rootK, pwd)
+                    (addressRecording rootK recorded actual)
+            keyAt actual =
+                Just (deriveCredFromKeyKeyFromPath rootK pwd actual, pwd)
+
+        it "resolves a soft address index to the key at its hardened form"
+            $ owns (accIx, hardened addrIx)
+            `shouldBe` keyAt (accIx, hardened addrIx)
+
+        it "resolves an unaffected address to the key at its recorded path"
+            $ owns recorded
+            `shouldBe` keyAt recorded
+
+        -- #1041 records that account indexes were produced by the same
+        -- defective function, so the account level is covered as well.
+        let softAccIx = Index 14 :: Index 'WholeDomain 'AccountK
+            softRecorded = (softAccIx, addrIx)
+            ownsSoftAcc actual =
+                isOwned
+                    ByronWallet
+                    st
+                    (rootK, pwd)
+                    (addressRecording rootK softRecorded actual)
+
+        it "resolves a soft account index to the key at its hardened form"
+            $ ownsSoftAcc (hardened softAccIx, addrIx)
+            `shouldBe` keyAt (hardened softAccIx, addrIx)
+
+        it "resolves an address whose account and address index are both soft"
+            $ ownsSoftAcc (hardened softAccIx, hardened addrIx)
+            `shouldBe` keyAt (hardened softAccIx, hardened addrIx)
+
+        it "tries one candidate when the recorded path is already hardened"
+            $ candidatePaths (accIx, hardened addrIx)
+            `shouldBe` [(accIx, hardened addrIx)]
+
+        it "tries the recorded path first, then hardened forms"
+            $ candidatePaths softRecorded
+            `shouldBe` [ softRecorded
+                       , (softAccIx, hardened addrIx)
+                       , (hardened softAccIx, addrIx)
+                       , (hardened softAccIx, hardened addrIx)
+                       ]
+
+{-------------------------------------------------------------------------------
+                        Provenance of the golden03 address
+-------------------------------------------------------------------------------}
+
+-- The testnet 'golden03' address records a soft derivation path (14, 42), so it
+-- is worth pinning down which key it actually commits to: a soft index does not
+-- by itself mean the recorded index is the wrong one. Rebuilding the address
+-- from the wallet's own key material shows that it commits to the key at the
+-- recorded path, and not to the key at the hardened form of that path. It is
+-- therefore an address whose recorded path must keep resolving on the first
+-- attempt.
+golden03Provenance :: Spec
+golden03Provenance = describe "golden03 provenance" $ do
+    it "commits to the key at its recorded soft path"
+        $ hex (addressAt (Index 14, Index 42))
+        `shouldBe` hex golden03Address
+
+golden03Address :: Address
+golden03Address =
+    let Right bytes =
+            convertFromBase @ByteString
+                Base16
+                "82d818584083581cf26d102b29332fd6c244a9915b6cad7890f5b54ac3\
+                \4dcd62975b525aa201565522f6c70e9b236c753e50a3758e18e8bbf7c3\
+                \f9e34e02451a2d964a09001a3993f9ea"
+    in  Address bytes
+
+-- | Rebuild the golden03 address from the key at a given path, keeping the
+-- attributes the address itself records.
+addressAt :: DerivationPath -> Address
+addressAt path =
+    Address
+        $ CBOR.toStrictByteString
+        $ encodeAddress
+            (toXPub $ getKey $ deriveCredFromKeyKeyFromPath rootK pwd path)
+            [ encodeDerivationPathAttr hdPwd (Index 14) (Index 42)
+            , encodeProtocolMagicAttr (ProtocolMagic 764824073)
+            ]
+  where
+    pwd = Passphrase ""
+    rootK = generateKeyFromSeed arbitraryMnemonic pwd
+    hdPwd = payloadPassphrase rootK
+
+hex :: Address -> ByteString
+hex (Address bytes) = convertToBase Base16 bytes
 
 {-------------------------------------------------------------------------------
                                   Golden tests
@@ -323,6 +540,8 @@ propSpec = describe "Random Address Discovery Properties" $ do
         property prop_derivedKeysAreOurs
     it "isOwned works as expected during key derivation" $ do
         property prop_derivedKeysAreOwned
+    it "every key isOwned returns reproduces the address it is for" $ do
+        property prop_ownedKeysReproduceTheirAddress
     it "GenChange address always satisfies isOurs" $ do
         property prop_changeAddressesBelongToUs
     it
@@ -363,6 +582,45 @@ prop_derivedKeysAreOwned (Rnd st rk pwd) (Rnd st' rk' pwd') addrIx =
     addr = paymentAddress SMainnet (publicKey ByronKeyS addrKey)
     addrKey = deriveAddressPrivateKey pwd acctKey addrIx
     acctKey = deriveAccountPrivateKey pwd rk (liftIndex $ accountIndex st)
+
+-- | FR-001 / SC-005: a key is only ever returned when it reproduces the address
+-- it was resolved for. Checked for an address whose recorded path is correct and
+-- for one whose key is at the hardened form of its recorded address index.
+prop_ownedKeysReproduceTheirAddress
+    :: Rnd
+    -> Index 'WholeDomain 'CredFromKeyK
+    -> Property
+prop_ownedKeysReproduceTheirAddress (Rnd st rk pwd) addrIx =
+    conjoin $ reproduces <$> [recorded, (accIx, hardened addrIx)]
+  where
+    accIx = liftIndex (accountIndex st)
+    recorded = (accIx, addrIx)
+    reproduces actual =
+        let addr = addressRecordingWith rk pwd recorded actual
+        in  case isOwned ByronWallet st (rk, pwd) addr of
+                Nothing ->
+                    property False
+                        & counterexample "isOwned returned no key"
+                Just (k, _) ->
+                    reconstructAddress (toXPub $ getKey k) addr === Just addr
+
+-- | 'addressRecording' for a wallet whose encryption passphrase is not empty.
+addressRecordingWith
+    :: ByronKey 'RootK XPrv
+    -> Passphrase "encryption"
+    -> DerivationPath
+    -> DerivationPath
+    -> Address
+addressRecordingWith rootK pwd (recAccIx, recAddrIx) actual =
+    Address
+        $ CBOR.toStrictByteString
+        $ encodeAddress
+            (toXPub $ getKey $ deriveCredFromKeyKeyFromPath rootK pwd actual)
+            [ encodeDerivationPathAttr
+                (payloadPassphrase rootK)
+                recAccIx
+                recAddrIx
+            ]
 
 prop_changeAddressesBelongToUs
     :: Rnd
