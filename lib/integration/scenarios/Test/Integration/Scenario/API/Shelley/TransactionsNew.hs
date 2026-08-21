@@ -51,17 +51,21 @@ import Cardano.Ledger.Api
     , bodyTxL
     , collateralInputsTxBodyL
     , datumTxOutL
+    , feeTxBodyL
     , hashBinaryData
     , inputsTxBodyL
     , makeBinaryData
     , outputsTxBodyL
     , referenceInputsTxBodyL
     , referenceScriptTxOutL
+    , scriptTxWitsL
+    , witsTxL
     )
 import Cardano.Ledger.BaseTypes
     ( StrictMaybe (..)
     , TxIx (..)
     )
+import qualified Cardano.Ledger.Coin as LedgerCoin
 import Cardano.Mnemonic
     ( SomeMnemonic (..)
     )
@@ -993,10 +997,23 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             wa <- fixtureWallet ctx
             wb <- emptyWallet ctx
             featureWallet <- fixtureWallet ctx
-            contextWallet <- fixtureWallet ctx
             addresses <- listAddresses @n ctx wb
             let destination = (addresses !! 1) ^. #id
                 amount = 10_000_000 :: Natural
+                policyPayload =
+                    Json
+                        [json|{
+                            "policy_script_template":
+                                { "all": [ "cosigner#0" ] }
+                        }|]
+            policyResponse <-
+                request @ApiPolicyId
+                    ctx
+                    (Link.postPolicyId @'Shelley featureWallet)
+                    Default
+                    policyPayload
+            verify policyResponse [expectResponseCode HTTP.status202]
+            let ApiPolicyId (ApiT policyId) = getResponse policyResponse
                 featurePayload =
                     Json
                         [json|{
@@ -1105,14 +1122,30 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     confirmed
                     [expectField (#status . #getApiT) (`shouldBe` InLedger)]
 
-            contextPayload <-
-                liftIO $ mkTxPayload ctx wb (minUTxOValue ApiConway) 1
+            let referenceScriptInput =
+                    ReferenceInput $ TxIn (getApiT submittedId) 0
+                Right assetName = AssetName.fromByteString "task202"
+                mintPayload =
+                    Json
+                        [json|{
+                            "mint_burn": [{
+                                "policy_id": #{toText policyId},
+                                "reference_input": #{toJSON referenceScriptInput},
+                                "asset_name": #{toText assetName},
+                                "operation": {
+                                    "mint": {
+                                        "receiving_address": #{destination},
+                                        "quantity": 1
+                                    }
+                                }
+                            }]
+                        }|]
             contextConstructed <-
                 request @(ApiConstructTransaction n)
                     ctx
-                    (Link.createUnsignedTransaction @'Shelley contextWallet)
+                    (Link.createUnsignedTransaction @'Shelley featureWallet)
                     Default
-                    contextPayload
+                    mintPayload
             verify contextConstructed [expectResponseCode HTTP.status202]
             TxCBOR.TxWithOutputBytes{transaction = contextBaseTx} <-
                 liftIO $ decodeSealed $ sealedTx contextConstructed
@@ -1134,6 +1167,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                             (bodyTxL . referenceInputsTxBodyL)
                             (Set.singleton referenceInput)
                             ledgerTx
+            liftIO $ view (witsTxL . scriptTxWitsL) ledgerTx `shouldBe` mempty
 
             let contextBytes =
                     BL.toStrict $ TxCBOR.serializeTx contextTx
@@ -1176,6 +1210,13 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                                     && provenance == [Node]
                                     && not walletMember
                         )
+                hasReferencePolicy = any $ \case
+                    ApiDappOwnership
+                        { credentialKind = PolicyCredential
+                        , ownership = ScriptOwned
+                        , proofKinds
+                        } -> PolicyProof `elem` proofKinds
+                    _ -> False
             verify
                 response
                 [ expectResponseCode HTTP.status200
@@ -1188,6 +1229,45 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 , expectField #outputs (`shouldSatisfy` hasForeignOutput Normal 1)
                 , expectField #outputs (`shouldSatisfy` hasForeignOutput Collateral 2)
                 , expectField #outputs (`shouldSatisfy` hasForeignOutput Reference 0)
+                , expectField #ownership (`shouldSatisfy` hasReferencePolicy)
+                ]
+
+            policyOwnerResponse <-
+                request @ApiDappTransactionContextResponse
+                    ctx
+                    (Link.transactionContext featureWallet)
+                    Default
+                    (Json $ toJSON contextRequest)
+            let hasOwnedPolicyLeaf =
+                    any
+                        ( \ApiDappOwnership
+                            { credentialKind
+                            , ownership
+                            , derivationPath
+                            , proofKinds
+                            } ->
+                                credentialKind == PolicyCredential
+                                    && ownership == OwnedKey
+                                    && derivationPath
+                                        == [0x8000073f, 0x80000717, 0x80000000]
+                                    && PolicyProof `elem` proofKinds
+                        )
+                hasRequiredPolicy =
+                    any
+                        ( \ApiDappRequiredWalletProof
+                            { proofKind
+                            , credentialKind
+                            , required
+                            } ->
+                                proofKind == PolicyProof
+                                    && credentialKind == PolicyCredential
+                                    && required
+                        )
+            verify
+                policyOwnerResponse
+                [ expectResponseCode HTTP.status200
+                , expectField #ownership (`shouldSatisfy` hasOwnedPolicyLeaf)
+                , expectField #requiredWalletProofs (`shouldSatisfy` hasRequiredPolicy)
                 ]
 
             ownedResponse <-
@@ -1235,6 +1315,79 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     (`shouldSatisfy` hasRequiredProof CollateralProof)
                 ]
 
+            witnessPayload <-
+                liftIO $ mkTxPayload ctx wa (minUTxOValue ApiConway) 1
+            witnessConstructed <-
+                request @(ApiConstructTransaction n)
+                    ctx
+                    (Link.createUnsignedTransaction @'Shelley wb)
+                    Default
+                    witnessPayload
+            verify witnessConstructed [expectResponseCode HTTP.status202]
+            signedContext <-
+                signTx
+                    ctx
+                    wb
+                    (ApiT $ sealedTx witnessConstructed)
+                    [expectResponseCode HTTP.status202]
+            let ApiSerialisedTransaction signedSealed _ = signedContext
+                signedContextBytes = serialisedTx $ getApiT signedSealed
+                signedRequest =
+                    contextRequest
+                        { transactions = [ApiDappHex signedContextBytes]
+                        }
+                hasNormalRequirement expected =
+                    any
+                        ( \ApiDappRequiredWalletProof
+                            { proofKind
+                            , credentialKind
+                            , required
+                            } ->
+                                proofKind == NormalInputProof
+                                    && credentialKind == PaymentCredential
+                                    && required == expected
+                        )
+            signedContextResponse <-
+                request @ApiDappTransactionContextResponse
+                    ctx
+                    (Link.transactionContext wb)
+                    Default
+                    (Json $ toJSON signedRequest)
+            verify
+                signedContextResponse
+                [ expectResponseCode HTTP.status200
+                , expectField #requiredWalletProofs
+                    (`shouldSatisfy` hasNormalRequirement False)
+                ]
+
+            TxCBOR.TxWithOutputBytes{transaction = Read.Tx signedLedgerTx} <-
+                liftIO $ decodeSealed $ getApiT signedSealed
+            let LedgerCoin.Coin signedFee = view (bodyTxL . feeTxBodyL) signedLedgerTx
+                wrongBodyTx :: Read.Tx Read.Conway
+                wrongBodyTx =
+                    LedgerTx.Tx
+                        $ set (bodyTxL . feeTxBodyL) (LedgerCoin.Coin $ signedFee + 1) signedLedgerTx
+                wrongBodyRequest =
+                    contextRequest
+                        { transactions =
+                            [ ApiDappHex
+                                $ BL.toStrict
+                                $ TxCBOR.serializeTx wrongBodyTx
+                            ]
+                        }
+            wrongBodyResponse <-
+                request @ApiDappTransactionContextResponse
+                    ctx
+                    (Link.transactionContext wb)
+                    Default
+                    (Json $ toJSON wrongBodyRequest)
+            verify
+                wrongBodyResponse
+                [ expectResponseCode HTTP.status200
+                , expectField #requiredWalletProofs
+                    (`shouldSatisfy` hasNormalRequirement True)
+                ]
+
             let contextTxId = Read.getTxId contextTx
                 earlierInput = LedgerTxIn.TxIn contextTxId (TxIx 0)
                 earlierOutpoint =
@@ -1257,7 +1410,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                             (Set.singleton normalInput)
                         $ set
                             (bodyTxL . referenceInputsTxBodyL)
-                            Set.empty
+                            (Set.singleton referenceInput)
                             contextLedgerTx
                 childBytes = BL.toStrict $ TxCBOR.serializeTx childTx
                 batchRequest =

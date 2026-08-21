@@ -1,4 +1,5 @@
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE OverloadedRecordDot #-}
 
@@ -7,6 +8,7 @@ module Main (main) where
 
 import Cardano.Wallet.Api.Types.Dapp.Context
     ( ApiDappChainPoint (..)
+    , ApiDappContextNetwork (..)
     , ApiDappHex (..)
     , ApiDappCredentialKind (..)
     , ApiDappOwnershipKind (..)
@@ -17,7 +19,7 @@ import Cardano.Wallet.Api.Types.Dapp.Context
     , ApiDappProofKind (..)
     , ApiDappRequiredWalletProof (..)
     , ApiDappRole (..)
-    , ApiDappTransactionContextRequest
+    , ApiDappTransactionContextRequest (..)
     , ApiDappWord64 (..)
     , ContextDigestInput (..)
     , ContextRecord (..)
@@ -31,7 +33,7 @@ import Cardano.Wallet.Api.Types.Dapp.Context
     , validateContextToken
     )
 import Cardano.Wallet.Api.Http.Shelley.TransactionContext
-    ( DecodedTx (valid)
+    ( DecodedTx (txId, valid)
     , ProofObligation (DirectProofObligation, NativeProofObligation)
     , ProofObligationResult (..)
     , candidateOwnershipAssociations
@@ -42,6 +44,7 @@ import Cardano.Wallet.Api.Http.Shelley.TransactionContext
     , scriptProofKinds
     , supportedCertificate
     , validatePendingProvenance
+    , validateTransactionContextResponseForRequest
     )
 import Cardano.Ledger.Allegra.Scripts
     ( ValidityInterval (..)
@@ -106,6 +109,22 @@ main = hspec $ do
                 `shouldBe` Right True
             fmap (.valid) (decodeTx $ ApiDappHex rejectedTransaction)
                 `shouldBe` Right False
+
+        it "rejects unequal envelopes with the same transaction id" $ do
+            let alternateEnvelope =
+                    BS.init acceptedTransaction <> BS.singleton 0xa0
+                decoded = mapM (decodeTx . ApiDappHex) [acceptedTransaction, alternateEnvelope]
+            fmap (map (.txId)) decoded `shouldSatisfy` \case
+                Right [firstId, secondId] -> firstId == secondId
+                _ -> False
+            validateTransactionContextResponseForRequest
+                ( ApiDappTransactionContextRequest
+                    1
+                    (ApiDappContextNetwork 0 1 $ ApiDappHex $ BS.replicate 32 0)
+                    (ApiDappHex <$> [acceptedTransaction, alternateEnvelope])
+                )
+                (error "duplicate rejection must not inspect the response")
+                `shouldBe` Left "duplicate transaction envelopes differ"
 
         it "gates supported and rejected Conway certificate constructors" $ do
             let stakeCredential = KeyHashObj $ coerce $ witnessKeyHash proofHash

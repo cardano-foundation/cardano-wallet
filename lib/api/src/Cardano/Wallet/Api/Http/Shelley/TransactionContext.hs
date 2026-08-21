@@ -48,6 +48,7 @@ import Cardano.Ledger.Api
     , ValidityInterval
     , addrTxOutL
     , ppProtocolVersionL
+    , referenceScriptTxOutL
     , serialiseAddr
     )
 import Cardano.Ledger.Credential
@@ -1039,8 +1040,9 @@ nativeEvidence configured initial requested resolved = do
     policy = (\key -> (blake2b224 $ xpubPublicKey $ getRawKey ShelleyKeyS key, [0x8000073f, 0x80000717, 0x80000000])) <$> Seq.policyXPub initial
     outputs = Map.fromList [(value.outpoint, output) | (_, value, output) <- resolved]
 
-    perTransaction (discovery, ownership, obligations) (transactionIndex, DecodedTx{transaction = Read.Tx ledgerTx, normal, collateral}) = do
-        let scriptMap = ledgerTx ^. witsTxL . scriptTxWitsL
+    perTransaction (discovery, ownership, obligations) (transactionIndex, DecodedTx{transaction = Read.Tx ledgerTx, normal, collateral, reference}) = do
+        referenceScriptMap <- Map.fromList . concat <$> mapM referenceScripts (Set.toList reference)
+        let scriptMap = Map.union (ledgerTx ^. witsTxL . scriptTxWitsL) referenceScriptMap
             mintScripts = [(PolicyCredential, PolicyProof, hash) | PolicyID hash <- Set.toList $ policies $ ledgerTx ^. bodyTxL . mintTxBodyL]
         spendingScripts <- fmap catMaybes $ mapM spendingScript $ Set.toList $ normal <> collateral
         foldM (perScript transactionIndex ledgerTx scriptMap) (discovery, ownership, obligations)
@@ -1053,6 +1055,12 @@ nativeEvidence configured initial requested resolved = do
                 AddrBootstrap{} -> Nothing
                 Addr _ (KeyHashObj _) _ -> Nothing
                 Addr _ (ScriptHashObj hash) _ -> Just hash
+
+    referenceScripts input = do
+        output <- maybe (Left DappContextUnavailableError) Right $ Map.lookup (toOutpoint input) outputs
+        pure $ case output of
+            Output ledgerOutput ->
+                [(hashScript script, script) | script <- toList $ ledgerOutput ^. referenceScriptTxOutL]
 
     perScript transactionIndex ledgerTx scriptMap (discovery, ownership, obligations) (credentialKind, proofKind, scriptHash@(Ledger.ScriptHash hash)) = do
         script <- maybe (Left DappContextUnavailableError) Right $ Map.lookup scriptHash scriptMap
@@ -1130,7 +1138,7 @@ buildBatchOverlay
         , ApiDappBatchOverlay
         )
 buildBatchOverlay requested pendingTransactions pending = do
-    requireEither InvalidDappRequest $ all duplicateIsIdentical txGroups
+    requireEither InvalidDappRequest $ duplicateTransactionsAreIdentical requested
     (priorOutputs, _, dependencies, conflicts) <-
         foldM step (mempty, mempty, [], []) $ zip [0 :: Word32 ..] requested
     pure
@@ -1138,9 +1146,6 @@ buildBatchOverlay requested pendingTransactions pending = do
         , ApiDappBatchOverlay (sort dependencies) (sort conflicts)
         )
   where
-    txGroups = Map.elems $ Map.fromListWith (<>) [(tx.txId, [tx.bytes]) | tx <- requested]
-    duplicateIsIdentical [] = True
-    duplicateIsIdentical (value : values) = all (== value) values
     requestedIds = Set.fromList $ (.txId) <$> requested
     pendingClaims = Set.unions $ concatMap (\tx -> [tx.normal, tx.collateral]) pendingTransactions
 
@@ -1190,6 +1195,7 @@ validateTransactionContextResponseForRequest
     -> Either String ()
 validateTransactionContextResponseForRequest request response = do
     requested <- mapM decodeTx request.transactions
+    unless (duplicateTransactionsAreIdentical requested) $ Left "duplicate transaction envelopes differ"
     unless (all (.valid) requested) $ Left "invalid transaction validity"
     pending <- mapM
         (decodeTx . (.transactionCbor))
@@ -1290,6 +1296,13 @@ validateTransactionContextResponseForRequest request response = do
         [(Normal, input) | input <- Set.toAscList tx.normal]
             <> [(Collateral, input) | input <- Set.toAscList tx.collateral]
             <> [(Reference, input) | input <- Set.toAscList tx.reference]
+
+duplicateTransactionsAreIdentical :: [DecodedTx] -> Bool
+duplicateTransactionsAreIdentical requested = all identical txGroups
+  where
+    txGroups = Map.elems $ Map.fromListWith (<>) [(tx.txId, [tx.bytes]) | tx <- requested]
+    identical [] = True
+    identical (value : values) = all (== value) values
 
 addRoles
     :: Map Ledger.TxIn (Set ApiDappRole)
