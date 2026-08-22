@@ -1,6 +1,6 @@
 # Resume — cardano-wallet technical-debt cleanup desk (#119)
 
-- **State:** ACTIVE. Desk pane `%5355`, window
+- **State:** PARKED under `OMNIA-PAUSA-2026-08-22` (pointer file `/tmp/machine/pausa/OMNIA-PAUSA-2026-08-22.md`; ack `20260822-wallet.md`). Resume on `RELEASE-2026-08-22.md`. Desk pane `%5355`, window
   `cardano-wallet-ms119-technical-debt`, session `wallet`. Fable 5 seat.
 - **As of 2026-08-22:** Release v2026-08-21 SHIPPED (badge fixes aboard).
   #5381 line closed: relaxation disproven, waits on crypto-class ecosystem
