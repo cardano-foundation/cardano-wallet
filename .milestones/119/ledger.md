@@ -2,83 +2,84 @@
 
 Home repo: cardano-foundation/cardano-wallet.
 GitHub milestone: #119, `M7 — Technical debt cleanup`.
-Desk session/window: `wallet` / `cardano-wallet-ms119-technical-debt`, pane `%5355`.
-Runtime root: `/tmp/ms-cw-tech-debt`.
+Desk: session `wallet`, window `cardano-wallet-ms119-technical-debt`, pane `%5355`.
+Runtime root: `/tmp/ms-cw-tech-debt` (completed lanes under `.archived/`).
 
-Separate from GitHub milestone #113 "Drop cardano-api"; this desk must not
-dispatch or mutate cardano-api-removal work.
+Separate from milestone #113 "Drop cardano-api" — out of scope for this desk.
+
+## Product milestone event
+
+**Release v2026-08-21 shipped** (published 2026-08-22T08:01Z, tag at
+`be7898f4`) — the release the badge-green drive prepared. Carries all four
+badge fixes (#5374, #5376, #5378, #5380) and ships cardano-addresses 4.0.2
+per the deferral ruling.
 
 ## Outcome test
 
-Starting set: 27 open, actionable, non-#113 issues as of 2026-07-30. The
-original `qwen-audit/report.md` was lost from /tmp; the set was reconstructed
-2026-08-19 from GitHub state (issues open at audit time, non-#113, #5293
-excluded) and reconstructs to exactly 27:
-4411 5063 5075 5086 5094 5097 5098 5103 5106 5108 5114 5115 5146 5147 5155
-5159 5170 5182 5196 5233 5246 5252 5325 5326 5330 5334 5341.
+Starting set (reconstructed 2026-08-19, exactly 27): 4411 5063 5075 5086
+5094 5097 5098 5103 5106 5108 5114 5115 5146 5147 5155 5159 5170 5182 5196
+5233 5246 5252 5325 5326 5330 5334 5341.
 
-Complete when:
-1. all four S tickets #5103, #5115, #5196, #5246 closed by merged PRs or
-   evidence-backed "not planned" — **3/4 done** (#5115 remains);
-2. ≥14 of the 27 closed with merged-PR or evidence-backed disposition —
-   **6/27 done** (#5063, #5103, #5196, #5246, #5325, #5341); 8 more needed;
-3. all master README CI badges green (operator amendment 2026-08-05) —
-   **MET as of 2026-08-18/19** (all 9 badges verified green after #5374,
-   #5376, #5378, #5380 merged; Mithril Sync will show green on its next
-   scheduled 2am run, fix verified on a real dispatch run).
+1. S tickets: **3/4** (#5103, #5196, #5246; #5115 parked).
+2. Burn-down: **6/27** (#5063, #5103, #5196, #5246, #5325, #5341) — 8 more
+   needed.
+3. CI badges green: **MET 2026-08-18/19**, and now embodied in the shipped
+   release.
 
-## Closed under this milestone (beyond the starting set)
+## The #5381 saga (cardano-addresses 4.0.8) — closed line of inquiry
 
-#5358, #5359 (2026-08-04/05); #5373/PR#5374, #5375/PR#5376, #5377/PR#5378,
-#5379/PR#5380 (2026-08-18/19) — the badge-green drive. All merged by the
-operator; all issues auto-closed.
+Operator asked for the bump pre-release. Investigation (archived lanes
+`t5381-cardano-addresses-bump`, `t5381-crypton-relax-upstream`):
 
-## Priority queue (paved 2026-08-19)
+- 4.0.8 needs `crypton >= 1.1`; wallet's Node-11.0.1 pin
+  `cardano-crypto-class ==2.3.3.0` caps crypton `< 1.1`. Not a pin-only bump.
+- Operator ruled defer; release shipped on 4.0.2.
+- Upstream relaxation to `>= 1.0` (operator asked Pawel; desk sent a grok
+  lane to deliver it) **empirically disproven**: the bound is welded to the
+  memory→ram migration (`8b3978a6`); constrained crypton==1.0.6 build fails
+  with 7 GHC-39999 ByteArrayAccess errors; no crypton 1.0.7 exists. No PR
+  opened — honesty clause held. Evidence: archived lane handoffs/ logs +
+  local branch `relax-crypton-1.0` in /code/cardano-addresses (unpushed).
+- **#5381 wait-state: blocked on a cardano-crypto-class ecosystem bump**,
+  most naturally with the next node pin-set advance. The minimal pin pair
+  for when it unblocks is recorded on the issue.
+- Operator to tell Pawel the verbal relaxation ask is unsatisfiable.
 
-1. **#5326** — shutdown drain. Prepared in new-ticket shape since 08-02, one
-   vertical PR, no operator decision pending. NEXT DISPATCH. Pawel review
-   required post-delivery (production shutdown semantics).
-2. **#5334** — Windows golden-sample mismatch warnings (small, CI/CD).
-3. **#5146** — CI docs review after GHA migration (small, docs; feeds the
-   release-runbook accuracy this desk already relies on).
-4. **#5108** — STAKE_POOLS_SMASH_01 flaky timeout (medium; same
-   local-cluster flake family observed repeatedly during the badge drive).
-5. **#5094** — local cluster flakiness umbrella (medium; overlaps 4).
-6. **#5252** — ProtocolParameters type alignment. Spec-only draft PR #5364
-   already exists (operator-authored); implementation undispatched.
-7. **#5097/#5098/#5114/#5155/#5159** — test-performance cluster (larger).
-8. **#4411, #5086, #5147, #5170, #5182, #5233** — unscoped tail.
+## Post-release automation line (new, 2026-08-22)
+
+- **#5387 / PR #5384** — manual merge-back of release-candidate/v2026-08-21
+  into master. In flight in the operator-driven lane (window
+  `cardano-wallet-no-epic-t5385-auto-mergeback-pr`, codex pane %6754, with a
+  grok assistant seat). Snag: `Validate PR Body Closing Link` is now
+  REQUIRED on master and reruns reuse stale event payloads (same bug class
+  as #5376) — needs a fresh PR event (empty-commit retrigger offered,
+  operator hasn't said go).
+- **#5385 / PR #5386** — automate that merge-back henceforth. Spec-first PR
+  (converted to draft by desk after it was opened ready by mistake);
+  acceptance criteria absorbing lessons from the manual walk before
+  implementation. Attached to milestone #119 (operator: "it's tech debt").
+
+## Priority queue (standing, from the 2026-08-19 paving)
+
+1. **#5326** shutdown drain — prepared, no decisions pending, next dispatch.
+2. #5334, #5146 (small CI/CD+docs) → #5108, #5094 (flake family).
+3. #5252 (spec draft PR #5364 exists) → test-perf cluster
+   (#5097/#5098/#5114/#5155/#5159) → tail (#4411, #5086, #5147, #5170,
+   #5182, #5233).
 
 ## Blocked on operator decision
 
-- **#5330** — macOS/Windows CI only on push:master, no failure alerting.
-  Parked since 07-30 pending choice of alerting option.
-- **#5115** — last S ticket. Parked under the operator no-new-work order of
-  2026-08-03; needs explicit release to dispatch.
-- **#5370** — external contribution (Byron key verification, Crypto2099).
-  Grok-reviewed "merge as-is" 2026-08-18; fork-PR CI approval + review
-  routing (Pawel?) both operator calls. Relates to #5075 but does not close it.
-- **Ancillary-verification enforcement** — open question from #5380 review:
-  does mithril-client actually reject a bad ANCILLARY_VERIFICATION_KEY or
-  warn-and-proceed? Key location resolved (public keys, tracked in
-  run/mainnet/nix/.env, sourced by run.sh:20 and snapshot.sh:37). Negative
-  control designed but not run; ~1-2 cheap CI probes if pursued.
-
-## Current state
-
-| Item | State |
-|---|---|
-| Master head | `6761259ee9` (#5380 merge), all 9 README badges green |
-| S tickets | #5103 ✅ #5196 ✅ #5246 ✅ #5115 ⛔ parked |
-| 14/27 threshold | 6/27 — honest recount 2026-08-19; the badge drive closed new issues, not starting-set ones |
-| Open PRs (this desk's scope) | none — all merged; #5364 is an operator spec draft, #5370 external |
-| Active lanes | none — all workers archived, windows closed |
+- #5330 — alerting option (parked since 07-30).
+- #5115 — last S ticket, needs release from no-new-work order.
+- #5370 — external contribution: fork-CI approval + review routing.
+- #5384 — empty-commit retrigger authorization.
+- Ancillary-verification probe (from #5380 review) — pursue or drop.
 
 ## Standing constraints
 
-Operator alone merges. No cardano-api work. Tickets touching user-visible or
-production semantics route to Pawel post-delivery. No internal Agent-tool
-subagents — tmux/worker-protocol dispatch only (operator directive
-2026-08-18). Disk headroom on this host is tight; no speculative large nix
-closures. Real CI probes against the shared colo2-nix-public pool are
-budgeted per-ticket and capped explicitly in briefs.
+Operator alone merges. No cardano-api work. Pawel reviews
+production-semantics changes. tmux/worker-protocol dispatch only — no
+Agent-tool subagents. Disk tight; no speculative large closures; builds
+check the ~40GiB floor. Shared-pool CI probes capped per brief. grok-4.6 the
+preferred implementation seat (operator), codex for supervision; both
+weeklies were near-dry 08-19, grok reset by 08-22.
