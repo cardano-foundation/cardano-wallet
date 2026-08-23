@@ -645,6 +645,7 @@ voteAction ctx action = do
                     <$> readDelegation walletState
                     <*> W.isStakeKeyRegistered walletState
     let dlg = calculateWalletDelegations currentEpochSlotting
+    let request = WD.voteRequestFor action dlg
 
     traceWith tr
         $ W.MsgWallet
@@ -652,22 +653,9 @@ voteAction ctx action = do
 
     pure
         $ if stakeKeyIsRegistered
-            then (Tx.Vote action, sameWalletDelegation dlg)
-            else (Tx.VoteRegisteringKey action, sameWalletDelegation dlg)
+            then (Tx.Vote action, request)
+            else (Tx.VoteRegisteringKey action, request)
   where
     db = ctx ^. dbLayer
     tr = ctx ^. logger
     netLayer = ctx ^. networkLayer
-
-    isDRepSame (Voting drep) = drep == action
-    isDRepSame (DelegatingVoting _ drep) = drep == action
-    isDRepSame _ = False
-
-    isSameNext (WalletDelegationNext _ deleg) = isDRepSame deleg
-
-    sameWalletDelegation (WalletDelegation current coming) =
-        if isDRepSame current || any isSameNext coming
-            then
-                VotedSameAsBefore
-            else
-                VotedDifferently

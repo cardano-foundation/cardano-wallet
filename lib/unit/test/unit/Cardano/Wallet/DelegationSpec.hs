@@ -49,6 +49,7 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
     )
 import Cardano.Wallet.Transaction
     ( ErrCannotJoin (..)
+    , VotingAction (..)
     , Withdrawal (..)
     )
 import Data.Function
@@ -266,12 +267,111 @@ spec = describe "Cardano.Wallet.DelegationSpec" $ do
                         , next = [next1]
                         }
             WD.guardQuit dlg NoWithdrawal (Coin 0) False `shouldBe` Right ()
+
+    describe "joinDRepVotingAction" $ do
+        it "allows re-delegating to A after scheduled A -> B" $ do
+            vote drepA (scheduled votingAB) True
+                `shouldBe` Right (Vote drepA)
+
+        it "rejects the same vote when effective delegation is B" $ do
+            vote drepB (scheduled votingAB) True
+                `shouldBe` Left (W.ErrAlreadyVoted drepB)
+
+        it "rejects the same vote for active-only A" $ do
+            vote drepA (activeOnly (Voting drepA)) True
+                `shouldBe` Left (W.ErrAlreadyVoted drepA)
+
+        it "allows a different DRep for active-only A" $ do
+            vote drepB (activeOnly (Voting drepA)) True
+                `shouldBe` Right (Vote drepB)
+
+        it "ignores superseded active A when next is B" $ do
+            vote drepA supersededAToB True
+                `shouldBe` Right (Vote drepA)
+
+        it "rejects B when scheduled next supersedes active A" $ do
+            vote drepB supersededAToB True
+                `shouldBe` Left (W.ErrAlreadyVoted drepB)
+
+        it "allows re-delegating to A after a DRep quit" $ do
+            vote drepA supersededAToPool True
+                `shouldBe` Right (Vote drepA)
+
+        it "rejects predefined Abstain when it is effective" $ do
+            vote Abstain supersededAToAbstain True
+                `shouldBe` Left (W.ErrAlreadyVoted Abstain)
+
+        it "allows predefined Abstain when effective DRep is A" $ do
+            vote Abstain (activeOnly (Voting drepA)) True
+                `shouldBe` Right (Vote Abstain)
+
+        it "rejects NoConfidence as last scheduled status" $ do
+            vote NoConfidence (scheduled votingANoConfidence) True
+                `shouldBe` Left (W.ErrAlreadyVoted NoConfidence)
+
+        it "allows A when last DelegatingVoting is B" $ do
+            vote drepA (scheduled delegatingVotingAB) True
+                `shouldBe` Right (Vote drepA)
+
+        it "rejects B when last DelegatingVoting is B" $ do
+            vote drepB (scheduled delegatingVotingAB) True
+                `shouldBe` Left (W.ErrAlreadyVoted drepB)
+
+        it "returns VoteRegisteringKey without a stake key" $ do
+            vote drepA (scheduled votingAB) False
+                `shouldBe` Right (VoteRegisteringKey drepA)
+
+        it "rejects a same vote when stake key is unregistered" $ do
+            vote drepB (scheduled votingAB) False
+                `shouldBe` Left (W.ErrAlreadyVoted drepB)
+
+        it "voteRequestFor matches joinDRep on A -> B" $ do
+            let dlg = scheduled votingAB
+            WD.voteRequestFor drepA dlg
+                `shouldBe` VotedDifferently
+            vote drepA dlg True `shouldBe` Right (Vote drepA)
+            WD.voteRequestFor drepB dlg
+                `shouldBe` VotedSameAsBefore
+            vote drepB dlg True
+                `shouldBe` Left (W.ErrAlreadyVoted drepB)
+
+        it "agrees with last-scheduled-or-active arbitrarily"
+            $ property prop_joinDRepVotingActionEffective
+
+        it "voteRequestFor matches joinDRepVotingAction arbitrarily"
+            $ property prop_joinDRepParityWithVoteRequest
+
+        it "effectiveDelegationStatus is last next, else active"
+            $ property prop_effectiveDelegationStatus
   where
     pidA = PoolId "A"
     pidB = PoolId "B"
     pidUnknown = PoolId "unknown"
     knownPools = Set.fromList [pidA, pidB]
     noRetirementPlanned = Nothing
+    drepA =
+        FromDRepID
+            (DRepFromKeyHash (DRepKeyHash (BS.replicate 28 1)))
+    drepB =
+        FromDRepID
+            (DRepFromKeyHash (DRepKeyHash (BS.replicate 28 2)))
+    at epoch = WalletDelegationNext (EpochNo epoch)
+    scheduled statuses =
+        WalletDelegation NotDelegating (zipWith at [1 ..] statuses)
+    activeOnly status = WalletDelegation status []
+    votingAB = [Voting drepA, Voting drepB]
+    votingANoConfidence = [Voting drepA, Voting NoConfidence]
+    delegatingVotingAB =
+        [ DelegatingVoting pidA drepA
+        , DelegatingVoting pidB drepB
+        ]
+    supersededAToB =
+        WalletDelegation (Voting drepA) [at 1 (Voting drepB)]
+    supersededAToPool =
+        WalletDelegation (Voting drepA) [at 1 (Delegating pidA)]
+    supersededAToAbstain =
+        WalletDelegation (Voting drepA) [at 1 (Voting Abstain)]
+    vote = WD.joinDRepVotingAction Write.RecentEraConway
 
 {-------------------------------------------------------------------------------
                                     Properties
@@ -365,6 +465,72 @@ type GuardJoinFun =
 
 guardJoinConway :: GuardJoinFun
 guardJoinConway = WD.guardJoin Write.RecentEraConway
+
+-- Independent D1 oracle: last scheduled status wins, else active.
+prop_joinDRepVotingActionEffective
+    :: DRep -> WalletDelegation -> Bool -> Property
+prop_joinDRepVotingActionEffective target dlg registered =
+    checkCoverage
+        $ cover
+            5
+            historyMismatch
+            "history-matches-effective-differs"
+        $ WD.joinDRepVotingAction
+            Write.RecentEraConway
+            target
+            dlg
+            registered
+            === expected
+  where
+    expected
+        | statusDRep (effectiveStatus dlg) == Just target =
+            Left (W.ErrAlreadyVoted target)
+        | registered = Right (Vote target)
+        | otherwise = Right (VoteRegisteringKey target)
+    historyDreps = fmap statusDRep (historyStatuses dlg)
+    historyMismatch =
+        (Just target `elem` historyDreps)
+            && (statusDRep (effectiveStatus dlg) /= Just target)
+
+prop_joinDRepParityWithVoteRequest
+    :: DRep -> WalletDelegation -> Bool -> Property
+prop_joinDRepParityWithVoteRequest target dlg registered =
+    case (WD.voteRequestFor target dlg, action) of
+        (VotedSameAsBefore, Left (W.ErrAlreadyVoted drep)) ->
+            drep === target
+        (VotedDifferently, Right _) -> property True
+        _ -> property False
+  where
+    action =
+        WD.joinDRepVotingAction
+            Write.RecentEraConway
+            target
+            dlg
+            registered
+
+prop_effectiveDelegationStatus
+    :: WalletDelegation -> Property
+prop_effectiveDelegationStatus dlg =
+    WD.effectiveDelegationStatus dlg === effectiveStatus dlg
+
+effectiveStatus :: WalletDelegation -> WalletDelegationStatus
+effectiveStatus (WalletDelegation current scheduled) =
+    case reverse scheduled of
+        WalletDelegationNext _ status : _ -> status
+        [] -> current
+
+historyStatuses :: WalletDelegation -> [WalletDelegationStatus]
+historyStatuses (WalletDelegation current scheduled) =
+    current
+        : fmap
+            (\(WalletDelegationNext _ status) -> status)
+            scheduled
+
+statusDRep :: WalletDelegationStatus -> Maybe DRep
+statusDRep status = case status of
+    Voting drep -> Just drep
+    DelegatingVoting _ drep -> Just drep
+    _ -> Nothing
 
 {-------------------------------------------------------------------------------
                     Arbitrary instances
