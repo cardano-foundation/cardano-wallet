@@ -87,6 +87,7 @@ module Cardano.Wallet.Api.Link
     , decodeTransaction
     , submitTransaction
     , transactionContext
+    , dappWitnesses
 
       -- * StakePools
     , listStakePools
@@ -871,6 +872,15 @@ transactionContext
     => w
     -> (Method, Text)
 transactionContext w = endpoint @Api.PostTransactionContext (wid &)
+  where
+    wid = w ^. typed @(ApiT WalletId)
+
+dappWitnesses
+    :: forall w
+     . HasType (ApiT WalletId) w
+    => w
+    -> (Method, Text)
+dappWitnesses w = endpoint @Api.PostDappWitnesses (wid &)
   where
     wid = w ^. typed @(ApiT WalletId)
 

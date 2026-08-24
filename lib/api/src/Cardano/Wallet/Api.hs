@@ -61,6 +61,7 @@ module Cardano.Wallet.Api
     , DecodeTransaction
     , SubmitTransaction
     , PostTransactionContext
+    , PostDappWitnesses
     , StakePools
     , ListStakePools
     , JoinStakePool
@@ -250,6 +251,8 @@ import Cardano.Wallet.Api.Types.BlockHeader
 import Cardano.Wallet.Api.Types.Dapp.Context
     ( ApiDappTransactionContextRequest
     , ApiDappTransactionContextResponse
+    , ApiDappWitnessSignRequest
+    , ApiDappWitnessSignResponse
     , DappJSON
     )
 import Cardano.Wallet.Api.Types.Transaction
@@ -636,13 +639,20 @@ type ShelleyTransactions n =
         :<|> DecodeTransaction n
         :<|> SubmitTransaction
         :<|> PostTransactionContext
-
+        :<|> PostDappWitnesses
 type PostTransactionContext =
     "wallets"
         :> Capture "walletId" (ApiT WalletId)
         :> "transaction-context"
         :> ReqBody '[DappJSON] ApiDappTransactionContextRequest
         :> Post '[DappJSON] ApiDappTransactionContextResponse
+
+type PostDappWitnesses =
+    "wallets"
+        :> Capture "walletId" (ApiT WalletId)
+        :> "transaction-witnesses"
+        :> ReqBody '[DappJSON] ApiDappWitnessSignRequest
+        :> Post '[DappJSON] ApiDappWitnessSignResponse
 
 -- | https://cardano-foundation.github.io/cardano-wallet/api/#operation/constructTransaction
 type ConstructTransaction n =

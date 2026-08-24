@@ -76,6 +76,9 @@ import Cardano.Balance.Tx.SizeEstimation
     ( TxSkeleton (..)
     , estimateTxSize
     )
+import Cardano.Crypto.DSIGN
+    ( verifySignedDSIGN
+    )
 import Cardano.Crypto.Wallet.Types
     ( DerivationScheme (DerivationScheme2)
     )
@@ -98,9 +101,22 @@ import Cardano.Ledger.Api
     , bodyTxL
     , bootAddrTxWitsL
     , eraProtVerLow
+    , feeTxBodyL
     , hashScript
     , scriptTxWitsL
     , witsTxL
+    )
+import Cardano.Ledger.Hashes
+    ( EraIndependentTxBody
+    , HashAnnotated (hashAnnotated)
+    , extractHash
+    )
+import Cardano.Ledger.Keys
+    ( VKey (..)
+    , Witness
+    )
+import Cardano.Ledger.Keys.WitVKey
+    ( WitVKey (..)
     )
 import Cardano.Ledger.Api.Tx.Body
     ( mintTxBodyL
@@ -118,7 +134,9 @@ import Cardano.Mnemonic
 import Cardano.Wallet
     ( Fee (..)
     , Percentile (..)
+    , RootKeyAccess (..)
     , calculateFeePercentiles
+    , signDappWitnesses
     , signTransaction
     )
 import Cardano.Wallet.Address.Derivation
@@ -264,6 +282,8 @@ import Cardano.Wallet.Shelley.Transaction.Ledger
     , buildLedgerTxRaw
     , certificateFromDelegationActionLedger
     , mkByronWitnessLedger
+    , mkDappVKeyWitnessFromExtKeyMaterial
+    , mkDappVKeyWitnessLedger
     , mkShelleyWitnessFromExtKeyMaterial
     , mkShelleyWitnessLedger
     , noScriptWitnesses
@@ -475,6 +495,11 @@ spec = describe "TransactionSpec" $ do
             $ forAll
                 ((,) <$> genShelleyKeyAndPwd <*> arbitrary)
                 (\((key, pwd), ix) -> prop_v2DerivedWitnessMatchesV1 key pwd ix)
+    describe "DAPP_WITNESS_SIGNING" $ do
+        prop "V1 and V2 sign the exact original body with the same VKey witness"
+            $ forAll genShelleyKeyAndPwd (uncurry prop_dappVKeyWitnessesMatch)
+        prop "rejects candidate path/key-hash mismatches"
+            $ forAll genShelleyKeyAndPwd (uncurry prop_dappVKeyWitnessRejectsHashMismatch)
     describe "Sign transaction" $ do
         -- TODO [ADP-2849] The implementation must be restricted to work only in
         -- 'RecentEra's, not just the tests.
@@ -2607,3 +2632,76 @@ prop_v2DerivedWitnessMatchesV1 xprvKey encPwd ix =
                     . mkShelleyWitnessFromExtKeyMaterial RecentEraConway minimalConwayTxBody
         v2Wit <- either (error . show) pure witE
         pure $ v1Wit == v2Wit
+
+prop_dappVKeyWitnessesMatch
+    :: ShelleyKey 'RootK XPrv
+    -> Passphrase "encryption"
+    -> Property
+prop_dappVKeyWitnessesMatch xprvKey encPwd = ioProperty $ withFastKdfForTesting $ do
+    let rawXprv = getRawKey ShelleyKeyS xprvKey
+        plaintextXprv = CC.xPrvChangePass encPwd (mempty :: BS.ByteString) rawXprv
+        raw128 = CC.unXPrv plaintextXprv
+        masterKey96 = BS.take 64 raw128 <> BS.drop 96 raw128
+        expected =
+            mkDappVKeyWitnessLedger
+                RecentEraConway
+                minimalConwayTxBody
+                (plaintextXprv, mempty)
+    ekeyE <- encryptedCreateDirectWithTweak masterKey96 (mempty :: BS.ByteString)
+    case ekeyE of
+        Left _ -> pure False
+        Right ekey -> do
+            actual <- withDecryptedExtKeyMaterial ekey (mempty :: BS.ByteString) $ \km ->
+                fmap Right
+                    $ mkDappVKeyWitnessFromExtKeyMaterial
+                        RecentEraConway
+                        minimalConwayTxBody
+                        km
+            pure $ case (expected, actual) of
+                (Right v1, Right (Right v2)) ->
+                    v1 == v2
+                        && verifiesDappWitness minimalConwayTxBody v1
+                        && verifiesDappWitness minimalConwayTxBody v2
+                        && not (verifiesDappWitness wrongBody v1)
+                        && not (verifiesDappWitness wrongBody v2)
+                _ -> False
+  where
+    wrongBody = minimalConwayTxBody & feeTxBodyL .~ Ledger.Coin 1_000_001
+
+prop_dappVKeyWitnessRejectsHashMismatch
+    :: ShelleyKey 'RootK XPrv
+    -> Passphrase "encryption"
+    -> Property
+prop_dappVKeyWitnessRejectsHashMismatch xprvKey encPwd =
+    ioProperty $ do
+        let Passphrase bytes = encPwd
+            userPwd :: Passphrase "user"
+            userPwd = Passphrase bytes
+            encryptionPwd = preparePassphrase EncryptWithPBKDF2 userPwd
+            rootKey =
+                liftRawKey ShelleyKeyS
+                    $ CC.xPrvChangePass
+                        encPwd
+                        encryptionPwd
+                        (getRawKey ShelleyKeyS xprvKey)
+        result <-
+            signDappWitnesses
+                (RootKeyAccessV1 rootKey EncryptWithPBKDF2)
+                userPwd
+                minimalConwayTxBody
+                [ ([0x8000073c, 0x80000717, 0x80000000, 0, 0]
+                  , BS.replicate 28 0
+                  )
+                ]
+        pure $ result == Left "candidate key hash mismatch"
+
+verifiesDappWitness
+    :: Write.TxBody Write.Conway
+    -> WitVKey Witness
+    -> Bool
+verifiesDappWitness body (WitVKey (VKey vkey) signature) =
+    verifySignedDSIGN () vkey bodyHash signature == Right ()
+  where
+    bodyHash =
+        extractHash
+            $ hashAnnotated @_ @EraIndependentTxBody body

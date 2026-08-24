@@ -6,20 +6,33 @@
 module Main (main) where
 
 
+import Cardano.Wallet.Api.Http.Server.Error
+    ( dappServerError
+    )
+import Cardano.Wallet.Api.Lib.ApiT
+    ( ApiT (..)
+    )
 import Cardano.Wallet.Api.Types.Dapp.Context
-    ( ApiDappChainPoint (..)
+    ( ApiDappBatchOverlay (..)
+    , ApiDappChainPoint (..)
     , ApiDappContextNetwork (..)
     , ApiDappHex (..)
     , ApiDappCredentialKind (..)
     , ApiDappOwnershipKind (..)
     , ApiDappOwnership (..)
     , ApiDappOutpoint (..)
+    , ApiDappPendingOverlay (..)
     , ApiDappPendingState (..)
+    , ApiDappProtocolVersion (..)
     , ApiDappProvenance (..)
     , ApiDappProofKind (..)
     , ApiDappRequiredWalletProof (..)
     , ApiDappRole (..)
     , ApiDappTransactionContextRequest (..)
+    , ApiDappTransactionContextResponse (..)
+    , ApiDappVolatileDelta (..)
+    , ApiDappWitnessSignItem (..)
+    , ApiDappWitnessSignRequest (..)
     , ApiDappWord64 (..)
     , ContextDigestInput (..)
     , ContextRecord (..)
@@ -27,13 +40,17 @@ import Cardano.Wallet.Api.Types.Dapp.Context
     , canonicalContextRecords
     , computeContextDigest
     , decodeContextTokenClaims
+    , decodeDappWitnessSignRequest
+    , decodeDappWitnessSignResponse
     , decodeTransactionContextRequest
     , encodeContextRecord
     , encodeContextToken
     , validateContextToken
+    , validateDappWitnessBinding
     )
 import Cardano.Wallet.Api.Http.Shelley.TransactionContext
     ( DecodedTx (txId, valid)
+    , ProofInventory (..)
     , ProofObligation (DirectProofObligation, NativeProofObligation)
     , ProofObligationResult (..)
     , candidateOwnershipAssociations
@@ -41,6 +58,7 @@ import Cardano.Wallet.Api.Http.Shelley.TransactionContext
     , dependencySource
     , evaluateObligation
     , requiredProofs
+    , reviewedBatchComplete
     , scriptProofKinds
     , supportedCertificate
     , validatePendingProvenance
@@ -66,6 +84,15 @@ import Cardano.Ledger.Conway.TxCert
 import Cardano.Ledger.Credential
     ( Credential (KeyHashObj)
     )
+import Cardano.Wallet.Api.Types.Error
+    ( DappError (..)
+    )
+import Cardano.Wallet.Primitive.Passphrase
+    ( Passphrase (..)
+    )
+import Control.Monad
+    ( forM_
+    )
 import Data.ByteString
     ( ByteString
     )
@@ -74,6 +101,9 @@ import Data.Coerce
     )
 import Data.Text
     ( Text
+    )
+import Servant.Server
+    ( ServerError (errBody, errHTTPCode)
     )
 import Test.Hspec
     ( describe
@@ -84,9 +114,11 @@ import Test.Hspec
     )
 import Prelude
 
+import qualified Data.Aeson as Aeson
 import qualified Data.ByteArray.Encoding as BAE
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy.Char8 as BL8
+import qualified Data.Text as Text
 import qualified Data.Text.Encoding as T
 import qualified Data.Map.Strict as Map
 import qualified Data.Maybe.Strict as Strict
@@ -104,11 +136,131 @@ main = hspec $ do
                 (\request -> decodeRequest request `shouldSatisfy` isLeft)
                 invalidRequests
 
+        describe "DAPP_WITNESS_SIGNING request decoder" $ do
+            it "accepts the canonical request" $
+                decodeDappWitnessSignRequest (validWitnessRequest [witnessItem])
+                    `shouldSatisfy` isRight
+            forM_ invalidWitnessRequests $ \(label, request) ->
+                it ("rejects " <> label) $
+                    decodeDappWitnessSignRequest request `shouldSatisfy` isLeft
+
+        it "authenticates request bindings before any context conflict" $ do
+            let original = [ApiDappHex acceptedTransaction, ApiDappHex $ fixtureTransactions !! 1]
+                reviewedContext = validDappWitnessContext original
+                request = ApiDappTransactionContextRequest 1 dappNetwork original
+                alternateEnvelope = BS.init acceptedTransaction <> BS.singleton 0xa0
+                rejected =
+                    [ ( dappGeneration
+                      , request
+                      , tamperContextToken
+                            ( ApiDappHex
+                                $ BS.init
+                                $ getApiDappHex reviewedContext.contextToken
+                            )
+                            reviewedContext
+                      )
+                    , ( dappGeneration
+                      , request
+                      , tamperContextWallet (dappWalletId <> "b") reviewedContext
+                      )
+                    , ( dappGeneration
+                      , request
+                      , tamperContextNetwork
+                            (ApiDappContextNetwork 1 1 (ApiDappHex $ BS.replicate 32 0))
+                            reviewedContext
+                      )
+                    , (BS.replicate 16 0x99, request, reviewedContext)
+                    , ( dappGeneration
+                      , tamperContextRequestTransactions (reverse original) request
+                      , reviewedContext
+                      )
+                    , ( dappGeneration
+                      , tamperContextRequestTransactions
+                            (ApiDappHex alternateEnvelope : drop 1 original)
+                            request
+                      , reviewedContext
+                      )
+                    ]
+            validateDappWitnessBinding
+                dappNetwork
+                key
+                dappGeneration
+                dappWalletId
+                request
+                reviewedContext
+                `shouldBe` Right ()
+            forM_ rejected $ \(generation, boundRequest, boundContext) ->
+                validateDappWitnessBinding
+                    dappNetwork
+                    key
+                    generation
+                    dappWalletId
+                    boundRequest
+                    boundContext
+                    `shouldBe` Left InvalidDappRequest
+
+        it "serializes fixed redacted dapp witness errors" $ do
+            let errors =
+                    [ (InvalidDappRequest, 400)
+                    , (DappContextConflictError, 400)
+                    , (DappTxProofGenerationError, 403)
+                    , (DappInternalErrorResponse, 500)
+                    ]
+                secrets =
+                    [ "84a30081825820"
+                    , "cbor"
+                    , "token"
+                    , "key"
+                    , "hash"
+                    , "000102030405060708090a0b0c0d0e0f"
+                    , "1852/1815/0/0/0"
+                    , "path"
+                    , "passphrase"
+                    , "exception"
+                    ]
+            forM_ errors $ \(dappError, status) -> do
+                let serverError = dappServerError dappError
+                    body = BL8.toStrict serverError.errBody
+                serverError.errHTTPCode `shouldBe` status
+                forM_ secrets $ \secret ->
+                    body `shouldSatisfy` not . BS.isInfixOf secret
+
+
+        it "strictly validates witness-only response ordering and shape" $ do
+            decodeDappWitnessSignResponse
+                "{\"revision\":1,\"witnesses\":[{\"transaction_index\":0,\"body_hash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"witness_set_cbor\":\"a0\"}]}"
+                `shouldSatisfy` isRight
+            mapM_
+                (\response -> decodeDappWitnessSignResponse response `shouldSatisfy` isLeft)
+                [ "{\"revision\":1,\"witnesses\":[{\"transaction_index\":1,\"body_hash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"witness_set_cbor\":\"a0\"}]}"
+                , "{\"revision\":1,\"witnesses\":[{\"transaction_index\":0,\"body_hash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"witness_set_cbor\":\"a0\",\"transaction\":\"84\"}]}"
+                ]
         it "decodes the exact accepted and rejected validity boundary" $ do
             fmap (.valid) (decodeTx $ ApiDappHex acceptedTransaction)
                 `shouldBe` Right True
             fmap (.valid) (decodeTx $ ApiDappHex rejectedTransaction)
                 `shouldBe` Right False
+
+        describe "DAPP_WITNESS_SIGNING" $ do
+            it "accepts collateral-only and explicit required-signer proofs" $ do
+                let collateral = evaluateObligation mempty (Set.singleton proofHash)
+                        $ DirectProofObligation 0 CollateralProof proofHash
+                    requiredSignerProof = evaluateObligation mempty (Set.singleton proofHash)
+                        $ DirectProofObligation 1 RequiredSignerProof proofHash
+                collateral.satisfied `shouldBe` True
+                requiredSignerProof.satisfied `shouldBe` True
+
+            it "permits incomplete partial items but rejects an atomic batch failure" $ do
+                let inventory = ProofInventory
+                        []
+                        mempty
+                        []
+                        []
+                        (Map.fromList [(0, True), (1, False)])
+                        []
+                        []
+                reviewedBatchComplete [True, True] inventory `shouldBe` True
+                reviewedBatchComplete [True, False] inventory `shouldBe` False
 
         it "rejects unequal envelopes with the same transaction id" $ do
             let alternateEnvelope =
@@ -158,8 +310,28 @@ main = hspec $ do
                 `shouldBe` Right False
             fmap (validateContextToken (BS.replicate 32 0x54) tokenClaims) encoded
                 `shouldBe` Right False
-            fmap (validateContextToken key changedClaims) encoded
-                `shouldBe` Right False
+            mapM_
+                (\claims -> fmap (validateContextToken key claims) encoded `shouldBe` Right False)
+                [ changedClaims
+                , ContextTokenClaims
+                    (BS.replicate 16 0x44)
+                    1
+                    "other-wallet"
+                    (BS.replicate 32 0x01)
+                    digestGolden
+                , ContextTokenClaims
+                    (BS.replicate 16 0x44)
+                    1
+                    "wallet-test"
+                    (BS.replicate 32 0x02)
+                    digestGolden
+                , ContextTokenClaims
+                    (BS.replicate 16 0x44)
+                    1
+                    "wallet-test"
+                    (BS.replicate 32 0x01)
+                    (BS.replicate 32 0x03)
+                ]
             decodeContextTokenClaims (BS.drop 1 tokenGolden)
                 `shouldSatisfy` isLeft
 
@@ -274,6 +446,156 @@ invalidRequests =
     , "{\"revision\":1,\"network\":{\"network_id\":0,\"network_magic\":1,\"genesis_hash\":\"0000000000000000000000000000000000000000000000000000000000000000\"},\"transactions\":[\"84A0A0F5F6\"]}"
     , "{\"revision\":1,\"network\":{\"network_id\":0,\"network_magic\":1,\"genesis_hash\":\"0000000000000000000000000000000000000000000000000000000000000000\"},\"transactions\":[],\"inputs\":[]}"
     ]
+
+invalidWitnessRequests :: [(String, BL8.ByteString)]
+invalidWitnessRequests =
+    [ ("an unknown field", BL8.init base <> ",\"unexpected\":true}")
+    , ("a duplicate field", "{\"revision\":1," <> BL8.tail base)
+    , ("an empty batch", validWitnessRequest [])
+    , ("a 51-item batch", validWitnessRequest $ replicate 51 witnessItem)
+    , ( "a transaction CBOR value over 64 KiB"
+      , validWitnessRequest
+            [ApiDappWitnessSignItem (ApiDappHex $ BS.replicate 65537 0) True]
+      )
+    ]
+  where
+    base = validWitnessRequest [witnessItem]
+
+validWitnessRequest :: [ApiDappWitnessSignItem] -> BL8.ByteString
+validWitnessRequest items =
+    Aeson.encode
+        $ ApiDappWitnessSignRequest
+            1
+            (validDappWitnessContext [ApiDappHex acceptedTransaction])
+            items
+            (ApiT $ Passphrase "test")
+
+witnessItem :: ApiDappWitnessSignItem
+witnessItem = ApiDappWitnessSignItem (ApiDappHex "\xa0") True
+
+dappWalletId :: Text
+dappWalletId = Text.replicate 40 "a"
+
+dappNetwork :: ApiDappContextNetwork
+dappNetwork = ApiDappContextNetwork 0 1 (ApiDappHex $ BS.replicate 32 0)
+
+dappGeneration :: ByteString
+dappGeneration = BS.replicate 16 0x44
+
+validDappWitnessContext
+    :: [ApiDappHex]
+    -> ApiDappTransactionContextResponse
+validDappWitnessContext requestedTransactions =
+    ApiDappTransactionContextResponse
+        1
+        dappWalletId
+        dappNetwork
+        ApiDappChainPointGenesis
+        (ApiDappWord64 0)
+        (ApiDappWord64 0)
+        "conway"
+        (ApiDappProtocolVersion 0 0)
+        (ApiDappHex "\xa0")
+        (ApiDappVolatileDelta ApiDappChainPointGenesis [])
+        []
+        (ApiDappPendingOverlay [] [] [])
+        []
+        []
+        (ApiDappBatchOverlay [] [])
+        (ApiDappHex <$> encodedRecords)
+        (ApiDappHex digest)
+        (ApiDappHex token)
+  where
+    recordValues = [ProtocolRecord 0 1 0 0 "\xa0"]
+    encodedRecords = either error id $ canonicalContextRecords recordValues
+    digest =
+        either error id
+            $ computeContextDigest
+            $ ContextDigestInput
+                (T.encodeUtf8 dappWalletId)
+                (BS.replicate 32 0)
+                ApiDappChainPointGenesis
+                0
+                0
+                (getApiDappHex <$> requestedTransactions)
+                recordValues
+    token =
+        either error id
+            $ encodeContextToken
+                key
+                (ContextTokenClaims dappGeneration 1 (T.encodeUtf8 dappWalletId) (BS.replicate 32 0) digest)
+
+tamperContextToken
+    :: ApiDappHex
+    -> ApiDappTransactionContextResponse
+    -> ApiDappTransactionContextResponse
+tamperContextToken token response = response{contextToken = token}
+
+mapDappBindings
+    :: (Text -> Text)
+    -> (ApiDappContextNetwork -> ApiDappContextNetwork)
+    -> ApiDappTransactionContextResponse
+    -> ApiDappTransactionContextResponse
+mapDappBindings alterWallet alterNetwork
+    ( ApiDappTransactionContextResponse
+        oldRevision
+        currentWallet
+        currentNetwork
+        oldChainPoint
+        oldWalletGeneration
+        oldPendingGeneration
+        oldEra
+        oldProtocolVersion
+        oldProtocolParametersCbor
+        oldVolatileDelta
+        oldOutputs
+        oldPendingOverlay
+        oldOwnership
+        oldRequiredWalletProofs
+        oldBatchOverlay
+        oldRecords
+        oldContextDigest
+        oldContextToken
+    ) =
+        ApiDappTransactionContextResponse
+            oldRevision
+            (alterWallet currentWallet)
+            (alterNetwork currentNetwork)
+            oldChainPoint
+            oldWalletGeneration
+            oldPendingGeneration
+            oldEra
+            oldProtocolVersion
+            oldProtocolParametersCbor
+            oldVolatileDelta
+            oldOutputs
+            oldPendingOverlay
+            oldOwnership
+            oldRequiredWalletProofs
+            oldBatchOverlay
+            oldRecords
+            oldContextDigest
+            oldContextToken
+
+tamperContextWallet
+    :: Text
+    -> ApiDappTransactionContextResponse
+    -> ApiDappTransactionContextResponse
+tamperContextWallet newWallet = mapDappBindings (const newWallet) id
+
+tamperContextNetwork
+    :: ApiDappContextNetwork
+    -> ApiDappTransactionContextResponse
+    -> ApiDappTransactionContextResponse
+tamperContextNetwork newNetwork = mapDappBindings id (const newNetwork)
+
+tamperContextRequestTransactions
+    :: [ApiDappHex]
+    -> ApiDappTransactionContextRequest
+    -> ApiDappTransactionContextRequest
+tamperContextRequestTransactions newTransactions
+    (ApiDappTransactionContextRequest oldRevision oldNetwork _) =
+        ApiDappTransactionContextRequest oldRevision oldNetwork newTransactions
 
 proofHash :: ByteString
 proofHash = BS.replicate 28 0x42

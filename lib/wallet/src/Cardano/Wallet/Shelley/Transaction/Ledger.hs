@@ -30,7 +30,9 @@ module Cardano.Wallet.Shelley.Transaction.Ledger
       -- * Signing
     , signTransaction
     , mkShelleyWitnessLedger
+    , mkDappVKeyWitnessLedger
     , mkShelleyWitnessFromExtKeyMaterial
+    , mkDappVKeyWitnessFromExtKeyMaterial
     , mkByronWitnessLedger
 
       -- * Payload
@@ -158,6 +160,9 @@ import Cardano.Wallet.Transaction
     , TransactionCtx (..)
     , WitnessCountCtx (..)
     , selectionDelta
+    )
+import Data.Bifunctor
+    ( first
     )
 import Data.Generics.Internal.VL.Lens
     ( view
@@ -321,40 +326,39 @@ mkShelleyWitnessLedger
     -> Write.TxBody era
     -> (XPrv, Passphrase "encryption")
     -> Keys.WitVKey Keys.Witness
-mkShelleyWitnessLedger _era body (xprv, pwd) =
-    WitVKey vkey sig
-  where
-    xprv' =
-        Crypto.HD.xPrvChangePass pwd BS.empty xprv
-    bodyHash =
-        hashToBytes
-            $ extractHash
-            $ hashAnnotated @_ @EraIndependentTxBody body
-    xsig =
-        Crypto.HD.sign
-            (BS.empty :: BS.ByteString)
-            xprv'
-            bodyHash
-    vkey =
-        case rawDeserialiseVerKeyDSIGN
-            (Crypto.HD.xpubPublicKey $ toXPub xprv') of
-            Just vk -> VKey vk
-            Nothing ->
-                error
-                    "mkShelleyWitnessLedger: \
-                    \invalid public key"
-    sig =
-        case rawDeserialiseSigDSIGN
-            (Crypto.HD.unXSignature xsig) of
-            Just s -> SignedDSIGN s
-            Nothing ->
-                error
-                    "mkShelleyWitnessLedger: \
-                    \invalid signature"
+mkShelleyWitnessLedger era body key =
+    either (error . ("mkShelleyWitnessLedger: " <>)) id
+        $ mkDappVKeyWitnessLedger era body key
+
+mkDappVKeyWitnessLedger
+    :: forall era
+     . Write.IsRecentEra era
+    => RecentEra era
+    -> Write.TxBody era
+    -> (XPrv, Passphrase "encryption")
+    -> Either String (Keys.WitVKey Keys.Witness)
+mkDappVKeyWitnessLedger _era body (xprv, pwd) = do
+    let xprv' =
+            Crypto.HD.xPrvChangePass pwd BS.empty xprv
+        bodyHash =
+            hashToBytes
+                $ extractHash
+                $ hashAnnotated @_ @EraIndependentTxBody body
+        xsig =
+            Crypto.HD.sign
+                (BS.empty :: BS.ByteString)
+                xprv'
+                bodyHash
+    vkey <- maybe (Left "invalid public key") (Right . VKey)
+        $ rawDeserialiseVerKeyDSIGN
+        $ Crypto.HD.xpubPublicKey
+        $ toXPub xprv'
+    sig <- maybe (Left "invalid signature") (Right . SignedDSIGN)
+        $ rawDeserialiseSigDSIGN
+        $ Crypto.HD.unXSignature xsig
+    pure $ WitVKey vkey sig
 
 -- | Construct a Shelley-era key witness from a V2 'ExtKeyMaterial'.
--- Hashes the transaction body, calls 'signWithExtKeyMaterial', and
--- assembles a 'WitVKey' from the resulting signature and public key.
 mkShelleyWitnessFromExtKeyMaterial
     :: forall era s
      . Write.IsRecentEra era
@@ -362,30 +366,32 @@ mkShelleyWitnessFromExtKeyMaterial
     -> Write.TxBody era
     -> ExtKeyMaterial s Validated
     -> IO (Keys.WitVKey Keys.Witness)
-mkShelleyWitnessFromExtKeyMaterial _era body km = do
+mkShelleyWitnessFromExtKeyMaterial era body km = do
+    result <- mkDappVKeyWitnessFromExtKeyMaterial era body km
+    either (error . ("mkShelleyWitnessFromExtKeyMaterial: " <>)) pure result
+
+mkDappVKeyWitnessFromExtKeyMaterial
+    :: forall era s
+     . Write.IsRecentEra era
+    => RecentEra era
+    -> Write.TxBody era
+    -> ExtKeyMaterial s Validated
+    -> IO (Either String (Keys.WitVKey Keys.Witness))
+mkDappVKeyWitnessFromExtKeyMaterial _era body km = do
     let bodyHash =
             hashToBytes
                 $ extractHash
                 $ hashAnnotated @_ @EraIndependentTxBody body
     sigResult <- signWithExtKeyMaterial km bodyHash
-    case sigResult of
-        Left err ->
-            error $ "mkShelleyWitnessFromExtKeyMaterial: " <> show err
-        Right (EncHD.Signature sigBytes) ->
-            let pubBytes = publicKeyByteString (extKeyMaterialPublicKey km)
-                vkey = case rawDeserialiseVerKeyDSIGN pubBytes of
-                    Just vk -> VKey vk
-                    Nothing ->
-                        error
-                            "mkShelleyWitnessFromExtKeyMaterial: \
-                            \invalid public key"
-                sig = case rawDeserialiseSigDSIGN sigBytes of
-                    Just s -> SignedDSIGN s
-                    Nothing ->
-                        error
-                            "mkShelleyWitnessFromExtKeyMaterial: \
-                            \invalid signature"
-            in  pure $ WitVKey vkey sig
+    pure $ do
+        EncHD.Signature sigBytes <- first show sigResult
+        vkey <- maybe (Left "invalid public key") (Right . VKey)
+            $ rawDeserialiseVerKeyDSIGN
+            $ publicKeyByteString
+            $ extKeyMaterialPublicKey km
+        sig <- maybe (Left "invalid signature") (Right . SignedDSIGN)
+            $ rawDeserialiseSigDSIGN sigBytes
+        pure $ WitVKey vkey sig
 
 -- | Construct a Byron bootstrap witness directly from
 -- ledger types, bypassing cardano-api.

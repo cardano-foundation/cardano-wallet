@@ -12,6 +12,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -100,6 +101,7 @@ module Cardano.Wallet.Api.Http.Shelley.Server
     , decodeTransaction
     , submitTransaction
     , postTransactionContext
+    , postDappWitnesses
     , getPolicyKey
     , postPolicyKey
     , postPolicyId
@@ -181,6 +183,13 @@ import Cardano.Ledger.Binary
     , serialize'
     , shelleyProtVer
     )
+import Cardano.Ledger.Api
+    ( ConwayEra
+    )
+import Cardano.Ledger.Conway.TxWits
+    ( AlonzoTxWits
+    )
+import qualified Cardano.Ledger.Core as Ledger
 import Cardano.Mnemonic
     ( SomeMnemonic
     )
@@ -349,7 +358,15 @@ import Cardano.Wallet.Api.Http.Server.Handlers.TxCBOR
     , parseTxCBOR
     )
 import Cardano.Wallet.Api.Http.Shelley.TransactionContext
-    ( resolveTransactionContext
+    ( DecodedTx (..)
+    , ProofInventory (..)
+    , ProducibleCandidate (..)
+    , buildReviewedProofInventory
+    , configuredNetwork
+    , decodeDappTx
+    , resolveTransactionContext
+    , reviewedBatchComplete
+    , validateTransactionContextResponseForRequest
     )
 import Cardano.Wallet.Api.Types
     ( AccountPostData (..)
@@ -492,8 +509,14 @@ import Cardano.Wallet.Api.Types.Certificate
     , mkApiAnyCertificate
     )
 import Cardano.Wallet.Api.Types.Dapp.Context
-    ( ApiDappTransactionContextRequest
-    , ApiDappTransactionContextResponse
+    ( ApiDappHex (..)
+    , ApiDappTransactionContextRequest (..)
+    , ApiDappTransactionContextResponse (..)
+    , ApiDappWitnessResult (..)
+    , ApiDappWitnessSignItem (..)
+    , ApiDappWitnessSignRequest (..)
+    , ApiDappWitnessSignResponse (..)
+    , validateDappWitnessBinding
     )
 import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..)
@@ -940,7 +963,6 @@ import qualified Cardano.Balance.Tx.Tx as Write
     , utxoFromTxOutsInRecentEra
     , pattern PolicyId
     )
-import qualified Cardano.Ledger.Address as Ledger
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.Address.Derivation.Byron as Byron
 import qualified Cardano.Wallet.Address.Derivation.Icarus as Icarus
@@ -5878,6 +5900,82 @@ postTransactionContext ctx wid@(ApiT walletId) request =
                     | otherwise -> throwDapp DappInternalErrorResponse
                 Right resolved -> either throwDapp pure resolved
   where
+    throwDapp = Handler . throwE . dappServerError
+
+postDappWitnesses
+    :: forall n
+     . HasSNetworkId n
+    => ApiLayer (SeqState n ShelleyKey)
+    -> ApiT WalletId
+    -> ApiDappWitnessSignRequest
+    -> Handler ApiDappWitnessSignResponse
+postDappWitnesses ctx (ApiT walletId) request = do
+    (transactions, inventory) <- either throwDapp pure preflight
+    withWorkerCtx
+        ctx
+        walletId
+        (const $ throwDapp DappAccountChangedError)
+        (const $ throwDapp DappContextUnavailableError)
+        $ \worker -> do
+            result <- liftIO $ runExceptT $ do
+                let db = worker ^. W.dbLayer @IO @(SeqState n ShelleyKey)
+                    pwd = coerce $ getApiT request.passphrase
+                W.withRootKey @(SeqState n ShelleyKey)
+                    nullTracer
+                    db
+                    walletId
+                    pwd
+                    (const DappTxProofGenerationError)
+                    $ \root -> do
+                        staged <- traverse (signOne inventory root pwd) $ zip [0 :: Word32 ..] transactions
+                        pure $ ApiDappWitnessSignResponse 1 staged
+            either throwDapp pure result
+  where
+    preflight = do
+        let contextRequest =
+                ApiDappTransactionContextRequest
+                    1
+                    request.context.network
+                    (map (.cbor) request.transactions)
+        expectedNetwork <- configuredNetwork @n ctx
+        validateDappWitnessBinding
+            expectedNetwork
+            ctx.dappHmacKey
+            ctx.dappProcessGeneration
+            (toText walletId)
+            contextRequest
+            request.context
+        transactions <- first (const InvalidDappRequest) $ mapM decodeDappTx contextRequest.transactions
+        first (const DappContextConflictError)
+            $ validateTransactionContextResponseForRequest contextRequest request.context
+        inventory <- buildReviewedProofInventory transactions request.context
+        if reviewedBatchComplete (map (.partialSign) request.transactions) inventory
+            then Right (transactions, inventory)
+            else Left DappTxProofGenerationError
+
+    signOne inventory root pwd (index, DecodedTx{transaction = Read.Tx ledgerTx, txId}) = do
+        let candidates =
+                [ (candidatePath, candidateKeyHash)
+                | ProducibleCandidate
+                    { candidateTransactionIndex
+                    , candidatePath
+                    , candidateKeyHash
+                    } <- inventory.producibleCandidates
+                , candidateTransactionIndex == index
+                , candidateKeyHash `Set.notMember`
+                    Map.findWithDefault mempty index inventory.existingWitnesses
+                ]
+        witnesses <- liftIO (W.signDappWitnesses root pwd (ledgerTx ^. Ledger.bodyTxL) candidates)
+            >>= either (const $ throwE DappTxProofGenerationError) pure
+        pure $ ApiDappWitnessResult
+            index
+            (ApiDappHex txId)
+            ( ApiDappHex
+                $ serialize' shelleyProtVer
+                $ (mempty :: AlonzoTxWits ConwayEra)
+                    & Ledger.addrTxWitsL .~ Set.fromList witnesses
+            )
+
     throwDapp = Handler . throwE . dappServerError
 
 {-------------------------------------------------------------------------------

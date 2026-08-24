@@ -4712,6 +4712,45 @@ components:
         context_digest: { type: string, pattern: '^[0-9a-f]{64}$' }
         context_token: *ApiDappNonEmptyHex
 
+    ApiDappWitnessSignRequest: &ApiDappWitnessSignRequest
+      type: object
+      additionalProperties: false
+      required: [revision, context, transactions, passphrase]
+      properties:
+        revision: { type: integer, enum: [1] }
+        context: *ApiDappTransactionContextResponse
+        transactions:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items:
+            type: object
+            additionalProperties: false
+            required: [cbor, partial_sign]
+            properties:
+              cbor: { type: string, pattern: '^(?:[0-9a-f]{2}){1,65536}$' }
+              partial_sign: { type: boolean }
+        passphrase: *lenientPassphrase
+
+    ApiDappWitnessSignResponse: &ApiDappWitnessSignResponse
+      type: object
+      additionalProperties: false
+      required: [revision, witnesses]
+      properties:
+        revision: { type: integer, enum: [1] }
+        witnesses:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items:
+            type: object
+            additionalProperties: false
+            required: [transaction_index, body_hash, witness_set_cbor]
+            properties:
+              transaction_index: { type: integer, minimum: 0, maximum: 49 }
+              body_hash: { type: string, pattern: '^[0-9a-f]{64}$' }
+              witness_set_cbor: *ApiDappNonEmptyHex
+
     ApiBlockHeader: &ApiBlockHeader
         description: |
           A Block Header.
@@ -7524,6 +7563,41 @@ x-responsesDappTransactionContext: &responsesDappTransactionContext
       application/json:
         schema: *errDappInternalError
 
+x-responsesDappWitnesses: &responsesDappWitnesses
+  200:
+    description: Fresh Shelley VKey witnesses for the reviewed transaction vector.
+    content:
+      application/json:
+        schema: *ApiDappWitnessSignResponse
+  400:
+    description: Invalid reviewed request or context binding.
+    content:
+      application/json:
+        schema:
+          oneOf:
+            - *errDappInvalidRequest
+            - *errDappContextConflict
+  403:
+    description: A required wallet proof cannot be generated.
+    content:
+      application/json:
+        schema: *errDappTxProofGeneration
+  409:
+    description: Wallet or configured network changed.
+    content:
+      application/json:
+        schema: *errDappAccountChanged
+  503:
+    description: Authenticated context material is unavailable.
+    content:
+      application/json:
+        schema: *errDappContextUnavailable
+  500:
+    description: Internal reviewed-signing failure.
+    content:
+      application/json:
+        schema: *errDappInternalError
+
 x-responsesBalanceTransaction: &responsesBalanceTransaction
   400:
     description: Bad Request
@@ -8525,6 +8599,24 @@ paths:
           application/json:
             schema: *ApiDappTransactionContextRequest
       responses: *responsesDappTransactionContext
+
+  /wallets/{walletId}/transaction-witnesses:
+    post:
+      operationId: postDappWitnesses
+      tags: ["Transactions New"]
+      summary: Sign reviewed transactions with fresh VKey witnesses
+      description: |
+        Revalidates an authenticated Conway transaction context and returns only
+        fresh VKey witness-set CBOR. The route does not activate any dApp
+        capability and never returns a transaction envelope.
+      parameters:
+        - *parametersWalletId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiDappWitnessSignRequest
+      responses: *responsesDappWitnesses
 
   /byron-wallets:
     post:

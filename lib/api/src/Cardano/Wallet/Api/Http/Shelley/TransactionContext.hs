@@ -20,16 +20,20 @@ module Cardano.Wallet.Api.Http.Shelley.TransactionContext
     , contextSets
     , decodeTx
     , resolveOutput
+    , decodeDappTx
     , resolveTransactionContext
     , validateTransactionContextResponseForRequest
     , validVKeyWitnessHashes
     , buildProofInventory
+    , buildReviewedProofInventory
     , candidateOwnershipAssociations
     , requiredProofs
     , scriptProofKinds
     , supportedCertificate
     , dependencySource
     , evaluateObligation
+    , configuredNetwork
+    , reviewedBatchComplete
     , validatePendingProvenance
     ) where
 
@@ -120,6 +124,7 @@ import Cardano.Ledger.Hashes
     )
 import Cardano.Ledger.Binary
     ( getVersion
+    , DecoderError
     , serialize'
     , shelleyProtVer
     )
@@ -129,6 +134,7 @@ import Cardano.Read.Ledger.Tx.CBOR
     )
 import Cardano.Read.Ledger.Tx.Output
     ( Output (Output)
+    , deserializeOutput
     )
 import Cardano.Read.Ledger.Tx.ReferenceInputs
     ( ReferenceInputs (ReferenceInputs)
@@ -325,7 +331,6 @@ data ProducibleCandidate = ProducibleCandidate
     { candidateTransactionIndex :: !Word32
     , candidateCredentialKind :: !ApiDappCredentialKind
     , candidatePath :: ![Word32]
-    , candidatePublicKey :: !ByteString
     , candidateKeyHash :: !ByteString
     }
     deriving (Eq, Ord, Show)
@@ -464,6 +469,9 @@ decodeTx (ApiDappHex bytes) = do
         Read.IsValidC valid = Read.getScriptValidity transaction
     pure
         DecodedTx{bytes, transaction, txId, normal, collateral, reference, outputs, expiry, valid}
+
+decodeDappTx :: ApiDappHex -> Either String DecodedTx
+decodeDappTx = decodeTx
 
 noNormalCollateralOverlap :: DecodedTx -> Bool
 noNormalCollateralOverlap DecodedTx{normal, collateral} = Set.disjoint normal collateral
@@ -774,30 +782,81 @@ buildProofInventory configured discovery requested resolved = do
     let obligations = directObligations <> nativeObligations
     candidates <- mapM (uncurry $ candidateFromOwnership discovery)
         $ candidateOwnershipAssociations obligations ownership
-    let
-        existing = Map.fromList
-            [(index, validVKeyWitnessHashes tx.transaction) | (index, tx) <- zip [0 :: Word32 ..] requested]
-        producible = Map.fromListWith (<>)
-            [ (candidate.candidateTransactionIndex, Set.singleton candidate.candidateKeyHash)
-            | candidate <- candidates
+    proofInventory requested obligations candidates ownership
+
+buildReviewedProofInventory
+    :: [DecodedTx]
+    -> ApiDappTransactionContextResponse
+    -> Either DappError ProofInventory
+buildReviewedProofInventory requested response = do
+    resolved <- mapM decodeContextOutput response.outputs
+    directObligations <- directProofObligations requested resolved
+    nativeObligations <- reviewedNativeProofObligations requested resolved
+    let obligations = directObligations <> nativeObligations
+        candidates =
+            [ ProducibleCandidate
+                transactionIndex
+                credentialKind
+                derivationPath
+                credential
+            | (transactionIndex, ApiDappOwnership
+                { credentialKind
+                , credential = ApiDappHex credential
+                , derivationPath
+                }) <-
+                    candidateOwnershipAssociations obligations response.ownership
             ]
-        results = (\obligation -> evaluateObligation existing
-            (Map.findWithDefault mempty (obligationTransactionIndex obligation) producible)
-            obligation) <$> obligations
-        aggregate = Map.unionWith (&&)
-            (Map.fromList [(index, True) | (index, _) <- zip [0 :: Word32 ..] requested])
-            (Map.fromListWith (&&)
-                [(obligationTransactionIndex result.obligation, result.satisfied) | result <- results])
-        requiredWalletProofs = requiredProofs ownership results
+    proofInventory requested obligations (Set.toList $ Set.fromList candidates)
+        response.ownership
+  where
+    decodeContextOutput value@ApiDappContextOutput
+        { sourceTransactionOutputCbor = ApiDappHex source
+        } = do
+            output <-
+                first (const DappInternalErrorResponse)
+                    ( deserializeOutput (BL.fromStrict source)
+                        :: Either DecoderError (Output Read.Conway)
+                    )
+            pure ("", value, output)
+
+proofInventory
+    :: [DecodedTx]
+    -> [ProofObligation]
+    -> [ProducibleCandidate]
+    -> [ApiDappOwnership]
+    -> Either DappError ProofInventory
+proofInventory requested obligations candidates ownership =
     pure ProofInventory
         { proofObligations = obligations
         , existingWitnesses = existing
-        , producibleCandidates = Set.toList $ Set.fromList candidates
+        , producibleCandidates = candidates
         , perObligationResults = results
         , aggregateSatisfaction = aggregate
         , ownershipEvidence = ownership
-        , requiredProofEvidence = requiredWalletProofs
+        , requiredProofEvidence = requiredProofs ownership results
         }
+  where
+    existing = Map.fromList
+        [(index, validVKeyWitnessHashes tx.transaction) | (index, tx) <- zip [0 :: Word32 ..] requested]
+    producible = Map.fromListWith (<>)
+        [ (candidate.candidateTransactionIndex, Set.singleton candidate.candidateKeyHash)
+        | candidate <- candidates
+        ]
+    results = (\obligation -> evaluateObligation existing
+        (Map.findWithDefault mempty (obligationTransactionIndex obligation) producible)
+        obligation) <$> obligations
+    aggregate = Map.unionWith (&&)
+        (Map.fromList [(index, True) | (index, _) <- zip [0 :: Word32 ..] requested])
+        (Map.fromListWith (&&)
+            [(obligationTransactionIndex result.obligation, result.satisfied) | result <- results])
+
+reviewedBatchComplete :: [Bool] -> ProofInventory -> Bool
+reviewedBatchComplete partialSigns inventory =
+    and
+        [ partialSign
+            || Map.findWithDefault False index inventory.aggregateSatisfaction
+        | (index, partialSign) <- zip [0 :: Word32 ..] partialSigns
+        ]
 
 candidateOwnershipAssociations
     :: [ProofObligation]
@@ -837,7 +896,7 @@ candidateFromOwnership discovery transactionIndex ApiDappOwnership{credentialKin
             maybe (Left DappInternalErrorResponse) (pure . childPublicKey) $ Seq.policyXPub discovery
         _ -> Left DappInternalErrorResponse
     requireEither DappInternalErrorResponse $ blake2b224 publicKey == keyHash
-    pure $ ProducibleCandidate transactionIndex credentialKind derivationPath publicKey keyHash
+    pure $ ProducibleCandidate transactionIndex credentialKind derivationPath keyHash
   where
     Seq.DerivationPrefix (_, _, account) = Seq.derivationPrefix discovery
     stakePath = map getDerivationIndex $ NE.toList $ stakeDerivationPath $ Seq.derivationPrefix discovery
@@ -1102,6 +1161,44 @@ timelockKeys script
     | Just scripts <- getRequireAnyOfTimelock script = Set.unions $ timelockKeys <$> toList scripts
     | Just (_, scripts) <- getRequireMOfTimelock script = Set.unions $ timelockKeys <$> toList scripts
     | otherwise = mempty
+
+reviewedNativeProofObligations
+    :: [DecodedTx]
+    -> [(ByteString, ApiDappContextOutput, Output Read.Conway)]
+    -> Either DappError [ProofObligation]
+reviewedNativeProofObligations requested resolved =
+    fmap concat $ mapM perTransaction $ zip [0 :: Word32 ..] requested
+  where
+    outputs = Map.fromList [(value.outpoint, output) | (_, value, output) <- resolved]
+    perTransaction
+        (transactionIndex, DecodedTx{transaction = Read.Tx ledgerTx, normal, collateral, reference}) = do
+            referenceScriptMap <- Map.fromList . concat <$> mapM referenceScripts (Set.toList reference)
+            let scriptMap = Map.union (ledgerTx ^. witsTxL . scriptTxWitsL) referenceScriptMap
+                mintScripts =
+                    [ (PolicyProof, hash)
+                    | PolicyID hash <- Set.toList $ policies $ ledgerTx ^. bodyTxL . mintTxBodyL
+                    ]
+            spendingScripts <- fmap catMaybes $ mapM spendingScript $ Set.toList $ normal <> collateral
+            fmap catMaybes
+                $ mapM (nativeObligation transactionIndex ledgerTx scriptMap)
+                $ mintScripts <> [(NativeScriptProof, hash) | hash <- spendingScripts]
+    spendingScript input = do
+        output <- maybe (Left DappContextUnavailableError) Right $ Map.lookup (toOutpoint input) outputs
+        pure $ case output of
+            Output ledgerOutput -> case ledgerOutput ^. addrTxOutL of
+                AddrBootstrap{} -> Nothing
+                Addr _ (KeyHashObj _) _ -> Nothing
+                Addr _ (ScriptHashObj hash) _ -> Just hash
+    referenceScripts input = do
+        output <- maybe (Left DappContextUnavailableError) Right $ Map.lookup (toOutpoint input) outputs
+        pure $ case output of
+            Output ledgerOutput ->
+                [(hashScript script, script) | script <- toList $ ledgerOutput ^. referenceScriptTxOutL]
+    nativeObligation transactionIndex ledgerTx scriptMap (proofKind, scriptHash) = do
+        script <- maybe (Left DappContextUnavailableError) Right $ Map.lookup scriptHash scriptMap
+        requireEither DappInternalErrorResponse $ hashScript script == scriptHash
+        pure $ (\timelock -> NativeProofObligation transactionIndex proofKind timelock
+            (ledgerTx ^. bodyTxL . vldtTxBodyL)) <$> getNativeScript script
 
 keyBytes :: LedgerKeys.KeyHash discriminator -> ByteString
 keyBytes (LedgerKeys.KeyHash hash) = Crypto.hashToBytes hash

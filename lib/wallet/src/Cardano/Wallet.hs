@@ -198,6 +198,7 @@ module Cardano.Wallet
     , submitExternalTx
     , submitTx
     , signTransactionV2
+    , signDappWitnesses
     , readLocalTxSubmissionPending
     , LocalTxSubmissionConfig (..)
     , defaultLocalTxSubmissionConfig
@@ -254,6 +255,9 @@ import Cardano.Address.KeyHash
 import Cardano.Address.Script
     ( Cosigner (..)
     )
+import Cardano.Address.Derivation
+    ( xpubPublicKey
+    )
 import Cardano.Api.Extra
     ( CardanoApiEra
     , cardanoApiEraConstraints
@@ -293,6 +297,9 @@ import Cardano.Balance.Tx.TimeTranslation
 import Cardano.Balance.Tx.Tx
     ( toRecentEraGADT
     )
+import Cardano.Crypto.DSIGN
+    ( verifySignedDSIGN
+    )
 import Cardano.Crypto.Wallet
     ( toXPub
     , xpub
@@ -311,6 +318,7 @@ import Cardano.Crypto.WalletHD.Encrypted
     , encryptedDerivePrivate
     , encryptedPublic
     , encryptedValidatePassphrase
+    , extKeyMaterialPublicKey
     , publicKeyByteString
     , signWithExtKeyMaterial
     , withDecryptedExtKeyMaterial
@@ -321,6 +329,18 @@ import Cardano.Ledger.Api
     , bodyTxL
     , feeTxBodyL
     , witsTxL
+    )
+import Cardano.Ledger.Hashes
+    ( EraIndependentTxBody
+    , HashAnnotated (hashAnnotated)
+    , extractHash
+    )
+import Cardano.Ledger.Keys
+    ( VKey (..)
+    , Witness
+    )
+import Cardano.Ledger.Keys.WitVKey
+    ( WitVKey (..)
     )
 import Cardano.Ledger.Api.Tx.Body
     ( Withdrawals (..)
@@ -366,6 +386,7 @@ import Cardano.Wallet.Address.Derivation
     , liftIndex
     , paymentAddressS
     , stakeDerivationPath
+    , zeroAccount
     )
 import Cardano.Wallet.Address.Derivation.Byron
     ( ByronKey (..)
@@ -387,6 +408,7 @@ import Cardano.Wallet.Address.Derivation.SharedKey
 import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey (..)
     , deriveAccountPrivateKeyShelley
+    , deriveAddressPrivateKeyShelley
     )
 import Cardano.Wallet.Address.Discovery
     ( ChangeAddressMode (..)
@@ -680,6 +702,8 @@ import Cardano.Wallet.Shelley.Transaction.Ledger
     ( certificateFromDelegationActionLedger
     , certificateFromVotingActionLedger
     , constructUnsignedTxLedger
+    , mkDappVKeyWitnessFromExtKeyMaterial
+    , mkDappVKeyWitnessLedger
     , mkShelleyWitnessFromExtKeyMaterial
     , mkShelleyWitnessLedger
     , mkTransaction
@@ -766,6 +790,7 @@ import Control.Tracer
     )
 import Cryptography.Hash.Blake
     ( Blake2b_256
+    , blake2b224
     )
 import Cryptography.Hash.Core
     ( hash
@@ -928,8 +953,9 @@ import qualified Cardano.Balance.Tx.Tx as Write
     , PParams
     , PParamsInAnyRecentEra (PParamsInAnyRecentEra)
     , Tx
-    , UTxO (UTxO)
+    , TxBody
     , feeOfBytes
+    , UTxO (UTxO)
     , forceUTxOToEra
     , getFeePerByte
     , stakeKeyDeposit
@@ -2469,6 +2495,95 @@ signTransactionV2 era sealedTx wallet walletUtxo ekey userPwd =
                     -- redemption, etc.).
                     $ sealWriteTx recentEra'
                     $ over (witsTxL . addrTxWitsL) (Set.union (Set.fromList wits)) ledgerTx
+
+-- | Sign only explicitly authenticated Shelley derivation candidates.
+-- This deliberately has no wallet-state, UTxO, or transaction-envelope input.
+signDappWitnesses
+    :: RootKeyAccess ShelleyKey
+    -> Passphrase "user"
+    -> Write.TxBody Read.Conway
+    -> [([Word32], ByteString)]
+    -> IO (Either String [WitVKey Witness])
+signDappWitnesses root userPwd body candidates =
+    fmap (>>= verifyAndDeduplicate) $ case root of
+        RootKeyAccessV1 rootKey scheme ->
+            pure $ traverse (signV1 rootKey $ preparePassphrase scheme userPwd) candidates
+        RootKeyAccessV2 encryptedKey _ _ -> do
+            results <- withDecryptedExtKeyMaterial encryptedKey userPwd $ \rootMaterial -> do
+                derived <- forM candidates $ \(path, expectedHash) ->
+                    withDerivedExtKeyMaterial DerivationScheme2 rootMaterial path $ \material ->
+                        if blake2b224 (publicKeyByteString $ extKeyMaterialPublicKey material)
+                            /= expectedHash
+                            then pure $ Right $ Left "candidate key hash mismatch"
+                            else fmap Right
+                                $ mkDappVKeyWitnessFromExtKeyMaterial
+                                    Write.RecentEraConway
+                                    body
+                                    material
+                pure $ sequence derived
+            pure $ first show results >>= sequence
+  where
+    signV1 rootKey encryptionPwd (path, expectedHash) = do
+        raw <- deriveV1 rootKey encryptionPwd path
+        if blake2b224 (xpubPublicKey $ toXPub raw) /= expectedHash
+            then Left "candidate key hash mismatch"
+            else mkDappVKeyWitnessLedger Write.RecentEraConway body (raw, encryptionPwd)
+
+    deriveV1 rootKey encryptionPwd = \case
+        [purpose, coinType, account, role, address]
+            | purpose == 0x8000073c
+                && coinType == 0x80000717
+                && account >= 0x80000000
+                && role <= 1
+                && address < 0x80000000 ->
+                    let accountKey =
+                            deriveAccountPrivateKeyShelley
+                                (Index purpose)
+                                encryptionPwd
+                                (getRawKey ShelleyKeyS rootKey)
+                                (Index account)
+                    in  Right
+                            $ deriveAddressPrivateKeyShelley
+                                encryptionPwd
+                                accountKey
+                                (if role == 0 then UtxoExternal else UtxoInternal)
+                                (Index address :: Index 'Soft 'CredFromKeyK)
+        [purpose, coinType, account, role, address]
+            | purpose == 0x8000073c
+                && coinType == 0x80000717
+                && account >= 0x80000000
+                && role == 2
+                && address == 0 ->
+                    let accountKey =
+                            deriveAccountPrivateKeyShelley
+                                (Index purpose)
+                                encryptionPwd
+                                (getRawKey ShelleyKeyS rootKey)
+                                (Index account)
+                    in  Right
+                            $ deriveAddressPrivateKeyShelley
+                                encryptionPwd
+                                accountKey
+                                MutableAccount
+                                zeroAccount
+        [0x8000073f, 0x80000717, 0x80000000] ->
+            Right
+                $ derivePolicyPrivateKey
+                    encryptionPwd
+                    (getRawKey ShelleyKeyS rootKey)
+                    minBound
+        _ -> Left "unsupported derivation path"
+
+    verifyAndDeduplicate witnesses
+        | all (verifyWitness bodyHash) witnesses =
+            Right $ Set.toList $ Set.fromList witnesses
+        | otherwise = Left "generated witness does not verify"
+      where
+        bodyHash =
+            extractHash
+                $ hashAnnotated @_ @EraIndependentTxBody body
+        verifyWitness digest (WitVKey (VKey key) signature) =
+            verifySignedDSIGN () key digest signature == Right ()
 
 type MakeRewardAccountBuilder k =
     ClearCredentials k -> (XPrv, Passphrase "encryption")

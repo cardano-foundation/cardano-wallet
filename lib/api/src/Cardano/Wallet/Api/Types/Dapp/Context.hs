@@ -1,14 +1,19 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE TypeApplications #-}
 
 module Cardano.Wallet.Api.Types.Dapp.Context
     ( DappJSON
     , ApiDappTransactionContextRequest (..)
     , ApiDappTransactionContextResponse (..)
+    , ApiDappWitnessSignRequest (..)
+    , ApiDappWitnessSignItem (..)
+    , ApiDappWitnessSignResponse (..)
+    , ApiDappWitnessResult (..)
     , ApiDappContextNetwork (..)
     , ApiDappChainPoint (..)
     , ApiDappProtocolVersion (..)
@@ -32,6 +37,8 @@ module Cardano.Wallet.Api.Types.Dapp.Context
     , ApiDappWord64 (..)
     , decodeTransactionContextRequest
     , decodeTransactionContextResponse
+    , decodeDappWitnessSignRequest
+    , decodeDappWitnessSignResponse
     , ContextRecord (..)
     , ContextDigestInput (..)
     , ContextTokenClaims (..)
@@ -41,11 +48,24 @@ module Cardano.Wallet.Api.Types.Dapp.Context
     , encodeContextToken
     , decodeContextTokenClaims
     , validateContextToken
+    , validateReviewedDappContext
+    , validateDappWitnessBinding
     ) where
-
+import Cardano.Wallet.Api.Lib.ApiT
+    ( ApiT (..)
+    )
 import Cardano.Wallet.Api.Lib.Options
     ( explicitNothingRecordTypeOptions
     , strictRecordTypeOptions
+    )
+import Cardano.Wallet.Api.Types.Error
+    ( DappError (InvalidDappRequest)
+    )
+import Cardano.Wallet.Api.Types.Primitive
+    (
+    )
+import Cardano.Wallet.Primitive.Passphrase
+    ( Passphrase
     )
 import Control.Monad
     ( unless
@@ -150,6 +170,18 @@ instance MimeUnrender DappJSON ApiDappTransactionContextResponse where
 instance MimeRender DappJSON ApiDappTransactionContextResponse where
     mimeRender _ = Aeson.encode
 
+instance MimeUnrender DappJSON ApiDappWitnessSignRequest where
+    mimeUnrender _ = decodeDappWitnessSignRequest
+
+instance MimeRender DappJSON ApiDappWitnessSignRequest where
+    mimeRender _ = Aeson.encode
+
+instance MimeUnrender DappJSON ApiDappWitnessSignResponse where
+    mimeUnrender _ = decodeDappWitnessSignResponse
+
+instance MimeRender DappJSON ApiDappWitnessSignResponse where
+    mimeRender _ = Aeson.encode
+
 newtype ApiDappHex = ApiDappHex {getApiDappHex :: ByteString}
     deriving (Eq, Ord, Show)
 
@@ -167,6 +199,33 @@ data ApiDappTransactionContextRequest = ApiDappTransactionContextRequest
     { revision :: !Word32
     , network :: !ApiDappContextNetwork
     , transactions :: ![ApiDappHex]
+    }
+    deriving (Eq, Generic, Show)
+
+data ApiDappWitnessSignItem = ApiDappWitnessSignItem
+    { cbor :: !ApiDappHex
+    , partialSign :: !Bool
+    }
+    deriving (Eq, Generic, Show)
+
+data ApiDappWitnessSignRequest = ApiDappWitnessSignRequest
+    { revision :: !Word32
+    , context :: !ApiDappTransactionContextResponse
+    , transactions :: ![ApiDappWitnessSignItem]
+    , passphrase :: !(ApiT (Passphrase "lenient"))
+    }
+    deriving (Eq, Generic, Show)
+
+data ApiDappWitnessResult = ApiDappWitnessResult
+    { transactionIndex :: !Word32
+    , bodyHash :: !ApiDappHex
+    , witnessSetCbor :: !ApiDappHex
+    }
+    deriving (Eq, Generic, Show)
+
+data ApiDappWitnessSignResponse = ApiDappWitnessSignResponse
+    { revision :: !Word32
+    , witnesses :: ![ApiDappWitnessResult]
     }
     deriving (Eq, Generic, Show)
 
@@ -361,6 +420,56 @@ instance FromJSON ApiDappTransactionContextRequest where
 instance ToJSON ApiDappTransactionContextRequest where
     toJSON = genericToJSON strictRecordTypeOptions
 
+instance FromJSON ApiDappWitnessSignItem where
+    parseJSON value = do
+        result@ApiDappWitnessSignItem{cbor} <-
+            genericParseJSON strictRecordTypeOptions value
+        requireLengthBetween "transaction" 1 65536 cbor
+        pure result
+
+instance ToJSON ApiDappWitnessSignItem where
+    toJSON = genericToJSON strictRecordTypeOptions
+
+instance FromJSON ApiDappWitnessSignRequest where
+    parseJSON value = do
+        result@ApiDappWitnessSignRequest{revision, transactions} <-
+            genericParseJSON strictRecordTypeOptions value
+        unless (revision == 1) $ fail "revision must be 1"
+        unless (length transactions >= 1 && length transactions <= 50)
+            $ fail "transactions must contain 1 to 50 entries"
+        pure result
+
+instance ToJSON ApiDappWitnessSignRequest where
+    toJSON = genericToJSON strictRecordTypeOptions
+
+instance FromJSON ApiDappWitnessResult where
+    parseJSON value = do
+        result@ApiDappWitnessResult{transactionIndex, bodyHash, witnessSetCbor} <-
+            genericParseJSON strictRecordTypeOptions value
+        unless (transactionIndex <= 49) $ fail "transaction_index must be 0 to 49"
+        requireLength "body_hash" 32 bodyHash
+        requireNonEmpty "witness_set_cbor" witnessSetCbor
+        pure result
+
+instance ToJSON ApiDappWitnessResult where
+    toJSON = genericToJSON strictRecordTypeOptions
+
+instance FromJSON ApiDappWitnessSignResponse where
+    parseJSON value = do
+        result@ApiDappWitnessSignResponse{revision, witnesses} <-
+            genericParseJSON strictRecordTypeOptions value
+        unless (revision == 1) $ fail "revision must be 1"
+        unless (length witnesses >= 1 && length witnesses <= 50)
+            $ fail "witnesses must contain 1 to 50 entries"
+        unless
+            (map (\ApiDappWitnessResult{transactionIndex} -> transactionIndex) witnesses
+                == [0 .. fromIntegral (length witnesses - 1)])
+            $ fail "witnesses must be in transaction order"
+        pure result
+
+instance ToJSON ApiDappWitnessSignResponse where
+    toJSON = genericToJSON strictRecordTypeOptions
+
 decodeTransactionContextRequest
     :: BL.ByteString -> Either String ApiDappTransactionContextRequest
 decodeTransactionContextRequest bytes =
@@ -369,6 +478,16 @@ decodeTransactionContextRequest bytes =
 decodeTransactionContextResponse
     :: BL.ByteString -> Either String ApiDappTransactionContextResponse
 decodeTransactionContextResponse bytes =
+    rejectDuplicateFields (BL.toStrict bytes) >> eitherDecode bytes
+
+decodeDappWitnessSignRequest
+    :: BL.ByteString -> Either String ApiDappWitnessSignRequest
+decodeDappWitnessSignRequest bytes =
+    rejectDuplicateFields (BL.toStrict bytes) >> eitherDecode bytes
+
+decodeDappWitnessSignResponse
+    :: BL.ByteString -> Either String ApiDappWitnessSignResponse
+decodeDappWitnessSignResponse bytes =
     rejectDuplicateFields (BL.toStrict bytes) >> eitherDecode bytes
 
 instance FromJSON ApiDappChainPoint where
@@ -813,6 +932,82 @@ computeContextDigest
             putVector transactions
             putVector canonicalRecords
 
+validateReviewedDappContext
+    :: ByteString
+    -> ByteString
+    -> Text
+    -> ApiDappTransactionContextRequest
+    -> ApiDappTransactionContextResponse
+    -> Either String ()
+validateReviewedDappContext hmacKey generation routeWallet request response = do
+    unless (response.revision == 1 && response.era == "conway") $
+        Left "unsupported context revision or era"
+    unless (response.walletId == routeWallet && response.network == request.network) $
+        Left "context route binding mismatch"
+    let ApiDappContextNetwork{networkId, networkMagic, genesisHash = ApiDappHex genesis} =
+            response.network
+        ApiDappProtocolVersion{major, minor} = response.protocolVersion
+        ApiDappPendingOverlay{transactions = pending} = response.pendingOverlay
+        recordValues =
+            ProtocolRecord networkId networkMagic major minor
+                (getApiDappHex response.protocolParametersCbor)
+                : map outputRecordValue response.outputs
+                    <> map ownershipRecordValue response.ownership
+                    <> map pendingRecordValue pending
+                    <> map requiredRecordValue response.requiredWalletProofs
+    expectedRecords <- canonicalContextRecords recordValues
+    unless ((getApiDappHex <$> response.records) == expectedRecords) $
+        Left "context records mismatch"
+    digest <- computeContextDigest
+        ContextDigestInput
+            { walletId = T.encodeUtf8 routeWallet
+            , genesisHash = genesis
+            , chainPoint = response.chainPoint
+            , walletGeneration = getApiDappWord64 response.walletGeneration
+            , pendingGeneration = getApiDappWord64 response.pendingGeneration
+            , transactions = getApiDappHex <$> request.transactions
+            , records = recordValues
+            }
+    unless (digest == getApiDappHex response.contextDigest) $
+        Left "context digest mismatch"
+    let claims =
+            ContextTokenClaims
+                { processGeneration = generation
+                , capabilityRevision = 1
+                , walletId = T.encodeUtf8 routeWallet
+                , genesisHash = genesis
+                , contextDigest = digest
+                }
+    unless (validateContextToken hmacKey claims $ getApiDappHex response.contextToken) $
+        Left "context token mismatch"
+  where
+    pendingRecordValue ApiDappPendingTransaction
+        { transactionId = ApiDappHex transactionId
+        , transactionCbor = ApiDappHex transactionCbor
+        , normalInputs
+        , collateralInputs
+        , expirySlot
+        } =
+            PendingTransactionRecord
+                transactionId
+                transactionCbor
+                normalInputs
+                collateralInputs
+                (getApiDappWord64 <$> expirySlot)
+
+validateDappWitnessBinding
+    :: ApiDappContextNetwork
+    -> ByteString
+    -> ByteString
+    -> Text
+    -> ApiDappTransactionContextRequest
+    -> ApiDappTransactionContextResponse
+    -> Either DappError ()
+validateDappWitnessBinding expectedNetwork hmacKey generation routeWallet request response
+    | request.network /= expectedNetwork = Left InvalidDappRequest
+    | otherwise =
+        either (const $ Left InvalidDappRequest) Right
+            $ validateReviewedDappContext hmacKey generation routeWallet request response
 encodeContextToken
     :: ByteString -> ContextTokenClaims -> Either String ByteString
 encodeContextToken key claims = do

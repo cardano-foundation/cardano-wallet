@@ -155,10 +155,12 @@ test-suite dapp-context
     , cardano-ledger-conway
     , cardano-strict-containers
     , cardano-wallet-api
+    , cardano-wallet-secrets
     , containers
     , crypto-primitives
     , hspec
     , http-media
     , memory
     , servant
+    , servant-server
     , text
