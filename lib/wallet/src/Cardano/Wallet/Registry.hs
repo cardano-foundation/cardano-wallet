@@ -16,6 +16,7 @@ module Cardano.Wallet.Registry
     , register
     , unregister
     , delete
+    , drain
 
       -- * Worker
     , Worker
@@ -91,6 +92,7 @@ import UnliftIO.Concurrent
     )
 import UnliftIO.Exception
     ( SomeException
+    , finally
     , isSyncException
     , withException
     )
@@ -179,6 +181,24 @@ unregister
 unregister registry k =
     delete registry k >>= traverse_ (killThread . workerThread)
 
+-- | Terminate every registered worker and return only after each
+-- selected worker has released its resource and run its finalizer.
+--
+-- Idempotent; the registry is empty when this returns. Safe when a
+-- selected worker exits concurrently.
+drain
+    :: Ord key
+    => WorkerRegistry key resource
+    -> IO ()
+drain registry@(WorkerRegistry mvar) = do
+    workers <- Map.elems <$> readMVar mvar
+    case workers of
+        [] -> pure ()
+        _ -> do
+            traverse_ (unregister registry . workerId) workers
+            traverse_ (readMVar . workerDone) workers
+            drain registry
+
 {-------------------------------------------------------------------------------
                                     Worker
 -------------------------------------------------------------------------------}
@@ -189,6 +209,8 @@ data Worker key resource = Worker
     { workerId :: key
     , workerThread :: ThreadId
     , workerResource :: resource
+    , workerDone :: MVar ()
+    -- ^ Filled after resource release and 'workerAfter'.
     }
     deriving (Generic)
 
@@ -239,28 +261,30 @@ register
     -> IO (Maybe (Worker key resource))
 register registry ctx k (MkWorker before main after acquire) = do
     resourceVar <- newEmptyMVar
+    doneVar <- newEmptyMVar
     let work = acquire $ \resource -> do
             let ctx' = hoistResource resource (MsgFromWorker k) ctx
             before ctx' k `withException` (after tr . Left)
             putMVar resourceVar (Just resource)
             main ctx' k
-    threadId <- work `forkFinally` cleanup resourceVar
-    takeMVar resourceVar >>= traverse (create threadId)
+    threadId <- work `forkFinally` cleanup resourceVar doneVar
+    takeMVar resourceVar >>= traverse (create threadId doneVar)
   where
     tr = ctx ^. logger @IO @(WorkerLog key msg)
-    create threadId resource = do
+    create threadId doneVar resource = do
         let worker =
                 Worker
                     { workerId = k
                     , workerThread = threadId
                     , workerResource = resource
+                    , workerDone = doneVar
                     }
         registry `insert` worker
         return worker
-    cleanup resourceVar result = do
+    cleanup resourceVar doneVar result = do
         void $ registry `delete` k
         void $ tryPutMVar resourceVar Nothing
-        after tr result
+        after tr result `finally` void (tryPutMVar doneVar ())
 
 {-------------------------------------------------------------------------------
                                     Logging

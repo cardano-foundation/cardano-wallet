@@ -62,6 +62,7 @@ import UnliftIO.STM
 import Prelude
 
 import qualified Cardano.Wallet.Launch.Cluster as Cluster
+import qualified Test.Integration.Framework.ShutdownDrain as ShutdownDrain
 import qualified Test.Integration.Scenario.API.Blocks as Blocks
 import qualified Test.Integration.Scenario.API.Byron.Addresses as ByronAddresses
 import qualified Test.Integration.Scenario.API.Byron.CoinSelections as ByronCoinSelections
@@ -107,6 +108,8 @@ main = withTestsSetup $ \testDir (tr, tracers) -> do
         describe "No backend required"
             $ parallel
             $ describe "Miscellaneous CLI tests" MiscellaneousCLI.spec
+
+        ShutdownDrain.spec
 
         aroundAll (withContext testingCtx) $ do
             describe "API Specifications" $ do

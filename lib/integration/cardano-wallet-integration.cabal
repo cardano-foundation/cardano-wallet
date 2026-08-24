@@ -124,6 +124,7 @@ library framework
     Test.Integration.Framework.Preprod
     Test.Integration.Framework.Request
     Test.Integration.Framework.Setup
+    Test.Integration.Framework.ShutdownDrain
     Test.Integration.Framework.TestData
     Test.Integration.Plutus
 

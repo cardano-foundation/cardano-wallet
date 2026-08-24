@@ -1,3 +1,4 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
@@ -58,6 +59,8 @@ import Cardano.Wallet.Address.MaybeLight
 import Cardano.Wallet.Api
     ( ApiLayer
     , ApiV2
+    , HasWorkerRegistry
+    , workerRegistry
     )
 import Cardano.Wallet.Api.Http.Logging
     ( ApiApplicationLog (..)
@@ -152,6 +155,7 @@ import Cardano.Wallet.Primitive.Types.Tx.SealedTx
     )
 import Cardano.Wallet.Registry
     ( HasWorkerCtx (..)
+    , drain
     )
 import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..)
@@ -241,7 +245,8 @@ import System.IOManager
     ( withIOManager
     )
 import UnliftIO
-    ( withAsync
+    ( finally
+    , withAsync
     )
 import Prelude
 
@@ -442,21 +447,21 @@ serveWallet
                     $ withListeningSocket hostPref listenUi
 
         withRandomApi netId netLayer =
-            lift
+            withDrainedApiLayer
                 $ apiLayer
                     (newTransactionLayer ByronKeyS netId)
                     netLayer
                     Server.idleWorker
 
         withIcarusApi netId netLayer =
-            lift
+            withDrainedApiLayer
                 $ apiLayer
                     (newTransactionLayer IcarusKeyS netId)
                     netLayer
                     Server.idleWorker
 
         withShelleyApi netId netLayer =
-            lift
+            withDrainedApiLayer
                 $ apiLayer (newTransactionLayer ShelleyKeyS netId) netLayer
                 $ \wrk _ ->
                     Server.manageRewardBalance
@@ -466,7 +471,7 @@ serveWallet
                         $ wrk
 
         withMultisigApi netId netLayer =
-            lift
+            withDrainedApiLayer
                 $ apiLayer
                     (newTransactionLayer SharedKeyS netId)
                     netLayer
@@ -648,6 +653,19 @@ withNtpClient :: Tracer IO NtpTrace -> ContT r IO NtpClient
 withNtpClient tr = do
     iom <- ContT withIOManager
     ContT $ withWalletNtpClient iom tr
+
+-- | Acquire a wallet API layer and drain its worker registry on both
+-- normal and asynchronous release.
+withDrainedApiLayer
+    :: forall s r
+     . HasWorkerRegistry s (ApiLayer s)
+    => IO (ApiLayer s)
+    -> ContT r IO (ApiLayer s)
+withDrainedApiLayer acquire =
+    ContT $ \restore -> do
+        layer <- acquire
+        restore layer
+            `finally` drain (view (workerRegistry @s) layer)
 
 -- | Default DRep metadata fetch interval: 15 minutes in microseconds.
 drepMetadataFetchIntervalMicros :: Int
