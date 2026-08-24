@@ -728,7 +728,7 @@ instance Arbitrary WalletDelegationStatus where
     shrink = genericShrink
     arbitrary = genericArbitrary
 
-instance Arbitrary EpochNo => Arbitrary WalletDelegationNext where
+instance Arbitrary WalletDelegationNext where
     shrink = genericShrink
     arbitrary = genericArbitrary
 

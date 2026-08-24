@@ -29,10 +29,12 @@ pkgs.runCommand "delegation-agda"
 
     relative=Cardano/Wallet/Delegation.agda
 
-    # The model imports nothing, so no library needs to resolve; interfaces
-    # are written next to the sources inside the sandbox.
+    # The model imports nothing, so no library needs to resolve. Each caller
+    # passes its own fresh sandbox directory as the include root, so Agda
+    # writes its interface files there and the copies stay independent.
+    # (`--local-interfaces` was removed in Agda 2.8.0 and is not passed.)
     typecheck() {
-      ( cd "$1" && agda --local-interfaces --include-path=. "$relative" )
+      ( cd "$1" && agda --include-path=. "$relative" )
     }
 
     echo "+++ delegation-agda: typechecking $relative"
