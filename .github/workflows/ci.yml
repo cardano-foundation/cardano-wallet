@@ -95,6 +95,24 @@ jobs:
         run: nix build --quiet .#devShells.x86_64-linux.default.inputDerivation
 
   # ---------------------------------------------------------------------------
+  # Formal specifications
+  # ---------------------------------------------------------------------------
+
+  delegation-agda:
+    name: "Check Delegation Agda Model"
+    runs-on: nix-enabled-runners
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      # Typechecks specifications/Cardano/Wallet/Delegation.agda and requires
+      # the same Agda command to reject one deliberate mutation per named
+      # #5350 law, so the check is proven able to fail on every run.
+      - name: Typecheck the delegation model
+        run: nix build --quiet --print-build-logs .#checks.x86_64-linux.delegation-agda
+
+  # ---------------------------------------------------------------------------
   # Nix check
   # ---------------------------------------------------------------------------
 

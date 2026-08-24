@@ -18,6 +18,21 @@ effective DRep remains rejected as `same_vote`.
 - **R5** Permanently cover A → B → A acceptance and A → B → B rejection,
   including active-only, scheduled quit, and predefined DRep cases where they
   distinguish effective state from history.
+- **R6** Extend the repository's existing delegation Agda specification with
+  the projected `active`/ordered-`next` state, effective-status selection, and
+  duplicate-vote decision. The Agda source is the formal backend for these
+  rules; it must typecheck through a repository-owned, Nix-pinned check.
+- **R7** Mirror every named #5350 Agda law with an explicitly mapped QuickCheck
+  property over the Haskell implementation. The mapping must cover the empty
+  `next` fallback, final-`next` selection, history irrelevance, and
+  effective-DRep rejection; the existing pure/IO parity property remains
+  required. The Agda model's explicit DRep-equality assumptions must likewise
+  have a registered QuickCheck mirror against an independently expressed
+  structural oracle.
+- **R8** Permanently wire both proof surfaces into CI: the Agda check and the
+  focused QuickCheck properties. A deliberate ill-typed Agda mutation and a
+  deliberate restoration of the historical `active || any next` decision must
+  each make their corresponding check fail.
 
 ## Invariants
 
@@ -33,6 +48,20 @@ effective DRep remains rejected as `same_vote`.
 - **INV-5350-PROOF** (`ADVISORY`): the regression proof runs through the
   repository unit-test target and is demonstrated RED without the fix and
   GREEN with it.
+- **INV-5350-AGDA** (`BLOCKING`): the checked Agda backend defines D1 and proves
+  the empty-`next`, final-`next`, history-irrelevance, and effective-DRep
+  decision laws without postulates standing in for those laws.
+- **INV-5350-MIRROR** (`BLOCKING`): each named Agda law has a named QuickCheck
+  mirror that exercises the corresponding Haskell function over generated
+  values; no mirror may compare two values derived from the same implementation
+  expression or otherwise pass vacuously.
+- **INV-5350-WIRING** (`BLOCKING`): CI invokes the repository-owned Agda check
+  and the unit-test target invokes every mapped QuickCheck property. Both
+  paths have a recorded negative control demonstrating that they can fail.
+- **INV-5350-DREP-EQ** (`BLOCKING`): equality used by the duplicate-vote
+  decision is reflexive and agrees with the structural identity of `DRep`.
+  The formal backend states this reliance explicitly and the Haskell test tree
+  permanently checks the actual `Eq DRep` instance against a structural oracle.
 
 ## Rejection behavior
 
