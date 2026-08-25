@@ -32,8 +32,10 @@ module Cardano.Wallet.Address.Derivation.Shelley
     , unsafeGenerateKeyFromSeed
     , unsafeGenerateKeyFromSeedShelley
     , deriveAccountPrivateKeyShelley
+    , deriveDRepPrivateKey
     , deriveAddressPrivateKeyShelley
     , deriveAddressPublicKeyShelley
+    , deriveDRepPublicKey
 
       -- * Reward Account
     , toRewardAccountRaw
@@ -59,8 +61,8 @@ import Cardano.Wallet.Address.Derivation
     ( AccountIxForStaking (..)
     , AddressParts (..)
     , DelegationAddress (..)
-    , Depth (..)
     , DerivationIndex (..)
+    , Depth (..)
     , DerivationType (..)
     , ErrMkKeyFingerprint (..)
     , HardDerivation (..)
@@ -271,6 +273,27 @@ deriveAddressPublicKeyShelley accXPub role (Index addrIx) =
                 ++ "). This is \
                    \either a programmer error, or, we may have reached the maximum \
                    \number of addresses for a given wallet."
+
+-- CIP-105 has a role-3 domain with exactly one fixed child, index 0.
+data DRepRole = DRepRole
+
+instance Enum DRepRole where
+    toEnum 3 = DRepRole
+    toEnum _ = error "DRepRole.toEnum: bad argument"
+    fromEnum DRepRole = 3
+
+drepCredential :: Index 'Soft 'CredFromKeyK
+drepCredential = minBound
+
+-- | Derive the fixed CIP-105 DRep public key from an account public key.
+deriveDRepPublicKey :: XPub -> XPub
+deriveDRepPublicKey accXPub =
+    deriveAddressPublicKeyShelley accXPub DRepRole drepCredential
+
+-- | Derive the fixed CIP-105 DRep private key from an account private key.
+deriveDRepPrivateKey :: Passphrase "encryption" -> XPrv -> XPrv
+deriveDRepPrivateKey pwd accXPrv =
+    deriveAddressPrivateKeyShelley pwd accXPrv DRepRole drepCredential
 
 instance HardDerivation ShelleyKey where
     type AddressIndexDerivationType ShelleyKey = 'Soft
