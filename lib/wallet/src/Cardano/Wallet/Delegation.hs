@@ -11,6 +11,8 @@ module Cardano.Wallet.Delegation
     , guardVoting
     , quitStakePoolDelegationAction
     , joinDRepVotingAction
+    , effectiveDelegationStatus
+    , voteRequestFor
     , DelegationRequest (..)
     , VoteRequest (..)
     ) where
@@ -250,6 +252,28 @@ guardVoting optionalDelegationAction votingSameAgainM = do
         $ ErrAlreadyVoted
         $ snd (fromJust votingSameAgainM)
 
+-- | Last scheduled 'next' status when present, otherwise 'active'.
+effectiveDelegationStatus
+    :: W.WalletDelegation
+    -> W.WalletDelegationStatus
+effectiveDelegationStatus (W.WalletDelegation current coming) =
+    maybe current (view #status) (lastMay coming)
+
+-- | Duplicate-vote classification from 'effectiveDelegationStatus'.
+voteRequestFor
+    :: DRep
+    -> W.WalletDelegation
+    -> VoteRequest
+voteRequestFor target dlg =
+    if drepMatches (effectiveDelegationStatus dlg)
+        then VotedSameAsBefore
+        else VotedDifferently
+  where
+    drepMatches status = case status of
+        W.Voting drep -> drep == target
+        W.DelegatingVoting _ drep -> drep == target
+        _ -> False
+
 joinDRepVotingAction
     :: forall era
      . Write.IsRecentEra era
@@ -259,18 +283,11 @@ joinDRepVotingAction
     -> Bool
     -> Either ErrCannotVote Tx.VotingAction
 joinDRepVotingAction era targetDRep dlg stakeKeyIsRegistered = do
-    when (sameWalletDelegation dlg)
+    when (voteRequestFor targetDRep dlg == VotedSameAsBefore)
         $ Left
         $ ErrAlreadyVoted targetDRep
     second (const votingAction) $ guardEraIsConway era
   where
-    isDRepSame (W.Voting drep) = drep == targetDRep
-    isDRepSame (W.DelegatingVoting _ drep) = drep == targetDRep
-    isDRepSame _ = False
-    isSameNext (W.WalletDelegationNext _ deleg) = isDRepSame deleg
-    sameWalletDelegation (W.WalletDelegation current coming) =
-        isDRepSame current || any isSameNext coming
-
     guardEraIsConway
         :: Write.IsRecentEra era
         => Write.RecentEra era
