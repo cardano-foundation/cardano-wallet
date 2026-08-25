@@ -2579,6 +2579,19 @@ signDappWitnesses root userPwd body candidates =
                                 accountKey
                                 MutableAccount
                                 zeroAccount
+        [purpose, coinType, account, role, address]
+            | purpose == 0x8000073c
+                && coinType == 0x80000717
+                && account >= 0x80000000
+                && role == 3
+                && address == 0 ->
+                    let accountKey =
+                            deriveAccountPrivateKeyShelley
+                                (Index purpose)
+                                encryptionPwd
+                                (getRawKey ShelleyKeyS rootKey)
+                                (Index account)
+                    in  Right $ deriveDRepPrivateKey encryptionPwd accountKey
         [0x8000073f, 0x80000717, 0x80000000] ->
             Right
                 $ derivePolicyPrivateKey

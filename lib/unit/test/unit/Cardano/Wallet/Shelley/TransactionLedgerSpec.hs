@@ -504,6 +504,8 @@ spec = describe "TransactionSpec" $ do
     describe "DAPP_WITNESS_SIGNING" $ do
         prop "V1 and V2 sign the exact original body with the same VKey witness"
             $ forAll genShelleyKeyAndPwd (uncurry prop_dappVKeyWitnessesMatch)
+        prop "V1 and V2 produce matching fixed role-3 DRep witnesses"
+            $ forAll genShelleyKeyAndPwd (uncurry prop_dappDRepVKeyWitnessesMatch)
         prop "rejects candidate path/key-hash mismatches"
             $ forAll genShelleyKeyAndPwd (uncurry prop_dappVKeyWitnessRejectsHashMismatch)
     describe "DAPP_DATA_SIGNING" $ do
@@ -2676,6 +2678,49 @@ prop_dappVKeyWitnessesMatch xprvKey encPwd = ioProperty $ withFastKdfForTesting 
                 _ -> False
   where
     wrongBody = minimalConwayTxBody & feeTxBodyL .~ Ledger.Coin 1_000_001
+
+prop_dappDRepVKeyWitnessesMatch
+    :: ShelleyKey 'RootK XPrv
+    -> Passphrase "encryption"
+    -> Property
+prop_dappDRepVKeyWitnessesMatch xprvKey encPwd = ioProperty $ withFastKdfForTesting $ do
+    let userPwd = Passphrase $ case encPwd of Passphrase bytes -> bytes
+        encryptionPwd = preparePassphrase EncryptWithPBKDF2 userPwd
+        rootKey = liftRawKey ShelleyKeyS
+            $ CC.xPrvChangePass encPwd encryptionPwd (getRawKey ShelleyKeyS xprvKey)
+        drepPath = [0x8000073c, 0x80000717, 0x80000000, 3, 0]
+        accountKey = Shelley.deriveAccountPrivateKeyShelley
+            (Index 0x8000073c)
+            encryptionPwd
+            (getRawKey ShelleyKeyS rootKey)
+            (Index 0x80000000)
+        drepKey = Shelley.deriveDRepPrivateKey encryptionPwd accountKey
+        drepCredential = blake2b224 $ xpubPublicKey $ toXPub drepKey
+        rawXprv = CC.xPrvChangePass encPwd (mempty :: BS.ByteString)
+            $ getRawKey ShelleyKeyS xprvKey
+        raw128 = CC.unXPrv rawXprv
+        masterKey96 = BS.take 64 raw128 <> BS.drop 96 raw128
+        wrongBody = minimalConwayTxBody & feeTxBodyL .~ Ledger.Coin 1_000_001
+    ekeyE <- encryptedCreateDirectWithTweak masterKey96 userPwd
+    case ekeyE of
+        Left _ -> pure False
+        Right ekey -> do
+            v1 <- signDappWitnesses
+                (RootKeyAccessV1 rootKey EncryptWithPBKDF2)
+                userPwd
+                minimalConwayTxBody
+                [(drepPath, drepCredential)]
+            v2 <- signDappWitnesses
+                (RootKeyAccessV2 ekey Nothing userPwd)
+                userPwd
+                minimalConwayTxBody
+                [(drepPath, drepCredential)]
+            pure $ case (v1, v2) of
+                (Right [witness1], Right [witness2]) ->
+                    witness1 == witness2
+                        && verifiesDappWitness minimalConwayTxBody witness1
+                        && not (verifiesDappWitness wrongBody witness1)
+                _ -> False
 
 prop_dappVKeyWitnessRejectsHashMismatch
     :: ShelleyKey 'RootK XPrv
