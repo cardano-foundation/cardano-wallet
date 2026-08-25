@@ -7668,10 +7668,13 @@ x-responsesDappWitnesses: &responsesDappWitnesses
             - *errDappInvalidRequest
             - *errDappContextConflict
   403:
-    description: A required wallet proof cannot be generated.
+    description: A required wallet proof cannot be generated or a deprecated certificate is present.
     content:
       application/json:
-        schema: *errDappTxProofGeneration
+        schema:
+          oneOf:
+            - *errDappTxProofGeneration
+            - *errDappDeprecatedCertificate
   409:
     description: Wallet or configured network changed.
     content:
