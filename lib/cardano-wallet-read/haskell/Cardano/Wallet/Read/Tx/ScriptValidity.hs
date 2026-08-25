@@ -8,12 +8,14 @@
 --
 -- Script validity of a transaction.
 module Cardano.Wallet.Read.Tx.ScriptValidity
-    ( IsValid (IsValidC)
+    ( IsValid
+    , pattern IsValidC
     , getScriptValidity
     ) where
 
 import Cardano.Ledger.Alonzo.Tx
-    ( IsValid (IsValid)
+    ( IsValid
+    , pattern IsValid
     )
 import Cardano.Read.Ledger.Tx.ScriptValidity
     ( ScriptValidity (..)

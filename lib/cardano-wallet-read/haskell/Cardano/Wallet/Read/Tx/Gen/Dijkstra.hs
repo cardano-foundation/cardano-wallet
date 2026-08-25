@@ -11,7 +11,7 @@ import Cardano.Ledger.Alonzo
     )
 import Cardano.Ledger.Alonzo.Tx
     ( AlonzoTx (AlonzoTx)
-    , IsValid (..)
+    , IsPhase2Valid (..)
     , ScriptIntegrityHash
     )
 import Cardano.Ledger.Api
@@ -114,8 +114,8 @@ mkDijkstraTx
 mkDijkstraTx TxParameters{txInputs, txOutputs} =
     error "TODO: adapt to DijkstraTx API changes in ledger-core 1.19"
 
-valid :: IsValid
-valid = IsValid True
+valid :: IsPhase2Valid
+valid = Phase2Valid
 
 wits :: L.TxWits DijkstraEra
 wits = mempty

@@ -12,7 +12,8 @@ module Cardano.Wallet.Read.Tx
     , Tx (..)
     , getInputs
     , getCollateralInputs
-    , IsValid (IsValidC)
+    , IsValid
+    , pattern IsValidC
     , getScriptValidity
     , ValidityInterval (..)
     , invalidBefore
@@ -57,8 +58,9 @@ import Cardano.Wallet.Read.Tx.Inputs
     ( getInputs
     )
 import Cardano.Wallet.Read.Tx.ScriptValidity
-    ( IsValid (IsValidC)
+    ( IsValid
     , getScriptValidity
+    , pattern IsValidC
     )
 import Cardano.Wallet.Read.Tx.TxId
     ( EraIndependentTxBody
