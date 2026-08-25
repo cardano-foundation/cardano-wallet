@@ -268,12 +268,9 @@ import Data.Void
 import Fmt
     ( Buildable (..)
     , fmt
-    , hexF
     , listF
     , mapF
     , pretty
-    , (+|)
-    , (|+)
     )
 import GHC.Stack
     ( HasCallStack
@@ -391,14 +388,12 @@ import UnliftIO.Exception
     )
 import Prelude
 
-import qualified Cardano.Read.Ledger.Tx.CBOR as Read
 import qualified Cardano.Wallet.Network.LocalStateQuery as LSQ
 import qualified Cardano.Wallet.Primitive.SyncProgress as SP
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
 import qualified Cardano.Wallet.Read as Read
 import qualified Codec.CBOR.Term as CBOR
-import qualified Data.ByteString as BS
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T

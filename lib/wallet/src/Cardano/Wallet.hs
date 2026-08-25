@@ -264,7 +264,9 @@ import Cardano.Address.Script
     ( Cosigner (..)
     )
 import Cardano.Api.Extra
-    ( cardanoApiEraConstraints
+    ( CardanoApiEra
+    , cardanoApiEraConstraints
+    , toCardanoApiTx
     )
 import Cardano.Balance.Tx.Balance
     ( ChangeAddressGen (..)
@@ -484,9 +486,6 @@ import Cardano.Wallet.DB.Store.Delegations.Layer
 import Cardano.Wallet.DB.Store.Info.Store
     ( DeltaWalletInfo (..)
     , WalletInfo (..)
-    )
-import Cardano.Wallet.DB.Store.Submissions.Layer
-    ( mkLocalTxSubmission
     )
 import Cardano.Wallet.DB.Store.Submissions.Operations
     ( DurableSubmission (..)
@@ -900,15 +899,8 @@ import Data.Word
 import Fmt
     ( Buildable
     , blockListF
-    , blockMapF
     , build
-    , nameF
     , pretty
-    , unlinesF
-    , (+|)
-    , (+||)
-    , (|+)
-    , (||+)
     )
 import GHC.Generics
     ( Generic
@@ -3181,7 +3173,7 @@ buildSignSubmitTransaction
                                     (Just Pending)
                                     Nothing
                                     Nothing
-                        txWithSlot@(builtTx, slot) <-
+                        txWithSlot <-
                             ( throwOnErr
                                 <=< (Delta.onDBVar walletState . Delta.updateWithResultAndError)
                             )
@@ -4199,7 +4191,7 @@ runLocalTxSubmissionPool cfg ctx = do
                     ( durableStatus row
                         `elem` [AuthorizedE, SubmittedE, OutcomeUnknownE]
                     )
-                    $ reconcileRow lookupTxAt saveRow row 3
+                    $ reconcileRow lookupTxAt saveRow row (3 :: Int)
     reconcileRow lookupTxAt saveRow row attempts
         | attempts <= 0 = pure ()
         | otherwise = do

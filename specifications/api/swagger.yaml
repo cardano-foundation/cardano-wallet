@@ -8797,8 +8797,7 @@ paths:
       summary: Resolve exact transaction context
       description: |
         Resolves complete Conway ledger outputs, protocol parameters, and the
-        current pending overlay at one coherent wallet chain point. This route
-        does not activate the dApp capability document.
+        current pending overlay at one coherent wallet chain point.
       parameters:
         - *parametersWalletId
       requestBody:
@@ -8815,8 +8814,7 @@ paths:
       summary: Sign reviewed transactions with fresh VKey witnesses
       description: |
         Revalidates an authenticated Conway transaction context and returns only
-        fresh VKey witness-set CBOR. The route does not activate any dApp
-        capability and never returns a transaction envelope.
+        fresh VKey witness-set CBOR; it never returns a transaction envelope.
       parameters:
         - *parametersWalletId
       requestBody:
@@ -8830,11 +8828,11 @@ paths:
     post:
       operationId: postDappDataSignature
       tags: ["Transactions New"]
-      summary: Dormant CIP-8 data signing
+      summary: CIP-8 data signing
       description: |
         Signs the exact attached payload selected by the raw Shelley address and
         returns complete untagged canonical COSE_Sign1 and COSE_Key values. It
-        never hashes or converts payload bytes and does not activate dApp capability.
+        never hashes or converts payload bytes.
       parameters:
         - *parametersWalletId
       requestBody:
@@ -8848,10 +8846,10 @@ paths:
     get:
       operationId: getDappCip95KeyState
       tags: ["Transactions New"]
-      summary: Read dormant CIP-95 public key state
+      summary: Read CIP-95 public key state
       description: |
         Returns only raw public keys derived from the persisted account XPub.
-        No private material, capability activation, or governance action is exposed.
+        No private material or governance action is exposed.
       parameters:
         - *parametersWalletId
       responses: *responsesDappCip95KeyState
@@ -9313,9 +9311,9 @@ paths:
       tags: ["Network"]
       summary: dApp backend capabilities
       description: |
-        Reports the complete revision-1 dApp backend contract. Until every
-        operation family is implemented, this route returns the ordinary
-        unmatched-route response and does not publish partial capabilities.
+        Reports the complete revision-1 dApp backend contract. Unsupported eras
+        and invalid build or network identity fail closed with an ordinary 404;
+        partial capabilities are never published.
       responses: *responsesGetDappCapabilities
 
   /proxy/transactions:

@@ -1,3 +1,4 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
@@ -14,7 +15,7 @@
 -- endpoints reachable through HTTP.
 module Cardano.Wallet.Api.Http.Server
     ( server
-    , dappCapabilitiesUnavailable
+    , dappCapabilities
     ) where
 
 import Cardano.Address
@@ -138,6 +139,7 @@ import Cardano.Wallet.Api.Http.Shelley.Server
     , postAccountPublicKey
     , postAccountWallet
     , postDappDataSignature
+    , postDappSubmission
     , postDappWitnesses
     , postExternalTransaction
     , postIcarusWallet
@@ -148,7 +150,6 @@ import Cardano.Wallet.Api.Http.Shelley.Server
     , postRandomWallet
     , postRandomWalletFromXPrv
     , postSharedWallet
-    , postDappSubmission
     , postTransactionContext
     , postTransactionFeeOld
     , postTransactionOld
@@ -172,6 +173,9 @@ import Cardano.Wallet.Api.Http.Shelley.Server
     , suggestedDReps
     , withLegacyLayer
     , withLegacyLayer'
+    )
+import Cardano.Wallet.Api.Http.Shelley.TransactionContext
+    ( configuredNetwork
     )
 import Cardano.Wallet.Api.Types
     ( AnyAddress (..)
@@ -201,9 +205,14 @@ import Cardano.Wallet.Api.Types
     , MaintenanceAction (..)
     , SettingsPutData (..)
     , SomeByronWalletPostData (..)
+    , makeApiDappCapabilities
     )
 import Cardano.Wallet.Api.Types.BlockHeader
     ( ApiBlockHeader
+    )
+import Cardano.Wallet.Api.Types.Dapp.Context
+    ( ApiDappContextNetwork (..)
+    , ApiDappHex (..)
     )
 import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..)
@@ -214,6 +223,9 @@ import Cardano.Wallet.Api.Types.SchemaMetadata
     )
 import Cardano.Wallet.DRep.Layer
     ( DRepLayer
+    )
+import Cardano.Wallet.Network
+    ( NetworkLayer (currentNodeEra)
     )
 import Cardano.Wallet.Pools
     ( StakePoolLayer (..)
@@ -245,6 +257,10 @@ import Control.Monad.Trans.Except
     ( except
     , throwE
     , withExceptT
+    )
+import Data.ByteArray.Encoding
+    ( Base (Base16)
+    , convertToBase
     )
 import Data.Coerce
     ( coerce
@@ -287,10 +303,33 @@ import qualified Cardano.Ledger.BaseTypes as Ledger
 import qualified Cardano.Wallet.Address.Derivation.Shared as Shared
 import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as TE
 
-dappCapabilitiesUnavailable
-    :: ApiDappBackendBuild -> Handler ApiDappCapabilities
-dappCapabilitiesUnavailable _ = Handler (throwE err404)
+dappCapabilities
+    :: forall n s
+     . HasSNetworkId n
+    => ApiLayer s
+    -> ApiDappBackendBuild
+    -> Handler ApiDappCapabilities
+dappCapabilities api backendBuild =
+    case configuredNetwork @n api of
+        Left _ -> Handler (throwE err404)
+        Right
+            ( ApiDappContextNetwork
+                    networkIdValue
+                    networkMagicValue
+                    (ApiDappHex genesisHashBytes)
+                ) -> do
+                era <- liftIO $ currentNodeEra (api ^. networkLayer)
+                maybe
+                    (Handler $ throwE err404)
+                    pure
+                    $ makeApiDappCapabilities
+                        backendBuild
+                        (fromIntegral networkIdValue)
+                        (fromIntegral networkMagicValue)
+                        (TE.decodeUtf8 $ convertToBase Base16 genesisHashBytes)
+                        era
 
 server
     :: forall n
@@ -688,7 +727,7 @@ server byron icarus shelley multisig spl drepLayer ntp blockchainSource dappBack
         getNetworkInformation nid nl mode
             :<|> getNetworkParameters genesis nl
             :<|> getNetworkClock ntp
-            :<|> dappCapabilitiesUnavailable dappBackendBuild
+            :<|> dappCapabilities @n icarus dappBackendBuild
       where
         nl = icarus ^. networkLayer
         genesis@(_, _) = icarus ^. genesisData
