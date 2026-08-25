@@ -38,7 +38,6 @@ import Cardano.Ledger.Coin
     )
 import Cardano.Ledger.Credential
     ( Credential (KeyHashObj)
-    , PaymentCredential
     , StakeReference (..)
     )
 import Cardano.Ledger.Hashes
@@ -46,6 +45,7 @@ import Cardano.Ledger.Hashes
     )
 import Cardano.Ledger.Keys
     ( KeyHash (..)
+    , Payment
     )
 import Cardano.Ledger.Shelley.API.Types
     ( ShelleyTxAuxData
@@ -174,7 +174,7 @@ staking = StakeRefNull
 
 payment
     :: ByteString
-    -> PaymentCredential
+    -> Credential Payment
 payment x = KeyHashObj $ KeyHash $ UnsafeHash $ B.toShort x
 
 txins :: HasCallStack => NonEmpty (Index, TxId) -> Set TxIn

@@ -12,7 +12,7 @@ import Cardano.Ledger.Alonzo
     ( AlonzoTxAuxData
     )
 import Cardano.Ledger.Alonzo.Tx
-    ( IsValid (..)
+    ( IsPhase2Valid (..)
     , ScriptIntegrityHash
     )
 import Cardano.Ledger.Api
@@ -118,8 +118,8 @@ mkConwayTx
 mkConwayTx TxParameters{txInputs, txOutputs} =
     MkConwayTx $ AlonzoTx (body txInputs txOutputs) wits valid aux
 
-valid :: IsValid
-valid = IsValid True
+valid :: IsPhase2Valid
+valid = Phase2Valid
 
 wits :: AlonzoTxWits ConwayEra
 wits = mempty

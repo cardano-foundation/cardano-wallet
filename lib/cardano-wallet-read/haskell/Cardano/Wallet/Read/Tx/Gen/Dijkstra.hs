@@ -1,5 +1,11 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE NamedFieldPuns #-}
+-- This module is a stub: mkDijkstraTx and body are 'error "TODO"' pending the
+-- DijkstraTx/DijkstraTxBody adaptation for ledger-core 1.19. Its imports and
+-- helpers serve that unwritten implementation, so under -Werror they read as
+-- unused. Scoped to the unused-* family only -- deprecations are NOT suppressed
+-- here. Remove when the Dijkstra stubs are implemented (M6, #5209).
+{-# OPTIONS_GHC -Wno-unused-imports -Wno-unused-top-binds -Wno-unused-matches #-}
 
 module Cardano.Wallet.Read.Tx.Gen.Dijkstra
     ( mkDijkstraTx
@@ -11,7 +17,7 @@ import Cardano.Ledger.Alonzo
     )
 import Cardano.Ledger.Alonzo.Tx
     ( AlonzoTx (AlonzoTx)
-    , IsValid (..)
+    , IsPhase2Valid (..)
     , ScriptIntegrityHash
     )
 import Cardano.Ledger.Api
@@ -114,8 +120,8 @@ mkDijkstraTx
 mkDijkstraTx TxParameters{txInputs, txOutputs} =
     error "TODO: adapt to DijkstraTx API changes in ledger-core 1.19"
 
-valid :: IsValid
-valid = IsValid True
+valid :: IsPhase2Valid
+valid = Phase2Valid
 
 wits :: L.TxWits DijkstraEra
 wits = mempty

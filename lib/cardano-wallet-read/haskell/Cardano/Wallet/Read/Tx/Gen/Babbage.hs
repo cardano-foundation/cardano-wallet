@@ -21,7 +21,7 @@ import Cardano.Ledger.Api.Era
     )
 import Cardano.Ledger.Babbage.Tx
     ( AlonzoTx (AlonzoTx)
-    , IsValid (..)
+    , IsPhase2Valid (..)
     , Tx (MkBabbageTx)
     )
 import Cardano.Ledger.Babbage.TxBody
@@ -113,8 +113,8 @@ mkBabbageTx
 mkBabbageTx TxParameters{txInputs, txOutputs} =
     MkBabbageTx $ AlonzoTx (body txInputs txOutputs) wits valid aux
 
-valid :: IsValid
-valid = IsValid True
+valid :: IsPhase2Valid
+valid = Phase2Valid
 
 wits :: AlonzoTxWits BabbageEra
 wits = mempty
