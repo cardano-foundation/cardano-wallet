@@ -6262,8 +6262,8 @@ stakeRegistrationEffects stakeHash =
                 | Crypto.hashToBytes hash == stakeHash -> Just W.DeregisterStakeKey
         _ -> Nothing
 
--- | Dormant CIP-8 data signing. The request's raw address selects the key;
--- caller supplied derivation paths and metadata encodings are deliberately absent.
+-- | CIP-8 data signing. The request's raw address selects the key; caller
+-- supplied derivation paths and metadata encodings are deliberately absent.
 postDappDataSignature
     :: forall n
      . HasSNetworkId n

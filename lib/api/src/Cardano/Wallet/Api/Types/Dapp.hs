@@ -141,8 +141,8 @@ instance FromJSON ApiDappCapability where
 instance ToJSON ApiDappCapability where
     toJSON = genericToJSON strictRecordTypeOptions
 
--- The HTTP route stays unavailable until task-209. This constructor freezes the
--- complete response and refuses every era except Conway before ApiEra conversion.
+-- Construct the complete capability response and refuse every era except
+-- Conway before ApiEra conversion.
 makeApiDappCapabilities
     :: ApiDappBackendBuild
     -> Integer
