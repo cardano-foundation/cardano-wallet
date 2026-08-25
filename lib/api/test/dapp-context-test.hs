@@ -6,6 +6,9 @@
 module Main (main) where
 
 
+import Cardano.Wallet
+    ( DappStakeRegistration (..)
+    )
 import Cardano.Wallet.Api.Http.Server.Error
     ( dappServerError
     )
@@ -40,6 +43,7 @@ import Cardano.Wallet.Api.Types.Dapp.Context
     , ContextRecord (..)
     , ContextTokenClaims (..)
     , canonicalContextRecords
+    , decodeDappCip95KeyState
     , computeContextDigest
     , decodeContextTokenClaims
     , decodeDappDataSignRequest
@@ -54,9 +58,11 @@ import Cardano.Wallet.Api.Types.Dapp.Context
     )
 import Cardano.Wallet.Api.Http.Shelley.Server
     ( DataCredential (..)
+    , classifyDRepDataCredential
     , encodeProtectedDataAddress
     , encodeSignatureStructure
     , mkDappDataSignResponse
+    , stakeRegistrationEffects
     , validateDataSignRequest
     )
 import Cardano.Wallet.Api.Http.Shelley.TransactionContext
@@ -87,10 +93,17 @@ import Cardano.Ledger.Allegra.Scripts
 import Cardano.Ledger.BaseTypes
     ( SlotNo (..)
     )
+import Cardano.Ledger.Coin
+    ( Coin (..)
+    )
 import Cardano.Ledger.Conway.TxCert
-    ( ConwayDelegCert (ConwayRegCert, ConwayUnRegCert)
+    ( ConwayDelegCert (ConwayRegCert, ConwayRegDelegCert, ConwayUnRegCert)
     , ConwayGovCert (ConwayUpdateDRep)
     , ConwayTxCert (ConwayTxCertDeleg, ConwayTxCertGov)
+    , Delegatee (DelegVote)
+    )
+import Cardano.Ledger.DRep
+    ( DRep (DRepAlwaysAbstain)
     )
 import Cardano.Ledger.Credential
     ( Credential (KeyHashObj)
@@ -162,6 +175,13 @@ main = hspec $ do
                     , BL8.pack
                         "{\"revision\":1,\"network\":{\"network_id\":0,\"network_magic\":42,\"genesis_hash\":\"0000000000000000000000000000000000000000000000000000000000000000\"},\"address\":\"60aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"payload\":\"\",\"passphrase\":\"pass\",\"extra\":true}"
                     ]
+            it "accepts only fixed raw public fields in CIP-95 key state" $ do
+                decodeDappCip95KeyState
+                    "{\"drep_public_key\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"registered_stake_public_keys\":[],\"unregistered_stake_public_keys\":[\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"]}"
+                    `shouldSatisfy` isRight
+                decodeDappCip95KeyState
+                    "{\"drep_public_key\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"registered_stake_public_keys\":[],\"unregistered_stake_public_keys\":[],\"private_key\":\"00\"}"
+                    `shouldSatisfy` isLeft
         describe "DAPP_WITNESS_SIGNING request decoder" $ do
             it "accepts the canonical request" $
                 decodeDappWitnessSignRequest (validWitnessRequest [witnessItem])
@@ -239,6 +259,34 @@ main = hspec $ do
             it "selects the stake credential for reward addresses" $
                 validateDataSignRequest dappNetwork (dataSignRequest rewardAddress)
                     `shouldBe` Right (StakeCredential, KeyDataCredential dataCredential, rewardAddress)
+            it "accepts only a raw 28-byte DRep ID outside Shelley address bounds" $ do
+                validateDataSignRequest dappNetwork (dataSignRequest dataCredential)
+                    `shouldBe` Right (DRepCredential, DRepDataCredential dataCredential, dataCredential)
+                validateDataSignRequest dappNetwork (dataSignRequest $ BS.replicate 27 0xaa)
+                    `shouldBe` Left InvalidDappRequest
+            it "dispatches only raw and matching type-6 credentials to DRep" $ do
+                let drepHash = dataCredential
+                    matching = BS.cons 0x61 drepHash
+                    nonmatching = BS.cons 0x61 $ BS.replicate 28 0xbb
+                classifyDRepDataCredential DRepCredential drepHash drepHash drepHash
+                    `shouldBe` Right True
+                classifyDRepDataCredential PaymentCredential matching drepHash drepHash
+                    `shouldBe` Right True
+                classifyDRepDataCredential PaymentCredential nonmatching
+                    (BS.replicate 28 0xbb) drepHash
+                    `shouldBe` Right False
+                classifyDRepDataCredential DRepCredential drepHash
+                    (BS.replicate 28 0xbb) drepHash
+                    `shouldBe` Left ()
+            it "normalizes a DRep COSE protected address to its raw hash" $ do
+                let protected = encodeProtectedDataAddress dataCredential
+                    signatureStructure = encodeSignatureStructure protected nonUtf8Payload
+                    publicKey = BS.replicate 32 0x42
+                    keyHash = Blake.blake2b224 publicKey
+                mkDappDataSignResponse
+                    DRepCredential keyHash dataCredential nonUtf8Payload
+                    protected signatureStructure (publicKey, BS.replicate 64 0x11)
+                    `shouldSatisfy` isRight
             it "classifies script credentials without falling through to proof generation" $ do
                 validateDataSignRequest dappNetwork (dataSignRequest scriptPaymentAddress)
                     `shouldBe` Right (PaymentCredential, ScriptDataCredential, scriptPaymentAddress)
@@ -350,6 +398,30 @@ main = hspec $ do
                 , (ConwayTxCertDeleg $ ConwayUnRegCert stakeCredential Strict.SNothing, True)
                 , (ConwayTxCertGov $ ConwayUpdateDRep (coerce stakeCredential) Strict.SNothing, False)
                 ]
+        it "extracts only valid matching pending stake certificate effects" $ do
+            let stakeCredential = KeyHashObj $ coerce $ witnessKeyHash proofHash
+                foreignCredential =
+                    KeyHashObj $ coerce $ witnessKeyHash $ BS.replicate 28 0x99
+                register stakeCred =
+                    ConwayTxCertDeleg $ ConwayRegCert stakeCred Strict.SNothing
+                registerAndDelegate stakeCred =
+                    ConwayTxCertDeleg
+                        $ ConwayRegDelegCert stakeCred
+                            (DelegVote DRepAlwaysAbstain) (Coin 1)
+                deregister stakeCred =
+                    ConwayTxCertDeleg $ ConwayUnRegCert stakeCred Strict.SNothing
+            stakeRegistrationEffects proofHash
+                [ (True, [register stakeCredential])
+                , (True, [registerAndDelegate stakeCredential])
+                , (False, [deregister stakeCredential])
+                , (True, [register foreignCredential])
+                , (True, [deregister stakeCredential])
+                ]
+                `shouldBe`
+                    [ RegisterStakeKey
+                    , RegisterStakeKey
+                    , DeregisterStakeKey
+                    ]
 
         it "matches all frozen record and Blake2b-256 goldens" $ do
             encodeContextRecord fullOutputRecord `shouldBe` Right fullOutputGolden

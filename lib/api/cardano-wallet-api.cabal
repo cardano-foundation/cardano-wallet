@@ -156,6 +156,7 @@ test-suite dapp-context
     , cardano-ledger-conway
     , cardano-strict-containers
     , cardano-wallet-api
+    , cardano-wallet
     , cardano-wallet-secrets
     , containers
     , crypto-primitives

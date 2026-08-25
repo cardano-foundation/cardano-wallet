@@ -91,6 +91,7 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Api.Types.Dapp.Context
     ( ApiDappDataSignRequest
     , ApiDappDataSignResponse
+    , ApiDappCip95KeyState
     , ApiDappTransactionContextRequest
     , ApiDappTransactionContextResponse
     , ApiDappWitnessSignRequest
@@ -256,7 +257,11 @@ data TransactionClient = TransactionClient
         :: ApiT WalletId
         -> ApiDappDataSignRequest
         -> ClientM ApiDappDataSignResponse
+    , dappCip95KeyState
+        :: ApiT WalletId
+        -> ClientM ApiDappCip95KeyState
     }
+
 data AddressClient = AddressClient
     { listAddresses
         :: ApiT WalletId
@@ -373,7 +378,8 @@ transactionClient =
             :<|> _submitTransaction
             :<|> _transactionContext
             :<|> _dappWitnesses
-            :<|> _dappDataSignature =
+            :<|> _dappDataSignature
+            :<|> _dappCip95KeyState =
                 client (Proxy @("v2" :> (ShelleyTransactions Aeson.Value)))
 
         _postExternalTransaction =
@@ -396,6 +402,7 @@ transactionClient =
             , transactionContext = _transactionContext
             , dappWitnesses = _dappWitnesses
             , dappDataSignature = _dappDataSignature
+            , dappCip95KeyState = _dappCip95KeyState
             }
 
 fromSerialisedTx :: ApiBytesT base SerialisedTx -> ApiT SealedTx
@@ -435,6 +442,8 @@ byronTransactionClient =
                 error "transaction witnesses endpoint not supported for byron"
             , dappDataSignature =
                 error "data signatures endpoint not supported for byron"
+            , dappCip95KeyState =
+                error "CIP-95 key state endpoint not supported for byron"
             , signTransaction =
                 error "sign transaction endpoint not supported for byron"
             , constructTransaction =

@@ -60,6 +60,9 @@ import Cardano.Wallet
     , LocalTxSubmissionConfig (..)
     , RootKeyAccess (..)
     , SelectionWithoutChange
+    , DappStakeRegistration (..)
+    , dappCip95KeyState
+    , dappStakeRegistrationState
     , WalletLayer (..)
     , dbLayer
     , migrationPlanToSelectionWithdrawals
@@ -76,6 +79,7 @@ import Cardano.Wallet.Address.Derivation
     , Index (..)
     , Role (..)
     , deriveAccountPrivateKey
+    , drepDerivationPath
     )
 import Cardano.Wallet.Address.Derivation.Byron
     ( ByronKey
@@ -101,6 +105,7 @@ import Cardano.Wallet.Address.Discovery.Random
     )
 import Cardano.Wallet.Address.Discovery.Sequential
     ( SeqState
+    , derivationPrefix
     , mkAddressPoolGap
     , mkSeqStateFromAccountXPub
     , purposeCIP1852
@@ -741,6 +746,18 @@ spec = describe "Cardano.WalletSpec" $ do
             "password change V1→V2 preserves derived public keys"
             walletPasswordChangeV1ToV2PreservesPublicKey
         it
+            "derives raw CIP-105 DRep and stake public keys from the account XPub"
+            dappCip95PublicKeys
+        it "classifies confirmed, pending, and conflicting stake state"
+            $ do
+                dappStakeRegistrationState False [] `shouldBe` False
+                dappStakeRegistrationState True [] `shouldBe` True
+                dappStakeRegistrationState False [RegisterStakeKey] `shouldBe` True
+                dappStakeRegistrationState True [DeregisterStakeKey] `shouldBe` False
+                dappStakeRegistrationState False
+                    [RegisterStakeKey, DeregisterStakeKey, RegisterStakeKey]
+                    `shouldBe` False
+        it
             "Byron attachPrivateKeyFromPwd stores V1, never V2"
             byronAttachPrivateKeyFromPwdNeverV2
         it
@@ -1150,6 +1167,23 @@ walletPasswordChangeV1ToV2PreservesPublicKey = do
         Right pk -> pure pk
     -- 6. The derived public key must be identical regardless of encryption format.
     pubKeyAfter `shouldBe` pubKeyBefore
+
+dappCip95PublicKeys :: IO ()
+dappCip95PublicKeys = do
+    let (_, _, walletState) = testShelleyWallet
+        decodeVector :: ByteString -> ByteString
+        decodeVector = either (error . show) id . BAE.convertFromBase BAE.Base16
+        expectedDRep =
+            decodeVector "1582d51cb4077e5a36fe1ea712881c0b613b38f82e94b1b279182e3d203b4770"
+        expectedStake =
+            decodeVector "a22d0b8709e6bc04d11257dc405410d1ace01f207c391ba4788ea17198ee1a08"
+        (drep, registered, unregistered) = dappCip95KeyState walletState False []
+    drep `shouldBe` expectedDRep
+    BS.length drep `shouldBe` 32
+    registered `shouldBe` []
+    unregistered `shouldBe` [expectedStake]
+    map getDerivationIndex (NE.toList $ drepDerivationPath $ derivationPrefix walletState)
+        `shouldBe` [0x8000073c, 0x80000717, 0x80000000, 3, 0]
 
 -- | A fixed (WalletId, WalletName, DummyState) used by the migration tests.
 testWallet :: (WalletId, WalletName, DummyState)

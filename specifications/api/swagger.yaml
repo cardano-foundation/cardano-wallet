@@ -4597,7 +4597,7 @@ components:
             additionalProperties: false
             required: [credential_kind, credential, ownership, derivation_path, proof_kinds]
             properties:
-              credential_kind: { type: string, enum: [payment, stake, policy] }
+              credential_kind: { type: string, enum: [payment, stake, drep, policy] }
               credential: { type: string, pattern: '^[0-9a-f]{56}$' }
               ownership: { type: string, enum: [unowned, owned_key, script] }
               derivation_path:
@@ -4635,6 +4635,15 @@ components:
                     minItems: 5
                     maxItems: 5
                     description: Exactly [2147485500 (0x8000073c, 1852'), 2147485463 (0x80000717, 1815'), account in 2147483648..4294967295 (hardened), 2, 0].
+              - description: Owned CIP-105 DRep paths have exactly five fixed-position components.
+                properties:
+                  credential_kind: { type: string, enum: [drep] }
+                  ownership: { type: string, enum: [owned_key] }
+                  derivation_path:
+                    type: array
+                    minItems: 5
+                    maxItems: 5
+                    description: Exactly [2147485500 (0x8000073c, 1852'), 2147485463 (0x80000717, 1815'), account in 2147483648..4294967295 (hardened), 3, 0].
               - description: Owned CIP-1855 policy paths have exactly three fixed components.
                 properties:
                   credential_kind: { type: string, enum: [policy] }
@@ -4660,7 +4669,7 @@ components:
             properties:
               transaction_index: { type: integer, minimum: 0, maximum: 49 }
               proof_kind: { type: string, enum: [normal_input, collateral, withdrawal, certificate, required_signer, native_script, policy] }
-              credential_kind: { type: string, enum: [payment, stake, policy] }
+              credential_kind: { type: string, enum: [payment, stake, drep, policy] }
               credential: { type: string, pattern: '^[0-9a-f]{56}$' }
               required: { type: boolean }
         batch_overlay:
@@ -4758,7 +4767,7 @@ components:
       properties:
         revision: { type: integer, enum: [1] }
         network: *ApiDappContextNetwork
-        address: { type: string, pattern: '^[0-9a-f]{58,118}$' }
+        address: { type: string, pattern: '^(?:[0-9a-f]{56}|[0-9a-f]{58,118})$' }
         payload: { type: string, pattern: '^(?:[0-9a-f]{2}){0,65536}$' }
         passphrase: *lenientPassphrase
 
@@ -4768,10 +4777,23 @@ components:
       required: [revision, credential_kind, credential, cose_sign1, cose_key]
       properties:
         revision: { type: integer, enum: [1] }
-        credential_kind: { type: string, enum: [payment, stake] }
+        credential_kind: { type: string, enum: [payment, stake, drep] }
         credential: { type: string, pattern: '^[0-9a-f]{56}$' }
         cose_sign1: *ApiDappNonEmptyHex
         cose_key: *ApiDappNonEmptyHex
+
+    ApiDappCip95KeyState: &ApiDappCip95KeyState
+      type: object
+      additionalProperties: false
+      required: [drep_public_key, registered_stake_public_keys, unregistered_stake_public_keys]
+      properties:
+        drep_public_key: { type: string, pattern: '^[0-9a-f]{64}$' }
+        registered_stake_public_keys:
+          type: array
+          items: { type: string, pattern: '^[0-9a-f]{64}$' }
+        unregistered_stake_public_keys:
+          type: array
+          items: { type: string, pattern: '^[0-9a-f]{64}$' }
 
     ApiBlockHeader: &ApiBlockHeader
         description: |
@@ -7627,7 +7649,7 @@ x-responsesDappDataSignature: &responsesDappDataSignature
       application/json:
         schema: *ApiDappDataSignResponse
   400:
-    description: Invalid revision-1 request, configured network, raw Shelley address, or payload.
+    description: Invalid revision-1 request, configured network, raw DRep ID, Shelley address, or payload.
     content:
       application/json:
         schema: *errDappInvalidRequest
@@ -7654,6 +7676,23 @@ x-responsesDappDataSignature: &responsesDappDataSignature
     content:
       application/json:
         schema: *errDappInternalError
+
+x-responsesDappCip95KeyState: &responsesDappCip95KeyState
+  200:
+    description: The fixed CIP-105 DRep public key and stake registration state.
+    content:
+      application/json:
+        schema: *ApiDappCip95KeyState
+  409:
+    description: Wallet state changed while reading key state.
+    content:
+      application/json:
+        schema: *errDappAccountChanged
+  503:
+    description: Wallet material is unavailable.
+    content:
+      application/json:
+        schema: *errDappContextUnavailable
 
 x-responsesBalanceTransaction: &responsesBalanceTransaction
   400:
@@ -8692,6 +8731,18 @@ paths:
           application/json:
             schema: *ApiDappDataSignRequest
       responses: *responsesDappDataSignature
+
+  /wallets/{walletId}/cip95-key-state:
+    get:
+      operationId: getDappCip95KeyState
+      tags: ["Transactions New"]
+      summary: Read dormant CIP-95 public key state
+      description: |
+        Returns only raw public keys derived from the persisted account XPub.
+        No private material, capability activation, or governance action is exposed.
+      parameters:
+        - *parametersWalletId
+      responses: *responsesDappCip95KeyState
 
   /byron-wallets:
     post:

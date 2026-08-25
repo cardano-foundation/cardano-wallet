@@ -51,6 +51,7 @@ cabal.project.diff
 ### Docs build
 /_build/
 .vscode/settings.json
+.idea
 
 ## local ignored space
 ignore-me

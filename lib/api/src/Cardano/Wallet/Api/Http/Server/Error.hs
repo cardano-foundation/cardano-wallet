@@ -1487,9 +1487,11 @@ instance IsServerError (Request, ServerError) where
             "v2" : "wallets" : _walletId : "transaction-context" : _ -> True
             "v2" : "wallets" : _walletId : "transaction-witnesses" : _ -> True
             "v2" : "wallets" : _walletId : "data-signatures" : _ -> True
+            "v2" : "wallets" : _walletId : "cip95-key-state" : _ -> True
             "wallets" : _walletId : "transaction-context" : _ -> True
             "wallets" : _walletId : "transaction-witnesses" : _ -> True
             "wallets" : _walletId : "data-signatures" : _ -> True
+            "wallets" : _walletId : "cip95-key-state" : _ -> True
             _ -> False
 
 instance IsServerError WriteTx.ErrInvalidTxOutInEra where

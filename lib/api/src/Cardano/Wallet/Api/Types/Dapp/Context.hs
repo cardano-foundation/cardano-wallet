@@ -10,6 +10,7 @@ module Cardano.Wallet.Api.Types.Dapp.Context
     ( DappJSON
     , ApiDappDataSignRequest (..)
     , ApiDappDataSignResponse (..)
+    , ApiDappCip95KeyState (..)
     , ApiDappTransactionContextRequest (..)
     , ApiDappTransactionContextResponse (..)
     , ApiDappWitnessSignRequest (..)
@@ -43,6 +44,7 @@ module Cardano.Wallet.Api.Types.Dapp.Context
     , decodeDappWitnessSignResponse
     , decodeDappDataSignRequest
     , decodeDappDataSignResponse
+    , decodeDappCip95KeyState
     , ContextRecord (..)
     , ContextDigestInput (..)
     , ContextTokenClaims (..)
@@ -186,6 +188,12 @@ instance MimeUnrender DappJSON ApiDappDataSignResponse where
 instance MimeRender DappJSON ApiDappDataSignResponse where
     mimeRender _ = Aeson.encode
 
+instance MimeUnrender DappJSON ApiDappCip95KeyState where
+    mimeUnrender _ = decodeDappCip95KeyState
+
+instance MimeRender DappJSON ApiDappCip95KeyState where
+    mimeRender _ = Aeson.encode
+
 instance MimeUnrender DappJSON ApiDappWitnessSignRequest where
     mimeUnrender _ = decodeDappWitnessSignRequest
 
@@ -233,6 +241,13 @@ data ApiDappDataSignResponse = ApiDappDataSignResponse
     , credential :: !ApiDappHex
     , coseSign1 :: !ApiDappHex
     , coseKey :: !ApiDappHex
+    }
+    deriving (Eq, Generic, Show)
+
+data ApiDappCip95KeyState = ApiDappCip95KeyState
+    { drepPublicKey :: !ApiDappHex
+    , registeredStakePublicKeys :: ![ApiDappHex]
+    , unregisteredStakePublicKeys :: ![ApiDappHex]
     }
     deriving (Eq, Generic, Show)
 
@@ -328,7 +343,11 @@ data ApiDappPendingOverlay = ApiDappPendingOverlay
     }
     deriving (Eq, Generic, Show)
 
-data ApiDappCredentialKind = PaymentCredential | StakeCredential | PolicyCredential
+data ApiDappCredentialKind
+    = PaymentCredential
+    | StakeCredential
+    | DRepCredential
+    | PolicyCredential
     deriving (Eq, Ord, Show)
 
 data ApiDappOwnershipKind = Unowned | OwnedKey | ScriptOwned
@@ -459,7 +478,8 @@ instance FromJSON ApiDappDataSignRequest where
         result@ApiDappDataSignRequest{revision, address, payload} <-
             genericParseJSON strictRecordTypeOptions value
         unless (revision == 1) $ fail "revision must be 1"
-        requireLengthBetween "address" 29 59 address
+        unless (BS.length (getApiDappHex address) == 28 || BS.length (getApiDappHex address) >= 29 && BS.length (getApiDappHex address) <= 59) $
+            fail "address must be a raw DRep ID or Shelley address"
         requireLengthBetween "payload" 0 65536 payload
         pure result
 
@@ -476,14 +496,29 @@ instance FromJSON ApiDappDataSignResponse where
             , coseKey
             } <- genericParseJSON strictRecordTypeOptions value
         unless (revision == 1) $ fail "revision must be 1"
-        unless (credentialKind `elem` [PaymentCredential, StakeCredential]) $
-            fail "credential_kind must be payment or stake"
+        unless (credentialKind `elem` [PaymentCredential, StakeCredential, DRepCredential]) $
+            fail "credential_kind must be payment, stake, or drep"
         requireLength "credential" 28 credential
         requireNonEmpty "cose_sign1" coseSign1
         requireNonEmpty "cose_key" coseKey
         pure result
 
 instance ToJSON ApiDappDataSignResponse where
+    toJSON = genericToJSON strictRecordTypeOptions
+
+instance FromJSON ApiDappCip95KeyState where
+    parseJSON value = do
+        result@ApiDappCip95KeyState
+            { drepPublicKey
+            , registeredStakePublicKeys
+            , unregisteredStakePublicKeys
+            } <- genericParseJSON strictRecordTypeOptions value
+        requireLength "drep_public_key" 32 drepPublicKey
+        mapM_ (requireLength "registered_stake_public_keys" 32) registeredStakePublicKeys
+        mapM_ (requireLength "unregistered_stake_public_keys" 32) unregisteredStakePublicKeys
+        pure result
+
+instance ToJSON ApiDappCip95KeyState where
     toJSON = genericToJSON strictRecordTypeOptions
 
 instance FromJSON ApiDappWitnessSignItem where
@@ -564,6 +599,11 @@ decodeDappDataSignRequest bytes =
 decodeDappDataSignResponse
     :: BL.ByteString -> Either String ApiDappDataSignResponse
 decodeDappDataSignResponse bytes =
+    rejectDuplicateFields (BL.toStrict bytes) >> eitherDecode bytes
+
+decodeDappCip95KeyState
+    :: BL.ByteString -> Either String ApiDappCip95KeyState
+decodeDappCip95KeyState bytes =
     rejectDuplicateFields (BL.toStrict bytes) >> eitherDecode bytes
 
 instance FromJSON ApiDappChainPoint where
@@ -713,9 +753,9 @@ instance ToJSON ApiDappPendingOverlay where
     toJSON = genericToJSON strictRecordTypeOptions
 
 instance FromJSON ApiDappCredentialKind where
-    parseJSON = parseEnum "credential kind" [("payment", PaymentCredential), ("stake", StakeCredential), ("policy", PolicyCredential)]
+    parseJSON = parseEnum "credential kind" [("payment", PaymentCredential), ("stake", StakeCredential), ("drep", DRepCredential), ("policy", PolicyCredential)]
 instance ToJSON ApiDappCredentialKind where
-    toJSON = enumJson [(PaymentCredential, "payment"), (StakeCredential, "stake"), (PolicyCredential, "policy")]
+    toJSON = enumJson [(PaymentCredential, "payment"), (StakeCredential, "stake"), (DRepCredential, "drep"), (PolicyCredential, "policy")]
 
 instance FromJSON ApiDappOwnershipKind where
     parseJSON = parseEnum "ownership" [("unowned", Unowned), ("owned_key", OwnedKey), ("script", ScriptOwned)]
@@ -1463,6 +1503,7 @@ proofKindOrder = snd <$> proofKindJson
 credentialKindCode :: ApiDappCredentialKind -> Word8
 credentialKindCode PaymentCredential = 1
 credentialKindCode StakeCredential = 2
+credentialKindCode DRepCredential = 3
 credentialKindCode PolicyCredential = 4
 
 ownershipCode :: ApiDappOwnershipKind -> Word8
@@ -1480,6 +1521,8 @@ validPath :: ApiDappCredentialKind -> [Word32] -> Bool
 validPath PaymentCredential [0x8000073c, 0x80000717, account, role, index] =
     account >= 0x80000000 && role <= 1 && index < 0x80000000
 validPath StakeCredential [0x8000073c, 0x80000717, account, 2, 0] =
+    account >= 0x80000000
+validPath DRepCredential [0x8000073c, 0x80000717, account, 3, 0] =
     account >= 0x80000000
 validPath PolicyCredential [0x8000073f, 0x80000717, 0x80000000] = True
 validPath _ _ = False

@@ -89,6 +89,7 @@ module Cardano.Wallet.Api.Link
     , transactionContext
     , dappWitnesses
     , dappDataSignature
+    , dappCip95KeyState
 
       -- * StakePools
     , listStakePools
@@ -891,6 +892,15 @@ dappDataSignature
     => w
     -> (Method, Text)
 dappDataSignature w = endpoint @Api.PostDappDataSignature (wid &)
+  where
+    wid = w ^. typed @(ApiT WalletId)
+
+dappCip95KeyState
+    :: forall w
+     . HasType (ApiT WalletId) w
+    => w
+    -> (Method, Text)
+dappCip95KeyState w = endpoint @Api.GetDappCip95KeyState (wid &)
   where
     wid = w ^. typed @(ApiT WalletId)
 
