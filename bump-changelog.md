@@ -1,0 +1,4037 @@
+# Ecosystem changelog — `cardano-node` 11.0.1 → 11.1.0
+
+Produced per `cardano-deps` §3 as the unified view of ecosystem changes behind
+the wallet's pin-set advance (epic cardano-foundation/cardano-wallet#5395,
+issue #5397).
+
+Version pairs are taken from `cabal.project.freeze` generated from
+`cardano-node` at tag `11.1.0` (commit `94ec4195f15f1fd290ab647be5e518b4e8b82e39`)
+via `nix develop -c cabal update && cabal freeze` — freeze sha256
+`6a636c62ed1793c8dc8157633e1a907300efebdf9e98c4708cc8cbf8f317bab4`, 570 lines.
+**Resolver output, not bound readings.**
+
+| repo | from | to | commits |
+| --- | --- | --- | --- |
+| `cardano-api` | `cardano-api-11.0.0.0` | `cardano-api-11.5.0.0` | 254 |
+| `cardano-ledger` | `cardano-ledger-core-1.20.0.0` | `cardano-ledger-core-1.21.0.0` | 809 |
+| `cardano-base` | `cardano-crypto-class-2.3.3.0` | `cardano-crypto-class-2.5.1.0` | 198 |
+| `ouroboros-consensus` | `release-ouroboros-consensus-3.0.1.0` | `release-ouroboros-consensus-4.1.0.0` | 199 |
+| `ouroboros-network` | `ouroboros-network-1.1.0.0` | `ouroboros-network-1.2.0.0` | 264 |
+| `cardano-node` | `11.0.1` | `11.1.0` | 268 |
+
+**Total: 1992 commits.**
+
+Majors in this range: `ouroboros-consensus` 3 → 4, `cardano-crypto-class`
+2.3 → 2.5, `cardano-ledger-dijkstra` 0.2 → 0.3. The hackage `index-state` also
+moves ~4.5 months (2026-03-26 → 2026-08-14), so non-Cardano transitive
+dependencies move too and are **not** covered by this document.
+
+---
+
+## Chronological — all repos interleaved
+- `2026-08-18` **cardano-node** `94ec4195f` Merge pull request #6604 from IntersectMBO/f-f/prepare-11.1
+- `2026-08-17` **cardano-api** `0b2134286` Release cardano-api-11.5.0.0
+- `2026-08-17` **cardano-node** `07571db94` Bump cardano-api to 11.5, cardano-rpc to 11.1, cardano-cli to 11.2.1
+- `2026-08-17` **cardano-node** `42d848c1e` cabal: drop the stale alex extra-package; fix trailing whitespace
+- `2026-08-16` **cardano-node** `18ee6f783` nix: restore lock pins, re-enable haddock ghc9124
+- `2026-08-16` **cardano-node** `36a0dedb3` Bump dependencies for 11.1 node release
+- `2026-08-16` **cardano-node** `9c0ed4336` docs: update changelog, docker readme, cfg comment
+- `2026-08-15` **cardano-node** `003575fa6` nixosTests: harden cardano-cli ping assertions with pipefail
+- `2026-08-15` **cardano-node** `022386e67` submitApiNixosSvc: update the submit-api service defn for new tracing cfg, group socket use
+- `2026-08-15` **cardano-node** `054e91e99` cardano-submit-api: rewrite the README, drop the unmaintained swagger spec
+- `2026-08-15` **cardano-node** `09fa8608d` oci: correct env snapshot scope, add group 0 ipc perms note
+- `2026-08-15` **cardano-node** `0e36c73e1` nixosTests: assert submit-api Info traces reach the journal
+- `2026-08-15` **cardano-node** `25ffd5d6f` docker: move env snapshot to `/tmp`, drop dead topologyUpdater mapping
+- `2026-08-15` **cardano-node** `28e855529` cfg/ci: update cfg to iohkNix and match ci
+- `2026-08-15` **cardano-node** `30d647562` nix: remove lmdb
+- `2026-08-15` **cardano-node** `32d6667f1` submitApiNixosSvc: add a metricsPort option and pass it through to the oci image
+- `2026-08-15` **cardano-node** `337111d08` tracerOci: fix tracer aborting under set -e when CARDANO_MIN_LOG_SEVERITY is unset
+- `2026-08-15` **cardano-node** `44e27e6bf` nideNixosSvc: preserve new LedgerDB.Snapshots attrset on lsmt attrs merge
+- `2026-08-15` **cardano-node** `4ad010523` releaseBins: add mithril flake input and extract mithril-signer for x86_64-linux release artifact
+- `2026-08-15` **cardano-node** `4d1908934` ociEntrypoint: dispatch cli mode before the NETWORK modes
+- `2026-08-15` **cardano-node** `553cda8a1` oci: direct RTS profiling output to /logs for the images only, not scripts
+- `2026-08-15` **cardano-node** `5867d81b0` cabal: split the extra-packages comment per entry
+- `2026-08-15` **cardano-node** `59c9b8cac` doc: text cleanup, rm legacy log cfg line
+- `2026-08-15` **cardano-node** `5ffa1b0b7` bump: iohkNix
+- `2026-08-15` **cardano-node** `6633cdf52` nixosSvc: redirect the eventlog with -ol, widen the -po gate
+- `2026-08-15` **cardano-node** `725fcd235` nix: replace deprecated pkgs.hostPlatform with stdenv.hostPlatform
+- `2026-08-15` **cardano-node** `72ae47040` submitApiNixosSvc: source the config default from the environment attrset
+- `2026-08-15` **cardano-node** `74710e5fc` nixos: gate RTS stats/profiling flags + add `profilingoutputdir`
+- `2026-08-15` **cardano-node** `7621d4f61` wb 
+- `2026-08-15` **cardano-node** `7898cc599` nixosSvc: add profilingOutputDir; keep RTS stats, gate profiling/eventlog for node/tracer
+- `2026-08-15` **cardano-node** `7a7c2ba5d` nodeNixosSvc: narrow key and cert options to str
+- `2026-08-15` **cardano-node** `7f54fdc97` oci: redirect merge-mode writes to `/tmp`
+- `2026-08-15` **cardano-node** `807dfe886` nixosTests: ensure submit-api test uses binary artifact cfgs
+- `2026-08-15` **cardano-node** `b20f7ce32` oci: enforce the unshared /tmp runtime dir with a lock, ship /tmp sticky
+- `2026-08-15` **cardano-node** `b8a37f9d4` nixosTests: add OCI read-only/non-root tests for node, tracer and submit-api
+- `2026-08-15` **cardano-node** `b9596df2b` ci: align w/ peer snap and useLedgerAfterSlot updates
+- `2026-08-15` **cardano-node** `b976c039b` oci: support ro root/non-root via symlink-following/TOCTOU protected private /tmp runtime dir
+- `2026-08-15` **cardano-node** `bd76447f4` bump: dmq-node for 0.7.0.0
+- `2026-08-15` **cardano-node** `bee660e57` cardano-submit-api: drop dead error constructors, retarget test/run.sh assertions
+- `2026-08-15` **cardano-node** `c2a1b392e` nodeNixosSvc: add lib.types.path to avoid eval fails on path type checks
+- `2026-08-15` **cardano-node** `c3a6e97db` docs: mithril input shape; submit-api restart policy
+- `2026-08-15` **cardano-node** `c92978746` cardano-submit-api: replace the legacy iohk-monitoring example config
+- `2026-08-15` **cardano-node** `db3f6cc42` wb 
+- `2026-08-15` **cardano-node** `de932e4e8` cfg: rm dead mainnet-ci, byron-testnet config dirs
+- `2026-08-15` **cardano-node** `dfdc32fcc` bump: mithril for v2630
+- `2026-08-15` **cardano-node** `e360426f8` nixosNodeSvc: add optional bls key support
+- `2026-08-15` **cardano-node** `e43a247c7` oci: make mount-point directories group-writable for non-root operation
+- `2026-08-15` **cardano-node** `f1b83de76` bump: mithril for iohk -> IntersectMBO repo move
+- `2026-08-15` **cardano-node** `f6555296e` nodeNixosSvc: rm useNewTopology w/ p2p as the only networking mode
+- `2026-08-15` **cardano-node** `fad8137f4` tracing: rm old tracing system cfg
+- `2026-08-13` **cardano-api** `f8e5d4d9d` Merge pull request #1289 from IntersectMBO/bump-ouroboros-consensus-4.1
+- `2026-08-12` **cardano-api** `d9a7eff3d` Bump ouroboros-consensus to 4.1.0.0
+- `2026-08-12` **cardano-node** `ac1e6380f` Merge pull request #6643 from IntersectMBO/russoul/100x-chain
+- `2026-08-11` **cardano-api** `1287b3e7f` Generalise the owner-permission writers from IO to MonadIO
+- `2026-08-11` **cardano-api** `71d5c7e57` Address review: leftFail, simpler error handling, writeSecrets test
+- `2026-08-11` **cardano-api** `788a8ef8f` cardano-wasm demo: transaction submission via Blockfrost
+- `2026-08-11` **cardano-api** `8736bf210` Make owner-permission file writes atomic on POSIX
+- `2026-08-11` **cardano-api** `9c3f2cf27` Merge pull request #1286 from IntersectMBO/make-posix-writes-atomic
+- `2026-08-11` **cardano-api** `a09815938` Merge pull request #1287 from IntersectMBO/wasm-demo-submit-blockfrost
+- `2026-08-11` **cardano-api** `af4008503` Fix the Windows link failure: drop unix-compat from the tests
+- `2026-08-11` **cardano-api** `c197bfcf7` Address Copilot review: breaking changelog kind, real-user ownership
+- `2026-08-11` **cardano-api** `cb5ee5b1b` Sync the directory after the rename
+- `2026-08-11` **cardano-node** `110ca9b16` CI: Add ghc-9.14 to the build matrix
+- `2026-08-11` **cardano-node** `3e138a5c0` Merge pull request #6638 from IntersectMBO/erikd/updates
+- `2026-08-11` **ouroboros-consensus** `5ad0fd07b` Take Mithril snapshots every 40*k slots with no offset
+- `2026-08-11` **ouroboros-consensus** `7d5dfe09e` Fix excessive allocation in mempool snapshotting
+- `2026-08-11` **ouroboros-consensus** `c85b71d7e` Release consensus-4.1 (#2189)
+- `2026-08-11` **ouroboros-consensus** `cee6920fb` Add txid Eq/Ord tests
+- `2026-08-11` **ouroboros-consensus** `e20b47200` Add txid Eq/Ord micro-benchmark
+- `2026-08-11` **ouroboros-consensus** `ebb37ec22` Release ouroboros-consensus 4.1.0.0
+- `2026-08-11` **ouroboros-consensus** `ff535741b` Make OneEraGenTxId Eq/Ord allocation-free (#2003)
+- `2026-08-10` **cardano-api** `037824ca4` Merge pull request #1283 from IntersectMBO/wasm-demo-fee-sign-export
+- `2026-08-10` **cardano-api** `09fef2e0f` add: updated security file and changelog
+- `2026-08-10` **cardano-api** `0d85f11d8` updated PR number in changelog
+- `2026-08-10` **cardano-api** `0eab9968d` Merge pull request #1277 from IntersectMBO/mgalazyn/feature/rpc-add-readgenesis-method
+- `2026-08-10` **cardano-api** `13627e6c4` Merge pull request #1284 from IntersectMBO/fix-haddock-links
+- `2026-08-10` **cardano-api** `1ea14e3fb` cardano-rpc: Add fixture and property tests for the genesis mappers
+- `2026-08-10` **cardano-api** `4b4eacced` docs: use cardano-api's own security advisory form link
+- `2026-08-10` **cardano-api** `5222b1a6e` cardano-rpc: Add ReadGenesis to the QueryService proto definition
+- `2026-08-10` **cardano-api** `5be024c72` cardano-rpc: Regenerate proto code
+- `2026-08-10` **cardano-api** `757081379` Merge pull request #1280 from SuganyaAK/update-security-file
+- `2026-08-10` **cardano-api** `a042a20ba` cardano-rpc: Implement the ReadGenesis method
+- `2026-08-10` **cardano-api** `aabddbf0c` Export genesis reading helpers and consensus re-exports for node kernel access
+- `2026-08-10` **cardano-node** `1032edb6d` Adapt to QuickCheck == 2.18.*
+- `2026-08-10` **cardano-node** `1eae0fa02` cardano-testnet: Restore compact help usage layout
+- `2026-08-10` **cardano-node** `7ac648661` cabal.project: Update index-states
+- `2026-08-10` **cardano-node** `b5f4a92ce` cabal.project: Update constraint on crypton-x509-system
+- `2026-08-10` **cardano-node** `d8abdc52d` Nix updates
+- `2026-08-10` **cardano-node** `ddd37056b` Make it build with ghc-9.14
+- `2026-08-10` **cardano-node** `f3357852d` Merge pull request #6647 from IntersectMBO/erikd/crypton-x509-system-dep
+- `2026-08-08` **cardano-api** `216541936` cardano-wasm demo: address review feedback
+- `2026-08-08` **cardano-api** `b7842284f` Fix Haddock dead-link CI failure: add fs-api's doc site
+- `2026-08-08` **cardano-api** `cd8bdd5bb` cardano-wasm demo: fee estimation, balance checks, signing, tx export
+- `2026-08-07` **cardano-api** `0bcbdcb2f` Merge pull request #1281 from IntersectMBO/release/cardano-api-11.4.0.0
+- `2026-08-07` **cardano-api** `3e9a0f16a` Merge pull request #1278 from IntersectMBO/wasm-demo-payment-builder
+- `2026-08-07` **cardano-node** `48fc6714f` Merge pull request #6641 from IntersectMBO/fix-haddock-issue
+- `2026-08-07` **cardano-node** `debc95876` Merge pull request #6642 from IntersectMBO/russoul/bench-run-tag-no-commit-fix
+- `2026-08-06` **cardano-api** `0afa23861` Update to cardano-ledger-api 1.14
+- `2026-08-06` **cardano-api** `1c81d28a1` Release cardano-api-11.4.0.0
+- `2026-08-06` **cardano-api** `73272cd54` Merge pull request #1221 from IntersectMBO/f-f/prepare-11.1
+- `2026-08-06` **cardano-api** `780f399f9` Add release changelog fragment for cardano-api 11.4.0.0
+- `2026-08-06` **cardano-api** `7d2837ac4` Apply review feedback
+- `2026-08-06` **cardano-api** `895d5a436` Integration for Node release 11.1
+- `2026-08-06` **cardano-node** `18e55c970` wb 
+- `2026-08-06` **cardano-node** `4494e04d8` workbench: fix git commit detection for worktree checkouts
+- `2026-08-06` **cardano-node** `7a10dd5c3` wb 
+- `2026-08-06` **cardano-node** `90fa6bcd7` Simplify the haddock workflow
+- `2026-08-06` **cardano-node** `b78bf67f9` Make the haddock shell a project variant named after its role
+- `2026-08-06` **cardano-node** `f9a1dcf87` wb 
+- `2026-08-05` **cardano-api** `37e8273f5` cardano-wasm demo: payment builder (inputs, outputs, address validation)
+- `2026-08-05` **cardano-api** `724e2ec0f` Merge pull request #1276 from IntersectMBO/wasm-demo-wallet-blockfrost
+- `2026-08-05` **cardano-node** `311f71811` Fix haddock generation in CI by using GHC 9.12.4
+- `2026-08-04` **cardano-api** `4c6ed3c6f` cardano-wasm demo: UTxOs and balances via Blockfrost
+- `2026-08-03` **cardano-api** `04dfef573` Remove the unused ByronToAlonzoEra eon
+- `2026-08-03` **cardano-api** `307973de2` Merge pull request #1275 from IntersectMBO/erikd/updates
+- `2026-08-03` **cardano-api** `45d0c2edb` cabal.project: Update allow-newer block
+- `2026-08-03` **cardano-api** `8ac342214` Nix updates
+- `2026-08-03` **cardano-api** `9c2483030` Merge pull request #1270 from IntersectMBO/wasm-demo-wallet-management
+- `2026-08-03` **cardano-api** `b53b1ed2f` Replace closed-range eon eliminators with forEraInEon and remove the eons
+- `2026-08-03` **cardano-api** `c7e8cba7c` Changelog fragment
+- `2026-08-03` **cardano-api** `db135ea7c` Merge pull request #1260 from IntersectMBO/jordan/remove-byrontoalonzoera-eon
+- `2026-08-03` **cardano-api** `df0681532` cabal.project: Update index-states
+- `2026-08-03` **cardano-api** `fa0d44832` Remove redundant orphan typeclass instances
+- `2026-07-31` **cardano-api** `2258e85e5` Address review feedback
+- `2026-07-31` **cardano-api** `68ec2d632` Fail on collateral inputs in transactions without Plutus scripts
+- `2026-07-31` **cardano-api** `7224fe73b` Merge pull request #1274 from IntersectMBO/1261-post-merge-reviews
+- `2026-07-31` **cardano-api** `934e3fcef` Move collateral tests to separate modules
+- `2026-07-31` **cardano-api** `d6cfc7df0` Simplify test fixtures and document the calcReturnAndTotalCollateral contract
+- `2026-07-30` **cardano-api** `2a8b477f8` cardano-rpc: Add block and block reference conversions
+- `2026-07-30` **cardano-api** `35f8d03ac` cardano-rpc: Deliver FollowTip rollbacks as undo actions
+- `2026-07-30` **cardano-api** `379fee96e` cardano-rpc: Add FollowTip method
+- `2026-07-30` **cardano-api** `3dcd5b4d8` cardano-rpc: Remove unused TraceRpcForkerError
+- `2026-07-30` **cardano-api** `515196af0` cardano-rpc: Add chain follower access to the node kernel
+- `2026-07-30` **cardano-api** `5de6ff6de` Merge pull request #1268 from IntersectMBO/mgalazyn/feature/grpc-follow-tip
+- `2026-07-30` **cardano-api** `80585984e` cardano-api: Re-export the ChainDB follower API
+- `2026-07-30` **cardano-node** `3dcffa2c9` Add herald changelog check and release workflows
+- `2026-07-30` **cardano-node** `3ebff7614` Re-enable the fragment PR-number check
+- `2026-07-30` **cardano-node** `3f066058d` Add herald configuration for chairman, submit-api and testnet
+- `2026-07-30` **cardano-node** `4fd8f5b83` Drop vNext heading from cardano-submit-api changelog
+- `2026-07-30` **cardano-node** `68d431c11` Add CHANGELOG.md for cardano-node-chairman
+- `2026-07-30` **cardano-node** `6b674c8b4` Merge pull request #6632 from IntersectMBO/mgalazyn/feature/herald-validate-pr-numbers
+- `2026-07-30` **cardano-node** `8205a1cdb` Add herald to the devshell
+- `2026-07-30` **cardano-node** `856f6f590` Bump actions/checkout to v7.0.1 for Node 24
+- `2026-07-30` **cardano-node** `87e8c8d6b` Remove scriv changelog check
+- `2026-07-30` **cardano-node** `a59223bb8` Convert cardano-testnet changelog fragments from scriv to herald
+- `2026-07-30` **cardano-node** `b0dfaaecf` Disable the fragment PR-number check for now
+- `2026-07-30` **cardano-node** `b77b26e71` Merge pull request #6631 from IntersectMBO/mgalazyn/feature/migrate-to-herald
+- `2026-07-30` **ouroboros-consensus** `3454ff851` Node 11.1 integration (#2043)
+- `2026-07-30` **ouroboros-consensus** `6de6c8a62` Integration for Node release 11.1
+- `2026-07-30` **ouroboros-consensus** `710fc31ca` Release ouroboros-consensus 4.0.0.0 (#2161)
+- `2026-07-30` **ouroboros-consensus** `7b900a863` Fix deprecations by switching key handling to FixedSized
+- `2026-07-30` **ouroboros-consensus** `7d71005db` Release ouroboros-consensus 4.0.0.0
+- `2026-07-30` **ouroboros-consensus** `a7a603d63` Remove srps, update indices
+- `2026-07-29` **cardano-api** `00e6e02be` cardano-wasm demo: address review feedback
+- `2026-07-28` **cardano-api** `ab7434711` cardano-wasm demo: multi-wallet management
+- `2026-07-28` **cardano-api** `c44b25f0a` Address review feedback on collateral dust folding
+- `2026-07-28` **cardano-api** `e709cbb17` Merge pull request #1267 from IntersectMBO/1261-fix3-fold-collateral-dust
+- `2026-07-28` **cardano-ledger** `00dad101d` Merge pull request #5874 from IntersectMBO/jj/fixedsizebytes
+- `2026-07-28` **cardano-ledger** `03bfba65c` Test collateral inputs are in utxo
+- `2026-07-28` **cardano-ledger** `04dc4750e` Update libs/cardano-ledger-binary/CHANGELOG.md
+- `2026-07-28` **cardano-ledger** `0ae7b2086` Update libs/cardano-ledger-binary/src/Cardano/Ledger/Binary/Decoding/Decoder.hs
+- `2026-07-28` **cardano-ledger** `0d408ba6e` Update libs/cardano-ledger-binary/cardano-ledger-binary.cabal
+- `2026-07-28` **cardano-ledger** `25aa8e520` Implement indefinite byte array decoding, fix bug in decodeBytes
+- `2026-07-28` **cardano-ledger** `32096200f` Cabal format
+- `2026-07-28` **cardano-ledger** `5732c066e` Remove Mempack import
+- `2026-07-28` **cardano-ledger** `696ed4882` Add LeiosCert roundtripping test
+- `2026-07-28` **cardano-ledger** `700d983d4` Deprecate Cardano.Ledger.Binary.Crypto
+- `2026-07-28` **cardano-ledger** `70aa86571` Bump cardano-binary to 1.9.1.0
+- `2026-07-28` **cardano-ledger** `7afbe698a` Expose deprecated module but stop using it
+- `2026-07-28` **cardano-ledger** `805bd1678` Remove cardano-crypto-leios srp and use CHaP instead
+- `2026-07-28` **cardano-ledger** `8b7c903b7` bump cardano-crypto-praos
+- `2026-07-28` **cardano-ledger** `93b1af1b7` Copilot review comments
+- `2026-07-28` **cardano-ledger** `9da0d46fc` Update libs/cardano-ledger-binary/src/Cardano/Ledger/Binary/Decoding/Decoder.hs
+- `2026-07-28` **cardano-ledger** `aaeb6b26b` Merge pull request #5959 from IntersectMBO/aniketd/test-collateralinputs
+- `2026-07-28` **cardano-ledger** `dffb2be79` Remove LeiosCert Arbitrary instance in Dijkstra
+- `2026-07-28` **cardano-ledger** `e772a7630` Update libs/cardano-ledger-binary/src/Cardano/Ledger/Binary/Decoding/DecCBOR.hs
+- `2026-07-28` **cardano-ledger** `e85c5fc35` Update libs/cardano-ledger-binary/src/Cardano/Ledger/Binary/Decoding/Decoder.hs
+- `2026-07-28` **cardano-ledger** `f4178b9c9` Update libs/cardano-ledger-binary/CHANGELOG.md
+- `2026-07-28` **ouroboros-network** `1ccd17298` CM: Fix connection leak
+- `2026-07-28` **ouroboros-network** `2e83f1a31` Always inform IG of MuxFinished
+- `2026-07-28` **ouroboros-network** `4341b99ee` changelog
+- `2026-07-28` **ouroboros-network** `4f93efd97` connection-manager: trace remote address and ConnStateId
+- `2026-07-28` **ouroboros-network** `4fe733b20` release-to-chap and build-with-chap: fdfind
+- `2026-07-28` **ouroboros-network** `a2f21886a` Bump packages, updated CHANGELOGs
+- `2026-07-28` **ouroboros-network** `c45735a56` Merge pull request #5412 from IntersectMBO/coot/cardano-diffusion-1.1.0.0-release
+- `2026-07-28` **ouroboros-network** `d8169de9b` Merge pull request #5411 from IntersectMBO/mw/leaks
+- `2026-07-27` **cardano-api** `229fc8f2a` Address review feedback on collateral error handling
+- `2026-07-27` **cardano-api** `963e0caa3` Merge pull request #1266 from IntersectMBO/1261-fix2-return-collateral-min-utxo
+- `2026-07-27` **cardano-api** `a7b1ec7e7` Fold return collateral dust into the total collateral
+- `2026-07-27` **cardano-api** `b93109e24` Add regression tests for folding return collateral dust
+- `2026-07-27` **cardano-ledger** `2a366e6f9` Add startingAccountBalanceInterval to TopTx body.
+- `2026-07-27` **cardano-ledger** `3c86a62ce` Enable Conway conformance tests in Dijkstra (#5939)
+- `2026-07-27` **cardano-ledger** `46db88720` Include direct deposits in `getProducedValue` in Dijkstra
+- `2026-07-27` **cardano-ledger** `4e5f900db` Merge pull request #5952 from IntersectMBO/aniketd/starting-balance-intervals
+- `2026-07-27` **cardano-ledger** `6c12696f0` Apply suggestions from code review
+- `2026-07-27` **cardano-ledger** `7502ce8e6` Address review comment
+- `2026-07-27` **cardano-ledger** `929221e34` Implement batch-aware `certsTotalRefundsTxBody` in Dijkstra
+- `2026-07-27` **cardano-ledger** `a06e652b6` Implement batch-aware `certsTotalDepositsTxBody` for Dijkstra
+- `2026-07-27` **cardano-ledger** `bbf00fc84` Merge pull request #5930 from IntersectMBO/td/fix-pots-calculations-no-loop
+- `2026-07-27` **cardano-ledger** `ed5cfa84b` Update test for produced value to also check direct deposits
+- `2026-07-27` **cardano-node** `95daddf5c` Merge pull request #6627 from IntersectMBO/mkarg/solochain-profiles
+- `2026-07-27` **cardano-node** `ec672fd08` Merge pull request #6609 from IntersectMBO/tx-generator-ogmios-submit-mode
+- `2026-07-25` **cardano-api** `d3ed91c19` Merge pull request #1259 from IntersectMBO/mgalazyn/reature/read-tip
+- `2026-07-25` **cardano-api** `e85db1fb3` Address Copilot review feedback
+- `2026-07-25` **cardano-api** `eb8491a29` Merge pull request #1258 from IntersectMBO/mgalazyn/fix-grpc-bytes-fields
+- `2026-07-24` **cardano-api** `0a2bae4fb` Add ConwayEraPParams to EraCommonConstraints
+- `2026-07-24` **cardano-api** `17e45bc8a` Merge pull request #1265 from IntersectMBO/1261-fix1-skip-collateral-without-plutus
+- `2026-07-24` **cardano-api** `3272c3b1b` Add regression tests for collateral on transactions without Plutus scripts
+- `2026-07-24` **cardano-api** `3f3cc8502` Merge pull request #1247 from IntersectMBO/mgalazyn/feature/fetchBlock-tx-bodies
+- `2026-07-24` **cardano-api** `606545bd2` Fail on invalid computed collateral instead of building a rejected transaction
+- `2026-07-24` **cardano-api** `65e0e00e5` Make genTx sign the transaction body it returns
+- `2026-07-24` **cardano-api** `668e35ca6` Remove collateral from transactions without Plutus scripts
+- `2026-07-24` **cardano-api** `6baeb9392` Add regression tests for return collateral with tokens below min UTxO
+- `2026-07-24` **cardano-api** `847477100` cardano-rpc: Convert Byron blocks to UTxO RPC transactions
+- `2026-07-24` **cardano-api** `9775a7559` Replace CollateralComputation with Either CollateralError
+- `2026-07-24` **cardano-api** `abf97a8bb` Add `toPlutusScriptPurposeIndex` to the experimental API
+- `2026-07-24` **cardano-api** `ac306521d` cardano-rpc: Fix address serialisation.
+- `2026-07-24` **cardano-api** `b833c4456` cardano-rpc: Add readTip method
+- `2026-07-24` **cardano-api** `b86fce228` Re-export byronBlockRaw from Cardano.Api.Consensus
+- `2026-07-24` **cardano-api** `bdf4dd80b` cardano-rpc: Populate transactions in FetchBlock responses
+- `2026-07-24` **cardano-api** `cfe61df70` cardano-rpc: Convert Shelley-based era transactions to UTxO RPC
+- `2026-07-24` **cardano-api** `d8f1bebfb` Update copilot instructions to ignore imports using same alias.
+- `2026-07-24` **cardano-api** `e137f6e46` cardano-rpc: Add certificate, governance and protocol parameter update conversions
+- `2026-07-24` **cardano-ledger** `00aec9dd7` Introduce new LEDGERS rule starting with Babbage
+- `2026-07-24` **cardano-ledger** `3467f7bd0` Cache `PlutusRunnable` at the Tx level
+- `2026-07-24` **cardano-ledger** `4e6a077f6` Rename `validScript` to `isValidScript` and move it
+- `2026-07-24` **cardano-ledger** `64e7177e1` Merge pull request #5946 from IntersectMBO/lehins/make-alonzo-tx-mempool-backwards-compatible
+- `2026-07-24` **cardano-ledger** `97b2f9d52` Make sure plutus scripts are cached for sub-transactions as well as top level
+- `2026-07-24` **cardano-ledger** `9d9ee9bc0` Add `isValidPlutusRunnable` helper function
+- `2026-07-24` **cardano-ledger** `a88b60bdc` Merge pull request #5953 from IntersectMBO/lehins/reuse-script-cache-for-script-validation
+- `2026-07-24` **cardano-ledger** `b3db8db5c` Merge pull request #5942 from IntersectMBO/lehins/optimize-plutus-script-preparation
+- `2026-07-24` **cardano-ledger** `bce437e7f` Implement script caching for validation
+- `2026-07-24` **cardano-ledger** `c836ec08f` Switch script validation to be a static check
+- `2026-07-24` **cardano-ledger** `f7099119c` Add `PlutusRunnable` caching at the block level
+- `2026-07-24` **cardano-ledger** `fd44ea7f7` Move `StAnnTxCache` into `EraTx` and:
+- `2026-07-24` **cardano-node** `1283f8d29` wb 
+- `2026-07-24` **cardano-node** `31c009f1f` cardano-profile 
+- `2026-07-24` **ouroboros-consensus** `8d36f325d` Fixup tests
+- `2026-07-24` **ouroboros-consensus** `cadd98635` Define the default snapshot policy to be Mithril's snapshot policy
+- `2026-07-24` **ouroboros-consensus** `f205a7103` Define the default snapshot policy to be Mithril's snapshot policy (#2149)
+- `2026-07-24` **ouroboros-network** `d80f488c8` Merge pull request #5409 from IntersectMBO/coot/ping-and-formatting
+- `2026-07-24` **ouroboros-network** `dd7c467d2` changelog
+- `2026-07-23` **cardano-ledger** `d2c4e3bbc` Simplify `AlonzoTx` decoder for mempool
+- `2026-07-23` **cardano-ledger** `e0516cf65` Make `AlonzoTx` decoder for mempool backwards compatible
+- `2026-07-23` **cardano-ledger** `e10b98528` Fix JSON roundtrip for InjectionData
+- `2026-07-23` **cardano-ledger** `e28a17911` Merge pull request #5945 from IntersectMBO/f-f/roundtrip-json-injectiondata
+- `2026-07-23` **cardano-node** `0a21a7437` Merge pull request #6620 from lambdasistemi/fix/sigterm-startup-shutdown
+- `2026-07-23` **cardano-node** `12e22bab9` wb 
+- `2026-07-23` **cardano-node** `171dfe15e` cardano-profile 
+- `2026-07-23` **ouroboros-network** `061c32868` network-mux: using formatting library
+- `2026-07-23` **ouroboros-network** `1960ba2d1` Merge pull request #5408 from IntersectMBO/f-f/fix-tracing-severity2
+- `2026-07-23` **ouroboros-network** `2622a532f` cardano-ping: more concise formatting of NodeToNodeVersionData
+- `2026-07-23` **ouroboros-network** `8b17241f8` cardano-diffusion: using formatting library
+- `2026-07-23` **ouroboros-network** `8b9a33456` cardano-diffusion: using formatting library
+- `2026-07-23` **ouroboros-network** `a89db961b` cardano-ping: quiet mode
+- `2026-07-23` **ouroboros-network** `d5fc44653` ouroboros-network: using formatting library
+- `2026-07-23` **ouroboros-network** `ef211fd7d` cardano-ping: short / full hash
+- `2026-07-22` **cardano-api** `e65e9c3cf` Merge pull request #1257 from IntersectMBO/cardano-wasm-demo-scaffolding
+- `2026-07-22` **cardano-ledger** `110a43fa4` Add `AccountBalanceExact` constructor to `AccountBalanceInterval`
+- `2026-07-22` **cardano-ledger** `4644719f1` Merge pull request #5933 from IntersectMBO/koslambrou/accountbalanceexact
+- `2026-07-22` **cardano-ledger** `a624de4c8` Make `SnapShots` era parametric (#5944)
+- `2026-07-22` **cardano-node** `9e9cb95fa` severityFor bugs
+- `2026-07-22` **cardano-node** `f098c09d2` Merge pull request #6625 from IntersectMBO/jutaro/severityFixes
+- `2026-07-22` **ouroboros-network** `7d5261376` Fix severity queries for InsecureLocalSocket
+- `2026-07-22` **ouroboros-network** `96dcc00e3` removed debug comments
+- `2026-07-21` **cardano-api** `027f919ca` Add readAnyScriptBytes and readFileAnyScript to experimental API
+- `2026-07-21` **cardano-api** `47e9e3e01` Merge pull request #1245 from IntersectMBO/read-file-any-script
+- `2026-07-21` **cardano-api** `7ce70b3ad` Add changelog fragment for #1245
+- `2026-07-21` **cardano-api** `f05da3529` Add serialization tests for readAnyScriptBytes and readFileAnyScript
+- `2026-07-21` **cardano-api** `f86221741` Decompose readAnyScriptBytes into readTextEnvelopeScript and readSimpleScriptFromJson
+- `2026-07-21` **cardano-ledger** `fc173c700` Merge pull request #5927 from IntersectMBO/ldan/leios-blockheader
+- `2026-07-21` **cardano-node** `0c143ae1b` build(deps): bump protobufjs in /bench/grafana-datasource
+- `2026-07-21` **cardano-node** `76d85a21f` Merge pull request #6623 from IntersectMBO/dependabot/npm_and_yarn/bench/grafana-datasource/protobufjs-7.6.5
+- `2026-07-21` **cardano-node** `bd984e7ea` cardano-profile 
+- `2026-07-20` **cardano-api** `969c61a9f` Apply suggestions from code review
+- `2026-07-20` **cardano-api** `96dca8207` demo dev shell: take the Elm toolchain from the unstable nixpkgs input
+- `2026-07-20` **cardano-ledger** `1b262d129` Allow benchmarking thunks in ConwayGenesis
+- `2026-07-20` **cardano-ledger** `3595ee59e` Remove thunks in AlonzoGenesis
+- `2026-07-20` **cardano-ledger** `3a80dec68` Update `CHANGELOG`s
+- `2026-07-20` **cardano-ledger** `7bb83d822` Add `Leios.BlockHeader`
+- `2026-07-20` **cardano-ledger** `e9827fdc3` Merge pull request #5926 from IntersectMBO/js/thunks
+- `2026-07-20` **cardano-node** `485e6339a` fix(node): handle sigterm across startup phases
+- `2026-07-20` **cardano-node** `77897a7c6` test(node): cover sigterm during config parsing
+- `2026-07-20` **cardano-node** `e5c4fb0b1` fix(node): make sigterm checks portable
+- `2026-07-20` **cardano-node** `f64283d35` Merge pull request #6611 from IntersectMBO/bench/profiles
+- `2026-07-19` **cardano-api** `987fec3c5` Merge pull request #1241 from IntersectMBO/erikd/updates
+- `2026-07-19` **cardano-ledger** `596fbf687` Merge pull request #5935 from IntersectMBO/lehins/retroactively-fix-minor-version-decoder
+- `2026-07-19` **cardano-ledger** `873cab073` Switch minor protocol version to `Word32`
+- `2026-07-19` **cardano-ledger** `90500e7dd` Update PR template
+- `2026-07-19` **cardano-ledger** `95342722d` Fix Shelley golden test for PParamsUpdate
+- `2026-07-19` **cardano-ledger** `9ef91412e` Regenerate CDDL with fixed `protocol_version` definition
+- `2026-07-19` **cardano-ledger** `9f3528f08` Organize Huddle spec for `protocol_version`
+- `2026-07-19` **cardano-node** `57a7d443a` wb 
+- `2026-07-19` **cardano-node** `7a4cbceb3` wb 
+- `2026-07-19` **cardano-node** `99dbddb91` wb 
+- `2026-07-19` **cardano-node** `9a325612e` wb 
+- `2026-07-19` **cardano-node** `9fa5cd236` wb 
+- `2026-07-18` **cardano-api** `a4e1d4691` cardano-wasm: scaffold browser wallet demo + CI pipeline
+- `2026-07-18` **cardano-ledger** `0932fa3cc` Simplify `consumed`.
+- `2026-07-18` **cardano-ledger** `0d1b90b51` Add missing strictness annotation
+- `2026-07-18` **cardano-ledger** `1eb20eab3` Simplify DRep refund calculation
+- `2026-07-18` **cardano-ledger** `2852a85f7` Introduce `validateValueNotConservedUTxO` for `Dijkstra`
+- `2026-07-18` **cardano-ledger** `383c65dbe` Fix the `DRepNotRegistered` imp spec test
+- `2026-07-18` **cardano-ledger** `3b603cf57` Remove outdated piece from SafeToHash haddock
+- `2026-07-18` **cardano-ledger** `48edae9f1` Add an imp test for `DRepNotRegistered`
+- `2026-07-18` **cardano-ledger** `665f3270b` Merge pull request #5934 from IntersectMBO/dependabot/github_actions/actions-3adb7104b5
+- `2026-07-18` **cardano-ledger** `8ebabbd9a` Add `lookupAccountDeposit`
+- `2026-07-18` **cardano-ledger** `9cf0b8a0e` Merge pull request #5919 from IntersectMBO/lehins/adjust-consumed-interface
+- `2026-07-18` **cardano-ledger** `c19756138` Remove `consume`
+- `2026-07-18` **cardano-ledger** `c33ad9849` Bump slackapi/slack-github-action in the actions group
+- `2026-07-18` **cardano-ledger** `d8e80a65b` Change `produced` to accept `PState`, instead of `CertState`
+- `2026-07-16` **cardano-ledger** `0a1dcfc86` Update hackage index-state version to get latest cuddle release
+- `2026-07-16` **cardano-ledger** `40416e685` Merge pull request #5928 from IntersectMBO/koslambrou/upgrade-hackage-cuddle
+- `2026-07-16` **cardano-node** `3fb22b725` Register the submission endpoint options with the NixOS service
+- `2026-07-16` **cardano-node** `7e81d1ca4` Remove the endpoint integration test to the Ogmios repository
+- `2026-07-16` **cardano-node** `87bd1cc1b` Merge pull request #6616 from IntersectMBO/testnet-hang-fix
+- `2026-07-16` **cardano-node** `afde0ad96` Rework the submission endpoint config contract
+- `2026-07-16` **cardano-node** `b94fad5ba` Trace endpoint submission progress, not just failures
+- `2026-07-16` **ouroboros-network** `6fe765936` Merge pull request #5400 from IntersectMBO/coot/dns-ttl
+- `2026-07-16` **ouroboros-network** `fec5f760a` Merge pull request #5403 from IntersectMBO/js/thunks
+- `2026-07-15` **cardano-api** `3ab3f2992` Merge pull request #1249 from IntersectMBO/nonthrowing-utf8-decode
+- `2026-07-15` **cardano-api** `a8fd42c17` Truncate existing files when writing with owner permissions on POSIX
+- `2026-07-15` **cardano-api** `d74b3f66c` Merge pull request #1248 from IntersectMBO/writeFileTextEnvelopeWithOwnerPermissions
+- `2026-07-15` **cardano-ledger** `965cc47d7` Merge pull request #5916 from IntersectMBO/koslambrou/remove-drep-req-reward-withdrawals
+- `2026-07-15` **cardano-node** `2c0ff56d4` Merge pull request #6617 from IntersectMBO/jutaro/remove_resources
+- `2026-07-15` **cardano-node** `4bcbe8835` cardano-testnet: carry the non-emptiness of testnetNodes in its type
+- `2026-07-15` **cardano-node** `83353ddf2` Merge pull request #6601 from IntersectMBO/mgalazyn/test/fix-flaky-propose-new-constitution
+- `2026-07-15` **cardano-node** `895251692` Apply suggestions from code review
+- `2026-07-15` **ouroboros-consensus** `0c4398563` Ensure there is at least one block per epoch in LoP tests
+- `2026-07-15` **ouroboros-consensus** `27f3239b3` Shrinking peer schedules does not remove all peers
+- `2026-07-15` **ouroboros-consensus** `2a9605493` Bump actions/setup-node from 6 to 7 (#2121)
+- `2026-07-15` **ouroboros-consensus** `2ca6c7485` Fix genesis tests (#2107)
+- `2026-07-15` **ouroboros-consensus** `8d1948287` Test that adversarial point schedule shrinking preserves consistency
+- `2026-07-15` **ouroboros-consensus** `93e74d6a2` Preserve TP/HP/BP consistency while shrinking adversarial schedules
+- `2026-07-15` **ouroboros-network** `74b8aa164` Avoid thunk in ChainSelStarvationEndedAt
+- `2026-07-15` **ouroboros-network** `8229706a8` Merge pull request #5404 from IntersectMBO/coot/tx-outbound
+- `2026-07-15` **ouroboros-network** `94daae78d` Merge pull request #5402 from IntersectMBO/f-f/fix-tracing-severity
+- `2026-07-15` **ouroboros-network** `d8938fb0f` tracing: minor cleanup
+- `2026-07-14` **cardano-api** `b824fdbdc` Store the UnicodeException itself in Bech32InvalidUtf8
+- `2026-07-14` **cardano-api** `bd819d231` Add `umask` warning to Haddock for `writeFileTextEnvelope` function
+- `2026-07-14` **cardano-ledger** `1212e6480` Remove DRep requirement for reward withdrawals
+- `2026-07-14` **cardano-node** `046640d98` cardano-testnet: guarantee node termination and bounded waits in test teardown
+- `2026-07-14` **cardano-node** `07d953ec9` cardano-testnet: replace per-wait stall detection with a chain-stall watchdog
+- `2026-07-14` **cardano-node** `31f15b697` cardano-testnet: use `Control.Exception.Safe.try` in the chain watchdog
+- `2026-07-14` **cardano-node** `5536011ab` Remove reference to test in comment in code that is no test specific
+- `2026-07-14` **cardano-node** `557b6f881` cardano-testnet: build long messages with mconcat
+- `2026-07-14` **cardano-node** `824727570` cardano-testnet: restart the stall clock only on chain height changes
+- `2026-07-14` **cardano-node** `aadae3089` cardano-testnet: confine OS-specific signalling to Testnet.Signal
+- `2026-07-14` **cardano-node** `ae0753dc3` cardano-testnet: emit the watchdog diagnosis through a Tracer
+- `2026-07-14` **cardano-node** `cbed8bf7e` cardano-testnet: name and explain the startup-deadline margin
+- `2026-07-14` **ouroboros-consensus** `1ca20a789` Bump actions/setup-node from 6 to 7
+- `2026-07-14` **ouroboros-consensus** `31252bf7e` Switch to GHC 9.14.1 for haddocks (#2119)
+- `2026-07-14` **ouroboros-consensus** `436f7e3db` Use GHC 9.14.1 for Haddocks
+- `2026-07-14` **ouroboros-network** `10ac4ab61` network-mux:test - handle Windows client-side IOException in close_experiment
+- `2026-07-14` **ouroboros-network** `38e2d24e4` Merge pull request #5389 from IntersectMBO/coot/network-mux-test-code-style
+- `2026-07-14` **ouroboros-network** `9e5060c68` Added changelog entries
+- `2026-07-14` **ouroboros-network** `a0890be2c` Rearrange severity query for new tracing
+- `2026-07-14` **ouroboros-network** `b3aa404b9` dns-actions: TTL newtype wrapper
+- `2026-07-14` **ouroboros-network** `cc0140145` tx-outbound: Int based calculations
+- `2026-07-13` **cardano-ledger** `1ad76c34a` Add EraBlockHeader instance for Praos
+- `2026-07-13` **cardano-ledger** `2105d4095` Reimplement `dijkstraProducedValue` correctly, without recursion
+- `2026-07-13` **cardano-ledger** `5399cc5f2` Merge pull request #5915 from IntersectMBO/f-f/era-block-header-instance-praos
+- `2026-07-13` **cardano-ledger** `8942318fc` Merge pull request #5918 from IntersectMBO/td/non-recursive-produced
+- `2026-07-13` **cardano-ledger** `8fcfa5646` Restrict `getProducedValue` to top-level transactions
+- `2026-07-13` **cardano-ledger** `f5edc8980` Add tests for `produced` calculation
+- `2026-07-13` **ouroboros-consensus** `25357b490` Remove stale diff-containers dependency
+- `2026-07-13` **ouroboros-consensus** `b7763808a` Remove stale diff-containers dependency (#2118)
+- `2026-07-13` **ouroboros-consensus** `d1a478b39` Cleanup stale references to libraries in README
+- `2026-07-13` **ouroboros-network** `1316f7c0b` dns-actions: fixed fixupTTL
+- `2026-07-13` **ouroboros-network** `508816462` root peers: TTL clipping
+- `2026-07-13` **ouroboros-network** `5860d50c9` Merge pull request #5399 from IntersectMBO/coot/tx-undecision-stm
+- `2026-07-11` **cardano-api** `0493cfed6` cardano-rpc: Split UtxoRpc.Type into Type.* modules
+- `2026-07-11` **cardano-api** `305be6251` cardano-rpc: Use Proto-wrapped messages in internal conversion functions
+- `2026-07-11` **cardano-api** `4578d1d12` cardano-rpc: Approximate out-of-range rationals instead of wrapping
+- `2026-07-11` **cardano-api** `6886108d9` cardano-rpc: Fix ppEconomicGroup typo
+- `2026-07-11` **cardano-api** `7095c04ee` cardano-rpc: Generalise txOutToUtxoRpcTxOutput and expose request helpers
+- `2026-07-11` **cardano-api** `9396d3b01` cardano-rpc: Reject zero denominator in RationalNumber conversion
+- `2026-07-11` **cardano-api** `93be536f8` cardano-rpc: Add changelog fragment
+- `2026-07-11` **cardano-api** `af57b642a` cardano-rpc: Return the parsed block from fetchBlock
+- `2026-07-11` **cardano-api** `f19af5e37` Merge pull request #1253 from IntersectMBO/mgalazyn/refactor/rpc-reorganise-modules
+- `2026-07-11` **cardano-ledger** `0238a5613` Merge pull request #5917 from IntersectMBO/dependabot/github_actions/actions-6ff987a8b7
+- `2026-07-11` **cardano-ledger** `b34755890` Bump slackapi/slack-github-action in the actions group
+- `2026-07-11` **cardano-node** `1e3b882ea` cardano-testnet: fail fast with a diagnosis when the chain stalls irrecoverably
+- `2026-07-10` **cardano-api** `3fec64a55` Render the UTF-8 decoding error via a new Bech32InvalidUtf8 constructor
+- `2026-07-10` **cardano-api** `44e779bef` Merge pull request #1242 from IntersectMBO/mgalazyn/feature/rpc-fetchblock-add-timestamp
+- `2026-07-10` **cardano-api** `bc818047a` Separate flow from error handling in deserialiseBech32 helpers
+- `2026-07-10` **cardano-api** `f4c024124` cardano-rpc: Add timestamp to fetchBlock
+- `2026-07-10` **cardano-ledger** `0fcc2b2bf` Merge pull request #5914 from IntersectMBO/aniketd/require-toplevel-guards
+- `2026-07-10` **cardano-ledger** `501d13da3` Add tests for RequiredTopLevelGuards
+- `2026-07-09` **cardano-api** `0979e298e` Document platform-specific behaviour of writeFileTextEnvelopeWithOwnerPermissions
+- `2026-07-09` **cardano-api** `21c12931b` Create owner-permission files with 0600 instead of 0700 on POSIX
+- `2026-07-09` **cardano-api** `25f9429cd` Throw detailed ErrorAsException with call stack from writeSecrets
+- `2026-07-09` **cardano-api** `9297a0f42` Merge pull request #1250 from IntersectMBO/writeSecrets-owner-safe
+- `2026-07-09` **cardano-api** `941e87b7f` Merge pull request #1252 from IntersectMBO/mgalazyn/remove-deprecated-pattern-block
+- `2026-07-09` **cardano-api** `ad33978c6` Remove deprecated Block pattern
+- `2026-07-09` **cardano-api** `c1e087e64` Merge pull request #1251 from IntersectMBO/document-wasi-shim-cdn-dependency
+- `2026-07-09` **cardano-base** `033d8ccdc` Fix bounds for cardano-crypto-class
+- `2026-07-09` **cardano-base** `060819b59` Merge pull request #684 from IntersectMBO/lehins/fix-bounds
+- `2026-07-09` **cardano-base** `24fd15a47` Bump CHANGELOG.md files per RELEASING.md
+- `2026-07-09` **cardano-base** `26c57966e` Fix cardano-crypto-class version and bounds. Fixup changelog
+- `2026-07-09` **cardano-base** `3548c5af7` Merge pull request #677 from IntersectMBO/bump-changelogs
+- `2026-07-09` **cardano-base** `720c7b6d0` Merge pull request #683 from IntersectMBO/jj/bump-cardano-crypto-praos-bound
+- `2026-07-09` **cardano-base** `889c24840` Bump lower bound for cardano-crypto-class in cardano-crypto-praos
+- `2026-07-09` **cardano-ledger** `084474943` Merge pull request #5869 from tweag/joaosreis/cls-interface
+- `2026-07-09` **cardano-ledger** `234878e5b` Update formal-ledger-specifications
+- `2026-07-09` **cardano-ledger** `3cda54ca9` Remove `Semigroup`/`Monoid CostModels` instances
+- `2026-07-09` **cardano-ledger** `41a1f563b` Update `CHANGELOG`
+- `2026-07-09` **cardano-ledger** `4bc98a1c1` Update Conway conformance to PV 11; rename modules for consistency
+- `2026-07-09` **cardano-ledger** `6502cc548` Add Export and Import modules for canonical state handling in Conway era
+- `2026-07-09` **cardano-ledger** `7402b9d20` Introduce `CostModelsUpdate`
+- `2026-07-09` **cardano-ledger** `7c21957d3` Disable failing test in conformance
+- `2026-07-09` **cardano-ledger** `9ab87be45` Disable failing test in conformance; fix referenced issue
+- `2026-07-09` **cardano-ledger** `bc24be92e` Merge pull request #5905 from IntersectMBO/ldan/costmodelsupdate
+- `2026-07-09` **cardano-ledger** `d4e55ce3b` Add ToJSON/FromJSON instances for EraTxAuxData
+- `2026-07-09` **cardano-ledger** `da21472de` Merge pull request #5900 from IntersectMBO/conformance-conway-pv11
+- `2026-07-09` **cardano-ledger** `dade01738` Add Export and Import modules for canonical state handling
+- `2026-07-09` **cardano-ledger** `f5449339b` Merge pull request #5853 from IntersectMBO/koslambrou/eratxauxdata-json
+- `2026-07-09` **cardano-node** `86ac3bfaa` Remove local trace-resources package
+- `2026-07-09` **ouroboros-network** `6d93899d6` tx-submission-logic: awaitSharedChange can be an STM action
+- `2026-07-08` **cardano-api** `21017d97a` Document unpkg.com runtime dependency of the no-bundler wasm wrapper
+- `2026-07-08` **cardano-api** `491698a95` cardano-wasm: expose the transaction id (getTxId)
+- `2026-07-08` **cardano-api** `90cce06e5` cardano-wasm: add address validation and network detection (inspectAddress)
+- `2026-07-08` **cardano-api** `9a5ac9f10` Add writeFileTextEnvelopeWithOwnerPermissions
+- `2026-07-08` **cardano-api** `a885ac7e2` Merge pull request #1244 from IntersectMBO/cardano-wasm-inspectAddress
+- `2026-07-08` **cardano-api** `d31cbe205` Create secret files with owner-only permissions in writeSecrets
+- `2026-07-08` **cardano-api** `df4c0fd0f` Return an error instead of throwing on invalid UTF-8 in deserialisation helpers
+- `2026-07-08` **cardano-api** `f262d73fc` Merge pull request #1243 from IntersectMBO/cardano-wasm-getTxId
+- `2026-07-08` **cardano-base** `126de303a` Remove another redundant argument to decrypt C function
+- `2026-07-08` **cardano-base** `14603d310` Add FixedSizeCodec instances and route CBOR through it
+- `2026-07-08` **cardano-base** `1eca75f34` Merge pull request #665 from IntersectMBO/jj/fixedsizebytes
+- `2026-07-08` **cardano-base** `212b005f8` Expose safe parts of the `Envelope`
+- `2026-07-08` **cardano-base** `22b5ba178` Avoid unnecessarily allocating `CKeyMaterialBuffer`
+- `2026-07-08` **cardano-base** `27e9063ba` Rename "Encrypted" -> "Secret/Unencrypted"
+- `2026-07-08` **cardano-base** `2b2ea649d` Expose `decodeEncryptedKey`
+- `2026-07-08` **cardano-base** `2ced64516` Ensure sizes match up
+- `2026-07-08` **cardano-base** `33c6a51e3` Rename `Envelope` and other minor cleanup
+- `2026-07-08` **cardano-base** `392c2a04e` Introduce `withDecryptedKeyMaterial`
+- `2026-07-08` **cardano-base** `3bea78f40` Introduce `KeyMaterialBuffer`
+- `2026-07-08` **cardano-base** `3c6ba123d` Rename `plaintext` to `secret_key`, `Ciphertext` to `EncSecretKey`
+- `2026-07-08` **cardano-base** `3c6e27f99` Consistent and unique naming for C functions and FFI
+- `2026-07-08` **cardano-base** `45a46542a` Add the odd `output` file to gitignore
+- `2026-07-08` **cardano-base** `5679a2407` Stop writing zeros into memory that is guaranteed to be overwritten
+- `2026-07-08` **cardano-base** `654d17416` Add lower bound on libsodium due to argon2id
+- `2026-07-08` **cardano-base** `6565246bc` Make `ChainCode` into a `newtype`
+- `2026-07-08` **cardano-base** `6c0933261` Make `PublicKey` into a `newtype`
+- `2026-07-08` **cardano-base** `6dc709129` Introduce proper scoping in `withEncryptedKeyOutput`
+- `2026-07-08` **cardano-base** `7459f727d` Introduce `SecretKey`
+- `2026-07-08` **cardano-base** `7688729d1` Revert unnecessary formatting from 815a7fa
+- `2026-07-08` **cardano-base** `77d0c58a3` Improve scoping of `decryptKeyMaterialV2`
+- `2026-07-08` **cardano-base** `79c79e345` Reduce duplication in the test suite
+- `2026-07-08` **cardano-base** `79cb29a7f` Revert "cardano-crypto-wallet: rename ed25519 C symbols from cardano_crypto_ to ccw_"
+- `2026-07-08` **cardano-base** `7b0381a85` Deprecate some methods
+- `2026-07-08` **cardano-base** `7b680545a` Remove unused `public_key` struct
+- `2026-07-08` **cardano-base** `7fe6c37df` Update golden tests
+- `2026-07-08` **cardano-base** `9a3f26b6b` Fix Praos decoders
+- `2026-07-08` **cardano-base** `a0d1a4092` Simplify validation of `KeyMaterial`
+- `2026-07-08` **cardano-base** `a6bcdaffe` Bump lower bounds
+- `2026-07-08` **cardano-base** `ad619c4c5` Remove redundant `legacyKeySize`
+- `2026-07-08` **cardano-base** `adc5ece65` Introduce `Validity` parameter to `KeyMaterial`
+- `2026-07-08` **cardano-base** `b3511c59f` Merge pull request #678 from IntersectMBO/jj/remove-dead-code
+- `2026-07-08` **cardano-base** `b6764e32d` Securely clear out private memory after it is used
+- `2026-07-08` **cardano-base** `bc1b32e20` Improve `EncryptedKey` type safety
+- `2026-07-08` **cardano-base** `bceaa5cca` Switch to using consistent `CCW` definition everywhere
+- `2026-07-08` **cardano-base** `c4a26b0ce` Add FixedSizeCodec
+- `2026-07-08` **cardano-base** `c4ccdded6` Introduce a roundtrip test for the test `Envelope`
+- `2026-07-08` **cardano-base** `cb684e20f` Ensure more bytes than necessary is not copied over.
+- `2026-07-08` **cardano-base** `d70db860e` More type safety for `Nonce` and `Salt`
+- `2026-07-08` **cardano-base** `d8faeb7b4` Introduce `WrappingKey` and remove redundant parameters
+- `2026-07-08` **cardano-base** `dac611788` Add a comment to `key_material`
+- `2026-07-08` **cardano-base** `dd31cdeab` Remove confusing `encrypted_` suffix
+- `2026-07-08` **cardano-base** `e1d7397e3` Merge pull request #667 from IntersectMBO/lehins/fix-cardano-crypto-wallet
+- `2026-07-08` **cardano-base** `f2f7bc2d1` Lift VRF sizes to type level
+- `2026-07-08` **cardano-base** `f718a53cd` Remove duplicate data from the `Envelope`
+- `2026-07-08` **cardano-base** `fc3a903af` More type safety for `Tag`
+- `2026-07-08` **cardano-ledger** `04815a0d1` Merge pull request #5908 from IntersectMBO/koslambrou/fix-conway-transaction-witness-set-rule-allow-duplicate-some-fields
+- `2026-07-08` **cardano-ledger** `7c31ecd9c` Replace `CBORGroup`-derived `EncCBOR/DecCBOR` for StakePoolParams with manual instances
+- `2026-07-08` **cardano-ledger** `8595dbef0` Merge pull request #5890 from IntersectMBO/koslambrou/stakepoolparams-enccbor
+- `2026-07-08` **cardano-ledger** `a7d81a41b` Use non-empty list for fields without duplicate enforcement in Conway transaction_witness_set cddl rule
+- `2026-07-08` **cardano-ledger** `b1dbf2d02` Merge pull request #5903 from IntersectMBO/aniketd/require-toplevel-guards
+- `2026-07-08` **cardano-ledger** `b264c6e6b` Move `EncCBOR PoolCert` instance to cardano-ledger-conformance
+- `2026-07-07` **cardano-api** `0cb277a9f` Address review feedback on the wasm-without-nix build script
+- `2026-07-07` **cardano-api** `49d3ec7ee` Merge pull request #1194 from IntersectMBO/js/without-nix
+- `2026-07-07` **cardano-api** `86dffbd6d` Add script for preparing the wasm libraries for building without Nix
+- `2026-07-07` **cardano-api** `b29e79d16` Make the wasm-without-nix build script more robust and portable
+- `2026-07-07` **cardano-api** `d30f3be90` Fix shellcheck findings in the wasm-without-nix build script
+- `2026-07-07` **cardano-base** `152128ad2` Remove dead code
+- `2026-07-07` **cardano-ledger** `329a3914a` Make requiredTopLevelGuardsL available at TopTx.
+- `2026-07-07` **cardano-ledger** `46b6e3deb` Use requiredTopLevelGuardsL in TopTx rules.
+- `2026-07-07` **cardano-ledger** `9c7f4e049` Address review comments and update changelog
+- `2026-07-07` **cardano-ledger** `df3c99a6d` Merge pull request #5887 from IntersectMBO/ldan/cardano-protocol-pkg
+- `2026-07-07` **ouroboros-network** `2cd6b75da` Merge pull request #5398 from IntersectMBO/f-f/bump-trace-generators
+- `2026-07-06` **cardano-ledger** `3c084d2ed` Add `Cardano.Protocol.Praos.BlockHeader`
+- `2026-07-06` **cardano-ledger** `4549a1d83` Create `cardano-protocol` package
+- `2026-07-06` **cardano-ledger** `4c667b500` Move `Cardano.Protocol.TPraos.OCert` to `cardano-protocol`
+- `2026-07-06` **cardano-ledger** `890eafd01` Move `Cardano.Protocol.Crypto` to `cardano-protocol`
+- `2026-07-06` **cardano-ledger** `92eb16994` Add `Cardano.Protocol.Praos.VRF`
+- `2026-07-06` **cardano-ledger** `99a6facac` Deprecate `Cardano.Protocol.TPraos.BHeader`
+- `2026-07-06` **cardano-ledger** `9bb85659d` Move the TPraos block header to `cardano-protocol`
+- `2026-07-06` **cardano-ledger** `f4fbf87ac` Update `CHANGELOG`s
+- `2026-07-06` **ouroboros-consensus** `bd119d907` Add Genesis observability reference doc (#2103)
+- `2026-07-04` **cardano-node** `0a2d98abf` Always abort on rejection for Sequence generators
+- `2026-07-04` **cardano-node** `6ab928516` Extract parseSuccess/parseError from parseOgmiosResponse
+- `2026-07-04` **cardano-node** `7716d4b7a` Put the Ogmios send under the round-trip timeout
+- `2026-07-04` **cardano-node** `8c635b0bb` Address doc review: field haddocks, rename SubmissionEndpointType
+- `2026-07-04` **cardano-node** `cf2c1a635` Parse the submission endpoint URI at the config boundary
+- `2026-07-04` **cardano-node** `cf9b22943` Collapse parseOgmiosResponse's decode case into bind
+- `2026-07-03` **cardano-api** `1eaf53e52` Merge pull request #1232 from IntersectMBO/mgalazyn/feature/rpc-fetchblock
+- `2026-07-03` **cardano-api** `22ff1ac5a` Add NodeKernelAccess and SyncService scaffolding
+- `2026-07-03` **cardano-api** `79fb9b278` Fix blockNo shadowing in Query methods
+- `2026-07-03` **cardano-api** `9e51c5057` Add consensus reexports for node kernel access
+- `2026-07-03` **cardano-api** `df798c9ad` Merge pull request #1240 from IntersectMBO/add-stake-signing-primitives
+- `2026-07-03` **cardano-api** `e33bb8176` Implement FetchBlock SyncService method
+- `2026-07-03` **cardano-api** `ff3ead27f` Add UTxO RPC SyncService proto definition
+- `2026-07-03` **cardano-ledger** `06d6bbe20` Add isPotentialFutureMember ImpTest
+- `2026-07-03` **cardano-ledger** `20d1f2a16` Allow DRep expiry-update helpers at any tx level
+- `2026-07-03` **cardano-ledger** `3448adc63` Merge pull request #5878 from IntersectMBO/td/entities-rule
+- `2026-07-03` **cardano-ledger** `408ca45b4` Check and apply direct deposits in ENTITIES
+- `2026-07-03` **cardano-ledger** `42884a7fd` Refactor to remove duplication in ENTITIES
+- `2026-07-03` **cardano-ledger** `51edc7444` Introduce ENTITIES rule just calling CERTS
+- `2026-07-03` **cardano-ledger** `65acbca3f` Check transaction validity in SUBLEDGER; if invalid, only run SUBUTXOW
+- `2026-07-03` **cardano-ledger** `7ee349eca` Refactor withdrawal-helpers to remove duplication in legacy/normal mode
+- `2026-07-03` **cardano-ledger** `8e6545e42` Introduce `EntitiesEnv` and use it in ENTITIES rule
+- `2026-07-03` **cardano-ledger** `8e69e684f` Call SUBENTITIES instead of SUBCERTS from SUBLEDGER
+- `2026-07-03` **cardano-ledger** `99ff8f1b1` Move withdrawals check and application from LEDGER to ENTITIES
+- `2026-07-03` **cardano-ledger** `9b81d9943` Merge pull request #5883 from IntersectMBO/aniketd/is-potential-future-member
+- `2026-07-03` **cardano-ledger** `b5ebf702c` Move withdrawals and DRep expiry logic from LEDGER to ENTITIES rule
+- `2026-07-03` **cardano-ledger** `ba2e14c7b` Add `directDepositsMissingAccounts` and `applyDirectDeposits` helpers
+- `2026-07-03` **cardano-ledger** `cc5e05baf` Introduce SUBENTITIES rule just calling SUBCERTS
+- `2026-07-03` **cardano-ledger** `d27adbf8c` Refresh DRep expiries in SUBENTITIES
+- `2026-07-03` **cardano-ledger** `e163feccf` Check and apply withdrawals in SUBENTITIES
+- `2026-07-03` **cardano-ledger** `eac8cd07f` Check and apply direct deposits in SUBENTITIES
+- `2026-07-03` **ouroboros-consensus** `3851444ed` Try to address Nick's comments
+- `2026-07-03` **ouroboros-consensus** `e27dde910` Add Genesis observability reference doc
+- `2026-07-03` **ouroboros-network** `0a614a36c` Bump trace-generators to 2.13
+- `2026-07-02` **cardano-api** `4971692b7` cardano-wasm: generalise stringToSigningKey over the key role
+- `2026-07-02` **cardano-api** `86de50f5d` Changelog fragment
+- `2026-07-02` **cardano-api** `a4833f089` Nix updates
+- `2026-07-02` **cardano-api** `db4a6b174` cardano-wasm: share witnessing helper between payment and stake signing
+- `2026-07-02` **cardano-api** `e1ce999fb` Bump aeson lower bound
+- `2026-07-02` **cardano-api** `ed0289f8d` cardano-wasm: test signWithStakeKey as the first signer
+- `2026-07-02` **cardano-ledger** `149b7507b` Move `EncCBOR` instance for `AlonzoStAnnTx` in conformance
+- `2026-07-02` **cardano-ledger** `18e0b29ee` Merge pull request #5899 from IntersectMBO/fmaste/costModels
+- `2026-07-02` **cardano-ledger** `7dbbbc755` Fix injected extraConfig cost models being ignored for PlutusV1/V3
+- `2026-07-02` **cardano-ledger** `89615ca80` Merge pull request #5897 from IntersectMBO/td/remove-unnecessary-instance
+- `2026-07-02` **ouroboros-consensus** `1e802e734` Add test helpers for PerasCrypto
+- `2026-07-02` **ouroboros-consensus** `42a64357e` Add changelog
+- `2026-07-02` **ouroboros-consensus** `570c25350` Add changelog
+- `2026-07-02` **ouroboros-consensus** `5f889d7ef` [Peras 26] Concrete certs and votes using BLS crypto (#1938)
+- `2026-07-02` **ouroboros-consensus** `7caa2d2b7` Define concrete Peras certs and votes using BLS signatures
+- `2026-07-02` **ouroboros-consensus** `8d70695da` Introduce O.C.Util.Bitmap
+- `2026-07-02` **ouroboros-consensus** `9e0659d02` Add conversion roundtrip tests between Peras votes/certs and voting committee types
+- `2026-07-02` **ouroboros-consensus** `ad1011160` Define PerasCrypto and wire up voting committee instance using BLS
+- `2026-07-02` **ouroboros-consensus** `ae8095b8d` Introduce Bytes32RealPoint
+- `2026-07-02` **ouroboros-consensus** `b31d4dcba` Add property tests for Bitmap library
+- `2026-07-02` **ouroboros-consensus** `b47bcc904` Add conversions between Peras votes/certs and voting committee types
+- `2026-07-02` **ouroboros-consensus** `bf3e8555c` Add serialization roundtrip tests for PerasCert and PerasVote
+- `2026-07-02` **ouroboros-consensus** `c39dd5e45` Improve `ConvertRawsHash` class to enforce hash size
+- `2026-07-02` **ouroboros-consensus** `dd016776e` [Peras 25.5] Introduce Bytes32RealPoint (#2033)
+- `2026-07-02` **ouroboros-network** `1eabe1307` Merge pull request #5397 from IntersectMBO/mw/revert-aeson-lower-bound
+- `2026-07-02` **ouroboros-network** `2d42fe212` bump flake
+- `2026-07-02` **ouroboros-network** `5ab6a37e7` bump GHC
+- `2026-07-02` **ouroboros-network** `8cf9d1ce3` Update allow-newer stanzas
+- `2026-07-01` **cardano-api** `d9633f601` cardano-wasm: add stake-key witnessing (signWithStakeKey / alsoSignWithStakeKey)
+- `2026-07-01` **cardano-api** `f92a8f0d3` cabal.project: Update index-states
+- `2026-07-01` **cardano-ledger** `7903c0074` Merge pull request #5894 from IntersectMBO/nm/update-haskell.nix
+- `2026-07-01` **ouroboros-consensus** `55418968e` Improve snapshot-converter --help and --version
+- `2026-07-01` **ouroboros-consensus** `939838422` Improve snapshot-converter --help and --version (#2098)
+- `2026-07-01` **ouroboros-consensus** `eb61e6021` snapshot-converter: HACK read salt from bloomfilter files (#2097)
+- `2026-07-01` **ouroboros-consensus** `ec9fbe781` snapshot-converter: HACK read salt from bloomfilter files
+- `2026-07-01` **ouroboros-network** `496b17d35` Revert "Merge pull request #5394 from IntersectMBO/erikd/update"
+- `2026-07-01` **ouroboros-network** `8c4f807f1` changelogs
+- `2026-06-30` **cardano-api** `7f01b05e2` Merge pull request #1239 from IntersectMBO/fix-stake-certs-deserialisation-wasm
+- `2026-06-30` **cardano-api** `91cc73b08` cardano-wasm: base16-decode certificate CBOR before deserialising
+- `2026-06-30` **cardano-ledger** `245e63dcd` Merge pull request #5872 from IntersectMBO/ch1bo/cardano-crypto-leios
+- `2026-06-30` **cardano-ledger** `5d567fb71` Update haskellNix flake input
+- `2026-06-30` **cardano-node** `4f64bc103` cardano-testnet 
+- `2026-06-30` **ouroboros-network** `1ae19af91` cabal.project: Update allow-newers
+- `2026-06-30` **ouroboros-network** `22dc2d61e` cabal.project: Update index-states
+- `2026-06-30` **ouroboros-network** `42b9564c8` Nix updates
+- `2026-06-30` **ouroboros-network** `50e180081` Add changelog fragments
+- `2026-06-30` **ouroboros-network** `b47dbc2c2` Merge pull request #5387 from IntersectMBO/coot/cardano-ping-fail-mode
+- `2026-06-30` **ouroboros-network** `b7ff21d2f` cardano-diffusion:ping - tracers
+- `2026-06-30` **ouroboros-network** `bec823613` Update aesen dependency lower bound
+- `2026-06-30` **ouroboros-network** `c412bb16a` Merge pull request #5394 from IntersectMBO/erikd/update
+- `2026-06-29` **cardano-api** `a107b78c1` Merge pull request #1179 from IntersectMBO/issue-926-experimental-fromjson-txout
+- `2026-06-29` **cardano-api** `e60653716` Address review feedback on changelog and era type annotations
+- `2026-06-29` **cardano-base** `0268dc396` Add functions to aggregateLeiosCert and verifyLeiosCert
+- `2026-06-29` **cardano-base** `0fea26350` Merge pull request #670 from IntersectMBO/ch1bo/cardano-crypto-leios
+- `2026-06-29` **cardano-base** `10c5b3068` Refactor BitField in LeiosCert
+- `2026-06-29` **cardano-base** `13b7c7fa2` Switch cardano-crypto-leios tests to quickcheck
+- `2026-06-29` **cardano-base** `26440b5f6` Add stack trace to `getLeiosVoterId` that can fail
+- `2026-06-29` **cardano-base** `2a2a82daa` Pin golden test files to LF on Windows checkout
+- `2026-06-29` **cardano-base** `2f75a46d1` Add more properties and range over commitee size
+- `2026-06-29` **cardano-base** `4234a79ca` Build BitField via mutable ByteArray ops
+- `2026-06-29` **cardano-base** `47a5eeffd` Use 1000 voters in the example LeiosCert
+- `2026-06-29` **cardano-base** `490b0d7af` Merge pull request #673 from dancewithheart/NFData_DecoderError
+- `2026-06-29` **cardano-base** `4d9329f06` Fix changelog of cardano-crypto-leios
+- `2026-06-29` **cardano-base** `4f8cf77b5` Refactor and move bitfield creation / access back in
+- `2026-06-29` **cardano-base** `52a8925bc` Drop explicit export list
+- `2026-06-29` **cardano-base** `5555fc18c` Expose generators in cardano-crypto-leios:testlib
+- `2026-06-29` **cardano-base** `5d45fdc27` Add explicit export list to Cardano.Crypto.Leios
+- `2026-06-29` **cardano-base** `60827efde` Merge pull request #675 from IntersectMBO/lehins/fixup-leios-naming
+- `2026-06-29` **cardano-base** `67ce16ea4` Scaffold an initial cardano-crypto-leios package
+- `2026-06-29` **cardano-base** `6b4c275b2` Add a generateWith helper
+- `2026-06-29` **cardano-base** `6e36af67c` NFData instance for DecoderError
+- `2026-06-29` **cardano-base** `74bcc360c` Accept indefinite-length encoding in decodeLeiosCert
+- `2026-06-29` **cardano-base** `75ea6ce53` Not include slot/eb hash in leios certificate
+- `2026-06-29` **cardano-base** `7c9e07544` Avoid head and name shadowing in tests
+- `2026-06-29` **cardano-base** `8034a2089` Rename `committeeVoters` and switch to `newtype` deriving:
+- `2026-06-29` **cardano-base** `815a7fa5e` Run fourmolu
+- `2026-06-29` **cardano-base** `87643a3a7` Address review comments on Leios crypto
+- `2026-06-29` **cardano-base** `8c2e49333` Move more voterId functions from consensus
+- `2026-06-29` **cardano-base** `af268800f` Update cardano-binary/CHANGELOG.md
+- `2026-06-29` **cardano-base** `b24b56196` Address reviewer requests
+- `2026-06-29` **cardano-base** `b674e7dc4` Rename to Leios{Committee,VoterId}
+- `2026-06-29` **cardano-base** `ba3dc028b` Rename fields in `LeiosCert`
+- `2026-06-29` **cardano-base** `d69874c1b` Add cardano-crypto-leios test suite
+- `2026-06-29` **cardano-base** `de0abab27` Add genLeiosSignature, leiosSignatureSize and leiosSignatureToBytes
+- `2026-06-29` **cardano-base** `e270a3cbf` Restructure tests
+- `2026-06-29` **cardano-base** `e9bedb92f` Inline Map.keys/elems and type-annotate fromIntegral
+- `2026-06-29` **cardano-base** `f134c9eba` Rename `leiosVoterIndex` for consistency
+- `2026-06-29` **cardano-base** `f1c5c074c` Use qualified import of foldl' from Data.Foldable
+- `2026-06-29` **cardano-base** `f7b17efed` Only report received weight on InsufficientWeight
+- `2026-06-29` **cardano-base** `fea246668` Add a lower bound to cardano-base
+- `2026-06-29` **cardano-base** `feba49c56` Prevent Word16 overflow using a partial function
+- `2026-06-29` **cardano-ledger** `13636040b` Drop REVIEW note in Decoder
+- `2026-06-29` **cardano-ledger** `20a7204a7` Use byteArrayFromByteString
+- `2026-06-29` **cardano-ledger** `233bc9d98` Fix EncCBORGroup to also encode Nothing -> nil
+- `2026-06-29` **cardano-ledger** `267037ad9` Add cardano-ledger-binary encoders/decoders for LeiosCert
+- `2026-06-29` **cardano-ledger** `3bbb6ac54` Fix another DijkstraBlockBody decoder
+- `2026-06-29` **cardano-ledger** `43015e440` Add LeiosCert to DijkstraBlockBody
+- `2026-06-29` **cardano-ledger** `4543e0863` Use cardano-crypto-leios from CHaP
+- `2026-06-29` **cardano-ledger** `63b3f0573` Add leiosCertBlockBodyL to DijkstraEraBlockBody
+- `2026-06-29` **cardano-ledger** `7541ac9a1` Run cabal-format
+- `2026-06-29` **cardano-ledger** `7b69ca537` Use HexBytes in LeiosCert TreeDiff
+- `2026-06-29` **cardano-ledger** `946236571` Use quickcheck to test Leios certs
+- `2026-06-29` **cardano-ledger** `a24a2d69b` Generate structurally valid leios signatures in CDDL tests
+- `2026-06-29` **cardano-ledger** `a60e637bc` Update huddle for leios_certificate
+- `2026-06-29` **cardano-ledger** `b514d5344` Add TxsRB/CertRB distinction in CDDL tests
+- `2026-06-29` **cardano-ledger** `c44d63b5e` Fix EncCBORGroup instance of DijkstraBlockBody
+- `2026-06-29` **cardano-ledger** `fa38c64b9` Adapt TreeDiff usage of LeiosCert to new exports
+- `2026-06-29` **cardano-ledger** `fee7db885` Fix a typo
+- `2026-06-29` **cardano-node** `4fa3e6c41` Merge pull request #6544 from IntersectMBO/bench/genesis
+- `2026-06-29` **cardano-node** `eb0989bff` wb 
+- `2026-06-29` **ouroboros-network** `31bec05aa` Remove central decision from tx-submission v2
+- `2026-06-29` **ouroboros-network** `3702cb037` Improve flakey prop_socket_send_recv
+- `2026-06-29` **ouroboros-network** `5ce6d34c6` RawTxId
+- `2026-06-29` **ouroboros-network** `66dcc42e5` Merge pull request #5375 from IntersectMBO/karknu/tx_undecision.main
+- `2026-06-29` **ouroboros-network** `68f48aff9` demo/test: Let connectToNode return
+- `2026-06-29` **ouroboros-network** `9974099e0` Fix TxSubmissionProtocolError Eq instance
+- `2026-06-29` **ouroboros-network** `a3b2983cd` update changelogs
+- `2026-06-27` **cardano-base** `445980570` Merge pull request #674 from IntersectMBO/dependabot/github_actions/actions-6d1c06d137
+- `2026-06-27` **cardano-base** `4d356dcf7` Bump actions/cache from 5 to 6 in the actions group
+- `2026-06-27` **cardano-ledger** `985ad522a` Bump actions/cache from 5 to 6 in the actions group
+- `2026-06-27` **cardano-ledger** `c50e87030` Merge pull request #5884 from IntersectMBO/dependabot/github_actions/actions-6d1c06d137
+- `2026-06-26` **cardano-api** `03260f3be` Add changelog fragment for FromJSON TxOut
+- `2026-06-26` **cardano-api** `6651c3e18` Collapse datum and reference script field helpers into one function
+- `2026-06-26` **cardano-api** `abf58f2f7` Address review feedback on experimental TxOut JSON instances
+- `2026-06-26` **cardano-node** `156fac18f` wb 
+- `2026-06-26` **cardano-node** `1c2ad4bcd` Generalise tx-generator submission over the endpoint type
+- `2026-06-26` **cardano-node** `2df490e33` wb 
+- `2026-06-26` **cardano-node** `6ba485801` wb 
+- `2026-06-26` **cardano-node** `6f17ab435` wb 
+- `2026-06-26` **cardano-node** `719f43b2d` wb 
+- `2026-06-26` **cardano-node** `78b06f071` wb 
+- `2026-06-26` **cardano-node** `856aed836` wb 
+- `2026-06-26` **cardano-node** `8b1dae8b2` wb 
+- `2026-06-26` **cardano-node** `8b7ff909d` wb 
+- `2026-06-26` **cardano-node** `98cee00a7` wb 
+- `2026-06-26` **cardano-node** `a6fe14751` flake: update haskellNix for aarch64-darwin code-signing fix
+- `2026-06-26` **cardano-node** `d9bd2c0ad` wb 
+- `2026-06-26` **cardano-node** `dddbc8551` wb 
+- `2026-06-26` **cardano-node** `f7325da65` wb 
+- `2026-06-26` **cardano-node** `fd7565663` wb 
+- `2026-06-26` **ouroboros-consensus** `1685fd0bf` Update GHC 9.12 in GHA to 9.12.4
+- `2026-06-26` **ouroboros-consensus** `1e445548e` Revert some nix changes
+- `2026-06-26` **ouroboros-consensus** `62f77827e` Cleanup stale allow-newers
+- `2026-06-26` **ouroboros-consensus** `76b310e08` Fix docspec invocation
+- `2026-06-26` **ouroboros-consensus** `9afa031fe` Nix cleanup - update Fourmolu to 0.20 (#2091)
+- `2026-06-26` **ouroboros-consensus** `b424b965f` On MacOS/Windows only build the distributed executables
+- `2026-06-26` **ouroboros-consensus** `b8816a417` Disable GHC 9.6 IPE shell because Plutus panics on it
+- `2026-06-26` **ouroboros-consensus** `f0acf7cc8` Add GHC 9.14 shell variant
+- `2026-06-26` **ouroboros-network** `613f8a13c` Merge pull request #5392 from IntersectMBO/coot/optparse-applicative-fork
+- `2026-06-26` **ouroboros-network** `6a0c29b4d` cardano-diffusion:ping - AcceptFilePath mode for resolvedAddress
+- `2026-06-26` **ouroboros-network** `738b89040` cardano-diffusion:ping - added pingClients'
+- `2026-06-26` **ouroboros-network** `9dc6d46c8` Added changelog entry
+- `2026-06-26` **ouroboros-network** `a2e379192` cardano-diffusion: added repl cabal flag
+- `2026-06-26` **ouroboros-network** `d666f0e05` cardano-diffusion:ping - mkAddress
+- `2026-06-25` **cardano-api** `2ecf90c3c` Add FromJSON instance for new experimental TxOut
+- `2026-06-25` **cardano-ledger** `023c0cbf6` Extract signal-generation function in shelley trace generation
+- `2026-06-25` **cardano-ledger** `0ad2a6d25` Add `internalReapplyValidatedTx` to `ApplyTx`
+- `2026-06-25` **cardano-ledger** `12c0a5a94` Allow agents to invoke `/update-changelogs`
+- `2026-06-25` **cardano-ledger** `275df1129` Introduce `LEDGERS`  for Alonzo and pass `unsafeLinearExtendEpochInfo`
+- `2026-06-25` **cardano-ledger** `281acca9a` Remove protocol version field from `StAnnTx` types
+- `2026-06-25` **cardano-ledger** `28343528a` Merge pull request #5877 from IntersectMBO/ldan/automatic-update-changelog
+- `2026-06-25` **cardano-ledger** `2ca51acad` Reduce duplication in implementations of `ApplyTx` across eras
+- `2026-06-25` **cardano-ledger** `3c776ba9d` Remove Coders from testlibs and tests
+- `2026-06-25` **cardano-ledger** `468417a7c` Introduce `ValidatedTx` as replacement for `Validated`
+- `2026-06-25` **cardano-ledger** `4a26e83e9` Introduce user-facing replacements to `applyTx` and `reapplyTx`
+- `2026-06-25` **cardano-ledger** `4f5640ab4` Deprecate old `applyTx` and `Validated`-based `Mempool` API
+- `2026-06-25` **cardano-ledger** `5bd4b495d` Add `internalApplyTxWithValidation` to `ApplyTx`
+- `2026-06-25` **cardano-ledger** `9180ef5ba` Merge pull request #5865 from IntersectMBO/aniketd/test-coders-removal
+- `2026-06-25` **cardano-ledger** `973493bad` Adjust instances of refactored `ApplyTx` class for all eras
+- `2026-06-25` **cardano-ledger** `ce8e404df` Merge pull request #5857 from IntersectMBO/td/further-stanntx-integration
+- `2026-06-25` **cardano-ledger** `d01c168c5` Simplify imports in `Mempool` module
+- `2026-06-25` **cardano-ledger** `d2c1e7eb6` Migrate uses of to-be-deprecated functions from `Mempool` module
+- `2026-06-25` **cardano-ledger** `e78cb8064` Use precomputed plutus contexts in Alonzo UTXOS
+- `2026-06-25` **ouroboros-consensus** `19cf5070c` Install cuddle-1.8.0.0 in GHA
+- `2026-06-25` **ouroboros-consensus** `37f61654e` Update fourmolu and nix infra
+- `2026-06-25` **ouroboros-consensus** `4788fb92d` genesis_design.md: add some practical advice about Checkpoints
+- `2026-06-25` **ouroboros-consensus** `905886886` Minor improvements to genesis docs (#1916)
+- `2026-06-25` **ouroboros-consensus** `98f5eadb3` explanations/genesis_design.md: add link to ../references
+- `2026-06-25` **ouroboros-consensus** `a2c7648e4` Nix cleanup
+- `2026-06-25` **ouroboros-consensus** `fa19d8fd9` Update fourmolu to 0.20.0.0
+- `2026-06-25` **ouroboros-network** `8448c640d` cardano-diffusion:ping - allow for optparse-applicative-fork
+- `2026-06-24` **cardano-api** `00616abbc` Merge pull request #1237 from IntersectMBO/mgalazyn/fix/fix-plutus-v4-bugs
+- `2026-06-24` **cardano-api** `0d9272a9d` Fix PlutusV4 script handling and scrambled ToPlutusScriptPurpose type family
+- `2026-06-24` **cardano-ledger** `0cb45ec71` Update changelog
+- `2026-06-24` **cardano-ledger** `29820e406` Replace Coders in AlonzoTx(AuxData) forall branches
+- `2026-06-24` **cardano-ledger** `3dff13960` Replace Coders for some BaseTypes
+- `2026-06-24` **cardano-ledger** `3e4795579` Add ToJSON/FromJSON instances for EraScript
+- `2026-06-24` **cardano-ledger** `41ade60e9` Merge pull request #5845 from IntersectMBO/koslambrou/erascript-json
+- `2026-06-24` **cardano-ledger** `49f426fb5` Replace Coders in testlib types
+- `2026-06-24` **cardano-ledger** `6ab43489f` Replace Coders for mkField in PParamsUpdate
+- `2026-06-24` **cardano-ledger** `8bb7834df` Merge pull request #5866 from IntersectMBO/ldan/rename-rewarding-to-withdrawing
+- `2026-06-24` **cardano-ledger** `ad5345ac2` Replace Coders for some governance procedures
+- `2026-06-24` **cardano-ledger** `f6b9b9d8a` Merge pull request #5860 from IntersectMBO/aniketd/coders
+- `2026-06-24` **cardano-ledger** `fe944576a` Replace Summands for some more types
+- `2026-06-24` **cardano-node** `2d502c8e9` wb 
+- `2026-06-24` **cardano-node** `3c4551ed0` Merge pull request #6590 from IntersectMBO/mgalazyn/fix/grpc-config-reload
+- `2026-06-24` **cardano-node** `40ec21772` wb 
+- `2026-06-24` **cardano-node** `808d98397` wb 
+- `2026-06-24` **cardano-node** `9f3ef99f6` wb 
+- `2026-06-24` **cardano-node** `bd8824926` wb 
+- `2026-06-24` **cardano-node** `ecee09465` wb 
+- `2026-06-24` **cardano-node** `ffb0ba1e8` wb 
+- `2026-06-24` **ouroboros-consensus** `448c9b23f` Bump actions/cache from 5 to 6 (#2090)
+- `2026-06-24` **ouroboros-consensus** `6824e472f` Bump actions/checkout from 6 to 7 (#2084)
+- `2026-06-24` **ouroboros-consensus** `99ee26d74` Bump actions/checkout from 6 to 7
+- `2026-06-24` **ouroboros-network** `381ba7c62` Merge pull request #5391 from IntersectMBO/dependabot/github_actions/actions/cache-6
+- `2026-06-24` **ouroboros-network** `cf4e8298d` network-mux:test - code style
+- `2026-06-24` **ouroboros-network** `d7736b7c4` Merge pull request #5379 from IntersectMBO/f-f/allow-quickcheck-218
+- `2026-06-24` **ouroboros-network** `d94584b72` Allow QuickCheck 2.18
+- `2026-06-23` **cardano-ledger** `02c1d8471` Rename `DijkstraRewarding` to `DijkstraWithdrawing`
+- `2026-06-23` **cardano-ledger** `2b6c71b0b` Rename `ConwayRewarding` to `ConwayWithdrawing`
+- `2026-06-23` **cardano-ledger** `304d3116c` Rename `mkRewardingPurpose`/`toRewardingPurpose` to `mkWithdrawingPurpose`/`toWithdrawingPurpose`
+- `2026-06-23` **cardano-ledger** `45d9483d0` Rename `RewardingPurpose` pattern synonym to `WithdrawingPurpose`
+- `2026-06-23` **cardano-ledger** `4a959c175` Rename `AlonzoRewarding` to `AlonzoWithdrawing`
+- `2026-06-23` **cardano-ledger** `4f060b406` Rename `PlutusPurposeTag` constructor `Rewarding` to `Withdrawing`
+- `2026-06-23` **cardano-ledger** `5bd9328e2` Rename `getRewardingScriptsNeeded` to `getWithdrawingScriptsNeeded`
+- `2026-06-23` **cardano-ledger** `7f28161bd` Update `CHANGELOG`s
+- `2026-06-23` **cardano-ledger** `d94325573` Rename `AnyEraRewardingPurpose`/`anyEraToRewardingPurpose` to `...Withdrawing...`
+- `2026-06-23` **cardano-node** `1f74ba9ea` Fix ogmios resolution in test-ogmios.sh
+- `2026-06-23` **cardano-node** `636343601` Improve haddock structure for Ogmios module
+- `2026-06-23` **cardano-node** `904a16443` Small lints
+- `2026-06-23` **cardano-node** `eec146cda` Re-structure changelog entries
+- `2026-06-23` **ouroboros-consensus** `0b89bf672` Bump actions/cache from 5 to 6
+- `2026-06-23` **ouroboros-consensus** `d853b4cee` Peras: Add asserts in the implForgeCert
+- `2026-06-23` **ouroboros-consensus** `e4fef2838` Peras: Add asserts in the implForgeCert (#2038)
+- `2026-06-23` **ouroboros-network** `0bb72494e` build(deps): bump actions/cache from 5 to 6
+- `2026-06-23` **ouroboros-network** `37e4b5f70` Merge pull request #5374 from IntersectMBO/coot/nix-all
+- `2026-06-22` **cardano-node** `0cf44542f` feedback for PR #6607
+- `2026-06-22` **cardano-node** `7e60b6cb6` Merge pull request #6607 from IntersectMBO/russoul/purge-rtview
+- `2026-06-22` **cardano-node** `87836068f` tracer: revert version bump, tidy CHANGELOG and cabal systemd block
+- `2026-06-20` **cardano-base** `a7913628f` Bump actions/checkout from 6 to 7 in the actions group
+- `2026-06-20` **cardano-base** `cf3040276` Merge pull request #672 from IntersectMBO/dependabot/github_actions/actions-640176b5ab
+- `2026-06-20` **cardano-ledger** `29c7e3040` Merge pull request #5876 from IntersectMBO/dependabot/github_actions/actions-640176b5ab
+- `2026-06-20` **cardano-ledger** `7a9855a1d` Bump actions/checkout from 6 to 7 in the actions group
+- `2026-06-19` **cardano-ledger** `a1f07d602` Merge pull request #5867 from IntersectMBO/ldan/ignore-subtrans-v1v3
+- `2026-06-19` **cardano-node** `413546976` profile: remove rtview field from Tracer type and built-in profiles
+- `2026-06-19` **cardano-node** `53fcb6311` tracer: bump version to 0.6.0, update CHANGELOG
+- `2026-06-19` **cardano-node** `62190e120` Merge pull request #6575 from IntersectMBO/mgalazyn/feature/update-cardano-rpc-11.0
+- `2026-06-19` **cardano-node** `d547855b2` tracer: remove dead RTView path helpers from Handlers.System
+- `2026-06-19` **cardano-node** `dbf6d5e2d` tracer: remove RTView
+- `2026-06-19` **ouroboros-network** `4fe9bd390` Merge pull request #5388 from IntersectMBO/dependabot/github_actions/actions/checkout-7
+- `2026-06-18` **cardano-ledger** `31fedb077` Refactor GovCommitteeIn data type to a singleton value
+- `2026-06-18` **cardano-ledger** `7617d281e` Refactor EntitiesCommitteeIn data type to a singleton value
+- `2026-06-18` **cardano-ledger** `8ca2420ea` Refactor GovConstitutionIn data type to a singleton value
+- `2026-06-18` **cardano-ledger** `b45a1144a` Remove `SubTxsAreNotSupported` translation failure
+- `2026-06-18` **cardano-ledger** `c80260469` Merge pull request #5748 from tweag/joaosreis/canonical-refactor-singleton-keys
+- `2026-06-18` **cardano-node** `0e48d619d` cardano-testnet 
+- `2026-06-18` **ouroboros-consensus** `688a39ea7` Add consensus-tools page to the website
+- `2026-06-18` **ouroboros-consensus** `73fa2da6a` Add configuration docs to the website (#2065)
+- `2026-06-18` **ouroboros-consensus** `74f122445` snapshot-converter & db-analyser: standalone LSM snapshot tooling
+- `2026-06-18` **ouroboros-consensus** `d7b3276b6` LSM: Rework snapshot-converter into a command tree (#2064)
+- `2026-06-18` **ouroboros-consensus** `d9a810ffa` Add configuration values documentation
+- `2026-06-18` **ouroboros-network** `5e76b0958` build(deps): bump actions/checkout from 6 to 7
+- `2026-06-17` **cardano-base** `b3f5760f3` Merge pull request #668 from IntersectMBO/lehins/byte-functionality-orginization
+- `2026-06-17` **cardano-node** `43b848cc2` cardano-testnet 
+- `2026-06-17` **cardano-node** `49df286a7` cardano-testnet 
+- `2026-06-17` **cardano-node** `4aae05036` Disable deprecation warnings in tx-generator, for deprecated cardano-api API usage - temporary workaround
+- `2026-06-17` **cardano-node** `84ebc0ab4` cardano-testnet 
+- `2026-06-17` **cardano-node** `9a6b8e59b` cardano-testnet 
+- `2026-06-17` **cardano-node** `bdfe0b117` cardano-testnet 
+- `2026-06-17` **cardano-node** `bee1f1a1b` Update cardano-rpc-11.0, cardano-api-11.3, cardano-cli-11.1, plutus-ledger-api-1.65
+- `2026-06-17` **cardano-node** `da2f46d32` Disable haddock for cardano-api, because of tyConStupidTheta error on GHC 9.6.7
+- `2026-06-17` **cardano-node** `f72440209` Limit devshells in github actions to only required packages
+- `2026-06-17` **ouroboros-network** `0a766d470` Merge pull request #5386 from IntersectMBO/coot/cardano-ping-api
+- `2026-06-17` **ouroboros-network** `4fc713a4a` peer-state-actions: improved haddocks
+- `2026-06-17` **ouroboros-network** `575a7c285` cardano-diffusion:ping - export pingClient
+- `2026-06-17` **ouroboros-network** `5a477bd10` Added changelog entry
+- `2026-06-17` **ouroboros-network** `98a44ba8e` cardano-diffusion:ping - pingClient exception handling
+- `2026-06-17` **ouroboros-network** `baf84b87c` cardano-diffusion:ping - don't require ProtocolFlavour by pingClient
+- `2026-06-17` **ouroboros-network** `bf2c09949` cardano-diffusion:ping - don't use Address in pingClient
+- `2026-06-17` **ouroboros-network** `e9f41d9eb` cardano-diffusion:ping - added haddock sections to exports
+- `2026-06-17` **ouroboros-network** `f5d8195c1` cardano-diffusion:ping - Export Stage, ResolvedSRVOrFilePath
+- `2026-06-16` **cardano-api** `0dc9792f7` Add changelog fragment for #1236
+- `2026-06-16` **cardano-api** `25faeed7d` Add changelog fragment for #1235
+- `2026-06-16` **cardano-api** `34238163c` Merge pull request #1236 from IntersectMBO/jordan/remove-caseByronToAlonzoOrBabbageEraOnwards
+- `2026-06-16` **cardano-api** `5ef342ea8` Merge pull request #1235 from IntersectMBO/jordan/fix-getLedgerTablesUTxOValues-use-getOriginalTxIn
+- `2026-06-16` **cardano-api** `77d6f5857` Merge pull request #1234 from IntersectMBO/jordan/remove-deprecated-convert-fns
+- `2026-06-16` **cardano-api** `c61d20a88` getLedgerTablesUTxOValues: use getOriginalTxIn instead of coerceMapKeys
+- `2026-06-16` **cardano-api** `f4cf57de3` Remove caseByronToAlonzoOrBabbageEraOnwards and simplify value ops
+- `2026-06-16` **cardano-ledger** `330eebed6` Rename Dijkstra rules
+- `2026-06-16` **cardano-ledger** `340fbcb3f` Add Allegra rule deprecation helpers
+- `2026-06-16` **cardano-ledger** `39a69008b` Rename Conway rules
+- `2026-06-16` **cardano-ledger** `42c97d9fc` Add Dijkstra rule deprecation helpers
+- `2026-06-16` **cardano-ledger** `44c10f0f8` Add Alonzo rule deprecation helpers
+- `2026-06-16` **cardano-ledger** `467ca440d` Rename Shelley rules
+- `2026-06-16` **cardano-ledger** `6f99e2dd9` Update Cabal bounds on `cardano-crypto-class`
+- `2026-06-16` **cardano-ledger** `84d89044f` Merge pull request #5837 from IntersectMBO/ldan/remove-rules-reexports
+- `2026-06-16` **cardano-ledger** `8d455eca8` Rename Babbage rules
+- `2026-06-16` **cardano-ledger** `8dc1c431e` Merge pull request #5870 from IntersectMBO/nm/cardano-crypto-class
+- `2026-06-16` **cardano-ledger** `9c3c53b4f` Update `CHANGELOG`s
+- `2026-06-16` **cardano-ledger** `a0f07d5ce` Qualify `Babbage.UTXO` import in Conway `Utxos`
+- `2026-06-16` **cardano-ledger** `a9728c211` Add Conway rule deprecation helpers
+- `2026-06-16` **cardano-ledger** `b5dd13925` Re-export deprecated rule names from Shelley API
+- `2026-06-16` **cardano-ledger** `b84e721b6` Add Shelley rule deprecation helpers
+- `2026-06-16` **cardano-ledger** `c9ec2e568` Merge pull request #5859 from IntersectMBO/ldan/era-prefix-removal
+- `2026-06-16` **cardano-ledger** `ce68e282d` Rename Allegra rules
+- `2026-06-16` **cardano-ledger** `d7865f11f` Add Babbage rule deprecation helpers
+- `2026-06-16` **cardano-ledger** `efe6d9e3b` Add NFData instances for the associated types in `VRFAlgorithm FakeVRF`
+- `2026-06-16` **cardano-ledger** `fdf25c287` Rename Alonzo rules
+- `2026-06-16` **cardano-node** `5dc9d9db6` Fix gRPC config reload on sighup
+- `2026-06-16` **ouroboros-consensus** `01140b420` [Peras] Improve return type of ChainDB's `addPeras{Vote/Cert}` methods and fix corresponding ChainDB statemachine tests (#2029)
+- `2026-06-16` **ouroboros-consensus** `1ac85c8fa` More consistency in PerasCertDB Model addVote function
+- `2026-06-16` **ouroboros-consensus** `53d997ee9` Add changelog
+- `2026-06-16` **ouroboros-consensus** `5c2660f28` stake-aware generator for AddPerasVote
+- `2026-06-16` **ouroboros-consensus** `adc1414dc` Keep return status in ChainDB's addPeras{Vote,Cert}
+- `2026-06-15` **cardano-api** `22a1314a7` Remove deprecated era conversion functions superseded by convert
+- `2026-06-15` **cardano-api** `476a9624d` Add pr number to changelog fragment
+- `2026-06-12` **cardano-node** `00f9dfaff` Add documentation, improve errors, and add changelog entry
+- `2026-06-12` **cardano-node** `77f84d53f` Address issues with `test-ogmios.sh` script
+- `2026-06-12` **cardano-node** `c6c6be0cc` Fail on rejected transactions in Ogmios submit mode
+- `2026-06-12` **cardano-node** `ccfb1359a` Strengthen and polish rough edges of the Ogmios implementation
+- `2026-06-12` **ouroboros-consensus** `5ca9b82c6` Update docusaurus (#2069)
+- `2026-06-12` **ouroboros-consensus** `617145bd1` Discard snapshots if at same slot as the immutable db and is EBB (#2070)
+- `2026-06-12` **ouroboros-consensus** `73a3ecd3d` Discard snapshots if at same slot as the immutable db and is EBB
+- `2026-06-12` **ouroboros-consensus** `ebe489f40` Update docusaurus
+- `2026-06-12` **ouroboros-network** `1671947b7` Merge pull request #5381 from IntersectMBO/karknu/knownpeers
+- `2026-06-12` **ouroboros-network** `47731b9e6` Efficient common case for setCurrentTime
+- `2026-06-11` **ouroboros-network** `4a6e0732f` cardano-diffusion:ping - output fixes
+- `2026-06-11` **ouroboros-network** `4ecbc45bb` Merge pull request #5205 from IntersectMBO/coot/cardano-ping
+- `2026-06-11` **ouroboros-network** `cb190617b` cardano-ping - build staticlly linked executable
+- `2026-06-11` **ouroboros-network** `ec992b00b` cardano-diffusion:ping - added --color auto
+- `2026-06-10` **cardano-ledger** `3abf2d901` Remove some more re-exports
+- `2026-06-10` **cardano-ledger** `52f940c3a` Stop re-exporting `Event`
+- `2026-06-10` **cardano-ledger** `69fe391f9` Stop re-exporting `PulsingRewUpdate`
+- `2026-06-10` **cardano-ledger** `6e9407217` Update `CHANGELOG`
+- `2026-06-10` **cardano-ledger** `7c691a9e2` Stop re-exporting `Identity`
+- `2026-06-10` **cardano-ledger** `b3ee7d181` Stop re-exporting `PredicateFailure`
+- `2026-06-10` **cardano-ledger** `dbaccbade` Stop re-exporting `epochFromSlot`
+- `2026-06-10` **cardano-ledger** `dd921d270` Stop re-exporting `calculatePoolDistr`
+- `2026-06-10` **cardano-node** `390273284` Merge pull request #6598 from IntersectMBO/russoul/cardano-node-move-out-recon
+- `2026-06-10` **cardano-node** `9b9620f73` bench: remove cardano-recon-framework (moved to IntersectMBO/hermod-tracing)
+- `2026-06-10` **ouroboros-consensus** `04a5353c8` Export LSM snapshots if args include an export path (#2053)
+- `2026-06-10` **ouroboros-consensus** `0882aa9b5` Add Mithril predictable ledger state snapshot policy (#2063)
+- `2026-06-10` **ouroboros-consensus** `249c03400` Remove unused lgrStartSnapshot from LedgerDbArgs
+- `2026-06-10` **ouroboros-consensus** `5ccad2e06` db-analyser: replay up to --analyse-from before analysing
+- `2026-06-10` **ouroboros-consensus** `867b6a27d` Export LSM snapshots if args include an export path
+- `2026-06-10` **ouroboros-consensus** `aa96807e6` Db analyser analysis from snapshot (#2061)
+- `2026-06-10` **ouroboros-consensus** `cfef56a90` percolate replay goal from --analyse-from args instead of forcing genesis point in db-analyser.
+- `2026-06-10` **ouroboros-network** `1dfc71e0c` cardano-diffusion:ping - SRV support
+- `2026-06-10` **ouroboros-network** `57fffa2b4` cardano-diffusion:ping - stderr tracer
+- `2026-06-10` **ouroboros-network** `8abc2a192` cardano-diffusion:ping - show negotiated network version
+- `2026-06-10` **ouroboros-network** `b046a4237` cardano-diffusion:ping - last to finish between ping clients
+- `2026-06-10` **ouroboros-network** `c03eeec46` cardano-diffusion:ping - added changelog entry
+- `2026-06-09` **cardano-node** `1407c3207` Add script for testing ogmios with tx-generator
+- `2026-06-09` **cardano-node** `363ab16cb` Add support for sending tx through ogmios
+- `2026-06-09` **cardano-node** `6459903af` Merge pull request #6580 from IntersectMBO/remove-iohk-monitoring
+- `2026-06-09` **cardano-node** `68dbfff91` Patch AsyncBenchmarkControl
+- `2026-06-09` **ouroboros-consensus** `fa661de97` Add policy for Mithril ledger state snapshots
+- `2026-06-09` **ouroboros-network** `0e7eaace1` cardano-diffusion:ping - rtt output
+- `2026-06-09` **ouroboros-network** `18bcff16c` api: provide nodeTo{Node,Client}VersionDataCodec
+- `2026-06-09` **ouroboros-network** `1ca8c531c` api: VersionedCodecCBORTerm
+- `2026-06-09` **ouroboros-network** `1dbee4fcb` cardano-diffusion:demo-ping - demo ping command
+- `2026-06-09` **ouroboros-network** `2f1c73799` Moved `cardano-ping` to `cardano-diffusion:ping`
+- `2026-06-09` **ouroboros-network** `300feb7ae` cardano-diffusion:ping - added ping mode
+- `2026-06-09` **ouroboros-network** `405d7282c` cardano-diffusion:ping - added standard deviation to JSON output
+- `2026-06-09` **ouroboros-network** `532eb45e0` cardano-diffusion: exposed node-to-client protocol numbers
+- `2026-06-09` **ouroboros-network** `598dd7b19` cardano-diffusion:ping - idle timeout delay
+- `2026-06-09` **ouroboros-network** `5b1a4d671` cardano-diffusion:ping - log output
+- `2026-06-09` **ouroboros-network** `63447aad4` mux-test: mux close (IO)
+- `2026-06-09` **ouroboros-network** `67da7eeb1` handshake: fixed prop_acceptOrRefuse_symmetric failure
+- `2026-06-09` **ouroboros-network** `6ceafe2b7` api: hide nodeTo{Node,Client}CodecCBORTerm
+- `2026-06-09` **ouroboros-network** `7b3056646` ouroboros-network: fixed indentation
+- `2026-06-09` **ouroboros-network** `8eeef12b3` api: documented changes in the changelog
+- `2026-06-09` **ouroboros-network** `908f573c6` ouroboros-network:framework - runHandshakeClientWithRTT
+- `2026-06-09` **ouroboros-network** `9a9847fcc` cardano-diffusion:ping - using ouroboros-network and cardano-diffusion
+- `2026-06-09` **ouroboros-network** `a66a9fa17` cardano-diffusion:ping - resolve filepaths and domain names
+- `2026-06-09` **ouroboros-network** `b50fc7a6b` cardano-diffusion:ping - stylish-haskell
+- `2026-06-09` **ouroboros-network** `c4c2908a0` cardano-diffusion:ping - query tip over node-to-client protocol
+- `2026-06-09` **ouroboros-network** `ce2bac21b` cardano-diffusion:ping - query Peras support
+- `2026-06-09` **ouroboros-network** `d6032ea8d` cardano-diffusion:ping - apply idle timeout before closing the connection
+- `2026-06-05` **ouroboros-consensus** `640b7fea5` Switch Windows cross compilation to use GHC 9.12 (#2056)
+- `2026-06-05` **ouroboros-consensus** `df770478c` Remove artificial constraints on plutus.
+- `2026-06-05` **ouroboros-consensus** `e2ec498c4` Use GHC 9.12 for hydra cross compilation jobs
+- `2026-06-04` **cardano-base** `124c79b86` Re-export `byteArrayFromShortByteString`, `byteArrayToShortByteString`.
+- `2026-06-04` **cardano-base** `31402fc00` Add `psbFromByteStringM`
+- `2026-06-04` **cardano-base** `6ecde68af` Add `byteArrayFromByteString`
+- `2026-06-04` **cardano-base** `73339f461` Add `psbToByteArray`
+- `2026-06-04` **cardano-base** `cc5f867fa` cardano-crypto-wallet: rename ed25519 C symbols from cardano_crypto_ to ccw_
+- `2026-06-04` **cardano-base** `f8bed5e03` Merge pull request #666 from IntersectMBO/rename-conflicting-symbols
+- `2026-06-04` **cardano-node** `1276f2268` Merge pull request #6562 from IntersectMBO/russoul/timeseries-align-http-api-with-prometheus
+- `2026-06-04` **cardano-node** `289dee332` cardano-node: remove logging switch
+- `2026-06-04` **cardano-node** `3ae9401f4` cardano-node: discard local JSON instances; restore original output and
+- `2026-06-04` **cardano-node** `4aa82d854` nix: remove legacy tracing artifacts
+- `2026-06-04` **cardano-node** `54c79c49f` ci: improve github actions
+- `2026-06-04` **cardano-node** `7f7da4daf` cardano-testnet: adjust golden_DefaultConfig test case to removal of legacy tracing
+- `2026-06-04` **cardano-node** `8449b0a58` feedback for PR #6580
+- `2026-06-04` **cardano-node** `c4aff8ad3` Merge pull request #6595 from IntersectMBO/improve-gha
+- `2026-06-04` **cardano-node** `d893499b9` cardano-profile: remove oldtracing profiles
+- `2026-06-04` **cardano-node** `dfea9b3a1` Remove iohk-monitoring-framework from project
+- `2026-06-04` **cardano-node** `f7acae699` wb: stop supervisord from spamming stderr with python deprecation warnings
+- `2026-06-04` **ouroboros-consensus** `0be7759be` Enable searching the documentation website (#2059)
+- `2026-06-03` **cardano-ledger** `15a4f10f0` Update `CHANGELOG`s
+- `2026-06-03` **cardano-ledger** `3e53b2d92` Prepare conformance for Dijkstra 3 (#5844)
+- `2026-06-03` **cardano-ledger** `61db33bee` Add `--era` flag to `generate-cbor`
+- `2026-06-03` **cardano-ledger** `6f114eb2f` Apply suggestions from code review
+- `2026-06-03` **cardano-ledger** `c810dc162` Add `generate-cbor` executable to Ledger API
+- `2026-06-03` **cardano-ledger** `cd8b7fab8` Merge pull request #5864 from IntersectMBO/ldan/move-generate-cbor
+- `2026-06-03` **cardano-ledger** `f85d3b71a` Remove `generate-cbor` executables per era
+- `2026-06-03` **cardano-node** `04f3da1fd` timeseries: add noncanonical rule for Duration + Duration
+- `2026-06-03` **cardano-node** `05e582612` bench 
+- `2026-06-03` **cardano-node** `0894cc3a9` timeseries: fix hlint warnings (eta reduce, fuse foldr/map, record patterns)
+- `2026-06-03` **cardano-node** `1a6d6b2ba` cardano-tracer 
+- `2026-06-03` **cardano-node** `1d765e1cd` timeseries: expand elab test suite to ~110 tests
+- `2026-06-03` **cardano-node** `22918b665` timeseries: add three unambiguous noncanonical arithmetic rules
+- `2026-06-03` **cardano-node** `2bd69a2d4` cardano-tracer: add node info/startup/state HTTP endpoints to timeseries server
+- `2026-06-03` **cardano-node** `38fe51ba2` bench 
+- `2026-06-03` **cardano-node** `39f47e9e4` bench 
+- `2026-06-03` **cardano-node** `3ab715b50` grafana-datasource: enable multi-select on node_id variable for panel repeat
+- `2026-06-03` **cardano-node** `466e9896e` bench 
+- `2026-06-03` **cardano-node** `4c0045c12` grafana-datasource: suppress deprecated TypeScript options warning
+- `2026-06-03` **cardano-node** `59d67ccbc` timeseries: align HTTP API and JSON wire format with Prometheus
+- `2026-06-03` **cardano-node** `5fab7512a` cardano-tracer, grafana-datasource: node_name as sole series label; slug-based node API
+- `2026-06-03` **cardano-node** `6310ad438` cardano-tracer: sanitize nodeName
+- `2026-06-03` **cardano-node** `685f56b3f` timeseries elab: suggest similar names in Undefined-name error
+- `2026-06-03` **cardano-node** `731128846` grafana-datasource: wire up Grafana time picker to query range
+- `2026-06-03` **cardano-node** `7527f77c1` timeseries: give the elaborator metric-name awareness for better errors
+- `2026-06-03` **cardano-node** `8648dab56` grafana-datasource: add node info/startup/state/uptime query types and dashboard panels
+- `2026-06-03` **cardano-node** `91147b344` cardano-node: fix Protocol show instance to say Cardano instead of Byron; Shelley
+- `2026-06-03` **cardano-node** `975481a07` cardano-profile: introduce 6-dense-timeseries-1h
+- `2026-06-03` **cardano-node** `9d756248c` timeseries: fix epoch parser bug — epoch now correctly produces Timestamp 0
+- `2026-06-03` **cardano-node** `a2cd7fcc4` Add `Unit` type to timeseries
+- `2026-06-03` **cardano-node** `a53156c39` Merge pull request #6586 from IntersectMBO/move-more-defaults-to-node
+- `2026-06-03` **cardano-node** `aed388aa0` cardano-tracer, grafana-datasource: /nodes returns {nodeName, slug} objects; slug-based node API
+- `2026-06-03` **cardano-node** `b4ba68fdf` cardano-timeseries-io 
+- `2026-06-03` **cardano-node** `b5e6e2662` timeseries: support local name shadowing in the elaborator
+- `2026-06-03` **cardano-node** `b9f37f0d9` grafana-datasource: add $__interval step to all dashboard range queries
+- `2026-06-03` **cardano-node** `bcddd31c7` bench 
+- `2026-06-03` **cardano-node** `c38642b19` cardano-tracer, grafana-datasource: extend series labels, rename node-state endpoint, misc
+- `2026-06-03` **cardano-node** `d4a55a0e2` bench 
+- `2026-06-03` **cardano-node** `db70efe57` timeseries: add comprehensive interpretation tests; fix sum_over_time elab bug
+- `2026-06-03` **cardano-node** `efa7f898e` workbench: fix ps --ppid for macOS compatibility
+- `2026-06-03` **cardano-node** `f5bedf833` cardano-timeseries-io 
+- `2026-06-03` **cardano-node** `f9a9fd84c` bench 
+- `2026-06-03` **ouroboros-consensus** `29a3ec332` docs website: add search
+- `2026-06-02` **cardano-node** `0862f77b4` Fix typos in DRepRetirment test
+- `2026-06-02` **cardano-node** `3ed9ac642` Add missing and fix existing haddocks
+- `2026-06-02` **cardano-node** `4adda8abb` Move path and filename definition functions to `cardano-node`
+- `2026-06-02` **cardano-node** `4b991a8da` Make the imports from `Paths` module implicit
+- `2026-06-02` **cardano-node** `bec411e19` Add changelog fragment
+- `2026-06-01` **cardano-node** `55e5775fc` Extract functions for strings to avoid repetition
+- `2026-05-30` **cardano-base** `07bd2eb5a` feat: add cardano-crypto-wallet package
+- `2026-05-30` **cardano-base** `182829242` test: add tests and benchmarks for cardano-crypto-wallet
+- `2026-05-30` **cardano-base** `23cc56d28` refactor: use ScrubbedBytes for plaintext key material buffers
+- `2026-05-30` **cardano-base** `2ebec0f77` fix: address cryptographer review of encrypted_sign.c and FFI bindings
+- `2026-05-30` **cardano-base** `3794c732d` Fix fourmolu formatting in Encrypted.hs
+- `2026-05-30` **cardano-base** `3a238c7ee` refactor: use MLockedSizedBytes for secret key material
+- `2026-05-30` **cardano-base** `3c70e8784` Address lehins review feedback on cardano-crypto-wallet
+- `2026-05-30` **cardano-base** `a682a2e62` vendor: copy ed25519-donna C sources from cardano-crypto
+- `2026-05-30` **cardano-base** `b2fe69b33` refactor: add encrypted_sign.c and switch ed25519-hash.h to libsodium
+- `2026-05-30` **cardano-base** `cb068e064` Merge pull request #653 from IntersectMBO/wallet-cbits
+- `2026-05-29` **cardano-api** `26edd8305` Changelog fragment
+- `2026-05-29` **cardano-api** `28b94fd2e` cabal.project: Reduce allow-newers
+- `2026-05-29` **cardano-api** `aa9ac8e4c` Nix updates
+- `2026-05-29` **cardano-api** `ab2de0266` Merge pull request #1230 from IntersectMBO/erikd/updates
+- `2026-05-29` **cardano-node** `a48de879c` cardano-recon: improve --timeunit help message
+- `2026-05-29` **cardano-node** `ebbab5be8` Merge pull request #6584 from IntersectMBO/russoul/recon-qol
+- `2026-05-29` **ouroboros-consensus** `2b335d601` Fix typo in roundtrip tests
+- `2026-05-29` **ouroboros-consensus** `7ee836f25` Fix typo in roundtrip tests (#2054)
+- `2026-05-28` **cardano-api** `b3e0947c5` cabal.project: Remove un-needed allow-newer
+- `2026-05-28` **cardano-api** `d060c6383` cabal.project: Update index-states
+- `2026-05-28` **cardano-base** `164360711` Bump versions changelogs
+- `2026-05-28` **cardano-base** `81ebb64b8` Merge pull request #664 from IntersectMBO/erikd/base-changelog
+- `2026-05-28` **cardano-node** `0cc488cc5` cardano-recon: replace positional FILE/FILES args with named --formulas/--traces
+- `2026-05-28` **cardano-node** `a83e2778e` cardano-recon-framework: bump version to 1.2.1, add changelog entry
+- `2026-05-27` **cardano-ledger** `0332f648e` Use decodeSparseKeyed for DijkstraTxBody
+- `2026-05-27` **cardano-ledger** `0bd9832f7` Merge pull request #5852 from IntersectMBO/erikd/updates
+- `2026-05-27` **cardano-ledger** `0c4ccec65` Fix block_body generator
+- `2026-05-27` **cardano-ledger** `127d2de32` Fix test with new error report
+- `2026-05-27` **cardano-ledger** `12856dbe2` Fix TypeName in failing test
+- `2026-05-27` **cardano-ledger** `3cb7e651e` improve verification result handling
+- `2026-05-27` **cardano-ledger** `649029090` Tidy up
+- `2026-05-27` **cardano-ledger** `672f4700d` Use decodeSparseKeyed for AlonzoTxAuxData PV12+.
+- `2026-05-27` **cardano-ledger** `68ac22e0d` Add mapSparseField helpers for decodeSparseKeyed
+- `2026-05-27` **cardano-ledger** `6f2af4b6b` Rename all decoderForKey to decoderByKey
+- `2026-05-27` **cardano-ledger** `7b2166340` Add decodeSparseKeyed; use for BabbageTxOut PV12+.
+- `2026-05-27` **cardano-ledger** `88c85df74` Use decodeSparseKeyed for PParamsUpdate PV12+
+- `2026-05-27` **cardano-ledger** `8e1949b87` Add subtransactions custom generator
+- `2026-05-27` **cardano-ledger** `a9c2f7e1e` Rm redundant argument; add spaces in error reports
+- `2026-05-27` **cardano-ledger** `adbea1e92` Merge pull request #5847 from IntersectMBO/aniketd/coders-safe
+- `2026-05-27` **cardano-ledger** `c33247647` Scale down tests to make test suites run faster
+- `2026-05-27` **cardano-ledger** `c63bd609e` Add custom generator helpers
+- `2026-05-27` **cardano-ledger** `c7377e3d8` Remove residual SRP
+- `2026-05-27` **cardano-ledger** `c8e0f7391` Add custom generator to constr
+- `2026-05-27` **cardano-ledger** `d0e208885` Merge pull request #5779 from IntersectMBO/jj/constr-fix
+- `2026-05-27` **cardano-ledger** `e0fbe608f` Enable transaction_witness_set
+- `2026-05-27` **cardano-ledger** `e48408ca4` Use decodeSparseKeyed for AlonzoTxWits PV12+
+- `2026-05-27` **cardano-ledger** `e4dd9a345` Bump cuddle to 1.8.0.0
+- `2026-05-27` **cardano-ledger** `ebc50efde` Add custom validator and generator for sets
+- `2026-05-27` **cardano-ledger** `f26fcb4dd` decodeSparseKeyed take TypeName instead of String.
+- `2026-05-27` **cardano-ledger** `ffe875998` Replace mapSparseField helpers with decodeAccA.
+- `2026-05-26` **cardano-api** `26583361b` Merge pull request #1223 from IntersectMBO/update-plutus
+- `2026-05-26` **cardano-api** `55d843ecd` Merge pull request #1224 from IntersectMBO/release/cardano-api-11.3.0.0
+- `2026-05-26` **cardano-api** `7c4c49587` Add release changelog fragment for cardano-api 11.3.0.0
+- `2026-05-26` **cardano-api** `d2281aaca` Merge pull request #1226 from IntersectMBO/release/cardano-rpc-11.0.0.0
+- `2026-05-26` **cardano-api** `d6461eb2c` Add release changelog fragment for cardano-rpc 11.0.0.0
+- `2026-05-26` **cardano-api** `df0736ae7` Release cardano-rpc-11.0.0.0
+- `2026-05-26` **cardano-api** `e69b94f97` Release cardano-api-11.3.0.0
+- `2026-05-26` **cardano-ledger** `14f2010c7` cabal.project: Update allow-newers
+- `2026-05-26` **cardano-ledger** `49cae9f57` Merge pull request #5861 from IntersectMBO/aniketd/update-index-state
+- `2026-05-26` **cardano-ledger** `615ca1d3a` Merge pull request #5762 from IntersectMBO/ldan/generate-cbor-exec
+- `2026-05-26` **cardano-ledger** `844621c6a` cabal.project: Update index-states
+- `2026-05-26` **cardano-ledger** `971fdb706` Remove SRP; update index-state, plutus examples
+- `2026-05-26` **cardano-ledger** `efc313afe` Support QuickCheck 2.18 as well as earlier
+- `2026-05-26` **cardano-ledger** `f8a607aed` Nix updates
+- `2026-05-26` **ouroboros-consensus** `1e4115fe6` Rename Test.Consensus.Node to Test.Consensus.DBLock
+- `2026-05-26` **ouroboros-consensus** `b77c0a954` Rename `Test.Consensus.Node` to `Test.Consensus.DBLock` (#2042)
+- `2026-05-25` **cardano-api** `21534da29` Merge pull request #1214 from IntersectMBO/mgalazyn/fix/guard-utxo-whole-set
+- `2026-05-25` **cardano-api** `7d4f48db4` Bump plutus to version 1.65.0.0
+- `2026-05-25` **cardano-api** `aabade50c` cardano-rpc: guard against fetching entire UTXO set.
+- `2026-05-25` **cardano-base** `4762ba480` Merge pull request #663 from IntersectMBO/f-f/bump-crypto-praos
+- `2026-05-25` **cardano-base** `4e43b0dc9` Bump cardano-crypto-praos to 2.2.3
+- `2026-05-25` **cardano-base** `988eecc25` Generalize type signature for withNumTests
+- `2026-05-25` **cardano-base** `ec3c1da54` Merge pull request #662 from IntersectMBO/erikd/withNumTests
+- `2026-05-25` **cardano-node** `8da9a7efe` Merge pull request #6577 from IntersectMBO/mgalazyn/test/rewrite-rpc-test-exp
+- `2026-05-22` **cardano-api** `98b7d19ae` Merge pull request #1215 from IntersectMBO/mgalazyn/feature/bump-plutus-ledger-api
+- `2026-05-22` **cardano-api** `d08ed5a9b` Update plutus SRP for WASM
+- `2026-05-22` **cardano-base** `096124a9d` Merge pull request #661 from IntersectMBO/erikd/changelogs
+- `2026-05-22` **cardano-base** `16049101e` Bump changelogs for recently released packages
+- `2026-05-22` **cardano-node** `6c6e3fad1` cardano-testnet 
+- `2026-05-22` **ouroboros-network** `a2203a43a` mux: delta-q code formatting
+- `2026-05-22` **ouroboros-network** `a36632c1e` Added changelog fragments
+- `2026-05-22` **ouroboros-network** `a54cc79b0` mux-test: mux close (IO)
+- `2026-05-22` **ouroboros-network** `d842a238a` Merge pull request #5376 from IntersectMBO/coot/tracing-instances
+- `2026-05-21` **cardano-api** `3cf4d6d40` Bump plutus-ledger-api-1.63
+- `2026-05-21` **cardano-base** `49da3f233` simplify `verifyPoP` with less FFI calls
+- `2026-05-21` **cardano-base** `4f63eeeb5` remove `mu2` from PoP, following IETF draft
+- `2026-05-21` **cardano-base** `58c3c3fc2` Bump contra-tracer to 0.2.1
+- `2026-05-21` **cardano-base** `5aa1cf4a6` simplify `createPoP` with less FFI calls
+- `2026-05-21` **cardano-base** `70b1f6fd5` Merge pull request #660 from IntersectMBO/aniketd/typename
+- `2026-05-21` **cardano-base** `85ee04db8` Add `Cardano.Base.Typeable` with type `TypeName`.
+- `2026-05-21` **cardano-base** `91032d980` add to changelog
+- `2026-05-21` **cardano-base** `d6e5c68bb` Merge pull request #659 from IntersectMBO/f-f/prepare-11.1
+- `2026-05-21` **cardano-base** `d856ff009` Merge pull request #629 from IntersectMBO/perturbing/leios-ietf-pop-fix
+- `2026-05-21` **cardano-ledger** `1ba90156e` Add `generate-cbor` executable for each era
+- `2026-05-21` **cardano-ledger** `692bf8a15` Add `--count` flag to `generate-cbor`
+- `2026-05-21` **cardano-ledger** `7edb797e5` Update `CHANGELOG`s
+- `2026-05-21` **cardano-ledger** `8792e72c1` Add `generate-cbor` CLI tool
+- `2026-05-21` **cardano-ledger** `9ea62f400` Add `--binary` flag to `generate-cbor`
+- `2026-05-21` **cardano-ledger** `cd30e4da0` Update `hie.yaml`
+- `2026-05-21` **cardano-ledger** `ebed62de1` Merge pull request #5851 from IntersectMBO/lehins/add-predicate-failure-tests
+- `2026-05-21` **ouroboros-consensus** `b7135f845` Update LSM-trees packages (#2021)
+- `2026-05-21` **ouroboros-network** `3ae6146ea` Use contra-tracer-0.2.1.0 from CHaP
+- `2026-05-21` **ouroboros-network** `76faf7adf` network-mux: fail on mini-protocol startup if the state is `Failed`
+- `2026-05-21` **ouroboros-network** `8fcb1ec4c` orphaned-instances: added instances
+- `2026-05-21` **ouroboros-network** `a0cd039d4` framework-test-lib: added a label, formatting
+- `2026-05-21` **ouroboros-network** `d3d0cbc65` LedgerPeerConsensusInterface: export PraosFetchMode
+- `2026-05-21` **ouroboros-network** `d75dbef69` api: PrettyShow instances for NodeToNodeVersion & NodeToClientVersion
+- `2026-05-21` **ouroboros-network** `e07c26ff6` ouroboros-network: NoExtraConfig, NoExtraAPI and NoExtraChurnArgs
+- `2026-05-21` **ouroboros-network** `f772fd8aa` keep-alive: export KeepAlive.Registry module from KeepAlive
+- `2026-05-20` **cardano-base** `9a1859256` Merge pull request #658 from IntersectMBO/nm/certvrf-ord
+- `2026-05-20` **cardano-ledger** `0df651df7` Improve naming and re-exporting of era specific imp tests
+- `2026-05-20` **cardano-ledger** `42219c090` Subsume `RuleListEra` into `EraTest`:
+- `2026-05-20` **cardano-ledger** `6ec1b11df` Merge pull request #5849 from IntersectMBO/dependabot/pip/doc/idna-3.15
+- `2026-05-20` **cardano-ledger** `737c1080b` Refactor gov/proposals/v0 namespace definition to include the proposal order
+- `2026-05-20` **cardano-ledger** `9243afbc9` Update cardano-cls repository tag
+- `2026-05-20` **cardano-ledger** `af1179d88` Merge pull request #5699 from tweag/joaosreis/canonical-accounts
+- `2026-05-20` **cardano-ledger** `ddf07acdd` Add entities/accounts/v0 namespace
+- `2026-05-20` **cardano-ledger** `e04f746a1` Merge pull request #5738 from tweag/joaosreis/canonical-gov-proposals-order
+- `2026-05-20` **cardano-ledger** `ed62d32d9` Update cardano-cls repository tag
+- `2026-05-20` **ouroboros-consensus** `5b63b5a0f` Transient constraints for windows cross-compilation
+- `2026-05-20` **ouroboros-consensus** `624639730` Update LSM-trees packages
+- `2026-05-20` **ouroboros-consensus** `ec9df6ee1` Updated ouroboros-network (#2046)
+- `2026-05-20` **ouroboros-consensus** `ed4fef3e6` Updated to tip of ouroboros-network
+- `2026-05-20` **ouroboros-network** `54f75ba86` Merge pull request #5372 from dancewithheart/drop-selectEnvTargets
+- `2026-05-19` **cardano-api** `03fef7b4f` Pin herald GHA using a tag
+- `2026-05-19` **cardano-api** `ed8e51980` Merge pull request #1213 from IntersectMBO/mgalazyn/chore/pin-herald-actions
+- `2026-05-19` **cardano-base** `6ed7596ec` Strengthen `Eq` constraint on `CertVRF` in `VRFAlgorithm` to `Ord`
+- `2026-05-19` **cardano-ledger** `378479948` Add transaction_mempool
+- `2026-05-19` **cardano-ledger** `694a1fc92` Bump idna from 3.10 to 3.15 in /doc
+- `2026-05-19` **cardano-ledger** `7d1349dcf` Update Dijkstra chain_code
+- `2026-05-19` **cardano-ledger** `b9d24b7d9` Merge pull request #5846 from IntersectMBO/jj/chain-code-control
+- `2026-05-19` **cardano-ledger** `ccaf276fe` Merge pull request #5843 from IntersectMBO/jj/transaction-cddl
+- `2026-05-19` **ouroboros-consensus** `31b2bd3a8` Add changelog
+- `2026-05-19` **ouroboros-consensus** `4348ff26d` [Peras 24, reopened] BLS crypto backend for voting committees (#2035)
+- `2026-05-19` **ouroboros-consensus** `565f92cc2` Add helpers for voting committee tests
+- `2026-05-19` **ouroboros-consensus** `5adc6011c` Implement BLS-based crypto helpers to instantiate voting committes
+- `2026-05-19` **ouroboros-consensus** `6639e4861` Add property tests for EveryoneVotes implementation
+- `2026-05-19` **ouroboros-consensus** `8ca995bdb` [Peras 25] Conformance and property tests for voting committee implementations (#1977)
+- `2026-05-19` **ouroboros-consensus** `8fad37454` Add property tests for WFALS implementation
+- `2026-05-19` **ouroboros-consensus** `b85076c53` Implement BLS-based TestCrypto scheme for voting committee tests
+- `2026-05-19` **ouroboros-consensus** `ed4415f5a` Tweak existing WFALS model and conformance tests
+- `2026-05-19` **ouroboros-consensus** `f8288a346` Add property tests for UniqueVotesWithSameTarget
+- `2026-05-19` **ouroboros-consensus** `fc881f62e` Add conformance tests for WFALS implementation
+- `2026-05-19` **ouroboros-network** `24a6facc3` cardano-diffusion: rename selectEnvTargets to selectGovTargets
+- `2026-05-19` **ouroboros-network** `34b0fd25b` framework-io-tests: use ephemeral ports
+- `2026-05-19` **ouroboros-network** `4ae67af83` framework-tests-lib: fixed bidirectionalExperiment flakiness
+- `2026-05-19` **ouroboros-network** `705ab8a97` mux-test: mux close (IO)
+- `2026-05-19` **ouroboros-network** `85d7de79e` nix: bumped heap limit
+- `2026-05-19` **ouroboros-network** `a595114d7` framework-io-tests: fixed socket test ordering
+- `2026-05-19` **ouroboros-network** `b9eff2e2a` Merge pull request #5368 from IntersectMBO/f-f/contra-tracer-0.2
+- `2026-05-19` **ouroboros-network** `bab044045` mux-test: make trailing bytes (IO) test more reliable
+- `2026-05-19` **ouroboros-network** `e12f0e80b` Upgrade to contra-tracer 0.2.1
+- `2026-05-18` **cardano-api** `1b3393dba` Merge pull request #1211 from IntersectMBO/jordan/remove-unused-error-constructors
+- `2026-05-18` **cardano-api** `39fdbc2b1` Add `evaluateTransaction` and `evaluateSignedTx` to `Cardano.Api.Experimental`, composing script evaluation, fee computation, and balance checking into a single pure function for signed transactions.
+- `2026-05-18` **cardano-api** `3baa58e8c` Release cardano-api-11.2.0.0
+- `2026-05-18` **cardano-api** `a99cf11e1` Merge pull request #1212 from IntersectMBO/release/cardano-api-11.2.0.0
+- `2026-05-18` **cardano-api** `cb14b379a` Add release changelog fragment for cardano-api 11.2.0.0
+- `2026-05-18` **cardano-api** `f2469e334` Merge pull request #1210 from IntersectMBO/jordan/remove-legacy-certificate-type
+- `2026-05-18` **cardano-api** `fea6c6761` Merge pull request #1205 from IntersectMBO/mgalazyn/refactor/move-evaltx-to-api
+- `2026-05-18` **cardano-base** `2b4fac85e` Merge pull request #657 from dancewithheart/BLS12381_doctest
+- `2026-05-18` **cardano-base** `79d26fc5f` BLS12381 PoP aggregation Haddock example to doctest
+- `2026-05-18` **cardano-base** `a2453d057` Merge pull request #656 from dancewithheart/pp/require-nfdata-crypto-type-families
+- `2026-05-18` **cardano-ledger** `091154a5f` Add `plutusLanguagesUsedStAnnTx` to `AlonzoEraUTxO` and implement it
+- `2026-05-18` **cardano-ledger** `349d3fcab` Remove `ScriptsProvided` from Dijkstra environments
+- `2026-05-18` **cardano-ledger** `36244ec76` Merge pull request #5834 from IntersectMBO/aniketd/coders-safe
+- `2026-05-18` **cardano-ledger** `3d366a9ee` Merge pull request #5804 from IntersectMBO/td/apply-state-annotated-tx
+- `2026-05-18` **cardano-ledger** `4119d72b6` Prepare conformance for Dijkstra 2 (#5830)
+- `2026-05-18` **cardano-ledger** `42ca0d4a6` Add decodeSparseKeyed; use for BabbageTxOut PV12+.
+- `2026-05-18` **cardano-ledger** `459d3208d` Add `scriptsNeededStAnnTx`to `AlonzoEraUTxO`and implement it across eras
+- `2026-05-18` **cardano-ledger** `4e56c7ba4` Merge pull request #5841 from IntersectMBO/jj/decoder-test-hierarchy
+- `2026-05-18` **cardano-ledger** `5e0e14144` Reorganize CddlSpec hierarchy
+- `2026-05-18` **cardano-ledger** `6384b7b2f` Introduce `DijkstraEraUTxO` and an instance for Dijkstra
+- `2026-05-18` **cardano-ledger** `8383321d7` Use precomputed plutus contexts in UTXOS starting with Babbage
+- `2026-05-18` **cardano-ledger** `b3b5f43e8` Change `ConwayUtxosEnv` to `()`
+- `2026-05-18` **cardano-ledger** `b9e56c1ff` Use precomputed `scriptsNeeded` and `scriptsProvided` in rules
+- `2026-05-18` **cardano-ledger** `e96be5f95` Add `plutusScriptsWithContextStAnnTx` to `AlonzoEraUTxO` and implement
+- `2026-05-18` **cardano-ledger** `ed04bb51b` Use precomputed plutus languages as argument to `mkScriptIntegrity`
+- `2026-05-18` **cardano-ledger** `f04318b1b` Merge pull request #5814 from IntersectMBO/lehins/tick-benchmarks
+- `2026-05-18` **ouroboros-network** `fc71f9411` nix: .all builds all packages
+- `2026-05-15` **cardano-api** `074ddaaa1` Merge pull request #1208 from IntersectMBO/mgalazyn/fix-haddock-doc-bases
+- `2026-05-15` **cardano-api** `089edd724` Add changelog fragment for legacy Certificate removal
+- `2026-05-15` **cardano-api** `132a8d192` Slim Cardano.Api.Certificate.Internal to pool-only definitions
+- `2026-05-15` **cardano-api** `1c005b542` Remove unreachable error constructors
+- `2026-05-15` **cardano-api** `1d95f89b1` Re-export op-cert AsType constructors via Experimental.Certificate
+- `2026-05-15` **cardano-api** `79d642635` Remove legacy TxOut from Compatible and Experimental APIs
+- `2026-05-15` **cardano-api** `817530aee` Move filterUnRegCreds/filterUnRegDRepCreds to experimental certificate module
+- `2026-05-15` **cardano-api** `82d5896d5` Delete public Cardano.Api.Certificate module and update consumers
+- `2026-05-15` **cardano-api** `b6497f246` Add changelog fragment for PR #1211
+- `2026-05-15` **cardano-api** `d82226eb4` Rewrite genCertificate to produce Exp.Certificate directly
+- `2026-05-15` **cardano-api** `e90405b46` Add changelog fragment for PR #1209
+- `2026-05-15` **cardano-api** `f1cc7c843` Merge pull request #1209 from IntersectMBO/jordan/remove-legacy-txout-from-compat-and-experimental
+- `2026-05-15` **cardano-base** `91417f377` Require NFData for VRF associated types
+- `2026-05-15` **cardano-ledger** `0fd042e38` Stop using Coders for some types
+- `2026-05-15` **cardano-ledger** `29c9e7ee6` Merge pull request #5815 from IntersectMBO/lehins/switch-to-unsafe-vector-operations
+- `2026-05-15` **cardano-ledger** `2c426e972` Make sure that reading utxo from file is not required
+- `2026-05-15` **cardano-ledger** `2f1000c18` Merge pull request #5807 from IntersectMBO/aniketd/coders
+- `2026-05-15` **cardano-ledger** `5650247d0` Disable all benchmarks that rely on non-empty UTxO
+- `2026-05-15` **cardano-ledger** `7d974703f` Add `lookupIndex` and tests for `elemAt`
+- `2026-05-15` **cardano-ledger** `9c4940392` Add benchmarks for ticking
+- `2026-05-15` **cardano-ledger** `c8810debb` Switch to unsafe vector operations and add strictness
+- `2026-05-15` **cardano-ledger** `cd81596d3` Fix vector-map benchmarks
+- `2026-05-15` **cardano-ledger** `d6a53b232` Rename poorly named `es` binding
+- `2026-05-15` **ouroboros-network** `08a5ebec4` keep-alive: moved KeepAliveRegistry to its own module
+- `2026-05-15` **ouroboros-network** `ae2e4958e` keep-alive: introduce KeepAliveRegistry
+- `2026-05-15` **ouroboros-network** `e8d59d8a2` Merge pull request #5371 from IntersectMBO/coot/bracketKeepAliveClient
+- `2026-05-14` **cardano-api** `2bfc2b471` gRPC: Add evalTx method
+- `2026-05-14` **cardano-api** `5f31d79e3` Fix haddock urls
+- `2026-05-14` **cardano-api** `ece2bd9b7` Merge pull request #1193 from IntersectMBO/mgalazyn/feature/evaltx
+- `2026-05-14` **cardano-base** `01ee05d07` Bump the actions group with 4 updates
+- `2026-05-14` **cardano-base** `7eb02d912` Merge pull request #655 from IntersectMBO/dependabot/github_actions/actions-681707ee37
+- `2026-05-14` **cardano-base** `fc31e6e53` Merge pull request #654 from IntersectMBO/nm/doctesting
+- `2026-05-14` **cardano-ledger** `0dba7303c` Add PParams examples to dijkstra.
+- `2026-05-14` **cardano-ledger** `3b8682e4e` Add PParams examples to alonzo.
+- `2026-05-14` **cardano-ledger** `6878b9b30` Merge pull request #5798 from IntersectMBO/nm/doctesting
+- `2026-05-14` **cardano-ledger** `7ab761466` Add PParams examples to babbage.
+- `2026-05-14` **cardano-ledger** `84c0a5ed3` Merge pull request #5810 from IntersectMBO/aniketd/stable-types-for-queries
+- `2026-05-14` **cardano-ledger** `91009c369` Add PParams examples to EraTest, update shelley.
+- `2026-05-14` **cardano-ledger** `9d812ab75` Use EraTest examplePParams in api query examples.
+- `2026-05-14` **cardano-ledger** `e8ec4aa26` Add PParams examples to conway.
+- `2026-05-14` **cardano-node** `17045dfd2` Add changelog entry for --nodes flag
+- `2026-05-14` **cardano-node** `522984ed8` Add tests for per-node config parser
+- `2026-05-14` **cardano-node** `9c2017351` Merge pull request #6559 from IntersectMBO/testnet-specify-node-bin-per-node
+- `2026-05-14` **cardano-node** `ef1bb99a7` Add support for specifying `cardano-node` binary for each node independently
+- `2026-05-13` **cardano-api** `c7182687a` gRPC: fix swapped constant and fee coefficient
+- `2026-05-13` **cardano-base** `daf91ce31` Add a dependabot configuration for the github-actions ecosystem
+- `2026-05-13` **cardano-ledger** `036216f8a` Make bash the default shell for all jobs
+- `2026-05-13` **cardano-ledger** `046daab69` Import `Rules` as `qualified` in Allegra
+- `2026-05-13` **cardano-ledger** `07baea11d` Provide a customized doctest package in `nix develop`
+- `2026-05-13` **cardano-ledger** `0be21c06f` Import `Rules` as `qualified` in Conway
+- `2026-05-13` **cardano-ledger** `23f4e9b2b` Run doctests only on packages that contain doctests
+- `2026-05-13` **cardano-ledger** `269014e3d` Import `Rules` as `qualified` in Mary
+- `2026-05-13` **cardano-ledger** `272f03130` Merge pull request #5826 from IntersectMBO/td/adapt-testchain-to-stanntx
+- `2026-05-13` **cardano-ledger** `285c2cf97` Import `Rules` as `qualified` in `ledger-state`
+- `2026-05-13` **cardano-ledger** `339822df8` Import `Rules` as `qualified` in Dijkstra
+- `2026-05-13` **cardano-ledger** `376c720d5` Add `Trace` helper to apply STS with state-dependent builder
+- `2026-05-13` **cardano-ledger** `3856b9441` Merge pull request #5799 from IntersectMBO/koslambrou/golden-example-tx-each-era
+- `2026-05-13` **cardano-ledger** `39b2ac8b8` Import `Rules` as `qualified` in Alonzo
+- `2026-05-13` **cardano-ledger** `41110b5c4` Fix broken doctests
+- `2026-05-13` **cardano-ledger** `4859230c5` Import `Rules` as `qualified` in Ledger API
+- `2026-05-13` **cardano-ledger** `489aa2686` Check that doctest is using the correct package DB
+- `2026-05-13` **cardano-ledger** `4999612b2` Update haskell.nix flake input
+- `2026-05-13` **cardano-ledger** `4c03becaa` Reinstate doctesting in CI
+- `2026-05-13` **cardano-ledger** `4f039701c` Merge pull request #5758 from IntersectMBO/nm/refactor-ci-testing
+- `2026-05-13` **cardano-ledger** `7ba9bd4fe` Use cleret instead of jq and bash
+- `2026-05-13` **cardano-ledger** `7cdf27146` Import `Rules` as `qualified` in Ledger test
+- `2026-05-13` **cardano-ledger** `8127bb066` Install doctest before build to avoid rebuilding after
+- `2026-05-13` **cardano-ledger** `88e4fda74` Add `Test.Cardano.Ledger.Core.Binary.Golden.goldenExampleEraTxCborSpec` in cardano-ledger-core:testlib and generate the golden example transactions for each era.
+- `2026-05-13` **cardano-ledger** `8b1290910` Import `Rules` as `qualified` in Shelley-MA tests
+- `2026-05-13` **cardano-ledger** `8cf291e32` Merge pull request #5816 from IntersectMBO/ldan/qualified-rules-imports
+- `2026-05-13` **cardano-ledger** `b312c6059` Fix LEDGER trace construction by threading state when building StAnnTx
+- `2026-05-13` **cardano-ledger** `bcb7b09b8` Globalize env var assignments to avoid repetition
+- `2026-05-13` **cardano-ledger** `c212495cd` Import `Rules` as `qualified` in Babbage
+- `2026-05-13` **cardano-ledger** `c73e11307` Remove duplicate golden test from `cardano-ledger-alonzo-test` package
+- `2026-05-13` **cardano-ledger** `d49321f96` Stop using doctest's cabal integration
+- `2026-05-13` **cardano-ledger** `dd054ef8d` Import `Rules` as `qualified` in Conformance tests
+- `2026-05-13` **cardano-ledger** `dde7345f2` Refactor testing in GitHub CI
+- `2026-05-13` **ouroboros-network** `e0eafca27` Merge pull request #5365 from IntersectMBO/coot/nix-all
+- `2026-05-12` **cardano-api** `1272b8434` Merge pull request #1200 from IntersectMBO/jordan/deprecate-txbody-txbodycontent
+- `2026-05-12` **cardano-api** `2f22de7f1` Deprecate TxBody and TxBodyContent in favour of the experimental API
+- `2026-05-12` **cardano-api** `bc1b34c03` Migrate cardano-rpc submit handler to Ledger.txIdTx
+- `2026-05-12` **cardano-api** `e5305937d` Add changelog fragment for PR #1200
+- `2026-05-12` **cardano-base** `5b226b46d` Merge pull request #652 from IntersectMBO/erikd/updates
+- `2026-05-12` **cardano-base** `8425b6484` Remove redundant and inappropriate cabal options
+- `2026-05-12` **cardano-base** `8bbb8a956` Revert "doctest: fix ghc-9.14 failures"
+- `2026-05-12` **cardano-base** `8cb9d5203` Install doctest before CI build to avoid rebuilding after
+- `2026-05-12` **cardano-base** `98caf0b54` Refactor doctesting
+- `2026-05-12` **cardano-base** `cf3b4f023` Provide a customized doctest package in `nix develop`
+- `2026-05-12` **cardano-base** `d8453d0c8` Work around QuickCheck deprecation
+- `2026-05-12` **cardano-base** `eb6bbf8b1` Fix doctests for ghc 9.14 a different way
+- `2026-05-12` **cardano-ledger** `183cfee31` Remove weird hyperlinked space between badges (#5822)
+- `2026-05-12` **cardano-ledger** `2de9ab385` Merge pull request #5823 from IntersectMBO/f-f/add-nothunks
+- `2026-05-12` **cardano-ledger** `54327efc5` Add `EraSpec` and `ledgerEraTestMain`
+- `2026-05-12` **cardano-ledger** `8739c2ef7` Remove `EraSpecificSpec`
+- `2026-05-12` **cardano-ledger** `8c025b92d` Merge pull request #5803 from IntersectMBO/lehins/reorganize-test-hierarchy
+- `2026-05-12` **cardano-ledger** `9cbe9325c` Switch to capitalized rules imports for ImpSpec
+- `2026-05-12` **cardano-ledger** `ef2ba4f96` Add NoThunks instances for ChainTransitionError and ChainPredicateFailure
+- `2026-05-12` **cardano-ledger** `fcf48aa88` Preparation for conformance testing in Dijkstra (#5775)
+- `2026-05-12` **cardano-node** `0af0a16f6` Merge pull request #6560 from IntersectMBO/russoul/recon-grep
+- `2026-05-12` **cardano-node** `5d6983d72` cardano-recon: address review comments (formatting, camelCase JSON keys)
+- `2026-05-12` **ouroboros-consensus** `5328585e5` Remove unused LANGUAGE pragmas
+- `2026-05-12` **ouroboros-consensus** `90649008c` Remove unused LANGUAGE pragmas (#2031)
+- `2026-05-12` **ouroboros-consensus** `b7c3c7c55` Run fourmolu
+- `2026-05-12` **ouroboros-consensus** `fb5902a27` Bring back conditional pragmas needed only for some GHCs
+- `2026-05-12` **ouroboros-network** `0222d32c6` tx-demo: outbound side
+- `2026-05-12` **ouroboros-network** `093a1c94c` tx-demo: set default rts options
+- `2026-05-12` **ouroboros-network** `0e8f3fdbe` tx-demo: added tracer
+- `2026-05-12` **ouroboros-network** `15959020b` tx-demo: inbound side
+- `2026-05-12` **ouroboros-network** `162b8bcbc` tx-demo: bind outbound side
+- `2026-05-12` **ouroboros-network** `21fbe5144` tx-demo: improved tracers
+- `2026-05-12` **ouroboros-network** `2688e9956` tx-demo: realistic tx sizes
+- `2026-05-12` **ouroboros-network** `362ea97ea` tx-demo: tx-submission script
+- `2026-05-12` **ouroboros-network** `3c95820ca` tx-demo: printTracer
+- `2026-05-12` **ouroboros-network** `488086ef7` tx-demo: TraceTxSubmissionInbound tracer
+- `2026-05-12` **ouroboros-network** `48fb1e531` Added changelog entries
+- `2026-05-12` **ouroboros-network** `54eb7d441` tx-demo: generate & analyse txs commands
+- `2026-05-12` **ouroboros-network** `5b0aa6dbe` WithBytes: derived ShowProxy and NoThunks instances
+- `2026-05-12` **ouroboros-network** `6ba7d6853` tx-demo: outbound stderr message
+- `2026-05-12` **ouroboros-network** `926b973a2` tx-demo: socket handling
+- `2026-05-12` **ouroboros-network** `98945090c` tx-demo: using annotated codec without WithBytes
+- `2026-05-12` **ouroboros-network** `a22595a68` mux disector
+- `2026-05-12` **ouroboros-network** `bd588cc9b` Merge pull request #5354 from IntersectMBO/coot/tx-submission-demo
+- `2026-05-12` **ouroboros-network** `c4d05f1e3` tx-demo: added median to analyse-txs subcommand
+- `2026-05-12` **ouroboros-network** `cd0d2ecf9` tx-demo: custom outbound side
+- `2026-05-12` **ouroboros-network** `e2c00957a` mux-demo: split the script
+- `2026-05-12` **ouroboros-network** `e389bd2ae` tx-demo: combine `command` parsers
+- `2026-05-12` **ouroboros-network** `e518d6e36` mempool: getWriterWithCtx
+- `2026-05-12` **ouroboros-network** `f57f63941` tx-demo: using annotated codec
+- `2026-05-12` **ouroboros-network** `f632acbfb` nix: add 'all' aggregate jobs for cross-compilation and variant sub-groups
+- `2026-05-12` **ouroboros-network** `f63434948` tx-demo: txs-to-request and unacked-txids
+- `2026-05-12` **ouroboros-network** `f75ba1541` tx-demo: configurable TxDecisionPolicy
+- `2026-05-12` **ouroboros-network** `fa1cc7177` tx-demo: concurrent outbound peers
+- `2026-05-11` **cardano-base** `196f5bc92` doctest: fix ghc-9.14 failures
+- `2026-05-11` **cardano-base** `67ede0513` CI: Add ghc-9.14 to the build matric
+- `2026-05-11` **cardano-base** `8f1658abf` Nix: bump haskell.nix; enable ghc-9.14 dev shell
+- `2026-05-11` **cardano-base** `a006f1fab` Nix updates
+- `2026-05-11` **cardano-ledger** `0d88df362` Bump urllib3 from 2.6.3 to 2.7.0 in /doc
+- `2026-05-11` **cardano-ledger** `be0d67cdb` Merge pull request #5817 from IntersectMBO/dependabot/pip/doc/urllib3-2.7.0
+- `2026-05-11` **cardano-node** `0c6517fd6` Get rid of TextFree IR
+- `2026-05-11` **cardano-node** `1e0e494d6` cardano-recon-framework: Add cardano-recon-grep and ContinuousFormula (v1.2.0)
+- `2026-05-11` **cardano-node** `2e5d44838` cardano-recon: --grep bypasses trace-dispatcher; add ContextDump trace message
+- `2026-05-11` **cardano-node** `591fc8022` cardano-recon-grep: support reading traces from stdin when --traces is omitted
+- `2026-05-11` **cardano-node** `5ed4e28d5` cardano-recon: add --grep flag for machine-readable negative outcome output
+- `2026-05-11` **cardano-node** `8f035bf45` cardano-recon: update README and CHANGELOG for --grep and ContextDump
+- `2026-05-11` **cardano-node** `9ef39fc70` Apply review suggestion regarding the cabal file
+- `2026-05-11` **cardano-node** `b4ea0d74d` Implement a `ContinuousFormula` for filtering events by formula conformance
+- `2026-05-09` **cardano-ledger** `052ce8440` Add `AlonzoEraTxAuxData` as a superclass to `AlonzoEraTx`
+- `2026-05-09` **cardano-ledger** `0cec149fa` Fix `TranslateEra` instance for `DijkstraEra CertState`
+- `2026-05-09` **cardano-ledger** `170983132` Merge pull request #5811 from IntersectMBO/lehins/fix-dijkstra-certstate-translate
+- `2026-05-09` **cardano-ledger** `2cc69d0b3` Merge pull request #5813 from IntersectMBO/jj/dijkstra-blockbody-cborgroup
+- `2026-05-09` **cardano-ledger** `358cac190` Merge pull request #5812 from IntersectMBO/lehins/switch-to-bytearray
+- `2026-05-09` **cardano-ledger** `754172519` Remove `API` imports, since they will be deprecated at some point
+- `2026-05-09` **cardano-ledger** `79412524c` Switch `ChainData` and `Attributes` to use `ByteArray`
+- `2026-05-09` **cardano-ledger** `7f8b568d5` Update cardano-cls repository tag
+- `2026-05-09` **cardano-ledger** `87ae3a79b` Merge pull request #5743 from tweag/joaosreis/canonical-stake-pools-vrf-key-hashes
+- `2026-05-09` **cardano-ledger** `b17ca87d9` Implement EncCBORGroup instance for DijkstraBlockBody
+- `2026-05-09` **cardano-ledger** `c6a54309c` Add To/FromCanonicalCBOR instances for NonZero type
+- `2026-05-09` **cardano-ledger** `cb0833e95` Add entities/stake_pools/vrf_key_hashes/v0 namespace
+- `2026-05-08` **cardano-api** `217e60efa` Release cardano-api-11.1.0.0
+- `2026-05-08` **cardano-api** `4f50ef232` Add release changelog fragment for cardano-api 11.1.0.0
+- `2026-05-08` **cardano-api** `921fb84fa` Merge pull request #1202 from IntersectMBO/release/cardano-api-11.1.0.0
+- `2026-05-08` **cardano-api** `aabb5d148` Merge pull request #1201 from IntersectMBO/jordan/makeunsignedtx-plutus-pparams-regression
+- `2026-05-08` **cardano-base** `a57b684f2` cabal.project: Simplify allow-newer for ghc-9.14
+- `2026-05-08` **cardano-ledger** `072f7c0c8` Fail `V1-V3` translation for presence of `ScriptHash` in `guardsTxBody`
+- `2026-05-08` **cardano-ledger** `1a4d9ac30` Merge pull request #5781 from IntersectMBO/ldan/fail-v1v3-translation-guards
+- `2026-05-08` **cardano-ledger** `31489caa4` Fix failing cuddle test for Plutus data Constr.
+- `2026-05-08` **cardano-ledger** `4fa273fbc` Update `CHANGELOG`
+- `2026-05-08` **cardano-ledger** `60290b851` Merge pull request #5806 from IntersectMBO/jj/bump-cuddle-1.7.0.0
+- `2026-05-08` **cardano-ledger** `6c3cb83ac` Update cardano-cls repository tag
+- `2026-05-08` **cardano-ledger** `81c3ed7f2` Merge pull request #5797 from IntersectMBO/koslambrou/make-zero-withdrawal-permanent-check-master
+- `2026-05-08` **cardano-ledger** `8888625f9` Add entities/dreps/v0 namespace and related instances
+- `2026-05-08` **cardano-ledger** `911b0e0aa` Adhere to Conway era's guard function style
+- `2026-05-08` **cardano-ledger** `92a145242` Merge pull request #5801 from IntersectMBO/koslambrou/fix-cuddle-plutus-data
+- `2026-05-08` **cardano-ledger** `b388b8749` Relax `NoThunks` instance for `BlockTransitionError` (#5808)
+- `2026-05-08` **cardano-ledger** `c2c95f79b` Make ZeroTreasuryWithdrawals a permanent check in gov state transation rule
+- `2026-05-08` **cardano-ledger** `c430899c0` Merge pull request #5700 from tweag/joaosreis/canonical-dreps
+- `2026-05-08` **cardano-node** `f7a072d6d` Merge pull request #6561 from IntersectMBO/mgalazyn/chore/remove-proto-lens-srp-bump-hackage
+- `2026-05-08` **ouroboros-consensus** `02414ac16` Drop the second monad parameter from SnapshotManager
+- `2026-05-08` **ouroboros-consensus** `3aa110b60` Remove tryFlush from the LedgerDB API
+- `2026-05-08` **ouroboros-consensus** `3b5c61434` Remove LedgerDB V1 and the LMDB backing store (#2030)
+- `2026-05-08` **ouroboros-consensus** `d308da65b` Add changelog fragment
+- `2026-05-08` **ouroboros-network** `00dc2d1ef` Merge pull request #5364 from IntersectMBO/coot/small-changes-v2
+- `2026-05-08` **ouroboros-network** `0a7bea5cb` diffusion-test: code style
+- `2026-05-08` **ouroboros-network** `2c6668d48` Minor tracing tweaks
+- `2026-05-08` **ouroboros-network** `33d347700` block-fetch: haddocks / type signatures
+- `2026-05-08` **ouroboros-network** `3ef4b8a3d` Merge pull request #5362 from IntersectMBO/mw/fix-targets-sync
+- `2026-05-08` **ouroboros-network** `84ae371a4` run-nixpkgs-fmt: find fd program
+- `2026-05-08` **ouroboros-network** `8dd92244f` peer-metrics: edited/added comments
+- `2026-05-08` **ouroboros-network** `9274597d9` outbound-governor: improved documentation
+- `2026-05-08` **ouroboros-network** `a6c808fca` Added changelog entry
+- `2026-05-08` **ouroboros-network** `a9feaf515` network-spec: fixed a typo
+- `2026-05-08` **ouroboros-network** `b48528b79` Peer selection target fix when syncing
+- `2026-05-08` **ouroboros-network** `ea1810bea` Merge pull request #5361 from IntersectMBO/geo2a/consensus-issue-1852
+- `2026-05-07` **cardano-api** `08fc871f3` Add changelog fragment for PR #1201
+- `2026-05-07` **cardano-api** `a53d5bc0e` Add regression test: makeUnsignedTx errors without protocol params for Plutus scripts
+- `2026-05-07` **cardano-base** `d789e8706` cabal.project: Update index-states
+- `2026-05-07` **cardano-ledger** `0b04b34a5` Add golden tests for queryAccountsDeposits
+- `2026-05-07` **cardano-ledger** `1aa6b6691` Refactor golden test harness; add ToJSON instances.
+- `2026-05-07` **cardano-ledger** `1aa82be00` Add golden tests for querySPOStakeDistr
+- `2026-05-07` **cardano-ledger** `20bfe4846` Address review feedback; refresh goldens.
+- `2026-05-07` **cardano-ledger** `21e444501` Add golden tests for queryGovState
+- `2026-05-07` **cardano-ledger** `2de0875ea` Add golden tests for queryDRepDelegations
+- `2026-05-07` **cardano-ledger** `35326494a` use //- for single-line comments
+- `2026-05-07` **cardano-ledger** `467e702bd` Add golden tests for queryDRepState
+- `2026-05-07` **cardano-ledger** `48c595e01` Split query golden harness so FromJSON is optional.
+- `2026-05-07` **cardano-ledger** `51b4724b5` Add golden tests for queryPoolState
+- `2026-05-07` **cardano-ledger** `5ab2fb4c5` Add golden tests for queryCurrentEpochNo
+- `2026-05-07` **cardano-ledger** `5f7ca3c71` Merge pull request #5669 from IntersectMBO/ldan/subtransactions-fail-plutus-translation
+- `2026-05-07` **cardano-ledger** `6d4a8c33f` Add golden tests for queryDRepStakeDistr
+- `2026-05-07` **cardano-ledger** `7b91383ce` Add spaces to comment blocks
+- `2026-05-07` **cardano-ledger** `9c6402e17` Add golden tests for queryPoolParameters
+- `2026-05-07` **cardano-ledger** `a285d1b55` Add golden tests for queryStakePoolDelegsAndRewards
+- `2026-05-07` **cardano-ledger** `a733e63f2` Add golden tests for queryCommitteeMembersState
+- `2026-05-07` **cardano-ledger** `a7436af2f` Add golden tests for queryRatifyState
+- `2026-05-07` **cardano-ledger** `a88bbeb34` Add golden tests for queryChainAccountState
+- `2026-05-07` **cardano-ledger** `b19b0dcd0` Add golden tests for query{Current,Future}PParams
+- `2026-05-07` **cardano-ledger** `b42b8ceaf` Add golden test for queryStakeSnapshots
+- `2026-05-07` **cardano-ledger** `b629bfbf7` Add golden tests for queryProposals
+- `2026-05-07` **cardano-ledger** `cbf69f411` Add golden tests for queryStakePoolRelays
+- `2026-05-07` **cardano-ledger** `d1b120efd` Add golden tests for queryRegisteredDRepStakeDistr
+- `2026-05-07` **cardano-ledger** `d3b4e7103` Add golden tests for queryStakePoolDefaultVote
+- `2026-05-07` **cardano-ledger** `d91e703c3` Add golden test for querySetSnapshotStakePoolDistr.
+- `2026-05-07` **cardano-ledger** `df4b6eb77` Render using renderCDDL to get rid of trailing whitespace
+- `2026-05-07` **cardano-ledger** `f28b80c06` Bump cuddle to 1.7.0.0
+- `2026-05-07` **cardano-ledger** `f32d89ddb` Add golden tests for queryConstitutionHash
+- `2026-05-07` **cardano-ledger** `fa039c7e6` Merge pull request #5794 from IntersectMBO/aniketd/stable-types-for-queries
+- `2026-05-07` **cardano-ledger** `fbd0a6766` Add golden tests for queryDRepDelegatees
+- `2026-05-07` **cardano-node** `2e162a2ee` Bump hackage. Remove proto-lens srp
+- `2026-05-07` **cardano-node** `86e23ba3b` Apply suggestions by @carbolymer
+- `2026-05-07` **cardano-node** `8c8a136bb` Use ucrt64 instead of mingwW64
+- `2026-05-07` **cardano-node** `b2f32cc3d` Enforce SPOs come first and there is at least one
+- `2026-05-07` **cardano-node** `d58363bda` Merge pull request #6563 from IntersectMBO/split-nodes-list-into-spo-and-relay
+- `2026-05-07` **cardano-node** `eb5f40e3e` Add changelog entry for node list split
+- `2026-05-07` **ouroboros-network** `4bbf7b52d` Merge pull request #5363 from IntersectMBO/coot/local-socket-access
+- `2026-05-07` **ouroboros-network** `8fb010c41` Merge pull request #5360 from IntersectMBO/coot/connection-manager-comment
+- `2026-05-06` **cardano-api** `478bf87dc` Widen Exp.SignedTx to all Shelley-based eras
+- `2026-05-06` **cardano-api** `e7f39d915` Set PR number in changelog fragment
+- `2026-05-06` **cardano-api** `fa48c8250` Merge pull request #1199 from IntersectMBO/jordan/widen-ledger-era-family
+- `2026-05-06` **cardano-ledger** `7b696af63` Fail `V1-V3` translation for non-empty sub-txs
+- `2026-05-06` **cardano-ledger** `8b606222b` Update `CHANGELOG`
+- `2026-05-06` **cardano-ledger** `943463599` Add negative test for `TopTx` w/ subtransactions
+- `2026-05-06` **cardano-ledger** `b11efa18d` Add code review suggestions
+- `2026-05-06` **cardano-node** `964348740` Merge pull request #6551 from IntersectMBO/mgalazyn/refactor/testnet-remove-old-witness-conjuring
+- `2026-05-06` **cardano-node** `9e40e0f90` cardano-testnet 
+- `2026-05-06` **ouroboros-network** `a64424063` diffusion: call getFileDescriptor just once
+- `2026-05-06` **ouroboros-network** `a8902df2e` diffusion: local socket warnings
+- `2026-05-06` **ouroboros-network** `e078b0cdb` diffusion-test: code clean up
+- `2026-05-05` **cardano-api** `20502d1a2` Restore public exports for ledger update conversion functions
+- `2026-05-05` **cardano-api** `7b2c2d5c1` Merge pull request #1198 from IntersectMBO/mgalazyn/chore/update-hls
+- `2026-05-05` **cardano-api** `926606fdd` Remove unused TxBodyProtocolParamsConversionError constructor
+- `2026-05-05` **cardano-api** `95e812db2` Replace ProtocolParametersUpdate with EraBasedProtocolParametersUpdate
+- `2026-05-05` **cardano-api** `ab1b1733e` Merge pull request #1197 from IntersectMBO/no-intel-mac
+- `2026-05-05` **cardano-api** `ae75973c9` Update changelog to reflect kept ledger conversion functions
+- `2026-05-05` **cardano-api** `c505604da` Update haskell-language-server-2.14.0.0, use GHC 9.12.4 for devshell
+- `2026-05-05` **cardano-api** `eea56107d` Merge pull request #1103 from IntersectMBO/jordan/remove-ProtocolParametersUpdate
+- `2026-05-05` **cardano-api** `fc9038b48` Address review feedback in gen modules
+- `2026-05-05` **cardano-ledger** `1fb5e3b4e` Merge pull request #5796 from IntersectMBO/lehins/disable-doctest
+- `2026-05-05` **cardano-ledger** `2e93e410c` Relax signal of `ConstrainedGeneratorBundle` from Specification to Gen
+- `2026-05-05` **cardano-ledger** `346044d90` Build `StAnnTx` in `applyTx` and take it in `rule/applyTxValidation`
+- `2026-05-05` **cardano-ledger** `356f61ec6` Add Gen-based variant of `stsPropertyV2` helper
+- `2026-05-05` **cardano-ledger** `5241e2b6e` Merge pull request #5793 from IntersectMBO/lehins/variable-length-tx-fields
+- `2026-05-05` **cardano-ledger** `777cfbacb` Merge pull request #5789 from IntersectMBO/td/integrate-state-annotated-tx
+- `2026-05-05` **cardano-ledger** `81f502a27` Change DijkstraTx decoder to support variable length encoding
+- `2026-05-05` **cardano-ledger** `82838af53` Build `StAnnTx` per-tx in LEDGERS and pass it to LEDGER
+- `2026-05-05` **cardano-ledger** `affa7bf24` Add some missing instances for `AlonzoStAnnTx` and `AlonzoScriptsNeeded`
+- `2026-05-05` **cardano-ledger** `c9c767083` Full support of data injection from genesis files using streaming
+- `2026-05-05` **cardano-ledger** `ca9b8c285` Merge pull request #5777 from IntersectMBO/f-f/streaming-transitions-2
+- `2026-05-05` **cardano-ledger** `da1799dd3` Change `Tx` Signal of rules across eras to `StAnnTx`
+- `2026-05-05` **cardano-ledger** `f65f29035` Disable doctest to unblock `master`
+- `2026-05-05` **ouroboros-consensus** `0bbe23fb6` Update cabal-gild (#2026)
+- `2026-05-05` **ouroboros-consensus** `0f539d93c` Implement EveryoneVotes voting committee instance
+- `2026-05-05` **ouroboros-consensus** `2b836b5cc` Index LedgerTables and TxIn/TxOut by `blk`
+- `2026-05-05` **ouroboros-consensus** `35f77af23` Add Ticking explanation page (#2011)
+- `2026-05-05` **ouroboros-consensus** `48e3c4c0d` Remove LedgerDB V1 implementation
+- `2026-05-05` **ouroboros-consensus** `4962ea59c` Break superclass loop
+- `2026-05-05` **ouroboros-consensus** `54452b6e5` Tweak VotesWithSameTarget to also check of duplicates
+- `2026-05-05` **ouroboros-consensus** `6465d7d4f` Move CanUpgradeLedgerTables to Ouroboros.Consensus.Ledger.Tables
+- `2026-05-05` **ouroboros-consensus** `6dc3c2077` Add changelog
+- `2026-05-05` **ouroboros-consensus** `74905d944` [Peras 22.75] Tweak VotesWithSameTarget to also check for duplicates (#2020)
+- `2026-05-05` **ouroboros-consensus** `7afe8562a` Add haddocks for `StateKind` and  `LedgerStateKind`.
+- `2026-05-05` **ouroboros-consensus** `7fe841709` Remove remaining V1 LedgerDB references
+- `2026-05-05` **ouroboros-consensus** `85a406f5b` [Peras 22.5] Tweak voting committee crypto interface for aggregatable types (#2014)
+- `2026-05-05` **ouroboros-consensus** `8c2475c25` [Peras 23] wFA^LS and EveryoneVotes voting committee implementations (#1975)
+- `2026-05-05` **ouroboros-consensus** `93a82e822` Replace `LedgerSupports*LedgerDB` umbrellas with precise per-site constraints
+- `2026-05-05` **ouroboros-consensus** `ac5ba743e` Mechanical changes for eta-expansion of l over blk in tests
+- `2026-05-05` **ouroboros-consensus** `aca85b604` Tweak voting committee crypto interface for aggregatable types
+- `2026-05-05` **ouroboros-consensus** `ae210a237` Avoid alfred-margaret version that does not build on ghc 9.6
+- `2026-05-05` **ouroboros-consensus** `b70e68aee` Add Ticking explanation page
+- `2026-05-05` **ouroboros-consensus** `c3df9f151` Eta-expand `l` over `blk` (#2016)
+- `2026-05-05` **ouroboros-consensus** `c5a63a53c` Implement local sortition for non-persistent seats
+- `2026-05-05` **ouroboros-consensus** `d1520c4ad` Mechanical changes for Tables being indexed by blk in tests
+- `2026-05-05` **ouroboros-consensus** `d59f954bd` Eta-expand l over blk
+- `2026-05-05` **ouroboros-consensus** `d928258c8` Update cabal-gild
+- `2026-05-05` **ouroboros-consensus** `ec560ea86` Implement wFA^LS voting committee instance
+- `2026-05-05` **ouroboros-consensus** `fc961382b` Implement pure weighted Fait-Accompli logic
+- `2026-05-04` **cardano-api** `3af2b56ac` drop support for x86_64-darwin
+- `2026-05-04` **cardano-api** `4deb4be48` Merge pull request #1192 from IntersectMBO/remove-srp-for-haskell-llmdb-mock
+- `2026-05-04` **cardano-api** `6daeff1c5` add changelog fragment for dropping x86_64-darwin support
+- `2026-05-04` **ouroboros-network** `39e7aa402` Clairify LedgerPeersConsensusInterface.
+- `2026-05-04` **ouroboros-network** `5285cdd2a` tx-submission v2: return results in submitTxToMempool
+- `2026-05-04` **ouroboros-network** `52ed87cae` connection-manager: added a comment in includeInboundConnectionImpl
+- `2026-05-04` **ouroboros-network** `8fe0f8ebc` Merge pull request #5359 from IntersectMBO/no-intel-mac
+- `2026-05-04` **ouroboros-network** `d85b45bdb` Merge pull request #5357 from IntersectMBO/coot/submitTxToMempool-result
+- `2026-05-02` **cardano-ledger** `0b1cb4244` Add blockBodySize method to EraBlockBody, remove bBodySize
+- `2026-05-02` **cardano-ledger** `259852454` Bump slackapi/slack-github-action in the actions group
+- `2026-05-02` **cardano-ledger** `288ca2dcd` SafeToHash default implementation
+- `2026-05-02` **cardano-ledger** `3500ad1e2` Add Huddle spec and CDDL for block_body and peras_certificate
+- `2026-05-02` **cardano-ledger** `3b7288925` Add DecCBOR and ToExpr testlib instances for DijkstraBlockBody
+- `2026-05-02` **cardano-ledger** `56b6f2484` Refactor DijkstraBlockBody to use MemoBytes serialization
+- `2026-05-02` **cardano-ledger** `666ce77a6` Merge pull request #5733 from IntersectMBO/jj/block-serialization
+- `2026-05-02` **cardano-ledger** `69d5aa32e` Merge pull request #5786 from IntersectMBO/lehins/changelog-cardano-node-11.0
+- `2026-05-02` **cardano-ledger** `74228a64c` Disallow IsValid in BlockBody Txs
+- `2026-05-02` **cardano-ledger** `7edb18383` Update block Huddle comment
+- `2026-05-02` **cardano-ledger** `8f21bf1c0` Simplify DijkstraBlockBodyRaw decCBOR
+- `2026-05-02` **cardano-ledger** `a71bf3225` Fix numSegComponents
+- `2026-05-02` **cardano-ledger** `a8805c42e` Change PerasCert to contain ByteArray
+- `2026-05-02` **cardano-ledger** `c2e7da0e7` Merge pull request #5790 from IntersectMBO/dependabot/github_actions/actions-14a0636c8a
+- `2026-05-02` **cardano-ledger** `c3a0e07e8` Make invalid_transactions a nonempty_set
+- `2026-05-02` **cardano-ledger** `d01938224` Generalize genArrayTerm to MonadGen
+- `2026-05-02` **cardano-ledger** `e0f270f70` Add changelog for `cardano-node-11.0`
+- `2026-05-01` **cardano-api** `e97192a97` Merge pull request #1094 from IntersectMBO/jordan/remove-makeShelleyTransactionBody
+- `2026-05-01` **cardano-api** `f9822dee0` Add changelog fragment
+- `2026-05-01` **cardano-api** `fdee12c9e` Remove makeShelleyTransactionBody and accompanying functions
+- `2026-05-01` **cardano-ledger** `110b30e7a` Merge pull request #5787 from IntersectMBO/lehins/remove-redundant-import
+- `2026-05-01` **cardano-ledger** `131fc0f89` Add `Cardano.Ledger.Core.modifyTxAuxData` to apply some function on the `txAuxData` field of a `EraTx`
+- `2026-05-01` **cardano-ledger** `146fe56d0` Disable protocol version check in the header for testnets until Dijkstra
+- `2026-05-01` **cardano-ledger** `331c3c495` Add golden tests for queryConstitution.
+- `2026-05-01` **cardano-ledger** `6bae1dbf9` Merge pull request #5761 from IntersectMBO/koslambrou/expand-tx-examples
+- `2026-05-01` **cardano-ledger** `8544619b2` Fix CHANGELOG cddl entries for shelley, allegra, mary, alonzo and babbage eras.
+- `2026-05-01` **cardano-ledger** `b691ed225` Expand missing transaction content in examples in Test.Cardano.Ledger.<era>.Examples and refactor transaction examples to reduce duplication
+- `2026-05-01` **cardano-ledger** `b712b3e8d` Merge pull request #5778 from IntersectMBO/aniketd/stable-types-for-queries
+- `2026-05-01` **cardano-ledger** `b90b97488` Merge pull request #5785 from IntersectMBO/lehins/relax-header-protocol-version-for-testnets
+- `2026-05-01` **cardano-ledger** `c3d5ffdad` Remove redudant import
+- `2026-05-01` **cardano-ledger** `d7462d86e` Fix an inconsistency in `GOV` rule:
+- `2026-04-30` **cardano-api** `0781d7128` Fix broken cross-package Haddock links on hosted docs site
+- `2026-04-30` **cardano-api** `0bb644a44` Add release changelog fragment for cardano-api 11.0.0.0
+- `2026-04-30` **cardano-api** `1edced2f8` Document master-vs-release drift as a fourth unfixable sub-cause
+- `2026-04-30` **cardano-api** `7bfc623a3` Restrict cross-package link grep to HTML files only
+- `2026-04-30` **cardano-api** `81f7e25dc` Remove SRP for `haskell-lmdb-mock`
+- `2026-04-30` **cardano-api** `9130bd0ee` Workaround to not build `cardano-lmdb` but still resolve
+- `2026-04-30` **cardano-api** `96be56f1f` Merge pull request #1196 from IntersectMBO/release/cardano-api-11.0.0.0
+- `2026-04-30` **cardano-api** `b85cc4acf` Pass URL as positional arg to xargs sh -c probes
+- `2026-04-30` **cardano-api** `b9c3cb92f` Address carbolymer review on PR #1180
+- `2026-04-30` **cardano-api** `d4152dfde` Merge master into release/cardano-api-11.0.0.0
+- `2026-04-30` **cardano-api** `e194f1a2a` Merge pull request #1180 from IntersectMBO/issue-601-chap-haddock-links
+- `2026-04-30` **cardano-base** `7a8a99194` Merge pull request #651 from IntersectMBO/no-intel-mac
+- `2026-04-30` **cardano-base** `9dd0d1290` drop support for x86_64-darwin
+- `2026-04-30` **ouroboros-consensus** `aa0ef68a5` drop support for x86_64-darwin
+- `2026-04-30` **ouroboros-consensus** `b047aca4a` drop support for x86_64-darwin (#2022)
+- `2026-04-30` **ouroboros-network** `30f0226bb` drop support for x86_64-darwin
+- `2026-04-29` **cardano-ledger** `006f994d9` Validate total withdrawals per account not exceeding original balance
+- `2026-04-29` **cardano-ledger** `212452630` Validate value preservation against the original utxo
+- `2026-04-29` **cardano-ledger** `287a17af5` Validate ref script sizes for the whole batch instead of just top level
+- `2026-04-29` **cardano-ledger** `3a4dc412f` Pass original utxo in the environment of UTXOS rule
+- `2026-04-29` **cardano-ledger** `42d088ed8` Merge pull request #5751 from IntersectMBO/td/utxo-with-subtransactions
+- `2026-04-29` **cardano-ledger** `6e1163f03` Specialize `CertsSpec` for dijkstra
+- `2026-04-29` **cardano-ledger** `9cb9b64f5` Implement top-level UTXO rule with subtransactions
+- `2026-04-29` **cardano-ledger** `a422918ee` Check input existence in original in threaded utxos
+- `2026-04-29` **cardano-ledger** `adec5b904` Use latest version of cleret
+- `2026-04-29` **cardano-ledger** `aefd50205` Merge pull request #5774 from IntersectMBO/nm/ci-test-failure-summaries
+- `2026-04-29` **cardano-ledger** `e8065f8ab` Use `DijkstraUtxoEnv` as Environment for UTXO
+- `2026-04-29` **cardano-ledger** `f66d13ad5` Implement `feesOk`-equivalent validation in Dijkstra UTXO
+- `2026-04-29` **cardano-ledger** `f6fea5925` Remove now-redundant `DijkstraSpendingOutputFromSameTx` pred failure
+- `2026-04-28` **cardano-ledger** `08769aa76` Merge pull request #5770 from IntersectMBO/lehins/fix-dijkstra-embed
+- `2026-04-28` **cardano-ledger** `3932408ae` Fail `V1-V3` transaltion for balance intervals
+- `2026-04-28` **cardano-ledger** `4f363611c` Merge pull request #5754 from IntersectMBO/ldan/fail-V1V3-translation-dd-bi
+- `2026-04-28` **cardano-ledger** `505571180` Fail `V1-V3` transaltion for direct deposits
+- `2026-04-28` **cardano-ledger** `7e9899557` Update `CHANGELOG`
+- `2026-04-28` **cardano-ledger** `988988d1d` Remove redundant `Embed` instances
+- `2026-04-28` **cardano-ledger** `9fc6c0fcd` Simplify a whole bunch of constraints in Dijkstra
+- `2026-04-28` **cardano-ledger** `a3353bb46` Add code review suggestions
+- `2026-04-28` **cardano-ledger** `afd91cb65` Handle single failing suite case in CI test failure summaries
+- `2026-04-28` **cardano-ledger** `c9ae180f8` Merge pull request #5594 from IntersectMBO/nm/ci-test-failure-summaries
+- `2026-04-27` **cardano-ledger** `20652eea2` Merge pull request #5742 from tweag/joaosreis/canonical-stake-pool
+- `2026-04-27` **cardano-ledger** `2caf328be` Implement ToCanonicalCBOR and FromCanonicalCBOR instances for AccountAddress
+- `2026-04-27` **cardano-ledger** `406f28b34` Add Cardano.Ledger.Huddle.Gen
+- `2026-04-27` **cardano-ledger** `4b6c55323` Add custom generator to cost_models
+- `2026-04-27` **cardano-ledger** `5d477f33b` Add ToCanonicalCBOR and FromCanonicalCBOR instances for StrictSeq
+- `2026-04-27` **cardano-ledger** `6fd8ba0aa` Refactor Babbage CddlSpec to use fullCddlSpec/fullAnnCddlSpec and add sub-rule tests
+- `2026-04-27` **cardano-ledger** `892a67f75` Add CanonicalStakePoolParams and related instances
+- `2026-04-27` **cardano-ledger** `8f0277f09` Merge pull request #5765 from IntersectMBO/jj/cost-models-custom-generator
+- `2026-04-27` **cardano-ledger** `a4a7195a8` Add entities/stake_pools/v0 namespace and related instances
+- `2026-04-27` **cardano-ledger** `aab8b3603` Write test failure details to the CI job summary
+- `2026-04-27` **cardano-ledger** `af348494a` Implement ToCanonicalCBOR and FromCanonicalCBOR instances for VRFVerKeyHash, StakePoolRelay, PoolMetadata, and AccountId
+- `2026-04-27` **ouroboros-consensus** `88bc5364c` Add sanity checks for `SnapshotPolicyArgs` configurations
+- `2026-04-27` **ouroboros-consensus** `c368c2529` Add sanity checks for weird SnapshotPolicyArgs configurations (#1903)
+- `2026-04-25` **cardano-ledger** `0a8ea4385` Add negative tests for Metadatum int decoding range
+- `2026-04-25` **cardano-ledger** `3003aec49` Bump slackapi/slack-github-action in the actions group
+- `2026-04-25` **cardano-ledger** `5b92d11c7` Switch to using new golden testing facilities for JSON
+- `2026-04-25` **cardano-ledger** `613a76a2e` Remove `allowLeftOver` flag from `binaryGetDecoder` and simplify IP address decoders
+- `2026-04-25` **cardano-ledger** `6b3fa531e` Add hspec golden testing facilities for CBOR
+- `2026-04-25` **cardano-ledger** `6db35d020` Merge pull request #5757 from IntersectMBO/5664-check-if-any-of-the-pre-conway-transactions-contain-padded-ip-addresses
+- `2026-04-25` **cardano-ledger** `78a77ffa4` Merge pull request #5768 from IntersectMBO/dependabot/github_actions/actions-b4cd9b14e9
+- `2026-04-25` **cardano-ledger** `7ba6cb295` Merge pull request #5731 from IntersectMBO/jj/metadatum-int-tests
+- `2026-04-25` **cardano-ledger** `9ae77d611` Merge pull request #5747 from tweag/joaosreis/canonical-gov-proposals-roots
+- `2026-04-25` **cardano-ledger** `a6385cec1` Switch to using new golden testing facilities for CBOR
+- `2026-04-25` **cardano-ledger** `ac9566ed1` Update cardano-cls repository tag
+- `2026-04-25` **cardano-ledger** `b0ae481d2` Add `FromJSON` instance for `ValidityInterval`
+- `2026-04-25` **cardano-ledger** `b3b4e55e6` Add hspec golden testing facilities for JSON
+- `2026-04-25` **cardano-ledger** `c205030be` Add gov/proposals/roots/v0 namespace
+- `2026-04-25` **cardano-ledger** `cab5a6d00` Merge pull request #5760 from IntersectMBO/lehins/golden-testing-facilities
+- `2026-04-25` **cardano-ledger** `e43b037c8` Add `FromJSON` instance for `IsValid`
+- `2026-04-25` **cardano-ledger** `e766811fe` Fixed the metadatum decoding test
+- `2026-04-24` **cardano-ledger** `067617939` Merge pull request #5764 from IntersectMBO/aniketd/reorganise-ledger-state-queries
+- `2026-04-24` **cardano-ledger** `162408d46` Add nested failure for sub transactions
+- `2026-04-24` **cardano-ledger** `359484470` Add PlutusLegacyMode to DijkstraStAnnTx
+- `2026-04-24` **cardano-ledger** `48253c8e2` Memoization of TxInfo for subtransactions
+- `2026-04-24` **cardano-ledger** `6dae90463` Introduce `StAnnTx` type family
+- `2026-04-24` **cardano-ledger** `7bbd232e1` Add queryCurrentEpochNo (GetEpochNo)
+- `2026-04-24` **cardano-ledger** `7c129bbc1` Merge pull request #5766 from IntersectMBO/nm/drop-x86-darwin
+- `2026-04-24` **cardano-ledger** `80e822b5b` Merge pull request #5636 from IntersectMBO/lehins/memoize-transaction-validation
+- `2026-04-24` **cardano-ledger** `84abd1e69` Add State.Query.Account.
+- `2026-04-24` **cardano-ledger** `899e49722` Add querySetSnapshotStakePoolDistr (GetPoolDistr2).
+- `2026-04-24` **cardano-ledger** `8b5b27afd` Add queryDRepDelegatees (GetFilteredVoteDelegatees)
+- `2026-04-24` **cardano-ledger** `a48ab19a6` Re-arrange Evaluation to memoize PlutusScriptsUsed
+- `2026-04-24` **cardano-ledger** `b50addb7e` Drop `x86_64-darwin` from Hydra builds
+- `2026-04-24` **cardano-ledger** `b95f6c29e` Move State.Query.CommitteeMembersState.
+- `2026-04-24` **cardano-ledger** `d711930dd` Add queryStakePoolRelays for GetLedgerPeerSnapshot.
+- `2026-04-24` **ouroboros-consensus** `91c8e1bb5` [Peras 4 revived] Add ObjectDiffusion and `Peras{Cert,Vote}` diffusion (instance of ObjectDiffusion) (#1800)
+- `2026-04-24` **ouroboros-network** `0e84bced4` Merge pull request #5356 from IntersectMBO/karknu/tx_tests
+- `2026-04-24` **ouroboros-network** `1b47c7058` tx-test: fix test case counting of valid and invalid txs
+- `2026-04-24` **ouroboros-network** `8d13659e3` Update change log
+- `2026-04-24` **ouroboros-network** `9380fc53b` cardano-diffusion test: prop_txSubmission_chainIntegrity
+- `2026-04-23` **ouroboros-consensus** `1810ff754` Add type and serialisation helpers for `Peras{Cert,Vote}` diffusion
+- `2026-04-23` **ouroboros-consensus** `32e40aabb` Register and wire-in Peras{Cert,Vote}Diffusion in the network layer
+- `2026-04-23` **ouroboros-consensus** `4e62f26a5` Add changelog
+- `2026-04-23` **ouroboros-consensus** `76b58c608` Add smoke tests for generic ObjectDiffusion
+- `2026-04-23` **ouroboros-consensus** `9510ebee3` Integrate `NodeToNodeV_16` and use defaultMiniProtocolParameters instead of hardcoded value in unstable-diffusion-testlib
+- `2026-04-23` **ouroboros-consensus** `d36708793` Add smoke tests for PerasCertDiffusion
+- `2026-04-23` **ouroboros-consensus** `dd003c955` Add smoke tests for PerasVoteDiffusion
+- `2026-04-23` **ouroboros-consensus** `e880432d9` Implement general ObjectDiffusion protocol
+- `2026-04-22` **cardano-ledger** `882a32594` Update CHANGELOGs
+- `2026-04-22` **cardano-ledger** `984a838e3` Merge pull request #5736 from IntersectMBO/f-f/fix-protver-decoder
+- `2026-04-22` **cardano-ledger** `b5bd21e77` Merge pull request #5755 from IntersectMBO/jj/no-datum
+- `2026-04-22` **cardano-ledger** `c341230d9` Add genDatumPresent and genNonEmptyAccountBalanceIntervals
+- `2026-04-22` **cardano-ledger** `ca594970b` Rewrite Dijkstra CddlSpec to use full*CddlSpec helpers
+- `2026-04-22` **cardano-ledger** `d9fe0d44c` Fix DecCBOR instances to reject 'ProtVer' values exceeding the era maximum
+- `2026-04-22` **cardano-ledger** `fe63229d9` Add full*CddlSpec test helpers
+- `2026-04-22` **ouroboros-consensus** `1a05126eb` LedgerDB: implement predictable snapshotting
+- `2026-04-22` **ouroboros-consensus** `264655b60` Add ChainDB test for ledger snapshots
+- `2026-04-22` **ouroboros-consensus** `4f4d50e66` LedgerDB: remove replayed blocks counter
+- `2026-04-22` **ouroboros-consensus** `5be72d360` LedgerDB: close handles after taking snapshots
+- `2026-04-22` **ouroboros-consensus** `876b6051c` ChainDB q-s-m: test the interaction of VolatileDB and snapshots
+- `2026-04-22` **ouroboros-consensus** `a2b5e3eb4` ChainDB q-s-m: do not copy blocks to ImmutableDB on snapshot
+- `2026-04-22` **ouroboros-consensus** `bcf671732` Flush immutable blocks before taking a ledger state snapshot.
+- `2026-04-22` **ouroboros-consensus** `c1c8c1e1e` Implement randomised ledger state snapshot delay
+- `2026-04-22` **ouroboros-consensus** `f37828d5d` Remove LedgerDB.SnapshotPolicy test
+- `2026-04-22` **ouroboros-consensus** `f50ba16cf` LedgerDB: implement predictable snapshotting (#1575)
+- `2026-04-22` **ouroboros-consensus** `f89676332` Address review comments
+- `2026-04-22` **ouroboros-network** `132a7f8a3` Merge pull request #4962 from IntersectMBO/coot/churnmode
+- `2026-04-22` **ouroboros-network** `c9820657a` churn: code refactoring
+- `2026-04-22` **ouroboros-network** `e57cc30d8` Renamed FetchModeGenesis as GenesisFetchMode
+- `2026-04-21` **cardano-ledger** `2a0d4fc4c` Merge pull request #5737 from IntersectMBO/td/refactor-donations-handling
+- `2026-04-21` **cardano-ledger** `8cb5dd69b` Remove redundant `updateTreasuryDonation` function
+- `2026-04-21` **cardano-ledger** `bcd2d8ca0` Revert donations refactoring and update donations in SUBUTXO
+- `2026-04-21` **cardano-ledger** `dd72eaa74` Update donations within the core `UTxOState`-updating function
+- `2026-04-21` **ouroboros-consensus** `29c454c93` Add changelog
+- `2026-04-21` **ouroboros-consensus** `4d6f4a89c` Add sensible default values for all `PerasParams`
+- `2026-04-21` **ouroboros-consensus** `5fb3a22a8` Revert "Revert reworking snapshotFromIS" (#1992)
+- `2026-04-21` **ouroboros-consensus** `72429557d` Use physical path in run-fourmolu.sh (#1995)
+- `2026-04-21` **ouroboros-consensus** `b743e181f` Revert "Revert reworking snapshotFromIS"
+- `2026-04-21` **ouroboros-consensus** `c00261d1e` [Peras 27] Define sensible default values for `PerasParams` (#1998)
+- `2026-04-21` **ouroboros-consensus** `e08203aa4` Use physical path in run-fourmolu.sh
+- `2026-04-21` **ouroboros-network** `2286fda3f` Merge pull request #5345 from IntersectMBO/dependabot/github_actions/actions/deploy-pages-5
+- `2026-04-21` **ouroboros-network** `395440e25` Fix cabal examples
+- `2026-04-21` **ouroboros-network** `3d5a9d3da` Handle fd/fdfind in run-stylish-haskell.sh
+- `2026-04-21` **ouroboros-network** `71be22646` Merge pull request #5353 from IntersectMBO/dependabot/github_actions/actions/upload-pages-artifact-5
+- `2026-04-21` **ouroboros-network** `7203fc021` Add AGENTS.md file
+- `2026-04-21` **ouroboros-network** `ad1874622` Merge pull request #5355 from IntersectMBO/karknu/bots
+- `2026-04-20` **cardano-ledger** `218072771` Merge pull request #5753 from IntersectMBO/hspec-golden-test
+- `2026-04-20` **cardano-ledger** `34728de56` Use `hspec-golden` for Alonzo golden tests
+- `2026-04-20` **ouroboros-consensus** `14a07e941` Rework `PerasCertDB` (+ tests) to be consistent with `PerasVoteDB` API
+- `2026-04-20` **ouroboros-consensus** `1b7587411` Wire-in Peras{Cert,Vote}DB into the ChainDB
+- `2026-04-20` **ouroboros-consensus** `49eff82fb` Add changelog
+- `2026-04-20` **ouroboros-consensus** `585908aa2` Implement generic interface for voting committee schemes
+- `2026-04-20` **ouroboros-consensus** `749a6d63f` [Peras 22] Generic voting committee API (#1974)
+- `2026-04-20` **ouroboros-consensus** `8d4cdcb0d` Update and improve instances of `ObjectPool{Reader,Writer}` for `Peras{Cert,Vote}DB`
+- `2026-04-20` **ouroboros-consensus** `8ed0fd584` Add explicit handling of `PerasVoteDB` exceptions at the node level
+- `2026-04-20` **ouroboros-consensus** `a71691146` Make PerasVoteDB exceptions part of the exposed API
+- `2026-04-20` **ouroboros-consensus** `c5b05a6e5` Add changelog
+- `2026-04-20` **ouroboros-consensus** `cc0f1e38f` [Peras 3.75] Overhaul of Peras{Cert,Vote}DB and wiring in ChainDB (#1966)
+- `2026-04-20` **ouroboros-consensus** `fc7414750` Adapt cert inclusion rules after removal of `PerasCertSnapshot`
+- `2026-04-20` **ouroboros-consensus** `fd19c52bc` Improve state-machine tests of `ChainDB` to (better) handle `Peras{Cert,Vote}DB`-related actions
+- `2026-04-19` **ouroboros-consensus** `5c4e35539` nix: apply nixpkgs-fmt to tools.nix
+- `2026-04-19` **ouroboros-consensus** `caeb2d812` Fix invalid code signatures on aarch64-darwin after set-git-rev (#1990)
+- `2026-04-18` **cardano-ledger** `ab3e850c6` Bump actions/upload-pages-artifact from 4 to 5 in the actions group
+- `2026-04-18` **cardano-ledger** `fb4164955` Merge pull request #5756 from IntersectMBO/dependabot/github_actions/actions-903567a242
+- `2026-04-16` **cardano-ledger** `298bbba98` Convert `PoolLifeTime` `CHAINExample` to ImpTest
+- `2026-04-16` **cardano-ledger** `2dcbb23be` Convert `PoolReReg` `CHAINExample` to ImpTest
+- `2026-04-16` **cardano-ledger** `30c9a6e0a` Merge pull request #5749 from IntersectMBO/td/fix-and-reenable-bbodyspec
+- `2026-04-16` **cardano-ledger** `376d12ab1` Make `getScriptsProvided` recursive in Dijkstra
+- `2026-04-16` **cardano-ledger** `3a65b7768` Implement top-level UTXOW rule with subtransactions
+- `2026-04-16` **cardano-ledger** `4485fb22e` Merge pull request #5692 from IntersectMBO/td/utxow-with-subtransactions
+- `2026-04-16` **cardano-ledger** `5de520718` Merge pull request #5684 from IntersectMBO/f-f/remove-unused-from-to-cbor
+- `2026-04-16` **cardano-ledger** `6145cc03b` Add a test using weigh to verify that injection data is streamed with no leaks
+- `2026-04-16` **cardano-ledger** `70d182e22` Cap ref inputs per tx in `BbodySpec` to avoid `MaxTxSizeUTxO` failures
+- `2026-04-16` **cardano-ledger** `839981461` Merge pull request #5572 from IntersectMBO/f-f/streaming-genesis-data1
+- `2026-04-16` **cardano-ledger** `8ac7ee8e1` Re-enable `BodyRefScriptsSizeTooBig` tests
+- `2026-04-16` **cardano-ledger** `99194597a` Merge pull request #5732 from IntersectMBO/5233-expand-contents-of-consensus-examples
+- `2026-04-16` **cardano-ledger** `a2298b5ae` Merge pull request #5750 from IntersectMBO/nm/reduce-ci-test-matrix
+- `2026-04-16` **cardano-ledger** `aed9eac2f` Remove unused FromCBOR/ToCBOR instances
+- `2026-04-16` **cardano-ledger** `c921a6249` Check that all required guards are present in top level guards
+- `2026-04-16` **cardano-ledger** `d0da66fcc` Merge pull request #5687 from IntersectMBO/ldan/pool-chainexamples-conversion
+- `2026-04-16` **cardano-ledger** `e68ebf663` Add streaming interface to era transition for initial funds injection
+- `2026-04-16` **cardano-ledger** `ec280d64d` Expand transaction content in examples in Test.Cardano.Ledger.<era>.Examples
+- `2026-04-16` **cardano-ledger** `ee1da0734` Check that the `requiredGuards` datums are valid
+- `2026-04-16` **cardano-ledger** `fcbb32c4e` Remove already covered legacy tests
+- `2026-04-16` **cardano-ledger** `fe0af515b` Run tests for ghc 9.6.7 only
+- `2026-04-16` **ouroboros-consensus** `6f095d771` Fix invalid code signatures on aarch64-darwin after set-git-rev
+- `2026-04-15` **cardano-base** `15253b06d` adding non-identity checks to `VerKey` and `SignKey` deserialisation
+- `2026-04-15` **cardano-base** `374f4ac6c` fix ffi type signature of `memcmp`
+- `2026-04-15` **cardano-base** `3aca66dab` move the `BLS12381` module to an internal module
+- `2026-04-15` **cardano-base** `46783739a` add to changelog of crypto-class
+- `2026-04-15` **cardano-base** `4f55e79f2` Post release changelog bumps
+- `2026-04-15` **cardano-base** `5570b3ee3` Bump version `cardano-crypto-class`
+- `2026-04-15` **cardano-base** `8765f3fc0` add `BLS12381` DSIGN module with re-exports
+- `2026-04-15` **cardano-base** `9965336f7` Merge pull request #635 from IntersectMBO/perturbing/audit-fix
+- `2026-04-15` **cardano-base** `abc63581a` Merge pull request #649 from IntersectMBO/lehins/post-release-process
+- `2026-04-15` **cardano-base** `b092b395f` Use for `blsMSM` contiguous calling convention for affine pointer array
+- `2026-04-15` **cardano-base** `d4a82d4a6` add extra `blsIsInf` check on inputs on aggregation
+- `2026-04-15` **cardano-base** `d83ba6196` Update cardano-crypto-class/src/Cardano/Crypto/DSIGN/BLS12381/Internal.hs
+- `2026-04-15` **cardano-base** `d9217fb75` use `CBool` instead of `Bool` for FFI calls
+- `2026-04-15` **cardano-base** `da56fc1e1` reject zero points from PoP serialisation
+- `2026-04-15` **cardano-base** `e5ed4b5ae` Apply suggestions from code review
+- `2026-04-15` **cardano-base** `eb31e7ab5` add PoP ciphersuite context and comment on usage
+- `2026-04-15` **cardano-ledger** `08d9fbadf` Disable BodyRefScriptsSizeTooBig tests for now
+- `2026-04-15` **cardano-ledger** `166db754c` Update index-state and flake.lock
+- `2026-04-15` **cardano-ledger** `52ef3d5bf` Switch to `VS` in `ActiveStake` and add `Storable` instances for:
+- `2026-04-15` **cardano-ledger** `7f6de3f26` Bump up cardano-ledger-core version to reflect backport
+- `2026-04-15` **cardano-ledger** `a05b7f06d` Merge pull request #5727 from IntersectMBO/lehins/add-storable-instances
+- `2026-04-15` **cardano-ledger** `d1948f106` Generate plutus examples due to new Plutus-1.61 release
+- `2026-04-15` **cardano-ledger** `d41506b42` Compatibility with `cardano-ledger-binary-1.9`
+- `2026-04-15` **cardano-ledger** `f51f4e43d` Merge pull request #5741 from IntersectMBO/nm/plutus-preprocessor-nix-build-failure
+- `2026-04-15` **ouroboros-consensus** `66c697942` Remove out-of-spec WFALS test data
+- `2026-04-15` **ouroboros-consensus** `837ee07b9` [Peras 21] Remove out-of-spec WFALS test data (#1973)
+- `2026-04-14` **cardano-ledger** `02b78f836` Switch lenses to not use the pattern synonym
+- `2026-04-14` **cardano-ledger** `073adff5a` Inline `ConwayAccountState` lenses and pattern synonym
+- `2026-04-14` **cardano-ledger** `0cfbf861c` Merge pull request #5729 from IntersectMBO/lehins/fix-conway-account-state-overhead
+- `2026-04-14` **cardano-ledger** `66df9c4aa` Merge pull request #5719 from IntersectMBO/5679-prevent-incorrect-protocol-version-in-era-transition
+- `2026-04-14` **cardano-ledger** `6bbca48b7` Merge pull request #5726 from IntersectMBO/5701-update-ghc-912-on-ci-and-nix-to-ghc-9124
+- `2026-04-14` **cardano-ledger** `6f4436b4e` Update version and changelog
+- `2026-04-14` **cardano-ledger** `7b67517b2` Switch `StrictMaybe` to `Maybe` in `ConwayAccounState`
+- `2026-04-14` **cardano-ledger** `87e7f16ae` Fix nix build failure in `plutus-preprocessor`
+- `2026-04-14` **cardano-ledger** `daa9d950e` Update ghc-9.12.0 to ghc-9.12.4 on CI and Nix
+- `2026-04-14` **cardano-ledger** `ecff945af` Avoid unnecessary unpacking by using lazy let
+- `2026-04-13` **cardano-ledger** `06032e921` Add protocol version validation to `createInitialState`
+- `2026-04-13` **cardano-ledger** `35af664f8` Rename MonoGenEnv to HuddleEnv
+- `2026-04-13` **cardano-ledger** `4e65d0bee` Bump to 1.5.0.0
+- `2026-04-13` **cardano-ledger** `4f9f8bce4` Move applyTick into its own ApplyTick typeclass.
+- `2026-04-13` **cardano-ledger** `b798943fc` Merge pull request #5715 from IntersectMBO/jj/cuddle-bump
+- `2026-04-13` **cardano-ledger** `c39cf8d48` Merge pull request #5716 from IntersectMBO/aniketd/applytick
+- `2026-04-13` **cardano-ledger** `db4b77b38` Added some bounds to CDDL
+- `2026-04-13` **cardano-ledger** `dfe5f3cfd` Bump cuddle to 1.3.0.0
+- `2026-04-13` **cardano-ledger** `f4229f016` Improve zap test failure messages
+- `2026-04-13` **ouroboros-network** `e193a6895` build(deps): bump actions/upload-pages-artifact from 4 to 5
+- `2026-04-12` **cardano-ledger** `4e3fa1729` Merge pull request #5725 from IntersectMBO/jj/remove-wits-coders
+- `2026-04-10` **cardano-ledger** `2dca0bc87` Version bumps on byron-spec-chain and byron-spec-ledger
+- `2026-04-10` **cardano-ledger** `7ba7279db` Nix updates
+- `2026-04-10` **cardano-ledger** `7e476a76b` Revert decoders
+- `2026-04-10` **cardano-ledger** `c5eee4ded` Run scripts/gen-plutus.sh
+- `2026-04-10` **cardano-ledger** `c8cbb661d` Merge pull request #5710 from IntersectMBO/erikd/prelude-microlens
+- `2026-04-09` **cardano-base** `44bd657f2` Merge pull request #642 from IntersectMBO/lehins/add-storable-for-hashes
+- `2026-04-09` **cardano-ledger** `10abc4c45` Update microlens dependency
+- `2026-04-09` **cardano-ledger** `117855cef` Merge pull request #5717 from IntersectMBO/aniketd/claude-changelog-skill
+- `2026-04-09` **cardano-ledger** `9ee2e8913` cabal.project: Update index-states
+- `2026-04-09` **cardano-ledger** `cd09c4939` claude: improve changelog update skill
+- `2026-04-08` **cardano-base** `67d6f62f4` Extract `Storable` test into a reusable one
+- `2026-04-08` **cardano-base** `6e3598e9b` Add property tests for `Storable` instance for `PackedBytes`
+- `2026-04-08` **cardano-base** `7685cdebe` Add `Show` instance for `PackedBytes`
+- `2026-04-08` **cardano-base** `7f920bf90` Implement `Storable` for `PackedBytes` and `Hash`
+- `2026-04-08` **cardano-base** `84f68ece6` Merge pull request #644 from IntersectMBO/f-f/add-base-aeson
+- `2026-04-08` **cardano-base** `89433171a` Add `AnyPackedBytes`
+- `2026-04-08` **cardano-base** `992666ade` Add Arbitrary instance for `PackedBytes`
+- `2026-04-08` **cardano-base** `d403d3c09` Add Aeson utilities module to base package
+- `2026-04-08` **cardano-base** `f174c1b7f` Avoid type comparison at value level in `peek` with rewrite rules
+- `2026-04-08` **cardano-base** `f51950847` Fix `cardano-crypto-class` version in changelog
+- `2026-04-08` **cardano-ledger** `4352f11b7` Merge pull request #5666 from IntersectMBO/koslambrou/refactor-test-tx-examples
+- `2026-04-08` **cardano-ledger** `a41e2768b` Merge pull request #5713 from IntersectMBO/ldan/no-bump-checks-on-release
+- `2026-04-08` **cardano-ledger** `b563fc0e7` Stop running `bump-changelogs` on release branches
+- `2026-04-08` **cardano-ledger** `f94e0f45e` Refactor transaction and transaction body of examples in Test.Cardano.Ledger.<era>.Examples.hs.
+- `2026-04-07` **cardano-ledger** `0322bf598` Remove redundant metadatum size checks from ledger rules
+- `2026-04-07` **cardano-ledger** `10659fdc6` Update `CHANGELOG` and `.cabal` files
+- `2026-04-07` **cardano-ledger** `2ec3c6773` Review comments
+- `2026-04-07` **cardano-ledger** `31eecfc87` Update GovCommitteeOut to use StrictMaybe for CanonicalCommittee
+- `2026-04-07` **cardano-ledger** `3cf1e11ee` Merge pull request #5709 from IntersectMBO/nm/slack-github-action-config
+- `2026-04-07` **cardano-ledger** `49ff0124b` Remove legacy `TwoPools` `CHAIN` example test
+- `2026-04-07` **cardano-ledger** `56930fe58` Fix chain_code CDDL
+- `2026-04-07` **cardano-ledger** `774904d04` Convert `TwoPools` test to an `ImpTest`
+- `2026-04-07` **cardano-ledger** `79e95b263` Merge pull request #5665 from IntersectMBO/jj/decoder-fixes
+- `2026-04-07` **cardano-ledger** `7b968c91d` Add property tests for metadatum size limits in the decoder
+- `2026-04-07` **cardano-ledger** `88cff5889` Merge pull request #5712 from IntersectMBO/td/fix-allegra-package-version
+- `2026-04-07` **cardano-ledger** `959401804` Fix compilation errors
+- `2026-04-07` **cardano-ledger** `96e973932` Add property tests for metadatum size limits in the decoder
+- `2026-04-07` **cardano-ledger** `a510bf1c0` Enforce metadatum size limits in the decoder
+- `2026-04-07` **cardano-ledger** `ba5d87077` Fourmolize
+- `2026-04-07` **cardano-ledger** `bc181c396` Merge pull request #5681 from tweag/joaosreis/canonical-committee
+- `2026-04-07` **cardano-ledger** `bcb803845` Refactor GovCommittee to reflect committee state from GovState
+- `2026-04-07` **cardano-ledger** `c5ccd45ab` Remove sizes from Shelley metadatum CDDL
+- `2026-04-07` **cardano-ledger** `c96ceb097` Merge pull request #5529 from IntersectMBO/ldan/shelley-rewcalc-investigation
+- `2026-04-07` **cardano-ledger** `caf07bc8f` Regenerate CDDL
+- `2026-04-07` **cardano-ledger** `ccb41aafb` Update changelog, address review comments
+- `2026-04-07` **cardano-ledger** `cdc471511` Add EntitiesCommittee namespace and related types and tests for Conway era
+- `2026-04-07` **cardano-ledger** `d7fd2f992` Fix formatting
+- `2026-04-07` **cardano-ledger** `f272b172f` Fix missed version bump for allegra package
+- `2026-04-07` **cardano-ledger** `f49ce6d94` Add reproducer for `db-sync` `simpleRewards` test
+- `2026-04-06` **cardano-ledger** `0643f8911` Merge pull request #5708 from IntersectMBO/dependabot/github_actions/actions-cb5ad4958b
+- `2026-04-06` **cardano-ledger** `0ba916b20` Re-enable disabled tests
+- `2026-04-06` **cardano-ledger** `10f240c28` Merge pull request #5695 from IntersectMBO/carlos/conformance-failure-utxos-1
+- `2026-04-06` **cardano-ledger** `21dafdb19` Add a dependabot configuration for the github-actions ecosystem
+- `2026-04-06` **cardano-ledger** `467218a93` Merge pull request #5703 from IntersectMBO/nm/check-nix-hashes
+- `2026-04-06` **cardano-ledger** `561858742` Bump the actions group with 3 updates
+- `2026-04-06` **cardano-ledger** `5ee175ad8` Remove 5 redundant NativeScript era ~ Timelock era constraints (#5319)
+- `2026-04-06` **cardano-ledger** `8d77626a5` Add a CI workflow for checking nix hashes
+- `2026-04-06` **cardano-ledger** `98a5487d5` Merge pull request #5697 from MavenRain/oobi/remove-redundant-nativescript-timelock-constraints
+- `2026-04-06` **cardano-ledger** `b730bd8cc` Update slack-github-action configuration for v2 onward
+- `2026-04-06` **cardano-ledger** `d7bfa7a57` Update fls
+- `2026-04-06` **cardano-ledger** `f2739df0f` Use the latest version of `cleret` in CI and the nix shell
+- `2026-04-06` **cardano-ledger** `fa447bd1b`   Remove unused Timelock import in AlonzoEraGen
+- `2026-04-03` **cardano-ledger** `00282a35c` Update contribution policy to note how contributions should be vetted
+- `2026-04-03` **cardano-ledger** `6835f48d8` Merge pull request #5668 from IntersectMBO/td/subutxow-fixes
+- `2026-04-03` **cardano-ledger** `b2a1b9bf8` Use original utxo in SUBUTXOW checks
+- `2026-04-03` **cardano-ledger** `c3dcc9e94` Merge pull request #5702 from IntersectMBO/f-f/update-contribution-policy
+- `2026-04-02` **cardano-base** `245d69de6` Merge pull request #639 from IntersectMBO/f-f/update-contribution-policy
+- `2026-04-02` **cardano-base** `d1e9485b8` Update contribution policy to note how contributions should be vetted first
+- `2026-04-02` **cardano-ledger** `0d28fd8a6` Run `Babbage.validateOutputTooSmallUTxO` in SUBUTXO
+- `2026-04-02` **cardano-ledger** `0fa68fd15` Pass original utxo and validity flag from LEDGER to SUBUTXO
+- `2026-04-02` **cardano-ledger** `2760711d6` Validate network in direct deposits in UTXO and SUBUTXO
+- `2026-04-02` **cardano-ledger** `2df4b9d50` Merge pull request #5614 from IntersectMBO/td/implement-subutxo
+- `2026-04-02` **cardano-ledger** `39cf30c47` Run `Allegra.validateOutsideValidityIntervalUTxO` in SUBUTXO
+- `2026-04-02` **cardano-ledger** `4013e6e07` Implement version of `updateUtxoState` without fee update
+- `2026-04-02` **cardano-ledger** `5349bda2d` Run Shelley-era checks in SUBUTXO
+- `2026-04-02` **cardano-ledger** `7c1b29234` Merge pull request #5676 from IntersectMBO/td/remove-state-update-from-utxos
+- `2026-04-02` **cardano-ledger** `8ea03d13a` Avoid unnecessary computation of PlutusWithContext
+- `2026-04-02` **cardano-ledger** `959800740` Merge pull request #5641 from IntersectMBO/lehins/remove-redundant-computation-on-static-validation
+- `2026-04-02` **cardano-ledger** `9e5f069de` Merge pull request #5672 from IntersectMBO/5644-contexterrors-for-should-be-lazy
+- `2026-04-02` **cardano-ledger** `a4eec7c4b` Update utxo state in SUBUTXO
+- `2026-04-02` **cardano-ledger** `c9bc50a2c` Move treasury donation update from UTXOS to UTXO rule
+- `2026-04-02` **cardano-ledger** `d2877b213` Run Alonzo-era checks in SUBUTXO
+- `2026-04-02` **cardano-ledger** `e7563fff2` Run `validateWrongNetwork` checks in SUBUTXO
+- `2026-04-02` **cardano-ledger** `eaa13a1b0` Make `ContextError` constructors from Alonzo to Dijkstra era lazy
+- `2026-04-02` **cardano-ledger** `ee0ca9020` Change UTXOS State to () and move UTxO to environment
+- `2026-04-02` **ouroboros-network** `18dfccc9e` Merge pull request #5349 from IntersectMBO/coot/haddocks-update
+- `2026-04-02` **ouroboros-network** `22700b947` Merge pull request #5350 from IntersectMBO/coot/acquire-connection-error
+- `2026-04-02` **ouroboros-network** `e11298d37` Updated documentation
+- `2026-04-01` **cardano-ledger** `090630056` Merge pull request #5667 from IntersectMBO/f-f/fix-gov-rule-hang
+- `2026-04-01` **cardano-ledger** `3060322af` Fix Proposal generation to generate HardForkInitiation with bounded major version
+- `2026-04-01` **ouroboros-network** `f97e4bcf1` Removed AcquireConnectionError
+- `2026-03-31` **cardano-ledger** `620aea3ae` Merge pull request #5691 from IntersectMBO/dependabot/pip/doc/pygments-2.20.0
+- `2026-03-31` **ouroboros-network** `bf539d033` Merge pull request #5348 from IntersectMBO/coot/chap
+- `2026-03-30` **cardano-ledger** `1eba5c41b` Refine wording
+- `2026-03-30` **cardano-ledger** `b62c01e21` Bump pygments from 2.19.1 to 2.20.0 in /doc
+- `2026-03-30` **cardano-ledger** `bb202afa1` Add `Stop` hook and set the model with effort
+- `2026-03-30` **cardano-ledger** `de1781fc8` Add `CHANGELOG` and `cabal` file updater skill
+- `2026-03-30` **cardano-ledger** `e06ffdfd8` Emphasise that `CHANGELOG` updates are prepended
+- `2026-03-30` **cardano-ledger** `fff2cdd21` Merge pull request #5670 from IntersectMBO/ldan/update-changelogs-skill
+- `2026-03-30` **ouroboros-network** `08ebae723` Updated CHaP
+- `2026-03-30` **ouroboros-network** `6fdb4a70e` cardano-tracing: CleanExit - Info
+- `2026-03-29` **cardano-ledger** `00219b05e` Add test to trigger conformance failure
+- `2026-03-29` **cardano-ledger** `13627aba7` Implement TxInfo construction that depends on ScriptPurpose
+- `2026-03-29` **cardano-ledger** `220f462d1` Simplify PlutusPurpose translation
+- `2026-03-29` **cardano-ledger** `233f8bf20` Merge pull request #5635 from IntersectMBO/lehins/script-purpose-aware-memoized-txinfo
+- `2026-03-29` **cardano-ledger** `31fd2eedd` Add `TxId` to `SubTxIsNotSupported`
+- `2026-03-29` **cardano-ledger** `3511f6206` Make `PlutusTxInfoResult` failable on `PlutusPurpose`
+- `2026-03-29` **cardano-ledger** `4dabf96d7` Add a imp test case for `SubTxIsNotSupported`
+- `2026-03-29` **cardano-ledger** `5c48bc7b6` Make TxInfo compatible with multiple levels
+- `2026-03-29` **cardano-ledger** `b8deda754` Merge pull request #5609 from IntersectMBO/carlos/conf-failure-prot-ver-hf
+- `2026-03-29` **cardano-ledger** `bb3f20e20` Fixup formatting and add changelogs
+- `2026-03-29` **cardano-ledger** `c9ab036dd` Add `checkReferenceInputsNotDisjointFromInput`
+- `2026-03-29` **cardano-ledger** `d47cb5ee4` Add `checkPointerPresentInOutput`
+- `2026-03-27` **cardano-base** `72c27241a` Merge pull request #637 from dancewithheart/364-totalperiodskes-typelevel
+- `2026-03-27` **cardano-base** `ce8c07911` Lift TotalPeriodsKES to the type level in KESAlgorithm
+- `2026-03-27` **cardano-ledger** `0ea5387e9` Apply nixfmt on all Nix files
+- `2026-03-27` **cardano-ledger** `1be94b8ec` Update test-suites and downstream version bounds
+- `2026-03-27` **cardano-ledger** `408a1f5aa` Deprecate LedgerView, GetLedgerView, et. al..
+- `2026-03-27` **cardano-ledger** `5a5fbe270` Merge pull request #5632 from IntersectMBO/aniketd/forecast-api
+- `2026-03-27` **cardano-ledger** `7062dee06` Merge pull request #5675 from IntersectMBO/koslambrou/github-ci-nixpkgs-fmt
+- `2026-03-27` **cardano-ledger** `7132ea414` Merge pull request #5671 from IntersectMBO/5643-remove-nothunks-instance-for-predicate-failures
+- `2026-03-27` **cardano-ledger** `75039c7bf` Merge pull request #5656 from IntersectMBO/koslambrou/update-test-examples-lens
+- `2026-03-27` **cardano-ledger** `7a0b9ac56` Add Github CI check for making sure `nixfmt` has formatted the .nix files
+- `2026-03-27` **cardano-ledger** `981f36a64` EraForecast for Conway, Dijkstra.
+- `2026-03-27` **cardano-ledger** `9cd04ebb7` ShelleyEraForecast for Allegra, Mary, Alonzo
+- `2026-03-27` **cardano-ledger** `b6f777aec` EraForecast for Praos (Babbage+).
+- `2026-03-27` **cardano-ledger** `c175b1b31` Add (Shelley)EraForecast for (T)Praos.
+- `2026-03-27` **cardano-ledger** `e4ef1e368` Remove `NoThunks` instances for predicate failures and `ContextError` types
+- `2026-03-27` **ouroboros-network** `12896145d` Removed ouroboros-network:framework-tracing
+- `2026-03-27` **ouroboros-network** `6df73790b` trace-dispatcher: fixed Stateful.TraceRecvMsg
+- `2026-03-27` **ouroboros-network** `d291751f5` Added changelog.d entry
+- `2026-03-27` **ouroboros-network** `d4251e473` Merge pull request #5344 from IntersectMBO/coot/new-tracing-fix
+- `2026-03-26` **cardano-ledger** `183a144a4` Merge pull request #5677 from IntersectMBO/dependabot/pip/doc/requests-2.33.0
+- `2026-03-26` **cardano-ledger** `6885d868b` Merge pull request #5599 from IntersectMBO/nm/nix-ghc-9.14
+- `2026-03-26` **cardano-ledger** `8e93ae9ea` Translate all transaction building examples in our test files to use the typeclasses defined in Cardano.Ledger.Core (`EraTx`, `EraTxBody`, etc.)
+- `2026-03-26` **cardano-ledger** `9a47dccad` Enable ghc 9.14 to be used from a nix development shell
+- `2026-03-26` **cardano-ledger** `dcd8d0960` Update the haskellNix flake input
+- `2026-03-26` **cardano-ledger** `de2b0ea48` Add ghc 9.14 to the test matrix in GitHub CI
+- `2026-03-26` **cardano-ledger** `e9d4b835c` Disable doctests for ghc 9.14.1
+- `2026-03-26` **cardano-ledger** `eaec4d5ca` Bump requests from 2.32.4 to 2.33.0 in /doc
+- `2026-03-26` **cardano-ledger** `f76141109` Increase the top of the nix ghc variant range to 9.14.1
+- `2026-03-25` **cardano-ledger** `54bf7e755` Create a reusable `install-binary` GitHub local action
+- `2026-03-25` **cardano-ledger** `78cb3f292` Merge pull request #5657 from IntersectMBO/nm/migrate-scripts-to-clrt
+- `2026-03-25` **cardano-ledger** `9002c932a` Provide `cardano-ledger-release-tool` using its flake
+- `2026-03-25` **cardano-ledger** `d444d1550` Use cleret instead of standalone scripts
+- `2026-03-25` **ouroboros-network** `0efa15d33` Merge pull request #5343 from IntersectMBO/coot/local-root-peers
+- `2026-03-25` **ouroboros-network** `61c593120` build(deps): bump actions/deploy-pages from 4 to 5
+- `2026-03-25` **ouroboros-network** `7ed90287b` trace-dispatcher-2.12.0
+- `2026-03-25` **ouroboros-network** `aaa6f24e1` Added changelog entries
+- `2026-03-25` **ouroboros-network** `bdb42a48a` LocalRootConfig: updated ToJSON instance
+- `2026-03-25` **ouroboros-network** `f6ef7d9ba` Added JSONField type class
+- `2026-03-24` **cardano-ledger** `0320e326a` EraBlockHeader: fix shelley-test and ledger-test
+- `2026-03-24` **cardano-ledger** `22ecad533` Refactor ConwayBBODY to use EraBlockHeader.
+- `2026-03-24` **cardano-ledger** `35db56c36` Instantiate EraBlockHeader for TPraos.BHeader
+- `2026-03-24` **cardano-ledger** `395a1ed71` Refactor AlonzoBBODY to use EraBlockHeader.
+- `2026-03-24` **cardano-ledger** `3c35f1dd1` Refactor ShelleyBBODY to use EraBlockHeader.
+- `2026-03-24` **cardano-ledger** `50821847e` Deprecate BHeaderView in favour of EraBlockHeader.
+- `2026-03-24` **cardano-ledger** `6fb85adba` Refactor DijkstraBBODY, use DijkstraEraBlockHeader.
+- `2026-03-24` **cardano-ledger** `71250dcce` Merge pull request #5658 from IntersectMBO/f-f/5637
+- `2026-03-24` **cardano-ledger** `9547f8272` Optimize String length check in metadata and other places
+- `2026-03-24` **cardano-ledger** `a3f7b1398` Merge pull request #5560 from IntersectMBO/aniketd/blockheader
+- `2026-03-23` **cardano-ledger** `1897e6a52` Update spec for script_n_of_k
+- `2026-03-23` **cardano-ledger** `2c139943b` Add bounds to ipv4 and ipv6 pre-Conway
+- `2026-03-23` **cardano-ledger** `386854beb` Enable and disable tests
+- `2026-03-23` **cardano-ledger** `7c3a0edfb` Fourmolize
+- `2026-03-23` **cardano-ledger** `8655b0d22` Update ipv4 and ipv6 pre-Conway
+- `2026-03-23` **cardano-ledger** `aef92f63b` Mark failing tests as pending
+- `2026-03-23` **cardano-ledger** `af1ab623f` Update comment on unit_interval
+- `2026-03-23` **cardano-ledger** `b566f3593` Add custom generator for plutus scripts to avoid set collisions
+- `2026-03-23` **cardano-ledger** `b71e324c4` Make plutusScriptGen generate scripts of varying sizes
+- `2026-03-23` **cardano-ledger** `ce7c4936c` Remove distinct_bytes
+- `2026-03-23` **cardano-ledger** `d20b44d33` Enable Dijkstra CDDL tests and add plutusScriptGen to plutus_v4_script
+- `2026-03-23` **ouroboros-network** `5c8d41b5c` Merge pull request #5342 from IntersectMBO/coot/known-peers-failure
+- `2026-03-21` **cardano-ledger** `36ca5dca2` Merge pull request #5655 from IntersectMBO/5650-nonemptymapset-need-tofromjson
+- `2026-03-21` **cardano-ledger** `9302c044a` Merge pull request #5653 from IntersectMBO/koslambrou/add-cabal-gild-pre-commit-hook-nix
+- `2026-03-21` **cardano-ledger** `a4ae5aeea` Add ToJSON/FromJSON instances for `NonEmptyMap` and `NonEmptySet`
+- `2026-03-21` **cardano-ledger** `a6a5426f5` Changelog for `cardano-node-10.7`
+- `2026-03-21` **cardano-ledger** `cfb887b68` Merge pull request #5648 from IntersectMBO/lehins/changelog-10.7
+- `2026-03-20` **cardano-ledger** `14c326751` Change `B` constructor of `Metadatum` from `ByteString` to `ByteArray`.
+- `2026-03-20` **cardano-ledger** `7c24652bd` Add `cabal-gild` and `shellcheck` as part of the pre-commit hook in our Nix devShell.
+- `2026-03-20` **cardano-ledger** `82a4485f4` Merge pull request #5647 from IntersectMBO/koslambrou/5640-use-bytearray-in-metadata
+- `2026-03-20` **ouroboros-network** `324b976a4` Merge pull request #5202 from IntersectMBO/peras-diffusion
+- `2026-03-20` **ouroboros-network** `a39022c90` Register `certDiffusion` and `voteDiffusion` instances of ObjectDiffusion miniprotocol in `NodeToNode.hs`
+- `2026-03-20` **ouroboros-network** `b95de85c0` Add CDDL spec and {codec, direct, connect, channel-based} tests for ObjectDiffusion mini-protocol
+- `2026-03-19` **cardano-ledger** `0623244a3` Make DecShareCBOR BabbageTxOut lenient and decCBOR = decNoShareCBOR for UTxO
+- `2026-03-19` **cardano-ledger** `329677a7c` Ensure compact addresses match their normalized addresses
+- `2026-03-19` **cardano-ledger** `49369624b` Merge pull request #5654 from IntersectMBO/nm/fix-utxo-query
+- `2026-03-19` **ouroboros-network** `0d875f765` signal: ppEvents - pretty print events
+- `2026-03-19` **ouroboros-network** `184bdab24` Updated prologue file
+- `2026-03-19` **ouroboros-network** `32e56500c` Added changelog
+- `2026-03-19` **ouroboros-network** `4c7efffb6` Add ObjectDiffusion mini-protocol for Peras cert & vote diffusion
+- `2026-03-19` **ouroboros-network** `50c54418d` signal: signalProperty' - more concise counterexample output
+- `2026-03-19` **ouroboros-network** `6a6558e9f` Add `PerasSupport` flag (for NodeToNode negociation)
+- `2026-03-19` **ouroboros-network** `91335cbc7` Introduce `NodeToNodeV_16` and corresponding `PerasSupport` field in `NodeToNodeVersionData`
+- `2026-03-19` **ouroboros-network** `cd1c3c5fc` peer-selection: code style
+- `2026-03-19` **ouroboros-network** `defbe44aa` peer-selection: fixed know target (from below) property
+- `2026-03-18` **cardano-ledger** `133c3dc91` Enable `auxiliary_data` roundtrip tests for Dijkstra
+- `2026-03-18` **cardano-ledger** `7b9feb380` Add `PlutusV4` to `AlonzoScript` decoder
+- `2026-03-18` **cardano-ledger** `aca3646d6` Enable `script` roundtrip tests for Dijkstra
+- `2026-03-18` **cardano-ledger** `b1a015328` Merge pull request #5645 from IntersectMBO/ldan/plutusv4-alonzoscript-decoder
+- `2026-03-18` **ouroboros-network** `1900df32c` conn-mgr: timeWaitTimeout delay
+- `2026-03-18` **ouroboros-network** `205f18a75` Merge pull request #5321 from IntersectMBO/coot/testing
+- `2026-03-18` **ouroboros-network** `379cc9dda` ouroboros-network: timeout properties
+- `2026-03-18` **ouroboros-network** `401b7ec7a` conn-mgr: simplified transion logic
+- `2026-03-18` **ouroboros-network** `b3c49bec2` sim-net: tracing
+- `2026-03-18` **ouroboros-network** `dfc468c9c` conn-mgr: use case rather than if
+- `2026-03-17` **cardano-ledger** `58eb1a078` Remove default implementation of `fromPlutusData` in `ToPlutusData` typeclass.
+- `2026-03-17` **cardano-ledger** `789cb27e9` Merge pull request #5629 from IntersectMBO/koslambrou/5161-remove-default-implementation-from-fromplutusdata
+- `2026-03-17` **cardano-ledger** `ad27fc048` Update formal-ledger-spec and enable Utxos conformance tests (#5620)
+- `2026-03-17` **ouroboros-network** `186002646` tracing: use tracers from `Test.Ouroboros.Network.Utils`
+- `2026-03-17` **ouroboros-network** `1df11facf` ouroboros-network:tests-lib - cleaned up testing tracer
+- `2026-03-17` **ouroboros-network** `1f6123bdf` Merge pull request #5341 from IntersectMBO/coot/haddock-improvements
+- `2026-03-17` **ouroboros-network** `218f68ad2` Updated README.md file
+- `2026-03-17` **ouroboros-network** `2991d85f3` ouroboros-network / cardano-diffusion - timeouts properties
+- `2026-03-17` **ouroboros-network** `2f6d63d27` network-mux: mini-protocol job handler
+- `2026-03-17` **ouroboros-network** `3e0ec86a6` Added changelog entries
+- `2026-03-17` **ouroboros-network** `58f3ffb5a` Merge pull request #5328 from IntersectMBO/coot/mux-buffer-refactored
+- `2026-03-17` **ouroboros-network** `7b8f83524` ouroboros-network:tests-lib - better ioe_location of an attenuation error
+- `2026-03-17` **ouroboros-network** `7fdca5969` sim-net: use label rather than classify
+- `2026-03-17` **ouroboros-network** `db6b545fd` o-n:framework - generalise Ouroboros.Network.Socket API
+- `2026-03-17` **ouroboros-network** `e76be2824` network-mux: evaluate mini-protocols errors to WHNF
+- `2026-03-16` **cardano-ledger** `2befbb9a5` Remove redundant `OutputTooSmallUTxO` pred failure from dijkstra UTXO
+- `2026-03-16` **cardano-ledger** `36b96f6e4` Merge pull request #5627 from IntersectMBO/td/remove-redundant-utxo-pred-failure
+- `2026-03-16` **cardano-ledger** `5661d1f03` Merge pull request #5628 from IntersectMBO/koslambrou/improve-treediff-for-mismatch
+- `2026-03-16` **cardano-ledger** `b87c7cdcf` Implement custom `ToExpr` instance for `Mismatch` datatype.
+- `2026-03-16` **cardano-ledger** `da4fc0521` Remove redundant `SubOutputTooSmallUTxO` predicate failure
+- `2026-03-13` **cardano-ledger** `2f5b8daab` Disable transaction_body zapping test in Conway
+- `2026-03-13` **cardano-ledger** `3007b5d0a` Revert flake.lock
+- `2026-03-13` **cardano-ledger** `355f5b254` Mark failing tests pending
+- `2026-03-13` **cardano-ledger** `3c163c39a` Disable shelley tests
+- `2026-03-13` **cardano-ledger** `59238f310` bump
+- `2026-03-13` **cardano-ledger** `62f5e4529` Rebase
+- `2026-03-13` **cardano-ledger** `66d5145eb` Disable cost_models antispec
+- `2026-03-13` **cardano-ledger** `7402a84bb` Add antigen tests
+- `2026-03-13` **cardano-ledger** `9cac9c893` Review
+- `2026-03-13` **cardano-ledger** `9d8613f5f` Review comments
+- `2026-03-13` **cardano-ledger** `a991245d6` Removed antigen SRP, tests pass
+- `2026-03-13` **cardano-ledger** `cb57dc730` Merge pull request #5568 from IntersectMBO/jj/antigen
+- `2026-03-13` **cardano-ledger** `db05a81c9` Changelog
+- `2026-03-13` **cardano-ledger** `ef36a111e` Update cardano-cls SRP
+- `2026-03-13` **ouroboros-network** `a8984a412` Merge pull request #5339 from IntersectMBO/coot/topology
+- `2026-03-13` **ouroboros-network** `e9f16ac6d` ouroboros-network-framework: haddock improvements
+- `2026-03-12` **cardano-ledger** `37648ef58` Run `Babbage.validateScriptsWellFormedTxOuts` in SUBUTXOW
+- `2026-03-12` **cardano-ledger** `3ea7a437f` Run `Shelley.validateMetadata` in SUBUTXOW
+- `2026-03-12` **cardano-ledger** `5a9d69baa` Run `Alonzo.hasExactSetOfRedeemers` in SUBUTXOW
+- `2026-03-12` **cardano-ledger** `5bea67645` Run `Shelley.validateVerifiedWits` check in SUBUTXOW
+- `2026-03-12` **cardano-ledger** `6160d0463` Merge pull request #5622 from IntersectMBO/td/post-release-changes
+- `2026-03-12` **cardano-ledger** `69e85bdde` Run `Shelley.validateNeededWitnesses` in SUBUTXOW
+- `2026-03-12` **cardano-ledger** `9795ba6e9` Run `Alonzo.checkScriptIntegrityHash` in SUBUTXOW
+- `2026-03-12` **cardano-ledger** `a2c0289b3` Update CHANGELOG files post-ledger release for 10.7
+- `2026-03-12` **cardano-ledger** `acbee53e1` Run `Alonzo.missingRequiredDatums` check in SUBUTXOW
+- `2026-03-12` **cardano-ledger** `b0a75f803` Allow `validateFailedBabbageScripts` for any level
+- `2026-03-12` **cardano-ledger** `d5e10df20` Run `Babbage.validateFailedBabbageScripts` check in SUBUTXOW
+- `2026-03-12` **cardano-ledger** `dd44b9c00` Pass aggregated `scriptsProvided` through SUBUTXOW environment
+- `2026-03-12` **cardano-ledger** `e4fac0dff` Remove redundant SUBUTXOW predicate failures
+- `2026-03-12` **cardano-ledger** `ed2513676` Temporarily disable Imp tests involving subtransactions
+- `2026-03-12` **cardano-ledger** `ed5017c88` Merge pull request #5608 from IntersectMBO/td/implement-subutxow
+- `2026-03-12` **cardano-ledger** `f1be403e1` Extract helper to validate script well-formedness from outputs
+- `2026-03-12` **cardano-ledger** `f6b1ce89a` Update dependencies to account for new versions of binary, core, conway
+- `2026-03-12` **ouroboros-network** `21d2f3e1b` cardano topology
+- `2026-03-11` **cardano-base** `6a5820e2d` cardano-crypto-class: constraint crypton library
+- `2026-03-11` **cardano-base** `db52f43b3` Merge pull request #634 from IntersectMBO/coot/cardano-crypto-class
+- `2026-03-11` **cardano-ledger** `b5d3b4b16` Merge pull request #5624 from IntersectMBO/td/bump-cardano-ledger-alonzo-test
+- `2026-03-11` **cardano-ledger** `fb0f9bbbd` Bump cardano-ledger-alonzo-test package version
+- `2026-03-10` **cardano-ledger** `22c8d6ca9` Merge pull request #5611 from IntersectMBO/f-f/new-ip-types
+- `2026-03-10` **ouroboros-network** `28f2d98e5` ouroboros-network:api - PrettyShow type class
+- `2026-03-10` **ouroboros-network** `42e1acf7d` ouroboros-network:framework MiniProtocolCb - improved haddocks
+- `2026-03-10` **ouroboros-network** `ca2770b60` ouroboros-network - improved thread labels
+- `2026-03-10` **ouroboros-network** `e2d2dcdaf` sim-net: generalised type signatures
+- `2026-03-09` **cardano-ledger** `6e0ccb4a2` Use IPv4 and IPv6 newtypes from cardano-base instead of iproute
+- `2026-03-09` **ouroboros-network** `36ba16782` mux: MonadReadBuffer
+- `2026-03-06` **cardano-base** `da46c54b4` Merge pull request #632 from IntersectMBO/f-f/add-multi-part-hashing
+- `2026-03-06` **cardano-ledger** `47eda03df` Bump markdown from 3.7 to 3.8.1 in /doc
+- `2026-03-06` **cardano-ledger** `8e18f1607` Merge pull request #5612 from IntersectMBO/qnikst/canonical/gov/proposals/v0
+- `2026-03-06` **cardano-ledger** `b73c4f9ac` Introduce gov/proposals/v0 namespace
+- `2026-03-06` **cardano-ledger** `ec6261aed` Merge pull request #5615 from IntersectMBO/dependabot/pip/doc/markdown-3.8.1
+- `2026-03-05` **cardano-base** `a7bbfaf30` Add typeclass for multi-part hashing, and an implementation for Blake2b
+- `2026-03-05` **cardano-ledger** `d7e960e4c` Remove default implementation for the DecCBOR class
+- `2026-02-18` **cardano-base** `0c33eea90` Update changelogs post-release
+- `2026-02-18` **cardano-base** `f42062fc6` Merge pull request #631 from IntersectMBO/nm/post-release
+- `2026-02-11` **cardano-base** `ef58f660a` Merge pull request #627 from IntersectMBO/post-release-cardano-crypto-class-2.3.1.0
+- `2026-02-11` **cardano-base** `f420fb11a` Fix typo in RELEASING.md
+- `2026-02-11` **cardano-base** `f9f7f0088` Add stub changelog item
+
+---
+
+## Grouped by repo
+
+### `cardano-api` (254 commits)
+
+- `2026-04-30` `0781d7128` Fix broken cross-package Haddock links on hosted docs site
+- `2026-04-30` `b9c3cb92f` Address carbolymer review on PR #1180
+- `2026-04-30` `7bfc623a3` Restrict cross-package link grep to HTML files only
+- `2026-04-30` `b85cc4acf` Pass URL as positional arg to xargs sh -c probes
+- `2026-04-30` `1edced2f8` Document master-vs-release drift as a fourth unfixable sub-cause
+- `2026-04-30` `e194f1a2a` Merge pull request #1180 from IntersectMBO/issue-601-chap-haddock-links
+- `2026-04-30` `81f7e25dc` Remove SRP for `haskell-lmdb-mock`
+- `2026-04-30` `9130bd0ee` Workaround to not build `cardano-lmdb` but still resolve
+- `2026-04-30` `0bb644a44` Add release changelog fragment for cardano-api 11.0.0.0
+- `2026-04-30` `d4152dfde` Merge master into release/cardano-api-11.0.0.0
+- `2026-04-30` `96be56f1f` Merge pull request #1196 from IntersectMBO/release/cardano-api-11.0.0.0
+- `2026-05-01` `fdee12c9e` Remove makeShelleyTransactionBody and accompanying functions
+- `2026-05-01` `f9822dee0` Add changelog fragment
+- `2026-05-01` `e97192a97` Merge pull request #1094 from IntersectMBO/jordan/remove-makeShelleyTransactionBody
+- `2026-05-04` `3af2b56ac` drop support for x86_64-darwin
+- `2026-05-04` `6daeff1c5` add changelog fragment for dropping x86_64-darwin support
+- `2026-05-04` `4deb4be48` Merge pull request #1192 from IntersectMBO/remove-srp-for-haskell-llmdb-mock
+- `2026-05-05` `c505604da` Update haskell-language-server-2.14.0.0, use GHC 9.12.4 for devshell
+- `2026-05-05` `ab1b1733e` Merge pull request #1197 from IntersectMBO/no-intel-mac
+- `2026-05-05` `95e812db2` Replace ProtocolParametersUpdate with EraBasedProtocolParametersUpdate
+- `2026-05-05` `926606fdd` Remove unused TxBodyProtocolParamsConversionError constructor
+- `2026-05-05` `20502d1a2` Restore public exports for ledger update conversion functions
+- `2026-05-05` `fc9038b48` Address review feedback in gen modules
+- `2026-05-05` `ae75973c9` Update changelog to reflect kept ledger conversion functions
+- `2026-05-05` `eea56107d` Merge pull request #1103 from IntersectMBO/jordan/remove-ProtocolParametersUpdate
+- `2026-05-05` `7b2c2d5c1` Merge pull request #1198 from IntersectMBO/mgalazyn/chore/update-hls
+- `2026-05-06` `478bf87dc` Widen Exp.SignedTx to all Shelley-based eras
+- `2026-05-06` `e7f39d915` Set PR number in changelog fragment
+- `2026-05-06` `fa48c8250` Merge pull request #1199 from IntersectMBO/jordan/widen-ledger-era-family
+- `2026-05-07` `a53d5bc0e` Add regression test: makeUnsignedTx errors without protocol params for Plutus scripts
+- `2026-05-07` `08fc871f3` Add changelog fragment for PR #1201
+- `2026-05-08` `217e60efa` Release cardano-api-11.1.0.0
+- `2026-05-08` `4f50ef232` Add release changelog fragment for cardano-api 11.1.0.0
+- `2026-05-08` `921fb84fa` Merge pull request #1202 from IntersectMBO/release/cardano-api-11.1.0.0
+- `2026-05-08` `aabb5d148` Merge pull request #1201 from IntersectMBO/jordan/makeunsignedtx-plutus-pparams-regression
+- `2026-05-12` `2f22de7f1` Deprecate TxBody and TxBodyContent in favour of the experimental API
+- `2026-05-12` `e5305937d` Add changelog fragment for PR #1200
+- `2026-05-12` `bc1b34c03` Migrate cardano-rpc submit handler to Ledger.txIdTx
+- `2026-05-12` `1272b8434` Merge pull request #1200 from IntersectMBO/jordan/deprecate-txbody-txbodycontent
+- `2026-05-13` `c7182687a` gRPC: fix swapped constant and fee coefficient
+- `2026-05-14` `2bfc2b471` gRPC: Add evalTx method
+- `2026-05-14` `ece2bd9b7` Merge pull request #1193 from IntersectMBO/mgalazyn/feature/evaltx
+- `2026-05-14` `5f31d79e3` Fix haddock urls
+- `2026-05-15` `074ddaaa1` Merge pull request #1208 from IntersectMBO/mgalazyn/fix-haddock-doc-bases
+- `2026-05-15` `79d642635` Remove legacy TxOut from Compatible and Experimental APIs
+- `2026-05-15` `e90405b46` Add changelog fragment for PR #1209
+- `2026-05-15` `f1cc7c843` Merge pull request #1209 from IntersectMBO/jordan/remove-legacy-txout-from-compat-and-experimental
+- `2026-05-15` `817530aee` Move filterUnRegCreds/filterUnRegDRepCreds to experimental certificate module
+- `2026-05-15` `d82226eb4` Rewrite genCertificate to produce Exp.Certificate directly
+- `2026-05-15` `1d95f89b1` Re-export op-cert AsType constructors via Experimental.Certificate
+- `2026-05-15` `82d5896d5` Delete public Cardano.Api.Certificate module and update consumers
+- `2026-05-15` `132a8d192` Slim Cardano.Api.Certificate.Internal to pool-only definitions
+- `2026-05-15` `1c005b542` Remove unreachable error constructors
+- `2026-05-15` `b6497f246` Add changelog fragment for PR #1211
+- `2026-05-15` `089edd724` Add changelog fragment for legacy Certificate removal
+- `2026-05-18` `39fdbc2b1` Add `evaluateTransaction` and `evaluateSignedTx` to `Cardano.Api.Experimental`, composing script evaluation, fee computation, and balance checking into a single pure function for signed transactions.
+- `2026-05-18` `fea6c6761` Merge pull request #1205 from IntersectMBO/mgalazyn/refactor/move-evaltx-to-api
+- `2026-05-18` `1b3393dba` Merge pull request #1211 from IntersectMBO/jordan/remove-unused-error-constructors
+- `2026-05-18` `f2469e334` Merge pull request #1210 from IntersectMBO/jordan/remove-legacy-certificate-type
+- `2026-05-18` `3baa58e8c` Release cardano-api-11.2.0.0
+- `2026-05-18` `cb14b379a` Add release changelog fragment for cardano-api 11.2.0.0
+- `2026-05-18` `a99cf11e1` Merge pull request #1212 from IntersectMBO/release/cardano-api-11.2.0.0
+- `2026-05-19` `03fef7b4f` Pin herald GHA using a tag
+- `2026-05-19` `ed8e51980` Merge pull request #1213 from IntersectMBO/mgalazyn/chore/pin-herald-actions
+- `2026-05-21` `3cf4d6d40` Bump plutus-ledger-api-1.63
+- `2026-05-22` `d08ed5a9b` Update plutus SRP for WASM
+- `2026-05-22` `98b7d19ae` Merge pull request #1215 from IntersectMBO/mgalazyn/feature/bump-plutus-ledger-api
+- `2026-05-25` `aabade50c` cardano-rpc: guard against fetching entire UTXO set.
+- `2026-05-25` `21534da29` Merge pull request #1214 from IntersectMBO/mgalazyn/fix/guard-utxo-whole-set
+- `2026-05-25` `7d4f48db4` Bump plutus to version 1.65.0.0
+- `2026-05-26` `26583361b` Merge pull request #1223 from IntersectMBO/update-plutus
+- `2026-05-26` `e69b94f97` Release cardano-api-11.3.0.0
+- `2026-05-26` `7c4c49587` Add release changelog fragment for cardano-api 11.3.0.0
+- `2026-05-26` `df0736ae7` Release cardano-rpc-11.0.0.0
+- `2026-05-26` `d6461eb2c` Add release changelog fragment for cardano-rpc 11.0.0.0
+- `2026-05-26` `55d843ecd` Merge pull request #1224 from IntersectMBO/release/cardano-api-11.3.0.0
+- `2026-05-26` `d2281aaca` Merge pull request #1226 from IntersectMBO/release/cardano-rpc-11.0.0.0
+- `2026-05-28` `d060c6383` cabal.project: Update index-states
+- `2026-05-28` `b3e0947c5` cabal.project: Remove un-needed allow-newer
+- `2026-05-29` `28b94fd2e` cabal.project: Reduce allow-newers
+- `2026-05-29` `aa9ac8e4c` Nix updates
+- `2026-05-29` `26edd8305` Changelog fragment
+- `2026-05-29` `ab2de0266` Merge pull request #1230 from IntersectMBO/erikd/updates
+- `2026-06-15` `22a1314a7` Remove deprecated era conversion functions superseded by convert
+- `2026-06-15` `476a9624d` Add pr number to changelog fragment
+- `2026-06-16` `77d6f5857` Merge pull request #1234 from IntersectMBO/jordan/remove-deprecated-convert-fns
+- `2026-06-16` `c61d20a88` getLedgerTablesUTxOValues: use getOriginalTxIn instead of coerceMapKeys
+- `2026-06-16` `25faeed7d` Add changelog fragment for #1235
+- `2026-06-16` `5ef342ea8` Merge pull request #1235 from IntersectMBO/jordan/fix-getLedgerTablesUTxOValues-use-getOriginalTxIn
+- `2026-06-16` `f4cf57de3` Remove caseByronToAlonzoOrBabbageEraOnwards and simplify value ops
+- `2026-06-16` `0dc9792f7` Add changelog fragment for #1236
+- `2026-06-16` `34238163c` Merge pull request #1236 from IntersectMBO/jordan/remove-caseByronToAlonzoOrBabbageEraOnwards
+- `2026-06-24` `0d9272a9d` Fix PlutusV4 script handling and scrambled ToPlutusScriptPurpose type family
+- `2026-06-24` `00616abbc` Merge pull request #1237 from IntersectMBO/mgalazyn/fix/fix-plutus-v4-bugs
+- `2026-06-25` `2ecf90c3c` Add FromJSON instance for new experimental TxOut
+- `2026-06-26` `03260f3be` Add changelog fragment for FromJSON TxOut
+- `2026-06-26` `6651c3e18` Collapse datum and reference script field helpers into one function
+- `2026-06-26` `abf58f2f7` Address review feedback on experimental TxOut JSON instances
+- `2026-06-29` `e60653716` Address review feedback on changelog and era type annotations
+- `2026-06-29` `a107b78c1` Merge pull request #1179 from IntersectMBO/issue-926-experimental-fromjson-txout
+- `2026-06-30` `91cc73b08` cardano-wasm: base16-decode certificate CBOR before deserialising
+- `2026-06-30` `7f01b05e2` Merge pull request #1239 from IntersectMBO/fix-stake-certs-deserialisation-wasm
+- `2026-07-01` `d9633f601` cardano-wasm: add stake-key witnessing (signWithStakeKey / alsoSignWithStakeKey)
+- `2026-07-01` `f92a8f0d3` cabal.project: Update index-states
+- `2026-07-02` `e1ce999fb` Bump aeson lower bound
+- `2026-07-02` `86de50f5d` Changelog fragment
+- `2026-07-02` `a4833f089` Nix updates
+- `2026-07-02` `db4a6b174` cardano-wasm: share witnessing helper between payment and stake signing
+- `2026-07-02` `4971692b7` cardano-wasm: generalise stringToSigningKey over the key role
+- `2026-07-02` `ed0289f8d` cardano-wasm: test signWithStakeKey as the first signer
+- `2026-07-03` `df798c9ad` Merge pull request #1240 from IntersectMBO/add-stake-signing-primitives
+- `2026-07-03` `9e51c5057` Add consensus reexports for node kernel access
+- `2026-07-03` `ff3ead27f` Add UTxO RPC SyncService proto definition
+- `2026-07-03` `22ff1ac5a` Add NodeKernelAccess and SyncService scaffolding
+- `2026-07-03` `e33bb8176` Implement FetchBlock SyncService method
+- `2026-07-03` `79fb9b278` Fix blockNo shadowing in Query methods
+- `2026-07-03` `1eaf53e52` Merge pull request #1232 from IntersectMBO/mgalazyn/feature/rpc-fetchblock
+- `2026-07-07` `86dffbd6d` Add script for preparing the wasm libraries for building without Nix
+- `2026-07-07` `0cb277a9f` Address review feedback on the wasm-without-nix build script
+- `2026-07-07` `b29e79d16` Make the wasm-without-nix build script more robust and portable
+- `2026-07-07` `d30f3be90` Fix shellcheck findings in the wasm-without-nix build script
+- `2026-07-07` `49d3ec7ee` Merge pull request #1194 from IntersectMBO/js/without-nix
+- `2026-07-08` `491698a95` cardano-wasm: expose the transaction id (getTxId)
+- `2026-07-08` `f262d73fc` Merge pull request #1243 from IntersectMBO/cardano-wasm-getTxId
+- `2026-07-08` `90cce06e5` cardano-wasm: add address validation and network detection (inspectAddress)
+- `2026-07-08` `a885ac7e2` Merge pull request #1244 from IntersectMBO/cardano-wasm-inspectAddress
+- `2026-07-08` `df4c0fd0f` Return an error instead of throwing on invalid UTF-8 in deserialisation helpers
+- `2026-07-08` `21017d97a` Document unpkg.com runtime dependency of the no-bundler wasm wrapper
+- `2026-07-08` `9a5ac9f10` Add writeFileTextEnvelopeWithOwnerPermissions
+- `2026-07-08` `d31cbe205` Create secret files with owner-only permissions in writeSecrets
+- `2026-07-09` `c1e087e64` Merge pull request #1251 from IntersectMBO/document-wasi-shim-cdn-dependency
+- `2026-07-09` `ad33978c6` Remove deprecated Block pattern
+- `2026-07-09` `941e87b7f` Merge pull request #1252 from IntersectMBO/mgalazyn/remove-deprecated-pattern-block
+- `2026-07-09` `0979e298e` Document platform-specific behaviour of writeFileTextEnvelopeWithOwnerPermissions
+- `2026-07-09` `21c12931b` Create owner-permission files with 0600 instead of 0700 on POSIX
+- `2026-07-09` `25f9429cd` Throw detailed ErrorAsException with call stack from writeSecrets
+- `2026-07-09` `9297a0f42` Merge pull request #1250 from IntersectMBO/writeSecrets-owner-safe
+- `2026-07-10` `3fec64a55` Render the UTF-8 decoding error via a new Bech32InvalidUtf8 constructor
+- `2026-07-10` `bc818047a` Separate flow from error handling in deserialiseBech32 helpers
+- `2026-07-10` `f4c024124` cardano-rpc: Add timestamp to fetchBlock
+- `2026-07-10` `44e779bef` Merge pull request #1242 from IntersectMBO/mgalazyn/feature/rpc-fetchblock-add-timestamp
+- `2026-07-11` `4578d1d12` cardano-rpc: Approximate out-of-range rationals instead of wrapping
+- `2026-07-11` `305be6251` cardano-rpc: Use Proto-wrapped messages in internal conversion functions
+- `2026-07-11` `7095c04ee` cardano-rpc: Generalise txOutToUtxoRpcTxOutput and expose request helpers
+- `2026-07-11` `af57b642a` cardano-rpc: Return the parsed block from fetchBlock
+- `2026-07-11` `0493cfed6` cardano-rpc: Split UtxoRpc.Type into Type.* modules
+- `2026-07-11` `93be536f8` cardano-rpc: Add changelog fragment
+- `2026-07-11` `6886108d9` cardano-rpc: Fix ppEconomicGroup typo
+- `2026-07-11` `9396d3b01` cardano-rpc: Reject zero denominator in RationalNumber conversion
+- `2026-07-11` `f19af5e37` Merge pull request #1253 from IntersectMBO/mgalazyn/refactor/rpc-reorganise-modules
+- `2026-07-14` `b824fdbdc` Store the UnicodeException itself in Bech32InvalidUtf8
+- `2026-07-14` `bd819d231` Add `umask` warning to Haddock for `writeFileTextEnvelope` function
+- `2026-07-15` `a8fd42c17` Truncate existing files when writing with owner permissions on POSIX
+- `2026-07-15` `d74b3f66c` Merge pull request #1248 from IntersectMBO/writeFileTextEnvelopeWithOwnerPermissions
+- `2026-07-15` `3ab3f2992` Merge pull request #1249 from IntersectMBO/nonthrowing-utf8-decode
+- `2026-07-18` `a4e1d4691` cardano-wasm: scaffold browser wallet demo + CI pipeline
+- `2026-07-19` `987fec3c5` Merge pull request #1241 from IntersectMBO/erikd/updates
+- `2026-07-20` `96dca8207` demo dev shell: take the Elm toolchain from the unstable nixpkgs input
+- `2026-07-20` `969c61a9f` Apply suggestions from code review
+- `2026-07-21` `027f919ca` Add readAnyScriptBytes and readFileAnyScript to experimental API
+- `2026-07-21` `7ce70b3ad` Add changelog fragment for #1245
+- `2026-07-21` `f05da3529` Add serialization tests for readAnyScriptBytes and readFileAnyScript
+- `2026-07-21` `f86221741` Decompose readAnyScriptBytes into readTextEnvelopeScript and readSimpleScriptFromJson
+- `2026-07-21` `47e9e3e01` Merge pull request #1245 from IntersectMBO/read-file-any-script
+- `2026-07-22` `e65e9c3cf` Merge pull request #1257 from IntersectMBO/cardano-wasm-demo-scaffolding
+- `2026-07-24` `3272c3b1b` Add regression tests for collateral on transactions without Plutus scripts
+- `2026-07-24` `668e35ca6` Remove collateral from transactions without Plutus scripts
+- `2026-07-24` `17e45bc8a` Merge pull request #1265 from IntersectMBO/1261-fix1-skip-collateral-without-plutus
+- `2026-07-24` `b86fce228` Re-export byronBlockRaw from Cardano.Api.Consensus
+- `2026-07-24` `0a2bae4fb` Add ConwayEraPParams to EraCommonConstraints
+- `2026-07-24` `abf97a8bb` Add `toPlutusScriptPurposeIndex` to the experimental API
+- `2026-07-24` `65e0e00e5` Make genTx sign the transaction body it returns
+- `2026-07-24` `e137f6e46` cardano-rpc: Add certificate, governance and protocol parameter update conversions
+- `2026-07-24` `cfe61df70` cardano-rpc: Convert Shelley-based era transactions to UTxO RPC
+- `2026-07-24` `847477100` cardano-rpc: Convert Byron blocks to UTxO RPC transactions
+- `2026-07-24` `bdf4dd80b` cardano-rpc: Populate transactions in FetchBlock responses
+- `2026-07-24` `d8f1bebfb` Update copilot instructions to ignore imports using same alias.
+- `2026-07-24` `ac306521d` cardano-rpc: Fix address serialisation.
+- `2026-07-24` `b833c4456` cardano-rpc: Add readTip method
+- `2026-07-24` `6baeb9392` Add regression tests for return collateral with tokens below min UTxO
+- `2026-07-24` `606545bd2` Fail on invalid computed collateral instead of building a rejected transaction
+- `2026-07-24` `3f3cc8502` Merge pull request #1247 from IntersectMBO/mgalazyn/feature/fetchBlock-tx-bodies
+- `2026-07-24` `9775a7559` Replace CollateralComputation with Either CollateralError
+- `2026-07-25` `e85db1fb3` Address Copilot review feedback
+- `2026-07-25` `eb8491a29` Merge pull request #1258 from IntersectMBO/mgalazyn/fix-grpc-bytes-fields
+- `2026-07-25` `d3ed91c19` Merge pull request #1259 from IntersectMBO/mgalazyn/reature/read-tip
+- `2026-07-27` `229fc8f2a` Address review feedback on collateral error handling
+- `2026-07-27` `963e0caa3` Merge pull request #1266 from IntersectMBO/1261-fix2-return-collateral-min-utxo
+- `2026-07-27` `b93109e24` Add regression tests for folding return collateral dust
+- `2026-07-27` `a7b1ec7e7` Fold return collateral dust into the total collateral
+- `2026-07-28` `c44b25f0a` Address review feedback on collateral dust folding
+- `2026-07-28` `ab7434711` cardano-wasm demo: multi-wallet management
+- `2026-07-28` `e709cbb17` Merge pull request #1267 from IntersectMBO/1261-fix3-fold-collateral-dust
+- `2026-07-29` `00e6e02be` cardano-wasm demo: address review feedback
+- `2026-07-30` `80585984e` cardano-api: Re-export the ChainDB follower API
+- `2026-07-30` `3dcd5b4d8` cardano-rpc: Remove unused TraceRpcForkerError
+- `2026-07-30` `515196af0` cardano-rpc: Add chain follower access to the node kernel
+- `2026-07-30` `2a8b477f8` cardano-rpc: Add block and block reference conversions
+- `2026-07-30` `379fee96e` cardano-rpc: Add FollowTip method
+- `2026-07-30` `35f8d03ac` cardano-rpc: Deliver FollowTip rollbacks as undo actions
+- `2026-07-30` `5de6ff6de` Merge pull request #1268 from IntersectMBO/mgalazyn/feature/grpc-follow-tip
+- `2026-07-31` `68ec2d632` Fail on collateral inputs in transactions without Plutus scripts
+- `2026-07-31` `934e3fcef` Move collateral tests to separate modules
+- `2026-07-31` `2258e85e5` Address review feedback
+- `2026-07-31` `d6cfc7df0` Simplify test fixtures and document the calcReturnAndTotalCollateral contract
+- `2026-07-31` `7224fe73b` Merge pull request #1274 from IntersectMBO/1261-post-merge-reviews
+- `2026-08-03` `df0681532` cabal.project: Update index-states
+- `2026-08-03` `fa0d44832` Remove redundant orphan typeclass instances
+- `2026-08-03` `45d0c2edb` cabal.project: Update allow-newer block
+- `2026-08-03` `8ac342214` Nix updates
+- `2026-08-03` `c7e8cba7c` Changelog fragment
+- `2026-08-03` `307973de2` Merge pull request #1275 from IntersectMBO/erikd/updates
+- `2026-08-03` `04dfef573` Remove the unused ByronToAlonzoEra eon
+- `2026-08-03` `b53b1ed2f` Replace closed-range eon eliminators with forEraInEon and remove the eons
+- `2026-08-03` `db135ea7c` Merge pull request #1260 from IntersectMBO/jordan/remove-byrontoalonzoera-eon
+- `2026-08-03` `9c2483030` Merge pull request #1270 from IntersectMBO/wasm-demo-wallet-management
+- `2026-08-04` `4c6ed3c6f` cardano-wasm demo: UTxOs and balances via Blockfrost
+- `2026-08-05` `724e2ec0f` Merge pull request #1276 from IntersectMBO/wasm-demo-wallet-blockfrost
+- `2026-08-05` `37e8273f5` cardano-wasm demo: payment builder (inputs, outputs, address validation)
+- `2026-08-06` `895d5a436` Integration for Node release 11.1
+- `2026-08-06` `0afa23861` Update to cardano-ledger-api 1.14
+- `2026-08-06` `7d2837ac4` Apply review feedback
+- `2026-08-06` `73272cd54` Merge pull request #1221 from IntersectMBO/f-f/prepare-11.1
+- `2026-08-06` `1c81d28a1` Release cardano-api-11.4.0.0
+- `2026-08-06` `780f399f9` Add release changelog fragment for cardano-api 11.4.0.0
+- `2026-08-07` `0bcbdcb2f` Merge pull request #1281 from IntersectMBO/release/cardano-api-11.4.0.0
+- `2026-08-07` `3e9a0f16a` Merge pull request #1278 from IntersectMBO/wasm-demo-payment-builder
+- `2026-08-08` `cd8bdd5bb` cardano-wasm demo: fee estimation, balance checks, signing, tx export
+- `2026-08-08` `b7842284f` Fix Haddock dead-link CI failure: add fs-api's doc site
+- `2026-08-08` `216541936` cardano-wasm demo: address review feedback
+- `2026-08-10` `aabddbf0c` Export genesis reading helpers and consensus re-exports for node kernel access
+- `2026-08-10` `5222b1a6e` cardano-rpc: Add ReadGenesis to the QueryService proto definition
+- `2026-08-10` `5be024c72` cardano-rpc: Regenerate proto code
+- `2026-08-10` `a042a20ba` cardano-rpc: Implement the ReadGenesis method
+- `2026-08-10` `1ea14e3fb` cardano-rpc: Add fixture and property tests for the genesis mappers
+- `2026-08-10` `0eab9968d` Merge pull request #1277 from IntersectMBO/mgalazyn/feature/rpc-add-readgenesis-method
+- `2026-08-10` `13627e6c4` Merge pull request #1284 from IntersectMBO/fix-haddock-links
+- `2026-08-10` `037824ca4` Merge pull request #1283 from IntersectMBO/wasm-demo-fee-sign-export
+- `2026-08-10` `09fef2e0f` add: updated security file and changelog
+- `2026-08-10` `0d85f11d8` updated PR number in changelog
+- `2026-08-10` `4b4eacced` docs: use cardano-api's own security advisory form link
+- `2026-08-10` `757081379` Merge pull request #1280 from SuganyaAK/update-security-file
+- `2026-08-11` `8736bf210` Make owner-permission file writes atomic on POSIX
+- `2026-08-11` `788a8ef8f` cardano-wasm demo: transaction submission via Blockfrost
+- `2026-08-11` `c197bfcf7` Address Copilot review: breaking changelog kind, real-user ownership
+- `2026-08-11` `a09815938` Merge pull request #1287 from IntersectMBO/wasm-demo-submit-blockfrost
+- `2026-08-11` `71d5c7e57` Address review: leftFail, simpler error handling, writeSecrets test
+- `2026-08-11` `cb5ee5b1b` Sync the directory after the rename
+- `2026-08-11` `1287b3e7f` Generalise the owner-permission writers from IO to MonadIO
+- `2026-08-11` `af4008503` Fix the Windows link failure: drop unix-compat from the tests
+- `2026-08-11` `9c3f2cf27` Merge pull request #1286 from IntersectMBO/make-posix-writes-atomic
+- `2026-08-12` `d9a7eff3d` Bump ouroboros-consensus to 4.1.0.0
+- `2026-08-13` `f8e5d4d9d` Merge pull request #1289 from IntersectMBO/bump-ouroboros-consensus-4.1
+- `2026-08-17` `0b2134286` Release cardano-api-11.5.0.0
+
+### `cardano-base` (198 commits)
+
+- `2026-02-11` `f420fb11a` Fix typo in RELEASING.md
+- `2026-02-11` `f9f7f0088` Add stub changelog item
+- `2026-02-11` `ef58f660a` Merge pull request #627 from IntersectMBO/post-release-cardano-crypto-class-2.3.1.0
+- `2026-02-18` `0c33eea90` Update changelogs post-release
+- `2026-02-18` `f42062fc6` Merge pull request #631 from IntersectMBO/nm/post-release
+- `2026-03-05` `a7bbfaf30` Add typeclass for multi-part hashing, and an implementation for Blake2b
+- `2026-03-06` `da46c54b4` Merge pull request #632 from IntersectMBO/f-f/add-multi-part-hashing
+- `2026-03-11` `6a5820e2d` cardano-crypto-class: constraint crypton library
+- `2026-03-11` `db52f43b3` Merge pull request #634 from IntersectMBO/coot/cardano-crypto-class
+- `2026-03-27` `ce8c07911` Lift TotalPeriodsKES to the type level in KESAlgorithm
+- `2026-03-27` `72c27241a` Merge pull request #637 from dancewithheart/364-totalperiodskes-typelevel
+- `2026-04-02` `d1e9485b8` Update contribution policy to note how contributions should be vetted first
+- `2026-04-02` `245d69de6` Merge pull request #639 from IntersectMBO/f-f/update-contribution-policy
+- `2026-04-08` `d403d3c09` Add Aeson utilities module to base package
+- `2026-04-08` `84f68ece6` Merge pull request #644 from IntersectMBO/f-f/add-base-aeson
+- `2026-04-08` `f51950847` Fix `cardano-crypto-class` version in changelog
+- `2026-04-08` `7685cdebe` Add `Show` instance for `PackedBytes`
+- `2026-04-08` `7f920bf90` Implement `Storable` for `PackedBytes` and `Hash`
+- `2026-04-08` `f174c1b7f` Avoid type comparison at value level in `peek` with rewrite rules
+- `2026-04-08` `992666ade` Add Arbitrary instance for `PackedBytes`
+- `2026-04-08` `89433171a` Add `AnyPackedBytes`
+- `2026-04-08` `6e3598e9b` Add property tests for `Storable` instance for `PackedBytes`
+- `2026-04-08` `67d6f62f4` Extract `Storable` test into a reusable one
+- `2026-04-09` `44bd657f2` Merge pull request #642 from IntersectMBO/lehins/add-storable-for-hashes
+- `2026-04-15` `4f55e79f2` Post release changelog bumps
+- `2026-04-15` `abc63581a` Merge pull request #649 from IntersectMBO/lehins/post-release-process
+- `2026-04-15` `b092b395f` Use for `blsMSM` contiguous calling convention for affine pointer array
+- `2026-04-15` `374f4ac6c` fix ffi type signature of `memcmp`
+- `2026-04-15` `d9217fb75` use `CBool` instead of `Bool` for FFI calls
+- `2026-04-15` `da56fc1e1` reject zero points from PoP serialisation
+- `2026-04-15` `eb31e7ab5` add PoP ciphersuite context and comment on usage
+- `2026-04-15` `d4a82d4a6` add extra `blsIsInf` check on inputs on aggregation
+- `2026-04-15` `15253b06d` adding non-identity checks to `VerKey` and `SignKey` deserialisation
+- `2026-04-15` `e5ed4b5ae` Apply suggestions from code review
+- `2026-04-15` `3aca66dab` move the `BLS12381` module to an internal module
+- `2026-04-15` `8765f3fc0` add `BLS12381` DSIGN module with re-exports
+- `2026-04-15` `46783739a` add to changelog of crypto-class
+- `2026-04-15` `d83ba6196` Update cardano-crypto-class/src/Cardano/Crypto/DSIGN/BLS12381/Internal.hs
+- `2026-04-15` `5570b3ee3` Bump version `cardano-crypto-class`
+- `2026-04-15` `9965336f7` Merge pull request #635 from IntersectMBO/perturbing/audit-fix
+- `2026-04-30` `9dd0d1290` drop support for x86_64-darwin
+- `2026-04-30` `7a8a99194` Merge pull request #651 from IntersectMBO/no-intel-mac
+- `2026-05-07` `d789e8706` cabal.project: Update index-states
+- `2026-05-08` `a57b684f2` cabal.project: Simplify allow-newer for ghc-9.14
+- `2026-05-11` `a006f1fab` Nix updates
+- `2026-05-11` `67ede0513` CI: Add ghc-9.14 to the build matric
+- `2026-05-11` `8f1658abf` Nix: bump haskell.nix; enable ghc-9.14 dev shell
+- `2026-05-11` `196f5bc92` doctest: fix ghc-9.14 failures
+- `2026-05-12` `d8453d0c8` Work around QuickCheck deprecation
+- `2026-05-12` `5b226b46d` Merge pull request #652 from IntersectMBO/erikd/updates
+- `2026-05-12` `8bbb8a956` Revert "doctest: fix ghc-9.14 failures"
+- `2026-05-12` `eb6bbf8b1` Fix doctests for ghc 9.14 a different way
+- `2026-05-12` `cf3b4f023` Provide a customized doctest package in `nix develop`
+- `2026-05-12` `98caf0b54` Refactor doctesting
+- `2026-05-12` `8cb9d5203` Install doctest before CI build to avoid rebuilding after
+- `2026-05-12` `8425b6484` Remove redundant and inappropriate cabal options
+- `2026-05-13` `daf91ce31` Add a dependabot configuration for the github-actions ecosystem
+- `2026-05-14` `fc31e6e53` Merge pull request #654 from IntersectMBO/nm/doctesting
+- `2026-05-14` `01ee05d07` Bump the actions group with 4 updates
+- `2026-05-14` `7eb02d912` Merge pull request #655 from IntersectMBO/dependabot/github_actions/actions-681707ee37
+- `2026-05-15` `91417f377` Require NFData for VRF associated types
+- `2026-05-18` `a2453d057` Merge pull request #656 from dancewithheart/pp/require-nfdata-crypto-type-families
+- `2026-05-18` `79d26fc5f` BLS12381 PoP aggregation Haddock example to doctest
+- `2026-05-18` `2b4fac85e` Merge pull request #657 from dancewithheart/BLS12381_doctest
+- `2026-05-19` `6ed7596ec` Strengthen `Eq` constraint on `CertVRF` in `VRFAlgorithm` to `Ord`
+- `2026-05-20` `9a1859256` Merge pull request #658 from IntersectMBO/nm/certvrf-ord
+- `2026-05-21` `85ee04db8` Add `Cardano.Base.Typeable` with type `TypeName`.
+- `2026-05-21` `70b1f6fd5` Merge pull request #660 from IntersectMBO/aniketd/typename
+- `2026-05-21` `4f63eeeb5` remove `mu2` from PoP, following IETF draft
+- `2026-05-21` `5aa1cf4a6` simplify `createPoP` with less FFI calls
+- `2026-05-21` `49da3f233` simplify `verifyPoP` with less FFI calls
+- `2026-05-21` `91032d980` add to changelog
+- `2026-05-21` `d856ff009` Merge pull request #629 from IntersectMBO/perturbing/leios-ietf-pop-fix
+- `2026-05-21` `58c3c3fc2` Bump contra-tracer to 0.2.1
+- `2026-05-21` `d6e5c68bb` Merge pull request #659 from IntersectMBO/f-f/prepare-11.1
+- `2026-05-22` `16049101e` Bump changelogs for recently released packages
+- `2026-05-22` `096124a9d` Merge pull request #661 from IntersectMBO/erikd/changelogs
+- `2026-05-25` `988eecc25` Generalize type signature for withNumTests
+- `2026-05-25` `ec3c1da54` Merge pull request #662 from IntersectMBO/erikd/withNumTests
+- `2026-05-25` `4e43b0dc9` Bump cardano-crypto-praos to 2.2.3
+- `2026-05-25` `4762ba480` Merge pull request #663 from IntersectMBO/f-f/bump-crypto-praos
+- `2026-05-28` `164360711` Bump versions changelogs
+- `2026-05-28` `81ebb64b8` Merge pull request #664 from IntersectMBO/erikd/base-changelog
+- `2026-05-30` `a682a2e62` vendor: copy ed25519-donna C sources from cardano-crypto
+- `2026-05-30` `b2fe69b33` refactor: add encrypted_sign.c and switch ed25519-hash.h to libsodium
+- `2026-05-30` `07bd2eb5a` feat: add cardano-crypto-wallet package
+- `2026-05-30` `182829242` test: add tests and benchmarks for cardano-crypto-wallet
+- `2026-05-30` `23cc56d28` refactor: use ScrubbedBytes for plaintext key material buffers
+- `2026-05-30` `2ebec0f77` fix: address cryptographer review of encrypted_sign.c and FFI bindings
+- `2026-05-30` `3a238c7ee` refactor: use MLockedSizedBytes for secret key material
+- `2026-05-30` `3794c732d` Fix fourmolu formatting in Encrypted.hs
+- `2026-05-30` `3c70e8784` Address lehins review feedback on cardano-crypto-wallet
+- `2026-05-30` `cb068e064` Merge pull request #653 from IntersectMBO/wallet-cbits
+- `2026-06-04` `cc5f867fa` cardano-crypto-wallet: rename ed25519 C symbols from cardano_crypto_ to ccw_
+- `2026-06-04` `f8bed5e03` Merge pull request #666 from IntersectMBO/rename-conflicting-symbols
+- `2026-06-04` `124c79b86` Re-export `byteArrayFromShortByteString`, `byteArrayToShortByteString`.
+- `2026-06-04` `6ecde68af` Add `byteArrayFromByteString`
+- `2026-06-04` `73339f461` Add `psbToByteArray`
+- `2026-06-04` `31402fc00` Add `psbFromByteStringM`
+- `2026-06-17` `b3f5760f3` Merge pull request #668 from IntersectMBO/lehins/byte-functionality-orginization
+- `2026-06-20` `a7913628f` Bump actions/checkout from 6 to 7 in the actions group
+- `2026-06-20` `cf3040276` Merge pull request #672 from IntersectMBO/dependabot/github_actions/actions-640176b5ab
+- `2026-06-27` `4d356dcf7` Bump actions/cache from 5 to 6 in the actions group
+- `2026-06-27` `445980570` Merge pull request #674 from IntersectMBO/dependabot/github_actions/actions-6d1c06d137
+- `2026-06-29` `67ce16ea4` Scaffold an initial cardano-crypto-leios package
+- `2026-06-29` `75ea6ce53` Not include slot/eb hash in leios certificate
+- `2026-06-29` `d69874c1b` Add cardano-crypto-leios test suite
+- `2026-06-29` `0268dc396` Add functions to aggregateLeiosCert and verifyLeiosCert
+- `2026-06-29` `2f75a46d1` Add more properties and range over commitee size
+- `2026-06-29` `10c5b3068` Refactor BitField in LeiosCert
+- `2026-06-29` `52a8925bc` Drop explicit export list
+- `2026-06-29` `7c9e07544` Avoid head and name shadowing in tests
+- `2026-06-29` `2a2a82daa` Pin golden test files to LF on Windows checkout
+- `2026-06-29` `5555fc18c` Expose generators in cardano-crypto-leios:testlib
+- `2026-06-29` `de0abab27` Add genLeiosSignature, leiosSignatureSize and leiosSignatureToBytes
+- `2026-06-29` `6b4c275b2` Add a generateWith helper
+- `2026-06-29` `f1c5c074c` Use qualified import of foldl' from Data.Foldable
+- `2026-06-29` `13b7c7fa2` Switch cardano-crypto-leios tests to quickcheck
+- `2026-06-29` `87643a3a7` Address review comments on Leios crypto
+- `2026-06-29` `4234a79ca` Build BitField via mutable ByteArray ops
+- `2026-06-29` `74bcc360c` Accept indefinite-length encoding in decodeLeiosCert
+- `2026-06-29` `5d45fdc27` Add explicit export list to Cardano.Crypto.Leios
+- `2026-06-29` `e9bedb92f` Inline Map.keys/elems and type-annotate fromIntegral
+- `2026-06-29` `8c2e49333` Move more voterId functions from consensus
+- `2026-06-29` `e270a3cbf` Restructure tests
+- `2026-06-29` `4f8cf77b5` Refactor and move bitfield creation / access back in
+- `2026-06-29` `47a5eeffd` Use 1000 voters in the example LeiosCert
+- `2026-06-29` `815a7fa5e` Run fourmolu
+- `2026-06-29` `b24b56196` Address reviewer requests
+- `2026-06-29` `f7b17efed` Only report received weight on InsufficientWeight
+- `2026-06-29` `b674e7dc4` Rename to Leios{Committee,VoterId}
+- `2026-06-29` `feba49c56` Prevent Word16 overflow using a partial function
+- `2026-06-29` `0fea26350` Merge pull request #670 from IntersectMBO/ch1bo/cardano-crypto-leios
+- `2026-06-29` `8034a2089` Rename `committeeVoters` and switch to `newtype` deriving:
+- `2026-06-29` `26440b5f6` Add stack trace to `getLeiosVoterId` that can fail
+- `2026-06-29` `ba3dc028b` Rename fields in `LeiosCert`
+- `2026-06-29` `f134c9eba` Rename `leiosVoterIndex` for consistency
+- `2026-06-29` `4d9329f06` Fix changelog of cardano-crypto-leios
+- `2026-06-29` `fea246668` Add a lower bound to cardano-base
+- `2026-06-29` `60827efde` Merge pull request #675 from IntersectMBO/lehins/fixup-leios-naming
+- `2026-06-29` `6e36af67c` NFData instance for DecoderError
+- `2026-06-29` `af268800f` Update cardano-binary/CHANGELOG.md
+- `2026-06-29` `490b0d7af` Merge pull request #673 from dancewithheart/NFData_DecoderError
+- `2026-07-07` `152128ad2` Remove dead code
+- `2026-07-08` `b3511c59f` Merge pull request #678 from IntersectMBO/jj/remove-dead-code
+- `2026-07-08` `7688729d1` Revert unnecessary formatting from 815a7fa
+- `2026-07-08` `79cb29a7f` Revert "cardano-crypto-wallet: rename ed25519 C symbols from cardano_crypto_ to ccw_"
+- `2026-07-08` `45a46542a` Add the odd `output` file to gitignore
+- `2026-07-08` `7459f727d` Introduce `SecretKey`
+- `2026-07-08` `6c0933261` Make `PublicKey` into a `newtype`
+- `2026-07-08` `392c2a04e` Introduce `withDecryptedKeyMaterial`
+- `2026-07-08` `6dc709129` Introduce proper scoping in `withEncryptedKeyOutput`
+- `2026-07-08` `adc5ece65` Introduce `Validity` parameter to `KeyMaterial`
+- `2026-07-08` `bc1b32e20` Improve `EncryptedKey` type safety
+- `2026-07-08` `6565246bc` Make `ChainCode` into a `newtype`
+- `2026-07-08` `77d0c58a3` Improve scoping of `decryptKeyMaterialV2`
+- `2026-07-08` `27e9063ba` Rename "Encrypted" -> "Secret/Unencrypted"
+- `2026-07-08` `a0d1a4092` Simplify validation of `KeyMaterial`
+- `2026-07-08` `3bea78f40` Introduce `KeyMaterialBuffer`
+- `2026-07-08` `22b5ba178` Avoid unnecessarily allocating `CKeyMaterialBuffer`
+- `2026-07-08` `dd31cdeab` Remove confusing `encrypted_` suffix
+- `2026-07-08` `ad619c4c5` Remove redundant `legacyKeySize`
+- `2026-07-08` `d70db860e` More type safety for `Nonce` and `Salt`
+- `2026-07-08` `fc3a903af` More type safety for `Tag`
+- `2026-07-08` `3c6ba123d` Rename `plaintext` to `secret_key`, `Ciphertext` to `EncSecretKey`
+- `2026-07-08` `126de303a` Remove another redundant argument to decrypt C function
+- `2026-07-08` `d8faeb7b4` Introduce `WrappingKey` and remove redundant parameters
+- `2026-07-08` `33c6a51e3` Rename `Envelope` and other minor cleanup
+- `2026-07-08` `212b005f8` Expose safe parts of the `Envelope`
+- `2026-07-08` `3c6e27f99` Consistent and unique naming for C functions and FFI
+- `2026-07-08` `bceaa5cca` Switch to using consistent `CCW` definition everywhere
+- `2026-07-08` `cb684e20f` Ensure more bytes than necessary is not copied over.
+- `2026-07-08` `5679a2407` Stop writing zeros into memory that is guaranteed to be overwritten
+- `2026-07-08` `2ced64516` Ensure sizes match up
+- `2026-07-08` `654d17416` Add lower bound on libsodium due to argon2id
+- `2026-07-08` `79c79e345` Reduce duplication in the test suite
+- `2026-07-08` `f718a53cd` Remove duplicate data from the `Envelope`
+- `2026-07-08` `2b2ea649d` Expose `decodeEncryptedKey`
+- `2026-07-08` `c4ccdded6` Introduce a roundtrip test for the test `Envelope`
+- `2026-07-08` `b6764e32d` Securely clear out private memory after it is used
+- `2026-07-08` `7b680545a` Remove unused `public_key` struct
+- `2026-07-08` `dac611788` Add a comment to `key_material`
+- `2026-07-08` `e1d7397e3` Merge pull request #667 from IntersectMBO/lehins/fix-cardano-crypto-wallet
+- `2026-07-08` `f2f7bc2d1` Lift VRF sizes to type level
+- `2026-07-08` `c4a26b0ce` Add FixedSizeCodec
+- `2026-07-08` `14603d310` Add FixedSizeCodec instances and route CBOR through it
+- `2026-07-08` `7b0381a85` Deprecate some methods
+- `2026-07-08` `9a3f26b6b` Fix Praos decoders
+- `2026-07-08` `7fe6c37df` Update golden tests
+- `2026-07-08` `a6bcdaffe` Bump lower bounds
+- `2026-07-08` `1eca75f34` Merge pull request #665 from IntersectMBO/jj/fixedsizebytes
+- `2026-07-09` `24fd15a47` Bump CHANGELOG.md files per RELEASING.md
+- `2026-07-09` `3548c5af7` Merge pull request #677 from IntersectMBO/bump-changelogs
+- `2026-07-09` `889c24840` Bump lower bound for cardano-crypto-class in cardano-crypto-praos
+- `2026-07-09` `720c7b6d0` Merge pull request #683 from IntersectMBO/jj/bump-cardano-crypto-praos-bound
+- `2026-07-09` `033d8ccdc` Fix bounds for cardano-crypto-class
+- `2026-07-09` `26c57966e` Fix cardano-crypto-class version and bounds. Fixup changelog
+- `2026-07-09` `060819b59` Merge pull request #684 from IntersectMBO/lehins/fix-bounds
+
+### `cardano-ledger` (809 commits)
+
+- `2026-03-05` `d7e960e4c` Remove default implementation for the DecCBOR class
+- `2026-03-06` `47eda03df` Bump markdown from 3.7 to 3.8.1 in /doc
+- `2026-03-06` `ec6261aed` Merge pull request #5615 from IntersectMBO/dependabot/pip/doc/markdown-3.8.1
+- `2026-03-06` `b73c4f9ac` Introduce gov/proposals/v0 namespace
+- `2026-03-06` `8e18f1607` Merge pull request #5612 from IntersectMBO/qnikst/canonical/gov/proposals/v0
+- `2026-03-09` `6e0ccb4a2` Use IPv4 and IPv6 newtypes from cardano-base instead of iproute
+- `2026-03-10` `22c8d6ca9` Merge pull request #5611 from IntersectMBO/f-f/new-ip-types
+- `2026-03-11` `fb0f9bbbd` Bump cardano-ledger-alonzo-test package version
+- `2026-03-11` `b5d3b4b16` Merge pull request #5624 from IntersectMBO/td/bump-cardano-ledger-alonzo-test
+- `2026-03-12` `a2c0289b3` Update CHANGELOG files post-ledger release for 10.7
+- `2026-03-12` `f6b1ce89a` Update dependencies to account for new versions of binary, core, conway
+- `2026-03-12` `6160d0463` Merge pull request #5622 from IntersectMBO/td/post-release-changes
+- `2026-03-12` `acbee53e1` Run `Alonzo.missingRequiredDatums` check in SUBUTXOW
+- `2026-03-12` `5bea67645` Run `Shelley.validateVerifiedWits` check in SUBUTXOW
+- `2026-03-12` `b0a75f803` Allow `validateFailedBabbageScripts` for any level
+- `2026-03-12` `d5e10df20` Run `Babbage.validateFailedBabbageScripts` check in SUBUTXOW
+- `2026-03-12` `69e85bdde` Run `Shelley.validateNeededWitnesses` in SUBUTXOW
+- `2026-03-12` `3ea7a437f` Run `Shelley.validateMetadata` in SUBUTXOW
+- `2026-03-12` `9795ba6e9` Run `Alonzo.checkScriptIntegrityHash` in SUBUTXOW
+- `2026-03-12` `5a9d69baa` Run `Alonzo.hasExactSetOfRedeemers` in SUBUTXOW
+- `2026-03-12` `f1be403e1` Extract helper to validate script well-formedness from outputs
+- `2026-03-12` `37648ef58` Run `Babbage.validateScriptsWellFormedTxOuts` in SUBUTXOW
+- `2026-03-12` `ed2513676` Temporarily disable Imp tests involving subtransactions
+- `2026-03-12` `e4fac0dff` Remove redundant SUBUTXOW predicate failures
+- `2026-03-12` `dd44b9c00` Pass aggregated `scriptsProvided` through SUBUTXOW environment
+- `2026-03-12` `ed5017c88` Merge pull request #5608 from IntersectMBO/td/implement-subutxow
+- `2026-03-13` `7402a84bb` Add antigen tests
+- `2026-03-13` `a991245d6` Removed antigen SRP, tests pass
+- `2026-03-13` `66d5145eb` Disable cost_models antispec
+- `2026-03-13` `62f5e4529` Rebase
+- `2026-03-13` `9cac9c893` Review
+- `2026-03-13` `db05a81c9` Changelog
+- `2026-03-13` `9d8613f5f` Review comments
+- `2026-03-13` `355f5b254` Mark failing tests pending
+- `2026-03-13` `3c163c39a` Disable shelley tests
+- `2026-03-13` `3007b5d0a` Revert flake.lock
+- `2026-03-13` `ef36a111e` Update cardano-cls SRP
+- `2026-03-13` `2f5b8daab` Disable transaction_body zapping test in Conway
+- `2026-03-13` `59238f310` bump
+- `2026-03-13` `cb57dc730` Merge pull request #5568 from IntersectMBO/jj/antigen
+- `2026-03-16` `2befbb9a5` Remove redundant `OutputTooSmallUTxO` pred failure from dijkstra UTXO
+- `2026-03-16` `da4fc0521` Remove redundant `SubOutputTooSmallUTxO` predicate failure
+- `2026-03-16` `36b96f6e4` Merge pull request #5627 from IntersectMBO/td/remove-redundant-utxo-pred-failure
+- `2026-03-16` `b87c7cdcf` Implement custom `ToExpr` instance for `Mismatch` datatype.
+- `2026-03-16` `5661d1f03` Merge pull request #5628 from IntersectMBO/koslambrou/improve-treediff-for-mismatch
+- `2026-03-17` `ad27fc048` Update formal-ledger-spec and enable Utxos conformance tests (#5620)
+- `2026-03-17` `58eb1a078` Remove default implementation of `fromPlutusData` in `ToPlutusData` typeclass.
+- `2026-03-17` `789cb27e9` Merge pull request #5629 from IntersectMBO/koslambrou/5161-remove-default-implementation-from-fromplutusdata
+- `2026-03-18` `7b9feb380` Add `PlutusV4` to `AlonzoScript` decoder
+- `2026-03-18` `aca3646d6` Enable `script` roundtrip tests for Dijkstra
+- `2026-03-18` `133c3dc91` Enable `auxiliary_data` roundtrip tests for Dijkstra
+- `2026-03-18` `b1a015328` Merge pull request #5645 from IntersectMBO/ldan/plutusv4-alonzoscript-decoder
+- `2026-03-19` `329677a7c` Ensure compact addresses match their normalized addresses
+- `2026-03-19` `0623244a3` Make DecShareCBOR BabbageTxOut lenient and decCBOR = decNoShareCBOR for UTxO
+- `2026-03-19` `49369624b` Merge pull request #5654 from IntersectMBO/nm/fix-utxo-query
+- `2026-03-20` `14c326751` Change `B` constructor of `Metadatum` from `ByteString` to `ByteArray`.
+- `2026-03-20` `82a4485f4` Merge pull request #5647 from IntersectMBO/koslambrou/5640-use-bytearray-in-metadata
+- `2026-03-20` `7c24652bd` Add `cabal-gild` and `shellcheck` as part of the pre-commit hook in our Nix devShell.
+- `2026-03-21` `9302c044a` Merge pull request #5653 from IntersectMBO/koslambrou/add-cabal-gild-pre-commit-hook-nix
+- `2026-03-21` `a6a5426f5` Changelog for `cardano-node-10.7`
+- `2026-03-21` `cfb887b68` Merge pull request #5648 from IntersectMBO/lehins/changelog-10.7
+- `2026-03-21` `a4ae5aeea` Add ToJSON/FromJSON instances for `NonEmptyMap` and `NonEmptySet`
+- `2026-03-21` `36ca5dca2` Merge pull request #5655 from IntersectMBO/5650-nonemptymapset-need-tofromjson
+- `2026-03-23` `ce7c4936c` Remove distinct_bytes
+- `2026-03-23` `1897e6a52` Update spec for script_n_of_k
+- `2026-03-23` `8655b0d22` Update ipv4 and ipv6 pre-Conway
+- `2026-03-23` `aef92f63b` Mark failing tests as pending
+- `2026-03-23` `af1ab623f` Update comment on unit_interval
+- `2026-03-23` `2c139943b` Add bounds to ipv4 and ipv6 pre-Conway
+- `2026-03-23` `b566f3593` Add custom generator for plutus scripts to avoid set collisions
+- `2026-03-23` `386854beb` Enable and disable tests
+- `2026-03-23` `d20b44d33` Enable Dijkstra CDDL tests and add plutusScriptGen to plutus_v4_script
+- `2026-03-23` `7c3a0edfb` Fourmolize
+- `2026-03-23` `b71e324c4` Make plutusScriptGen generate scripts of varying sizes
+- `2026-03-24` `50821847e` Deprecate BHeaderView in favour of EraBlockHeader.
+- `2026-03-24` `3c35f1dd1` Refactor ShelleyBBODY to use EraBlockHeader.
+- `2026-03-24` `395a1ed71` Refactor AlonzoBBODY to use EraBlockHeader.
+- `2026-03-24` `22ecad533` Refactor ConwayBBODY to use EraBlockHeader.
+- `2026-03-24` `6fb85adba` Refactor DijkstraBBODY, use DijkstraEraBlockHeader.
+- `2026-03-24` `35db56c36` Instantiate EraBlockHeader for TPraos.BHeader
+- `2026-03-24` `0320e326a` EraBlockHeader: fix shelley-test and ledger-test
+- `2026-03-24` `a3f7b1398` Merge pull request #5560 from IntersectMBO/aniketd/blockheader
+- `2026-03-24` `9547f8272` Optimize String length check in metadata and other places
+- `2026-03-24` `71250dcce` Merge pull request #5658 from IntersectMBO/f-f/5637
+- `2026-03-25` `9002c932a` Provide `cardano-ledger-release-tool` using its flake
+- `2026-03-25` `d444d1550` Use cleret instead of standalone scripts
+- `2026-03-25` `54bf7e755` Create a reusable `install-binary` GitHub local action
+- `2026-03-25` `78cb3f292` Merge pull request #5657 from IntersectMBO/nm/migrate-scripts-to-clrt
+- `2026-03-26` `de2b0ea48` Add ghc 9.14 to the test matrix in GitHub CI
+- `2026-03-26` `dcd8d0960` Update the haskellNix flake input
+- `2026-03-26` `9a47dccad` Enable ghc 9.14 to be used from a nix development shell
+- `2026-03-26` `f76141109` Increase the top of the nix ghc variant range to 9.14.1
+- `2026-03-26` `e9d4b835c` Disable doctests for ghc 9.14.1
+- `2026-03-26` `6885d868b` Merge pull request #5599 from IntersectMBO/nm/nix-ghc-9.14
+- `2026-03-26` `eaec4d5ca` Bump requests from 2.32.4 to 2.33.0 in /doc
+- `2026-03-26` `183a144a4` Merge pull request #5677 from IntersectMBO/dependabot/pip/doc/requests-2.33.0
+- `2026-03-26` `8e93ae9ea` Translate all transaction building examples in our test files to use the typeclasses defined in Cardano.Ledger.Core (`EraTx`, `EraTxBody`, etc.)
+- `2026-03-27` `75039c7bf` Merge pull request #5656 from IntersectMBO/koslambrou/update-test-examples-lens
+- `2026-03-27` `c175b1b31` Add (Shelley)EraForecast for (T)Praos.
+- `2026-03-27` `9cd04ebb7` ShelleyEraForecast for Allegra, Mary, Alonzo
+- `2026-03-27` `b6f777aec` EraForecast for Praos (Babbage+).
+- `2026-03-27` `981f36a64` EraForecast for Conway, Dijkstra.
+- `2026-03-27` `408a1f5aa` Deprecate LedgerView, GetLedgerView, et. al..
+- `2026-03-27` `1be94b8ec` Update test-suites and downstream version bounds
+- `2026-03-27` `5a5fbe270` Merge pull request #5632 from IntersectMBO/aniketd/forecast-api
+- `2026-03-27` `7a0b9ac56` Add Github CI check for making sure `nixfmt` has formatted the .nix files
+- `2026-03-27` `0ea5387e9` Apply nixfmt on all Nix files
+- `2026-03-27` `7062dee06` Merge pull request #5675 from IntersectMBO/koslambrou/github-ci-nixpkgs-fmt
+- `2026-03-27` `e4ef1e368` Remove `NoThunks` instances for predicate failures and `ContextError` types
+- `2026-03-27` `7132ea414` Merge pull request #5671 from IntersectMBO/5643-remove-nothunks-instance-for-predicate-failures
+- `2026-03-29` `00219b05e` Add test to trigger conformance failure
+- `2026-03-29` `b8deda754` Merge pull request #5609 from IntersectMBO/carlos/conf-failure-prot-ver-hf
+- `2026-03-29` `13627aba7` Implement TxInfo construction that depends on ScriptPurpose
+- `2026-03-29` `5c48bc7b6` Make TxInfo compatible with multiple levels
+- `2026-03-29` `220f462d1` Simplify PlutusPurpose translation
+- `2026-03-29` `bb3f20e20` Fixup formatting and add changelogs
+- `2026-03-29` `4dabf96d7` Add a imp test case for `SubTxIsNotSupported`
+- `2026-03-29` `31fd2eedd` Add `TxId` to `SubTxIsNotSupported`
+- `2026-03-29` `3511f6206` Make `PlutusTxInfoResult` failable on `PlutusPurpose`
+- `2026-03-29` `c9ab036dd` Add `checkReferenceInputsNotDisjointFromInput`
+- `2026-03-29` `d47cb5ee4` Add `checkPointerPresentInOutput`
+- `2026-03-29` `233f8bf20` Merge pull request #5635 from IntersectMBO/lehins/script-purpose-aware-memoized-txinfo
+- `2026-03-30` `de1781fc8` Add `CHANGELOG` and `cabal` file updater skill
+- `2026-03-30` `bb202afa1` Add `Stop` hook and set the model with effort
+- `2026-03-30` `1eba5c41b` Refine wording
+- `2026-03-30` `e06ffdfd8` Emphasise that `CHANGELOG` updates are prepended
+- `2026-03-30` `fff2cdd21` Merge pull request #5670 from IntersectMBO/ldan/update-changelogs-skill
+- `2026-03-30` `b62c01e21` Bump pygments from 2.19.1 to 2.20.0 in /doc
+- `2026-03-31` `620aea3ae` Merge pull request #5691 from IntersectMBO/dependabot/pip/doc/pygments-2.20.0
+- `2026-04-01` `3060322af` Fix Proposal generation to generate HardForkInitiation with bounded major version
+- `2026-04-01` `090630056` Merge pull request #5667 from IntersectMBO/f-f/fix-gov-rule-hang
+- `2026-04-02` `c9bc50a2c` Move treasury donation update from UTXOS to UTXO rule
+- `2026-04-02` `ee0ca9020` Change UTXOS State to () and move UTxO to environment
+- `2026-04-02` `7c1b29234` Merge pull request #5676 from IntersectMBO/td/remove-state-update-from-utxos
+- `2026-04-02` `8ea03d13a` Avoid unnecessary computation of PlutusWithContext
+- `2026-04-02` `959800740` Merge pull request #5641 from IntersectMBO/lehins/remove-redundant-computation-on-static-validation
+- `2026-04-02` `eaa13a1b0` Make `ContextError` constructors from Alonzo to Dijkstra era lazy
+- `2026-04-02` `9e5f069de` Merge pull request #5672 from IntersectMBO/5644-contexterrors-for-should-be-lazy
+- `2026-04-02` `0fa68fd15` Pass original utxo and validity flag from LEDGER to SUBUTXO
+- `2026-04-02` `39cf30c47` Run `Allegra.validateOutsideValidityIntervalUTxO` in SUBUTXO
+- `2026-04-02` `d2877b213` Run Alonzo-era checks in SUBUTXO
+- `2026-04-02` `5349bda2d` Run Shelley-era checks in SUBUTXO
+- `2026-04-02` `0d28fd8a6` Run `Babbage.validateOutputTooSmallUTxO` in SUBUTXO
+- `2026-04-02` `e7563fff2` Run `validateWrongNetwork` checks in SUBUTXO
+- `2026-04-02` `4013e6e07` Implement version of `updateUtxoState` without fee update
+- `2026-04-02` `a4eec7c4b` Update utxo state in SUBUTXO
+- `2026-04-02` `2760711d6` Validate network in direct deposits in UTXO and SUBUTXO
+- `2026-04-02` `2df4b9d50` Merge pull request #5614 from IntersectMBO/td/implement-subutxo
+- `2026-04-03` `b2a1b9bf8` Use original utxo in SUBUTXOW checks
+- `2026-04-03` `6835f48d8` Merge pull request #5668 from IntersectMBO/td/subutxow-fixes
+- `2026-04-03` `00282a35c` Update contribution policy to note how contributions should be vetted
+- `2026-04-03` `c3dcc9e94` Merge pull request #5702 from IntersectMBO/f-f/update-contribution-policy
+- `2026-04-06` `5ee175ad8` Remove 5 redundant NativeScript era ~ Timelock era constraints (#5319)
+- `2026-04-06` `fa447bd1b`   Remove unused Timelock import in AlonzoEraGen
+- `2026-04-06` `98a5487d5` Merge pull request #5697 from MavenRain/oobi/remove-redundant-nativescript-timelock-constraints
+- `2026-04-06` `d7bfa7a57` Update fls
+- `2026-04-06` `0ba916b20` Re-enable disabled tests
+- `2026-04-06` `10f240c28` Merge pull request #5695 from IntersectMBO/carlos/conformance-failure-utxos-1
+- `2026-04-06` `8d77626a5` Add a CI workflow for checking nix hashes
+- `2026-04-06` `f2739df0f` Use the latest version of `cleret` in CI and the nix shell
+- `2026-04-06` `21dafdb19` Add a dependabot configuration for the github-actions ecosystem
+- `2026-04-06` `467218a93` Merge pull request #5703 from IntersectMBO/nm/check-nix-hashes
+- `2026-04-06` `561858742` Bump the actions group with 3 updates
+- `2026-04-06` `0643f8911` Merge pull request #5708 from IntersectMBO/dependabot/github_actions/actions-cb5ad4958b
+- `2026-04-06` `b730bd8cc` Update slack-github-action configuration for v2 onward
+- `2026-04-07` `3cf1e11ee` Merge pull request #5709 from IntersectMBO/nm/slack-github-action-config
+- `2026-04-07` `56930fe58` Fix chain_code CDDL
+- `2026-04-07` `a510bf1c0` Enforce metadatum size limits in the decoder
+- `2026-04-07` `caf07bc8f` Regenerate CDDL
+- `2026-04-07` `0322bf598` Remove redundant metadatum size checks from ledger rules
+- `2026-04-07` `96e973932` Add property tests for metadatum size limits in the decoder
+- `2026-04-07` `ba5d87077` Fourmolize
+- `2026-04-07` `7b968c91d` Add property tests for metadatum size limits in the decoder
+- `2026-04-07` `959401804` Fix compilation errors
+- `2026-04-07` `2ec3c6773` Review comments
+- `2026-04-07` `c5ccd45ab` Remove sizes from Shelley metadatum CDDL
+- `2026-04-07` `ccb41aafb` Update changelog, address review comments
+- `2026-04-07` `79e95b263` Merge pull request #5665 from IntersectMBO/jj/decoder-fixes
+- `2026-04-07` `bcb803845` Refactor GovCommittee to reflect committee state from GovState
+- `2026-04-07` `d7fd2f992` Fix formatting
+- `2026-04-07` `cdc471511` Add EntitiesCommittee namespace and related types and tests for Conway era
+- `2026-04-07` `31eecfc87` Update GovCommitteeOut to use StrictMaybe for CanonicalCommittee
+- `2026-04-07` `bc181c396` Merge pull request #5681 from tweag/joaosreis/canonical-committee
+- `2026-04-07` `f272b172f` Fix missed version bump for allegra package
+- `2026-04-07` `88cff5889` Merge pull request #5712 from IntersectMBO/td/fix-allegra-package-version
+- `2026-04-07` `f49ce6d94` Add reproducer for `db-sync` `simpleRewards` test
+- `2026-04-07` `774904d04` Convert `TwoPools` test to an `ImpTest`
+- `2026-04-07` `49ff0124b` Remove legacy `TwoPools` `CHAIN` example test
+- `2026-04-07` `10659fdc6` Update `CHANGELOG` and `.cabal` files
+- `2026-04-07` `c96ceb097` Merge pull request #5529 from IntersectMBO/ldan/shelley-rewcalc-investigation
+- `2026-04-08` `b563fc0e7` Stop running `bump-changelogs` on release branches
+- `2026-04-08` `a41e2768b` Merge pull request #5713 from IntersectMBO/ldan/no-bump-checks-on-release
+- `2026-04-08` `f94e0f45e` Refactor transaction and transaction body of examples in Test.Cardano.Ledger.<era>.Examples.hs.
+- `2026-04-08` `4352f11b7` Merge pull request #5666 from IntersectMBO/koslambrou/refactor-test-tx-examples
+- `2026-04-09` `cd09c4939` claude: improve changelog update skill
+- `2026-04-09` `117855cef` Merge pull request #5717 from IntersectMBO/aniketd/claude-changelog-skill
+- `2026-04-09` `9ee2e8913` cabal.project: Update index-states
+- `2026-04-09` `10abc4c45` Update microlens dependency
+- `2026-04-10` `2dca0bc87` Version bumps on byron-spec-chain and byron-spec-ledger
+- `2026-04-10` `c5eee4ded` Run scripts/gen-plutus.sh
+- `2026-04-10` `7ba7279db` Nix updates
+- `2026-04-10` `c8cbb661d` Merge pull request #5710 from IntersectMBO/erikd/prelude-microlens
+- `2026-04-10` `7e476a76b` Revert decoders
+- `2026-04-12` `4e3fa1729` Merge pull request #5725 from IntersectMBO/jj/remove-wits-coders
+- `2026-04-13` `4f9f8bce4` Move applyTick into its own ApplyTick typeclass.
+- `2026-04-13` `c39cf8d48` Merge pull request #5716 from IntersectMBO/aniketd/applytick
+- `2026-04-13` `dfe5f3cfd` Bump cuddle to 1.3.0.0
+- `2026-04-13` `f4229f016` Improve zap test failure messages
+- `2026-04-13` `db4b77b38` Added some bounds to CDDL
+- `2026-04-13` `4e65d0bee` Bump to 1.5.0.0
+- `2026-04-13` `35af664f8` Rename MonoGenEnv to HuddleEnv
+- `2026-04-13` `b798943fc` Merge pull request #5715 from IntersectMBO/jj/cuddle-bump
+- `2026-04-13` `06032e921` Add protocol version validation to `createInitialState`
+- `2026-04-14` `66df9c4aa` Merge pull request #5719 from IntersectMBO/5679-prevent-incorrect-protocol-version-in-era-transition
+- `2026-04-14` `daa9d950e` Update ghc-9.12.0 to ghc-9.12.4 on CI and Nix
+- `2026-04-14` `6bbca48b7` Merge pull request #5726 from IntersectMBO/5701-update-ghc-912-on-ci-and-nix-to-ghc-9124
+- `2026-04-14` `ecff945af` Avoid unnecessary unpacking by using lazy let
+- `2026-04-14` `7b67517b2` Switch `StrictMaybe` to `Maybe` in `ConwayAccounState`
+- `2026-04-14` `02b78f836` Switch lenses to not use the pattern synonym
+- `2026-04-14` `073adff5a` Inline `ConwayAccountState` lenses and pattern synonym
+- `2026-04-14` `6f4436b4e` Update version and changelog
+- `2026-04-14` `0cfbf861c` Merge pull request #5729 from IntersectMBO/lehins/fix-conway-account-state-overhead
+- `2026-04-14` `87e7f16ae` Fix nix build failure in `plutus-preprocessor`
+- `2026-04-15` `f51f4e43d` Merge pull request #5741 from IntersectMBO/nm/plutus-preprocessor-nix-build-failure
+- `2026-04-15` `166db754c` Update index-state and flake.lock
+- `2026-04-15` `d1948f106` Generate plutus examples due to new Plutus-1.61 release
+- `2026-04-15` `d41506b42` Compatibility with `cardano-ledger-binary-1.9`
+- `2026-04-15` `52ef3d5bf` Switch to `VS` in `ActiveStake` and add `Storable` instances for:
+- `2026-04-15` `7f6de3f26` Bump up cardano-ledger-core version to reflect backport
+- `2026-04-15` `08d9fbadf` Disable BodyRefScriptsSizeTooBig tests for now
+- `2026-04-15` `a05b7f06d` Merge pull request #5727 from IntersectMBO/lehins/add-storable-instances
+- `2026-04-16` `fe0af515b` Run tests for ghc 9.6.7 only
+- `2026-04-16` `a2298b5ae` Merge pull request #5750 from IntersectMBO/nm/reduce-ci-test-matrix
+- `2026-04-16` `70d182e22` Cap ref inputs per tx in `BbodySpec` to avoid `MaxTxSizeUTxO` failures
+- `2026-04-16` `8ac7ee8e1` Re-enable `BodyRefScriptsSizeTooBig` tests
+- `2026-04-16` `30c9a6e0a` Merge pull request #5749 from IntersectMBO/td/fix-and-reenable-bbodyspec
+- `2026-04-16` `3a65b7768` Implement top-level UTXOW rule with subtransactions
+- `2026-04-16` `c921a6249` Check that all required guards are present in top level guards
+- `2026-04-16` `376d12ab1` Make `getScriptsProvided` recursive in Dijkstra
+- `2026-04-16` `ee1da0734` Check that the `requiredGuards` datums are valid
+- `2026-04-16` `4485fb22e` Merge pull request #5692 from IntersectMBO/td/utxow-with-subtransactions
+- `2026-04-16` `aed9eac2f` Remove unused FromCBOR/ToCBOR instances
+- `2026-04-16` `5de520718` Merge pull request #5684 from IntersectMBO/f-f/remove-unused-from-to-cbor
+- `2026-04-16` `2dcbb23be` Convert `PoolReReg` `CHAINExample` to ImpTest
+- `2026-04-16` `298bbba98` Convert `PoolLifeTime` `CHAINExample` to ImpTest
+- `2026-04-16` `fcbb32c4e` Remove already covered legacy tests
+- `2026-04-16` `d0da66fcc` Merge pull request #5687 from IntersectMBO/ldan/pool-chainexamples-conversion
+- `2026-04-16` `e68ebf663` Add streaming interface to era transition for initial funds injection
+- `2026-04-16` `6145cc03b` Add a test using weigh to verify that injection data is streamed with no leaks
+- `2026-04-16` `839981461` Merge pull request #5572 from IntersectMBO/f-f/streaming-genesis-data1
+- `2026-04-16` `ec280d64d` Expand transaction content in examples in Test.Cardano.Ledger.<era>.Examples
+- `2026-04-16` `99194597a` Merge pull request #5732 from IntersectMBO/5233-expand-contents-of-consensus-examples
+- `2026-04-18` `ab3e850c6` Bump actions/upload-pages-artifact from 4 to 5 in the actions group
+- `2026-04-18` `fb4164955` Merge pull request #5756 from IntersectMBO/dependabot/github_actions/actions-903567a242
+- `2026-04-20` `34728de56` Use `hspec-golden` for Alonzo golden tests
+- `2026-04-20` `218072771` Merge pull request #5753 from IntersectMBO/hspec-golden-test
+- `2026-04-21` `dd72eaa74` Update donations within the core `UTxOState`-updating function
+- `2026-04-21` `8cb5dd69b` Remove redundant `updateTreasuryDonation` function
+- `2026-04-21` `bcd2d8ca0` Revert donations refactoring and update donations in SUBUTXO
+- `2026-04-21` `2a0d4fc4c` Merge pull request #5737 from IntersectMBO/td/refactor-donations-handling
+- `2026-04-22` `d9fe0d44c` Fix DecCBOR instances to reject 'ProtVer' values exceeding the era maximum
+- `2026-04-22` `984a838e3` Merge pull request #5736 from IntersectMBO/f-f/fix-protver-decoder
+- `2026-04-22` `c341230d9` Add genDatumPresent and genNonEmptyAccountBalanceIntervals
+- `2026-04-22` `fe63229d9` Add full*CddlSpec test helpers
+- `2026-04-22` `ca594970b` Rewrite Dijkstra CddlSpec to use full*CddlSpec helpers
+- `2026-04-22` `882a32594` Update CHANGELOGs
+- `2026-04-22` `b5bd21e77` Merge pull request #5755 from IntersectMBO/jj/no-datum
+- `2026-04-24` `6dae90463` Introduce `StAnnTx` type family
+- `2026-04-24` `a48ab19a6` Re-arrange Evaluation to memoize PlutusScriptsUsed
+- `2026-04-24` `48253c8e2` Memoization of TxInfo for subtransactions
+- `2026-04-24` `162408d46` Add nested failure for sub transactions
+- `2026-04-24` `359484470` Add PlutusLegacyMode to DijkstraStAnnTx
+- `2026-04-24` `80e822b5b` Merge pull request #5636 from IntersectMBO/lehins/memoize-transaction-validation
+- `2026-04-24` `b95f6c29e` Move State.Query.CommitteeMembersState.
+- `2026-04-24` `7bbd232e1` Add queryCurrentEpochNo (GetEpochNo)
+- `2026-04-24` `84abd1e69` Add State.Query.Account.
+- `2026-04-24` `d711930dd` Add queryStakePoolRelays for GetLedgerPeerSnapshot.
+- `2026-04-24` `8b5b27afd` Add queryDRepDelegatees (GetFilteredVoteDelegatees)
+- `2026-04-24` `899e49722` Add querySetSnapshotStakePoolDistr (GetPoolDistr2).
+- `2026-04-24` `067617939` Merge pull request #5764 from IntersectMBO/aniketd/reorganise-ledger-state-queries
+- `2026-04-24` `b50addb7e` Drop `x86_64-darwin` from Hydra builds
+- `2026-04-24` `7c129bbc1` Merge pull request #5766 from IntersectMBO/nm/drop-x86-darwin
+- `2026-04-25` `3003aec49` Bump slackapi/slack-github-action in the actions group
+- `2026-04-25` `78a77ffa4` Merge pull request #5768 from IntersectMBO/dependabot/github_actions/actions-b4cd9b14e9
+- `2026-04-25` `b3b4e55e6` Add hspec golden testing facilities for JSON
+- `2026-04-25` `b0ae481d2` Add `FromJSON` instance for `ValidityInterval`
+- `2026-04-25` `e43b037c8` Add `FromJSON` instance for `IsValid`
+- `2026-04-25` `5b92d11c7` Switch to using new golden testing facilities for JSON
+- `2026-04-25` `6b3fa531e` Add hspec golden testing facilities for CBOR
+- `2026-04-25` `a6385cec1` Switch to using new golden testing facilities for CBOR
+- `2026-04-25` `cab5a6d00` Merge pull request #5760 from IntersectMBO/lehins/golden-testing-facilities
+- `2026-04-25` `613a76a2e` Remove `allowLeftOver` flag from `binaryGetDecoder` and simplify IP address decoders
+- `2026-04-25` `6db35d020` Merge pull request #5757 from IntersectMBO/5664-check-if-any-of-the-pre-conway-transactions-contain-padded-ip-addresses
+- `2026-04-25` `0a8ea4385` Add negative tests for Metadatum int decoding range
+- `2026-04-25` `e766811fe` Fixed the metadatum decoding test
+- `2026-04-25` `7ba6cb295` Merge pull request #5731 from IntersectMBO/jj/metadatum-int-tests
+- `2026-04-25` `ac9566ed1` Update cardano-cls repository tag
+- `2026-04-25` `c205030be` Add gov/proposals/roots/v0 namespace
+- `2026-04-25` `9ae77d611` Merge pull request #5747 from tweag/joaosreis/canonical-gov-proposals-roots
+- `2026-04-27` `5d477f33b` Add ToCanonicalCBOR and FromCanonicalCBOR instances for StrictSeq
+- `2026-04-27` `af348494a` Implement ToCanonicalCBOR and FromCanonicalCBOR instances for VRFVerKeyHash, StakePoolRelay, PoolMetadata, and AccountId
+- `2026-04-27` `a4a7195a8` Add entities/stake_pools/v0 namespace and related instances
+- `2026-04-27` `2caf328be` Implement ToCanonicalCBOR and FromCanonicalCBOR instances for AccountAddress
+- `2026-04-27` `892a67f75` Add CanonicalStakePoolParams and related instances
+- `2026-04-27` `20652eea2` Merge pull request #5742 from tweag/joaosreis/canonical-stake-pool
+- `2026-04-27` `4b6c55323` Add custom generator to cost_models
+- `2026-04-27` `406f28b34` Add Cardano.Ledger.Huddle.Gen
+- `2026-04-27` `6fd8ba0aa` Refactor Babbage CddlSpec to use fullCddlSpec/fullAnnCddlSpec and add sub-rule tests
+- `2026-04-27` `8f0277f09` Merge pull request #5765 from IntersectMBO/jj/cost-models-custom-generator
+- `2026-04-27` `aab8b3603` Write test failure details to the CI job summary
+- `2026-04-28` `c9ae180f8` Merge pull request #5594 from IntersectMBO/nm/ci-test-failure-summaries
+- `2026-04-28` `505571180` Fail `V1-V3` transaltion for direct deposits
+- `2026-04-28` `3932408ae` Fail `V1-V3` transaltion for balance intervals
+- `2026-04-28` `a3353bb46` Add code review suggestions
+- `2026-04-28` `7e9899557` Update `CHANGELOG`
+- `2026-04-28` `4f363611c` Merge pull request #5754 from IntersectMBO/ldan/fail-V1V3-translation-dd-bi
+- `2026-04-28` `988988d1d` Remove redundant `Embed` instances
+- `2026-04-28` `9fc6c0fcd` Simplify a whole bunch of constraints in Dijkstra
+- `2026-04-28` `08769aa76` Merge pull request #5770 from IntersectMBO/lehins/fix-dijkstra-embed
+- `2026-04-28` `afd91cb65` Handle single failing suite case in CI test failure summaries
+- `2026-04-29` `adec5b904` Use latest version of cleret
+- `2026-04-29` `aefd50205` Merge pull request #5774 from IntersectMBO/nm/ci-test-failure-summaries
+- `2026-04-29` `9cb9b64f5` Implement top-level UTXO rule with subtransactions
+- `2026-04-29` `e8065f8ab` Use `DijkstraUtxoEnv` as Environment for UTXO
+- `2026-04-29` `a422918ee` Check input existence in original in threaded utxos
+- `2026-04-29` `212452630` Validate value preservation against the original utxo
+- `2026-04-29` `3a4dc412f` Pass original utxo in the environment of UTXOS rule
+- `2026-04-29` `f66d13ad5` Implement `feesOk`-equivalent validation in Dijkstra UTXO
+- `2026-04-29` `287a17af5` Validate ref script sizes for the whole batch instead of just top level
+- `2026-04-29` `f6fea5925` Remove now-redundant `DijkstraSpendingOutputFromSameTx` pred failure
+- `2026-04-29` `006f994d9` Validate total withdrawals per account not exceeding original balance
+- `2026-04-29` `6e1163f03` Specialize `CertsSpec` for dijkstra
+- `2026-04-29` `42d088ed8` Merge pull request #5751 from IntersectMBO/td/utxo-with-subtransactions
+- `2026-05-01` `c3d5ffdad` Remove redudant import
+- `2026-05-01` `110b30e7a` Merge pull request #5787 from IntersectMBO/lehins/remove-redundant-import
+- `2026-05-01` `d7462d86e` Fix an inconsistency in `GOV` rule:
+- `2026-05-01` `146fe56d0` Disable protocol version check in the header for testnets until Dijkstra
+- `2026-05-01` `b90b97488` Merge pull request #5785 from IntersectMBO/lehins/relax-header-protocol-version-for-testnets
+- `2026-05-01` `331c3c495` Add golden tests for queryConstitution.
+- `2026-05-01` `b712b3e8d` Merge pull request #5778 from IntersectMBO/aniketd/stable-types-for-queries
+- `2026-05-01` `8544619b2` Fix CHANGELOG cddl entries for shelley, allegra, mary, alonzo and babbage eras.
+- `2026-05-01` `131fc0f89` Add `Cardano.Ledger.Core.modifyTxAuxData` to apply some function on the `txAuxData` field of a `EraTx`
+- `2026-05-01` `b691ed225` Expand missing transaction content in examples in Test.Cardano.Ledger.<era>.Examples and refactor transaction examples to reduce duplication
+- `2026-05-01` `6bae1dbf9` Merge pull request #5761 from IntersectMBO/koslambrou/expand-tx-examples
+- `2026-05-02` `259852454` Bump slackapi/slack-github-action in the actions group
+- `2026-05-02` `c2e7da0e7` Merge pull request #5790 from IntersectMBO/dependabot/github_actions/actions-14a0636c8a
+- `2026-05-02` `e0f270f70` Add changelog for `cardano-node-11.0`
+- `2026-05-02` `69d5aa32e` Merge pull request #5786 from IntersectMBO/lehins/changelog-cardano-node-11.0
+- `2026-05-02` `0b1cb4244` Add blockBodySize method to EraBlockBody, remove bBodySize
+- `2026-05-02` `d01938224` Generalize genArrayTerm to MonadGen
+- `2026-05-02` `56b6f2484` Refactor DijkstraBlockBody to use MemoBytes serialization
+- `2026-05-02` `3500ad1e2` Add Huddle spec and CDDL for block_body and peras_certificate
+- `2026-05-02` `3b7288925` Add DecCBOR and ToExpr testlib instances for DijkstraBlockBody
+- `2026-05-02` `288ca2dcd` SafeToHash default implementation
+- `2026-05-02` `a71bf3225` Fix numSegComponents
+- `2026-05-02` `7edb18383` Update block Huddle comment
+- `2026-05-02` `8f21bf1c0` Simplify DijkstraBlockBodyRaw decCBOR
+- `2026-05-02` `c3a0e07e8` Make invalid_transactions a nonempty_set
+- `2026-05-02` `74228a64c` Disallow IsValid in BlockBody Txs
+- `2026-05-02` `a8805c42e` Change PerasCert to contain ByteArray
+- `2026-05-02` `666ce77a6` Merge pull request #5733 from IntersectMBO/jj/block-serialization
+- `2026-05-05` `f65f29035` Disable doctest to unblock `master`
+- `2026-05-05` `1fb5e3b4e` Merge pull request #5796 from IntersectMBO/lehins/disable-doctest
+- `2026-05-05` `346044d90` Build `StAnnTx` in `applyTx` and take it in `rule/applyTxValidation`
+- `2026-05-05` `82838af53` Build `StAnnTx` per-tx in LEDGERS and pass it to LEDGER
+- `2026-05-05` `da1799dd3` Change `Tx` Signal of rules across eras to `StAnnTx`
+- `2026-05-05` `affa7bf24` Add some missing instances for `AlonzoStAnnTx` and `AlonzoScriptsNeeded`
+- `2026-05-05` `2e93e410c` Relax signal of `ConstrainedGeneratorBundle` from Specification to Gen
+- `2026-05-05` `356f61ec6` Add Gen-based variant of `stsPropertyV2` helper
+- `2026-05-05` `777cfbacb` Merge pull request #5789 from IntersectMBO/td/integrate-state-annotated-tx
+- `2026-05-05` `c9c767083` Full support of data injection from genesis files using streaming
+- `2026-05-05` `ca9b8c285` Merge pull request #5777 from IntersectMBO/f-f/streaming-transitions-2
+- `2026-05-05` `81f502a27` Change DijkstraTx decoder to support variable length encoding
+- `2026-05-05` `5241e2b6e` Merge pull request #5793 from IntersectMBO/lehins/variable-length-tx-fields
+- `2026-05-06` `943463599` Add negative test for `TopTx` w/ subtransactions
+- `2026-05-06` `7b696af63` Fail `V1-V3` translation for non-empty sub-txs
+- `2026-05-06` `b11efa18d` Add code review suggestions
+- `2026-05-06` `8b606222b` Update `CHANGELOG`
+- `2026-05-07` `5f7ca3c71` Merge pull request #5669 from IntersectMBO/ldan/subtransactions-fail-plutus-translation
+- `2026-05-07` `5ab2fb4c5` Add golden tests for queryCurrentEpochNo
+- `2026-05-07` `f32d89ddb` Add golden tests for queryConstitutionHash
+- `2026-05-07` `0b04b34a5` Add golden tests for queryAccountsDeposits
+- `2026-05-07` `1aa82be00` Add golden tests for querySPOStakeDistr
+- `2026-05-07` `6d4a8c33f` Add golden tests for queryDRepStakeDistr
+- `2026-05-07` `d1b120efd` Add golden tests for queryRegisteredDRepStakeDistr
+- `2026-05-07` `fbd0a6766` Add golden tests for queryDRepDelegatees
+- `2026-05-07` `2de0875ea` Add golden tests for queryDRepDelegations
+- `2026-05-07` `a285d1b55` Add golden tests for queryStakePoolDelegsAndRewards
+- `2026-05-07` `467e702bd` Add golden tests for queryDRepState
+- `2026-05-07` `cbf69f411` Add golden tests for queryStakePoolRelays
+- `2026-05-07` `9c6402e17` Add golden tests for queryPoolParameters
+- `2026-05-07` `48c595e01` Split query golden harness so FromJSON is optional.
+- `2026-05-07` `a88bbeb34` Add golden tests for queryChainAccountState
+- `2026-05-07` `d3b4e7103` Add golden tests for queryStakePoolDefaultVote
+- `2026-05-07` `d91e703c3` Add golden test for querySetSnapshotStakePoolDistr.
+- `2026-05-07` `51b4724b5` Add golden tests for queryPoolState
+- `2026-05-07` `b42b8ceaf` Add golden test for queryStakeSnapshots
+- `2026-05-07` `a733e63f2` Add golden tests for queryCommitteeMembersState
+- `2026-05-07` `b629bfbf7` Add golden tests for queryProposals
+- `2026-05-07` `1aa6b6691` Refactor golden test harness; add ToJSON instances.
+- `2026-05-07` `21e444501` Add golden tests for queryGovState
+- `2026-05-07` `a7436af2f` Add golden tests for queryRatifyState
+- `2026-05-07` `b19b0dcd0` Add golden tests for query{Current,Future}PParams
+- `2026-05-07` `20bfe4846` Address review feedback; refresh goldens.
+- `2026-05-07` `fa039c7e6` Merge pull request #5794 from IntersectMBO/aniketd/stable-types-for-queries
+- `2026-05-07` `f28b80c06` Bump cuddle to 1.7.0.0
+- `2026-05-07` `7b91383ce` Add spaces to comment blocks
+- `2026-05-07` `df4b6eb77` Render using renderCDDL to get rid of trailing whitespace
+- `2026-05-07` `35326494a` use //- for single-line comments
+- `2026-05-08` `60290b851` Merge pull request #5806 from IntersectMBO/jj/bump-cuddle-1.7.0.0
+- `2026-05-08` `c2c95f79b` Make ZeroTreasuryWithdrawals a permanent check in gov state transation rule
+- `2026-05-08` `81c3ed7f2` Merge pull request #5797 from IntersectMBO/koslambrou/make-zero-withdrawal-permanent-check-master
+- `2026-05-08` `6c3cb83ac` Update cardano-cls repository tag
+- `2026-05-08` `8888625f9` Add entities/dreps/v0 namespace and related instances
+- `2026-05-08` `c430899c0` Merge pull request #5700 from tweag/joaosreis/canonical-dreps
+- `2026-05-08` `b388b8749` Relax `NoThunks` instance for `BlockTransitionError` (#5808)
+- `2026-05-08` `911b0e0aa` Adhere to Conway era's guard function style
+- `2026-05-08` `072f7c0c8` Fail `V1-V3` translation for presence of `ScriptHash` in `guardsTxBody`
+- `2026-05-08` `4fa273fbc` Update `CHANGELOG`
+- `2026-05-08` `1a4d9ac30` Merge pull request #5781 from IntersectMBO/ldan/fail-v1v3-translation-guards
+- `2026-05-08` `31489caa4` Fix failing cuddle test for Plutus data Constr.
+- `2026-05-08` `92a145242` Merge pull request #5801 from IntersectMBO/koslambrou/fix-cuddle-plutus-data
+- `2026-05-09` `b17ca87d9` Implement EncCBORGroup instance for DijkstraBlockBody
+- `2026-05-09` `2cc69d0b3` Merge pull request #5813 from IntersectMBO/jj/dijkstra-blockbody-cborgroup
+- `2026-05-09` `79412524c` Switch `ChainData` and `Attributes` to use `ByteArray`
+- `2026-05-09` `358cac190` Merge pull request #5812 from IntersectMBO/lehins/switch-to-bytearray
+- `2026-05-09` `052ce8440` Add `AlonzoEraTxAuxData` as a superclass to `AlonzoEraTx`
+- `2026-05-09` `754172519` Remove `API` imports, since they will be deprecated at some point
+- `2026-05-09` `0cec149fa` Fix `TranslateEra` instance for `DijkstraEra CertState`
+- `2026-05-09` `170983132` Merge pull request #5811 from IntersectMBO/lehins/fix-dijkstra-certstate-translate
+- `2026-05-09` `c6a54309c` Add To/FromCanonicalCBOR instances for NonZero type
+- `2026-05-09` `cb0833e95` Add entities/stake_pools/vrf_key_hashes/v0 namespace
+- `2026-05-09` `7f8b568d5` Update cardano-cls repository tag
+- `2026-05-09` `87ae3a79b` Merge pull request #5743 from tweag/joaosreis/canonical-stake-pools-vrf-key-hashes
+- `2026-05-11` `0d88df362` Bump urllib3 from 2.6.3 to 2.7.0 in /doc
+- `2026-05-11` `be0d67cdb` Merge pull request #5817 from IntersectMBO/dependabot/pip/doc/urllib3-2.7.0
+- `2026-05-12` `183cfee31` Remove weird hyperlinked space between badges (#5822)
+- `2026-05-12` `fcf48aa88` Preparation for conformance testing in Dijkstra (#5775)
+- `2026-05-12` `54327efc5` Add `EraSpec` and `ledgerEraTestMain`
+- `2026-05-12` `8739c2ef7` Remove `EraSpecificSpec`
+- `2026-05-12` `9cbe9325c` Switch to capitalized rules imports for ImpSpec
+- `2026-05-12` `8c025b92d` Merge pull request #5803 from IntersectMBO/lehins/reorganize-test-hierarchy
+- `2026-05-12` `ef2ba4f96` Add NoThunks instances for ChainTransitionError and ChainPredicateFailure
+- `2026-05-12` `2de9ab385` Merge pull request #5823 from IntersectMBO/f-f/add-nothunks
+- `2026-05-13` `376c720d5` Add `Trace` helper to apply STS with state-dependent builder
+- `2026-05-13` `b312c6059` Fix LEDGER trace construction by threading state when building StAnnTx
+- `2026-05-13` `272f03130` Merge pull request #5826 from IntersectMBO/td/adapt-testchain-to-stanntx
+- `2026-05-13` `046daab69` Import `Rules` as `qualified` in Allegra
+- `2026-05-13` `269014e3d` Import `Rules` as `qualified` in Mary
+- `2026-05-13` `8b1290910` Import `Rules` as `qualified` in Shelley-MA tests
+- `2026-05-13` `39b2ac8b8` Import `Rules` as `qualified` in Alonzo
+- `2026-05-13` `c212495cd` Import `Rules` as `qualified` in Babbage
+- `2026-05-13` `0be21c06f` Import `Rules` as `qualified` in Conway
+- `2026-05-13` `339822df8` Import `Rules` as `qualified` in Dijkstra
+- `2026-05-13` `4859230c5` Import `Rules` as `qualified` in Ledger API
+- `2026-05-13` `dd054ef8d` Import `Rules` as `qualified` in Conformance tests
+- `2026-05-13` `7cdf27146` Import `Rules` as `qualified` in Ledger test
+- `2026-05-13` `285c2cf97` Import `Rules` as `qualified` in `ledger-state`
+- `2026-05-13` `8cf291e32` Merge pull request #5816 from IntersectMBO/ldan/qualified-rules-imports
+- `2026-05-13` `c73e11307` Remove duplicate golden test from `cardano-ledger-alonzo-test` package
+- `2026-05-13` `88e4fda74` Add `Test.Cardano.Ledger.Core.Binary.Golden.goldenExampleEraTxCborSpec` in cardano-ledger-core:testlib and generate the golden example transactions for each era.
+- `2026-05-13` `3856b9441` Merge pull request #5799 from IntersectMBO/koslambrou/golden-example-tx-each-era
+- `2026-05-13` `dde7345f2` Refactor testing in GitHub CI
+- `2026-05-13` `7ba9bd4fe` Use cleret instead of jq and bash
+- `2026-05-13` `036216f8a` Make bash the default shell for all jobs
+- `2026-05-13` `bcb7b09b8` Globalize env var assignments to avoid repetition
+- `2026-05-13` `4f039701c` Merge pull request #5758 from IntersectMBO/nm/refactor-ci-testing
+- `2026-05-13` `4999612b2` Update haskell.nix flake input
+- `2026-05-13` `07baea11d` Provide a customized doctest package in `nix develop`
+- `2026-05-13` `d49321f96` Stop using doctest's cabal integration
+- `2026-05-13` `489aa2686` Check that doctest is using the correct package DB
+- `2026-05-13` `23f4e9b2b` Run doctests only on packages that contain doctests
+- `2026-05-13` `8127bb066` Install doctest before build to avoid rebuilding after
+- `2026-05-13` `41110b5c4` Fix broken doctests
+- `2026-05-13` `4c03becaa` Reinstate doctesting in CI
+- `2026-05-14` `6878b9b30` Merge pull request #5798 from IntersectMBO/nm/doctesting
+- `2026-05-14` `91009c369` Add PParams examples to EraTest, update shelley.
+- `2026-05-14` `3b8682e4e` Add PParams examples to alonzo.
+- `2026-05-14` `7ab761466` Add PParams examples to babbage.
+- `2026-05-14` `e8ec4aa26` Add PParams examples to conway.
+- `2026-05-14` `0dba7303c` Add PParams examples to dijkstra.
+- `2026-05-14` `9d812ab75` Use EraTest examplePParams in api query examples.
+- `2026-05-14` `84c0a5ed3` Merge pull request #5810 from IntersectMBO/aniketd/stable-types-for-queries
+- `2026-05-15` `0fd042e38` Stop using Coders for some types
+- `2026-05-15` `2f1000c18` Merge pull request #5807 from IntersectMBO/aniketd/coders
+- `2026-05-15` `cd81596d3` Fix vector-map benchmarks
+- `2026-05-15` `c8810debb` Switch to unsafe vector operations and add strictness
+- `2026-05-15` `7d974703f` Add `lookupIndex` and tests for `elemAt`
+- `2026-05-15` `29c9e7ee6` Merge pull request #5815 from IntersectMBO/lehins/switch-to-unsafe-vector-operations
+- `2026-05-15` `9c4940392` Add benchmarks for ticking
+- `2026-05-15` `2c426e972` Make sure that reading utxo from file is not required
+- `2026-05-15` `d6a53b232` Rename poorly named `es` binding
+- `2026-05-15` `5650247d0` Disable all benchmarks that rely on non-empty UTxO
+- `2026-05-18` `f04318b1b` Merge pull request #5814 from IntersectMBO/lehins/tick-benchmarks
+- `2026-05-18` `6384b7b2f` Introduce `DijkstraEraUTxO` and an instance for Dijkstra
+- `2026-05-18` `459d3208d` Add `scriptsNeededStAnnTx`to `AlonzoEraUTxO`and implement it across eras
+- `2026-05-18` `b9e56c1ff` Use precomputed `scriptsNeeded` and `scriptsProvided` in rules
+- `2026-05-18` `349d3fcab` Remove `ScriptsProvided` from Dijkstra environments
+- `2026-05-18` `e96be5f95` Add `plutusScriptsWithContextStAnnTx` to `AlonzoEraUTxO` and implement
+- `2026-05-18` `8383321d7` Use precomputed plutus contexts in UTXOS starting with Babbage
+- `2026-05-18` `091154a5f` Add `plutusLanguagesUsedStAnnTx` to `AlonzoEraUTxO` and implement it
+- `2026-05-18` `ed04bb51b` Use precomputed plutus languages as argument to `mkScriptIntegrity`
+- `2026-05-18` `b3b5f43e8` Change `ConwayUtxosEnv` to `()`
+- `2026-05-18` `3d366a9ee` Merge pull request #5804 from IntersectMBO/td/apply-state-annotated-tx
+- `2026-05-18` `5e0e14144` Reorganize CddlSpec hierarchy
+- `2026-05-18` `4e56c7ba4` Merge pull request #5841 from IntersectMBO/jj/decoder-test-hierarchy
+- `2026-05-18` `42ca0d4a6` Add decodeSparseKeyed; use for BabbageTxOut PV12+.
+- `2026-05-18` `36244ec76` Merge pull request #5834 from IntersectMBO/aniketd/coders-safe
+- `2026-05-18` `4119d72b6` Prepare conformance for Dijkstra 2 (#5830)
+- `2026-05-19` `378479948` Add transaction_mempool
+- `2026-05-19` `ccaf276fe` Merge pull request #5843 from IntersectMBO/jj/transaction-cddl
+- `2026-05-19` `7d1349dcf` Update Dijkstra chain_code
+- `2026-05-19` `b9d24b7d9` Merge pull request #5846 from IntersectMBO/jj/chain-code-control
+- `2026-05-19` `694a1fc92` Bump idna from 3.10 to 3.15 in /doc
+- `2026-05-20` `6ec1b11df` Merge pull request #5849 from IntersectMBO/dependabot/pip/doc/idna-3.15
+- `2026-05-20` `ed62d32d9` Update cardano-cls repository tag
+- `2026-05-20` `737c1080b` Refactor gov/proposals/v0 namespace definition to include the proposal order
+- `2026-05-20` `e04f746a1` Merge pull request #5738 from tweag/joaosreis/canonical-gov-proposals-order
+- `2026-05-20` `9243afbc9` Update cardano-cls repository tag
+- `2026-05-20` `ddf07acdd` Add entities/accounts/v0 namespace
+- `2026-05-20` `af1179d88` Merge pull request #5699 from tweag/joaosreis/canonical-accounts
+- `2026-05-20` `0df651df7` Improve naming and re-exporting of era specific imp tests
+- `2026-05-20` `42219c090` Subsume `RuleListEra` into `EraTest`:
+- `2026-05-21` `ebed62de1` Merge pull request #5851 from IntersectMBO/lehins/add-predicate-failure-tests
+- `2026-05-21` `8792e72c1` Add `generate-cbor` CLI tool
+- `2026-05-21` `1ba90156e` Add `generate-cbor` executable for each era
+- `2026-05-21` `692bf8a15` Add `--count` flag to `generate-cbor`
+- `2026-05-21` `9ea62f400` Add `--binary` flag to `generate-cbor`
+- `2026-05-21` `cd30e4da0` Update `hie.yaml`
+- `2026-05-21` `7edb797e5` Update `CHANGELOG`s
+- `2026-05-26` `615ca1d3a` Merge pull request #5762 from IntersectMBO/ldan/generate-cbor-exec
+- `2026-05-26` `971fdb706` Remove SRP; update index-state, plutus examples
+- `2026-05-26` `49cae9f57` Merge pull request #5861 from IntersectMBO/aniketd/update-index-state
+- `2026-05-26` `844621c6a` cabal.project: Update index-states
+- `2026-05-26` `14f2010c7` cabal.project: Update allow-newers
+- `2026-05-26` `efc313afe` Support QuickCheck 2.18 as well as earlier
+- `2026-05-26` `f8a607aed` Nix updates
+- `2026-05-27` `0bd9832f7` Merge pull request #5852 from IntersectMBO/erikd/updates
+- `2026-05-27` `7b2166340` Add decodeSparseKeyed; use for BabbageTxOut PV12+.
+- `2026-05-27` `672f4700d` Use decodeSparseKeyed for AlonzoTxAuxData PV12+.
+- `2026-05-27` `88c85df74` Use decodeSparseKeyed for PParamsUpdate PV12+
+- `2026-05-27` `68ac22e0d` Add mapSparseField helpers for decodeSparseKeyed
+- `2026-05-27` `e48408ca4` Use decodeSparseKeyed for AlonzoTxWits PV12+
+- `2026-05-27` `0332f648e` Use decodeSparseKeyed for DijkstraTxBody
+- `2026-05-27` `127d2de32` Fix test with new error report
+- `2026-05-27` `6f2af4b6b` Rename all decoderForKey to decoderByKey
+- `2026-05-27` `f26fcb4dd` decodeSparseKeyed take TypeName instead of String.
+- `2026-05-27` `ffe875998` Replace mapSparseField helpers with decodeAccA.
+- `2026-05-27` `12856dbe2` Fix TypeName in failing test
+- `2026-05-27` `a9c2f7e1e` Rm redundant argument; add spaces in error reports
+- `2026-05-27` `c7377e3d8` Remove residual SRP
+- `2026-05-27` `649029090` Tidy up
+- `2026-05-27` `adbea1e92` Merge pull request #5847 from IntersectMBO/aniketd/coders-safe
+- `2026-05-27` `e4dd9a345` Bump cuddle to 1.8.0.0
+- `2026-05-27` `3cb7e651e` improve verification result handling
+- `2026-05-27` `c63bd609e` Add custom generator helpers
+- `2026-05-27` `c8e0f7391` Add custom generator to constr
+- `2026-05-27` `ebc50efde` Add custom validator and generator for sets
+- `2026-05-27` `8e1949b87` Add subtransactions custom generator
+- `2026-05-27` `0c4ccec65` Fix block_body generator
+- `2026-05-27` `c33247647` Scale down tests to make test suites run faster
+- `2026-05-27` `e0fbe608f` Enable transaction_witness_set
+- `2026-05-27` `d0e208885` Merge pull request #5779 from IntersectMBO/jj/constr-fix
+- `2026-06-03` `3e53b2d92` Prepare conformance for Dijkstra 3 (#5844)
+- `2026-06-03` `f85d3b71a` Remove `generate-cbor` executables per era
+- `2026-06-03` `61db33bee` Add `--era` flag to `generate-cbor`
+- `2026-06-03` `c810dc162` Add `generate-cbor` executable to Ledger API
+- `2026-06-03` `15a4f10f0` Update `CHANGELOG`s
+- `2026-06-03` `6f114eb2f` Apply suggestions from code review
+- `2026-06-03` `cd8b7fab8` Merge pull request #5864 from IntersectMBO/ldan/move-generate-cbor
+- `2026-06-10` `b3ee7d181` Stop re-exporting `PredicateFailure`
+- `2026-06-10` `52f940c3a` Stop re-exporting `Event`
+- `2026-06-10` `7c691a9e2` Stop re-exporting `Identity`
+- `2026-06-10` `69fe391f9` Stop re-exporting `PulsingRewUpdate`
+- `2026-06-10` `dbaccbade` Stop re-exporting `epochFromSlot`
+- `2026-06-10` `dd921d270` Stop re-exporting `calculatePoolDistr`
+- `2026-06-10` `3abf2d901` Remove some more re-exports
+- `2026-06-10` `6e9407217` Update `CHANGELOG`
+- `2026-06-16` `84d89044f` Merge pull request #5837 from IntersectMBO/ldan/remove-rules-reexports
+- `2026-06-16` `467ca440d` Rename Shelley rules
+- `2026-06-16` `b84e721b6` Add Shelley rule deprecation helpers
+- `2026-06-16` `ce68e282d` Rename Allegra rules
+- `2026-06-16` `340fbcb3f` Add Allegra rule deprecation helpers
+- `2026-06-16` `fdf25c287` Rename Alonzo rules
+- `2026-06-16` `44c10f0f8` Add Alonzo rule deprecation helpers
+- `2026-06-16` `8d455eca8` Rename Babbage rules
+- `2026-06-16` `d7865f11f` Add Babbage rule deprecation helpers
+- `2026-06-16` `39a69008b` Rename Conway rules
+- `2026-06-16` `a9728c211` Add Conway rule deprecation helpers
+- `2026-06-16` `330eebed6` Rename Dijkstra rules
+- `2026-06-16` `42c97d9fc` Add Dijkstra rule deprecation helpers
+- `2026-06-16` `9c3c53b4f` Update `CHANGELOG`s
+- `2026-06-16` `b5dd13925` Re-export deprecated rule names from Shelley API
+- `2026-06-16` `a0f07d5ce` Qualify `Babbage.UTXO` import in Conway `Utxos`
+- `2026-06-16` `c9ec2e568` Merge pull request #5859 from IntersectMBO/ldan/era-prefix-removal
+- `2026-06-16` `efe6d9e3b` Add NFData instances for the associated types in `VRFAlgorithm FakeVRF`
+- `2026-06-16` `6f99e2dd9` Update Cabal bounds on `cardano-crypto-class`
+- `2026-06-16` `8dc1c431e` Merge pull request #5870 from IntersectMBO/nm/cardano-crypto-class
+- `2026-06-18` `7617d281e` Refactor EntitiesCommitteeIn data type to a singleton value
+- `2026-06-18` `31fedb077` Refactor GovCommitteeIn data type to a singleton value
+- `2026-06-18` `8ca2420ea` Refactor GovConstitutionIn data type to a singleton value
+- `2026-06-18` `c80260469` Merge pull request #5748 from tweag/joaosreis/canonical-refactor-singleton-keys
+- `2026-06-18` `b45a1144a` Remove `SubTxsAreNotSupported` translation failure
+- `2026-06-19` `a1f07d602` Merge pull request #5867 from IntersectMBO/ldan/ignore-subtrans-v1v3
+- `2026-06-20` `7a9855a1d` Bump actions/checkout from 6 to 7 in the actions group
+- `2026-06-20` `29c7e3040` Merge pull request #5876 from IntersectMBO/dependabot/github_actions/actions-640176b5ab
+- `2026-06-23` `4a959c175` Rename `AlonzoRewarding` to `AlonzoWithdrawing`
+- `2026-06-23` `2b6c71b0b` Rename `ConwayRewarding` to `ConwayWithdrawing`
+- `2026-06-23` `02c1d8471` Rename `DijkstraRewarding` to `DijkstraWithdrawing`
+- `2026-06-23` `304d3116c` Rename `mkRewardingPurpose`/`toRewardingPurpose` to `mkWithdrawingPurpose`/`toWithdrawingPurpose`
+- `2026-06-23` `45d9483d0` Rename `RewardingPurpose` pattern synonym to `WithdrawingPurpose`
+- `2026-06-23` `d94325573` Rename `AnyEraRewardingPurpose`/`anyEraToRewardingPurpose` to `...Withdrawing...`
+- `2026-06-23` `5bd9328e2` Rename `getRewardingScriptsNeeded` to `getWithdrawingScriptsNeeded`
+- `2026-06-23` `4f060b406` Rename `PlutusPurposeTag` constructor `Rewarding` to `Withdrawing`
+- `2026-06-23` `7f28161bd` Update `CHANGELOG`s
+- `2026-06-24` `8bb7834df` Merge pull request #5866 from IntersectMBO/ldan/rename-rewarding-to-withdrawing
+- `2026-06-24` `3e4795579` Add ToJSON/FromJSON instances for EraScript
+- `2026-06-24` `41ade60e9` Merge pull request #5845 from IntersectMBO/koslambrou/erascript-json
+- `2026-06-24` `3dff13960` Replace Coders for some BaseTypes
+- `2026-06-24` `6ab43489f` Replace Coders for mkField in PParamsUpdate
+- `2026-06-24` `fe944576a` Replace Summands for some more types
+- `2026-06-24` `ad5345ac2` Replace Coders for some governance procedures
+- `2026-06-24` `29820e406` Replace Coders in AlonzoTx(AuxData) forall branches
+- `2026-06-24` `49f426fb5` Replace Coders in testlib types
+- `2026-06-24` `0cb45ec71` Update changelog
+- `2026-06-24` `f6b9b9d8a` Merge pull request #5860 from IntersectMBO/aniketd/coders
+- `2026-06-25` `12c0a5a94` Allow agents to invoke `/update-changelogs`
+- `2026-06-25` `28343528a` Merge pull request #5877 from IntersectMBO/ldan/automatic-update-changelog
+- `2026-06-25` `468417a7c` Introduce `ValidatedTx` as replacement for `Validated`
+- `2026-06-25` `5bd4b495d` Add `internalApplyTxWithValidation` to `ApplyTx`
+- `2026-06-25` `0ad2a6d25` Add `internalReapplyValidatedTx` to `ApplyTx`
+- `2026-06-25` `4a26e83e9` Introduce user-facing replacements to `applyTx` and `reapplyTx`
+- `2026-06-25` `d01c168c5` Simplify imports in `Mempool` module
+- `2026-06-25` `973493bad` Adjust instances of refactored `ApplyTx` class for all eras
+- `2026-06-25` `d2c1e7eb6` Migrate uses of to-be-deprecated functions from `Mempool` module
+- `2026-06-25` `4f5640ab4` Deprecate old `applyTx` and `Validated`-based `Mempool` API
+- `2026-06-25` `023c0cbf6` Extract signal-generation function in shelley trace generation
+- `2026-06-25` `275df1129` Introduce `LEDGERS`  for Alonzo and pass `unsafeLinearExtendEpochInfo`
+- `2026-06-25` `e78cb8064` Use precomputed plutus contexts in Alonzo UTXOS
+- `2026-06-25` `281acca9a` Remove protocol version field from `StAnnTx` types
+- `2026-06-25` `2ca51acad` Reduce duplication in implementations of `ApplyTx` across eras
+- `2026-06-25` `ce8e404df` Merge pull request #5857 from IntersectMBO/td/further-stanntx-integration
+- `2026-06-25` `3c776ba9d` Remove Coders from testlibs and tests
+- `2026-06-25` `9180ef5ba` Merge pull request #5865 from IntersectMBO/aniketd/test-coders-removal
+- `2026-06-27` `985ad522a` Bump actions/cache from 5 to 6 in the actions group
+- `2026-06-27` `c50e87030` Merge pull request #5884 from IntersectMBO/dependabot/github_actions/actions-6d1c06d137
+- `2026-06-29` `43015e440` Add LeiosCert to DijkstraBlockBody
+- `2026-06-29` `a60e637bc` Update huddle for leios_certificate
+- `2026-06-29` `c44d63b5e` Fix EncCBORGroup instance of DijkstraBlockBody
+- `2026-06-29` `b514d5344` Add TxsRB/CertRB distinction in CDDL tests
+- `2026-06-29` `a24a2d69b` Generate structurally valid leios signatures in CDDL tests
+- `2026-06-29` `3bbb6ac54` Fix another DijkstraBlockBody decoder
+- `2026-06-29` `7541ac9a1` Run cabal-format
+- `2026-06-29` `233bc9d98` Fix EncCBORGroup to also encode Nothing -> nil
+- `2026-06-29` `fee7db885` Fix a typo
+- `2026-06-29` `63b3f0573` Add leiosCertBlockBodyL to DijkstraEraBlockBody
+- `2026-06-29` `20a7204a7` Use byteArrayFromByteString
+- `2026-06-29` `946236571` Use quickcheck to test Leios certs
+- `2026-06-29` `267037ad9` Add cardano-ledger-binary encoders/decoders for LeiosCert
+- `2026-06-29` `fa38c64b9` Adapt TreeDiff usage of LeiosCert to new exports
+- `2026-06-29` `13636040b` Drop REVIEW note in Decoder
+- `2026-06-29` `4543e0863` Use cardano-crypto-leios from CHaP
+- `2026-06-29` `7b69ca537` Use HexBytes in LeiosCert TreeDiff
+- `2026-06-30` `245e63dcd` Merge pull request #5872 from IntersectMBO/ch1bo/cardano-crypto-leios
+- `2026-06-30` `5d567fb71` Update haskellNix flake input
+- `2026-07-01` `7903c0074` Merge pull request #5894 from IntersectMBO/nm/update-haskell.nix
+- `2026-07-02` `149b7507b` Move `EncCBOR` instance for `AlonzoStAnnTx` in conformance
+- `2026-07-02` `89615ca80` Merge pull request #5897 from IntersectMBO/td/remove-unnecessary-instance
+- `2026-07-02` `7dbbbc755` Fix injected extraConfig cost models being ignored for PlutusV1/V3
+- `2026-07-02` `18e0b29ee` Merge pull request #5899 from IntersectMBO/fmaste/costModels
+- `2026-07-03` `06d6bbe20` Add isPotentialFutureMember ImpTest
+- `2026-07-03` `9b81d9943` Merge pull request #5883 from IntersectMBO/aniketd/is-potential-future-member
+- `2026-07-03` `51edc7444` Introduce ENTITIES rule just calling CERTS
+- `2026-07-03` `cc5e05baf` Introduce SUBENTITIES rule just calling SUBCERTS
+- `2026-07-03` `b5ebf702c` Move withdrawals and DRep expiry logic from LEDGER to ENTITIES rule
+- `2026-07-03` `8e6545e42` Introduce `EntitiesEnv` and use it in ENTITIES rule
+- `2026-07-03` `99ff8f1b1` Move withdrawals check and application from LEDGER to ENTITIES
+- `2026-07-03` `7ee349eca` Refactor withdrawal-helpers to remove duplication in legacy/normal mode
+- `2026-07-03` `e163feccf` Check and apply withdrawals in SUBENTITIES
+- `2026-07-03` `8e69e684f` Call SUBENTITIES instead of SUBCERTS from SUBLEDGER
+- `2026-07-03` `ba2e14c7b` Add `directDepositsMissingAccounts` and `applyDirectDeposits` helpers
+- `2026-07-03` `408ca45b4` Check and apply direct deposits in ENTITIES
+- `2026-07-03` `eac8cd07f` Check and apply direct deposits in SUBENTITIES
+- `2026-07-03` `65acbca3f` Check transaction validity in SUBLEDGER; if invalid, only run SUBUTXOW
+- `2026-07-03` `20d1f2a16` Allow DRep expiry-update helpers at any tx level
+- `2026-07-03` `d27adbf8c` Refresh DRep expiries in SUBENTITIES
+- `2026-07-03` `42884a7fd` Refactor to remove duplication in ENTITIES
+- `2026-07-03` `3448adc63` Merge pull request #5878 from IntersectMBO/td/entities-rule
+- `2026-07-06` `4549a1d83` Create `cardano-protocol` package
+- `2026-07-06` `890eafd01` Move `Cardano.Protocol.Crypto` to `cardano-protocol`
+- `2026-07-06` `4c667b500` Move `Cardano.Protocol.TPraos.OCert` to `cardano-protocol`
+- `2026-07-06` `9bb85659d` Move the TPraos block header to `cardano-protocol`
+- `2026-07-06` `99a6facac` Deprecate `Cardano.Protocol.TPraos.BHeader`
+- `2026-07-06` `92eb16994` Add `Cardano.Protocol.Praos.VRF`
+- `2026-07-06` `3c084d2ed` Add `Cardano.Protocol.Praos.BlockHeader`
+- `2026-07-06` `f4fbf87ac` Update `CHANGELOG`s
+- `2026-07-07` `df3c99a6d` Merge pull request #5887 from IntersectMBO/ldan/cardano-protocol-pkg
+- `2026-07-07` `329a3914a` Make requiredTopLevelGuardsL available at TopTx.
+- `2026-07-07` `46b6e3deb` Use requiredTopLevelGuardsL in TopTx rules.
+- `2026-07-07` `9c7f4e049` Address review comments and update changelog
+- `2026-07-08` `b1dbf2d02` Merge pull request #5903 from IntersectMBO/aniketd/require-toplevel-guards
+- `2026-07-08` `a7d81a41b` Use non-empty list for fields without duplicate enforcement in Conway transaction_witness_set cddl rule
+- `2026-07-08` `04815a0d1` Merge pull request #5908 from IntersectMBO/koslambrou/fix-conway-transaction-witness-set-rule-allow-duplicate-some-fields
+- `2026-07-08` `b264c6e6b` Move `EncCBOR PoolCert` instance to cardano-ledger-conformance
+- `2026-07-08` `7c31ecd9c` Replace `CBORGroup`-derived `EncCBOR/DecCBOR` for StakePoolParams with manual instances
+- `2026-07-08` `8595dbef0` Merge pull request #5890 from IntersectMBO/koslambrou/stakepoolparams-enccbor
+- `2026-07-09` `4bc98a1c1` Update Conway conformance to PV 11; rename modules for consistency
+- `2026-07-09` `234878e5b` Update formal-ledger-specifications
+- `2026-07-09` `7c21957d3` Disable failing test in conformance
+- `2026-07-09` `9ab87be45` Disable failing test in conformance; fix referenced issue
+- `2026-07-09` `da21472de` Merge pull request #5900 from IntersectMBO/conformance-conway-pv11
+- `2026-07-09` `7402b9d20` Introduce `CostModelsUpdate`
+- `2026-07-09` `3cda54ca9` Remove `Semigroup`/`Monoid CostModels` instances
+- `2026-07-09` `41a1f563b` Update `CHANGELOG`
+- `2026-07-09` `bc24be92e` Merge pull request #5905 from IntersectMBO/ldan/costmodelsupdate
+- `2026-07-09` `d4e55ce3b` Add ToJSON/FromJSON instances for EraTxAuxData
+- `2026-07-09` `f5449339b` Merge pull request #5853 from IntersectMBO/koslambrou/eratxauxdata-json
+- `2026-07-09` `dade01738` Add Export and Import modules for canonical state handling
+- `2026-07-09` `6502cc548` Add Export and Import modules for canonical state handling in Conway era
+- `2026-07-09` `084474943` Merge pull request #5869 from tweag/joaosreis/cls-interface
+- `2026-07-10` `501d13da3` Add tests for RequiredTopLevelGuards
+- `2026-07-10` `0fcc2b2bf` Merge pull request #5914 from IntersectMBO/aniketd/require-toplevel-guards
+- `2026-07-11` `b34755890` Bump slackapi/slack-github-action in the actions group
+- `2026-07-11` `0238a5613` Merge pull request #5917 from IntersectMBO/dependabot/github_actions/actions-6ff987a8b7
+- `2026-07-13` `1ad76c34a` Add EraBlockHeader instance for Praos
+- `2026-07-13` `5399cc5f2` Merge pull request #5915 from IntersectMBO/f-f/era-block-header-instance-praos
+- `2026-07-13` `2105d4095` Reimplement `dijkstraProducedValue` correctly, without recursion
+- `2026-07-13` `8fcfa5646` Restrict `getProducedValue` to top-level transactions
+- `2026-07-13` `f5edc8980` Add tests for `produced` calculation
+- `2026-07-13` `8942318fc` Merge pull request #5918 from IntersectMBO/td/non-recursive-produced
+- `2026-07-14` `1212e6480` Remove DRep requirement for reward withdrawals
+- `2026-07-15` `965cc47d7` Merge pull request #5916 from IntersectMBO/koslambrou/remove-drep-req-reward-withdrawals
+- `2026-07-16` `0a1dcfc86` Update hackage index-state version to get latest cuddle release
+- `2026-07-16` `40416e685` Merge pull request #5928 from IntersectMBO/koslambrou/upgrade-hackage-cuddle
+- `2026-07-18` `c33ad9849` Bump slackapi/slack-github-action in the actions group
+- `2026-07-18` `665f3270b` Merge pull request #5934 from IntersectMBO/dependabot/github_actions/actions-3adb7104b5
+- `2026-07-18` `48edae9f1` Add an imp test for `DRepNotRegistered`
+- `2026-07-18` `0d1b90b51` Add missing strictness annotation
+- `2026-07-18` `3b603cf57` Remove outdated piece from SafeToHash haddock
+- `2026-07-18` `1eb20eab3` Simplify DRep refund calculation
+- `2026-07-18` `383c65dbe` Fix the `DRepNotRegistered` imp spec test
+- `2026-07-18` `0932fa3cc` Simplify `consumed`.
+- `2026-07-18` `c19756138` Remove `consume`
+- `2026-07-18` `2852a85f7` Introduce `validateValueNotConservedUTxO` for `Dijkstra`
+- `2026-07-18` `d8e80a65b` Change `produced` to accept `PState`, instead of `CertState`
+- `2026-07-18` `8ebabbd9a` Add `lookupAccountDeposit`
+- `2026-07-18` `9cf0b8a0e` Merge pull request #5919 from IntersectMBO/lehins/adjust-consumed-interface
+- `2026-07-19` `873cab073` Switch minor protocol version to `Word32`
+- `2026-07-19` `9f3528f08` Organize Huddle spec for `protocol_version`
+- `2026-07-19` `9ef91412e` Regenerate CDDL with fixed `protocol_version` definition
+- `2026-07-19` `90500e7dd` Update PR template
+- `2026-07-19` `95342722d` Fix Shelley golden test for PParamsUpdate
+- `2026-07-19` `596fbf687` Merge pull request #5935 from IntersectMBO/lehins/retroactively-fix-minor-version-decoder
+- `2026-07-20` `3595ee59e` Remove thunks in AlonzoGenesis
+- `2026-07-20` `1b262d129` Allow benchmarking thunks in ConwayGenesis
+- `2026-07-20` `e9827fdc3` Merge pull request #5926 from IntersectMBO/js/thunks
+- `2026-07-20` `7bb83d822` Add `Leios.BlockHeader`
+- `2026-07-20` `3a80dec68` Update `CHANGELOG`s
+- `2026-07-21` `fc173c700` Merge pull request #5927 from IntersectMBO/ldan/leios-blockheader
+- `2026-07-22` `110a43fa4` Add `AccountBalanceExact` constructor to `AccountBalanceInterval`
+- `2026-07-22` `4644719f1` Merge pull request #5933 from IntersectMBO/koslambrou/accountbalanceexact
+- `2026-07-22` `a624de4c8` Make `SnapShots` era parametric (#5944)
+- `2026-07-23` `e10b98528` Fix JSON roundtrip for InjectionData
+- `2026-07-23` `e28a17911` Merge pull request #5945 from IntersectMBO/f-f/roundtrip-json-injectiondata
+- `2026-07-23` `d2c4e3bbc` Simplify `AlonzoTx` decoder for mempool
+- `2026-07-23` `e0516cf65` Make `AlonzoTx` decoder for mempool backwards compatible
+- `2026-07-24` `64e7177e1` Merge pull request #5946 from IntersectMBO/lehins/make-alonzo-tx-mempool-backwards-compatible
+- `2026-07-24` `3467f7bd0` Cache `PlutusRunnable` at the Tx level
+- `2026-07-24` `97b2f9d52` Make sure plutus scripts are cached for sub-transactions as well as top level
+- `2026-07-24` `00aec9dd7` Introduce new LEDGERS rule starting with Babbage
+- `2026-07-24` `f7099119c` Add `PlutusRunnable` caching at the block level
+- `2026-07-24` `b3db8db5c` Merge pull request #5942 from IntersectMBO/lehins/optimize-plutus-script-preparation
+- `2026-07-24` `9d9ee9bc0` Add `isValidPlutusRunnable` helper function
+- `2026-07-24` `fd44ea7f7` Move `StAnnTxCache` into `EraTx` and:
+- `2026-07-24` `4e6a077f6` Rename `validScript` to `isValidScript` and move it
+- `2026-07-24` `bce437e7f` Implement script caching for validation
+- `2026-07-24` `c836ec08f` Switch script validation to be a static check
+- `2026-07-24` `a88b60bdc` Merge pull request #5953 from IntersectMBO/lehins/reuse-script-cache-for-script-validation
+- `2026-07-27` `2a366e6f9` Add startingAccountBalanceInterval to TopTx body.
+- `2026-07-27` `6c12696f0` Apply suggestions from code review
+- `2026-07-27` `7502ce8e6` Address review comment
+- `2026-07-27` `4e5f900db` Merge pull request #5952 from IntersectMBO/aniketd/starting-balance-intervals
+- `2026-07-27` `3c86a62ce` Enable Conway conformance tests in Dijkstra (#5939)
+- `2026-07-27` `a06e652b6` Implement batch-aware `certsTotalDepositsTxBody` for Dijkstra
+- `2026-07-27` `46db88720` Include direct deposits in `getProducedValue` in Dijkstra
+- `2026-07-27` `929221e34` Implement batch-aware `certsTotalRefundsTxBody` in Dijkstra
+- `2026-07-27` `ed5cfa84b` Update test for produced value to also check direct deposits
+- `2026-07-27` `bbf00fc84` Merge pull request #5930 from IntersectMBO/td/fix-pots-calculations-no-loop
+- `2026-07-28` `70aa86571` Bump cardano-binary to 1.9.1.0
+- `2026-07-28` `93b1af1b7` Copilot review comments
+- `2026-07-28` `e85c5fc35` Update libs/cardano-ledger-binary/src/Cardano/Ledger/Binary/Decoding/Decoder.hs
+- `2026-07-28` `0ae7b2086` Update libs/cardano-ledger-binary/src/Cardano/Ledger/Binary/Decoding/Decoder.hs
+- `2026-07-28` `9da0d46fc` Update libs/cardano-ledger-binary/src/Cardano/Ledger/Binary/Decoding/Decoder.hs
+- `2026-07-28` `8b7c903b7` bump cardano-crypto-praos
+- `2026-07-28` `696ed4882` Add LeiosCert roundtripping test
+- `2026-07-28` `e772a7630` Update libs/cardano-ledger-binary/src/Cardano/Ledger/Binary/Decoding/DecCBOR.hs
+- `2026-07-28` `25aa8e520` Implement indefinite byte array decoding, fix bug in decodeBytes
+- `2026-07-28` `f4178b9c9` Update libs/cardano-ledger-binary/CHANGELOG.md
+- `2026-07-28` `0d408ba6e` Update libs/cardano-ledger-binary/cardano-ledger-binary.cabal
+- `2026-07-28` `04dc4750e` Update libs/cardano-ledger-binary/CHANGELOG.md
+- `2026-07-28` `700d983d4` Deprecate Cardano.Ledger.Binary.Crypto
+- `2026-07-28` `5732c066e` Remove Mempack import
+- `2026-07-28` `32096200f` Cabal format
+- `2026-07-28` `dffb2be79` Remove LeiosCert Arbitrary instance in Dijkstra
+- `2026-07-28` `805bd1678` Remove cardano-crypto-leios srp and use CHaP instead
+- `2026-07-28` `7afbe698a` Expose deprecated module but stop using it
+- `2026-07-28` `00dad101d` Merge pull request #5874 from IntersectMBO/jj/fixedsizebytes
+- `2026-07-28` `03bfba65c` Test collateral inputs are in utxo
+- `2026-07-28` `aaeb6b26b` Merge pull request #5959 from IntersectMBO/aniketd/test-collateralinputs
+
+### `cardano-node` (268 commits)
+
+- `2026-05-06` `9e40e0f90` cardano-testnet 
+- `2026-05-06` `964348740` Merge pull request #6551 from IntersectMBO/mgalazyn/refactor/testnet-remove-old-witness-conjuring
+- `2026-05-07` `b2f32cc3d` Enforce SPOs come first and there is at least one
+- `2026-05-07` `86e23ba3b` Apply suggestions by @carbolymer
+- `2026-05-07` `eb5f40e3e` Add changelog entry for node list split
+- `2026-05-07` `2e162a2ee` Bump hackage. Remove proto-lens srp
+- `2026-05-07` `d58363bda` Merge pull request #6563 from IntersectMBO/split-nodes-list-into-spo-and-relay
+- `2026-05-07` `8c8a136bb` Use ucrt64 instead of mingwW64
+- `2026-05-08` `f7a072d6d` Merge pull request #6561 from IntersectMBO/mgalazyn/chore/remove-proto-lens-srp-bump-hackage
+- `2026-05-11` `0c6517fd6` Get rid of TextFree IR
+- `2026-05-11` `b4ea0d74d` Implement a `ContinuousFormula` for filtering events by formula conformance
+- `2026-05-11` `1e0e494d6` cardano-recon-framework: Add cardano-recon-grep and ContinuousFormula (v1.2.0)
+- `2026-05-11` `591fc8022` cardano-recon-grep: support reading traces from stdin when --traces is omitted
+- `2026-05-11` `5ed4e28d5` cardano-recon: add --grep flag for machine-readable negative outcome output
+- `2026-05-11` `2e5d44838` cardano-recon: --grep bypasses trace-dispatcher; add ContextDump trace message
+- `2026-05-11` `8f035bf45` cardano-recon: update README and CHANGELOG for --grep and ContextDump
+- `2026-05-11` `9ef39fc70` Apply review suggestion regarding the cabal file
+- `2026-05-12` `5d6983d72` cardano-recon: address review comments (formatting, camelCase JSON keys)
+- `2026-05-12` `0af0a16f6` Merge pull request #6560 from IntersectMBO/russoul/recon-grep
+- `2026-05-14` `ef1bb99a7` Add support for specifying `cardano-node` binary for each node independently
+- `2026-05-14` `522984ed8` Add tests for per-node config parser
+- `2026-05-14` `17045dfd2` Add changelog entry for --nodes flag
+- `2026-05-14` `9c2017351` Merge pull request #6559 from IntersectMBO/testnet-specify-node-bin-per-node
+- `2026-05-22` `6c6e3fad1` cardano-testnet 
+- `2026-05-25` `8da9a7efe` Merge pull request #6577 from IntersectMBO/mgalazyn/test/rewrite-rpc-test-exp
+- `2026-05-28` `0cc488cc5` cardano-recon: replace positional FILE/FILES args with named --formulas/--traces
+- `2026-05-28` `a83e2778e` cardano-recon-framework: bump version to 1.2.1, add changelog entry
+- `2026-05-29` `a48de879c` cardano-recon: improve --timeunit help message
+- `2026-05-29` `ebbab5be8` Merge pull request #6584 from IntersectMBO/russoul/recon-qol
+- `2026-06-01` `55e5775fc` Extract functions for strings to avoid repetition
+- `2026-06-02` `4adda8abb` Move path and filename definition functions to `cardano-node`
+- `2026-06-02` `bec411e19` Add changelog fragment
+- `2026-06-02` `0862f77b4` Fix typos in DRepRetirment test
+- `2026-06-02` `3ed9ac642` Add missing and fix existing haddocks
+- `2026-06-02` `4b991a8da` Make the imports from `Paths` module implicit
+- `2026-06-03` `a53156c39` Merge pull request #6586 from IntersectMBO/move-more-defaults-to-node
+- `2026-06-03` `39f47e9e4` bench 
+- `2026-06-03` `1a6d6b2ba` cardano-tracer 
+- `2026-06-03` `a2cd7fcc4` Add `Unit` type to timeseries
+- `2026-06-03` `d4a55a0e2` bench 
+- `2026-06-03` `38fe51ba2` bench 
+- `2026-06-03` `f9a9fd84c` bench 
+- `2026-06-03` `466e9896e` bench 
+- `2026-06-03` `05e582612` bench 
+- `2026-06-03` `bcddd31c7` bench 
+- `2026-06-03` `db70efe57` timeseries: add comprehensive interpretation tests; fix sum_over_time elab bug
+- `2026-06-03` `b5e6e2662` timeseries: support local name shadowing in the elaborator
+- `2026-06-03` `7527f77c1` timeseries: give the elaborator metric-name awareness for better errors
+- `2026-06-03` `9d756248c` timeseries: fix epoch parser bug — epoch now correctly produces Timestamp 0
+- `2026-06-03` `685f56b3f` timeseries elab: suggest similar names in Undefined-name error
+- `2026-06-03` `731128846` grafana-datasource: wire up Grafana time picker to query range
+- `2026-06-03` `1d765e1cd` timeseries: expand elab test suite to ~110 tests
+- `2026-06-03` `04f3da1fd` timeseries: add noncanonical rule for Duration + Duration
+- `2026-06-03` `22918b665` timeseries: add three unambiguous noncanonical arithmetic rules
+- `2026-06-03` `59d67ccbc` timeseries: align HTTP API and JSON wire format with Prometheus
+- `2026-06-03` `b9f37f0d9` grafana-datasource: add $__interval step to all dashboard range queries
+- `2026-06-03` `975481a07` cardano-profile: introduce 6-dense-timeseries-1h
+- `2026-06-03` `efa7f898e` workbench: fix ps --ppid for macOS compatibility
+- `2026-06-03` `0894cc3a9` timeseries: fix hlint warnings (eta reduce, fuse foldr/map, record patterns)
+- `2026-06-03` `2bd69a2d4` cardano-tracer: add node info/startup/state HTTP endpoints to timeseries server
+- `2026-06-03` `8648dab56` grafana-datasource: add node info/startup/state/uptime query types and dashboard panels
+- `2026-06-03` `3ab715b50` grafana-datasource: enable multi-select on node_id variable for panel repeat
+- `2026-06-03` `b4ba68fdf` cardano-timeseries-io 
+- `2026-06-03` `f5bedf833` cardano-timeseries-io 
+- `2026-06-03` `c38642b19` cardano-tracer, grafana-datasource: extend series labels, rename node-state endpoint, misc
+- `2026-06-03` `5fab7512a` cardano-tracer, grafana-datasource: node_name as sole series label; slug-based node API
+- `2026-06-03` `aed388aa0` cardano-tracer, grafana-datasource: /nodes returns {nodeName, slug} objects; slug-based node API
+- `2026-06-03` `91147b344` cardano-node: fix Protocol show instance to say Cardano instead of Byron; Shelley
+- `2026-06-03` `4c0045c12` grafana-datasource: suppress deprecated TypeScript options warning
+- `2026-06-03` `6310ad438` cardano-tracer: sanitize nodeName
+- `2026-06-04` `1276f2268` Merge pull request #6562 from IntersectMBO/russoul/timeseries-align-http-api-with-prometheus
+- `2026-06-04` `dfea9b3a1` Remove iohk-monitoring-framework from project
+- `2026-06-04` `289dee332` cardano-node: remove logging switch
+- `2026-06-04` `3ae9401f4` cardano-node: discard local JSON instances; restore original output and
+- `2026-06-04` `7f7da4daf` cardano-testnet: adjust golden_DefaultConfig test case to removal of legacy tracing
+- `2026-06-04` `4aa82d854` nix: remove legacy tracing artifacts
+- `2026-06-04` `d893499b9` cardano-profile: remove oldtracing profiles
+- `2026-06-04` `f7acae699` wb: stop supervisord from spamming stderr with python deprecation warnings
+- `2026-06-04` `8449b0a58` feedback for PR #6580
+- `2026-06-04` `54c79c49f` ci: improve github actions
+- `2026-06-04` `c4aff8ad3` Merge pull request #6595 from IntersectMBO/improve-gha
+- `2026-06-09` `363ab16cb` Add support for sending tx through ogmios
+- `2026-06-09` `68dbfff91` Patch AsyncBenchmarkControl
+- `2026-06-09` `1407c3207` Add script for testing ogmios with tx-generator
+- `2026-06-09` `6459903af` Merge pull request #6580 from IntersectMBO/remove-iohk-monitoring
+- `2026-06-10` `9b9620f73` bench: remove cardano-recon-framework (moved to IntersectMBO/hermod-tracing)
+- `2026-06-10` `390273284` Merge pull request #6598 from IntersectMBO/russoul/cardano-node-move-out-recon
+- `2026-06-12` `ccfb1359a` Strengthen and polish rough edges of the Ogmios implementation
+- `2026-06-12` `00f9dfaff` Add documentation, improve errors, and add changelog entry
+- `2026-06-12` `77f84d53f` Address issues with `test-ogmios.sh` script
+- `2026-06-12` `c6c6be0cc` Fail on rejected transactions in Ogmios submit mode
+- `2026-06-16` `5dc9d9db6` Fix gRPC config reload on sighup
+- `2026-06-17` `bee1f1a1b` Update cardano-rpc-11.0, cardano-api-11.3, cardano-cli-11.1, plutus-ledger-api-1.65
+- `2026-06-17` `49df286a7` cardano-testnet 
+- `2026-06-17` `84ebc0ab4` cardano-testnet 
+- `2026-06-17` `bdfe0b117` cardano-testnet 
+- `2026-06-17` `43b848cc2` cardano-testnet 
+- `2026-06-17` `9a6b8e59b` cardano-testnet 
+- `2026-06-17` `f72440209` Limit devshells in github actions to only required packages
+- `2026-06-17` `da2f46d32` Disable haddock for cardano-api, because of tyConStupidTheta error on GHC 9.6.7
+- `2026-06-17` `4aae05036` Disable deprecation warnings in tx-generator, for deprecated cardano-api API usage - temporary workaround
+- `2026-06-18` `0e48d619d` cardano-testnet 
+- `2026-06-19` `62190e120` Merge pull request #6575 from IntersectMBO/mgalazyn/feature/update-cardano-rpc-11.0
+- `2026-06-19` `dbf6d5e2d` tracer: remove RTView
+- `2026-06-19` `53fcb6311` tracer: bump version to 0.6.0, update CHANGELOG
+- `2026-06-19` `413546976` profile: remove rtview field from Tracer type and built-in profiles
+- `2026-06-19` `d547855b2` tracer: remove dead RTView path helpers from Handlers.System
+- `2026-06-22` `0cf44542f` feedback for PR #6607
+- `2026-06-22` `87836068f` tracer: revert version bump, tidy CHANGELOG and cabal systemd block
+- `2026-06-22` `7e60b6cb6` Merge pull request #6607 from IntersectMBO/russoul/purge-rtview
+- `2026-06-23` `eec146cda` Re-structure changelog entries
+- `2026-06-23` `636343601` Improve haddock structure for Ogmios module
+- `2026-06-23` `904a16443` Small lints
+- `2026-06-23` `1f74ba9ea` Fix ogmios resolution in test-ogmios.sh
+- `2026-06-24` `3c4551ed0` Merge pull request #6590 from IntersectMBO/mgalazyn/fix/grpc-config-reload
+- `2026-06-24` `bd8824926` wb 
+- `2026-06-24` `2d502c8e9` wb 
+- `2026-06-24` `40ec21772` wb 
+- `2026-06-24` `808d98397` wb 
+- `2026-06-24` `ffb0ba1e8` wb 
+- `2026-06-24` `ecee09465` wb 
+- `2026-06-24` `9f3ef99f6` wb 
+- `2026-06-26` `2df490e33` wb 
+- `2026-06-26` `78b06f071` wb 
+- `2026-06-26` `8b7ff909d` wb 
+- `2026-06-26` `dddbc8551` wb 
+- `2026-06-26` `156fac18f` wb 
+- `2026-06-26` `98cee00a7` wb 
+- `2026-06-26` `719f43b2d` wb 
+- `2026-06-26` `6f17ab435` wb 
+- `2026-06-26` `8b1dae8b2` wb 
+- `2026-06-26` `fd7565663` wb 
+- `2026-06-26` `856aed836` wb 
+- `2026-06-26` `f7325da65` wb 
+- `2026-06-26` `d9bd2c0ad` wb 
+- `2026-06-26` `6ba485801` wb 
+- `2026-06-26` `a6fe14751` flake: update haskellNix for aarch64-darwin code-signing fix
+- `2026-06-26` `1c2ad4bcd` Generalise tx-generator submission over the endpoint type
+- `2026-06-29` `eb0989bff` wb 
+- `2026-06-29` `4fa3e6c41` Merge pull request #6544 from IntersectMBO/bench/genesis
+- `2026-06-30` `4f64bc103` cardano-testnet 
+- `2026-07-04` `7716d4b7a` Put the Ogmios send under the round-trip timeout
+- `2026-07-04` `cf9b22943` Collapse parseOgmiosResponse's decode case into bind
+- `2026-07-04` `6ab928516` Extract parseSuccess/parseError from parseOgmiosResponse
+- `2026-07-04` `0a2d98abf` Always abort on rejection for Sequence generators
+- `2026-07-04` `cf2c1a635` Parse the submission endpoint URI at the config boundary
+- `2026-07-04` `8c635b0bb` Address doc review: field haddocks, rename SubmissionEndpointType
+- `2026-07-09` `86ac3bfaa` Remove local trace-resources package
+- `2026-07-11` `1e3b882ea` cardano-testnet: fail fast with a diagnosis when the chain stalls irrecoverably
+- `2026-07-14` `046640d98` cardano-testnet: guarantee node termination and bounded waits in test teardown
+- `2026-07-14` `07d953ec9` cardano-testnet: replace per-wait stall detection with a chain-stall watchdog
+- `2026-07-14` `aadae3089` cardano-testnet: confine OS-specific signalling to Testnet.Signal
+- `2026-07-14` `cbed8bf7e` cardano-testnet: name and explain the startup-deadline margin
+- `2026-07-14` `557b6f881` cardano-testnet: build long messages with mconcat
+- `2026-07-14` `5536011ab` Remove reference to test in comment in code that is no test specific
+- `2026-07-14` `31f15b697` cardano-testnet: use `Control.Exception.Safe.try` in the chain watchdog
+- `2026-07-14` `824727570` cardano-testnet: restart the stall clock only on chain height changes
+- `2026-07-14` `ae0753dc3` cardano-testnet: emit the watchdog diagnosis through a Tracer
+- `2026-07-15` `4bcbe8835` cardano-testnet: carry the non-emptiness of testnetNodes in its type
+- `2026-07-15` `83353ddf2` Merge pull request #6601 from IntersectMBO/mgalazyn/test/fix-flaky-propose-new-constitution
+- `2026-07-15` `2c0ff56d4` Merge pull request #6617 from IntersectMBO/jutaro/remove_resources
+- `2026-07-15` `895251692` Apply suggestions from code review
+- `2026-07-16` `87bd1cc1b` Merge pull request #6616 from IntersectMBO/testnet-hang-fix
+- `2026-07-16` `afde0ad96` Rework the submission endpoint config contract
+- `2026-07-16` `b94fad5ba` Trace endpoint submission progress, not just failures
+- `2026-07-16` `3fb22b725` Register the submission endpoint options with the NixOS service
+- `2026-07-16` `7e81d1ca4` Remove the endpoint integration test to the Ogmios repository
+- `2026-07-19` `99dbddb91` wb 
+- `2026-07-19` `9a325612e` wb 
+- `2026-07-19` `7a4cbceb3` wb 
+- `2026-07-19` `9fa5cd236` wb 
+- `2026-07-19` `57a7d443a` wb 
+- `2026-07-20` `f64283d35` Merge pull request #6611 from IntersectMBO/bench/profiles
+- `2026-07-20` `485e6339a` fix(node): handle sigterm across startup phases
+- `2026-07-20` `77897a7c6` test(node): cover sigterm during config parsing
+- `2026-07-20` `e5c4fb0b1` fix(node): make sigterm checks portable
+- `2026-07-21` `0c143ae1b` build(deps): bump protobufjs in /bench/grafana-datasource
+- `2026-07-21` `bd984e7ea` cardano-profile 
+- `2026-07-21` `76d85a21f` Merge pull request #6623 from IntersectMBO/dependabot/npm_and_yarn/bench/grafana-datasource/protobufjs-7.6.5
+- `2026-07-22` `9e9cb95fa` severityFor bugs
+- `2026-07-22` `f098c09d2` Merge pull request #6625 from IntersectMBO/jutaro/severityFixes
+- `2026-07-23` `171dfe15e` cardano-profile 
+- `2026-07-23` `12e22bab9` wb 
+- `2026-07-23` `0a21a7437` Merge pull request #6620 from lambdasistemi/fix/sigterm-startup-shutdown
+- `2026-07-24` `31c009f1f` cardano-profile 
+- `2026-07-24` `1283f8d29` wb 
+- `2026-07-27` `95daddf5c` Merge pull request #6627 from IntersectMBO/mkarg/solochain-profiles
+- `2026-07-27` `ec672fd08` Merge pull request #6609 from IntersectMBO/tx-generator-ogmios-submit-mode
+- `2026-07-30` `68d431c11` Add CHANGELOG.md for cardano-node-chairman
+- `2026-07-30` `4fd8f5b83` Drop vNext heading from cardano-submit-api changelog
+- `2026-07-30` `3f066058d` Add herald configuration for chairman, submit-api and testnet
+- `2026-07-30` `3dcffa2c9` Add herald changelog check and release workflows
+- `2026-07-30` `87e8c8d6b` Remove scriv changelog check
+- `2026-07-30` `a59223bb8` Convert cardano-testnet changelog fragments from scriv to herald
+- `2026-07-30` `8205a1cdb` Add herald to the devshell
+- `2026-07-30` `b0dfaaecf` Disable the fragment PR-number check for now
+- `2026-07-30` `856f6f590` Bump actions/checkout to v7.0.1 for Node 24
+- `2026-07-30` `b77b26e71` Merge pull request #6631 from IntersectMBO/mgalazyn/feature/migrate-to-herald
+- `2026-07-30` `3ebff7614` Re-enable the fragment PR-number check
+- `2026-07-30` `6b674c8b4` Merge pull request #6632 from IntersectMBO/mgalazyn/feature/herald-validate-pr-numbers
+- `2026-08-05` `311f71811` Fix haddock generation in CI by using GHC 9.12.4
+- `2026-08-06` `4494e04d8` workbench: fix git commit detection for worktree checkouts
+- `2026-08-06` `f9a1dcf87` wb 
+- `2026-08-06` `18e55c970` wb 
+- `2026-08-06` `7a10dd5c3` wb 
+- `2026-08-06` `b78bf67f9` Make the haddock shell a project variant named after its role
+- `2026-08-06` `90fa6bcd7` Simplify the haddock workflow
+- `2026-08-07` `debc95876` Merge pull request #6642 from IntersectMBO/russoul/bench-run-tag-no-commit-fix
+- `2026-08-07` `48fc6714f` Merge pull request #6641 from IntersectMBO/fix-haddock-issue
+- `2026-08-10` `7ac648661` cabal.project: Update index-states
+- `2026-08-10` `d8abdc52d` Nix updates
+- `2026-08-10` `b5f4a92ce` cabal.project: Update constraint on crypton-x509-system
+- `2026-08-10` `1eae0fa02` cardano-testnet: Restore compact help usage layout
+- `2026-08-10` `f3357852d` Merge pull request #6647 from IntersectMBO/erikd/crypton-x509-system-dep
+- `2026-08-10` `1032edb6d` Adapt to QuickCheck == 2.18.*
+- `2026-08-10` `ddd37056b` Make it build with ghc-9.14
+- `2026-08-11` `110ca9b16` CI: Add ghc-9.14 to the build matrix
+- `2026-08-11` `3e138a5c0` Merge pull request #6638 from IntersectMBO/erikd/updates
+- `2026-08-12` `ac1e6380f` Merge pull request #6643 from IntersectMBO/russoul/100x-chain
+- `2026-08-15` `5ffa1b0b7` bump: iohkNix
+- `2026-08-15` `fad8137f4` tracing: rm old tracing system cfg
+- `2026-08-15` `28e855529` cfg/ci: update cfg to iohkNix and match ci
+- `2026-08-15` `c2a1b392e` nodeNixosSvc: add lib.types.path to avoid eval fails on path type checks
+- `2026-08-15` `4ad010523` releaseBins: add mithril flake input and extract mithril-signer for x86_64-linux release artifact
+- `2026-08-15` `f6555296e` nodeNixosSvc: rm useNewTopology w/ p2p as the only networking mode
+- `2026-08-15` `30d647562` nix: remove lmdb
+- `2026-08-15` `44e27e6bf` nideNixosSvc: preserve new LedgerDB.Snapshots attrset on lsmt attrs merge
+- `2026-08-15` `022386e67` submitApiNixosSvc: update the submit-api service defn for new tracing cfg, group socket use
+- `2026-08-15` `74710e5fc` nixos: gate RTS stats/profiling flags + add `profilingoutputdir`
+- `2026-08-15` `25ffd5d6f` docker: move env snapshot to `/tmp`, drop dead topologyUpdater mapping
+- `2026-08-15` `7f54fdc97` oci: redirect merge-mode writes to `/tmp`
+- `2026-08-15` `e43a247c7` oci: make mount-point directories group-writable for non-root operation
+- `2026-08-15` `7898cc599` nixosSvc: add profilingOutputDir; keep RTS stats, gate profiling/eventlog for node/tracer
+- `2026-08-15` `553cda8a1` oci: direct RTS profiling output to /logs for the images only, not scripts
+- `2026-08-15` `b976c039b` oci: support ro root/non-root via symlink-following/TOCTOU protected private /tmp runtime dir
+- `2026-08-15` `b8a37f9d4` nixosTests: add OCI read-only/non-root tests for node, tracer and submit-api
+- `2026-08-15` `337111d08` tracerOci: fix tracer aborting under set -e when CARDANO_MIN_LOG_SEVERITY is unset
+- `2026-08-15` `f1b83de76` bump: mithril for iohk -> IntersectMBO repo move
+- `2026-08-15` `bd76447f4` bump: dmq-node for 0.7.0.0
+- `2026-08-15` `dfdc32fcc` bump: mithril for v2630
+- `2026-08-15` `807dfe886` nixosTests: ensure submit-api test uses binary artifact cfgs
+- `2026-08-15` `72ae47040` submitApiNixosSvc: source the config default from the environment attrset
+- `2026-08-15` `32d6667f1` submitApiNixosSvc: add a metricsPort option and pass it through to the oci image
+- `2026-08-15` `0e36c73e1` nixosTests: assert submit-api Info traces reach the journal
+- `2026-08-15` `c92978746` cardano-submit-api: replace the legacy iohk-monitoring example config
+- `2026-08-15` `bee660e57` cardano-submit-api: drop dead error constructors, retarget test/run.sh assertions
+- `2026-08-15` `054e91e99` cardano-submit-api: rewrite the README, drop the unmaintained swagger spec
+- `2026-08-15` `003575fa6` nixosTests: harden cardano-cli ping assertions with pipefail
+- `2026-08-15` `7a7c2ba5d` nodeNixosSvc: narrow key and cert options to str
+- `2026-08-15` `b20f7ce32` oci: enforce the unshared /tmp runtime dir with a lock, ship /tmp sticky
+- `2026-08-15` `b9596df2b` ci: align w/ peer snap and useLedgerAfterSlot updates
+- `2026-08-15` `de932e4e8` cfg: rm dead mainnet-ci, byron-testnet config dirs
+- `2026-08-15` `59c9b8cac` doc: text cleanup, rm legacy log cfg line
+- `2026-08-15` `09fa8608d` oci: correct env snapshot scope, add group 0 ipc perms note
+- `2026-08-15` `5867d81b0` cabal: split the extra-packages comment per entry
+- `2026-08-15` `6633cdf52` nixosSvc: redirect the eventlog with -ol, widen the -po gate
+- `2026-08-15` `4d1908934` ociEntrypoint: dispatch cli mode before the NETWORK modes
+- `2026-08-15` `c3a6e97db` docs: mithril input shape; submit-api restart policy
+- `2026-08-15` `db3f6cc42` wb 
+- `2026-08-15` `7621d4f61` wb 
+- `2026-08-15` `725fcd235` nix: replace deprecated pkgs.hostPlatform with stdenv.hostPlatform
+- `2026-08-15` `e360426f8` nixosNodeSvc: add optional bls key support
+- `2026-08-16` `9c0ed4336` docs: update changelog, docker readme, cfg comment
+- `2026-08-16` `36a0dedb3` Bump dependencies for 11.1 node release
+- `2026-08-16` `18ee6f783` nix: restore lock pins, re-enable haddock ghc9124
+- `2026-08-17` `07571db94` Bump cardano-api to 11.5, cardano-rpc to 11.1, cardano-cli to 11.2.1
+- `2026-08-17` `42d848c1e` cabal: drop the stale alex extra-package; fix trailing whitespace
+- `2026-08-18` `94ec4195f` Merge pull request #6604 from IntersectMBO/f-f/prepare-11.1
+
+### `ouroboros-consensus` (199 commits)
+
+- `2026-04-15` `66c697942` Remove out-of-spec WFALS test data
+- `2026-04-15` `837ee07b9` [Peras 21] Remove out-of-spec WFALS test data (#1973)
+- `2026-04-16` `6f095d771` Fix invalid code signatures on aarch64-darwin after set-git-rev
+- `2026-04-19` `5c4e35539` nix: apply nixpkgs-fmt to tools.nix
+- `2026-04-19` `caeb2d812` Fix invalid code signatures on aarch64-darwin after set-git-rev (#1990)
+- `2026-04-20` `585908aa2` Implement generic interface for voting committee schemes
+- `2026-04-20` `c5b05a6e5` Add changelog
+- `2026-04-20` `749a6d63f` [Peras 22] Generic voting committee API (#1974)
+- `2026-04-20` `a71691146` Make PerasVoteDB exceptions part of the exposed API
+- `2026-04-20` `8ed0fd584` Add explicit handling of `PerasVoteDB` exceptions at the node level
+- `2026-04-20` `14a07e941` Rework `PerasCertDB` (+ tests) to be consistent with `PerasVoteDB` API
+- `2026-04-20` `fc7414750` Adapt cert inclusion rules after removal of `PerasCertSnapshot`
+- `2026-04-20` `8d4cdcb0d` Update and improve instances of `ObjectPool{Reader,Writer}` for `Peras{Cert,Vote}DB`
+- `2026-04-20` `1b7587411` Wire-in Peras{Cert,Vote}DB into the ChainDB
+- `2026-04-20` `fd19c52bc` Improve state-machine tests of `ChainDB` to (better) handle `Peras{Cert,Vote}DB`-related actions
+- `2026-04-20` `49eff82fb` Add changelog
+- `2026-04-20` `cc0f1e38f` [Peras 3.75] Overhaul of Peras{Cert,Vote}DB and wiring in ChainDB (#1966)
+- `2026-04-21` `b743e181f` Revert "Revert reworking snapshotFromIS"
+- `2026-04-21` `5fb3a22a8` Revert "Revert reworking snapshotFromIS" (#1992)
+- `2026-04-21` `4d6f4a89c` Add sensible default values for all `PerasParams`
+- `2026-04-21` `29c454c93` Add changelog
+- `2026-04-21` `c00261d1e` [Peras 27] Define sensible default values for `PerasParams` (#1998)
+- `2026-04-21` `e08203aa4` Use physical path in run-fourmolu.sh
+- `2026-04-21` `72429557d` Use physical path in run-fourmolu.sh (#1995)
+- `2026-04-22` `f37828d5d` Remove LedgerDB.SnapshotPolicy test
+- `2026-04-22` `1a05126eb` LedgerDB: implement predictable snapshotting
+- `2026-04-22` `4f4d50e66` LedgerDB: remove replayed blocks counter
+- `2026-04-22` `264655b60` Add ChainDB test for ledger snapshots
+- `2026-04-22` `c1c8c1e1e` Implement randomised ledger state snapshot delay
+- `2026-04-22` `bcf671732` Flush immutable blocks before taking a ledger state snapshot.
+- `2026-04-22` `876b6051c` ChainDB q-s-m: test the interaction of VolatileDB and snapshots
+- `2026-04-22` `a2b5e3eb4` ChainDB q-s-m: do not copy blocks to ImmutableDB on snapshot
+- `2026-04-22` `5be72d360` LedgerDB: close handles after taking snapshots
+- `2026-04-22` `f89676332` Address review comments
+- `2026-04-22` `f50ba16cf` LedgerDB: implement predictable snapshotting (#1575)
+- `2026-04-23` `9510ebee3` Integrate `NodeToNodeV_16` and use defaultMiniProtocolParameters instead of hardcoded value in unstable-diffusion-testlib
+- `2026-04-23` `e880432d9` Implement general ObjectDiffusion protocol
+- `2026-04-23` `76b58c608` Add smoke tests for generic ObjectDiffusion
+- `2026-04-23` `1810ff754` Add type and serialisation helpers for `Peras{Cert,Vote}` diffusion
+- `2026-04-23` `d36708793` Add smoke tests for PerasCertDiffusion
+- `2026-04-23` `dd003c955` Add smoke tests for PerasVoteDiffusion
+- `2026-04-23` `32e40aabb` Register and wire-in Peras{Cert,Vote}Diffusion in the network layer
+- `2026-04-23` `4e62f26a5` Add changelog
+- `2026-04-24` `91c8e1bb5` [Peras 4 revived] Add ObjectDiffusion and `Peras{Cert,Vote}` diffusion (instance of ObjectDiffusion) (#1800)
+- `2026-04-27` `88bc5364c` Add sanity checks for `SnapshotPolicyArgs` configurations
+- `2026-04-27` `c368c2529` Add sanity checks for weird SnapshotPolicyArgs configurations (#1903)
+- `2026-04-30` `aa0ef68a5` drop support for x86_64-darwin
+- `2026-04-30` `b047aca4a` drop support for x86_64-darwin (#2022)
+- `2026-05-05` `aca85b604` Tweak voting committee crypto interface for aggregatable types
+- `2026-05-05` `85a406f5b` [Peras 22.5] Tweak voting committee crypto interface for aggregatable types (#2014)
+- `2026-05-05` `b70e68aee` Add Ticking explanation page
+- `2026-05-05` `35f77af23` Add Ticking explanation page (#2011)
+- `2026-05-05` `d59f954bd` Eta-expand l over blk
+- `2026-05-05` `ac5ba743e` Mechanical changes for eta-expansion of l over blk in tests
+- `2026-05-05` `7afe8562a` Add haddocks for `StateKind` and  `LedgerStateKind`.
+- `2026-05-05` `2b836b5cc` Index LedgerTables and TxIn/TxOut by `blk`
+- `2026-05-05` `d1520c4ad` Mechanical changes for Tables being indexed by blk in tests
+- `2026-05-05` `93a82e822` Replace `LedgerSupports*LedgerDB` umbrellas with precise per-site constraints
+- `2026-05-05` `6465d7d4f` Move CanUpgradeLedgerTables to Ouroboros.Consensus.Ledger.Tables
+- `2026-05-05` `4962ea59c` Break superclass loop
+- `2026-05-05` `c3df9f151` Eta-expand `l` over `blk` (#2016)
+- `2026-05-05` `d928258c8` Update cabal-gild
+- `2026-05-05` `ae210a237` Avoid alfred-margaret version that does not build on ghc 9.6
+- `2026-05-05` `0bbe23fb6` Update cabal-gild (#2026)
+- `2026-05-05` `54452b6e5` Tweak VotesWithSameTarget to also check of duplicates
+- `2026-05-05` `74905d944` [Peras 22.75] Tweak VotesWithSameTarget to also check for duplicates (#2020)
+- `2026-05-05` `fc961382b` Implement pure weighted Fait-Accompli logic
+- `2026-05-05` `c5a63a53c` Implement local sortition for non-persistent seats
+- `2026-05-05` `ec560ea86` Implement wFA^LS voting committee instance
+- `2026-05-05` `0f539d93c` Implement EveryoneVotes voting committee instance
+- `2026-05-05` `6dc3c2077` Add changelog
+- `2026-05-05` `8c2475c25` [Peras 23] wFA^LS and EveryoneVotes voting committee implementations (#1975)
+- `2026-05-05` `48e3c4c0d` Remove LedgerDB V1 implementation
+- `2026-05-05` `7fe841709` Remove remaining V1 LedgerDB references
+- `2026-05-08` `3aa110b60` Remove tryFlush from the LedgerDB API
+- `2026-05-08` `02414ac16` Drop the second monad parameter from SnapshotManager
+- `2026-05-08` `d308da65b` Add changelog fragment
+- `2026-05-08` `3b5c61434` Remove LedgerDB V1 and the LMDB backing store (#2030)
+- `2026-05-12` `5328585e5` Remove unused LANGUAGE pragmas
+- `2026-05-12` `fb5902a27` Bring back conditional pragmas needed only for some GHCs
+- `2026-05-12` `b7c3c7c55` Run fourmolu
+- `2026-05-12` `90649008c` Remove unused LANGUAGE pragmas (#2031)
+- `2026-05-19` `5adc6011c` Implement BLS-based crypto helpers to instantiate voting committes
+- `2026-05-19` `b85076c53` Implement BLS-based TestCrypto scheme for voting committee tests
+- `2026-05-19` `31b2bd3a8` Add changelog
+- `2026-05-19` `4348ff26d` [Peras 24, reopened] BLS crypto backend for voting committees (#2035)
+- `2026-05-19` `565f92cc2` Add helpers for voting committee tests
+- `2026-05-19` `ed4415f5a` Tweak existing WFALS model and conformance tests
+- `2026-05-19` `fc881f62e` Add conformance tests for WFALS implementation
+- `2026-05-19` `8fad37454` Add property tests for WFALS implementation
+- `2026-05-19` `6639e4861` Add property tests for EveryoneVotes implementation
+- `2026-05-19` `f8288a346` Add property tests for UniqueVotesWithSameTarget
+- `2026-05-19` `8ca995bdb` [Peras 25] Conformance and property tests for voting committee implementations (#1977)
+- `2026-05-20` `ed4fef3e6` Updated to tip of ouroboros-network
+- `2026-05-20` `ec9df6ee1` Updated ouroboros-network (#2046)
+- `2026-05-20` `624639730` Update LSM-trees packages
+- `2026-05-20` `5b63b5a0f` Transient constraints for windows cross-compilation
+- `2026-05-21` `b7135f845` Update LSM-trees packages (#2021)
+- `2026-05-26` `1e4115fe6` Rename Test.Consensus.Node to Test.Consensus.DBLock
+- `2026-05-26` `b77c0a954` Rename `Test.Consensus.Node` to `Test.Consensus.DBLock` (#2042)
+- `2026-05-29` `2b335d601` Fix typo in roundtrip tests
+- `2026-05-29` `7ee836f25` Fix typo in roundtrip tests (#2054)
+- `2026-06-03` `29a3ec332` docs website: add search
+- `2026-06-04` `0be7759be` Enable searching the documentation website (#2059)
+- `2026-06-05` `e2ec498c4` Use GHC 9.12 for hydra cross compilation jobs
+- `2026-06-05` `df770478c` Remove artificial constraints on plutus.
+- `2026-06-05` `640b7fea5` Switch Windows cross compilation to use GHC 9.12 (#2056)
+- `2026-06-09` `fa661de97` Add policy for Mithril ledger state snapshots
+- `2026-06-10` `0882aa9b5` Add Mithril predictable ledger state snapshot policy (#2063)
+- `2026-06-10` `cfef56a90` percolate replay goal from --analyse-from args instead of forcing genesis point in db-analyser.
+- `2026-06-10` `249c03400` Remove unused lgrStartSnapshot from LedgerDbArgs
+- `2026-06-10` `5ccad2e06` db-analyser: replay up to --analyse-from before analysing
+- `2026-06-10` `aa96807e6` Db analyser analysis from snapshot (#2061)
+- `2026-06-10` `867b6a27d` Export LSM snapshots if args include an export path
+- `2026-06-10` `04a5353c8` Export LSM snapshots if args include an export path (#2053)
+- `2026-06-12` `ebe489f40` Update docusaurus
+- `2026-06-12` `5ca9b82c6` Update docusaurus (#2069)
+- `2026-06-12` `73a3ecd3d` Discard snapshots if at same slot as the immutable db and is EBB
+- `2026-06-12` `617145bd1` Discard snapshots if at same slot as the immutable db and is EBB (#2070)
+- `2026-06-16` `1ac85c8fa` More consistency in PerasCertDB Model addVote function
+- `2026-06-16` `adc1414dc` Keep return status in ChainDB's addPeras{Vote,Cert}
+- `2026-06-16` `5c2660f28` stake-aware generator for AddPerasVote
+- `2026-06-16` `53d997ee9` Add changelog
+- `2026-06-16` `01140b420` [Peras] Improve return type of ChainDB's `addPeras{Vote/Cert}` methods and fix corresponding ChainDB statemachine tests (#2029)
+- `2026-06-18` `74f122445` snapshot-converter & db-analyser: standalone LSM snapshot tooling
+- `2026-06-18` `d7b3276b6` LSM: Rework snapshot-converter into a command tree (#2064)
+- `2026-06-18` `688a39ea7` Add consensus-tools page to the website
+- `2026-06-18` `d9a810ffa` Add configuration values documentation
+- `2026-06-18` `73fa2da6a` Add configuration docs to the website (#2065)
+- `2026-06-23` `d853b4cee` Peras: Add asserts in the implForgeCert
+- `2026-06-23` `e4fef2838` Peras: Add asserts in the implForgeCert (#2038)
+- `2026-06-23` `0b89bf672` Bump actions/cache from 5 to 6
+- `2026-06-24` `448c9b23f` Bump actions/cache from 5 to 6 (#2090)
+- `2026-06-24` `99ee26d74` Bump actions/checkout from 6 to 7
+- `2026-06-24` `6824e472f` Bump actions/checkout from 6 to 7 (#2084)
+- `2026-06-25` `98f5eadb3` explanations/genesis_design.md: add link to ../references
+- `2026-06-25` `4788fb92d` genesis_design.md: add some practical advice about Checkpoints
+- `2026-06-25` `905886886` Minor improvements to genesis docs (#1916)
+- `2026-06-25` `fa19d8fd9` Update fourmolu to 0.20.0.0
+- `2026-06-25` `37f61654e` Update fourmolu and nix infra
+- `2026-06-25` `a2c7648e4` Nix cleanup
+- `2026-06-25` `19cf5070c` Install cuddle-1.8.0.0 in GHA
+- `2026-06-26` `f0acf7cc8` Add GHC 9.14 shell variant
+- `2026-06-26` `1685fd0bf` Update GHC 9.12 in GHA to 9.12.4
+- `2026-06-26` `1e445548e` Revert some nix changes
+- `2026-06-26` `62f77827e` Cleanup stale allow-newers
+- `2026-06-26` `b424b965f` On MacOS/Windows only build the distributed executables
+- `2026-06-26` `76b310e08` Fix docspec invocation
+- `2026-06-26` `b8816a417` Disable GHC 9.6 IPE shell because Plutus panics on it
+- `2026-06-26` `9afa031fe` Nix cleanup - update Fourmolu to 0.20 (#2091)
+- `2026-07-01` `ec9fbe781` snapshot-converter: HACK read salt from bloomfilter files
+- `2026-07-01` `eb61e6021` snapshot-converter: HACK read salt from bloomfilter files (#2097)
+- `2026-07-01` `55418968e` Improve snapshot-converter --help and --version
+- `2026-07-01` `939838422` Improve snapshot-converter --help and --version (#2098)
+- `2026-07-02` `ae8095b8d` Introduce Bytes32RealPoint
+- `2026-07-02` `c39dd5e45` Improve `ConvertRawsHash` class to enforce hash size
+- `2026-07-02` `570c25350` Add changelog
+- `2026-07-02` `dd016776e` [Peras 25.5] Introduce Bytes32RealPoint (#2033)
+- `2026-07-02` `8d70695da` Introduce O.C.Util.Bitmap
+- `2026-07-02` `7caa2d2b7` Define concrete Peras certs and votes using BLS signatures
+- `2026-07-02` `ad1011160` Define PerasCrypto and wire up voting committee instance using BLS
+- `2026-07-02` `b47bcc904` Add conversions between Peras votes/certs and voting committee types
+- `2026-07-02` `1e802e734` Add test helpers for PerasCrypto
+- `2026-07-02` `b31d4dcba` Add property tests for Bitmap library
+- `2026-07-02` `bf3e8555c` Add serialization roundtrip tests for PerasCert and PerasVote
+- `2026-07-02` `9e0659d02` Add conversion roundtrip tests between Peras votes/certs and voting committee types
+- `2026-07-02` `42a64357e` Add changelog
+- `2026-07-02` `5f889d7ef` [Peras 26] Concrete certs and votes using BLS crypto (#1938)
+- `2026-07-03` `e27dde910` Add Genesis observability reference doc
+- `2026-07-03` `3851444ed` Try to address Nick's comments
+- `2026-07-06` `bd119d907` Add Genesis observability reference doc (#2103)
+- `2026-07-13` `25357b490` Remove stale diff-containers dependency
+- `2026-07-13` `d1a478b39` Cleanup stale references to libraries in README
+- `2026-07-13` `b7763808a` Remove stale diff-containers dependency (#2118)
+- `2026-07-14` `436f7e3db` Use GHC 9.14.1 for Haddocks
+- `2026-07-14` `31252bf7e` Switch to GHC 9.14.1 for haddocks (#2119)
+- `2026-07-14` `1ca20a789` Bump actions/setup-node from 6 to 7
+- `2026-07-15` `2a9605493` Bump actions/setup-node from 6 to 7 (#2121)
+- `2026-07-15` `27f3239b3` Shrinking peer schedules does not remove all peers
+- `2026-07-15` `8d1948287` Test that adversarial point schedule shrinking preserves consistency
+- `2026-07-15` `93e74d6a2` Preserve TP/HP/BP consistency while shrinking adversarial schedules
+- `2026-07-15` `0c4398563` Ensure there is at least one block per epoch in LoP tests
+- `2026-07-15` `2ca6c7485` Fix genesis tests (#2107)
+- `2026-07-24` `cadd98635` Define the default snapshot policy to be Mithril's snapshot policy
+- `2026-07-24` `8d36f325d` Fixup tests
+- `2026-07-24` `f205a7103` Define the default snapshot policy to be Mithril's snapshot policy (#2149)
+- `2026-07-30` `6de6c8a62` Integration for Node release 11.1
+- `2026-07-30` `a7a603d63` Remove srps, update indices
+- `2026-07-30` `7b900a863` Fix deprecations by switching key handling to FixedSized
+- `2026-07-30` `3454ff851` Node 11.1 integration (#2043)
+- `2026-07-30` `7d71005db` Release ouroboros-consensus 4.0.0.0
+- `2026-07-30` `710fc31ca` Release ouroboros-consensus 4.0.0.0 (#2161)
+- `2026-08-11` `5ad0fd07b` Take Mithril snapshots every 40*k slots with no offset
+- `2026-08-11` `7d5dfe09e` Fix excessive allocation in mempool snapshotting
+- `2026-08-11` `ff535741b` Make OneEraGenTxId Eq/Ord allocation-free (#2003)
+- `2026-08-11` `cee6920fb` Add txid Eq/Ord tests
+- `2026-08-11` `e20b47200` Add txid Eq/Ord micro-benchmark
+- `2026-08-11` `ebb37ec22` Release ouroboros-consensus 4.1.0.0
+- `2026-08-11` `c85b71d7e` Release consensus-4.1 (#2189)
+
+### `ouroboros-network` (264 commits)
+
+- `2026-03-09` `36ba16782` mux: MonadReadBuffer
+- `2026-03-10` `28f2d98e5` ouroboros-network:api - PrettyShow type class
+- `2026-03-10` `42e1acf7d` ouroboros-network:framework MiniProtocolCb - improved haddocks
+- `2026-03-10` `ca2770b60` ouroboros-network - improved thread labels
+- `2026-03-10` `e2d2dcdaf` sim-net: generalised type signatures
+- `2026-03-12` `21d2f3e1b` cardano topology
+- `2026-03-13` `e9f16ac6d` ouroboros-network-framework: haddock improvements
+- `2026-03-13` `a8984a412` Merge pull request #5339 from IntersectMBO/coot/topology
+- `2026-03-17` `1df11facf` ouroboros-network:tests-lib - cleaned up testing tracer
+- `2026-03-17` `7b8f83524` ouroboros-network:tests-lib - better ioe_location of an attenuation error
+- `2026-03-17` `7fdca5969` sim-net: use label rather than classify
+- `2026-03-17` `2991d85f3` ouroboros-network / cardano-diffusion - timeouts properties
+- `2026-03-17` `2f6d63d27` network-mux: mini-protocol job handler
+- `2026-03-17` `e76be2824` network-mux: evaluate mini-protocols errors to WHNF
+- `2026-03-17` `186002646` tracing: use tracers from `Test.Ouroboros.Network.Utils`
+- `2026-03-17` `3e0ec86a6` Added changelog entries
+- `2026-03-17` `218f68ad2` Updated README.md file
+- `2026-03-17` `1f6123bdf` Merge pull request #5341 from IntersectMBO/coot/haddock-improvements
+- `2026-03-17` `db6b545fd` o-n:framework - generalise Ouroboros.Network.Socket API
+- `2026-03-17` `58f3ffb5a` Merge pull request #5328 from IntersectMBO/coot/mux-buffer-refactored
+- `2026-03-18` `379cc9dda` ouroboros-network: timeout properties
+- `2026-03-18` `b3c49bec2` sim-net: tracing
+- `2026-03-18` `dfc468c9c` conn-mgr: use case rather than if
+- `2026-03-18` `1900df32c` conn-mgr: timeWaitTimeout delay
+- `2026-03-18` `401b7ec7a` conn-mgr: simplified transion logic
+- `2026-03-18` `205f18a75` Merge pull request #5321 from IntersectMBO/coot/testing
+- `2026-03-19` `184bdab24` Updated prologue file
+- `2026-03-19` `0d875f765` signal: ppEvents - pretty print events
+- `2026-03-19` `50c54418d` signal: signalProperty' - more concise counterexample output
+- `2026-03-19` `cd1c3c5fc` peer-selection: code style
+- `2026-03-19` `defbe44aa` peer-selection: fixed know target (from below) property
+- `2026-03-19` `32e56500c` Added changelog
+- `2026-03-19` `6a6558e9f` Add `PerasSupport` flag (for NodeToNode negociation)
+- `2026-03-19` `91335cbc7` Introduce `NodeToNodeV_16` and corresponding `PerasSupport` field in `NodeToNodeVersionData`
+- `2026-03-19` `4c7efffb6` Add ObjectDiffusion mini-protocol for Peras cert & vote diffusion
+- `2026-03-20` `b95de85c0` Add CDDL spec and {codec, direct, connect, channel-based} tests for ObjectDiffusion mini-protocol
+- `2026-03-20` `a39022c90` Register `certDiffusion` and `voteDiffusion` instances of ObjectDiffusion miniprotocol in `NodeToNode.hs`
+- `2026-03-20` `324b976a4` Merge pull request #5202 from IntersectMBO/peras-diffusion
+- `2026-03-23` `5c8d41b5c` Merge pull request #5342 from IntersectMBO/coot/known-peers-failure
+- `2026-03-25` `7ed90287b` trace-dispatcher-2.12.0
+- `2026-03-25` `bdb42a48a` LocalRootConfig: updated ToJSON instance
+- `2026-03-25` `f6ef7d9ba` Added JSONField type class
+- `2026-03-25` `aaa6f24e1` Added changelog entries
+- `2026-03-25` `0efa15d33` Merge pull request #5343 from IntersectMBO/coot/local-root-peers
+- `2026-03-25` `61c593120` build(deps): bump actions/deploy-pages from 4 to 5
+- `2026-03-27` `6df73790b` trace-dispatcher: fixed Stateful.TraceRecvMsg
+- `2026-03-27` `12896145d` Removed ouroboros-network:framework-tracing
+- `2026-03-27` `d291751f5` Added changelog.d entry
+- `2026-03-27` `d4251e473` Merge pull request #5344 from IntersectMBO/coot/new-tracing-fix
+- `2026-03-30` `08ebae723` Updated CHaP
+- `2026-03-30` `6fdb4a70e` cardano-tracing: CleanExit - Info
+- `2026-03-31` `bf539d033` Merge pull request #5348 from IntersectMBO/coot/chap
+- `2026-04-01` `f97e4bcf1` Removed AcquireConnectionError
+- `2026-04-02` `e11298d37` Updated documentation
+- `2026-04-02` `18dfccc9e` Merge pull request #5349 from IntersectMBO/coot/haddocks-update
+- `2026-04-02` `22700b947` Merge pull request #5350 from IntersectMBO/coot/acquire-connection-error
+- `2026-04-13` `e193a6895` build(deps): bump actions/upload-pages-artifact from 4 to 5
+- `2026-04-21` `71be22646` Merge pull request #5353 from IntersectMBO/dependabot/github_actions/actions/upload-pages-artifact-5
+- `2026-04-21` `2286fda3f` Merge pull request #5345 from IntersectMBO/dependabot/github_actions/actions/deploy-pages-5
+- `2026-04-21` `3d5a9d3da` Handle fd/fdfind in run-stylish-haskell.sh
+- `2026-04-21` `395440e25` Fix cabal examples
+- `2026-04-21` `7203fc021` Add AGENTS.md file
+- `2026-04-21` `ad1874622` Merge pull request #5355 from IntersectMBO/karknu/bots
+- `2026-04-22` `c9820657a` churn: code refactoring
+- `2026-04-22` `e57cc30d8` Renamed FetchModeGenesis as GenesisFetchMode
+- `2026-04-22` `132a7f8a3` Merge pull request #4962 from IntersectMBO/coot/churnmode
+- `2026-04-24` `1b47c7058` tx-test: fix test case counting of valid and invalid txs
+- `2026-04-24` `9380fc53b` cardano-diffusion test: prop_txSubmission_chainIntegrity
+- `2026-04-24` `8d13659e3` Update change log
+- `2026-04-24` `0e84bced4` Merge pull request #5356 from IntersectMBO/karknu/tx_tests
+- `2026-04-30` `30f0226bb` drop support for x86_64-darwin
+- `2026-05-04` `52ed87cae` connection-manager: added a comment in includeInboundConnectionImpl
+- `2026-05-04` `5285cdd2a` tx-submission v2: return results in submitTxToMempool
+- `2026-05-04` `d85b45bdb` Merge pull request #5357 from IntersectMBO/coot/submitTxToMempool-result
+- `2026-05-04` `39e7aa402` Clairify LedgerPeersConsensusInterface.
+- `2026-05-04` `8fe0f8ebc` Merge pull request #5359 from IntersectMBO/no-intel-mac
+- `2026-05-06` `e078b0cdb` diffusion-test: code clean up
+- `2026-05-06` `a64424063` diffusion: call getFileDescriptor just once
+- `2026-05-06` `a8902df2e` diffusion: local socket warnings
+- `2026-05-07` `4bbf7b52d` Merge pull request #5363 from IntersectMBO/coot/local-socket-access
+- `2026-05-07` `8fb010c41` Merge pull request #5360 from IntersectMBO/coot/connection-manager-comment
+- `2026-05-08` `33d347700` block-fetch: haddocks / type signatures
+- `2026-05-08` `8dd92244f` peer-metrics: edited/added comments
+- `2026-05-08` `9274597d9` outbound-governor: improved documentation
+- `2026-05-08` `0a7bea5cb` diffusion-test: code style
+- `2026-05-08` `84ae371a4` run-nixpkgs-fmt: find fd program
+- `2026-05-08` `ea1810bea` Merge pull request #5361 from IntersectMBO/geo2a/consensus-issue-1852
+- `2026-05-08` `a9feaf515` network-spec: fixed a typo
+- `2026-05-08` `a6c808fca` Added changelog entry
+- `2026-05-08` `00dc2d1ef` Merge pull request #5364 from IntersectMBO/coot/small-changes-v2
+- `2026-05-08` `b48528b79` Peer selection target fix when syncing
+- `2026-05-08` `2c6668d48` Minor tracing tweaks
+- `2026-05-08` `3ef4b8a3d` Merge pull request #5362 from IntersectMBO/mw/fix-targets-sync
+- `2026-05-12` `f632acbfb` nix: add 'all' aggregate jobs for cross-compilation and variant sub-groups
+- `2026-05-12` `926b973a2` tx-demo: socket handling
+- `2026-05-12` `e518d6e36` mempool: getWriterWithCtx
+- `2026-05-12` `15959020b` tx-demo: inbound side
+- `2026-05-12` `54eb7d441` tx-demo: generate & analyse txs commands
+- `2026-05-12` `0e8f3fdbe` tx-demo: added tracer
+- `2026-05-12` `0222d32c6` tx-demo: outbound side
+- `2026-05-12` `3c95820ca` tx-demo: printTracer
+- `2026-05-12` `cd0d2ecf9` tx-demo: custom outbound side
+- `2026-05-12` `488086ef7` tx-demo: TraceTxSubmissionInbound tracer
+- `2026-05-12` `21fbe5144` tx-demo: improved tracers
+- `2026-05-12` `fa1cc7177` tx-demo: concurrent outbound peers
+- `2026-05-12` `c4d05f1e3` tx-demo: added median to analyse-txs subcommand
+- `2026-05-12` `093a1c94c` tx-demo: set default rts options
+- `2026-05-12` `f75ba1541` tx-demo: configurable TxDecisionPolicy
+- `2026-05-12` `a22595a68` mux disector
+- `2026-05-12` `5b0aa6dbe` WithBytes: derived ShowProxy and NoThunks instances
+- `2026-05-12` `f57f63941` tx-demo: using annotated codec
+- `2026-05-12` `98945090c` tx-demo: using annotated codec without WithBytes
+- `2026-05-12` `6ba7d6853` tx-demo: outbound stderr message
+- `2026-05-12` `e2c00957a` mux-demo: split the script
+- `2026-05-12` `162b8bcbc` tx-demo: bind outbound side
+- `2026-05-12` `362ea97ea` tx-demo: tx-submission script
+- `2026-05-12` `2688e9956` tx-demo: realistic tx sizes
+- `2026-05-12` `f63434948` tx-demo: txs-to-request and unacked-txids
+- `2026-05-12` `48fb1e531` Added changelog entries
+- `2026-05-12` `e389bd2ae` tx-demo: combine `command` parsers
+- `2026-05-12` `bd588cc9b` Merge pull request #5354 from IntersectMBO/coot/tx-submission-demo
+- `2026-05-13` `e0eafca27` Merge pull request #5365 from IntersectMBO/coot/nix-all
+- `2026-05-15` `ae2e4958e` keep-alive: introduce KeepAliveRegistry
+- `2026-05-15` `08a5ebec4` keep-alive: moved KeepAliveRegistry to its own module
+- `2026-05-15` `e8d59d8a2` Merge pull request #5371 from IntersectMBO/coot/bracketKeepAliveClient
+- `2026-05-18` `fc71f9411` nix: .all builds all packages
+- `2026-05-19` `e12f0e80b` Upgrade to contra-tracer 0.2.1
+- `2026-05-19` `bab044045` mux-test: make trailing bytes (IO) test more reliable
+- `2026-05-19` `705ab8a97` mux-test: mux close (IO)
+- `2026-05-19` `85d7de79e` nix: bumped heap limit
+- `2026-05-19` `a595114d7` framework-io-tests: fixed socket test ordering
+- `2026-05-19` `34b0fd25b` framework-io-tests: use ephemeral ports
+- `2026-05-19` `4ae67af83` framework-tests-lib: fixed bidirectionalExperiment flakiness
+- `2026-05-19` `24a6facc3` cardano-diffusion: rename selectEnvTargets to selectGovTargets
+- `2026-05-19` `b9eff2e2a` Merge pull request #5368 from IntersectMBO/f-f/contra-tracer-0.2
+- `2026-05-20` `54f75ba86` Merge pull request #5372 from dancewithheart/drop-selectEnvTargets
+- `2026-05-21` `e07c26ff6` ouroboros-network: NoExtraConfig, NoExtraAPI and NoExtraChurnArgs
+- `2026-05-21` `8fcb1ec4c` orphaned-instances: added instances
+- `2026-05-21` `d3d0cbc65` LedgerPeerConsensusInterface: export PraosFetchMode
+- `2026-05-21` `3ae6146ea` Use contra-tracer-0.2.1.0 from CHaP
+- `2026-05-21` `f772fd8aa` keep-alive: export KeepAlive.Registry module from KeepAlive
+- `2026-05-21` `d75dbef69` api: PrettyShow instances for NodeToNodeVersion & NodeToClientVersion
+- `2026-05-21` `a0cd039d4` framework-test-lib: added a label, formatting
+- `2026-05-21` `76faf7adf` network-mux: fail on mini-protocol startup if the state is `Failed`
+- `2026-05-22` `a54cc79b0` mux-test: mux close (IO)
+- `2026-05-22` `a2203a43a` mux: delta-q code formatting
+- `2026-05-22` `a36632c1e` Added changelog fragments
+- `2026-05-22` `d842a238a` Merge pull request #5376 from IntersectMBO/coot/tracing-instances
+- `2026-06-09` `7b3056646` ouroboros-network: fixed indentation
+- `2026-06-09` `2f1c73799` Moved `cardano-ping` to `cardano-diffusion:ping`
+- `2026-06-09` `532eb45e0` cardano-diffusion: exposed node-to-client protocol numbers
+- `2026-06-09` `908f573c6` ouroboros-network:framework - runHandshakeClientWithRTT
+- `2026-06-09` `18bcff16c` api: provide nodeTo{Node,Client}VersionDataCodec
+- `2026-06-09` `67da7eeb1` handshake: fixed prop_acceptOrRefuse_symmetric failure
+- `2026-06-09` `6ceafe2b7` api: hide nodeTo{Node,Client}CodecCBORTerm
+- `2026-06-09` `1ca8c531c` api: VersionedCodecCBORTerm
+- `2026-06-09` `8eeef12b3` api: documented changes in the changelog
+- `2026-06-09` `63447aad4` mux-test: mux close (IO)
+- `2026-06-09` `9a9847fcc` cardano-diffusion:ping - using ouroboros-network and cardano-diffusion
+- `2026-06-09` `c4c2908a0` cardano-diffusion:ping - query tip over node-to-client protocol
+- `2026-06-09` `b50fc7a6b` cardano-diffusion:ping - stylish-haskell
+- `2026-06-09` `ce2bac21b` cardano-diffusion:ping - query Peras support
+- `2026-06-09` `405d7282c` cardano-diffusion:ping - added standard deviation to JSON output
+- `2026-06-09` `300feb7ae` cardano-diffusion:ping - added ping mode
+- `2026-06-09` `598dd7b19` cardano-diffusion:ping - idle timeout delay
+- `2026-06-09` `1dbee4fcb` cardano-diffusion:demo-ping - demo ping command
+- `2026-06-09` `d6032ea8d` cardano-diffusion:ping - apply idle timeout before closing the connection
+- `2026-06-09` `a66a9fa17` cardano-diffusion:ping - resolve filepaths and domain names
+- `2026-06-09` `5b1a4d671` cardano-diffusion:ping - log output
+- `2026-06-09` `0e7eaace1` cardano-diffusion:ping - rtt output
+- `2026-06-10` `8abc2a192` cardano-diffusion:ping - show negotiated network version
+- `2026-06-10` `57fffa2b4` cardano-diffusion:ping - stderr tracer
+- `2026-06-10` `b046a4237` cardano-diffusion:ping - last to finish between ping clients
+- `2026-06-10` `1dfc71e0c` cardano-diffusion:ping - SRV support
+- `2026-06-10` `c03eeec46` cardano-diffusion:ping - added changelog entry
+- `2026-06-11` `4a6e0732f` cardano-diffusion:ping - output fixes
+- `2026-06-11` `cb190617b` cardano-ping - build staticlly linked executable
+- `2026-06-11` `ec992b00b` cardano-diffusion:ping - added --color auto
+- `2026-06-11` `4ecbc45bb` Merge pull request #5205 from IntersectMBO/coot/cardano-ping
+- `2026-06-12` `47731b9e6` Efficient common case for setCurrentTime
+- `2026-06-12` `1671947b7` Merge pull request #5381 from IntersectMBO/karknu/knownpeers
+- `2026-06-17` `4fc713a4a` peer-state-actions: improved haddocks
+- `2026-06-17` `bf2c09949` cardano-diffusion:ping - don't use Address in pingClient
+- `2026-06-17` `baf84b87c` cardano-diffusion:ping - don't require ProtocolFlavour by pingClient
+- `2026-06-17` `575a7c285` cardano-diffusion:ping - export pingClient
+- `2026-06-17` `98a44ba8e` cardano-diffusion:ping - pingClient exception handling
+- `2026-06-17` `f5d8195c1` cardano-diffusion:ping - Export Stage, ResolvedSRVOrFilePath
+- `2026-06-17` `e9f41d9eb` cardano-diffusion:ping - added haddock sections to exports
+- `2026-06-17` `5a477bd10` Added changelog entry
+- `2026-06-17` `0a766d470` Merge pull request #5386 from IntersectMBO/coot/cardano-ping-api
+- `2026-06-18` `5e76b0958` build(deps): bump actions/checkout from 6 to 7
+- `2026-06-19` `4fe9bd390` Merge pull request #5388 from IntersectMBO/dependabot/github_actions/actions/checkout-7
+- `2026-06-23` `37e4b5f70` Merge pull request #5374 from IntersectMBO/coot/nix-all
+- `2026-06-23` `0bb72494e` build(deps): bump actions/cache from 5 to 6
+- `2026-06-24` `381ba7c62` Merge pull request #5391 from IntersectMBO/dependabot/github_actions/actions/cache-6
+- `2026-06-24` `cf4e8298d` network-mux:test - code style
+- `2026-06-24` `d94584b72` Allow QuickCheck 2.18
+- `2026-06-24` `d7736b7c4` Merge pull request #5379 from IntersectMBO/f-f/allow-quickcheck-218
+- `2026-06-25` `8448c640d` cardano-diffusion:ping - allow for optparse-applicative-fork
+- `2026-06-26` `613f8a13c` Merge pull request #5392 from IntersectMBO/coot/optparse-applicative-fork
+- `2026-06-26` `a2e379192` cardano-diffusion: added repl cabal flag
+- `2026-06-26` `d666f0e05` cardano-diffusion:ping - mkAddress
+- `2026-06-26` `6a0c29b4d` cardano-diffusion:ping - AcceptFilePath mode for resolvedAddress
+- `2026-06-26` `738b89040` cardano-diffusion:ping - added pingClients'
+- `2026-06-26` `9dc6d46c8` Added changelog entry
+- `2026-06-29` `5ce6d34c6` RawTxId
+- `2026-06-29` `9974099e0` Fix TxSubmissionProtocolError Eq instance
+- `2026-06-29` `31bec05aa` Remove central decision from tx-submission v2
+- `2026-06-29` `a3b2983cd` update changelogs
+- `2026-06-29` `3702cb037` Improve flakey prop_socket_send_recv
+- `2026-06-29` `68f48aff9` demo/test: Let connectToNode return
+- `2026-06-29` `66dcc42e5` Merge pull request #5375 from IntersectMBO/karknu/tx_undecision.main
+- `2026-06-30` `22dc2d61e` cabal.project: Update index-states
+- `2026-06-30` `1ae19af91` cabal.project: Update allow-newers
+- `2026-06-30` `bec823613` Update aesen dependency lower bound
+- `2026-06-30` `42b9564c8` Nix updates
+- `2026-06-30` `50e180081` Add changelog fragments
+- `2026-06-30` `c412bb16a` Merge pull request #5394 from IntersectMBO/erikd/update
+- `2026-06-30` `b7ff21d2f` cardano-diffusion:ping - tracers
+- `2026-06-30` `b47dbc2c2` Merge pull request #5387 from IntersectMBO/coot/cardano-ping-fail-mode
+- `2026-07-01` `496b17d35` Revert "Merge pull request #5394 from IntersectMBO/erikd/update"
+- `2026-07-01` `8c4f807f1` changelogs
+- `2026-07-02` `8cf9d1ce3` Update allow-newer stanzas
+- `2026-07-02` `2d42fe212` bump flake
+- `2026-07-02` `5ab6a37e7` bump GHC
+- `2026-07-02` `1eabe1307` Merge pull request #5397 from IntersectMBO/mw/revert-aeson-lower-bound
+- `2026-07-03` `0a614a36c` Bump trace-generators to 2.13
+- `2026-07-07` `2cd6b75da` Merge pull request #5398 from IntersectMBO/f-f/bump-trace-generators
+- `2026-07-09` `6d93899d6` tx-submission-logic: awaitSharedChange can be an STM action
+- `2026-07-13` `1316f7c0b` dns-actions: fixed fixupTTL
+- `2026-07-13` `508816462` root peers: TTL clipping
+- `2026-07-13` `5860d50c9` Merge pull request #5399 from IntersectMBO/coot/tx-undecision-stm
+- `2026-07-14` `b3aa404b9` dns-actions: TTL newtype wrapper
+- `2026-07-14` `10ac4ab61` network-mux:test - handle Windows client-side IOException in close_experiment
+- `2026-07-14` `cc0140145` tx-outbound: Int based calculations
+- `2026-07-14` `9e5060c68` Added changelog entries
+- `2026-07-14` `38e2d24e4` Merge pull request #5389 from IntersectMBO/coot/network-mux-test-code-style
+- `2026-07-14` `a0890be2c` Rearrange severity query for new tracing
+- `2026-07-15` `74b8aa164` Avoid thunk in ChainSelStarvationEndedAt
+- `2026-07-15` `d8938fb0f` tracing: minor cleanup
+- `2026-07-15` `8229706a8` Merge pull request #5404 from IntersectMBO/coot/tx-outbound
+- `2026-07-15` `94daae78d` Merge pull request #5402 from IntersectMBO/f-f/fix-tracing-severity
+- `2026-07-16` `fec5f760a` Merge pull request #5403 from IntersectMBO/js/thunks
+- `2026-07-16` `6fe765936` Merge pull request #5400 from IntersectMBO/coot/dns-ttl
+- `2026-07-22` `7d5261376` Fix severity queries for InsecureLocalSocket
+- `2026-07-22` `96dcc00e3` removed debug comments
+- `2026-07-23` `061c32868` network-mux: using formatting library
+- `2026-07-23` `d5fc44653` ouroboros-network: using formatting library
+- `2026-07-23` `8b9a33456` cardano-diffusion: using formatting library
+- `2026-07-23` `8b17241f8` cardano-diffusion: using formatting library
+- `2026-07-23` `ef211fd7d` cardano-ping: short / full hash
+- `2026-07-23` `a89db961b` cardano-ping: quiet mode
+- `2026-07-23` `2622a532f` cardano-ping: more concise formatting of NodeToNodeVersionData
+- `2026-07-23` `1960ba2d1` Merge pull request #5408 from IntersectMBO/f-f/fix-tracing-severity2
+- `2026-07-24` `dd7c467d2` changelog
+- `2026-07-24` `d80f488c8` Merge pull request #5409 from IntersectMBO/coot/ping-and-formatting
+- `2026-07-28` `2e83f1a31` Always inform IG of MuxFinished
+- `2026-07-28` `1ccd17298` CM: Fix connection leak
+- `2026-07-28` `4341b99ee` changelog
+- `2026-07-28` `4f93efd97` connection-manager: trace remote address and ConnStateId
+- `2026-07-28` `d8169de9b` Merge pull request #5411 from IntersectMBO/mw/leaks
+- `2026-07-28` `4fe733b20` release-to-chap and build-with-chap: fdfind
+- `2026-07-28` `a2f21886a` Bump packages, updated CHANGELOGs
+- `2026-07-28` `c45735a56` Merge pull request #5412 from IntersectMBO/coot/cardano-diffusion-1.1.0.0-release
