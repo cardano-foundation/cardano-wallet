@@ -3,11 +3,11 @@
     "CHaP": {
       "flake": false,
       "locked": {
-        "lastModified": 1784570152,
-        "narHash": "sha256-eOcU6GF5Skq/WkBdfCgKIyTzgAjWo1WjbVsR5xDzunI=",
+        "lastModified": 1786970582,
+        "narHash": "sha256-V1jy4O3CNrd8dPvK2/c79ok4jLO5GXetugI4nvgcq/A=",
         "owner": "intersectmbo",
         "repo": "cardano-haskell-packages",
-        "rev": "f77658bfbf42886478e7a34a1522949cdfc639a3",
+        "rev": "c0770200fcaa899ecdef548183dfee78e17bfb57",
         "type": "github"
       },
       "original": {
