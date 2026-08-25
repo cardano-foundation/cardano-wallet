@@ -4,6 +4,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
+
 {-# OPTIONS_GHC -Wno-orphans #-}
 
 module Cardano.Wallet.DB.Store.Submissions.StoreSpec (spec) where
@@ -54,6 +55,9 @@ import Cardano.Wallet.Primitive.Types.Tx
 import Cardano.Wallet.Primitive.Types.Tx.TxMeta
     ( Direction (Outgoing)
     )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..)
+    )
 import Cardano.Wallet.Submissions.OperationsSpec
     ( genOperationsDelta
     )
@@ -90,8 +94,8 @@ import Test.QuickCheck
     , property
     )
 import Prelude
-
 import qualified Data.ByteString as BS
+
 
 spec :: Spec
 spec = do

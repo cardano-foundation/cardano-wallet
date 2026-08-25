@@ -137,6 +137,9 @@ import Control.Lens
 import Control.Monad
     ( join
     )
+import Data.Time.Clock
+    ( UTCTime
+    )
 import Control.Monad.IO.Class
     ( MonadIO
     , liftIO
@@ -319,6 +322,22 @@ data DBLayer m s = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         :: forall a. ContextChange -> stm a -> m a
     , atomicallyReadContext
         :: forall a. stm a -> m (a, ContextClock)
+    -- | The durable wallet-scoped submission journal. These operations share
+    -- the same database transaction boundary as context changes.
+    , insertDurableSubmission
+        :: DurableSubmission
+        -> [DurableSubmissionInput]
+        -> stm DurableSubmissionInsert
+    , updateDurableSubmission
+        :: DurableSubmission
+        -> stm ()
+    , claimDurableSubmissionAttempt
+        :: TxId
+        -> Word64
+        -> UTCTime
+        -> stm (Maybe DurableSubmission)
+    , readDurableSubmissions
+        :: stm [DurableSubmission]
     }
 
 data ContextChange
@@ -437,6 +456,25 @@ data DBDurableSubmissions stm = DBDurableSubmissions
         :: stm [DurableSubmission]
     }
 
+-- | Durable external-submission actions supplied by the concrete database.
+data DBDurableSubmissions stm = DBDurableSubmissions
+    { insertDurableSubmission_
+        :: DurableSubmission
+        -> [DurableSubmissionInput]
+        -> stm DurableSubmissionInsert
+    , updateDurableSubmission_
+        :: DurableSubmission
+        -> stm ()
+    , claimDurableSubmissionAttempt_
+        :: TxId
+        -> Word64
+        -> UTCTime
+        -> stm (Maybe DurableSubmission)
+    , readDurableSubmissions_
+        :: stm [DurableSubmission]
+    }
+
+
 {- HLINT ignore mkDBLayerFromParts "Avoid lambda" -}
 
 -- | Create a legacy 'DBLayer' from smaller database layers.
@@ -527,6 +565,11 @@ mkDBLayerFromParts ti wid_ DBLayerCollection{..} =
         , atomicallyWithContextChange = const atomically_
         , atomicallyReadContext = \action ->
             (\result -> (result, ContextClock 0 0 0 False)) <$> atomically_ action
+        , insertDurableSubmission = insertDurableSubmission_ durableSubmissions_
+        , updateDurableSubmission = updateDurableSubmission_ durableSubmissions_
+        , claimDurableSubmissionAttempt =
+            claimDurableSubmissionAttempt_ durableSubmissions_
+        , readDurableSubmissions = readDurableSubmissions_ durableSubmissions_
         }
   where
     withSubmissions :: forall a. (TxSubmissions -> stm a) -> stm a

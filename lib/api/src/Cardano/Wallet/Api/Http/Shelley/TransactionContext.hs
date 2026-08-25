@@ -432,6 +432,7 @@ captureContext worker =
             pending <-
                 first (const DappContextUnavailableError)
                     $ mapM decodeDurable (filter hasLiveClaim durable)
+
             checkpoint <-
                 Set.fromList
                     <$> first
@@ -1058,63 +1059,66 @@ candidateFromOwnership
     -> Word32
     -> ApiDappOwnership
     -> Either DappError ProducibleCandidate
-candidateFromOwnership discovery transactionIndex ApiDappOwnership
-                                                    { credentialKind
-                                                    , credential = ApiDappHex keyHash
-                                                    , derivationPath
-                                                    } = do
-    publicKey <- case (credentialKind, derivationPath) of
-        ( PaymentCredential
-            , [0x8000073c, 0x80000717, accountIndex, roleIndex, addressIndex]
-            )
-            | accountIndex == getIndex account
-                && roleIndex <= 1
-                && addressIndex < 0x80000000 ->
-                pure
-                    $ childPublicKey
-                    $ deriveAddressPublicKey
-                        (Seq.accountXPub discovery)
-                        (if roleIndex == 0 then UtxoExternal else UtxoInternal)
-                        (Index addressIndex)
-        (StakeCredential, path)
-            | path == stakePath ->
-                pure
-                    $ childPublicKey
-                    $ deriveAddressPublicKey
-                        (Seq.accountXPub discovery)
-                        MutableAccount
-                        minBound
-        (DRepCredential, path)
-            | path == drepPath ->
-                pure
-                    $ xpubPublicKey
-                    $ deriveDRepPublicKey
-                    $ getRawKey ShelleyKeyS (Seq.accountXPub discovery)
-        (PolicyCredential, [0x8000073f, 0x80000717, 0x80000000]) ->
-            maybe (Left DappInternalErrorResponse) (pure . childPublicKey)
-                $ Seq.policyXPub discovery
-        _ -> Left DappInternalErrorResponse
-    requireEither DappInternalErrorResponse
-        $ blake2b224 publicKey == keyHash
-    pure
-        $ ProducibleCandidate
-            transactionIndex
-            credentialKind
-            derivationPath
-            keyHash
-  where
-    Seq.DerivationPrefix (_, _, account) = Seq.derivationPrefix discovery
-    stakePath =
-        map getDerivationIndex
-            $ NE.toList
-            $ stakeDerivationPath
-            $ Seq.derivationPrefix discovery
-    drepPath =
-        map getDerivationIndex
-            $ NE.toList
-            $ drepDerivationPath
-            $ Seq.derivationPrefix discovery
-    childPublicKey = xpubPublicKey . getRawKey ShelleyKeyS
+candidateFromOwnership
+    discovery
+    transactionIndex
+    ApiDappOwnership
+        { credentialKind
+        , credential = ApiDappHex keyHash
+        , derivationPath
+        } = do
+        publicKey <- case (credentialKind, derivationPath) of
+            ( PaymentCredential
+                , [0x8000073c, 0x80000717, accountIndex, roleIndex, addressIndex]
+                )
+                    | accountIndex == getIndex account
+                        && roleIndex <= 1
+                        && addressIndex < 0x80000000 ->
+                        pure
+                            $ childPublicKey
+                            $ deriveAddressPublicKey
+                                (Seq.accountXPub discovery)
+                                (if roleIndex == 0 then UtxoExternal else UtxoInternal)
+                                (Index addressIndex)
+            (StakeCredential, path)
+                | path == stakePath ->
+                    pure
+                        $ childPublicKey
+                        $ deriveAddressPublicKey
+                            (Seq.accountXPub discovery)
+                            MutableAccount
+                            minBound
+            (DRepCredential, path)
+                | path == drepPath ->
+                    pure
+                        $ xpubPublicKey
+                        $ deriveDRepPublicKey
+                        $ getRawKey ShelleyKeyS (Seq.accountXPub discovery)
+            (PolicyCredential, [0x8000073f, 0x80000717, 0x80000000]) ->
+                maybe (Left DappInternalErrorResponse) (pure . childPublicKey)
+                    $ Seq.policyXPub discovery
+            _ -> Left DappInternalErrorResponse
+        requireEither DappInternalErrorResponse
+            $ blake2b224 publicKey == keyHash
+        pure
+            $ ProducibleCandidate
+                transactionIndex
+                credentialKind
+                derivationPath
+                keyHash
+      where
+        Seq.DerivationPrefix (_, _, account) = Seq.derivationPrefix discovery
+        stakePath =
+            map getDerivationIndex
+                $ NE.toList
+                $ stakeDerivationPath
+                $ Seq.derivationPrefix discovery
+        drepPath =
+            map getDerivationIndex
+                $ NE.toList
+                $ drepDerivationPath
+                $ Seq.derivationPrefix discovery
+        childPublicKey = xpubPublicKey . getRawKey ShelleyKeyS
 
 obligationTransactionIndex :: ProofObligation -> Word32
 obligationTransactionIndex = \case
@@ -1226,43 +1230,44 @@ directProofObligations requested resolved =
     outputs =
         Map.fromList
             [(value.outpoint, output) | (_, value, output) <- resolved]
-    perTransaction ( transactionIndex
-                    , DecodedTx{transaction = Read.Tx ledgerTx, normal, collateral}
-                    ) = do
-        normalProofs <- inputProofs transactionIndex NormalInputProof normal
-        collateralProofs <-
-            inputProofs transactionIndex CollateralProof collateral
-        let Withdrawals withdrawals = ledgerTx ^. bodyTxL . withdrawalsTxBodyL
-            VotingProcedures voting = ledgerTx ^. bodyTxL . votingProceduresTxBodyL
-            withdrawalProofs =
-                [ DirectProofObligation transactionIndex WithdrawalProof
-                    $ keyBytes keyHash
-                | (AccountAddress _ (AccountId (KeyHashObj keyHash)), _) <-
-                    Map.toList withdrawals
-                ]
-            certificateProofs =
-                [ DirectProofObligation transactionIndex CertificateProof
-                    $ keyBytes keyHash
-                | certificate <- toList $ ledgerTx ^. bodyTxL . certsTxBodyL
-                , Just keyHash <- [getVKeyWitnessTxCert certificate]
-                ]
-            voteProofs =
-                [ DirectProofObligation transactionIndex CertificateProof keyHash
-                | voter <- Map.keys voting
-                , keyHash <- voterKeyHashes voter
-                ]
-            signerProofs =
-                [ DirectProofObligation transactionIndex RequiredSignerProof
-                    $ keyBytes keyHash
-                | keyHash <- Set.toList $ ledgerTx ^. bodyTxL . reqSignerHashesTxBodyL
-                ]
-        pure
-            $ normalProofs
-                <> collateralProofs
-                <> withdrawalProofs
-                <> certificateProofs
-                <> voteProofs
-                <> signerProofs
+    perTransaction
+        ( transactionIndex
+            , DecodedTx{transaction = Read.Tx ledgerTx, normal, collateral}
+            ) = do
+            normalProofs <- inputProofs transactionIndex NormalInputProof normal
+            collateralProofs <-
+                inputProofs transactionIndex CollateralProof collateral
+            let Withdrawals withdrawals = ledgerTx ^. bodyTxL . withdrawalsTxBodyL
+                VotingProcedures voting = ledgerTx ^. bodyTxL . votingProceduresTxBodyL
+                withdrawalProofs =
+                    [ DirectProofObligation transactionIndex WithdrawalProof
+                        $ keyBytes keyHash
+                    | (AccountAddress _ (AccountId (KeyHashObj keyHash)), _) <-
+                        Map.toList withdrawals
+                    ]
+                certificateProofs =
+                    [ DirectProofObligation transactionIndex CertificateProof
+                        $ keyBytes keyHash
+                    | certificate <- toList $ ledgerTx ^. bodyTxL . certsTxBodyL
+                    , Just keyHash <- [getVKeyWitnessTxCert certificate]
+                    ]
+                voteProofs =
+                    [ DirectProofObligation transactionIndex CertificateProof keyHash
+                    | voter <- Map.keys voting
+                    , keyHash <- voterKeyHashes voter
+                    ]
+                signerProofs =
+                    [ DirectProofObligation transactionIndex RequiredSignerProof
+                        $ keyBytes keyHash
+                    | keyHash <- Set.toList $ ledgerTx ^. bodyTxL . reqSignerHashesTxBodyL
+                    ]
+            pure
+                $ normalProofs
+                    <> collateralProofs
+                    <> withdrawalProofs
+                    <> certificateProofs
+                    <> voteProofs
+                    <> signerProofs
     voterKeyHashes = \case
         CommitteeVoter (KeyHashObj (LedgerKeys.KeyHash hash)) ->
             [Crypto.hashToBytes hash]
