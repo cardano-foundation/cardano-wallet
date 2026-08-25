@@ -16,6 +16,7 @@ import Cardano.Wallet.Api
     , DecodeTransaction
     , DeleteTransaction
     , GetDRepSummary
+    , GetDappCip95KeyState
     , GetTransaction
     , InspectAddress
     , JoinStakePool
@@ -73,6 +74,7 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Api.Types.Dapp.Context
     ( ApiDappDataSignRequest
     , ApiDappDataSignResponse
+    , ApiDappCip95KeyState
     , ApiDappTransactionContextRequest
     , ApiDappTransactionContextResponse
     , ApiDappWitnessSignRequest
@@ -270,6 +272,12 @@ dappDataSignature
     -> ClientM ApiDappDataSignResponse
 dappDataSignature =
     client (Proxy @("v2" :> PostDappDataSignature))
+
+dappCip95KeyState
+    :: ApiT WalletId
+    -> ClientM ApiDappCip95KeyState
+dappCip95KeyState =
+    client (Proxy @("v2" :> GetDappCip95KeyState))
 
 postExternalTransaction
     :: ApiT SealedTx -> ClientM ApiTxId

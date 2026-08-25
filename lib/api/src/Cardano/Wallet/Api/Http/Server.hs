@@ -110,6 +110,7 @@ import Cardano.Wallet.Api.Http.Shelley.Server
     , getCurrentEpoch
     , getDRep
     , getDRepSummary
+    , getDappCip95KeyState
     , getNetworkClock
     , getNetworkInformation
     , getNetworkParameters
@@ -420,6 +421,7 @@ server byron icarus shelley multisig spl drepLayer ntp blockchainSource =
             :<|> postTransactionContext @n shelley
             :<|> postDappWitnesses @n shelley
             :<|> postDappDataSignature @n shelley
+            :<|> getDappCip95KeyState @n shelley
 
     shelleyMigrations :: Server (ShelleyMigrations n)
     shelleyMigrations =

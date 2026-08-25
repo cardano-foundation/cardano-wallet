@@ -3223,31 +3223,26 @@ prop_dappDataSignsExactBytes xprvKey encPwd = ioProperty $ withFastKdfForTesting
         rootKey =
             liftRawKey ShelleyKeyS
                 $ CC.xPrvChangePass encPwd encryptionPwd (getRawKey ShelleyKeyS xprvKey)
-        path = [0x8000073c, 0x80000717, 0x80000000, 0, 0]
+        paymentPath = [0x8000073c, 0x80000717, 0x80000000, 0, 0]
+        drepPath = [0x8000073c, 0x80000717, 0x80000000, 3, 0]
         accountKey =
             Shelley.deriveAccountPrivateKeyShelley
                 (Index 0x8000073c)
                 encryptionPwd
                 (getRawKey ShelleyKeyS rootKey)
                 (Index 0x80000000)
-        addressKey =
+        paymentKey =
             Shelley.deriveAddressPrivateKeyShelley
                 encryptionPwd
                 accountKey
                 UtxoExternal
                 (Index 0)
-        credential = blake2b224 $ xpubPublicKey $ toXPub addressKey
+        drepKey = Shelley.deriveDRepPrivateKey encryptionPwd accountKey
+        paymentCredential = blake2b224 $ xpubPublicKey $ toXPub paymentKey
+        drepCredential = blake2b224 $ xpubPublicKey $ toXPub drepKey
         message = BS.pack [0x00, 0xff, 0x80, 0x41]
         altered = BS.reverse message
-        rawXprv =
-            CC.xPrvChangePass encPwd (mempty :: BS.ByteString)
-                $ getRawKey ShelleyKeyS xprvKey
-        raw128 = CC.unXPrv rawXprv
-        masterKey96 = BS.take 64 raw128 <> BS.drop 96 raw128
-    ekeyE <- encryptedCreateDirectWithTweak masterKey96 userPwd
-    case ekeyE of
-        Left _ -> pure False
-        Right ekey -> do
+        signBoth ekey path credential = do
             v1 <-
                 signDappData
                     (RootKeyAccessV1 rootKey EncryptWithPBKDF2)
@@ -3269,6 +3264,18 @@ prop_dappDataSignsExactBytes xprvKey encPwd = ioProperty $ withFastKdfForTesting
                         && verifiesDappData message public signature
                         && not (verifiesDappData altered public signature)
                 _ -> False
+        rawXprv =
+            CC.xPrvChangePass encPwd (mempty :: BS.ByteString)
+                $ getRawKey ShelleyKeyS xprvKey
+        raw128 = CC.unXPrv rawXprv
+        masterKey96 = BS.take 64 raw128 <> BS.drop 96 raw128
+    ekeyE <- encryptedCreateDirectWithTweak masterKey96 userPwd
+    case ekeyE of
+        Left _ -> pure False
+        Right ekey -> do
+            payment <- signBoth ekey paymentPath paymentCredential
+            drep <- signBoth ekey drepPath drepCredential
+            pure $ payment && drep
 
 verifiesDappData :: ByteString -> ByteString -> ByteString -> Bool
 verifiesDappData message public signature = case ( VKey <$> rawDeserialiseVerKeyDSIGN public :: Maybe (VKey Witness)

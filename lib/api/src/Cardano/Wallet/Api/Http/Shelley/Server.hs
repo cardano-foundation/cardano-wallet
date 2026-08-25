@@ -103,6 +103,7 @@ module Cardano.Wallet.Api.Http.Shelley.Server
     , postTransactionContext
     , postDappWitnesses
     , postDappDataSignature
+    , getDappCip95KeyState
     , getPolicyKey
     , postPolicyKey
     , postPolicyId
@@ -127,6 +128,8 @@ module Cardano.Wallet.Api.Http.Shelley.Server
     , MkApiWallet
     , DataCredential (..)
     , validateDataSignRequest
+    , classifyDRepDataCredential
+    , stakeRegistrationEffects
     , encodeProtectedDataAddress
     , encodeSignatureStructure
     , mkDappDataSignResponse
@@ -187,8 +190,15 @@ import Cardano.Ledger.Binary
     , serialize'
     , shelleyProtVer
     )
+import Cardano.Ledger.Conway.TxCert
+    ( ConwayDelegCert (ConwayRegCert, ConwayRegDelegCert, ConwayUnRegCert)
+    , ConwayTxCert (ConwayTxCertDeleg)
+    )
 import Cardano.Ledger.Conway.TxWits
     ( AlonzoTxWits
+    )
+import Cardano.Ledger.Credential
+    ( Credential (KeyHashObj)
     )
 import Cardano.Mnemonic
     ( SomeMnemonic
@@ -253,6 +263,7 @@ import Cardano.Wallet.Address.Derivation
     , SoftDerivation (..)
     , delegationAddressS
     , deriveRewardAccount
+    , drepDerivationPath
     , stakeDerivationPath
     )
 import Cardano.Wallet.Address.Derivation.Byron
@@ -271,6 +282,7 @@ import Cardano.Wallet.Address.Derivation.SharedKey
     )
 import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey
+    , deriveDRepPublicKey
     )
 import Cardano.Wallet.Address.Discovery
     ( ChangeAddressMode (..)
@@ -509,7 +521,8 @@ import Cardano.Wallet.Api.Types.Certificate
     , mkApiAnyCertificate
     )
 import Cardano.Wallet.Api.Types.Dapp.Context
-    ( ApiDappContextNetwork (..)
+    ( ApiDappCip95KeyState (..)
+    , ApiDappContextNetwork (..)
     , ApiDappCredentialKind (..)
     , ApiDappDataSignRequest (..)
     , ApiDappDataSignResponse (..)
@@ -705,7 +718,7 @@ import Cardano.Wallet.Primitive.Types.Tx.SealedTx
     ( sealedTxWitnessCount
     )
 import Cardano.Wallet.Primitive.Types.Tx.TransactionInfo
-    ( TransactionInfo
+    ( TransactionInfo (..)
     )
 import Cardano.Wallet.Primitive.Types.Tx.TxExtended
     ( TxExtended (..)
@@ -722,6 +735,10 @@ import Cardano.Wallet.Primitive.Types.Tx.TxMetadata
     )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..)
+    )
+import Cardano.Wallet.Read.Eras
+    ( EraValue (..)
+    , K (..)
     )
 import Cardano.Wallet.Read.Tx.CBOR
     ( TxCBOR
@@ -974,7 +991,9 @@ import qualified Cardano.Balance.Tx.Tx as Write
     , utxoFromTxOutsInRecentEra
     , pattern PolicyId
     )
+import qualified Cardano.Crypto.Hash.Class as Crypto
 import qualified Cardano.Ledger.Core as Ledger
+import qualified Cardano.Ledger.Keys as LedgerKeys
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.Address.Derivation.Byron as Byron
 import qualified Cardano.Wallet.Address.Derivation.Icarus as Icarus
@@ -991,6 +1010,7 @@ import qualified Cardano.Wallet.Network as NW
 import qualified Cardano.Wallet.Primitive.Ledger.Convert as Convert
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.AssetName as AssetName
+import qualified Cardano.Wallet.Primitive.Types.Range as Range
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx.SealedTx as W
     ( SealedTx
@@ -5996,8 +6016,90 @@ postDappWitnesses ctx (ApiT walletId) request = do
                     $ (mempty :: AlonzoTxWits ConwayEra)
                     & Ledger.addrTxWitsL .~ Set.fromList witnesses
                 )
-
     throwDapp = Handler . throwE . dappServerError
+
+getDappCip95KeyState
+    :: forall n
+     . ApiLayer (SeqState n ShelleyKey)
+    -> ApiT WalletId
+    -> Handler ApiDappCip95KeyState
+getDappCip95KeyState ctx (ApiT walletId) =
+    withWorkerCtx
+        ctx
+        walletId
+        (const $ throwDapp DappAccountChangedError)
+        (const $ throwDapp DappContextUnavailableError)
+        $ \worker -> liftIO $ do
+            let db = worker ^. W.dbLayer @IO @(SeqState n ShelleyKey)
+            checkpoint <-
+                db
+                    & \W.DBLayer{atomically, readCheckpoint} -> atomically readCheckpoint
+            (registered, pending) <-
+                db
+                    & \W.DBLayer{atomically, walletState, readTransactions} ->
+                        atomically $ do
+                            registered <- W.isStakeKeyRegistered walletState
+                            pending <-
+                                readTransactions
+                                    Nothing
+                                    Ascending
+                                    Range.everything
+                                    (Just Pending)
+                                    Nothing
+                                    Nothing
+                            pure (registered, pending)
+            let stakeKey =
+                    xpubPublicKey
+                        $ getRawKey ShelleyKeyS
+                        $ Seq.rewardAccountKey (getState checkpoint)
+                effects =
+                    pendingStakeRegistrationEffects
+                        (blake2b224 stakeKey)
+                        pending
+                (drep, registeredStake, unregisteredStake) =
+                    W.dappCip95KeyState (getState checkpoint) registered effects
+            pure
+                $ ApiDappCip95KeyState
+                    (ApiDappHex drep)
+                    (ApiDappHex <$> registeredStake)
+                    (ApiDappHex <$> unregisteredStake)
+  where
+    throwDapp = Handler . throwE . dappServerError
+
+pendingStakeRegistrationEffects
+    :: ByteString
+    -> [TransactionInfo]
+    -> [W.DappStakeRegistration]
+pendingStakeRegistrationEffects stakeHash =
+    stakeRegistrationEffects stakeHash . mapMaybe decodeCertificates
+  where
+    decodeCertificates info = do
+        EraValue (K bytes) <- txInfoCBOR info
+        DecodedTx{transaction = Read.Tx ledgerTx, valid} <-
+            either (const Nothing) Just
+                $ decodeDappTx (ApiDappHex $ BL.toStrict bytes)
+        pure
+            (valid, F.toList $ ledgerTx ^. Ledger.bodyTxL . Ledger.certsTxBodyL)
+
+stakeRegistrationEffects
+    :: ByteString
+    -> [(Bool, [ConwayTxCert ConwayEra])]
+    -> [W.DappStakeRegistration]
+stakeRegistrationEffects stakeHash =
+    concatMap $ \(valid, certificates) ->
+        if valid then mapMaybe effect certificates else []
+  where
+    effect = \case
+        ConwayTxCertDeleg
+            (ConwayRegCert (KeyHashObj (LedgerKeys.KeyHash hash)) _)
+            | Crypto.hashToBytes hash == stakeHash -> Just W.RegisterStakeKey
+        ConwayTxCertDeleg
+            (ConwayRegDelegCert (KeyHashObj (LedgerKeys.KeyHash hash)) _ _)
+            | Crypto.hashToBytes hash == stakeHash -> Just W.RegisterStakeKey
+        ConwayTxCertDeleg
+            (ConwayUnRegCert (KeyHashObj (LedgerKeys.KeyHash hash)) _)
+            | Crypto.hashToBytes hash == stakeHash -> Just W.DeregisterStakeKey
+        _ -> Nothing
 
 -- | Dormant CIP-8 data signing. The request's raw address selects the key;
 -- caller supplied derivation paths and metadata encodings are deliberately absent.
@@ -6015,60 +6117,63 @@ postDappDataSignature ctx (ApiT walletId) request = do
             $ validateDataSignRequest expectedNetwork request
     case credential of
         ScriptDataCredential -> throwDapp DappDataAddressNotPkError
-        KeyDataCredential credentialBytes ->
-            withWorkerCtx
-                ctx
-                walletId
-                (const $ throwDapp DappAccountChangedError)
-                (const $ throwDapp DappContextUnavailableError)
-                $ \worker -> do
-                    result <- liftIO $ runExceptT $ do
-                        let db = worker ^. W.dbLayer @IO @(SeqState n ShelleyKey)
-                            pwd = coerce $ getApiT request.passphrase
-                        checkpoint <-
-                            liftIO
-                                $ db
-                                & \W.DBLayer{atomically, readCheckpoint} ->
-                                    atomically readCheckpoint
-                        (path, expectedCredential) <-
-                            either (const $ throwE DappDataProofGenerationError) pure
-                                $ ownedDataPath
-                                    kind
-                                    rawAddress
-                                    credentialBytes
-                                    (getState checkpoint)
-                        let protected = encodeProtectedDataAddress rawAddress
-                            signatureStructure =
-                                encodeSignatureStructure
-                                    protected
-                                    (getApiDappHex request.payload)
-                        W.withRootKey @(SeqState n ShelleyKey)
-                            nullTracer
-                            db
-                            walletId
-                            pwd
-                            (const DappDataProofGenerationError)
-                            $ \root -> do
-                                signed <-
-                                    liftIO
-                                        (W.signDappData root pwd path expectedCredential signatureStructure)
-                                        >>= either (const $ throwE DappDataProofGenerationError) pure
-                                either (const $ throwE DappInternalErrorResponse) pure
-                                    $ mkDappDataSignResponse
-                                        kind
-                                        expectedCredential
-                                        rawAddress
-                                        (getApiDappHex request.payload)
-                                        protected
-                                        signatureStructure
-                                        signed
-                    either throwDapp pure result
+        KeyDataCredential credentialBytes -> sign kind rawAddress credentialBytes
+        DRepDataCredential credentialBytes -> sign kind rawAddress credentialBytes
   where
+    sign kind rawAddress credentialBytes =
+        withWorkerCtx
+            ctx
+            walletId
+            (const $ throwDapp DappAccountChangedError)
+            (const $ throwDapp DappContextUnavailableError)
+            $ \worker -> do
+                result <- liftIO $ runExceptT $ do
+                    let db = worker ^. W.dbLayer @IO @(SeqState n ShelleyKey)
+                        pwd = coerce $ getApiT request.passphrase
+                    checkpoint <-
+                        liftIO
+                            $ db
+                            & \W.DBLayer{atomically, readCheckpoint} ->
+                                atomically readCheckpoint
+                    (kind', path, expectedCredential, protectedAddress) <-
+                        either (const $ throwE DappDataProofGenerationError) pure
+                            $ ownedDataPath
+                                kind
+                                rawAddress
+                                credentialBytes
+                                (getState checkpoint)
+                    let protected = encodeProtectedDataAddress protectedAddress
+                        signatureStructure =
+                            encodeSignatureStructure
+                                protected
+                                (getApiDappHex request.payload)
+                    W.withRootKey @(SeqState n ShelleyKey)
+                        nullTracer
+                        db
+                        walletId
+                        pwd
+                        (const DappDataProofGenerationError)
+                        $ \root -> do
+                            signed <-
+                                liftIO
+                                    (W.signDappData root pwd path expectedCredential signatureStructure)
+                                    >>= either (const $ throwE DappDataProofGenerationError) pure
+                            either (const $ throwE DappInternalErrorResponse) pure
+                                $ mkDappDataSignResponse
+                                    kind'
+                                    expectedCredential
+                                    protectedAddress
+                                    (getApiDappHex request.payload)
+                                    protected
+                                    signatureStructure
+                                    signed
+                either throwDapp pure result
     throwDapp = Handler . throwE . dappServerError
 
 data DataCredential
     = KeyDataCredential !ByteString
     | ScriptDataCredential
+    | DRepDataCredential !ByteString
     deriving (Eq, Show)
 
 validateDataSignRequest
@@ -6077,6 +6182,8 @@ validateDataSignRequest
     -> Either DappError (ApiDappCredentialKind, DataCredential, ByteString)
 validateDataSignRequest expected ApiDappDataSignRequest{network, address = ApiDappHex rawAddress}
     | network /= expected = Left InvalidDappRequest
+    | BS.length rawAddress == 28 =
+        Right (DRepCredential, DRepDataCredential rawAddress, rawAddress)
     | otherwise = do
         (header, body) <-
             maybe (Left InvalidDappRequest) Right $ BS.uncons rawAddress
@@ -6122,15 +6229,52 @@ canonicalPointer bytes = parseVariableLength 3 (BS.unpack bytes) == Just []
             _ -> Nothing
         | otherwise = one (seen <> [byte `mod` 0x80]) rest
 
+classifyDRepDataCredential
+    :: ApiDappCredentialKind
+    -> ByteString
+    -> ByteString
+    -> ByteString
+    -> Either () Bool
+classifyDRepDataCredential kind rawAddress expected drepHash = case kind of
+    DRepCredential
+        | expected == drepHash -> Right True
+        | otherwise -> Left ()
+    PaymentCredential
+        | BS.length rawAddress == 29
+            && BS.head rawAddress `div` 16 == 6
+            && expected == drepHash ->
+            Right True
+    _ -> Right False
+
 ownedDataPath
     :: HasSNetworkId n
     => ApiDappCredentialKind
     -> ByteString
     -> ByteString
     -> SeqState n ShelleyKey
-    -> Either () ([Word32], ByteString)
-ownedDataPath kind rawAddress expected state = case kind of
-    PaymentCredential -> do
+    -> Either () (ApiDappCredentialKind, [Word32], ByteString, ByteString)
+ownedDataPath kind rawAddress expected state =
+    case classifyDRepDataCredential kind rawAddress expected drepHash of
+        Left () -> Left ()
+        Right True -> drep
+        Right False -> case kind of
+            PaymentCredential -> payment
+            StakeCredential ->
+                let path =
+                        map getDerivationIndex
+                            $ NE.toList
+                            $ stakeDerivationPath
+                            $ Seq.derivationPrefix state
+                    stakeKey =
+                        deriveAddressPublicKey (Seq.accountXPub state) MutableAccount minBound
+                in  if blake2b224 (xpubPublicKey $ getRawKey ShelleyKeyS stakeKey)
+                        == expected
+                        then Right (StakeCredential, path, expected, rawAddress)
+                        else Left ()
+            PolicyCredential -> Left ()
+            DRepCredential -> Left ()
+  where
+    payment = do
         path <-
             maybe (Left ()) Right $ fst $ isOurs (Address rawAddress) state
         let indexes = map getDerivationIndex $ NE.toList path
@@ -6148,23 +6292,20 @@ ownedDataPath kind rawAddress expected state = case kind of
                                 (Index address)
                         )
                         == expected ->
-                    Right (indexes, expected)
+                    Right (PaymentCredential, indexes, expected, rawAddress)
             _ -> Left ()
-      where
-        Seq.DerivationPrefix (_, _, accountIndex) = Seq.derivationPrefix state
-    StakeCredential ->
-        let path =
-                map getDerivationIndex
-                    $ NE.toList
-                    $ stakeDerivationPath
-                    $ Seq.derivationPrefix state
-            stakeKey =
-                deriveAddressPublicKey (Seq.accountXPub state) MutableAccount minBound
-        in  if blake2b224 (xpubPublicKey $ getRawKey ShelleyKeyS stakeKey)
-                == expected
-                then Right (path, expected)
-                else Left ()
-    PolicyCredential -> Left ()
+    Seq.DerivationPrefix (_, _, accountIndex) = Seq.derivationPrefix state
+    drepPath =
+        map getDerivationIndex
+            $ NE.toList
+            $ drepDerivationPath
+            $ Seq.derivationPrefix state
+    drepKey = deriveDRepPublicKey $ getRawKey ShelleyKeyS (Seq.accountXPub state)
+    drepHash = blake2b224 $ xpubPublicKey drepKey
+    drep
+        | expected == drepHash =
+            Right (DRepCredential, drepPath, drepHash, drepHash)
+        | otherwise = Left ()
 
 encodeProtectedDataAddress :: ByteString -> ByteString
 encodeProtectedDataAddress address =

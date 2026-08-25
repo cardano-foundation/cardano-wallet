@@ -20,17 +20,27 @@ import Cardano.Ledger.Allegra.Scripts
 import Cardano.Ledger.BaseTypes
     ( SlotNo (..)
     )
+import Cardano.Ledger.Coin
+    ( Coin (..)
+    )
 import Cardano.Ledger.Conway.TxCert
-    ( ConwayDelegCert (ConwayRegCert, ConwayUnRegCert)
+    ( ConwayDelegCert (ConwayRegCert, ConwayRegDelegCert, ConwayUnRegCert)
     , ConwayGovCert (ConwayUpdateDRep)
     , ConwayTxCert (ConwayTxCertDeleg, ConwayTxCertGov)
+    , Delegatee (DelegVote)
     )
 import Cardano.Ledger.Credential
     ( Credential (KeyHashObj)
     )
+import Cardano.Ledger.DRep
+    ( DRep (DRepAlwaysAbstain)
+    )
 import Cardano.Read.Ledger.Tx.Output
     ( Output
     , deserializeOutput
+    )
+import Cardano.Wallet
+    ( DappStakeRegistration (..)
     )
 import Cardano.Wallet.Address.Discovery
     ( ChangeAddressMode (IncreasingChangeAddresses)
@@ -49,9 +59,11 @@ import Cardano.Wallet.Api.Http.Server.Error
     )
 import Cardano.Wallet.Api.Http.Shelley.Server
     ( DataCredential (..)
+    , classifyDRepDataCredential
     , encodeProtectedDataAddress
     , encodeSignatureStructure
     , mkDappDataSignResponse
+    , stakeRegistrationEffects
     , validateDataSignRequest
     )
 import Cardano.Wallet.Api.Http.Shelley.TransactionContext
@@ -107,6 +119,7 @@ import Cardano.Wallet.Api.Types.Dapp.Context
     , canonicalContextRecords
     , computeContextDigest
     , decodeContextTokenClaims
+    , decodeDappCip95KeyState
     , decodeDappDataSignRequest
     , decodeDappDataSignResponse
     , decodeDappWitnessSignRequest
@@ -218,6 +231,13 @@ main = hspec $ do
                     , BL8.pack
                         "{\"revision\":1,\"network\":{\"network_id\":0,\"network_magic\":42,\"genesis_hash\":\"0000000000000000000000000000000000000000000000000000000000000000\"},\"address\":\"60aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"payload\":\"\",\"passphrase\":\"pass\",\"extra\":true}"
                     ]
+            it "accepts only fixed raw public fields in CIP-95 key state" $ do
+                decodeDappCip95KeyState
+                    "{\"drep_public_key\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"registered_stake_public_keys\":[],\"unregistered_stake_public_keys\":[\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"]}"
+                    `shouldSatisfy` isRight
+                decodeDappCip95KeyState
+                    "{\"drep_public_key\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"registered_stake_public_keys\":[],\"unregistered_stake_public_keys\":[],\"private_key\":\"00\"}"
+                    `shouldSatisfy` isLeft
         describe "DAPP_WITNESS_SIGNING request decoder" $ do
             it "accepts the canonical request"
                 $ decodeDappWitnessSignRequest (validWitnessRequest [witnessItem])
@@ -291,20 +311,67 @@ main = hspec $ do
                     `shouldBe` Left InvalidDappRequest
         describe "DAPP_DATA_SIGNING address dispatch and COSE" $ do
             it
-                "selects payment credentials for base, enterprise, and pointer addresses" $ do
-                mapM_
-                    ( \raw ->
-                        validateDataSignRequest dappNetwork (dataSignRequest raw)
-                            `shouldBe` Right (PaymentCredential, KeyDataCredential dataCredential, raw)
-                    )
-                    [ BS.pack (0x00 : BS.unpack dataCredential <> replicate 28 0xbb)
-                    , enterpriseAddress
-                    , BS.pack (0x40 : BS.unpack dataCredential <> [0, 0, 0])
-                    ]
+                "selects payment credentials for base, enterprise, and pointer addresses"
+                $ do
+                    mapM_
+                        ( \raw ->
+                            validateDataSignRequest dappNetwork (dataSignRequest raw)
+                                `shouldBe` Right (PaymentCredential, KeyDataCredential dataCredential, raw)
+                        )
+                        [ BS.pack (0x00 : BS.unpack dataCredential <> replicate 28 0xbb)
+                        , enterpriseAddress
+                        , BS.pack (0x40 : BS.unpack dataCredential <> [0, 0, 0])
+                        ]
             it "selects the stake credential for reward addresses"
                 $ validateDataSignRequest dappNetwork (dataSignRequest rewardAddress)
                 `shouldBe` Right
                     (StakeCredential, KeyDataCredential dataCredential, rewardAddress)
+            it "accepts only a raw 28-byte DRep ID outside Shelley address bounds" $ do
+                validateDataSignRequest dappNetwork (dataSignRequest dataCredential)
+                    `shouldBe` Right
+                        (DRepCredential, DRepDataCredential dataCredential, dataCredential)
+                validateDataSignRequest
+                    dappNetwork
+                    (dataSignRequest $ BS.replicate 27 0xaa)
+                    `shouldBe` Left InvalidDappRequest
+            it "dispatches only raw and matching type-6 credentials to DRep" $ do
+                let drepHash = dataCredential
+                    matching = BS.cons 0x61 drepHash
+                    nonmatching = BS.cons 0x61 $ BS.replicate 28 0xbb
+                classifyDRepDataCredential DRepCredential drepHash drepHash drepHash
+                    `shouldBe` Right True
+                classifyDRepDataCredential
+                    PaymentCredential
+                    matching
+                    drepHash
+                    drepHash
+                    `shouldBe` Right True
+                classifyDRepDataCredential
+                    PaymentCredential
+                    nonmatching
+                    (BS.replicate 28 0xbb)
+                    drepHash
+                    `shouldBe` Right False
+                classifyDRepDataCredential
+                    DRepCredential
+                    drepHash
+                    (BS.replicate 28 0xbb)
+                    drepHash
+                    `shouldBe` Left ()
+            it "normalizes a DRep COSE protected address to its raw hash" $ do
+                let protected = encodeProtectedDataAddress dataCredential
+                    signatureStructure = encodeSignatureStructure protected nonUtf8Payload
+                    publicKey = BS.replicate 32 0x42
+                    keyHash = Blake.blake2b224 publicKey
+                mkDappDataSignResponse
+                    DRepCredential
+                    keyHash
+                    dataCredential
+                    nonUtf8Payload
+                    protected
+                    signatureStructure
+                    (publicKey, BS.replicate 64 0x11)
+                    `shouldSatisfy` isRight
             it
                 "classifies script credentials without falling through to proof generation" $ do
                 validateDataSignRequest
@@ -316,32 +383,33 @@ main = hspec $ do
                     (dataSignRequest scriptStakeAddress)
                     `shouldBe` Right (StakeCredential, ScriptDataCredential, scriptStakeAddress)
             it
-                "constructs exact untagged COSE bytes over the raw address and non-UTF8 payload" $ do
-                let protected = encodeProtectedDataAddress enterpriseAddress
-                    signatureStructure = encodeSignatureStructure protected nonUtf8Payload
-                    publicKey = BS.replicate 32 0x42
-                    keyHash = Blake.blake2b224 publicKey
-                response <- case mkDappDataSignResponse
-                    PaymentCredential
-                    keyHash
-                    enterpriseAddress
-                    nonUtf8Payload
-                    protected
-                    signatureStructure
-                    (publicKey, BS.replicate 64 0x11) of
-                    Left err -> error err
-                    Right value -> pure value
-                response.credential `shouldBe` ApiDappHex keyHash
-                response.coseSign1
-                    `shouldBe` ApiDappHex
-                        ( hex
-                            "84582aa201276761646472657373581d60aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa266686173686564f46776657273696f6e014400ff8041584011111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111"
-                        )
-                response.coseKey
-                    `shouldBe` ApiDappHex
-                        ( hex
-                            "a40101032720062158204242424242424242424242424242424242424242424242424242424242424242"
-                        )
+                "constructs exact untagged COSE bytes over the raw address and non-UTF8 payload"
+                $ do
+                    let protected = encodeProtectedDataAddress enterpriseAddress
+                        signatureStructure = encodeSignatureStructure protected nonUtf8Payload
+                        publicKey = BS.replicate 32 0x42
+                        keyHash = Blake.blake2b224 publicKey
+                    response <- case mkDappDataSignResponse
+                        PaymentCredential
+                        keyHash
+                        enterpriseAddress
+                        nonUtf8Payload
+                        protected
+                        signatureStructure
+                        (publicKey, BS.replicate 64 0x11) of
+                        Left err -> error err
+                        Right value -> pure value
+                    response.credential `shouldBe` ApiDappHex keyHash
+                    response.coseSign1
+                        `shouldBe` ApiDappHex
+                            ( hex
+                                "84582aa201276761646472657373581d60aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa266686173686564f46776657273696f6e014400ff8041584011111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111"
+                            )
+                    response.coseKey
+                        `shouldBe` ApiDappHex
+                            ( hex
+                                "a40101032720062158204242424242424242424242424242424242424242424242424242424242424242"
+                            )
 
         it "serializes fixed redacted dapp witness errors" $ do
             let errors =
@@ -465,6 +533,32 @@ main = hspec $ do
                     , False
                     )
                 ]
+        it "extracts only valid matching pending stake certificate effects" $ do
+            let stakeCredential = KeyHashObj $ coerce $ witnessKeyHash proofHash
+                foreignCredential =
+                    KeyHashObj $ coerce $ witnessKeyHash $ BS.replicate 28 0x99
+                register stakeCred =
+                    ConwayTxCertDeleg $ ConwayRegCert stakeCred Strict.SNothing
+                registerAndDelegate stakeCred =
+                    ConwayTxCertDeleg
+                        $ ConwayRegDelegCert
+                            stakeCred
+                            (DelegVote DRepAlwaysAbstain)
+                            (Coin 1)
+                deregister stakeCred =
+                    ConwayTxCertDeleg $ ConwayUnRegCert stakeCred Strict.SNothing
+            stakeRegistrationEffects
+                proofHash
+                [ (True, [register stakeCredential])
+                , (True, [registerAndDelegate stakeCredential])
+                , (False, [deregister stakeCredential])
+                , (True, [register foreignCredential])
+                , (True, [deregister stakeCredential])
+                ]
+                `shouldBe` [ RegisterStakeKey
+                           , RegisterStakeKey
+                           , DeregisterStakeKey
+                           ]
 
         it "matches all frozen record and Blake2b-256 goldens" $ do
             encodeContextRecord fullOutputRecord `shouldBe` Right fullOutputGolden

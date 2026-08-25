@@ -201,6 +201,9 @@ module Cardano.Wallet
     , signTransactionV2
     , signDappWitnesses
     , signDappData
+    , dappCip95KeyState
+    , DappStakeRegistration (..)
+    , dappStakeRegistrationState
     , readLocalTxSubmissionPending
     , LocalTxSubmissionConfig (..)
     , defaultLocalTxSubmissionConfig
@@ -399,6 +402,8 @@ import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey (..)
     , deriveAccountPrivateKeyShelley
     , deriveAddressPrivateKeyShelley
+    , deriveDRepPrivateKey
+    , deriveDRepPublicKey
     )
 import Cardano.Wallet.Address.Discovery
     ( ChangeAddressMode (..)
@@ -2598,6 +2603,43 @@ signDappWitnesses root userPwd body candidates =
         verifyWitness digest (WitVKey (VKey key) signature) =
             verifySignedDSIGN () key digest signature == Right ()
 
+data DappStakeRegistration
+    = RegisterStakeKey
+    | DeregisterStakeKey
+    deriving (Eq, Show)
+
+-- | CIP-95 public material derived solely from the persisted account XPub.
+-- Conflicting pending effects are unknown and therefore classified unregistered.
+dappCip95KeyState
+    :: SeqState n ShelleyKey
+    -> Bool
+    -> [DappStakeRegistration]
+    -> (ByteString, [ByteString], [ByteString])
+dappCip95KeyState walletState confirmed pending =
+    ( drepPublicKey
+    , if registered then [stakePublicKey] else []
+    , if registered then [] else [stakePublicKey]
+    )
+  where
+    stakePublicKey =
+        xpubPublicKey
+            $ getRawKey ShelleyKeyS
+            $ Seq.rewardAccountKey walletState
+    drepPublicKey =
+        xpubPublicKey
+            $ deriveDRepPublicKey
+            $ getRawKey ShelleyKeyS (Seq.accountXPub walletState)
+    registered = dappStakeRegistrationState confirmed pending
+
+dappStakeRegistrationState
+    :: Bool
+    -> [DappStakeRegistration]
+    -> Bool
+dappStakeRegistrationState confirmed pending
+    | DeregisterStakeKey `elem` pending = False
+    | RegisterStakeKey `elem` pending = True
+    | otherwise = confirmed
+
 -- | Sign exact application bytes with an explicitly verified CIP-1852 child.
 -- No payload transformation is permitted here.
 signDappData
@@ -2670,6 +2712,19 @@ signDappData root userPwd path expectedHash message = do
                             accountKey
                             MutableAccount
                             zeroAccount
+        [purpose, coinType, account, role, address]
+            | purpose == 0x8000073c
+                && coinType == 0x80000717
+                && account >= 0x80000000
+                && role == 3
+                && address == 0 ->
+                let accountKey =
+                        deriveAccountPrivateKeyShelley
+                            (Index purpose)
+                            encryptionPwd
+                            (getRawKey ShelleyKeyS rootKey)
+                            (Index account)
+                in  Right $ deriveDRepPrivateKey encryptionPwd accountKey
         _ -> Left "unsupported derivation path"
 
     verifyResult result@(public, signature)
