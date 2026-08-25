@@ -77,7 +77,10 @@ import Cardano.Balance.Tx.SizeEstimation
     , estimateTxSize
     )
 import Cardano.Crypto.DSIGN
-    ( verifySignedDSIGN
+    ( SignedDSIGN (SignedDSIGN)
+    , rawDeserialiseSigDSIGN
+    , rawDeserialiseVerKeyDSIGN
+    , verifySignedDSIGN
     )
 import Cardano.Crypto.Wallet.Types
     ( DerivationScheme (DerivationScheme2)
@@ -136,12 +139,15 @@ import Cardano.Wallet
     , Percentile (..)
     , RootKeyAccess (..)
     , calculateFeePercentiles
+    , signDappData
     , signDappWitnesses
     , signTransaction
     )
 import Cardano.Wallet.Address.Derivation
     ( Depth (..)
     , DerivationIndex (..)
+    , Index (..)
+    , Role (UtxoExternal)
     , deriveRewardAccount
     , hex
     , paymentAddress
@@ -500,6 +506,9 @@ spec = describe "TransactionSpec" $ do
             $ forAll genShelleyKeyAndPwd (uncurry prop_dappVKeyWitnessesMatch)
         prop "rejects candidate path/key-hash mismatches"
             $ forAll genShelleyKeyAndPwd (uncurry prop_dappVKeyWitnessRejectsHashMismatch)
+    describe "DAPP_DATA_SIGNING" $ do
+        prop "V1 and V2 sign exact non-UTF8 bytes with the authenticated public key"
+            $ forAll genShelleyKeyAndPwd (uncurry prop_dappDataSignsExactBytes)
     describe "Sign transaction" $ do
         -- TODO [ADP-2849] The implementation must be restricted to work only in
         -- 'RecentEra's, not just the tests.
@@ -2694,6 +2703,55 @@ prop_dappVKeyWitnessRejectsHashMismatch xprvKey encPwd =
                   )
                 ]
         pure $ result == Left "candidate key hash mismatch"
+prop_dappDataSignsExactBytes
+    :: ShelleyKey 'RootK XPrv
+    -> Passphrase "encryption"
+    -> Property
+prop_dappDataSignsExactBytes xprvKey encPwd = ioProperty $ withFastKdfForTesting $ do
+    let userPwd = Passphrase $ case encPwd of Passphrase bytes -> bytes
+        encryptionPwd = preparePassphrase EncryptWithPBKDF2 userPwd
+        rootKey = liftRawKey ShelleyKeyS
+            $ CC.xPrvChangePass encPwd encryptionPwd (getRawKey ShelleyKeyS xprvKey)
+        path = [0x8000073c, 0x80000717, 0x80000000, 0, 0]
+        accountKey = Shelley.deriveAccountPrivateKeyShelley
+            (Index 0x8000073c)
+            encryptionPwd
+            (getRawKey ShelleyKeyS rootKey)
+            (Index 0x80000000)
+        addressKey = Shelley.deriveAddressPrivateKeyShelley
+            encryptionPwd accountKey UtxoExternal (Index 0)
+        credential = blake2b224 $ xpubPublicKey $ toXPub addressKey
+        message = BS.pack [0x00, 0xff, 0x80, 0x41]
+        altered = BS.reverse message
+        rawXprv = CC.xPrvChangePass encPwd (mempty :: BS.ByteString)
+            $ getRawKey ShelleyKeyS xprvKey
+        raw128 = CC.unXPrv rawXprv
+        masterKey96 = BS.take 64 raw128 <> BS.drop 96 raw128
+    ekeyE <- encryptedCreateDirectWithTweak masterKey96 userPwd
+    case ekeyE of
+        Left _ -> pure False
+        Right ekey -> do
+            v1 <- signDappData
+                (RootKeyAccessV1 rootKey EncryptWithPBKDF2)
+                userPwd path credential message
+            v2 <- signDappData (RootKeyAccessV2 ekey Nothing userPwd)
+                userPwd path credential message
+            pure $ case (v1, v2) of
+                (Right signed1@(public, signature), Right signed2) ->
+                    signed1 == signed2
+                        && blake2b224 public == credential
+                        && verifiesDappData message public signature
+                        && not (verifiesDappData altered public signature)
+                _ -> False
+
+verifiesDappData :: ByteString -> ByteString -> ByteString -> Bool
+verifiesDappData message public signature = case
+    ( VKey <$> rawDeserialiseVerKeyDSIGN public :: Maybe (VKey Witness)
+    , SignedDSIGN <$> rawDeserialiseSigDSIGN signature
+    ) of
+    (Just (VKey vkey), Just sig) -> verifySignedDSIGN () vkey message sig == Right ()
+    _ -> False
+
 
 verifiesDappWitness
     :: Write.TxBody Write.Conway

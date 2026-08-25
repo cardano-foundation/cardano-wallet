@@ -102,6 +102,7 @@ module Cardano.Wallet.Api.Http.Shelley.Server
     , submitTransaction
     , postTransactionContext
     , postDappWitnesses
+    , postDappDataSignature
     , getPolicyKey
     , postPolicyKey
     , postPolicyId
@@ -124,6 +125,11 @@ module Cardano.Wallet.Api.Http.Shelley.Server
     , withWorkerCtx
     , getCurrentEpoch
     , MkApiWallet
+    , DataCredential (..)
+    , validateDataSignRequest
+    , encodeProtectedDataAddress
+    , encodeSignatureStructure
+    , mkDappDataSignResponse
     , depositReturnedFromCertificates
 
       -- * Workers
@@ -249,7 +255,7 @@ import Cardano.Wallet.Address.Derivation
     , Index (..)
     , MkKeyFingerprint
     , RewardAccount (..)
-    , Role
+    , Role (..)
     , SoftDerivation (..)
     , delegationAddressS
     , deriveRewardAccount
@@ -278,7 +284,7 @@ import Cardano.Wallet.Address.Discovery
     , GenChange (ArgGenChange)
     , GetAccount
     , GetPurpose (..)
-    , IsOurs
+    , IsOurs (..)
     , KnownAddresses
     )
 import Cardano.Wallet.Address.Discovery.Random
@@ -509,7 +515,11 @@ import Cardano.Wallet.Api.Types.Certificate
     , mkApiAnyCertificate
     )
 import Cardano.Wallet.Api.Types.Dapp.Context
-    ( ApiDappHex (..)
+    ( ApiDappCredentialKind (..)
+    , ApiDappDataSignRequest (..)
+    , ApiDappDataSignResponse (..)
+    , ApiDappContextNetwork (..)
+    , ApiDappHex (..)
     , ApiDappTransactionContextRequest (..)
     , ApiDappTransactionContextResponse (..)
     , ApiDappWitnessResult (..)
@@ -800,6 +810,9 @@ import Cryptography.Core
     ( genSalt
     , getRandomBytes
     )
+import Cryptography.Hash.Blake
+    ( blake2b224
+    )
 import Data.Bifunctor
     ( first
     )
@@ -888,7 +901,8 @@ import Data.Traversable
     ( for
     )
 import Data.Word
-    ( Word32
+    ( Word8
+    , Word32
     , Word64
     )
 import Fmt
@@ -1001,6 +1015,8 @@ import qualified Data.ByteArray as BA
 import qualified Data.ByteArray.Encoding as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
+import qualified Codec.CBOR.Encoding as CBOR
+import qualified Codec.CBOR.Write as CBOR
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Foldable as F
 import qualified Data.List as L
@@ -5977,6 +5993,211 @@ postDappWitnesses ctx (ApiT walletId) request = do
             )
 
     throwDapp = Handler . throwE . dappServerError
+-- | Dormant CIP-8 data signing. The request's raw address selects the key;
+-- caller supplied derivation paths and metadata encodings are deliberately absent.
+postDappDataSignature
+    :: forall n
+     . HasSNetworkId n
+    => ApiLayer (SeqState n ShelleyKey)
+    -> ApiT WalletId
+    -> ApiDappDataSignRequest
+    -> Handler ApiDappDataSignResponse
+postDappDataSignature ctx (ApiT walletId) request = do
+    expectedNetwork <- either throwDapp pure $ configuredNetwork @n ctx
+    (kind, credential, rawAddress) <-
+        either throwDapp pure $ validateDataSignRequest expectedNetwork request
+    case credential of
+        ScriptDataCredential -> throwDapp DappDataAddressNotPkError
+        KeyDataCredential credentialBytes ->
+            withWorkerCtx
+                ctx
+                walletId
+                (const $ throwDapp DappAccountChangedError)
+                (const $ throwDapp DappContextUnavailableError)
+                $ \worker -> do
+                    result <- liftIO $ runExceptT $ do
+                        let db = worker ^. W.dbLayer @IO @(SeqState n ShelleyKey)
+                            pwd = coerce $ getApiT request.passphrase
+                        checkpoint <- liftIO
+                            $ db
+                            & \W.DBLayer{atomically, readCheckpoint} ->
+                                atomically readCheckpoint
+                        (path, expectedCredential) <-
+                            either (const $ throwE DappDataProofGenerationError) pure
+                                $ ownedDataPath kind rawAddress credentialBytes
+                                    (getState checkpoint)
+                        let protected = encodeProtectedDataAddress rawAddress
+                            signatureStructure =
+                                encodeSignatureStructure protected
+                                    (getApiDappHex request.payload)
+                        W.withRootKey @(SeqState n ShelleyKey)
+                            nullTracer
+                            db
+                            walletId
+                            pwd
+                            (const DappDataProofGenerationError)
+                            $ \root -> do
+                                signed <- liftIO
+                                    (W.signDappData root pwd path expectedCredential signatureStructure)
+                                    >>= either (const $ throwE DappDataProofGenerationError) pure
+                                either (const $ throwE DappInternalErrorResponse) pure
+                                    $ mkDappDataSignResponse
+                                        kind
+                                        expectedCredential
+                                        rawAddress
+                                        (getApiDappHex request.payload)
+                                        protected
+                                        signatureStructure
+                                        signed
+                    either throwDapp pure result
+  where
+    throwDapp = Handler . throwE . dappServerError
+
+data DataCredential
+    = KeyDataCredential !ByteString
+    | ScriptDataCredential
+    deriving (Eq, Show)
+
+validateDataSignRequest
+    :: ApiDappContextNetwork
+    -> ApiDappDataSignRequest
+    -> Either DappError (ApiDappCredentialKind, DataCredential, ByteString)
+validateDataSignRequest expected ApiDappDataSignRequest{network, address = ApiDappHex rawAddress}
+    | network /= expected = Left InvalidDappRequest
+    | otherwise = do
+        (header, body) <- maybe (Left InvalidDappRequest) Right $ BS.uncons rawAddress
+        let tag = header `div` 16
+            networkTag = header `mod` 16
+            key kind bytes = Right (kind, KeyDataCredential bytes, rawAddress)
+            script kind = Right (kind, ScriptDataCredential, rawAddress)
+        if networkTag /= expected.networkId then Left InvalidDappRequest else case tag of
+            0 | BS.length body == 56 -> key PaymentCredential (BS.take 28 body)
+            1 | BS.length body == 56 -> script PaymentCredential
+            2 | BS.length body == 56 -> key PaymentCredential (BS.take 28 body)
+            3 | BS.length body == 56 -> script PaymentCredential
+            4 | BS.length body >= 31 && canonicalPointer (BS.drop 28 body) ->
+                key PaymentCredential (BS.take 28 body)
+            5 | BS.length body >= 31 && canonicalPointer (BS.drop 28 body) ->
+                script PaymentCredential
+            6 | BS.length body == 28 -> key PaymentCredential body
+            7 | BS.length body == 28 -> script PaymentCredential
+            14 | BS.length body == 28 -> key StakeCredential body
+            15 | BS.length body == 28 -> script StakeCredential
+            _ -> Left InvalidDappRequest
+
+canonicalPointer :: ByteString -> Bool
+canonicalPointer bytes = parseVariableLength 3 (BS.unpack bytes) == Just []
+  where
+    parseVariableLength :: Int -> [Word8] -> Maybe [Word8]
+    parseVariableLength 0 rest = Just rest
+    parseVariableLength count rest = do
+        remaining <- one [] rest
+        parseVariableLength (count - 1) remaining
+
+    one :: [Word8] -> [Word8] -> Maybe [Word8]
+    one _ [] = Nothing
+    one seen (byte : rest)
+        | length seen == 10 = Nothing
+        | byte < 0x80 = case seen of
+            [] -> Just rest
+            firstGroup : _ | firstGroup /= 0 -> Just rest
+            _ -> Nothing
+        | otherwise = one (seen <> [byte `mod` 0x80]) rest
+
+ownedDataPath
+    :: HasSNetworkId n
+    => ApiDappCredentialKind
+    -> ByteString
+    -> ByteString
+    -> SeqState n ShelleyKey
+    -> Either () ([Word32], ByteString)
+ownedDataPath kind rawAddress expected state = case kind of
+    PaymentCredential -> do
+        path <- maybe (Left ()) Right $ fst $ isOurs (Address rawAddress) state
+        let indexes = map getDerivationIndex $ NE.toList path
+        case indexes of
+            [0x8000073c, 0x80000717, account, role, address]
+                | account == getIndex accountIndex
+                    && role <= 1
+                    && address < 0x80000000
+                    && blake2b224
+                        (xpubPublicKey $ getRawKey ShelleyKeyS
+                            $ deriveAddressPublicKey (Seq.accountXPub state)
+                                (if role == 0 then UtxoExternal else UtxoInternal)
+                                (Index address))
+                        == expected -> Right (indexes, expected)
+            _ -> Left ()
+      where
+        Seq.DerivationPrefix (_, _, accountIndex) = Seq.derivationPrefix state
+    StakeCredential ->
+        let path = map getDerivationIndex
+                $ NE.toList $ stakeDerivationPath $ Seq.derivationPrefix state
+            stakeKey = deriveAddressPublicKey (Seq.accountXPub state) MutableAccount minBound
+        in if blake2b224 (xpubPublicKey $ getRawKey ShelleyKeyS stakeKey) == expected
+            then Right (path, expected)
+            else Left ()
+    PolicyCredential -> Left ()
+
+encodeProtectedDataAddress :: ByteString -> ByteString
+encodeProtectedDataAddress address =
+    CBOR.toStrictByteString
+        $ CBOR.encodeMapLen 2
+            <> CBOR.encodeInt 1 <> CBOR.encodeInt (-8)
+            <> CBOR.encodeString "address" <> CBOR.encodeBytes address
+
+encodeSignatureStructure :: ByteString -> ByteString -> ByteString
+encodeSignatureStructure protected payload =
+    CBOR.toStrictByteString
+        $ CBOR.encodeListLen 4
+            <> CBOR.encodeString "Signature1"
+            <> CBOR.encodeBytes protected
+            <> CBOR.encodeBytes mempty
+            <> CBOR.encodeBytes payload
+
+encodeUnprotectedData :: CBOR.Encoding
+encodeUnprotectedData =
+    CBOR.encodeMapLen 2
+        <> CBOR.encodeString "hashed" <> CBOR.encodeBool False
+        <> CBOR.encodeString "version" <> CBOR.encodeWord 1
+
+mkDappDataSignResponse
+    :: ApiDappCredentialKind
+    -> ByteString
+    -> ByteString
+    -> ByteString
+    -> ByteString
+    -> ByteString
+    -> (ByteString, ByteString)
+    -> Either String ApiDappDataSignResponse
+mkDappDataSignResponse kind credential address payload protected signatureStructure (publicKeyBytes, signature)
+    | BS.length credential /= 28 = Left "invalid credential"
+    | BS.length publicKeyBytes /= 32 || BS.length signature /= 64 = Left "invalid key material"
+    | blake2b224 publicKeyBytes /= credential = Left "public key hash mismatch"
+    | otherwise =
+        let coseSign1 =
+                CBOR.toStrictByteString
+                    $ CBOR.encodeListLen 4
+                        <> CBOR.encodeBytes protected
+                        <> encodeUnprotectedData
+                        <> CBOR.encodeBytes payload
+                        <> CBOR.encodeBytes signature
+            coseKey =
+                CBOR.toStrictByteString
+                    $ CBOR.encodeMapLen 4
+                        <> CBOR.encodeInt 1 <> CBOR.encodeInt 1
+                        <> CBOR.encodeInt 3 <> CBOR.encodeInt (-8)
+                        <> CBOR.encodeInt (-1) <> CBOR.encodeInt 6
+                        <> CBOR.encodeInt (-2) <> CBOR.encodeBytes publicKeyBytes
+        in if protected /= encodeProtectedDataAddress address
+            || signatureStructure /= encodeSignatureStructure protected payload
+            || BS.null coseSign1 || BS.null coseKey
+            then Left "invalid COSE construction"
+            else Right $ ApiDappDataSignResponse
+                1
+                kind
+                (ApiDappHex credential)
+                (ApiDappHex coseSign1)
+                (ApiDappHex coseKey)
 
 {-------------------------------------------------------------------------------
                                 Api Layer

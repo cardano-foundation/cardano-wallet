@@ -39,6 +39,7 @@ library
     , bech32-th
     , binary
     , bytestring
+    , cborg
     , cardano-addresses
     , cardano-api
     , cardano-balance-tx

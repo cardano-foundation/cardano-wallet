@@ -8,6 +8,8 @@
 
 module Cardano.Wallet.Api.Types.Dapp.Context
     ( DappJSON
+    , ApiDappDataSignRequest (..)
+    , ApiDappDataSignResponse (..)
     , ApiDappTransactionContextRequest (..)
     , ApiDappTransactionContextResponse (..)
     , ApiDappWitnessSignRequest (..)
@@ -39,6 +41,8 @@ module Cardano.Wallet.Api.Types.Dapp.Context
     , decodeTransactionContextResponse
     , decodeDappWitnessSignRequest
     , decodeDappWitnessSignResponse
+    , decodeDappDataSignRequest
+    , decodeDappDataSignResponse
     , ContextRecord (..)
     , ContextDigestInput (..)
     , ContextTokenClaims (..)
@@ -170,6 +174,18 @@ instance MimeUnrender DappJSON ApiDappTransactionContextResponse where
 instance MimeRender DappJSON ApiDappTransactionContextResponse where
     mimeRender _ = Aeson.encode
 
+instance MimeUnrender DappJSON ApiDappDataSignRequest where
+    mimeUnrender _ = decodeDappDataSignRequest
+
+instance MimeRender DappJSON ApiDappDataSignRequest where
+    mimeRender _ = Aeson.encode
+
+instance MimeUnrender DappJSON ApiDappDataSignResponse where
+    mimeUnrender _ = decodeDappDataSignResponse
+
+instance MimeRender DappJSON ApiDappDataSignResponse where
+    mimeRender _ = Aeson.encode
+
 instance MimeUnrender DappJSON ApiDappWitnessSignRequest where
     mimeUnrender _ = decodeDappWitnessSignRequest
 
@@ -199,6 +215,24 @@ data ApiDappTransactionContextRequest = ApiDappTransactionContextRequest
     { revision :: !Word32
     , network :: !ApiDappContextNetwork
     , transactions :: ![ApiDappHex]
+    }
+    deriving (Eq, Generic, Show)
+
+data ApiDappDataSignRequest = ApiDappDataSignRequest
+    { revision :: !Word32
+    , network :: !ApiDappContextNetwork
+    , address :: !ApiDappHex
+    , payload :: !ApiDappHex
+    , passphrase :: !(ApiT (Passphrase "lenient"))
+    }
+    deriving (Eq, Generic, Show)
+
+data ApiDappDataSignResponse = ApiDappDataSignResponse
+    { revision :: !Word32
+    , credentialKind :: !ApiDappCredentialKind
+    , credential :: !ApiDappHex
+    , coseSign1 :: !ApiDappHex
+    , coseKey :: !ApiDappHex
     }
     deriving (Eq, Generic, Show)
 
@@ -420,6 +454,38 @@ instance FromJSON ApiDappTransactionContextRequest where
 instance ToJSON ApiDappTransactionContextRequest where
     toJSON = genericToJSON strictRecordTypeOptions
 
+instance FromJSON ApiDappDataSignRequest where
+    parseJSON value = do
+        result@ApiDappDataSignRequest{revision, address, payload} <-
+            genericParseJSON strictRecordTypeOptions value
+        unless (revision == 1) $ fail "revision must be 1"
+        requireLengthBetween "address" 29 59 address
+        requireLengthBetween "payload" 0 65536 payload
+        pure result
+
+instance ToJSON ApiDappDataSignRequest where
+    toJSON = genericToJSON strictRecordTypeOptions
+
+instance FromJSON ApiDappDataSignResponse where
+    parseJSON value = do
+        result@ApiDappDataSignResponse
+            { revision
+            , credentialKind
+            , credential
+            , coseSign1
+            , coseKey
+            } <- genericParseJSON strictRecordTypeOptions value
+        unless (revision == 1) $ fail "revision must be 1"
+        unless (credentialKind `elem` [PaymentCredential, StakeCredential]) $
+            fail "credential_kind must be payment or stake"
+        requireLength "credential" 28 credential
+        requireNonEmpty "cose_sign1" coseSign1
+        requireNonEmpty "cose_key" coseKey
+        pure result
+
+instance ToJSON ApiDappDataSignResponse where
+    toJSON = genericToJSON strictRecordTypeOptions
+
 instance FromJSON ApiDappWitnessSignItem where
     parseJSON value = do
         result@ApiDappWitnessSignItem{cbor} <-
@@ -488,6 +554,16 @@ decodeDappWitnessSignRequest bytes =
 decodeDappWitnessSignResponse
     :: BL.ByteString -> Either String ApiDappWitnessSignResponse
 decodeDappWitnessSignResponse bytes =
+    rejectDuplicateFields (BL.toStrict bytes) >> eitherDecode bytes
+
+decodeDappDataSignRequest
+    :: BL.ByteString -> Either String ApiDappDataSignRequest
+decodeDappDataSignRequest bytes =
+    rejectDuplicateFields (BL.toStrict bytes) >> eitherDecode bytes
+
+decodeDappDataSignResponse
+    :: BL.ByteString -> Either String ApiDappDataSignResponse
+decodeDappDataSignResponse bytes =
     rejectDuplicateFields (BL.toStrict bytes) >> eitherDecode bytes
 
 instance FromJSON ApiDappChainPoint where

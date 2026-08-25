@@ -1471,6 +1471,8 @@ instance IsServerError (Request, ServerError) where
                         `elem` [ (400, DappInvalidRequest, "Invalid backend request")
                                , (400, DappContextConflict, "Backend context conflict")
                                , (403, DappTxProofGeneration, "Transaction proof unavailable")
+                               , (403, DappDataProofGeneration, "Data proof unavailable")
+                               , (403, DappDataAddressNotPk, "Address is not a public-key credential")
                                , (409, DappAccountChanged, "Wallet or network changed")
                                , (503, DappContextUnavailable, "Wallet context unavailable")
                                , (500, DappInternalError, "Backend operation failed")
@@ -1484,8 +1486,10 @@ instance IsServerError (Request, ServerError) where
         isTransactionContextPath request = case pathInfo request of
             "v2" : "wallets" : _walletId : "transaction-context" : _ -> True
             "v2" : "wallets" : _walletId : "transaction-witnesses" : _ -> True
+            "v2" : "wallets" : _walletId : "data-signatures" : _ -> True
             "wallets" : _walletId : "transaction-context" : _ -> True
             "wallets" : _walletId : "transaction-witnesses" : _ -> True
+            "wallets" : _walletId : "data-signatures" : _ -> True
             _ -> False
 
 instance IsServerError WriteTx.ErrInvalidTxOutInEra where

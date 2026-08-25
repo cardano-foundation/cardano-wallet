@@ -199,6 +199,7 @@ module Cardano.Wallet
     , submitTx
     , signTransactionV2
     , signDappWitnesses
+    , signDappData
     , readLocalTxSubmissionPending
     , LocalTxSubmissionConfig (..)
     , defaultLocalTxSubmissionConfig
@@ -298,7 +299,11 @@ import Cardano.Balance.Tx.Tx
     ( toRecentEraGADT
     )
 import Cardano.Crypto.DSIGN
-    ( verifySignedDSIGN
+    ( VerKeyDSIGN
+    , rawDeserialiseSigDSIGN
+    , rawDeserialiseVerKeyDSIGN
+    , verifyDSIGN
+    , verifySignedDSIGN
     )
 import Cardano.Crypto.Wallet
     ( toXPub
@@ -336,7 +341,8 @@ import Cardano.Ledger.Hashes
     , extractHash
     )
 import Cardano.Ledger.Keys
-    ( VKey (..)
+    ( DSIGN
+    , VKey (..)
     , Witness
     )
 import Cardano.Ledger.Keys.WitVKey
@@ -2584,6 +2590,87 @@ signDappWitnesses root userPwd body candidates =
                 $ hashAnnotated @_ @EraIndependentTxBody body
         verifyWitness digest (WitVKey (VKey key) signature) =
             verifySignedDSIGN () key digest signature == Right ()
+
+-- | Sign exact application bytes with an explicitly verified CIP-1852 child.
+-- No payload transformation is permitted here.
+signDappData
+    :: RootKeyAccess ShelleyKey
+    -> Passphrase "user"
+    -> [Word32]
+    -> ByteString
+    -> ByteString
+    -> IO (Either String (ByteString, ByteString))
+signDappData root userPwd path expectedHash message = do
+    result <- case root of
+        RootKeyAccessV1 rootKey scheme ->
+            pure $ signV1 rootKey (preparePassphrase scheme userPwd)
+        RootKeyAccessV2 encryptedKey _ _ -> do
+            signed <- withDecryptedExtKeyMaterial encryptedKey userPwd $ \rootMaterial ->
+                withDerivedExtKeyMaterial DerivationScheme2 rootMaterial path $ \material -> do
+                    let public = publicKeyByteString $ extKeyMaterialPublicKey material
+                    if blake2b224 public /= expectedHash
+                        then pure $ Right $ Left "candidate key hash mismatch"
+                        else fmap (fmap $ \case
+                            EncHD.Signature signature -> Right (public, signature))
+                            $ signWithExtKeyMaterial material message
+            pure $ first show signed >>= id
+    pure $ result >>= verifyResult
+  where
+    signV1 rootKey encryptionPwd = do
+        raw <- deriveV1 rootKey encryptionPwd path
+        let public = xpubPublicKey $ toXPub raw
+        if blake2b224 public /= expectedHash
+            then Left "candidate key hash mismatch"
+            else Right (public, BA.convert $ CC.sign encryptionPwd raw message)
+
+    deriveV1 rootKey encryptionPwd = \case
+        [purpose, coinType, account, role, address]
+            | purpose == 0x8000073c
+                && coinType == 0x80000717
+                && account >= 0x80000000
+                && role <= 1
+                && address < 0x80000000 ->
+                    let accountKey =
+                            deriveAccountPrivateKeyShelley
+                                (Index purpose)
+                                encryptionPwd
+                                (getRawKey ShelleyKeyS rootKey)
+                                (Index account)
+                    in Right $ deriveAddressPrivateKeyShelley
+                        encryptionPwd
+                        accountKey
+                        (if role == 0 then UtxoExternal else UtxoInternal)
+                        (Index address :: Index 'Soft 'CredFromKeyK)
+        [purpose, coinType, account, role, address]
+            | purpose == 0x8000073c
+                && coinType == 0x80000717
+                && account >= 0x80000000
+                && role == 2
+                && address == 0 ->
+                    let accountKey =
+                            deriveAccountPrivateKeyShelley
+                                (Index purpose)
+                                encryptionPwd
+                                (getRawKey ShelleyKeyS rootKey)
+                                (Index account)
+                    in Right $ deriveAddressPrivateKeyShelley
+                        encryptionPwd
+                        accountKey
+                        MutableAccount
+                        zeroAccount
+        _ -> Left "unsupported derivation path"
+
+    verifyResult result@(public, signature)
+        | BS.length public /= 32 || BS.length signature /= 64 =
+            Left "invalid data signature length"
+        | otherwise = do
+            vkey <- maybe (Left "invalid data public key") Right
+                $ (rawDeserialiseVerKeyDSIGN public :: Maybe (VerKeyDSIGN DSIGN))
+            sig <- maybe (Left "invalid data signature") Right
+                $ rawDeserialiseSigDSIGN signature
+            if verifyDSIGN () vkey message sig == Right ()
+                then Right result
+                else Left "generated data signature does not verify"
 
 type MakeRewardAccountBuilder k =
     ClearCredentials k -> (XPrv, Passphrase "encryption")

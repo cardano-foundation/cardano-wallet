@@ -4751,6 +4751,28 @@ components:
               body_hash: { type: string, pattern: '^[0-9a-f]{64}$' }
               witness_set_cbor: *ApiDappNonEmptyHex
 
+    ApiDappDataSignRequest: &ApiDappDataSignRequest
+      type: object
+      additionalProperties: false
+      required: [revision, network, address, payload, passphrase]
+      properties:
+        revision: { type: integer, enum: [1] }
+        network: *ApiDappContextNetwork
+        address: { type: string, pattern: '^[0-9a-f]{58,118}$' }
+        payload: { type: string, pattern: '^(?:[0-9a-f]{2}){0,65536}$' }
+        passphrase: *lenientPassphrase
+
+    ApiDappDataSignResponse: &ApiDappDataSignResponse
+      type: object
+      additionalProperties: false
+      required: [revision, credential_kind, credential, cose_sign1, cose_key]
+      properties:
+        revision: { type: integer, enum: [1] }
+        credential_kind: { type: string, enum: [payment, stake] }
+        credential: { type: string, pattern: '^[0-9a-f]{56}$' }
+        cose_sign1: *ApiDappNonEmptyHex
+        cose_key: *ApiDappNonEmptyHex
+
     ApiBlockHeader: &ApiBlockHeader
         description: |
           A Block Header.
@@ -7598,6 +7620,41 @@ x-responsesDappWitnesses: &responsesDappWitnesses
       application/json:
         schema: *errDappInternalError
 
+x-responsesDappDataSignature: &responsesDappDataSignature
+  200:
+    description: Complete untagged CIP-8 COSE_Sign1 and COSE_Key over the exact attached payload.
+    content:
+      application/json:
+        schema: *ApiDappDataSignResponse
+  400:
+    description: Invalid revision-1 request, configured network, raw Shelley address, or payload.
+    content:
+      application/json:
+        schema: *errDappInvalidRequest
+  403:
+    description: The selected address credential is script-based or its wallet proof cannot be generated.
+    content:
+      application/json:
+        schema:
+          oneOf:
+            - *errDappDataAddressNotPk
+            - *errDappDataProofGeneration
+  409:
+    description: Wallet or configured network changed.
+    content:
+      application/json:
+        schema: *errDappAccountChanged
+  503:
+    description: Wallet material is unavailable.
+    content:
+      application/json:
+        schema: *errDappContextUnavailable
+  500:
+    description: Internal COSE construction failure.
+    content:
+      application/json:
+        schema: *errDappInternalError
+
 x-responsesBalanceTransaction: &responsesBalanceTransaction
   400:
     description: Bad Request
@@ -8617,6 +8674,24 @@ paths:
           application/json:
             schema: *ApiDappWitnessSignRequest
       responses: *responsesDappWitnesses
+
+  /wallets/{walletId}/data-signatures:
+    post:
+      operationId: postDappDataSignature
+      tags: ["Transactions New"]
+      summary: Dormant CIP-8 data signing
+      description: |
+        Signs the exact attached payload selected by the raw Shelley address and
+        returns complete untagged canonical COSE_Sign1 and COSE_Key values. It
+        never hashes or converts payload bytes and does not activate dApp capability.
+      parameters:
+        - *parametersWalletId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiDappDataSignRequest
+      responses: *responsesDappDataSignature
 
   /byron-wallets:
     post:

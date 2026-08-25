@@ -275,7 +275,7 @@ spec_NotAllowedMethod malformedRequest expectedError = do
 assertEndpointError
     :: Request -> Int -> Text -> ExpectedError -> SResponse -> Session ()
 assertEndpointError request' status code expected response
-    | isTransactionContext request' =
+    | isDappBackend request' =
         assertErrorResponse
             400
             "dapp_invalid_request"
@@ -283,9 +283,13 @@ assertEndpointError request' status code expected response
             response
     | otherwise = assertErrorResponse status code expected response
   where
-    isTransactionContext req = case pathInfo req of
-        "v2" : "wallets" : _walletId : "transaction-context" : _ -> True
-        "wallets" : _walletId : "transaction-context" : _ -> True
+    isDappBackend req = case pathInfo req of
+        "v2" : "wallets" : _walletId : route : _
+            | route `elem` ["transaction-context", "transaction-witnesses", "data-signatures"] ->
+                True
+        "wallets" : _walletId : route : _
+            | route `elem` ["transaction-context", "transaction-witnesses", "data-signatures"] ->
+                True
         _ -> False
 
 --

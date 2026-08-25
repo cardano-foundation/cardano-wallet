@@ -16,6 +16,8 @@ import Cardano.Wallet.Api.Types.Dapp.Context
     ( ApiDappBatchOverlay (..)
     , ApiDappChainPoint (..)
     , ApiDappContextNetwork (..)
+    , ApiDappDataSignRequest (..)
+    , ApiDappDataSignResponse (..)
     , ApiDappHex (..)
     , ApiDappCredentialKind (..)
     , ApiDappOwnershipKind (..)
@@ -40,6 +42,8 @@ import Cardano.Wallet.Api.Types.Dapp.Context
     , canonicalContextRecords
     , computeContextDigest
     , decodeContextTokenClaims
+    , decodeDappDataSignRequest
+    , decodeDappDataSignResponse
     , decodeDappWitnessSignRequest
     , decodeDappWitnessSignResponse
     , decodeTransactionContextRequest
@@ -47,6 +51,13 @@ import Cardano.Wallet.Api.Types.Dapp.Context
     , encodeContextToken
     , validateContextToken
     , validateDappWitnessBinding
+    )
+import Cardano.Wallet.Api.Http.Shelley.Server
+    ( DataCredential (..)
+    , encodeProtectedDataAddress
+    , encodeSignatureStructure
+    , mkDappDataSignResponse
+    , validateDataSignRequest
     )
 import Cardano.Wallet.Api.Http.Shelley.TransactionContext
     ( DecodedTx (txId, valid)
@@ -114,6 +125,7 @@ import Test.Hspec
     )
 import Prelude
 
+import qualified Cryptography.Hash.Blake as Blake
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteArray.Encoding as BAE
 import qualified Data.ByteString as BS
@@ -136,6 +148,20 @@ main = hspec $ do
                 (\request -> decodeRequest request `shouldSatisfy` isLeft)
                 invalidRequests
 
+
+        describe "DAPP_DATA_SIGNING schema" $ do
+            it "accepts only the closed revision-1 request and response" $ do
+                decodeDappDataSignRequest validDataSignRequest `shouldSatisfy` isRight
+                decodeDappDataSignResponse validDataSignResponse `shouldSatisfy` isRight
+                mapM_
+                    (\request -> decodeDappDataSignRequest request `shouldSatisfy` isLeft)
+                    [ BL8.pack
+                        "{\"revision\":2,\"network\":{\"network_id\":0,\"network_magic\":42,\"genesis_hash\":\"0000000000000000000000000000000000000000000000000000000000000000\"},\"address\":\"60aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"payload\":\"\",\"passphrase\":\"pass\"}"
+                    , BL8.pack
+                        "{\"revision\":1,\"network\":{\"network_id\":0,\"network_magic\":42,\"genesis_hash\":\"0000000000000000000000000000000000000000000000000000000000000000\"},\"address\":\"60AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\",\"payload\":\"\",\"passphrase\":\"pass\"}"
+                    , BL8.pack
+                        "{\"revision\":1,\"network\":{\"network_id\":0,\"network_magic\":42,\"genesis_hash\":\"0000000000000000000000000000000000000000000000000000000000000000\"},\"address\":\"60aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"payload\":\"\",\"passphrase\":\"pass\",\"extra\":true}"
+                    ]
         describe "DAPP_WITNESS_SIGNING request decoder" $ do
             it "accepts the canonical request" $
                 decodeDappWitnessSignRequest (validWitnessRequest [witnessItem])
@@ -150,6 +176,7 @@ main = hspec $ do
                 request = ApiDappTransactionContextRequest 1 dappNetwork original
                 alternateEnvelope = BS.init acceptedTransaction <> BS.singleton 0xa0
                 rejected =
+
                     [ ( dappGeneration
                       , request
                       , tamperContextToken
@@ -198,19 +225,56 @@ main = hspec $ do
                     boundRequest
                     boundContext
                     `shouldBe` Left InvalidDappRequest
+        describe "DAPP_DATA_SIGNING address dispatch and COSE" $ do
+            it "selects payment credentials for base, enterprise, and pointer addresses" $ do
+                mapM_
+                    (\raw ->
+                        validateDataSignRequest dappNetwork (dataSignRequest raw)
+                            `shouldBe` Right (PaymentCredential, KeyDataCredential dataCredential, raw)
+                    )
+                    [ BS.pack (0x00 : BS.unpack dataCredential <> replicate 28 0xbb)
+                    , enterpriseAddress
+                    , BS.pack (0x40 : BS.unpack dataCredential <> [0, 0, 0])
+                    ]
+            it "selects the stake credential for reward addresses" $
+                validateDataSignRequest dappNetwork (dataSignRequest rewardAddress)
+                    `shouldBe` Right (StakeCredential, KeyDataCredential dataCredential, rewardAddress)
+            it "classifies script credentials without falling through to proof generation" $ do
+                validateDataSignRequest dappNetwork (dataSignRequest scriptPaymentAddress)
+                    `shouldBe` Right (PaymentCredential, ScriptDataCredential, scriptPaymentAddress)
+                validateDataSignRequest dappNetwork (dataSignRequest scriptStakeAddress)
+                    `shouldBe` Right (StakeCredential, ScriptDataCredential, scriptStakeAddress)
+            it "constructs exact untagged COSE bytes over the raw address and non-UTF8 payload" $ do
+                let protected = encodeProtectedDataAddress enterpriseAddress
+                    signatureStructure = encodeSignatureStructure protected nonUtf8Payload
+                    publicKey = BS.replicate 32 0x42
+                    keyHash = Blake.blake2b224 publicKey
+                response <- case mkDappDataSignResponse
+                    PaymentCredential keyHash enterpriseAddress nonUtf8Payload
+                    protected signatureStructure (publicKey, BS.replicate 64 0x11) of
+                    Left err -> error err
+                    Right value -> pure value
+                response.credential `shouldBe` ApiDappHex keyHash
+                response.coseSign1 `shouldBe` ApiDappHex
+                    ( hex
+                        "84582aa201276761646472657373581d60aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa266686173686564f46776657273696f6e014400ff8041584011111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111"
+                    )
+                response.coseKey `shouldBe` ApiDappHex
+                    (hex "a40101032720062158204242424242424242424242424242424242424242424242424242424242424242")
 
         it "serializes fixed redacted dapp witness errors" $ do
             let errors =
                     [ (InvalidDappRequest, 400)
                     , (DappContextConflictError, 400)
                     , (DappTxProofGenerationError, 403)
+                    , (DappDataProofGenerationError, 403)
+                    , (DappDataAddressNotPkError, 403)
                     , (DappInternalErrorResponse, 500)
                     ]
                 secrets =
                     [ "84a30081825820"
                     , "cbor"
                     , "token"
-                    , "key"
                     , "hash"
                     , "000102030405060708090a0b0c0d0e0f"
                     , "1852/1815/0/0/0"
@@ -748,6 +812,34 @@ requiredProofGolden =
 tokenGolden =
     hex
         "0144444444444444444444444444444444000000010000000b77616c6c65742d7465737401010101010101010101010101010101010101010101010101010101010101016e87935bf459d9d6a33dd0df3ad8a1178ffe380bdc33fdbc8bb78d865d082446e019bfde0ef59a5a9861653b0ae9658e8e3ba6528436f05a59ede65791e21bc5"
+
+dataCredential :: ByteString
+dataCredential = BS.replicate 28 0xaa
+
+enterpriseAddress, rewardAddress, scriptPaymentAddress, scriptStakeAddress :: ByteString
+enterpriseAddress = BS.cons 0x60 dataCredential
+rewardAddress = BS.cons 0xe0 dataCredential
+scriptPaymentAddress = BS.cons 0x70 dataCredential
+scriptStakeAddress = BS.cons 0xf0 dataCredential
+nonUtf8Payload :: ByteString
+nonUtf8Payload = BS.pack [0x00, 0xff, 0x80, 0x41]
+
+dataSignRequest :: ByteString -> ApiDappDataSignRequest
+dataSignRequest rawAddress =
+    ApiDappDataSignRequest
+        1
+        dappNetwork
+        (ApiDappHex rawAddress)
+        (ApiDappHex nonUtf8Payload)
+        (ApiT $ Passphrase "test")
+
+validDataSignRequest :: BL8.ByteString
+validDataSignRequest = BL8.pack
+    "{\"revision\":1,\"network\":{\"network_id\":0,\"network_magic\":42,\"genesis_hash\":\"0000000000000000000000000000000000000000000000000000000000000000\"},\"address\":\"60aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"payload\":\"00ff\",\"passphrase\":\"pass\"}"
+
+validDataSignResponse :: BL8.ByteString
+validDataSignResponse = BL8.pack
+    "{\"revision\":1,\"credential_kind\":\"payment\",\"credential\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"cose_sign1\":\"80\",\"cose_key\":\"a0\"}"
 
 fixtureTransactions :: [ByteString]
 fixtureTransactions = hex <$>
