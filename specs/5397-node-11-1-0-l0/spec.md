@@ -8,9 +8,10 @@ dependency set: `cardano-numeric`, `cardano-wallet-read`, `faucet`,
 
 ## Requirements
 
-- **R1:** Resolve the observed `tracer-transformers-0.1.0.2` compiler failure
-  using the actual frozen/solved dependency set; do not patch a third-party
-  package.
+- **R1:** Build L0 in the narrowed compiler environment authorised by epic
+  ruling NOTE-002. The full dev shell's `tracer-transformers` failure is a
+  later-level tracing-stack migration concern, not an L0 resolver repair; do
+  not patch a third-party package or alter `cabal.project` to exclude packages.
 - **R2:** Process the six packages in the declared L0 order. Each adapted
   package is committed once, signed, and is never changed again in this bump.
 - **R3:** Build each package and its enabled tests with `-O0`; run fourmolu and
