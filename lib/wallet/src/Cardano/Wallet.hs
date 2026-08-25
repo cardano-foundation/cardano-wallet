@@ -6,6 +6,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -192,11 +193,12 @@ module Cardano.Wallet
 
       -- ** Transaction
     , forgetTx
+    , getTransaction
     , listTransactions
     , listAssets
-    , getTransaction
     , submitExternalTx
     , submitTx
+    , submitWalletScoped
     , signTransactionV2
     , signDappWitnesses
     , signDappData
@@ -504,7 +506,14 @@ import Cardano.Wallet.DB.Store.Submissions.Layer
     ( mkLocalTxSubmission
     )
 import Cardano.Wallet.DB.Store.Submissions.Operations
-    ( TxSubmissionsStatus
+    ( DurableSubmission (..)
+    , DurableSubmissionInput (..)
+    , DurableSubmissionInsert (..)
+    , TxSubmissionsStatus
+    )
+import Cardano.Wallet.DB.Sqlite.Types
+    ( DappSubmissionInputRole (..)
+    , DappSubmissionStatusEnum (..)
     )
 import Cardano.Wallet.DB.WalletState
     ( DeltaWalletState
@@ -602,8 +611,7 @@ import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress
     )
 import Cardano.Wallet.Primitive.Types
-    ( ActiveSlotCoefficient (..)
-    , Block (..)
+    ( Block (..)
     , BlockHeader (..)
     , ChainPoint (..)
     , DelegationCertificate (..)
@@ -631,7 +639,8 @@ import Cardano.Wallet.Primitive.Types.AssetId
     ( AssetId
     )
 import Cardano.Wallet.Primitive.Types.Block
-    ( fromWalletChainPoint
+    ( chainPointFromBlockHeader
+    , fromWalletChainPoint
     , toWalletChainPoint
     )
 import Cardano.Wallet.Primitive.Types.BlockSummary
@@ -665,8 +674,7 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..)
     )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( LocalTxSubmissionStatus
-    , SealedTx
+    ( SealedTx
     , Tx (..)
     , TxChange (..)
     , TxId
@@ -759,6 +767,7 @@ import Control.Monad
     , replicateM
     , unless
     , when
+    , void
     , (<=<)
     )
 import Control.Monad.Class.MonadTime
@@ -928,8 +937,15 @@ import Statistics.Quantile
     ( medianUnbiased
     , quantiles
     )
+import UnliftIO.Async
+    ( race
+    )
+import UnliftIO.Concurrent
+    ( threadDelay
+    )
 import UnliftIO.Exception
     ( Exception
+    , SomeException
     , catch
     , evaluate
     , throwIO
@@ -977,6 +993,7 @@ import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Crypto.WalletHD.Encrypted as EncHD
     ( Signature (..)
     )
+import qualified Cardano.Wallet.DB.Sqlite.Types as Sql
 import qualified Cardano.Ledger.Core as Ledger
 import qualified Cardano.Slotting.Slot as Slot
 import qualified Cardano.Wallet.Address.Discovery.Random as Rnd
@@ -3112,21 +3129,29 @@ buildSignSubmitTransaction
                                 , builtTxMeta
                                 , builtSealedTx
                                 }
+                    _ <-
+                        runExceptT
+                            ( submitWalletScoped
+                                nullTracer
+                                db
+                                netLayer
+                                txResolved
+                                builtSealedTx
+                                (expiry builtTxMeta)
+                            )
+                            >>= either (throwIO . ExceptionSubmitTx) pure
                     atomicallyWithContextChange PendingContextChange
                         $ Delta.onDBVar walletState
-                            . WalletState.updateSubmissions
-                            . Delta.update
+                        . WalletState.updateSubmissions
+                        . Delta.update
                         $ \_ -> Submissions.addTxSubmission builtTx slot
-                    postSealedTx netLayer builtSealedTx
-                        & throwWrappedErr wrapNetworkError
-                        & liftIO
                     slotToUTCTime slot
                         & interpretQuery
                             (neverFails "slot is ahead of the node tip" ti)
                         & fmap (builtTx,)
                         & liftIO
                 RootKeyAccessV1 rootKey scheme -> lift $ do
-                    (BuiltTx{..}, slot) <- atomicallyWithContextChange WalletAndPendingContextChange $ do
+                    (built@BuiltTx{..}, slot) <- atomicallyWithContextChange WalletAndPendingContextChange $ do
                         pendingTxs <-
                             fmap fromTransactionInfo
                                 <$> readTransactions
@@ -3164,16 +3189,24 @@ buildSignSubmitTransaction
                                                 )
                                             )
 
-                        Delta.onDBVar walletState
-                            . WalletState.updateSubmissions
-                            . Delta.update
-                            $ \_ -> Submissions.addTxSubmission builtTx slot
-
                         pure txWithSlot
 
-                    postSealedTx netLayer builtSealedTx
-                        & throwWrappedErr wrapNetworkError
-                        & liftIO
+                    _ <-
+                        runExceptT
+                            ( submitWalletScoped
+                                nullTracer
+                                db
+                                netLayer
+                                builtTx
+                                builtSealedTx
+                                (expiry builtTxMeta)
+                            )
+                            >>= either (throwIO . ExceptionSubmitTx) pure
+                    atomicallyWithContextChange PendingContextChange
+                        $ Delta.onDBVar walletState
+                        . WalletState.updateSubmissions
+                        . Delta.update
+                        $ \_ -> Submissions.addTxSubmission built slot
 
                     slotToUTCTime slot
                         & interpretQuery (neverFails "slot is ahead of the node tip" ti)
@@ -3181,7 +3214,6 @@ buildSignSubmitTransaction
                         & liftIO
       where
         wrapRootKeyError = ExceptionWitnessTx . ErrWitnessTxWithRootKey
-        wrapNetworkError = ExceptionSubmitTx . ErrSubmitTxNetwork
 
         wrapBalanceConstructError
             :: Write.IsRecentEra era
@@ -3811,24 +3843,136 @@ mkTxMeta latestBlockHeader txValidity amountIn amountOut =
         , amount = Coin.distance amountIn amountOut
         , expiry = Just (snd txValidity)
         }
+-- | Persist an exact wallet-scoped submission before making the single
+-- caller-owned network attempt. Replays are classified from the durable row;
+-- only an authorized row may be broadcast.
+submitWalletScoped
+    :: (MonadUnliftIO m, MonadTime m)
+    => Tracer m TxSubmitLog
+    -> DBLayer m s
+    -> NetworkLayer m block
+    -> Tx
+    -> SealedTx
+    -> Maybe SlotNo
+    -> ExceptT ErrSubmitTx m DappSubmissionStatusEnum
+submitWalletScoped tr DBLayer{..} nw tx sealed expiration = do
+    let normal = claim NormalInputE <$> map fst (resolvedInputs tx)
+        collateral = claim CollateralInputE <$> map fst (resolvedCollateralInputs tx)
+        claims = normal <> collateral
+        outpoints = Set.fromList . fmap claimOutpoint
+        submission =
+            DurableSubmission
+                walletId_
+                (Sql.TxId $ txId tx)
+                sealed
+                expiration
+                True
+                AuthorizedE
+                0
+                Nothing
+                Nothing
+                Nothing
+                Nothing
+    when (not $ Set.disjoint (outpoints normal) (outpoints collateral))
+        $ throwE ErrSubmitTxInputConflict
+    decision <-
+        lift
+            $ atomicallyWithContextChange PendingContextChange
+            $ insertDurableSubmission submission claims
+    case decision of
+        DurableSubmissionAuthorized -> broadcast submission
+        DurableSubmissionReplay stored
+            | durableStatus stored == AuthorizedE -> broadcast stored
+            | otherwise -> pure $ durableStatus stored
+        DurableSubmissionIdentityConflict -> throwE ErrSubmitTxIdentityConflict
+        DurableSubmissionInputConflict -> throwE ErrSubmitTxInputConflict
+  where
+    claim role TxIn{inputId, inputIx} =
+        DurableSubmissionInput (Sql.TxId inputId) inputIx role
+    claimOutpoint DurableSubmissionInput{durableInputTxId, durableInputIndex} =
+        (durableInputTxId, durableInputIndex)
+    broadcast authorized = do
+        started <- lift getCurrentTime
+        mBroadcasting <-
+            lift
+                $ atomicallyWithContextChange PendingContextChange
+                $ claimDurableSubmissionAttempt
+                    (durableTxId authorized)
+                    (durableAttemptGeneration authorized)
+                    started
+        case mBroadcasting of
+            Nothing -> pure BroadcastingE
+            Just broadcasting -> do
+                outcome <-
+                    lift
+                        $ ( Right
+                                <$> race
+                                    (threadDelay 30_000_000)
+                                    ( runExceptT
+                                        $ traceResult
+                                            (MsgRetryPostTx (Sql.getTxId $ durableTxId authorized) >$< tr)
+                                            (postSealedTxOneShot nw sealed)
+                                    )
+                          )
+                            `catch` \(_ :: SomeException) -> pure $ Left ()
+                case outcome of
+                    Left () -> unknown broadcasting
+                    Right (Left ()) -> unknown broadcasting
+                    Right (Right (Right ())) -> do
+                        let submitted =
+                                broadcasting
+                                    { durableStatus = SubmittedE
+                                    , durableBroadcastStarted = Nothing
+                                    }
+                        lift
+                            $ atomicallyWithContextChange PendingContextChange
+                            $ updateDurableSubmission submitted
+                        pure SubmittedE
+                    Right (Right (Left err)) -> do
+                        let rejected =
+                                broadcasting
+                                    { durableAuthorized = False
+                                    , durableStatus = RejectedE
+                                    , durableBroadcastStarted = Nothing
+                                    , durableRejectionCode = Just $ rejectionCode err
+                                    }
+                        lift
+                            $ atomicallyWithContextChange PendingContextChange
+                            $ updateDurableSubmission rejected
+                        throwE $ ErrSubmitTxNetwork err
+    unknown broadcasting = do
+        let unknownSubmission =
+                broadcasting
+                    { durableStatus = OutcomeUnknownE
+                    , durableBroadcastStarted = Nothing
+                    }
+        lift
+            $ atomicallyWithContextChange PendingContextChange
+            $ updateDurableSubmission unknownSubmission
+        throwE ErrSubmitTxOutcomeUnknown
+    rejectionCode = \case
+        ErrPostTxValidationError _ -> "validation"
+        ErrPostTxMempoolFull -> "mempool_full"
+        ErrPostTxEraUnsupported _ -> "era_unsupported"
 
--- | Broadcast a (signed) transaction to the network.
+-- | Broadcast a signed transaction after persisting the exact submission
+-- evidence and its normal/collateral claims.
 submitTx
-    :: MonadUnliftIO m
+    :: (MonadUnliftIO m, MonadTime m)
     => Tracer m WalletWorkerLog
     -> DBLayer m s
     -> NetworkLayer m block
     -> BuiltTx
     -> ExceptT ErrSubmitTx m ()
-submitTx tr DBLayer{walletState, atomicallyWithContextChange} nw tx@BuiltTx{..} =
-    traceResult (MsgWallet . MsgTxSubmit . MsgSubmitTx tx >$< tr) $ do
-        withExceptT ErrSubmitTxNetwork $ postSealedTx nw builtSealedTx
-        lift
-            . atomicallyWithContextChange PendingContextChange
-            . Delta.onDBVar walletState
-            . WalletState.updateSubmissions
-            . Delta.update
-            $ \_ -> Submissions.addTxSubmission tx (builtTxMeta ^. #slotNo)
+submitTx tr db nw BuiltTx{builtTx, builtTxMeta, builtSealedTx} =
+    void
+        $ submitWalletScoped
+            (contramap (MsgWallet . MsgTxSubmit) tr)
+            db
+            nw
+            builtTx
+            builtSealedTx
+            (expiry builtTxMeta)
 
 -- | Broadcast an externally-signed transaction to the network.
 --
@@ -3971,39 +4115,25 @@ readLocalTxSubmissionPending ctx =
             . Submissions.getInSubmissionTransactions
             . WalletState.submissions
 
--- | Given a LocalTxSubmission record, calculate the slot when it should be
--- retried next.
---
--- The current implementation is really basic. Retry about once _n_ blocks.
-scheduleLocalTxSubmission
-    :: Word64
-    -- ^ Resubmission interval in terms of expected blocks.
-    -> SlottingParameters
-    -> LocalTxSubmissionStatus tx
-    -> SlotNo
-scheduleLocalTxSubmission numBlocks sp st = (st ^. #latestSubmission) + numSlots
-  where
-    numSlots = SlotNo (ceiling (fromIntegral numBlocks / f))
-    ActiveSlotCoefficient f = getActiveSlotCoefficient sp
 
--- | Parameters for 'runLocalTxSubmissionPool'
+-- | Parameters for the local submission reconciliation watcher.
 data LocalTxSubmissionConfig = LocalTxSubmissionConfig
     { rateLimit :: DiffTime
-    -- ^ Minimum time between checks of pending transactions
+    -- ^ Minimum time between reconciliation checks.
     , blockInterval :: Word64
-    -- ^ Resubmission interval, in terms of expected blocks.
+    -- ^ Retained for configuration compatibility. Reconciliation never submits.
     }
     deriving (Generic, Show, Eq)
 
--- | The current default is to resubmit any pending transaction about once every
--- 10 blocks.
---
--- The default rate limit for checking the pending list is 1000ms.
+-- | The watcher only observes pending transactions. Submission is always owned
+-- by the caller that durably authorized it.
 defaultLocalTxSubmissionConfig :: LocalTxSubmissionConfig
 defaultLocalTxSubmissionConfig = LocalTxSubmissionConfig 1 10
 
--- | Continuous process which monitors the chain tip and retries submission of
--- pending transactions as the chain lengthens.
+-- | Continuous process which watches the chain tip for reconciliation work.
+--
+-- This function never calls 'postSealedTx'. In particular, opening a wallet
+-- cannot turn a durable authorized transaction into a network submission.
 --
 -- Regardless of the frequency of chain updates, this function won't re-query
 -- the database faster than the configured 'rateLimit'.
@@ -4017,37 +4147,103 @@ runLocalTxSubmissionPool
     => LocalTxSubmissionConfig
     -> WalletLayer m s
     -> m ()
-runLocalTxSubmissionPool cfg ctx =
-    db & \DBLayer{..} -> do
-        submitPending <- rateLimited $ \nodeTip -> bracketTracer trBracket $ do
-            sp <- currentSlottingParameters nw
-            pending <- readLocalTxSubmissionPending ctx
-            let sl = case nodeTip of
-                    Read.GenesisTip -> SlotNo 0
-                    Read.BlockTip{slotNo} ->
-                        SlotNo $ fromIntegral $ Read.unSlotNo slotNo
-                pendingOldStyle = pending >>= mkLocalTxSubmission
-            -- Re-submit transactions due, ignore errors
-            forM_ (filter (isScheduled sp sl) pendingOldStyle) $ \st -> do
-                _ <-
-                    runExceptT
-                        $ traceResult (trRetry (st ^. #txId))
-                        $ postSealedTx nw (st ^. #submittedTx)
-                atomicallyWithContextChange PendingContextChange
-                    $ resubmitTx (st ^. #txId) sl
-        watchNodeTip nw submitPending
+runLocalTxSubmissionPool cfg ctx = do
+    recoverInterruptedBroadcasts
+    watchNodeTip nw =<< rateLimited (const $ bracketTracer trBracket reconcile)
   where
     nw = networkLayer_ ctx
     db = dbLayer_ ctx
-
-    isScheduled sp now =
-        (<= now) . scheduleLocalTxSubmission (blockInterval cfg) sp
-
+    recoverInterruptedBroadcasts =
+        db & \DBLayer{..} -> do
+            rows <- atomically readDurableSubmissions
+            forM_ rows $ \row ->
+                when (durableStatus row == BroadcastingE)
+                    $ atomicallyWithContextChange PendingContextChange
+                    $ updateDurableSubmission
+                        row
+                            { durableStatus = OutcomeUnknownE
+                            , durableBroadcastStarted = Nothing
+                            }
+    reconcile =
+        db & \DBLayer{..} -> do
+            rows <- atomically readDurableSubmissions
+            let lookupTxAt nodeTip transactionId =
+                    atomically $ do
+                        checkpoint <- readCheckpoint
+                        if checkpointAtNodeTip checkpoint nodeTip
+                            then Just <$> getTx transactionId
+                            else pure Nothing
+                saveRow row =
+                    atomicallyWithContextChange PendingContextChange
+                        $ updateDurableSubmission row
+            forM_ rows $ \row ->
+                when
+                    ( durableStatus row
+                        `elem` [AuthorizedE, SubmittedE, OutcomeUnknownE]
+                    )
+                    $ reconcileRow lookupTxAt saveRow row 3
+    reconcileRow lookupTxAt saveRow row attempts
+        | attempts <= 0 = pure ()
+        | otherwise = do
+            tipBefore <- currentNodeTip nw
+            let Sql.TxId transactionId = durableTxId row
+            lookupTxAt tipBefore transactionId >>= \case
+                Nothing -> pure ()
+                Just observed -> do
+                    mempool <- isTxInMempool nw (durableSealedTx row)
+                    tipAfter <- currentNodeTip nw
+                    if tipBefore /= tipAfter
+                        then reconcileRow lookupTxAt saveRow row (attempts - 1)
+                        else
+                            if maybe False ((== InLedger) . status . txInfoMeta) observed
+                                then forM_ (classify tipAfter observed False row) saveRow
+                                else case mempool of
+                                    Nothing -> pure ()
+                                    Just present ->
+                                        forM_ (classify tipAfter observed present row) saveRow
+    classify tip observed present row
+        | maybe False ((== InLedger) . status . txInfoMeta) observed =
+            Just
+                row
+                    { durableAuthorized = False
+                    , durableStatus = InLedgerDappE
+                    , durableAcceptance = ((^. #slotNo) . txInfoMeta) <$> observed
+                    }
+        | present && durableStatus row /= SubmittedE =
+            Just
+                row
+                    { durableAuthorized = False
+                    , durableStatus = SubmittedE
+                    }
+        | maybe False (< tipSlot tip) (durableExpiration row) =
+            Just
+                row
+                    { durableAuthorized = False
+                    , durableStatus = ExpiredDappE
+                    }
+        | durableStatus row == OutcomeUnknownE =
+            Just
+                row
+                    { durableAuthorized = True
+                    , durableStatus = AuthorizedE
+                    , durableAttemptGeneration = durableAttemptGeneration row + 1
+                    , durableBroadcastGeneration = Nothing
+                    , durableBroadcastStarted = Nothing
+                    }
+        | otherwise = Nothing
+    tipSlot = \case
+        Read.GenesisTip -> 0
+        Read.BlockTip{slotNo = nodeSlot} ->
+            SlotNo $ fromIntegral $ Read.unSlotNo nodeSlot
+    checkpointAtNodeTip wallet nodeTip =
+        fromWalletChainPoint (chainPointFromBlockHeader $ currentTip wallet)
+            == nodeTipPoint nodeTip
+    nodeTipPoint = \case
+        Read.GenesisTip -> Read.GenesisPoint
+        Read.BlockTip{slotNo, headerHash} -> Read.BlockPoint slotNo headerHash
     rateLimited = throttle (rateLimit cfg) . const
-
     tr = contramap (MsgWallet . MsgTxSubmit) $ logger_ ctx
     trBracket = contramap MsgProcessPendingPool tr
-    trRetry i = contramap (MsgRetryPostTx i) tr
 
 -- | Return a function to run an action at most once every _interval_.
 throttle
@@ -5183,8 +5379,7 @@ data ErrReadAccountPublicKey
     | -- | User provided a derivation index for purpose outside of the 'Hard' domain
       ErrReadAccountPublicKeyInvalidPurposeIndex
         (ErrInvalidDerivationIndex 'Hardened 'PurposeK)
-    | -- | The wallet exists, but there's no root key attached to it
-      ErrReadAccountPublicKeyRootKey ErrWithRootKey
+    | ErrReadAccountPublicKeyRootKey ErrWithRootKey
     deriving (Eq, Show)
 
 data ErrInvalidDerivationIndex derivation level
@@ -5259,6 +5454,9 @@ data ErrWitnessTx
 data ErrSubmitTx
     = ErrSubmitTxNetwork ErrPostTx
     | ErrSubmitTxImpossible ErrNoSuchTransaction
+    | ErrSubmitTxIdentityConflict
+    | ErrSubmitTxInputConflict
+    | ErrSubmitTxOutcomeUnknown
     deriving (Show, Eq)
 
 -- | Errors that can occur when trying to change a wallet's passphrase.
@@ -5570,54 +5768,25 @@ instance ToText TxSubmitLog
 
 instance Buildable TxSubmitLog where
     build = \case
-        MsgSubmitTx BuiltTx{..} msg -> case msg of
-            BracketStart ->
-                unlinesF
-                    [ "Submitting transaction " +| builtTx ^. #txId |+ " to local node"
-                    , blockMapF
-                        [ ("Tx" :: Text, build builtTx)
-                        , ("SealedTx", build builtSealedTx)
-                        , ("TxMeta", build builtTxMeta)
-                        ]
-                    ]
-            BracketFinish res ->
-                "Transaction " +| builtTx ^. #txId |+ " " +| case res of
-                    Right _ -> "accepted by local node"
-                    Left err -> "failed: " +|| err ||+ ""
-            _ -> formatResultMsg "submitTx" [("txid", builtTx ^. #txId)] msg
-        MsgSubmitExternalTx txid msg -> case msg of
-            BracketStart ->
-                "Submitting external transaction "
-                    +| txid
-                    |+ " to local node..."
-            BracketFinish res ->
-                "Transaction " +| txid |+ " " +| case res of
-                    Right tx ->
-                        unlinesF
-                            [ "accepted by local node"
-                            , nameF "tx" (build tx)
-                            ]
-                    Left err -> "failed: " +| toText err |+ ""
-            _ -> formatResultMsg "submitExternalTx" [("txid", txid)] msg
-        MsgRetryPostTx txid msg -> case msg of
-            BracketStart ->
-                "Retrying submission of transaction "
-                    +| txid
-                    |+ " to local node..."
-            BracketFinish res ->
-                "Transaction "
-                    +| txid
-                    |+ " resubmitted to local node and "
-                        <> case res of
-                            Right _ -> "accepted again"
-                            Left _ -> "not accepted (this is expected)"
-            _ ->
-                formatResultMsg
-                    "runLocalTxSubmissionPool(postSealedTx)"
-                    [("txid", txid)]
-                    msg
-        MsgProcessPendingPool msg ->
-            "Processing the pending local tx submission pool: " +| msg |+ ""
+        MsgSubmitTx _ msg -> case msg of
+            BracketStart -> "Transaction submission started"
+            BracketFinish (Right _) -> "Transaction submission accepted"
+            BracketFinish (Left _) -> "Transaction submission failed"
+            BracketException _ -> "Transaction submission interrupted"
+            _ -> "Transaction submission progress"
+        MsgSubmitExternalTx _ msg -> case msg of
+            BracketStart -> "External transaction submission started"
+            BracketFinish (Right _) -> "External transaction submission accepted"
+            BracketFinish (Left _) -> "External transaction submission failed"
+            BracketException _ -> "External transaction submission interrupted"
+            _ -> "External transaction submission progress"
+        MsgRetryPostTx _ msg -> case msg of
+            BracketStart -> "Transaction reconciliation started"
+            BracketFinish (Right _) -> "Transaction reconciliation accepted"
+            BracketFinish (Left _) -> "Transaction reconciliation failed"
+            BracketException _ -> "Transaction reconciliation interrupted"
+            _ -> "Transaction reconciliation progress"
+        MsgProcessPendingPool _ -> "Transaction reconciliation cycle"
 
 instance HasPrivacyAnnotation TxSubmitLog
 instance HasSeverityAnnotation TxSubmitLog where

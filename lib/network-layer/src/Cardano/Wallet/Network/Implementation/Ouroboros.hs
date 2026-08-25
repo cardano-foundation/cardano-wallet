@@ -40,6 +40,10 @@ module Cardano.Wallet.Network.Implementation.Ouroboros
     , LocalTxSubmissionCmd (..)
     , localTxSubmission
 
+      -- * LocalTxMonitor
+    , LocalTxMonitorCmd (..)
+    , localTxMonitor
+
       -- * LocalStateQuery
     , LSQ (..)
     , LocalStateQueryResult (..)
@@ -170,6 +174,7 @@ import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
 import qualified Ouroboros.Network.Protocol.ChainSync.ClientPipelined as P
 import qualified Ouroboros.Network.Protocol.LocalStateQuery.Client as LSQ
+import qualified Ouroboros.Network.Protocol.LocalTxMonitor.Client as Monitor
 
 --------------------------------------------------------------------------------
 --
@@ -864,6 +869,31 @@ localTxSubmission queue = LocalTxSubmissionClient clientStIdle
                     -- here.
                     _processedCmd <- atomically (readTQueue queue)
                     clientStIdle
+
+-- | Commands handled by the persistent local transaction monitor client.
+data LocalTxMonitorCmd txid (m :: Type -> Type)
+    = CmdHasTx txid (Bool -> m ())
+
+-- | Query fresh mempool snapshots without ever submitting a transaction.
+localTxMonitor
+    :: (MonadSTM m)
+    => TQueue m (LocalTxMonitorCmd txid m)
+    -> Monitor.LocalTxMonitorClient txid tx slot m Void
+localTxMonitor queue =
+    Monitor.LocalTxMonitorClient
+        $ pure
+        $ Monitor.SendMsgAcquire
+        $ const runCommand
+  where
+    runCommand = do
+        CmdHasTx txid respond <- atomically $ readTQueue queue
+        pure
+            $ Monitor.SendMsgHasTx txid
+            $ \present -> do
+                respond present
+                pure
+                    $ Monitor.SendMsgAwaitAcquire
+                    $ const runCommand
 
 {-------------------------------------------------------------------------------
     Helpers

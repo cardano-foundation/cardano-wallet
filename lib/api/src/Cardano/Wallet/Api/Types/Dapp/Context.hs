@@ -11,13 +11,16 @@ module Cardano.Wallet.Api.Types.Dapp.Context
     , ApiDappDataSignRequest (..)
     , ApiDappDataSignResponse (..)
     , ApiDappCip95KeyState (..)
-    , ApiDappTransactionContextRequest (..)
-    , ApiDappTransactionContextResponse (..)
+    , ApiDappSubmissionRequest (..)
+    , ApiDappSubmissionResponse (..)
+    , ApiDappSubmissionStatus (..)
     , ApiDappWitnessSignRequest (..)
     , ApiDappWitnessSignItem (..)
     , ApiDappWitnessSignResponse (..)
     , ApiDappWitnessResult (..)
     , ApiDappContextNetwork (..)
+    , ApiDappTransactionContextRequest (..)
+    , ApiDappTransactionContextResponse (..)
     , ApiDappChainPoint (..)
     , ApiDappProtocolVersion (..)
     , ApiDappVolatileDelta (..)
@@ -66,9 +69,6 @@ import Cardano.Wallet.Api.Lib.Options
     )
 import Cardano.Wallet.Api.Types.Error
     ( DappError (InvalidDappRequest)
-    )
-import Cardano.Wallet.Api.Types.Primitive
-    (
     )
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase
@@ -206,6 +206,19 @@ instance MimeUnrender DappJSON ApiDappWitnessSignResponse where
 instance MimeRender DappJSON ApiDappWitnessSignResponse where
     mimeRender _ = Aeson.encode
 
+instance MimeUnrender DappJSON ApiDappSubmissionRequest where
+    mimeUnrender _ = decodeDappSubmissionRequest
+
+instance MimeRender DappJSON ApiDappSubmissionRequest where
+    mimeRender _ = Aeson.encode
+
+instance MimeUnrender DappJSON ApiDappSubmissionResponse where
+    mimeUnrender _ bytes =
+        rejectDuplicateFields (BL.toStrict bytes) >> eitherDecode bytes
+
+instance MimeRender DappJSON ApiDappSubmissionResponse where
+    mimeRender _ = Aeson.encode
+
 newtype ApiDappHex = ApiDappHex {getApiDappHex :: ByteString}
     deriving (Eq, Ord, Show)
 
@@ -223,6 +236,30 @@ data ApiDappTransactionContextRequest = ApiDappTransactionContextRequest
     { revision :: !Word32
     , network :: !ApiDappContextNetwork
     , transactions :: ![ApiDappHex]
+    }
+    deriving (Eq, Generic, Show)
+
+data ApiDappSubmissionRequest = ApiDappSubmissionRequest
+    { revision :: !Word32
+    , network :: !ApiDappContextNetwork
+    , transaction :: !ApiDappHex
+    }
+    deriving (Eq, Generic, Show)
+
+data ApiDappSubmissionStatus
+    = SubmissionAuthorized
+    | SubmissionBroadcasting
+    | SubmissionSubmitted
+    | SubmissionRejected
+    | SubmissionOutcomeUnknown
+    | SubmissionInLedger
+    | SubmissionExpired
+    deriving (Eq, Ord, Show)
+
+data ApiDappSubmissionResponse = ApiDappSubmissionResponse
+    { revision :: !Word32
+    , transactionId :: !ApiDappHex
+    , status :: !ApiDappSubmissionStatus
     }
     deriving (Eq, Generic, Show)
 
@@ -446,6 +483,53 @@ instance FromJSON ApiDappWord64 where
             [(word, "")] -> pure $ ApiDappWord64 word
             _ -> fail "decimal value does not fit Word64"
 
+instance FromJSON ApiDappSubmissionRequest where
+    parseJSON value = do
+        result@ApiDappSubmissionRequest{revision, transaction} <-
+            genericParseJSON strictRecordTypeOptions value
+        unless (revision == 1) $ fail "revision must be 1"
+        requireLengthBetween "transaction" 1 65536 transaction
+        pure result
+
+instance ToJSON ApiDappSubmissionRequest where
+    toJSON = genericToJSON strictRecordTypeOptions
+
+instance FromJSON ApiDappSubmissionResponse where
+    parseJSON value = do
+        result@ApiDappSubmissionResponse{revision, transactionId} <-
+            genericParseJSON strictRecordTypeOptions value
+        unless (revision == 1) $ fail "revision must be 1"
+        requireLength "transaction_id" 32 transactionId
+        pure result
+
+instance FromJSON ApiDappSubmissionStatus where
+    parseJSON =
+        parseEnum
+            "submission status"
+            [ ("authorized", SubmissionAuthorized)
+            , ("broadcasting", SubmissionBroadcasting)
+            , ("submitted", SubmissionSubmitted)
+            , ("rejected", SubmissionRejected)
+            , ("outcome_unknown", SubmissionOutcomeUnknown)
+            , ("in_ledger", SubmissionInLedger)
+            , ("expired", SubmissionExpired)
+            ]
+
+instance ToJSON ApiDappSubmissionStatus where
+    toJSON =
+        enumJson
+            [ (SubmissionAuthorized, "authorized")
+            , (SubmissionBroadcasting, "broadcasting")
+            , (SubmissionSubmitted, "submitted")
+            , (SubmissionRejected, "rejected")
+            , (SubmissionOutcomeUnknown, "outcome_unknown")
+            , (SubmissionInLedger, "in_ledger")
+            , (SubmissionExpired, "expired")
+            ]
+
+instance ToJSON ApiDappSubmissionResponse where
+    toJSON = genericToJSON strictRecordTypeOptions
+
 instance ToJSON ApiDappWord64 where
     toJSON = String . T.pack . show . getApiDappWord64
 
@@ -551,6 +635,11 @@ instance FromJSON ApiDappWitnessResult where
         requireLength "body_hash" 32 bodyHash
         requireNonEmpty "witness_set_cbor" witnessSetCbor
         pure result
+
+decodeDappSubmissionRequest
+    :: BL.ByteString -> Either String ApiDappSubmissionRequest
+decodeDappSubmissionRequest bytes =
+    rejectDuplicateFields (BL.toStrict bytes) >> eitherDecode bytes
 
 instance ToJSON ApiDappWitnessResult where
     toJSON = genericToJSON strictRecordTypeOptions

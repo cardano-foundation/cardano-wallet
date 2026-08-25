@@ -4488,6 +4488,24 @@ components:
           maxItems: 50
           items: { type: string, pattern: '^(?:[0-9a-f]{2}){1,65536}$' }
 
+    ApiDappSubmissionRequest: &ApiDappSubmissionRequest
+      type: object
+      additionalProperties: false
+      required: [revision, network, transaction]
+      properties:
+        revision: { type: integer, enum: [1] }
+        network: *ApiDappContextNetwork
+        transaction: { type: string, pattern: '^(?:[0-9a-f]{2}){1,65536}$' }
+
+    ApiDappSubmissionResponse: &ApiDappSubmissionResponse
+      type: object
+      additionalProperties: false
+      required: [revision, transaction_id, status]
+      properties:
+        revision: { type: integer, enum: [1] }
+        transaction_id: *transactionId
+        status: { type: string, enum: [authorized, broadcasting, submitted, rejected, outcome_unknown, in_ledger, expired] }
+
     ApiDappTransactionContextResponse: &ApiDappTransactionContextResponse
       type: object
       additionalProperties: false
@@ -7577,6 +7595,34 @@ x-responsesGetSmashHealth: &responsesGetSmashHealth
       application/json:
         schema: *ApiHealthCheck
 
+x-responsesDappSubmission: &responsesDappSubmission
+  200:
+    description: The verified transaction identity and durable submission status.
+    content:
+      application/json:
+        schema: *ApiDappSubmissionResponse
+  400:
+    description: Invalid envelope or conflicting identity.
+    content:
+      application/json:
+        schema:
+          oneOf:
+            - *errDappInvalidRequest
+            - *errDappIdentityConflict
+  409:
+    description: Wallet, network, or submission state changed.
+    content:
+      application/json:
+        schema:
+          oneOf:
+            - *errDappAccountChanged
+            - *errDappSubmissionFailed
+  503:
+    description: Submission is unavailable.
+    content:
+      application/json:
+        schema: *errDappSubmissionUnavailable
+
 x-responsesDappTransactionContext: &responsesDappTransactionContext
   200:
     description: Exact transaction context captured at one wallet chain point.
@@ -8677,6 +8723,24 @@ paths:
           application/json:
             schema: *ApiBalanceTransactionPostData
       responses: *responsesBalanceTransaction
+
+  /wallets/{walletId}/transaction-submission:
+    post:
+      operationId: postDappSubmission
+      tags: ["Transactions New"]
+      summary: Submit one exact wallet-scoped sealed transaction
+      description: |
+        Durably records the exact envelope before contacting the local node.
+        Exact replays return the existing identity; this route never uses the
+        unscoped proxy transaction endpoint.
+      parameters:
+        - *parametersWalletId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiDappSubmissionRequest
+      responses: *responsesDappSubmission
 
   /wallets/{walletId}/transaction-context:
     post:

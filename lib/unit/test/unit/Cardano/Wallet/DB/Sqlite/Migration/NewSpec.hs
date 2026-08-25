@@ -18,7 +18,8 @@ import Cardano.Wallet.DB.Migration
     , Version (..)
     )
 import Cardano.Wallet.DB.Sqlite.Migration.New
-    ( newMigrationInterface
+    ( latestVersion
+    , newMigrationInterface
     )
 import Control.Tracer
     ( nullTracer
@@ -38,6 +39,8 @@ import System.IO.Temp
 import Test.Hspec
     ( Spec
     , describe
+    , it
+    , shouldBe
     , shouldReturn
     )
 import Test.Hspec.Extra
@@ -58,6 +61,8 @@ import qualified Database.Persist.Sqlite as Sqlite
 spec :: Spec
 spec = do
     describe "new migrations" $ do
+        it "targets durable-submission schema version six"
+            $ latestVersion `shouldBe` Version 6
         itWithDiagnosticTimeout
             60
             "handles backupDatabaseFile and withDatabaseFile"

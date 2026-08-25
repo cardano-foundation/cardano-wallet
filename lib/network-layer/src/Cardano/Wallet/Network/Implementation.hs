@@ -92,12 +92,14 @@ import Cardano.Wallet.Network.Implementation.Ouroboros
     , LSQ (..)
     , LocalStateQueryCmd (..)
     , LocalStateQueryResult (..)
+    , LocalTxMonitorCmd (..)
     , LocalTxSubmissionCmd (..)
     , PipeliningStrategy
     , chainSyncFetchNextBlock
     , chainSyncFollowTip
     , chainSyncWithBlocks
     , localStateQuery
+    , localTxMonitor
     , localTxSubmission
     , send
     )
@@ -307,6 +309,9 @@ import Ouroboros.Consensus.Ledger.Query
     )
 import Ouroboros.Consensus.Ledger.SupportsMempool
     ( ApplyTxErr
+    , GenTx
+    , GenTxId
+    , HasTxId (txId)
     )
 import Ouroboros.Consensus.Network.NodeToClient
     ( ClientCodecs
@@ -357,6 +362,9 @@ import Ouroboros.Network.Protocol.LocalStateQuery.Type
     ( LocalStateQuery
     , State (..)
     )
+import Ouroboros.Network.Protocol.LocalTxMonitor.Client
+    ( localTxMonitorClientPeer
+    )
 import Ouroboros.Network.Protocol.LocalTxSubmission.Client
     ( localTxSubmissionClientPeer
     )
@@ -379,6 +387,7 @@ import UnliftIO.Concurrent
 import UnliftIO.Exception
     ( Handler (..)
     , IOException
+    , throwIO
     )
 import Prelude
 
@@ -457,16 +466,12 @@ withNodeNetworkLayerBase
     action = do
         -- NOTE: We keep client connections running for accessing the node tip,
         -- submitting transactions, querying parameters and delegations/rewards.
-        --
-        -- It is safe to retry when the connection is lost here because this client
-        -- doesn't really do anything but sending messages to get the node's tip.
-        -- It doesn't rely on the intersection to be up-to-date.
         let handlers cl = retryOnConnectionLost (MsgConnectionStatus cl >$< tr)
 
         -- FIXME: Would be nice to remove these multiple vars.
         -- Not as trivial as it seems, since we'd need to preserve the @debounce@
         -- behaviour.
-        (readNodeTip, networkParamsVar, interpreterVar, eraVar, txSubmissionQ) <-
+        (readNodeTip, networkParamsVar, interpreterVar, eraVar, txSubmissionQ, txMonitorQ) <-
             connectNodeClient (handlers ClientNodeTip)
 
         queryRewardQ <-
@@ -523,8 +528,12 @@ withNodeNetworkLayerBase
                 , currentSlottingParameters =
                     slottingParamsLegacy
                         <$> atomically (readTMVar networkParamsVar)
+                , isTxInMempool =
+                    _isTxInMempool txMonitorQ
                 , postSealedTx =
                     _postSealedTx txSubmissionQ
+                , postSealedTxOneShot =
+                    _postSealedTxOneShot
                 , postTx =
                     postTxToQueue tr txSubmissionQ
                 , listDReps =
@@ -564,16 +573,23 @@ withNodeNetworkLayerBase
                 , TQueue
                     IO
                     ( LocalTxSubmissionCmd
-                        (Consensus.GenTx (CardanoBlock StandardCrypto))
+                        (GenTx (CardanoBlock StandardCrypto))
                         (ApplyTxErr (CardanoBlock StandardCrypto))
                         IO
                     )
+                , TQueue
+                    IO
+                    ( LocalTxMonitorCmd
+                        (GenTxId (CardanoBlock StandardCrypto))
+                        IO
+                    )
                 )
-        connectNodeClient handlers = do
+        connectNodeClient retryHandlers = do
             networkParamsVar <- newEmptyTMVarIO
             interpreterVar <- newEmptyTMVarIO
             eraVar <- newEmptyTMVarIO
             txSubmissionQ <- newTQueueIO
+            txMonitorQ <- newTQueueIO
             (mkProtocols, readTip) <-
                 mkWalletToNodeProtocols
                     tr
@@ -582,6 +598,7 @@ withNodeNetworkLayerBase
                     (atomically . repsertTMVar interpreterVar)
                     (atomically . repsertTMVar eraVar)
                     txSubmissionQ
+                    txMonitorQ
             let trNodeTip = MsgConnectionStatus ClientNodeTip >$< tr
                 ouroborosApp
                     :: NodeToClientVersion
@@ -590,9 +607,9 @@ withNodeNetworkLayerBase
                 ouroborosApp = nodeToClientProtocols =<< mkProtocols
             link
                 =<< async
-                    (connectClient trNodeTip handlers ouroborosApp versionData conn)
+                    (connectClient trNodeTip retryHandlers ouroborosApp versionData conn)
             pure
-                (readTip, networkParamsVar, interpreterVar, eraVar, txSubmissionQ)
+                (readTip, networkParamsVar, interpreterVar, eraVar, txSubmissionQ, txMonitorQ)
 
         connectDelegationRewardsClient
             :: (HasCallStack)
@@ -662,13 +679,33 @@ withNodeNetworkLayerBase
                 cont $ atomically . putTMVar var
                 atomically $ readTMVar var
 
+        _isTxInMempool txMonitorQueue sealed =
+            case unsafeReadTx sealed of
+                Read.EraValue readTx ->
+                    case consensusGenTxFromTxRecent readTx of
+                        Left _ -> pure Nothing
+                        Right genTx ->
+                            race
+                                (threadDelay 30_000_000)
+                                (txMonitorQueue `send` CmdHasTx (txId genTx))
+                                <&> either (const Nothing) Just
+
         -- NOTE: only shelley-era transactions can be submitted: the stored
         -- 'EraValue Read.Tx' carries the era so no query is needed.
         _postSealedTx txSubmissionQueue tx = do
-            liftIO $ traceWith tr $ MsgPostTx $ BS.fromStrict $ serialisedTx tx
+            liftIO $ traceWith tr MsgPostTx
             case unsafeReadTx tx of
                 Read.EraValue readTx ->
                     postTxToQueue tr txSubmissionQueue readTx
+
+        -- A dApp attempt must never survive a broken connection: a fresh
+        -- queue and a single non-recovering connection own precisely one
+        -- command, then both are discarded.
+        _postSealedTxOneShot tx = do
+            liftIO $ traceWith tr MsgPostTx
+            case unsafeReadTx tx of
+                Read.EraValue readTx ->
+                    postTxOneShot tr cfg versionData conn readTx
 
         _stakeDistribution queue coin = do
             liftIO $ traceWith tr $ MsgWillQueryRewardsForStake coin
@@ -783,7 +820,7 @@ postTxToQueue
     -> Read.Tx era
     -> ExceptT ErrPostTx IO ()
 postTxToQueue tr txSubmissionQueue tx = do
-    liftIO $ traceWith tr $ MsgPostTx $ Read.serializeTx tx
+    liftIO $ traceWith tr MsgPostTx
     case consensusGenTxFromTxRecent tx of
         Left e -> throwE e
         Right consensusGenTx -> do
@@ -792,6 +829,75 @@ postTxToQueue tr txSubmissionQueue tx = do
                 SubmitSuccess -> pure ()
                 SubmitFail e ->
                     throwE $ ErrPostTxValidationError $ T.pack $ show e
+
+-- | Send one command through a connection which is intentionally never
+-- recovered. If it disconnects before a reply, its private queue is discarded
+-- and the caller receives an exception, which becomes an outcome-unknown.
+postTxOneShot
+    :: Read.IsEra era
+    => Tracer IO Log
+    -> CodecConfig (CardanoBlock StandardCrypto)
+    -> NodeToClientVersionData
+    -> CardanoNodeConn
+    -> Read.Tx era
+    -> ExceptT ErrPostTx IO ()
+postTxOneShot tr cfg vData conn tx =
+    case consensusGenTxFromTxRecent tx of
+        Left e -> throwE e
+        Right consensusGenTx -> ExceptT $ do
+            queue <- newTQueueIO
+            response <- newEmptyTMVarIO
+            atomically
+                $ writeTQueue
+                    queue
+                    (CmdSubmitTx consensusGenTx $ atomically . putTMVar response)
+            let client v versionData' =
+                    mkOneShotTxSubmissionClient tr cfg queue v versionData'
+                connection =
+                    connectClientOnce
+                        (MsgConnectionStatus ClientLocalTxSubmission >$< tr)
+                        client
+                        vData
+                        conn
+            race connection (atomically $ readTMVar response) >>= \case
+                Right SubmitSuccess -> pure $ Right ()
+                Right (SubmitFail e) ->
+                    pure $ Left $ ErrPostTxValidationError $ T.pack $ show e
+                Left () ->
+                    throwIO
+                        $ userError
+                        $ "one-shot local transaction submission disconnected"
+
+mkOneShotTxSubmissionClient
+    :: Tracer IO Log
+    -> CodecConfig (CardanoBlock StandardCrypto)
+    -> TQueue
+        IO
+        ( LocalTxSubmissionCmd
+            (GenTx (CardanoBlock StandardCrypto))
+            (ApplyTxErr (CardanoBlock StandardCrypto))
+            IO
+        )
+    -> NodeToClientVersion
+    -> NodeToClientVersionData
+    -> WalletOuroborosApplication IO
+mkOneShotTxSubmissionClient tr cfg queue v vData =
+    nodeToClientProtocols
+        NodeToClientProtocols
+            { localChainSyncProtocol = doNothingProtocol
+            , localStateQueryProtocol = doNothingProtocol
+            , localTxMonitorProtocol = doNothingProtocol
+            , localTxSubmissionProtocol =
+                InitiatorProtocolOnly
+                    $ MiniProtocolCb
+                    $ \_ channel -> do
+                        let bn2cVer = codecVersion v
+                            codec = cTxSubmissionCodec (clientCodecs cfg bn2cVer v)
+                            peer = localTxSubmissionClientPeer (localTxSubmission queue)
+                        runPeer (MsgTxSubmission >$< tr) codec channel peer
+            }
+        v
+        vData
 
 consensusGenTxFromTxRecent
     :: forall era
@@ -994,8 +1100,14 @@ mkWalletToNodeProtocols
     -> TQueue
         m
         ( LocalTxSubmissionCmd
-            (Consensus.GenTx (CardanoBlock StandardCrypto))
+            (GenTx (CardanoBlock StandardCrypto))
             (ApplyTxErr (CardanoBlock StandardCrypto))
+            m
+        )
+    -> TQueue
+        m
+        ( LocalTxMonitorCmd
+            (GenTxId (CardanoBlock StandardCrypto))
             m
         )
     -> m
@@ -1008,7 +1120,8 @@ mkWalletToNodeProtocols
     onPParamsUpdate
     onInterpreterUpdate
     onEraUpdate
-    txSubmissionQ = do
+    txSubmissionQ
+    txMonitorQ = do
         ( localStateQueryQ
                 :: TQueue m (LocalStateQueryCmd (CardanoBlock StandardCrypto) m)
             ) <-
@@ -1086,7 +1199,15 @@ mkWalletToNodeProtocols
                                     client = localTxSubmission txSubmissionQ
                                     peer = localTxSubmissionClientPeer client
                                 runPeer trTxSubmission codec channel peer
-                    , localTxMonitorProtocol = doNothingProtocol
+                    , localTxMonitorProtocol =
+                        InitiatorProtocolOnly
+                            $ MiniProtocolCb
+                            $ \_ channel -> do
+                                let bn2cVer = codecVersion v
+                                    codec = cTxMonitorCodec (clientCodecs cfg bn2cVer v)
+                                    client = localTxMonitor txMonitorQ
+                                    peer = localTxMonitorClientPeer client
+                                runPeer nullTracer codec channel peer
                     }
         pure (ntcProtocols, snd <$> readTVar tipVar)
 
@@ -1230,6 +1351,36 @@ codecConfig sp =
         ShelleyCodecConfig
         ShelleyCodecConfig
         ShelleyCodecConfig
+
+-- | Connect once. In contrast to 'connectClient', this deliberately has no
+-- recovery wrapper because the caller's private command must not be replayed.
+connectClientOnce
+    :: Tracer IO ConnectionStatusLog
+    -> ( NodeToClientVersion
+         -> NodeToClientVersionData
+         -> WalletOuroborosApplication IO
+       )
+    -> NodeToClientVersionData
+    -> CardanoNodeConn
+    -> IO ()
+connectClientOnce tr client vData conn = withIOManager $ \manager ->
+    void
+        $ connectTo
+            (localSnocket manager)
+            tracers
+            versions
+            (nodeSocketFile conn)
+  where
+    versions =
+        combineVersions
+            [ simpleSingletonVersions version vData (client version)
+            | version <- nodeToClientVersions
+            ]
+    tracers =
+        NetworkConnectTracers
+            { nctMuxTracers = nullTracers
+            , nctHandshakeTracer = contramap MsgHandshakeTracer tr
+            }
 
 -- | A group of codecs which will deserialise block data.
 codecs
@@ -1510,7 +1661,7 @@ data Log where
                 State
            )
         -> Log
-    MsgPostTx :: ByteString -> Log
+    MsgPostTx :: Log
     MsgNodeTip :: BlockHeader -> Log
     MsgProtocolParameters
         :: ProtocolParameters -> SlottingParameters -> Log
@@ -1547,10 +1698,10 @@ instance ToText Log where
     toText = \case
         MsgConnectionStatus client statusLog ->
             renderClientName client <> " node client: " <> toText statusLog
-        MsgTxSubmission msg ->
-            T.pack (show msg)
-        MsgPostTx txbytes ->
-            "Posting transaction, serialized as:\n" +| hexF txbytes |+ ""
+        MsgTxSubmission _ ->
+            "Transaction submission protocol event"
+        MsgPostTx ->
+            "Posting transaction"
         MsgLocalStateQuery client msg ->
             T.pack (show client <> " " <> show msg)
         MsgNodeTip bh ->

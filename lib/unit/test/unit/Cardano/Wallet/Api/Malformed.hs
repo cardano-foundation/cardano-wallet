@@ -92,6 +92,7 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Api.Types.Dapp.Context
     ( ApiDappDataSignRequest
+    , ApiDappSubmissionRequest
     , ApiDappTransactionContextRequest
     , ApiDappWitnessSignRequest
     , DappJSON
@@ -2446,6 +2447,9 @@ instance Malformed (BodyParam ApiMaintenanceActionPostData) where
                     , "Error in $['maintenance_action']: parsing Cardano.Wallet.Api.Types.MaintenanceAction failed, expected one of the tags ['gc_stake_pools'], but found tag 'unknown_action'"
                     )
                 ]
+
+instance Malformed (BodyParam ApiDappSubmissionRequest) where
+    malformed = [(BodyParam "}", "Invalid backend request")]
 
 instance Malformed (BodyParam ApiDappTransactionContextRequest) where
     malformed = [(BodyParam "}", "Invalid backend request")]

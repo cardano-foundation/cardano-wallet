@@ -100,6 +100,7 @@ module Cardano.Wallet.Api.Http.Shelley.Server
     , balanceTransaction
     , decodeTransaction
     , submitTransaction
+    , postDappSubmission
     , postTransactionContext
     , postDappWitnesses
     , postDappDataSignature
@@ -535,6 +536,9 @@ import Cardano.Wallet.Api.Types.Dapp.Context
     , ApiDappDataSignResponse (..)
     , ApiDappContextNetwork (..)
     , ApiDappHex (..)
+    , ApiDappSubmissionRequest (..)
+    , ApiDappSubmissionResponse (..)
+    , ApiDappSubmissionStatus (..)
     , ApiDappTransactionContextRequest (..)
     , ApiDappTransactionContextResponse (..)
     , ApiDappWitnessResult (..)
@@ -572,8 +576,14 @@ import Cardano.Wallet.Compat
     )
 import Cardano.Wallet.DB
     ( DBFactory (..)
-    , DBLayer
+    , DBLayer (..)
     , ErrContextAccountChanged (..)
+    )
+import Cardano.Wallet.DB.Sqlite.Types
+    ( DappSubmissionStatusEnum (..)
+    )
+import Cardano.Wallet.DB.Store.Submissions.Operations
+    ( DurableSubmission (..)
     )
 import Cardano.Wallet.DRep.Layer
     ( DRepInfo (..)
@@ -717,6 +727,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( Tx (..)
     , TxChange (..)
     , UnsignedTx (..)
+    , sealedTxFromBytes
     , serialisedTx
     )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
@@ -730,6 +741,9 @@ import Cardano.Wallet.Primitive.Types.Tx.TransactionInfo
     )
 import Cardano.Wallet.Primitive.Types.Tx.TxExtended
     ( TxExtended (..)
+    )
+import Cardano.Wallet.Primitive.Types.ValidityIntervalExplicit
+    ( ValidityIntervalExplicit (..)
     )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..)
@@ -797,6 +811,7 @@ import Control.Monad
     ( forM
     , forever
     , join
+    , unless
     , void
     , when
     )
@@ -1002,6 +1017,7 @@ import qualified Cardano.Wallet.Api.Types as Api
 import qualified Cardano.Wallet.Api.Types.Amount as ApiAmount
 import qualified Cardano.Wallet.Api.Types.WalletAssets as ApiWalletAssets
 import qualified Cardano.Wallet.DB as W
+import qualified Cardano.Wallet.DB.Sqlite.Types as Sql
 import qualified Cardano.Wallet.DRep.Layer as DRepLayer
 import qualified Cardano.Wallet.Delegation as WD
 import qualified Cardano.Wallet.IO.Delegation as IODeleg
@@ -2724,7 +2740,7 @@ postTransactionOld ctx@ApiLayer{..} argGenChange (ApiT wid) body = do
         (BuiltTx{..}, txTime) <-
             atomicallyWithHandler
                 (ctx ^. walletLocks)
-                (PostTransactionOld wid)
+                (WalletSubmission wid)
                 $ liftIO
                 $ W.buildSignSubmitTransaction @s
                     db
@@ -4175,9 +4191,6 @@ submitTransaction
     -> ApiSerialisedTransaction
     -> Handler ApiTxId
 submitTransaction ctx apiw@(ApiT wid) apitx = do
-    -- TODO: revisit/possibly set proper ttls in ADP-1193
-    ttl <- liftIO $ W.transactionExpirySlot ti Nothing
-    era <- liftIO $ NW.currentNodeEra nl
 
     let sealedTx = getApiT . (view #serialisedTxSealed) $ apitx
 
@@ -4186,11 +4199,14 @@ submitTransaction ctx apiw@(ApiT wid) apitx = do
             ctx
             apiw
             (toApiDecodeTransactionPostData apitx)
+    let expiration =
+            (\(ApiValidityIntervalExplicit interval) ->
+                SlotNo $ getQuantity $ interval ^. #invalidHereafter
+            )
+                <$> (apiDecoded ^. #validityInterval)
     when (isForeign apiDecoded)
         $ liftHandler
         $ throwE ErrSubmitTransactionForeignWallet
-    let ourOuts = getOurOuts apiDecoded
-    let ourInps = getOurInps apiDecoded
 
     -- TODO: when partial signing is switched on we will need to revise this.
     -- The following needs to be taken into account. Wits could come from:
@@ -4213,51 +4229,30 @@ submitTransaction ctx apiw@(ApiT wid) apitx = do
     liftHandler
         $ validateWitnessCounts witsRequiredForInputs totalNumberOfWits
 
-    void $ withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-        let tx = walletTx $ decodeTx tl era sealedTx
-        let db = wrk ^. dbLayer
-        (acct, _, path) <-
-            liftHandler
-                $ W.shelleyOnlyReadRewardAccount @s db
-        let wdrl = getOurWdrl acct path apiDecoded
-        let txCtx =
-                defaultTransactionCtx
-                    { -- TODO: [ADP-1193]
-                      -- Get this from decodeTx:
-                      txValidityInterval = (Nothing, ttl)
-                    , txWithdrawal = wdrl
-                    }
-        txMeta <- handler $ W.constructTxMeta db txCtx ourInps ourOuts
+    void
+        $ atomicallyWithHandler
+            (ctx ^. walletLocks)
+            (WalletSubmission wid)
+        $ withWorkerCtx ctx wid liftE liftE
+        $ \wrk -> do
+        let tx =
+                walletTx
+                    $ decodeTx tl (Read.EraValue Read.Dijkstra) sealedTx
+            db = wrk ^. dbLayer
         liftHandler
-            $ W.submitTx
-                (wrk ^. logger)
+            $ void
+            $ W.submitWalletScoped
+                (tracerTxSubmit ctx)
                 db
                 nl
-                BuiltTx
-                    { builtTx = tx
-                    , builtTxMeta = txMeta
-                    , builtSealedTx = sealedTx
-                    }
+                tx
+                sealedTx
+                expiration
     pure $ ApiTxId (apiDecoded ^. #id)
   where
     tl = ctx ^. W.transactionLayer @k @'CredFromKeyK
-    ti :: TimeInterpreter (ExceptT PastHorizonException IO)
     nl = ctx ^. networkLayer
-    ti = timeInterpreter nl
 
-    getOurWdrl rewardAcct path apiDecodedTx =
-        let generalWdrls = apiDecodedTx ^. #withdrawals
-            isWdrlOurs (ApiWithdrawalGeneral _ _ context) = context == Our
-        in  case filter isWdrlOurs generalWdrls of
-                [ApiWithdrawalGeneral (ApiRewardAccount acct) amt _] ->
-                    WithdrawalSelf
-                        ( if rewardAcct == acct
-                            then acct
-                            else error "reward account should be the same"
-                        )
-                        path
-                        (ApiAmount.toCoin amt)
-                _ -> NoWithdrawal
 
     countJoinsQuits :: [ApiAnyCertificate n] -> Int
     countJoinsQuits =
@@ -4268,7 +4263,6 @@ submitTransaction ctx apiw@(ApiT wid) apitx = do
                     WalletDelegationCertificate (QuitPool _) -> 1
                     _ -> 0
                 )
-
 samePaymentKey :: ApiTxInputGeneral n -> ApiTxInputGeneral n -> Bool
 samePaymentKey inp1 inp2 =
     case (inp1, inp2) of
@@ -5908,6 +5902,72 @@ toApiSerialisedTransaction maybeEncoding tx =
         ApiSerialisedTransaction
             (ApiT $ sealWriteTx Write.recentEra tx)
             encoding
+
+postDappSubmission
+    :: forall n
+     . HasSNetworkId n
+    => ApiLayer (SeqState n ShelleyKey)
+    -> ApiT WalletId
+    -> ApiDappSubmissionRequest
+    -> Handler ApiDappSubmissionResponse
+postDappSubmission ctx wid@(ApiT walletId)
+    ApiDappSubmissionRequest{network = requestNetwork, transaction = ApiDappHex bytes} = do
+        expectedNetwork <- either throwDapp pure $ configuredNetwork @n ctx
+        unless (requestNetwork == expectedNetwork)
+            $ throwDapp DappAccountChangedError
+        sealed <- either (const $ throwDapp InvalidDappRequest) pure $ sealedTxFromBytes bytes
+        -- This decoder only consumes sealed bytes. It produces the body id,
+        -- input claims and validity bound before 'submitWalletScoped' can
+        -- enter its one-shot node attempt.
+        let extended =
+                decodeTx
+                    (ctx ^. W.transactionLayer @ShelleyKey @'CredFromKeyK)
+                    (Read.EraValue Read.Dijkstra)
+                    sealed
+            tx = walletTx extended
+            Hash txBytes = tx ^. #txId
+            expiration =
+                (\ValidityIntervalExplicit{invalidHereafter} ->
+                    SlotNo $ getQuantity invalidHereafter
+                )
+                    <$> validity extended
+        status <-
+            atomicallyWithHandler
+                (ctx ^. walletLocks)
+                (WalletSubmission walletId)
+            $ withWorkerCtx
+                ctx
+                walletId
+                (const $ throwDapp DappAccountChangedError)
+                (const $ throwDapp DappContextUnavailableError)
+            $ \worker ->
+                liftHandler
+                    $ W.submitWalletScoped
+                        (tracerTxSubmit ctx)
+                        (worker ^. dbLayer)
+                        (ctx ^. networkLayer)
+                        tx
+                        sealed
+                        expiration
+        case status of
+            RejectedE -> throwDapp DappSubmissionFailedError
+            ExpiredDappE -> throwDapp DappSubmissionFailedError
+            _ ->
+                pure
+                    $ ApiDappSubmissionResponse
+                        1
+                        (ApiDappHex txBytes)
+                        (toApiStatus status)
+  where
+    throwDapp = Handler . throwE . dappServerError
+    toApiStatus = \case
+        AuthorizedE -> SubmissionAuthorized
+        BroadcastingE -> SubmissionBroadcasting
+        SubmittedE -> SubmissionSubmitted
+        RejectedE -> SubmissionRejected
+        OutcomeUnknownE -> SubmissionOutcomeUnknown
+        InLedgerDappE -> SubmissionInLedger
+        ExpiredDappE -> SubmissionExpired
 
 postTransactionContext
     :: forall n

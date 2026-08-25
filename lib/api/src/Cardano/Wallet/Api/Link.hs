@@ -86,6 +86,7 @@ module Cardano.Wallet.Api.Link
     , balanceTransaction
     , decodeTransaction
     , submitTransaction
+    , dappSubmission
     , transactionContext
     , dappWitnesses
     , dappDataSignature
@@ -865,6 +866,15 @@ submitTransaction w =
         (endpoint @Api.SubmitTransaction (wid &))
         (notSupported "Byron")
         (endpoint @Api.SubmitSharedTransaction (wid &))
+  where
+    wid = w ^. typed @(ApiT WalletId)
+
+dappSubmission
+    :: forall w
+     . HasType (ApiT WalletId) w
+    => w
+    -> (Method, Text)
+dappSubmission w = endpoint @Api.PostDappSubmission (wid &)
   where
     wid = w ^. typed @(ApiT WalletId)
 

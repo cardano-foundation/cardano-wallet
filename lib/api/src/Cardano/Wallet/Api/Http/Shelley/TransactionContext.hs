@@ -185,6 +185,13 @@ import Cardano.Wallet.DB
     ( ContextClock (..)
     , DBLayer (..)
     )
+import Cardano.Wallet.DB.Sqlite.Types
+    ( DappSubmissionStatusEnum (..)
+    , TxId (..)
+    )
+import Cardano.Wallet.DB.Store.Submissions.Operations
+    ( DurableSubmission (..)
+    )
 import Cardano.Wallet.Network
     ( DappTransactionContext (..)
     , NetworkLayer (..)
@@ -404,14 +411,16 @@ captureContext
     -> IO (Either DappError (Capture (SeqState n ShelleyKey)))
 captureContext worker =
     worker ^. dbLayer & \DBLayer{..} -> do
-        ((wallet, submissions), clock) <-
+        ((wallet, durable), clock) <-
             atomicallyReadContext
-                $ (,) <$> readCheckpoint <*> readInSubmissionTransactions
+                $ (,)
+                    <$> readCheckpoint
+                    <*> readDurableSubmissions
         pure $ do
             requireEither DappAccountChangedError $ not clock.contextDeleted
             pending <-
                 first (const DappContextUnavailableError)
-                    $ mapM (uncurry decodePending) submissions
+                    $ mapM decodeDurable (filter hasLiveClaim durable)
             requireEither DappContextUnavailableError
                 $ all noNormalCollateralOverlap pending
             checkpoint <-
@@ -455,6 +464,17 @@ decodePending (Hash storedId) sealed = do
     requireEither "pending transaction id mismatch"
         $ decoded.txId == storedId
     pure decoded
+
+-- | Durable journal records own the same normal/collateral overlay while they
+-- are potentially spendable. Terminal and in-ledger records have released it.
+hasLiveClaim :: DurableSubmission -> Bool
+hasLiveClaim DurableSubmission{durableStatus} =
+    durableStatus
+        `elem` [AuthorizedE, BroadcastingE, SubmittedE, OutcomeUnknownE]
+
+decodeDurable :: DurableSubmission -> Either String DecodedTx
+decodeDurable DurableSubmission{durableTxId = TxId txId, durableSealedTx} =
+    decodePending txId durableSealedTx
 
 decodeTx :: ApiDappHex -> Either String DecodedTx
 decodeTx (ApiDappHex bytes) = do

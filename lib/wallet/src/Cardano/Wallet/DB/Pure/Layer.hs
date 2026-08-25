@@ -168,6 +168,14 @@ withBootDBLayer timeInterpreter wid params k = do
                     result <- action
                     clock <- liftIO $ withMVar contextClock pure
                     pure (result, clock)
+            , insertDurableSubmission =
+                error "insertDurableSubmission not implemented for pure DB"
+            , claimDurableSubmissionAttempt =
+                error "claimDurableSubmissionAttempt not implemented for pure DB"
+            , updateDurableSubmission =
+                error "updateDurableSubmission not implemented for pure DB"
+            , readDurableSubmissions =
+                error "readDurableSubmissions not implemented for pure DB"
             }
   where
     advance

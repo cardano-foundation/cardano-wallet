@@ -60,6 +60,7 @@ module Cardano.Wallet.Api
     , BalanceTransaction
     , DecodeTransaction
     , SubmitTransaction
+    , PostDappSubmission
     , PostTransactionContext
     , PostDappWitnesses
     , PostDappDataSignature
@@ -254,6 +255,8 @@ import Cardano.Wallet.Api.Types.Dapp.Context
     ( ApiDappDataSignRequest
     , ApiDappDataSignResponse
     , ApiDappCip95KeyState
+    , ApiDappSubmissionRequest
+    , ApiDappSubmissionResponse
     , ApiDappTransactionContextRequest
     , ApiDappTransactionContextResponse
     , ApiDappWitnessSignRequest
@@ -643,10 +646,18 @@ type ShelleyTransactions n =
         :<|> BalanceTransaction n
         :<|> DecodeTransaction n
         :<|> SubmitTransaction
+        :<|> PostDappSubmission
         :<|> PostTransactionContext
         :<|> PostDappWitnesses
         :<|> PostDappDataSignature
         :<|> GetDappCip95KeyState
+type PostDappSubmission =
+    "wallets"
+        :> Capture "walletId" (ApiT WalletId)
+        :> "transaction-submission"
+        :> ReqBody '[DappJSON] ApiDappSubmissionRequest
+        :> Post '[DappJSON] ApiDappSubmissionResponse
+
 type PostTransactionContext =
     "wallets"
         :> Capture "walletId" (ApiT WalletId)
@@ -1457,7 +1468,7 @@ data ApiLayer s
 -- | Locks that are held by the wallet in order to enforce
 -- sequential execution of some API actions.
 -- Used with "Control.Concurrent.Concierge".
-data WalletLock = PostTransactionOld WalletId
+data WalletLock = WalletSubmission WalletId
     deriving (Eq, Ord, Show)
 
 instance HasWorkerCtx (DBLayer IO s) (ApiLayer s) where

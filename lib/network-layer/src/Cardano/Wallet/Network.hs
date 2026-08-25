@@ -156,6 +156,15 @@ data NetworkLayer m block = NetworkLayer
         :: SealedTx
         -> ExceptT ErrPostTx m ()
     -- ^ Broadcast a transaction to the chain producer (legacy types)
+    , postSealedTxOneShot
+        :: SealedTx
+        -> ExceptT ErrPostTx m ()
+    -- ^ Submit through an isolated connection. A broken connection discards
+    -- its command, so an ambiguous attempt can never be replayed on reconnect.
+    , isTxInMempool
+        :: SealedTx
+        -> m (Maybe Bool)
+    -- ^ Query a fresh local-node mempool snapshot for this exact transaction.
     , postTx
         :: forall era
          . Read.IsEra era

@@ -864,6 +864,55 @@ instance PersistField TxSubmissionStatusEnum where
 instance PersistFieldSql TxSubmissionStatusEnum where
     sqlType _ = sqlType (Proxy @Int)
 
+-- | Durable state of a wallet-scoped externally authorized submission.
+--
+-- This is intentionally separate from 'TxSubmissionStatusEnum': legacy
+-- resubmission records do not have enough information to safely classify a
+-- replayed sealed envelope.
+data DappSubmissionStatusEnum
+    = AuthorizedE
+    | BroadcastingE
+    | SubmittedE
+    | RejectedE
+    | OutcomeUnknownE
+    | InLedgerDappE
+    | ExpiredDappE
+    deriving (Eq, Show, Enum, Bounded, Generic)
+
+instance PersistField DappSubmissionStatusEnum where
+    toPersistValue = toPersistValue . fromEnum
+    fromPersistValue value = do
+        n <- (fromPersistValue value :: Either Text Int)
+        case n of
+            0 -> Right AuthorizedE
+            1 -> Right BroadcastingE
+            2 -> Right SubmittedE
+            3 -> Right RejectedE
+            4 -> Right OutcomeUnknownE
+            5 -> Right InLedgerDappE
+            6 -> Right ExpiredDappE
+            _ -> Left "Invalid durable submission status"
+
+instance PersistFieldSql DappSubmissionStatusEnum where
+    sqlType _ = sqlType (Proxy @Int)
+
+-- | Only normal and collateral inputs claim an outpoint. Reference inputs are
+-- deliberately absent from this table.
+data DappSubmissionInputRole = NormalInputE | CollateralInputE
+    deriving (Eq, Ord, Show, Enum, Bounded, Generic)
+
+instance PersistField DappSubmissionInputRole where
+    toPersistValue = toPersistValue . fromEnum
+    fromPersistValue value = do
+        n <- (fromPersistValue value :: Either Text Int)
+        case n of
+            0 -> Right NormalInputE
+            1 -> Right CollateralInputE
+            _ -> Left "Invalid durable submission input role"
+
+instance PersistFieldSql DappSubmissionInputRole where
+    sqlType _ = sqlType (Proxy @Int)
+
 type BlockHeight = Quantity "block" Word32
 
 instance PersistField BlockHeight where

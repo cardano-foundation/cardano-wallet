@@ -1796,37 +1796,16 @@ prop_localTxSubmission tc = monadicIO $ do
           , "logs:"
           ]
             ++ map (T.unpack . toText) (resLogs res)
-    -- props:
-    --  1. pending transactions in pool are retried
-    let requested x = x `elem` (builtSealedTx <$> retryTestPool tc)
-    assert' "all txs in submissions pool were required"
-        $ all requested
-        $ resSubmittedTxs res
+    -- The pool is reconciliation-only: only the explicit calls above may post.
+    assert' "pool never submits pending transactions"
+        $ length (resSubmittedTxs res) == length (retryTestPool tc)
 
-    let inPool BuiltTx{builtTx} =
-            (Just . DB.TxId $ builtTx ^. #txId)
-                `elem` fmap (fmap fst . Sbms.getTx . view Smbs.txStatus) resEnd
-
-    assert' "all required txs are in submissions pool"
-        $ all inPool
-        $ retryTestPool tc
-
-    assert' "start submissions pool is not empty"
-        $ not
-        $ null resStart
-
-    assert' "end submissions pool has all txs of start pool"
-        $ resStart `eqByTxIds` resEnd
+    assert' "legacy submissions pool remains unused"
+        $ null resStart && null resEnd
   where
     assert' :: String -> Bool -> PropertyM IO ()
     assert' _msg True = return ()
     assert' msg False = fail msg
-    eqByTxIds
-        :: [TxSubmissionsStatus]
-        -> [TxSubmissionsStatus]
-        -> Bool
-    eqByTxIds =
-        (==) `on` (sort . fmap (fmap fst . Sbms.getTx . view Smbs.txStatus))
     runTest
         :: TxRetryTestState
         -> (TxRetryTestCtx -> TxRetryTestM a)
@@ -1852,26 +1831,33 @@ prop_localTxSubmission tc = monadicIO $ do
     mockNetwork var =
         dummyNetworkLayer
             { currentSlottingParameters = pure (testSlottingParameters tc)
-            , postSealedTx = \tx -> ExceptT $ do
-                stash var tx
-                pure $ case lookup tx (postSealedTxResults tc) of
-                    Just True -> Right ()
-                    Just False -> Left (W.ErrPostTxValidationError "intended")
-                    Nothing -> Left (W.ErrPostTxValidationError "unexpected")
+            , postSealedTx = post
+            , postSealedTxOneShot = post
             , watchNodeTip = mockNodeTip (numSlots tc) 0
+            , currentNodeTip = pure $ mockTip (numSlots tc)
+            , isTxInMempool = const $ pure $ Just True
             }
+      where
+        post tx = ExceptT $ do
+            stash var tx
+            pure $ case lookup tx (postSealedTxResults tc) of
+                Just True -> Right ()
+                Just False -> Left (W.ErrPostTxValidationError "intended")
+                Nothing -> Left (W.ErrPostTxValidationError "unexpected")
 
     mockNodeTip end slot callback
         | slot < end = do
-            let tip =
-                    Read.BlockTip
-                        { slotNo = Read.SlotNo $ fromIntegral slot
-                        , headerHash = mockHash
-                        , blockNo = Read.BlockNo $ fromIntegral slot
-                        }
+            let tip = mockTip slot
             void $ callback tip
             mockNodeTip end (slot + 1) callback
         | otherwise = pure ()
+
+    mockTip slot =
+        Read.BlockTip
+            { slotNo = Read.SlotNo $ fromIntegral slot
+            , headerHash = mockHash
+            , blockNo = Read.BlockNo $ fromIntegral slot
+            }
 
     mockHash :: Read.RawHeaderHash
     mockHash = Read.mockRawHeaderHash 0

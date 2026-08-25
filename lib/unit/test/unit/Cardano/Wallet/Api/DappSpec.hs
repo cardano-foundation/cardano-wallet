@@ -16,6 +16,12 @@ import Cardano.Wallet.Api.Types.Dapp
     , ApiDappCapabilities
     , makeApiDappCapabilities
     )
+import Cardano.Wallet.Api.Types.Dapp.Context
+    ( ApiDappHex (..)
+    , ApiDappSubmissionRequest
+    , ApiDappSubmissionResponse (..)
+    , ApiDappSubmissionStatus (..)
+    )
 import Cardano.Wallet.Api.Types.Error
     ( ApiError (..)
     , ApiErrorInfo (..)
@@ -57,6 +63,7 @@ import Test.Hspec
 import Prelude
 
 import qualified Cardano.Wallet.Read as Read
+import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy.Char8 as BL8
 import qualified Data.Text as T
 
@@ -107,6 +114,34 @@ spec = do
                 )
             `shouldReturn` Left err404
 
+
+    describe "wallet-scoped transaction submission request" $ do
+        it "renders durable terminal status without error detail" $ do
+            let response =
+                    ApiDappSubmissionResponse
+                        1
+                        (ApiDappHex $ BS.replicate 32 0)
+                        SubmissionRejected
+            eitherDecode (encode response) `shouldBe` Right response
+        it "accepts exactly one revision-one bounded hex envelope" $ do
+            let decoded =
+                    eitherDecode validSubmissionRequest
+                        :: Either String ApiDappSubmissionRequest
+            decoded `shouldSatisfy` isRight
+            (eitherDecode . encode =<< decoded) `shouldBe` decoded
+
+        mapM_
+            ( \(label, request) ->
+                it ("rejects " <> label)
+                    $ ( eitherDecode request
+                            :: Either String ApiDappSubmissionRequest
+                      )
+                    `shouldSatisfy` isLeft
+            )
+            [ ("revision other than one", submissionRequest 2 "00")
+            , ("empty envelope", submissionRequest 1 "")
+            , ("uppercase envelope", submissionRequest 1 "0A")
+            ]
     describe "dApp backend errors"
         $ mapM_
             ( \(dappError, status, code, info, message) ->
@@ -152,8 +187,45 @@ spec = do
             toServerError (request, generic)
                 `shouldBe` dappServerError DappInternalErrorResponse
 
+    describe "transaction-submission raw errors" $ do
+        let request =
+                defaultRequest
+                    { pathInfo = ["v2", "wallets", "wallet", "transaction-submission"]
+                    }
+        it "maps a node rejection without exposing its JSON body" $ do
+            let rejected =
+                    err500
+                        { errBody =
+                            "{\"code\":\"created_invalid_transaction\",\"message\":\"SENSITIVE_DAPP_SENTINEL\"}"
+                        }
+            toServerError (request, rejected)
+                `shouldBe` dappServerError DappSubmissionFailedError
+        it "maps an unavailable submission without exposing its JSON body" $ do
+            let unavailable =
+                    err500
+                        { errHTTPCode = 503
+                        , errBody =
+                            "{\"code\":\"unavailable\",\"message\":\"SENSITIVE_DAPP_SENTINEL\"}"
+                        }
+            toServerError (request, unavailable)
+                `shouldBe` dappServerError DappSubmissionUnavailableError
+
 validDocument :: ByteString
 validDocument = documentWithCapabilities validCapabilities
+
+validSubmissionRequest :: ByteString
+validSubmissionRequest = submissionRequest 1 "00"
+
+submissionRequest :: Integer -> String -> ByteString
+submissionRequest requestRevision transaction =
+    BL8.pack
+        $ "{\"revision\":"
+            <> show requestRevision
+            <> ",\"network\":{\"network_id\":0,\"network_magic\":1,\"genesis_hash\":\""
+            <> sixtyFour 'b'
+            <> "\"},\"transaction\":\""
+            <> transaction
+            <> "\"}"
 
 documentWithCapabilities :: [String] -> ByteString
 documentWithCapabilities capabilityDocuments =

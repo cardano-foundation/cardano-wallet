@@ -86,6 +86,7 @@ import Cardano.Wallet.Checkpoints
 import Cardano.Wallet.DB
     ( ContextChange (..)
     , ContextClock (..)
+    , DBDurableSubmissions (..)
     , DBCheckpoints (..)
     , DBFactory (..)
     , DBLayer (..)
@@ -106,6 +107,9 @@ import Cardano.Wallet.DB.Migration
 import Cardano.Wallet.DB.Sqlite.Migration.New
     ( latestVersion
     , runNewStyleMigrations
+    )
+import Cardano.Wallet.DB.Sqlite.Types
+    ( DappSubmissionStatusEnum (..)
     )
 import Cardano.Wallet.DB.Sqlite.Migration.Old
     ( DefaultFieldValues (..)
@@ -139,8 +143,10 @@ import Cardano.Wallet.DB.Store.Submissions.Layer
     ( rollBackSubmissions
     )
 import Cardano.Wallet.DB.Store.Submissions.Operations
-    ( submissionMetaFromTxMeta
+    ( DurableSubmission (..)
+    , submissionMetaFromTxMeta
     )
+import qualified Cardano.Wallet.DB.Store.Submissions.Operations as Durable
 import Cardano.Wallet.DB.Store.Transactions.Decoration
     ( TxInDecorator
     , decorateTxInsForReadTxFromLookupTxOut
@@ -201,6 +207,7 @@ import Control.Exception
     )
 import Control.Monad
     ( forM
+    , forM_
     , unless
     , when
     )
@@ -891,6 +898,14 @@ mkDBLayerCollection ti wid atomically_ walletState =
         , rollbackTo_
         , atomically_
         , transactionsStore_
+        , durableSubmissions_ =
+            DBDurableSubmissions
+                { insertDurableSubmission_ = Durable.insertOrClassifyDurableSubmission
+                , updateDurableSubmission_ = Durable.updateDurableSubmission
+                , claimDurableSubmissionAttempt_ =
+                    Durable.claimDurableSubmissionAttempt wid
+                , readDurableSubmissions_ = Durable.readDurableSubmissions wid
+                }
         }
   where
     transactionsQS = newQueryStoreTxWalletsHistory
@@ -950,6 +965,18 @@ mkDBLayerCollection ti wid atomically_ walletState =
             nearestPoint = currentTip ^. #slotNo
         updateS transactionsQS Nothing
             $ RollbackTxWalletsHistory nearestPoint
+        durable <- Durable.readDurableSubmissions wid
+        forM_ durable $ \row ->
+            when
+                ( durableStatus row == InLedgerDappE
+                    && maybe False (> nearestPoint) (durableAcceptance row)
+                )
+                $ Durable.updateDurableSubmission
+                    row
+                        { durableAuthorized = True
+                        , durableStatus = SubmittedE
+                        , durableAcceptance = Nothing
+                        }
         pure $ W.chainPointFromBlockHeader currentTip
 
     {-----------------------------------------------------------------------

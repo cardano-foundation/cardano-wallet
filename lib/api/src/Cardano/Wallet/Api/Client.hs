@@ -92,6 +92,8 @@ import Cardano.Wallet.Api.Types.Dapp.Context
     ( ApiDappDataSignRequest
     , ApiDappDataSignResponse
     , ApiDappCip95KeyState
+    , ApiDappSubmissionRequest
+    , ApiDappSubmissionResponse
     , ApiDappTransactionContextRequest
     , ApiDappTransactionContextResponse
     , ApiDappWitnessSignRequest
@@ -245,6 +247,10 @@ data TransactionClient = TransactionClient
         :: ApiT WalletId
         -> ApiSerialisedTransaction
         -> ClientM ApiTxId
+    , dappSubmission
+        :: ApiT WalletId
+        -> ApiDappSubmissionRequest
+        -> ClientM ApiDappSubmissionResponse
     , transactionContext
         :: ApiT WalletId
         -> ApiDappTransactionContextRequest
@@ -376,6 +382,7 @@ transactionClient =
             :<|> _balanceTransaction
             :<|> _decodeTransaction
             :<|> _submitTransaction
+            :<|> _dappSubmission
             :<|> _transactionContext
             :<|> _dappWitnesses
             :<|> _dappDataSignature
@@ -399,6 +406,7 @@ transactionClient =
             , balanceTransaction = _balanceTransaction
             , decodeTransaction = _decodeTransaction
             , submitTransaction = _submitTransaction
+            , dappSubmission = _dappSubmission
             , transactionContext = _transactionContext
             , dappWitnesses = _dappWitnesses
             , dappDataSignature = _dappDataSignature
@@ -438,6 +446,8 @@ byronTransactionClient =
                 error "submit transaction endpoint not supported for byron"
             , transactionContext =
                 error "transaction context endpoint not supported for byron"
+            , dappSubmission =
+                error "dapp submission endpoint not supported for byron"
             , dappWitnesses =
                 error "transaction witnesses endpoint not supported for byron"
             , dappDataSignature =

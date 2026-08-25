@@ -129,7 +129,7 @@ start settings tr tlsConfig socket application = do
         $ handleRawError (curry toServerError)
         $ withApiLogger
             tr
-            (suppressDetails isTransactionContext logSettings)
+            (suppressDetails isSensitiveDappRoute logSettings)
             application
   where
     sensitive :: [Text]
@@ -141,9 +141,11 @@ start settings tr tlsConfig socket application = do
         , "mnemonic_second_factor"
         ]
 
-    isTransactionContext request = case Network.Wai.pathInfo request of
+    isSensitiveDappRoute request = case Network.Wai.pathInfo request of
         "v2" : "wallets" : _walletId : "transaction-context" : _ -> True
+        "v2" : "wallets" : _walletId : "transaction-submission" : _ -> True
         "wallets" : _walletId : "transaction-context" : _ -> True
+        "wallets" : _walletId : "transaction-submission" : _ -> True
         _ -> False
 
 -- | Run an action with a TCP socket bound to a port specified by the `Listen`
