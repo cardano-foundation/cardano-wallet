@@ -6092,13 +6092,13 @@ stakeRegistrationEffects stakeHash =
     effect = \case
         ConwayTxCertDeleg
             (ConwayRegCert (KeyHashObj (LedgerKeys.KeyHash hash)) _)
-            | Crypto.hashToBytes hash == stakeHash -> Just W.RegisterStakeKey
+                | Crypto.hashToBytes hash == stakeHash -> Just W.RegisterStakeKey
         ConwayTxCertDeleg
             (ConwayRegDelegCert (KeyHashObj (LedgerKeys.KeyHash hash)) _ _)
-            | Crypto.hashToBytes hash == stakeHash -> Just W.RegisterStakeKey
+                | Crypto.hashToBytes hash == stakeHash -> Just W.RegisterStakeKey
         ConwayTxCertDeleg
             (ConwayUnRegCert (KeyHashObj (LedgerKeys.KeyHash hash)) _)
-            | Crypto.hashToBytes hash == stakeHash -> Just W.DeregisterStakeKey
+                | Crypto.hashToBytes hash == stakeHash -> Just W.DeregisterStakeKey
         _ -> Nothing
 
 -- | Dormant CIP-8 data signing. The request's raw address selects the key;
