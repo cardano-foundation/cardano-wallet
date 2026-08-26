@@ -149,7 +149,7 @@ Create a final commit that:
 - `cardano-wallet-application-tls`
 
 **Level 1:**
-- `iohk-monitoring-extra`
+- `cardano-wallet-tracing`
 - `cardano-wallet-launcher`
 - `cardano-wallet-test-utils`
 - `delta-store`
