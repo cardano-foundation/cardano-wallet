@@ -39,6 +39,7 @@ import Data.Profunctor
 import Prelude
 
 import qualified Control.Monitoring.Tracing as Tracing
+import qualified Control.Tracer.Arrow as TA
 
 -- | The state of the monitor
 -- | A trace monitor that can switch between pausing and running
@@ -116,5 +117,5 @@ mkMonitor anyTracing addCtx = do
             }
 
 -- | Extract the `Tracer` from a `Monitor`
-monitorTracer :: Monitor m a b -> Tracer m a
-monitorTracer = Tracer . trace
+monitorTracer :: Applicative m => Monitor m a b -> Tracer m a
+monitorTracer = Tracer . TA.emit . trace

@@ -43,6 +43,7 @@ import Cardano.Ledger.BaseTypes
     ( EpochInterval (..)
     , EpochSize (..)
     , Network (Testnet)
+    , StrictMaybe (SNothing)
     , natVersion
     , unsafeNonZero
     )
@@ -319,6 +320,7 @@ generateGenesis initialFunds genesisMods = do
                         , -- We need this to submit MIR certs
                           -- (and probably for the BFT node pre-babbage):
                           sgGenDelegs = mempty
+                        , sgExtraConfig = SNothing
                         }
                     genesisMods
 
