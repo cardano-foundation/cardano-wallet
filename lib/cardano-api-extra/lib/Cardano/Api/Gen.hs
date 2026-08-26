@@ -6,6 +6,11 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
+-- Temporary: cardano-api 11.5 deprecates the legacy TxBody/TxBodyContent API
+-- in favour of Cardano.Api.Experimental. Retiring these sites is cardano-api
+-- removal work, owned by M1 -- specifically #5290, which deletes this shim
+-- package outright. Remove this pragma when that lands.
+{-# OPTIONS_GHC -Wno-deprecations #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 {-# OPTIONS_GHC -Wno-unused-imports #-}
 {-# OPTIONS_GHC -Wno-unused-local-binds #-}
@@ -121,6 +126,7 @@ import Cardano.Api
     ( Address
     , AddressAny (..)
     , AddressInEra
+    , AlonzoOnwardsPParams (..)
     , AnyPlutusScriptVersion (..)
     , AnyScriptLanguage (AnyScriptLanguage)
     , AnyScriptWitness (..)
@@ -133,13 +139,16 @@ import Cardano.Api
     , ByronAddr
     , ByronEra
     , CardanoEra (..)
-    , Certificate (..)
+    , CommonProtocolParametersUpdate (..)
     , Convert (..)
     , ConwayEra
     , ConwayEraOnwards (..)
     , CostModel (..)
+    , DeprecatedAfterBabbagePParams (..)
+    , DeprecatedAfterMaryPParams (..)
     , Eon (..)
     , EpochNo (EpochNo)
+    , EraBasedProtocolParametersUpdate (..)
     , ExecutionUnitPrices (..)
     , ExecutionUnits (ExecutionUnits)
     , Featured (..)
@@ -147,11 +156,11 @@ import Cardano.Api
     , Hash (..)
     , HashableScriptData
     , InAnyCardanoEra (..)
+    , IntroducedInBabbagePParams (..)
     , Key (..)
     , KeyWitness
     , KeyWitnessInCtx (KeyWitnessForSpending, KeyWitnessForStakeAddr)
     , LedgerProtocolParameters (..)
-    , MIRPot (..)
     , MaryEraOnwards (..)
     , NetworkId (..)
     , NetworkMagic (NetworkMagic)
@@ -161,9 +170,7 @@ import Cardano.Api
     , PlutusScriptVersion
     , PolicyAssets (..)
     , PolicyId (PolicyId)
-    , PoolId
     , PraosNonce
-    , ProtocolParametersUpdate (ProtocolParametersUpdate)
     , Quantity
     , ReferenceScript (..)
     , Script (..)
@@ -183,6 +190,7 @@ import Cardano.Api
     , SerialiseAsCBOR (deserialiseFromCBOR, serialiseToCBOR)
     , ShelleyAddr
     , ShelleyBasedEra (..)
+    , ShelleyToAlonzoPParams (..)
     , ShelleyToBabbageEra (..)
     , ShelleyWitnessSigningKey (..)
     , SimpleScript (..)
@@ -190,15 +198,7 @@ import Cardano.Api
     , SlotNo (SlotNo)
     , StakeAddress
     , StakeAddressReference (NoStakeAddress, StakeAddressByValue)
-    , StakeAddressRequirements (..)
     , StakeCredential (..)
-    , StakeDelegationRequirements (..)
-    , StakePoolMetadata (..)
-    , StakePoolMetadataReference (..)
-    , StakePoolParameters (..)
-    , StakePoolRegistrationRequirements (..)
-    , StakePoolRelay (..)
-    , StakePoolRetirementRequirements (..)
     , ToJSON
     , Tx
     , TxAuxScripts (..)
@@ -250,18 +250,15 @@ import Cardano.Api
     , makeShelleyKeyWitness
     , makeSignedTransaction
     , makeStakeAddress
-    , makeStakeAddressDelegationCertificate
-    , makeStakeAddressRegistrationCertificate
-    , makeStakeAddressUnregistrationCertificate
-    , makeStakePoolRegistrationCertificate
-    , makeStakePoolRetirementCertificate
     , mkTxProposalProcedures
     , mkTxVotingProcedures
     , scriptLanguageSupportedInEra
     , shelleyAddressInEra
     , shelleyToBabbageEraConstraints
-    , toShelleyPoolParams
-    , validateAndHashStakePoolMetadata
+    , toAlonzoCostModels
+    , toAlonzoExUnits
+    , toAlonzoPrices
+    , toLedgerNonce
     )
 import Cardano.Api.Byron
     ( KeyWitness (ByronKeyWitness)
@@ -295,9 +292,7 @@ import Data.Coerce
     ( coerce
     )
 import Data.IP
-    ( IPv4
-    , IPv6
-    , fromHostAddress
+    ( fromHostAddress
     , fromHostAddress6
     )
 import Data.Int
@@ -400,12 +395,14 @@ import qualified Cardano.Api as Api
 import qualified Cardano.Api.Compatible.Certificate as Compat
 import qualified Cardano.Api.Experimental.Certificate as Exp
 import qualified Cardano.Api.Ledger as Ledger
+import qualified Cardano.Base.IP as Base
 import qualified Cardano.Binary as CBOR
 import qualified Cardano.Crypto.Hash as Crypto
 import qualified Cardano.Crypto.Seed as Crypto
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Api as Ledger
 import qualified Cardano.Ledger.BaseTypes as Ledger
+import qualified Cardano.Ledger.Coin as Ledger
 import qualified Cardano.Ledger.Shelley.API as Ledger
 import qualified Cardano.Ledger.Shelley.TxBody as Ledger
 import qualified Data.Aeson as Aeson
@@ -1402,18 +1399,18 @@ genShelleyWitnessSigningKey =
             <$> genSigningKey AsGenesisUTxOKey
         ]
 
-genPoolId :: Gen PoolId
+genPoolId :: Gen Exp.PoolId
 genPoolId = genVerificationKeyHash AsStakePoolKey
 
-genMIRPot :: Gen MIRPot
-genMIRPot = elements [ReservesMIR, TreasuryMIR]
+genMIRPot :: Gen Compat.MIRPot
+genMIRPot = elements [Compat.ReservesMIR, Compat.TreasuryMIR]
 
-genMIRTarget :: Gen Ledger.MIRTarget
+genMIRTarget :: Gen Compat.MIRTarget
 genMIRTarget = error "TODO conway: genMIRTarget"
 
-genStakePoolMetadata :: Gen StakePoolMetadata
+genStakePoolMetadata :: Gen Exp.StakePoolMetadata
 genStakePoolMetadata =
-    StakePoolMetadata
+    Exp.StakePoolMetadata
         <$> genName
         <*> genDescription
         <*> genTicker
@@ -1456,8 +1453,8 @@ genStakePoolMetadata =
             , scheme <> host <> domain
             ]
 
-instance ToJSON StakePoolMetadata where
-    toJSON (StakePoolMetadata name description ticker homepage) =
+instance ToJSON Exp.StakePoolMetadata where
+    toJSON (Exp.StakePoolMetadata name description ticker homepage) =
         Aeson.object
             [ "name" .= name
             , "description" .= description
@@ -1465,17 +1462,18 @@ instance ToJSON StakePoolMetadata where
             , "homepage" .= homepage
             ]
 
-genStakePoolMetadataReference :: Gen StakePoolMetadataReference
+genStakePoolMetadataReference :: Gen Exp.StakePoolMetadataReference
 genStakePoolMetadataReference = do
-    meta@(StakePoolMetadata _name _desc _ticker homepage) <-
+    meta@(Exp.StakePoolMetadata _name _desc _ticker homepage) <-
         genStakePoolMetadata
     pure
-        $ StakePoolMetadataReference homepage (hashStakePoolMetadata meta)
+        $ Exp.StakePoolMetadataReference homepage (hashStakePoolMetadata meta)
   where
-    hashStakePoolMetadata :: StakePoolMetadata -> Hash StakePoolMetadata
+    hashStakePoolMetadata
+        :: Exp.StakePoolMetadata -> Hash Exp.StakePoolMetadata
     hashStakePoolMetadata meta = do
         let json = Aeson.encode meta
-        case validateAndHashStakePoolMetadata (BL.toStrict json) of
+        case Exp.validateAndHashStakePoolMetadata (BL.toStrict json) of
             Left err ->
                 error
                     $ "genStakePoolMetadata generated an invalid stake pool metadata: "
@@ -1483,21 +1481,21 @@ genStakePoolMetadataReference = do
             Right (_meta, metaHash) ->
                 metaHash
 
-genStakePoolRelay :: Gen StakePoolRelay
+genStakePoolRelay :: Gen Exp.StakePoolRelay
 genStakePoolRelay = do
     relay <- genLedgerStakePoolRelay
     pure $ case relay of
         Ledger.SingleHostAddr mPort mIPv4 mIPv6 ->
-            StakePoolRelayIp
-                (strictMaybeToMaybe mIPv4)
-                (strictMaybeToMaybe mIPv6)
+            Exp.StakePoolRelayIp
+                (Base.unIPv4 <$> strictMaybeToMaybe mIPv4)
+                (Base.unIPv6 <$> strictMaybeToMaybe mIPv6)
                 (castPort <$> strictMaybeToMaybe mPort)
         Ledger.SingleHostName mPort dnsName ->
-            StakePoolRelayDnsARecord
+            Exp.StakePoolRelayDnsARecord
                 (T.encodeUtf8 . Ledger.dnsToText $ dnsName)
                 (castPort <$> strictMaybeToMaybe mPort)
         Ledger.MultiHostName dnsName ->
-            StakePoolRelayDnsSrvRecord
+            Exp.StakePoolRelayDnsSrvRecord
                 (T.encodeUtf8 . Ledger.dnsToText $ dnsName)
   where
     castPort :: Ledger.Port -> PortNumber
@@ -1526,26 +1524,23 @@ genStakePoolRelay = do
             Nothing -> error "wrong generator for DnsName"
             Just dns -> return dns
 
-    genIPv4 :: Gen IPv4
-    genIPv4 = fromHostAddress <$> arbitraryBoundedIntegral
+    genIPv4 :: Gen Base.IPv4
+    genIPv4 = Base.mkIPv4 . fromHostAddress <$> arbitraryBoundedIntegral
 
-    genIPv6 :: Gen IPv6
+    genIPv6 :: Gen Base.IPv6
     genIPv6 = do
         w1 <- arbitraryBoundedIntegral
         w2 <- arbitraryBoundedIntegral
         w3 <- arbitraryBoundedIntegral
         w4 <- arbitraryBoundedIntegral
-        pure $ fromHostAddress6 (w1, w2, w3, w4)
+        pure $ Base.mkIPv6 $ fromHostAddress6 (w1, w2, w3, w4)
 
     genPort :: Gen Ledger.Port
     genPort = Ledger.Port <$> arbitraryBoundedIntegral
 
-    genStrictMaybe :: Gen a -> Gen (Ledger.StrictMaybe a)
-    genStrictMaybe gen = Ledger.maybeToStrictMaybe <$> liftArbitrary gen
-
-genStakePoolParameters :: Gen StakePoolParameters
+genStakePoolParameters :: Gen Exp.StakePoolParameters
 genStakePoolParameters =
-    StakePoolParameters
+    Exp.StakePoolParameters
         <$> genPoolId
         <*> genVerificationKeyHash AsVrfKey
         <*> genCoin
@@ -1571,7 +1566,7 @@ genTxCertificate sbe =
                 <$> genStakeCredential
                 <*> genDelegatee sbe
             , Compat.makeStakePoolRegistrationCertificate
-                . toShelleyPoolParams
+                . Exp.toShelleyPoolParams
                 <$> genStakePoolParameters
             , Compat.makeStakePoolRetirementCertificate
                 <$> genPoolId
@@ -1628,88 +1623,120 @@ genTxCertificates era = withEraWitness era $ \sbe -> do
         , certificates
         ]
 
-genProtocolParametersUpdate :: Gen ProtocolParametersUpdate
-genProtocolParametersUpdate = do
-    protocolUpdateProtocolVersion <-
-        liftArbitrary genValidProtocolVersion
-    protocolUpdateDecentralization <-
-        liftArbitrary genRational
-    protocolUpdateExtraPraosEntropy <-
-        liftArbitrary (liftArbitrary genPraosNonce)
-    protocolUpdateMaxBlockHeaderSize <-
-        liftArbitrary genLarge
-    protocolUpdateMaxBlockBodySize <-
-        liftArbitrary genLarge
-    protocolUpdateMaxTxSize <-
-        liftArbitrary genLarge
-    protocolUpdateTxFeeFixed <-
-        liftArbitrary genCoin
-    protocolUpdateTxFeePerByte <-
-        liftArbitrary genCoin
-    protocolUpdateMinUTxOValue <-
-        liftArbitrary genCoin
-    protocolUpdateStakeAddressDeposit <-
-        liftArbitrary genCoin
-    protocolUpdateStakePoolDeposit <-
-        liftArbitrary genCoin
-    protocolUpdateMinPoolCost <-
-        liftArbitrary genCoin
-    protocolUpdatePoolRetireMaxEpoch <-
-        liftArbitrary genInterval
-    protocolUpdateStakePoolTargetNum <-
-        fmap fromIntegral
-            <$> liftArbitrary genNat
-    protocolUpdatePoolPledgeInfluence <-
-        liftArbitrary genRational
-    protocolUpdateMonetaryExpansion <-
-        liftArbitrary genRational
-    protocolUpdateTreasuryCut <-
-        liftArbitrary genRational
-    protocolUpdateUTxOCostPerByte <-
-        liftArbitrary genCoin
-    protocolUpdateCostModels <-
-        genCostModels
-    protocolUpdatePrices <-
-        liftArbitrary genExecutionUnitPrices
-    protocolUpdateMaxTxExUnits <-
-        liftArbitrary genExecutionUnits
-    protocolUpdateMaxBlockExUnits <-
-        liftArbitrary genExecutionUnits
-    protocolUpdateMaxValueSize <-
-        liftArbitrary arbitrary
-    protocolUpdateCollateralPercent <-
-        liftArbitrary arbitrary
-    protocolUpdateMaxCollateralInputs <-
-        liftArbitrary arbitrary
+genProtocolParametersUpdate
+    :: ShelleyToBabbageEra era -> Gen (EraBasedProtocolParametersUpdate era)
+genProtocolParametersUpdate = \case
+    ShelleyToBabbageEraShelley ->
+        ShelleyEraBasedProtocolParametersUpdate
+            <$> genCommonProtocolParametersUpdate
+            <*> genDeprecatedAfterMaryPParams
+            <*> genDeprecatedAfterBabbagePParams
+            <*> genShelleyToAlonzoPParams
+    ShelleyToBabbageEraAllegra ->
+        AllegraEraBasedProtocolParametersUpdate
+            <$> genCommonProtocolParametersUpdate
+            <*> genDeprecatedAfterMaryPParams
+            <*> genShelleyToAlonzoPParams
+            <*> genDeprecatedAfterBabbagePParams
+    ShelleyToBabbageEraMary ->
+        MaryEraBasedProtocolParametersUpdate
+            <$> genCommonProtocolParametersUpdate
+            <*> genDeprecatedAfterMaryPParams
+            <*> genShelleyToAlonzoPParams
+            <*> genDeprecatedAfterBabbagePParams
+    ShelleyToBabbageEraAlonzo ->
+        AlonzoEraBasedProtocolParametersUpdate
+            <$> genCommonProtocolParametersUpdate
+            <*> genShelleyToAlonzoPParams
+            <*> genAlonzoOnwardsPParams
+            <*> genDeprecatedAfterBabbagePParams
+    ShelleyToBabbageEraBabbage ->
+        BabbageEraBasedProtocolParametersUpdate
+            <$> genCommonProtocolParametersUpdate
+            <*> genAlonzoOnwardsPParams
+            <*> genDeprecatedAfterBabbagePParams
+            <*> genIntroducedInBabbagePParams
 
-    pure
-        $ ProtocolParametersUpdate
-            { Api.protocolUpdateProtocolVersion
-            , Api.protocolUpdateDecentralization
-            , Api.protocolUpdateExtraPraosEntropy
-            , Api.protocolUpdateMaxBlockHeaderSize
-            , Api.protocolUpdateMaxBlockBodySize
-            , Api.protocolUpdateMaxTxSize
-            , Api.protocolUpdateTxFeeFixed
-            , Api.protocolUpdateTxFeePerByte
-            , Api.protocolUpdateMinUTxOValue
-            , Api.protocolUpdateStakeAddressDeposit
-            , Api.protocolUpdateStakePoolDeposit
-            , Api.protocolUpdateMinPoolCost
-            , Api.protocolUpdatePoolRetireMaxEpoch
-            , Api.protocolUpdateStakePoolTargetNum
-            , Api.protocolUpdatePoolPledgeInfluence
-            , Api.protocolUpdateMonetaryExpansion
-            , Api.protocolUpdateTreasuryCut
-            , Api.protocolUpdateUTxOCostPerByte
-            , Api.protocolUpdateCostModels
-            , Api.protocolUpdatePrices
-            , Api.protocolUpdateMaxTxExUnits
-            , Api.protocolUpdateMaxBlockExUnits
-            , Api.protocolUpdateMaxValueSize
-            , Api.protocolUpdateCollateralPercent
-            , Api.protocolUpdateMaxCollateralInputs
-            }
+genCommonProtocolParametersUpdate
+    :: Gen CommonProtocolParametersUpdate
+genCommonProtocolParametersUpdate =
+    CommonProtocolParametersUpdate
+        <$> genStrictMaybe genCoinPerByte
+        <*> genStrictMaybe genCoin
+        <*> genStrictMaybe genLarge
+        <*> genStrictMaybe genLarge
+        <*> genStrictMaybe genLarge
+        <*> genStrictMaybe genCoin
+        <*> genStrictMaybe genCoin
+        <*> genStrictMaybe genInterval
+        <*> genStrictMaybe (fromIntegral <$> genNat)
+        <*> genStrictMaybe genNonNegativeInterval
+        <*> genStrictMaybe genUnitInterval
+        <*> genStrictMaybe genUnitInterval
+        <*> genStrictMaybe genCoin
+
+genShelleyToAlonzoPParams :: Gen (ShelleyToAlonzoPParams era)
+genShelleyToAlonzoPParams =
+    ShelleyToAlonzoPParams
+        <$> genStrictMaybe (toLedgerNonce <$> liftArbitrary genPraosNonce)
+        <*> genStrictMaybe genUnitInterval
+
+genDeprecatedAfterMaryPParams :: Gen (DeprecatedAfterMaryPParams era)
+genDeprecatedAfterMaryPParams =
+    DeprecatedAfterMaryPParams <$> genStrictMaybe genCoin
+
+genDeprecatedAfterBabbagePParams
+    :: Gen (DeprecatedAfterBabbagePParams era)
+genDeprecatedAfterBabbagePParams =
+    DeprecatedAfterBabbagePParams <$> genStrictMaybe genProtVer
+
+genAlonzoOnwardsPParams :: Gen (AlonzoOnwardsPParams era)
+genAlonzoOnwardsPParams =
+    AlonzoOnwardsPParams
+        <$> genStrictMaybe genLedgerCostModels
+        <*> genStrictMaybe genLedgerPrices
+        <*> genStrictMaybe (toAlonzoExUnits <$> genExecutionUnits)
+        <*> genStrictMaybe (toAlonzoExUnits <$> genExecutionUnits)
+        <*> genStrictMaybe arbitrary
+        <*> genStrictMaybe arbitrary
+        <*> genStrictMaybe arbitrary
+
+genIntroducedInBabbagePParams :: Gen (IntroducedInBabbagePParams era)
+genIntroducedInBabbagePParams =
+    IntroducedInBabbagePParams <$> genStrictMaybe genCoinPerByte
+
+genStrictMaybe :: Gen a -> Gen (Ledger.StrictMaybe a)
+genStrictMaybe gen = Ledger.maybeToStrictMaybe <$> liftArbitrary gen
+
+genCoinPerByte :: Gen Ledger.CoinPerByte
+genCoinPerByte = Ledger.CoinPerByte . Ledger.compactCoinOrError <$> genCoin
+
+genProtVer :: Gen Ledger.ProtVer
+genProtVer = do
+    (major, minor) <- genValidProtocolVersion
+    case Ledger.mkVersion32 @Maybe (fromIntegral major) of
+        Nothing -> error "genProtVer: invalid protocol major version"
+        Just version -> pure $ Ledger.ProtVer version (fromIntegral minor)
+
+genUnitInterval :: Gen Ledger.UnitInterval
+genUnitInterval =
+    fromMaybe (error "genUnitInterval: rational out of bounds")
+        . Ledger.boundRational
+        <$> genRational
+
+genNonNegativeInterval :: Gen Ledger.NonNegativeInterval
+genNonNegativeInterval =
+    fromMaybe (error "genNonNegativeInterval: rational out of bounds")
+        . Ledger.boundRational
+        <$> genRational
+
+genLedgerCostModels :: Gen Alonzo.CostModels
+genLedgerCostModels =
+    either (error . show) id . toAlonzoCostModels <$> genCostModels
+
+genLedgerPrices :: Gen Alonzo.Prices
+genLedgerPrices =
+    either (error . show) id . toAlonzoPrices <$> genExecutionUnitPrices
 
 genUpdateProposal :: CardanoEra era -> Gen (TxUpdateProposal era)
 genUpdateProposal era = case forEraMaybeEon era of
@@ -1727,6 +1754,7 @@ genUpdateProposal era = case forEraMaybeEon era of
                                         ( (,)
                                             <$> genVerificationKeyHash AsGenesisKey
                                             <*> genProtocolParametersUpdate
+                                                supported
                                         )
                                     )
                           )
