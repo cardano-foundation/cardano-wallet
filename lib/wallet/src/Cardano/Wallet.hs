@@ -22,6 +22,10 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
+-- Temporary: cardano-api 11.5 deprecates the legacy TxBody API in favour of
+-- Cardano.Api.Experimental. Retiring these sites is cardano-api removal work,
+-- owned by M1 (#5237). Remove this pragma when that lands.
+{-# OPTIONS_GHC -Wno-deprecations #-}
 -- suppress false warning
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
@@ -3027,6 +3031,7 @@ buildAndSignTransactionPure
       where
         era = recentEra @era
         wF = walletFlavor @s
+        anyCardanoEra :: Read.EraValue Read.Era
         anyCardanoEra = case era of
             Write.RecentEraConway -> Read.EraValue Read.Conway
             Write.RecentEraDijkstra -> Read.EraValue Read.Dijkstra

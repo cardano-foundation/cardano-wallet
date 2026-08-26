@@ -332,7 +332,8 @@ instance HasSeverityAnnotation AfterThreadLog where
 
 -- | Trace an 'AfterThreadLog' message from a caught exception.
 traceAfterThread
-    :: Tracer m AfterThreadLog
+    :: Monad m
+    => Tracer m AfterThreadLog
     -> Either SomeException a
     -> m ()
 traceAfterThread tr =
