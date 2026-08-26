@@ -701,7 +701,7 @@ import Cardano.Wallet.TokenMetadata
     ( TokenMetadataClient
     , fillMetadata
     )
-import Cardano.BM.Tracing
+import Cardano.Wallet.Tracing.Tracing
     ( HasPrivacyAnnotation (..)
     , HasSeverityAnnotation (..)
     )

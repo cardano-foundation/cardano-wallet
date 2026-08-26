@@ -21,11 +21,11 @@ import Cardano.Wallet.Network.Ports
     , isPortOpen
     , simpleSockAddr
     )
-import Cardano.BM.Data.LogItem
+import Cardano.Wallet.Tracing.Data.LogItem
     ( LOMeta (..)
     , PrivacyAnnotation (..)
     )
-import Cardano.BM.Data.Severity
+import Cardano.Wallet.Tracing.Data.Severity
     ( Severity (..)
     )
 import Control.Concurrent

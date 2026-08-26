@@ -3,7 +3,7 @@
 -- License: Apache-2.0
 --
 -- A concrete 'Trace' with context naming and logging functions.
-module Cardano.BM.Trace
+module Cardano.Wallet.Tracing.Trace
     ( Trace
     , nullTracer
     , traceInTVar
@@ -25,7 +25,7 @@ module Cardano.BM.Trace
     , logWarning
     ) where
 
-import Cardano.BM.Data.LogItem
+import Cardano.Wallet.Tracing.Data.LogItem
     ( LOContent (LogMessage)
     , LOMeta
     , LogObject (..)
@@ -33,10 +33,10 @@ import Cardano.BM.Data.LogItem
     , PrivacyAnnotation (..)
     , mkLOMeta
     )
-import Cardano.BM.Data.Severity
+import Cardano.Wallet.Tracing.Data.Severity
     ( Severity (..)
     )
-import Cardano.BM.Data.Tracer
+import Cardano.Wallet.Tracing.Data.Tracer
     ( mkTracer
     )
 import Control.Monad.IO.Class

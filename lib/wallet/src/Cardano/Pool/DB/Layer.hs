@@ -92,7 +92,7 @@ import Cardano.Wallet.Primitive.Types.DRep
     ( DRepMetaReference (..)
     , DRepMetadata (..)
     )
-import Cardano.BM.Extra
+import Cardano.Wallet.Tracing.Extra
     ( bracketTracer
     )
 import Cardano.Wallet.Unsafe

@@ -34,11 +34,11 @@ import Cardano.Wallet.Launch.Cluster.FileOf
     , RelDirOf (..)
     , absolutize
     )
-import Cardano.BM.Extra
+import Cardano.Wallet.Tracing.Extra
     ( BracketLog
     , bracketTracer
     )
-import Cardano.BM.Tracing
+import Cardano.Wallet.Tracing.Tracing
     ( HasPrivacyAnnotation
     , HasSeverityAnnotation (..)
     , Severity (..)

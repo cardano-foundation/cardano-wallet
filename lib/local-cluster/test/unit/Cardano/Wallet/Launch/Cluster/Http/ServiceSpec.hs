@@ -113,7 +113,7 @@ import Cardano.Wallet.Read
     , applyEraFun
     , (:*:) (..)
     )
-import Cardano.BM.ToTextTracer
+import Cardano.Wallet.Tracing.ToTextTracer
     ( ToTextTracer (..)
     )
 import Control.Monad

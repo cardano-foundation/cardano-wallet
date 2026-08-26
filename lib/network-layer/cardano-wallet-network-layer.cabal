@@ -89,7 +89,7 @@ library
     , cardano-wallet-launcher
     , cardano-wallet-primitive
     , cardano-wallet-read
-    , iohk-monitoring-extra
+    , cardano-wallet-tracing
     , cborg
     , containers
     , contra-tracer

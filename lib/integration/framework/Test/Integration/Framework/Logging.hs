@@ -30,19 +30,19 @@ import Cardano.Wallet.Launch.Cluster.FileOf
     , mkRelDirOf
     , toFilePath
     )
-import Cardano.BM.Data.Severity
+import Cardano.Wallet.Tracing.Data.Severity
     ( Severity (..)
     )
-import Cardano.BM.Data.Tracer
+import Cardano.Wallet.Tracing.Data.Tracer
     ( HasPrivacyAnnotation (..)
     , HasSeverityAnnotation (..)
     )
-import Cardano.BM.Extra
+import Cardano.Wallet.Tracing.Extra
     ( BracketLog
     , bracketTracer
     , trMessageText
     )
-import Cardano.BM.Trace
+import Cardano.Wallet.Tracing.Trace
     ( appendName
     )
 import Control.Tracer

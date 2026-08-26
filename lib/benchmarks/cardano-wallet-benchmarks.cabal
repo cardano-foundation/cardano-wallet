@@ -48,7 +48,7 @@ library
     , cardano-wallet-integration:framework
     , cardano-wallet-launcher
     , cardano-wallet-test-utils
-    , iohk-monitoring-extra
+    , cardano-wallet-tracing
     , cassava
     , Chart
     , Chart-diagrams
@@ -115,7 +115,7 @@ benchmark restore
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
     , cardano-wallet-read
-    , iohk-monitoring-extra
+    , cardano-wallet-tracing
     , containers
     , contra-tracer
     , crypto-primitives
@@ -150,7 +150,7 @@ benchmark latency
     , cardano-wallet-launcher
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
-    , iohk-monitoring-extra
+    , cardano-wallet-tracing
     , directory
     , exceptions
     , extra
@@ -194,7 +194,7 @@ benchmark db
     , cardano-wallet-read
     , cardano-wallet-secrets
     , cardano-wallet-test-utils
-    , iohk-monitoring-extra
+    , cardano-wallet-tracing
     , cardano-wallet-unit:test-common
     , containers
     , contra-tracer
@@ -233,7 +233,7 @@ benchmark api
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
     , cardano-wallet-read
-    , iohk-monitoring-extra
+    , cardano-wallet-tracing
     , cardano-wallet-unit:test-common
     , containers
     , filepath
@@ -256,7 +256,7 @@ benchmark read-blocks
     , cardano-wallet-benchmarks
     , cardano-wallet-primitive
     , cardano-wallet-read
-    , iohk-monitoring-extra
+    , cardano-wallet-tracing
     , criterion
     , mtl
     , time

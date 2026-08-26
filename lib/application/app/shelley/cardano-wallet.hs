@@ -111,14 +111,14 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..)
     )
-import Cardano.BM.Data.Severity
+import Cardano.Wallet.Tracing.Data.Severity
     ( Severity (..)
     )
-import Cardano.BM.Extra
+import Cardano.Wallet.Tracing.Extra
     ( trMessage
     , transformTextTrace
     )
-import Cardano.BM.Trace
+import Cardano.Wallet.Tracing.Trace
     ( Trace
     , appendName
     , logDebug

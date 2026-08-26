@@ -26,7 +26,7 @@ import Cardano.Wallet.Launch.Cluster.Logging
 import Cardano.Wallet.Launch.Cluster.Node.GenesisFiles
     ( GenesisFiles
     )
-import Cardano.BM.Tracing
+import Cardano.Wallet.Tracing.Tracing
     ( Severity
     )
 import Prelude

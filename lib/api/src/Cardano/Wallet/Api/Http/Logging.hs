@@ -15,10 +15,10 @@ module Cardano.Wallet.Api.Http.Logging
 import Cardano.Launcher.Node
     ( CardanoNodeConn
     )
-import Cardano.BM.Data.Tracer
+import Cardano.Wallet.Tracing.Data.Tracer
     ( getSeverityAnnotation
     )
-import Cardano.BM.Tracing
+import Cardano.Wallet.Tracing.Tracing
     ( HasPrivacyAnnotation
     , HasSeverityAnnotation
     , Severity (..)

@@ -7,7 +7,7 @@
 -- License: Apache-2.0
 --
 -- Representation of traced messages as log objects.
-module Cardano.BM.Data.LogItem
+module Cardano.Wallet.Tracing.Data.LogItem
     ( LogObject (..)
     , LOMeta (..)
     , mkLOMeta
@@ -17,7 +17,7 @@ module Cardano.BM.Data.LogItem
     , PrivacyAnnotation (..)
     ) where
 
-import Cardano.BM.Data.Severity
+import Cardano.Wallet.Tracing.Data.Severity
     ( Severity (..)
     )
 import Control.Concurrent

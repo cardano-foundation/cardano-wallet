@@ -206,13 +206,13 @@ import Cardano.Wallet.Primitive.Types.Hash
 import Cardano.Wallet.Primitive.Types.Tx.SealedTx
     ( SerialisedTx (..)
     )
-import Cardano.BM.Data.LogItem
+import Cardano.Wallet.Tracing.Data.LogItem
     ( LoggerName
     )
-import Cardano.BM.Data.Severity
+import Cardano.Wallet.Tracing.Data.Severity
     ( Severity (..)
     )
-import Cardano.BM.Trace
+import Cardano.Wallet.Tracing.Trace
     ( Trace
     , appendName
     , logDebug

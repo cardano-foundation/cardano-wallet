@@ -9,7 +9,7 @@ where
 import Cardano.Wallet.Launch.Cluster.Http.Client
     ( MsgClient
     )
-import Cardano.BM.Tracing
+import Cardano.Wallet.Tracing.Tracing
     ( HasSeverityAnnotation (..)
     , Severity (..)
     )

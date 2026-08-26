@@ -54,7 +54,7 @@ library
     , cardano-wallet-primitive
     , cardano-wallet-read
     , cardano-wallet-secrets
-    , iohk-monitoring-extra
+    , cardano-wallet-tracing
     , containers
     , contra-tracer
     , crypto-primitives

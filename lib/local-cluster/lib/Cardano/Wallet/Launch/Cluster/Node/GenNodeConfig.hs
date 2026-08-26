@@ -44,7 +44,7 @@ import Cardano.Wallet.Launch.Cluster.Node.GenesisFiles
     ( GenesisFiles
     , GenesisRecord (..)
     )
-import Cardano.BM.Data.Severity
+import Cardano.Wallet.Tracing.Data.Severity
     ( Severity (..)
     )
 import Control.Lens

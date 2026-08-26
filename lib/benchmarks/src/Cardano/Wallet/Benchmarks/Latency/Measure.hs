@@ -16,7 +16,7 @@ module Cardano.Wallet.Benchmarks.Latency.Measure
     , meanAvg
     ) where
 
-import Cardano.BM.Data.LogItem
+import Cardano.Wallet.Tracing.Data.LogItem
     ( LOContent (..)
     , LOMeta (..)
     , LogObject (..)

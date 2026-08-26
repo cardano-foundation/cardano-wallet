@@ -205,14 +205,14 @@ import Cardano.Wallet.TokenMetadata.MockServer
     ( queryServerStatic
     , withMetadataServer
     )
-import Cardano.BM.Data.Tracer
+import Cardano.Wallet.Tracing.Data.Tracer
     ( nullTracer
     )
-import Cardano.BM.Extra
+import Cardano.Wallet.Tracing.Extra
     ( bracketTracer
     , stdoutTextTracer
     )
-import Cardano.BM.ToTextTracer
+import Cardano.Wallet.Tracing.ToTextTracer
     ( ToTextTracer (..)
     )
 import Control.Concurrent

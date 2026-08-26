@@ -24,7 +24,7 @@ import Cardano.Wallet.Launch.Cluster.FileOf
 import Cardano.Wallet.Launch.Cluster.Logging
     ( ClusterLog (..)
     )
-import Cardano.BM.Extra
+import Cardano.Wallet.Tracing.Extra
     ( bracketTracer
     )
 import Control.Monad.Reader

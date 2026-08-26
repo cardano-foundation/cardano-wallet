@@ -55,7 +55,7 @@ executable cardano-wallet
     , cardano-wallet-application:shelley
     , cardano-wallet-launcher
     , cardano-wallet-network-layer
-    , iohk-monitoring-extra
+    , cardano-wallet-tracing
     , contra-tracer
     , network-uri
     , optparse-applicative
@@ -114,7 +114,7 @@ library
     , cardano-wallet-primitive
     , cardano-wallet-read
     , cardano-wallet-secrets
-    , iohk-monitoring-extra
+    , cardano-wallet-tracing
     , contra-tracer
     , directory
     , ekg-core

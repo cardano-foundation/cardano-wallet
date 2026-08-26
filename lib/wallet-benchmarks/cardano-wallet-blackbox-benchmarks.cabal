@@ -64,7 +64,7 @@ benchmark memory
     , cardano-wallet-benchmarks
     , cardano-wallet-blackbox-benchmarks
     , cardano-wallet-launcher
-    , iohk-monitoring-extra
+    , cardano-wallet-tracing
     , contra-tracer
     , filepath
     , mtl

@@ -128,15 +128,15 @@ import Cardano.Wallet.Primitive.Types.UTxOStatistics
 import Cardano.Wallet.Shelley.Transaction
     ( newTransactionLayer
     )
-import Cardano.BM.Data.Tracer
+import Cardano.Wallet.Tracing.Data.Tracer
     ( filterSeverity
     )
-import Cardano.BM.ToTextTracer
+import Cardano.Wallet.Tracing.ToTextTracer
     ( ToTextTracer (..)
     , overToTextTracer
     , withToTextTracer
     )
-import Cardano.BM.Tracing
+import Cardano.Wallet.Tracing.Tracing
     ( Severity (..)
     )
 import Cardano.Wallet.Unsafe

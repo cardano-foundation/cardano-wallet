@@ -64,7 +64,7 @@ library framework
     , cardano-wallet-primitive
     , cardano-wallet-secrets
     , cardano-wallet-test-utils
-    , iohk-monitoring-extra
+    , cardano-wallet-tracing
     , cardano-wallet:mock-token-metadata
     , cborg
     , command

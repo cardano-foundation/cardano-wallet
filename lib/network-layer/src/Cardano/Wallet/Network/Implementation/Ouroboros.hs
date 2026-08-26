@@ -56,7 +56,7 @@ import Cardano.Wallet.Network
     ( ChainFollower (..)
     , ChainSyncLog (..)
     )
-import Cardano.BM.Data.Tracer
+import Cardano.Wallet.Tracing.Data.Tracer
     ( Tracer
     , traceWith
     )

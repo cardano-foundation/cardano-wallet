@@ -74,7 +74,7 @@ library
     , cardano-wallet-launcher
     , cardano-wallet-read
     , cardano-wallet-test-utils
-    , iohk-monitoring-extra
+    , cardano-wallet-tracing
     , cborg
     , commutative-semigroups
     , containers
@@ -249,7 +249,7 @@ test-suite test
     , cardano-slotting
     , cardano-wallet-primitive
     , cardano-wallet-test-utils
-    , iohk-monitoring-extra
+    , cardano-wallet-tracing
     , containers
     , crypto-primitives
     , deepseq

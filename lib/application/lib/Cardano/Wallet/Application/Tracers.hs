@@ -39,15 +39,15 @@ import Cardano.Wallet.Shelley.Network
 import Cardano.Wallet.TokenMetadata
     ( TokenMetadataLog
     )
-import Cardano.BM.Data.Tracer
+import Cardano.Wallet.Tracing.Data.Tracer
     ( HasPrivacyAnnotation
     , HasSeverityAnnotation
     , filterSeverity
     )
-import Cardano.BM.Extra
+import Cardano.Wallet.Tracing.Extra
     ( trMessageText
     )
-import Cardano.BM.Tracing
+import Cardano.Wallet.Tracing.Tracing
     ( Severity (..)
     , Trace
     , Tracer

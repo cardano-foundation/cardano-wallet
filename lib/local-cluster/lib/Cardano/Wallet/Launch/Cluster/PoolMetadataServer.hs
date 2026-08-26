@@ -21,7 +21,7 @@ import Cardano.Wallet.Launch.Cluster.FileOf
 import Cardano.Wallet.Launch.Cluster.Logging
     ( ClusterLog (MsgRegisteringPoolMetadata)
     )
-import Cardano.BM.Tracing
+import Cardano.Wallet.Tracing.Tracing
     ( traceWith
     )
 import Control.Monad.Reader

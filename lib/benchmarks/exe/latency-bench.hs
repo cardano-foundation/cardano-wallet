@@ -130,22 +130,22 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..)
     )
-import Cardano.BM.Data.Severity
+import Cardano.Wallet.Tracing.Data.Severity
     ( Severity (Error)
     )
-import Cardano.BM.Data.Tracer
+import Cardano.Wallet.Tracing.Data.Tracer
     ( filterSeverity
     )
-import Cardano.BM.Extra
+import Cardano.Wallet.Tracing.Extra
     ( stdoutTextTracer
     , trMessage
     )
-import Cardano.BM.ToTextTracer
+import Cardano.Wallet.Tracing.ToTextTracer
     ( ToTextTracer (..)
     , overToTextTracer
     , withToTextTracer
     )
-import Cardano.BM.Trace
+import Cardano.Wallet.Tracing.Trace
     ( traceInTVarIO
     )
 import Cardano.Wallet.Unsafe

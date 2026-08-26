@@ -19,7 +19,7 @@ module Cardano.Wallet.Application.Metrics.Counters
     , readCounters
     ) where
 
-import Cardano.BM.Data.LogItem
+import Cardano.Wallet.Tracing.Data.LogItem
     ( Measurable (..)
     )
 import Data.Aeson

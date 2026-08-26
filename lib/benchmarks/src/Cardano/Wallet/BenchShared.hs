@@ -49,21 +49,21 @@ import Cardano.Startup
 import Cardano.Wallet.Network.Ports
     ( getRandomPort
     )
-import Cardano.BM.Data.LogItem
+import Cardano.Wallet.Tracing.Data.LogItem
     ( LOContent (..)
     , LOMeta (..)
     , LogObject (..)
     )
-import Cardano.BM.Data.Severity
+import Cardano.Wallet.Tracing.Data.Severity
     ( Severity (..)
     )
-import Cardano.BM.Data.Tracer
+import Cardano.Wallet.Tracing.Data.Tracer
     ( mkTracer
     )
-import Cardano.BM.Extra
+import Cardano.Wallet.Tracing.Extra
     ( trMessageText
     )
-import Cardano.BM.Trace
+import Cardano.Wallet.Tracing.Trace
     ( Trace
     , appendName
     , nullTracer

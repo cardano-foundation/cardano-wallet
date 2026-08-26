@@ -19,7 +19,7 @@ import Cardano.Wallet.Read.Block
 import Cardano.Wallet.Read.Block.Gen.Build
     ( exampleBlocks
     )
-import Cardano.BM.ToTextTracer
+import Cardano.Wallet.Tracing.ToTextTracer
     ( ToTextTracer (..)
     , withToTextTracer
     )

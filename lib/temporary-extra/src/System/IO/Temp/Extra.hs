@@ -10,15 +10,15 @@ module System.IO.Temp.Extra
     , TempDirLog (..)
     ) where
 
-import Cardano.BM.Data.Tracer
+import Cardano.Wallet.Tracing.Data.Tracer
     ( Tracer
     )
-import Cardano.BM.Extra
+import Cardano.Wallet.Tracing.Extra
     ( BracketLog
     , BracketLog' (BracketStart)
     , bracketTracer
     )
-import Cardano.BM.Tracing
+import Cardano.Wallet.Tracing.Tracing
     ( HasPrivacyAnnotation
     , HasSeverityAnnotation (..)
     , Severity (Debug, Notice)

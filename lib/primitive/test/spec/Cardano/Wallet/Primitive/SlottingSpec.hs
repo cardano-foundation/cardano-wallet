@@ -62,10 +62,10 @@ import Cardano.Wallet.Primitive.Types.SlottingParameters.Gen
     ( genActiveSlotCoefficient
     , shrinkActiveSlotCoefficient
     )
-import Cardano.BM.Data.Severity
+import Cardano.Wallet.Tracing.Data.Severity
     ( Severity (..)
     )
-import Cardano.BM.Data.Tracer
+import Cardano.Wallet.Tracing.Data.Tracer
     ( HasSeverityAnnotation (..)
     , nullTracer
     )

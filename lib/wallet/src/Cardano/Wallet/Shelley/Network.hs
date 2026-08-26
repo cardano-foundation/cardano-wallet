@@ -31,7 +31,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..)
     )
-import Cardano.BM.Tracing
+import Cardano.Wallet.Tracing.Tracing
     ( HasPrivacyAnnotation
     , HasSeverityAnnotation (..)
     , Tracer

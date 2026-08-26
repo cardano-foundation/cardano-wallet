@@ -115,7 +115,7 @@ library
     , cardano-wallet-launcher
     , cardano-wallet-primitive
     , cardano-wallet-test-utils
-    , iohk-monitoring-extra
+    , cardano-wallet-tracing
     , cborg
     , comonad
     , containers
@@ -183,7 +183,7 @@ library local-cluster-process
     , cardano-wallet-application-extras
     , cardano-wallet-launcher
     , cardano-wallet-primitive
-    , iohk-monitoring-extra
+    , cardano-wallet-tracing
     , contra-tracer
     , directory
     , extra
@@ -206,7 +206,7 @@ executable local-cluster
     , cardano-wallet-application-extras
     , cardano-wallet-launcher
     , cardano-wallet-primitive
-    , iohk-monitoring-extra
+    , cardano-wallet-tracing
     , contra-tracer
     , directory
     , extra
@@ -246,7 +246,7 @@ common test-common
     , cardano-wallet-primitive
     , cardano-wallet-read
     , cardano-wallet-test-utils
-    , iohk-monitoring-extra
+    , cardano-wallet-tracing
     , containers
     , contra-tracer
     , extra

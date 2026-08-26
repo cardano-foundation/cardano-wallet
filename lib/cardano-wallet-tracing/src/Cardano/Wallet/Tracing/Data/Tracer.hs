@@ -8,9 +8,9 @@
 -- License: Apache-2.0
 --
 -- Tracers, tracer transformers, and severity/privacy annotations, implemented
--- directly on "contra-tracer". This module keeps the @Cardano.BM.Data.Tracer@
+-- directly on "contra-tracer". This module keeps the @Cardano.Wallet.Tracing.Data.Tracer@
 -- interface used across the wallet after the removal of @iohk-monitoring@.
-module Cardano.BM.Data.Tracer
+module Cardano.Wallet.Tracing.Data.Tracer
     ( -- * Tracers
       Tracer (..)
     , mkTracer
@@ -31,10 +31,10 @@ module Cardano.BM.Data.Tracer
     , filterSeverity
     ) where
 
-import Cardano.BM.Data.LogItem
+import Cardano.Wallet.Tracing.Data.LogItem
     ( PrivacyAnnotation (..)
     )
-import Cardano.BM.Data.Severity
+import Cardano.Wallet.Tracing.Data.Severity
     ( Severity (..)
     )
 import Control.Monad
@@ -125,14 +125,14 @@ instance ToObject String
 instance ToObject Text
 instance ToObject Value
 
--- | Extract a 'Cardano.BM.Data.Severity.Severity' annotation from a traced
+-- | Extract a 'Cardano.Wallet.Tracing.Data.Severity.Severity' annotation from a traced
 -- item. The default annotation is 'Debug'.
 class HasSeverityAnnotation a where
     getSeverityAnnotation :: a -> Severity
     default getSeverityAnnotation :: a -> Severity
     getSeverityAnnotation _ = Debug
 
--- | Extract a 'Cardano.BM.Data.LogItem.PrivacyAnnotation' from a traced item.
+-- | Extract a 'Cardano.Wallet.Tracing.Data.LogItem.PrivacyAnnotation' from a traced item.
 -- The default annotation is 'Public'.
 class HasPrivacyAnnotation a where
     getPrivacyAnnotation :: a -> PrivacyAnnotation

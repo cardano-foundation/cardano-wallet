@@ -28,7 +28,7 @@ library
   exposed-modules:    System.IO.Temp.Extra
   build-depends:
     , base
-    , iohk-monitoring-extra
+    , cardano-wallet-tracing
     , temporary
     , text
     , text-class

@@ -73,7 +73,7 @@ library
     , cardano-wallet-read
     , cardano-wallet-secrets
     , cardano-wallet-test-utils
-    , iohk-monitoring-extra
+    , cardano-wallet-tracing
     , cborg
     , containers
     , contra-tracer

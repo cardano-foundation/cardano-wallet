@@ -4,7 +4,7 @@
 --
 -- Common tracing interface: re-exports the core tracing surface kept by the
 -- wallet after the removal of @iohk-monitoring@.
-module Cardano.BM.Tracing
+module Cardano.Wallet.Tracing.Tracing
     ( Tracer (..)
     , Trace
     , LogObject (..)
@@ -21,21 +21,21 @@ module Cardano.BM.Tracing
     , traceWith
     ) where
 
-import Cardano.BM.Data.LogItem
+import Cardano.Wallet.Tracing.Data.LogItem
     ( LogObject (..)
     , PrivacyAnnotation (..)
     , mkLOMeta
     )
-import Cardano.BM.Data.Severity
+import Cardano.Wallet.Tracing.Data.Severity
     ( Severity (..)
     )
-import Cardano.BM.Data.Tracer
+import Cardano.Wallet.Tracing.Data.Tracer
     ( HasPrivacyAnnotation (..)
     , HasSeverityAnnotation (..)
     , ToObject (..)
     , TracingVerbosity (..)
     )
-import Cardano.BM.Trace
+import Cardano.Wallet.Tracing.Trace
     ( Trace
     , appendName
     )

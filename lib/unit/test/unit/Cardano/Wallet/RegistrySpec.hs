@@ -26,7 +26,7 @@ import Cardano.Wallet.Registry
     , workerId
     , workerThread
     )
-import Cardano.BM.Trace
+import Cardano.Wallet.Tracing.Trace
     ( nullTracer
     )
 import Control.Exception.Base

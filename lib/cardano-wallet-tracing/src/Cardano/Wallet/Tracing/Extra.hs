@@ -17,7 +17,7 @@
 -- License: Apache-2.0
 --
 -- This module contains utility functions for logging and mapping trace data.
-module Cardano.BM.Extra
+module Cardano.Wallet.Tracing.Extra
     ( -- * Formatting typed messages as plain text
       transformTextTrace
     , stdoutTextTracer
@@ -45,21 +45,21 @@ module Cardano.BM.Extra
     , flatContramapTracer
     ) where
 
-import Cardano.BM.Data.LogItem
+import Cardano.Wallet.Tracing.Data.LogItem
     ( LOContent (..)
     , LogObject (..)
     , LoggerName
     , mkLOMeta
     )
-import Cardano.BM.Data.Severity
+import Cardano.Wallet.Tracing.Data.Severity
     ( Severity (..)
     )
-import Cardano.BM.Data.Tracer
+import Cardano.Wallet.Tracing.Data.Tracer
     ( HasPrivacyAnnotation (..)
     , HasSeverityAnnotation (..)
     , mkTracer
     )
-import Cardano.BM.Trace
+import Cardano.Wallet.Tracing.Trace
     ( Trace
     )
 import Control.DeepSeq

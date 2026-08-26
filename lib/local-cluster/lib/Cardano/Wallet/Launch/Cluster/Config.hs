@@ -31,7 +31,7 @@ import Cardano.Wallet.Launch.Cluster.Logging
 import Cardano.Wallet.Launch.Cluster.PoolRecipe
     ( PoolRecipe
     )
-import Cardano.BM.Data.Tracer
+import Cardano.Wallet.Tracing.Data.Tracer
     ( Tracer
     )
 import Data.List.NonEmpty

@@ -36,7 +36,7 @@ import Cardano.Wallet.Application.Metrics.Counters
     , nameCounter
     , readCounters
     )
-import Cardano.BM.Data.LogItem
+import Cardano.Wallet.Tracing.Data.LogItem
     ( LOContent (..)
     , LOMeta (..)
     , LogObject (..)
@@ -45,13 +45,13 @@ import Cardano.BM.Data.LogItem
     , PrivacyAnnotation (..)
     , mkLOMeta
     )
-import Cardano.BM.Data.Severity
+import Cardano.Wallet.Tracing.Data.Severity
     ( Severity (..)
     )
-import Cardano.BM.Data.Tracer
+import Cardano.Wallet.Tracing.Data.Tracer
     ( mkTracer
     )
-import Cardano.BM.Trace
+import Cardano.Wallet.Tracing.Trace
     ( Trace
     , appendName
     , traceNamedObject

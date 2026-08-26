@@ -24,17 +24,17 @@ module Network.Wai.Middleware.Logging
     , RequestId (..)
     ) where
 
-import Cardano.BM.Data.LogItem
+import Cardano.Wallet.Tracing.Data.LogItem
     ( PrivacyAnnotation (..)
     )
-import Cardano.BM.Data.Severity
+import Cardano.Wallet.Tracing.Data.Severity
     ( Severity (..)
     )
-import Cardano.BM.Data.Tracer
+import Cardano.Wallet.Tracing.Data.Tracer
     ( HasPrivacyAnnotation (..)
     , HasSeverityAnnotation (..)
     )
-import Cardano.BM.Tracing
+import Cardano.Wallet.Tracing.Tracing
     ( ToObject
     )
 import Control.Applicative
@@ -278,8 +278,8 @@ instance ToText ApiLog where
             <> "] "
             <> toText msg
 
--- These instances are required by the Cardano.BM compatibility layer in
--- iohk-monitoring-extra
+-- These instances are required by the Cardano.Wallet.Tracing compatibility layer in
+-- cardano-wallet-tracing
 instance ToObject ApiLog
 instance FromJSON ApiLog where
     parseJSON _ = fail "FromJSON ApiLog stub"

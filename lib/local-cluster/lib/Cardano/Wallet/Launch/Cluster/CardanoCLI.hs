@@ -29,7 +29,7 @@ import Cardano.Wallet.Launch.Cluster.Config
 import Cardano.Wallet.Launch.Cluster.Logging
     ( ClusterLog (MsgCLI, MsgCLIRetry, MsgCLIRetryResult, MsgCLIStatus)
     )
-import Cardano.BM.Tracing
+import Cardano.Wallet.Tracing.Tracing
     ( Tracer
     , traceWith
     )

@@ -213,13 +213,13 @@ import Cardano.Wallet.Primitive.Types.Tx.TxMeta
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..)
     )
-import Cardano.BM.Data.Tracer
+import Cardano.Wallet.Tracing.Data.Tracer
     ( nullTracer
     )
-import Cardano.BM.Extra
+import Cardano.Wallet.Tracing.Extra
     ( trMessageText
     )
-import Cardano.BM.Trace
+import Cardano.Wallet.Tracing.Trace
     ( Trace
     , traceInTVarIO
     )

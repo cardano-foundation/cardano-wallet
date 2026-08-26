@@ -29,7 +29,7 @@ library
   build-depends:
       base
     , bytestring
-    , iohk-monitoring-extra
+    , cardano-wallet-tracing
     , contra-tracer
     , directory
     , filepath
@@ -76,7 +76,7 @@ test-suite unit
     , bytestring
     , cardano-wallet-launcher
     , cardano-wallet-test-utils
-    , iohk-monitoring-extra
+    , cardano-wallet-tracing
     , contra-tracer
     , fmt
     , hspec

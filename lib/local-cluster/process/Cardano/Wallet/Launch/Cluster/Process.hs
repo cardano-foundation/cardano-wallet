@@ -56,7 +56,7 @@ import Cardano.Wallet.Primitive.NetworkId
     ( NetworkId (..)
     , withSNetworkId
     )
-import Cardano.BM.ToTextTracer
+import Cardano.Wallet.Tracing.ToTextTracer
     ( ToTextTracer (..)
     , logHandleFromFilePath
     , withToTextTracer

@@ -28,7 +28,7 @@ import Cardano.Pool.DB.Properties
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( dummyTimeInterpreter
     )
-import Cardano.BM.Trace
+import Cardano.Wallet.Tracing.Trace
     ( nullTracer
     )
 import System.Directory

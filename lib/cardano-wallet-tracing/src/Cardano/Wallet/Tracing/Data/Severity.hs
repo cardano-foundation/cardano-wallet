@@ -7,7 +7,7 @@
 -- License: Apache-2.0
 --
 -- Severity levels for log messages and traces.
-module Cardano.BM.Data.Severity
+module Cardano.Wallet.Tracing.Data.Severity
     ( Severity (..)
     ) where
 

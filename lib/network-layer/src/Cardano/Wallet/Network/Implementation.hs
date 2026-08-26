@@ -134,14 +134,14 @@ import Cardano.Wallet.Primitive.Types.StakePoolSummary
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..)
     )
-import Cardano.BM.Data.Severity
+import Cardano.Wallet.Tracing.Data.Severity
     ( Severity (..)
     )
-import Cardano.BM.Data.Tracer
+import Cardano.Wallet.Tracing.Data.Tracer
     ( HasPrivacyAnnotation (..)
     , HasSeverityAnnotation (..)
     )
-import Cardano.BM.Extra
+import Cardano.Wallet.Tracing.Extra
     ( BracketLog
     , bracketTracer
     , produceTimings

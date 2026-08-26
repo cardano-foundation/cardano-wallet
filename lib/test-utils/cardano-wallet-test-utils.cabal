@@ -30,7 +30,7 @@ library
   build-depends:
       aeson
     , base
-    , iohk-monitoring-extra
+    , cardano-wallet-tracing
     , containers
     , contra-tracer
     , either

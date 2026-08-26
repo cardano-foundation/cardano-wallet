@@ -1,6 +1,6 @@
 {-# LANGUAGE RankNTypes #-}
 
-module Cardano.BM.ToTextTracer
+module Cardano.Wallet.Tracing.ToTextTracer
     ( ToTextTracer (..)
     , logHandleFromFilePath
     , withFile
@@ -9,12 +9,12 @@ module Cardano.BM.ToTextTracer
     )
 where
 
-import Cardano.BM.Data.Tracer
+import Cardano.Wallet.Tracing.Data.Tracer
     ( HasSeverityAnnotation (..)
     , Tracer
     , mkTracer
     )
-import Cardano.BM.Tracing
+import Cardano.Wallet.Tracing.Tracing
     ( Severity
     )
 import Control.Monad

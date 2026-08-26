@@ -13,11 +13,10 @@ enough information to be able scan the logs and see if the application
 is running normally, or if they need to do some action to fix their
 problem.
 
-[iohk-monitoring-framework]: https://github.com/input-output-hk/iohk-monitoring-framework
 
 ## Logging levels
 
-The [iohk-monitoring-framework][] defines a number of [severity levels](https://github.com/input-output-hk/iohk-monitoring-framework/blob/b0ea8317ba5a887d46969e9b3040862a10e6efb3/iohk-monitoring/src/Cardano/BM/Data/Severity.lhs#L33-L44):
+The wallet's tracing package `cardano-wallet-tracing` defines a number of [severity levels](https://github.com/cardano-foundation/cardano-wallet/blob/master/lib/cardano-wallet-tracing/src/Cardano/Wallet/Tracing/Data/Severity.hs):
 
 
 | **Severity Level** | **Meaning** |
@@ -154,7 +153,7 @@ because error messages can be automatically coloured.
 | **Severity** | **Format** |
 | -- | -- |
 | Debug     | Hidden unless enabled by the user |
-| The rest  | As per defaults for [iohk-monitoring-framework][] |
+| The rest  | As per defaults for `cardano-wallet-tracing` |
 
 The server will support also support a log config file where the
 output location and format can be fully customised.
@@ -199,10 +198,11 @@ to log as micro-benchmarks (`bracketObserveIO`).
 
 ## Privacy
 
-[iohk-monitoring-framework][] provides "sensitive" variants of log
-functions (e.g. `logInfoS`). These allow sensitive information to be
-logged into separate files. Then users may send their logs to the
-technical support desk with a reasonable assurance of privacy.
+The wallet's tracing package `cardano-wallet-tracing` classifies traced
+messages with a privacy annotation (`Confidential` or `Public`).
+Confidential log messages never reach public scribes, so users may send
+their logs to the technical support desk with a reasonable assurance of
+privacy.
 
 **Note**: The privacy guidelines are under discussion. We are
 considering making it simpler and only having two classifications:
@@ -243,8 +243,9 @@ DEBUG messages):
 
 ## Increasing logging detail
 
-[iohk-monitoring-framework][] provides a facility for adjusting log
-levels at runtime on a component by component basis.
+The wallet's tracing package `cardano-wallet-tracing` supports
+per-component severity filters configured at startup (see the
+`--trace-*` command-line options).
 
 However it's probably OK for now to change log levels by restarting
 cardano-wallet with different command-line options.
@@ -279,11 +280,11 @@ Finally, define the metadata which the switchboard needs to route
 these traces.
 
 ```haskell
-import Cardano.BM.Data.LogItem
+import Cardano.Wallet.Tracing.Data.LogItem
     ( LoggerName, PrivacyAnnotation (..) )
-import Cardano.BM.Data.Severity
+import Cardano.Wallet.Tracing.Data.Severity
     ( Severity (..) )
-import Cardano.BM.Data.Tracer
+import Cardano.Wallet.Tracing.Data.Tracer
     ( DefinePrivacyAnnotation (..), DefineSeverity (..) )
 
 -- Everything is public by default
@@ -299,7 +300,7 @@ instance DefineSeverity FooMsg
 To use the logging in the `doFoo` function:
 
 ```haskell
-import Cardano.BM.Trace
+import Cardano.Wallet.Tracing.Trace
     ( Trace )
 import Cardano.Wallet.Logging
     ( logTrace )

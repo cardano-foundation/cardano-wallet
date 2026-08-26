@@ -68,7 +68,7 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..)
     )
-import Cardano.BM.Trace
+import Cardano.Wallet.Tracing.Trace
     ( nullTracer
     )
 import Cardano.Wallet.Unsafe

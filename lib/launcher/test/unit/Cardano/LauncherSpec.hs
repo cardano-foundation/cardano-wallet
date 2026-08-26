@@ -17,10 +17,10 @@ import Cardano.Launcher
     , TimeoutInSecs (TimeoutInSecs)
     , withBackendProcess
     )
-import Cardano.BM.Data.Severity
+import Cardano.Wallet.Tracing.Data.Severity
     ( Severity (Debug)
     )
-import Cardano.BM.ToTextTracer
+import Cardano.Wallet.Tracing.ToTextTracer
     ( ToTextTracer (..)
     , withToTextTracer
     )

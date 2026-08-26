@@ -31,11 +31,11 @@ import Cardano.Wallet.Benchmarks.Collect
     , noSemantic
     , report
     )
-import Cardano.BM.ToTextTracer
+import Cardano.Wallet.Tracing.ToTextTracer
     ( ToTextTracer (ToTextTracer)
     , withToTextTracer
     )
-import Cardano.BM.Tracing
+import Cardano.Wallet.Tracing.Tracing
     ( HasSeverityAnnotation (..)
     , Severity (..)
     )
