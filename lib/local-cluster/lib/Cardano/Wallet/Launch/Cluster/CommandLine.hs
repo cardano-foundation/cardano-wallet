@@ -11,9 +11,6 @@ module Cardano.Wallet.Launch.Cluster.CommandLine
     )
 where
 
-import Cardano.BM.Data.Severity
-    ( Severity
-    )
 import Cardano.Wallet.Launch.Cluster.FileOf
     ( Absolutizer (..)
     , DirOf (..)
@@ -25,6 +22,9 @@ import Cardano.Wallet.Launch.Cluster.Http.Service
     )
 import Cardano.Wallet.Network.Ports
     ( PortNumber
+    )
+import Cardano.BM.Data.Severity
+    ( Severity
     )
 import Control.Monad
     ( unless

@@ -38,21 +38,6 @@ module Cardano.Wallet.DB.LayerSpec
     , withinCopiedFile
     ) where
 
-import Cardano.BM.Configuration.Static
-    ( defaultConfigTesting
-    )
-import Cardano.BM.Data.Tracer
-    ( nullTracer
-    )
-import Cardano.BM.Extra
-    ( trMessageText
-    )
-import Cardano.BM.Setup
-    ( setupTrace
-    )
-import Cardano.BM.Trace
-    ( traceInTVarIO
-    )
 import Cardano.DB.Sqlite
     ( DBLog (..)
     )
@@ -227,6 +212,16 @@ import Cardano.Wallet.Primitive.Types.Tx.TxMeta
     )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..)
+    )
+import Cardano.BM.Data.Tracer
+    ( nullTracer
+    )
+import Cardano.BM.Extra
+    ( trMessageText
+    )
+import Cardano.BM.Trace
+    ( Trace
+    , traceInTVarIO
     )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex
@@ -1123,8 +1118,11 @@ withTestDBFile
     -> (FilePath -> IO a)
     -> IO a
 withTestDBFile action expectations = do
-    logConfig <- defaultConfigTesting
-    trace <- setupTrace (Right logConfig) "connectionSpec"
+    -- NOTE: This used to be @setupTrace (Right =<< defaultConfigTesting)@.
+    -- @defaultConfigTesting@ configured a single @DevNullSK@ scribe, so that
+    -- trace discarded everything it was given; 'nullTracer' preserves the
+    -- behaviour exactly and loses no diagnostics.
+    let trace = nullTracer :: Trace IO Text
     withSystemTempFile "spec.db" $ \fp h -> do
         hClose h
         removeFile fp

@@ -10,13 +10,13 @@ module System.IO.Temp.Extra
     , TempDirLog (..)
     ) where
 
+import Cardano.BM.Data.Tracer
+    ( Tracer
+    )
 import Cardano.BM.Extra
     ( BracketLog
     , BracketLog' (BracketStart)
     , bracketTracer
-    )
-import Cardano.BM.Tracer
-    ( Tracer
     )
 import Cardano.BM.Tracing
     ( HasPrivacyAnnotation

@@ -1,7 +1,7 @@
 cabal-version: 3.0
 name:          iohk-monitoring-extra
 version:       0.2026.8.21
-synopsis:      Extra functionality extending the iohk monitoring package
+synopsis:      Wallet-owned tracing and monitoring compatibility layer
 license:       Apache-2.0
 license-file:  LICENSE
 author:        Cardano Foundation (High Assurance Lab)
@@ -26,24 +26,28 @@ library
 
   hs-source-dirs:     src
   exposed-modules:
+    Cardano.BM.Data.LogItem
+    Cardano.BM.Data.Severity
+    Cardano.BM.Data.Tracer
     Cardano.BM.Extra
     Cardano.BM.ToTextTracer
+    Cardano.BM.Trace
+    Cardano.BM.Tracing
 
   build-depends:
     , aeson
     , base
     , bytestring
+    , containers
     , contra-tracer
     , deepseq
     , exceptions
     , filepath
     , fmt
-    , iohk-monitoring
     , stm
     , text
     , text-class
     , time
-    , tracer-transformers
     , transformers
     , unliftio
     , unliftio-core

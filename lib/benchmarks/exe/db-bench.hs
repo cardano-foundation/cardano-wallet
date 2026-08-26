@@ -49,17 +49,6 @@ import Cardano.Address.Derivation
     ( XPub
     , xpubFromBytes
     )
-import Cardano.BM.Data.Severity
-    ( Severity (..)
-    )
-import Cardano.BM.Data.Tracer
-    ( Tracer
-    , filterSeverity
-    )
-import Cardano.BM.ToTextTracer
-    ( ToTextTracer (..)
-    , withToTextTracer
-    )
 import Cardano.DB.Sqlite
     ( SqliteContext (..)
     )
@@ -219,6 +208,17 @@ import Cardano.Wallet.Primitive.Types.Tx.TxOut
     )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..)
+    )
+import Cardano.BM.Data.Severity
+    ( Severity (..)
+    )
+import Cardano.BM.Data.Tracer
+    ( Tracer
+    , filterSeverity
+    )
+import Cardano.BM.ToTextTracer
+    ( ToTextTracer (..)
+    , withToTextTracer
     )
 import Cardano.Wallet.Unsafe
     ( someDummyMnemonic

@@ -11,7 +11,8 @@ where
 
 import Cardano.BM.Data.Tracer
     ( HasSeverityAnnotation (..)
-    , Tracer (Tracer)
+    , Tracer
+    , mkTracer
     )
 import Cardano.BM.Tracing
     ( Severity
@@ -103,7 +104,7 @@ withToTextTracer mClusterLogsFile minSeverity = do
                 <> "] "
                 <> x
     ContT $ \k -> do
-        r <- k $ ToTextTracer $ Tracer $ \msg -> do
+        r <- k $ ToTextTracer $ mkTracer $ \msg -> do
             let severity = getSeverityAnnotation msg
             unless (Just severity < minSeverity) $ do
                 t <- getCurrentTime

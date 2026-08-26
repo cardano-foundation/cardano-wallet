@@ -6,9 +6,6 @@ module Cardano.Wallet.Launch.Cluster.PoolMetadataServer
     )
 where
 
-import Cardano.BM.Tracing
-    ( traceWith
-    )
 import Cardano.Wallet.Launch.Cluster.ClusterM
     ( ClusterM
     , UnliftClusterM (UnliftClusterM)
@@ -23,6 +20,9 @@ import Cardano.Wallet.Launch.Cluster.FileOf
     )
 import Cardano.Wallet.Launch.Cluster.Logging
     ( ClusterLog (MsgRegisteringPoolMetadata)
+    )
+import Cardano.BM.Tracing
+    ( traceWith
     )
 import Control.Monad.Reader
     ( MonadIO (..)

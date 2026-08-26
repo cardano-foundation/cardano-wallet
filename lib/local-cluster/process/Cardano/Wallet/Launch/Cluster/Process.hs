@@ -17,11 +17,6 @@ module Cardano.Wallet.Launch.Cluster.Process
     , waitForRunningNode
     ) where
 
-import Cardano.BM.ToTextTracer
-    ( ToTextTracer (..)
-    , logHandleFromFilePath
-    , withToTextTracer
-    )
 import Cardano.Launcher
     ( Command (..)
     , IfToSendSigINT (..)
@@ -60,6 +55,11 @@ import Cardano.Wallet.Network.Ports
 import Cardano.Wallet.Primitive.NetworkId
     ( NetworkId (..)
     , withSNetworkId
+    )
+import Cardano.BM.ToTextTracer
+    ( ToTextTracer (..)
+    , logHandleFromFilePath
+    , withToTextTracer
     )
 import Control.Monad
     ( forM_

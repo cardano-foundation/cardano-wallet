@@ -28,7 +28,6 @@ library
   exposed-modules:    System.IO.Temp.Extra
   build-depends:
     , base
-    , iohk-monitoring
     , iohk-monitoring-extra
     , temporary
     , text

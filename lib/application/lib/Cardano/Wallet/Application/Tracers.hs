@@ -18,21 +18,6 @@ module Cardano.Wallet.Application.Tracers
     , nullTracers
     ) where
 
-import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation
-    , HasSeverityAnnotation
-    , filterSeverity
-    )
-import Cardano.BM.Extra
-    ( trMessageText
-    )
-import Cardano.BM.Tracing
-    ( Severity (..)
-    , Trace
-    , Tracer
-    , appendName
-    , nullTracer
-    )
 import Cardano.Pool.DB.Log
     ( PoolDbLog
     )
@@ -53,6 +38,21 @@ import Cardano.Wallet.Shelley.Network
     )
 import Cardano.Wallet.TokenMetadata
     ( TokenMetadataLog
+    )
+import Cardano.BM.Data.Tracer
+    ( HasPrivacyAnnotation
+    , HasSeverityAnnotation
+    , filterSeverity
+    )
+import Cardano.BM.Extra
+    ( trMessageText
+    )
+import Cardano.BM.Tracing
+    ( Severity (..)
+    , Trace
+    , Tracer
+    , appendName
+    , nullTracer
     )
 import Control.Applicative
     ( Const (..)

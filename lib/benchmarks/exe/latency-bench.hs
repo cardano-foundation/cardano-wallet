@@ -15,24 +15,6 @@ module Main where
 import Cardano.Address.Style.Shelley
     ( shelleyTestnet
     )
-import Cardano.BM.Data.Severity
-    ( Severity (Error)
-    )
-import Cardano.BM.Data.Tracer
-    ( filterSeverity
-    )
-import Cardano.BM.Extra
-    ( stdoutTextTracer
-    , trMessage
-    )
-import Cardano.BM.ToTextTracer
-    ( ToTextTracer (..)
-    , overToTextTracer
-    , withToTextTracer
-    )
-import Cardano.BM.Trace
-    ( traceInTVarIO
-    )
 import Cardano.Ledger.BaseTypes
     ( unsafeNonZero
     )
@@ -147,6 +129,24 @@ import Cardano.Wallet.Primitive.Types.Coin
     )
 import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..)
+    )
+import Cardano.BM.Data.Severity
+    ( Severity (Error)
+    )
+import Cardano.BM.Data.Tracer
+    ( filterSeverity
+    )
+import Cardano.BM.Extra
+    ( stdoutTextTracer
+    , trMessage
+    )
+import Cardano.BM.ToTextTracer
+    ( ToTextTracer (..)
+    , overToTextTracer
+    , withToTextTracer
+    )
+import Cardano.BM.Trace
+    ( traceInTVarIO
     )
 import Cardano.Wallet.Unsafe
     ( unsafeFromText

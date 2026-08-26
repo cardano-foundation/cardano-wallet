@@ -6,12 +6,12 @@ module Cardano.Wallet.Launch.Cluster.Http.Logging
     )
 where
 
+import Cardano.Wallet.Launch.Cluster.Http.Client
+    ( MsgClient
+    )
 import Cardano.BM.Tracing
     ( HasSeverityAnnotation (..)
     , Severity (..)
-    )
-import Cardano.Wallet.Launch.Cluster.Http.Client
-    ( MsgClient
     )
 import Data.Text.Class
     ( ToText (..)

@@ -74,6 +74,7 @@ library
     , cardano-wallet-launcher
     , cardano-wallet-read
     , cardano-wallet-test-utils
+    , iohk-monitoring-extra
     , cborg
     , commutative-semigroups
     , containers
@@ -89,7 +90,6 @@ library
     , generics-sop
     , hashable
     , int-cast
-    , iohk-monitoring
     , lattices
     , lens
     , memory
@@ -249,6 +249,7 @@ test-suite test
     , cardano-slotting
     , cardano-wallet-primitive
     , cardano-wallet-test-utils
+    , iohk-monitoring-extra
     , containers
     , crypto-primitives
     , deepseq
@@ -260,7 +261,6 @@ test-suite test
     , generic-lens
     , hspec
     , hspec-core
-    , iohk-monitoring
     , lens
     , memory
     , ouroboros-consensus

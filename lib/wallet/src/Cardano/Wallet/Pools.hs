@@ -40,13 +40,6 @@ module Cardano.Wallet.Pools
     )
 where
 
-import Cardano.BM.Data.Severity
-    ( Severity (..)
-    )
-import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation (..)
-    , HasSeverityAnnotation (..)
-    )
 import Cardano.Pool.DB
     ( DBLayer (..)
     , ErrPointAlreadyExists (..)
@@ -131,6 +124,13 @@ import Cardano.Wallet.Primitive.Types.Hash
 import Cardano.Wallet.Registry
     ( AfterThreadLog
     , traceAfterThread
+    )
+import Cardano.BM.Data.Severity
+    ( Severity (..)
+    )
+import Cardano.BM.Data.Tracer
+    ( HasPrivacyAnnotation (..)
+    , HasSeverityAnnotation (..)
     )
 import Cardano.Wallet.Unsafe
     ( unsafeMkPercentage

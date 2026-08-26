@@ -115,6 +115,7 @@ library
     , cardano-wallet-launcher
     , cardano-wallet-primitive
     , cardano-wallet-test-utils
+    , iohk-monitoring-extra
     , cborg
     , comonad
     , containers
@@ -131,8 +132,6 @@ library
     , insert-ordered-containers
     , int-cast
     , io-classes
-    , iohk-monitoring
-    , iohk-monitoring-extra
     , lens
     , lens-aeson
     , machines
@@ -184,11 +183,11 @@ library local-cluster-process
     , cardano-wallet-application-extras
     , cardano-wallet-launcher
     , cardano-wallet-primitive
+    , iohk-monitoring-extra
     , contra-tracer
     , directory
     , extra
     , filepath
-    , iohk-monitoring-extra
     , local-cluster
     , mtl
     , pathtype
@@ -207,11 +206,11 @@ executable local-cluster
     , cardano-wallet-application-extras
     , cardano-wallet-launcher
     , cardano-wallet-primitive
+    , iohk-monitoring-extra
     , contra-tracer
     , directory
     , extra
     , filepath
-    , iohk-monitoring-extra
     , lens
     , local-cluster
     , mtl
@@ -247,13 +246,13 @@ common test-common
     , cardano-wallet-primitive
     , cardano-wallet-read
     , cardano-wallet-test-utils
+    , iohk-monitoring-extra
     , containers
     , contra-tracer
     , extra
     , foldl
     , hspec
     , hspec-golden
-    , iohk-monitoring-extra
     , local-cluster
     , local-cluster:local-cluster-process
     , mtl

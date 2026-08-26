@@ -22,24 +22,6 @@
 -- and can be run "offline".
 module Main where
 
-import Cardano.BM.Data.Severity
-    ( Severity (..)
-    )
-import Cardano.BM.Extra
-    ( trMessage
-    , transformTextTrace
-    )
-import Cardano.BM.Plugin
-    ( loadPlugin
-    )
-import Cardano.BM.Trace
-    ( Trace
-    , appendName
-    , logDebug
-    , logError
-    , logInfo
-    , logNotice
-    )
 import Cardano.Launcher.Node
     ( CardanoNodeConn
     )
@@ -79,7 +61,6 @@ import Cardano.Wallet.Application.CLI
     , cmdWallet
     , cmdWalletCreate
     , databaseOption
-    , ekgEnabled
     , enableWindowsANSI
     , helperTracing
     , hostPreferenceOption
@@ -130,6 +111,21 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..)
     )
+import Cardano.BM.Data.Severity
+    ( Severity (..)
+    )
+import Cardano.BM.Extra
+    ( trMessage
+    , transformTextTrace
+    )
+import Cardano.BM.Trace
+    ( Trace
+    , appendName
+    , logDebug
+    , logError
+    , logInfo
+    , logNotice
+    )
 import Control.Applicative
     ( Const (..)
     , optional
@@ -139,7 +135,6 @@ import Control.Exception.Base
     )
 import Control.Monad
     ( void
-    , when
     )
 import Control.Monad.Trans.Except
     ( runExceptT
@@ -192,7 +187,6 @@ import "optparse-applicative" Options.Applicative
     )
 import Prelude
 
-import qualified Cardano.BM.Backend.EKGView as EKG
 import qualified Cardano.Wallet.Application.Version as V
 import qualified Data.Text as T
 import qualified System.Info as I
@@ -381,8 +375,7 @@ withTracers
     -> (Trace IO MainLog -> Tracers IO -> IO a)
     -> IO a
 withTracers logOpt action =
-    withLogging [LogToStdStreams (loggingMinSeverity logOpt)] $ \(sb, (cfg, tr)) -> do
-        ekgEnabled >>= flip when (EKG.plugin cfg tr sb >>= loadPlugin sb)
+    withLogging [LogToStdStreams (loggingMinSeverity logOpt)] $ \tr -> do
         let trMain = appendName "main" (transformTextTrace tr)
         let tracers = setupTracers (loggingTracers logOpt) tr
         logInfo trMain $ MsgVersion V.version V.gitRevision I.arch I.os

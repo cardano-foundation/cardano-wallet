@@ -18,17 +18,6 @@ module Cardano.Wallet.Launch.Cluster.Logging
     )
 where
 
-import Cardano.BM.Extra
-    ( BracketLog
-    , bracketTracer
-    )
-import Cardano.BM.Tracing
-    ( HasPrivacyAnnotation
-    , HasSeverityAnnotation (..)
-    , Severity (..)
-    , Tracer
-    , contramap
-    )
 import Cardano.Launcher
     ( LauncherLog
     )
@@ -44,6 +33,17 @@ import Cardano.Wallet.Launch.Cluster.FileOf
     , FileOf (..)
     , RelDirOf (..)
     , absolutize
+    )
+import Cardano.BM.Extra
+    ( BracketLog
+    , bracketTracer
+    )
+import Cardano.BM.Tracing
+    ( HasPrivacyAnnotation
+    , HasSeverityAnnotation (..)
+    , Severity (..)
+    , Tracer
+    , contramap
     )
 import Data.Char
     ( toLower

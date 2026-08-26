@@ -64,10 +64,9 @@ benchmark memory
     , cardano-wallet-benchmarks
     , cardano-wallet-blackbox-benchmarks
     , cardano-wallet-launcher
+    , iohk-monitoring-extra
     , contra-tracer
     , filepath
-    , iohk-monitoring
-    , iohk-monitoring-extra
     , mtl
     , optparse-applicative
     , process

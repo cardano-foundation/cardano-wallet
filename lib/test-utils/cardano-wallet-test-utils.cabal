@@ -30,6 +30,7 @@ library
   build-depends:
       aeson
     , base
+    , iohk-monitoring-extra
     , containers
     , contra-tracer
     , either
@@ -45,7 +46,6 @@ library
     , http-api-data
     , HUnit
     , int-cast
-    , iohk-monitoring
     , lattices
     , monoid-subclasses
     , optparse-applicative

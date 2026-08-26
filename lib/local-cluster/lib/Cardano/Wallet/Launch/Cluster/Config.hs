@@ -11,9 +11,6 @@ module Cardano.Wallet.Launch.Cluster.Config
     )
 where
 
-import Cardano.BM.Tracer
-    ( Tracer
-    )
 import Cardano.Ledger.Shelley.API
     ( ShelleyGenesis
     )
@@ -33,6 +30,9 @@ import Cardano.Wallet.Launch.Cluster.Logging
     )
 import Cardano.Wallet.Launch.Cluster.PoolRecipe
     ( PoolRecipe
+    )
+import Cardano.BM.Data.Tracer
+    ( Tracer
     )
 import Data.List.NonEmpty
     ( NonEmpty

@@ -45,9 +45,9 @@ library
     , base
     , binary
     , bytestring
+    , iohk-monitoring-extra
     , contra-tracer
     , http-types
-    , iohk-monitoring
     , servant-server
     , text
     , text-class
@@ -70,11 +70,11 @@ test-suite unit
     , base
     , bytestring
     , cardano-wallet-test-utils
+    , iohk-monitoring-extra
     , contra-tracer
     , hspec
     , http-client
     , http-types
-    , iohk-monitoring
     , network
     , QuickCheck
     , servant-server

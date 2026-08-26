@@ -9,13 +9,6 @@ module Cardano.Wallet.Primitive.SlottingSpec
     ( spec
     ) where
 
-import Cardano.BM.Data.Severity
-    ( Severity (..)
-    )
-import Cardano.BM.Data.Tracer
-    ( HasSeverityAnnotation (..)
-    , nullTracer
-    )
 import Cardano.Ledger.BaseTypes
     ( unsafeNonZero
     )
@@ -68,6 +61,13 @@ import Cardano.Wallet.Primitive.Types.SlottingParameters
 import Cardano.Wallet.Primitive.Types.SlottingParameters.Gen
     ( genActiveSlotCoefficient
     , shrinkActiveSlotCoefficient
+    )
+import Cardano.BM.Data.Severity
+    ( Severity (..)
+    )
+import Cardano.BM.Data.Tracer
+    ( HasSeverityAnnotation (..)
+    , nullTracer
     )
 import Control.Monad.Trans.Except
     ( runExceptT

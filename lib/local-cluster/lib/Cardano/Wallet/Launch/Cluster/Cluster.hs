@@ -16,9 +16,6 @@ module Cardano.Wallet.Launch.Cluster.Cluster
 import Cardano.Address
     ( Address (..)
     )
-import Cardano.BM.Data.Severity
-    ( Severity (..)
-    )
 import Cardano.Launcher
     ( ProcessHasExited (..)
     )
@@ -81,6 +78,9 @@ import Cardano.Wallet.Primitive.Types.Coin
     )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..)
+    )
+import Cardano.BM.Data.Severity
+    ( Severity (..)
     )
 import Cardano.Wallet.Util
     ( HasCallStack

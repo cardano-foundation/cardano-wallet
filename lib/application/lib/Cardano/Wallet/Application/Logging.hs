@@ -5,18 +5,18 @@ module Cardano.Wallet.Application.Logging
     ( ApplicationLog (..)
     ) where
 
+import Cardano.Wallet.Api.Http.Logging
+    ( ApiApplicationLog
+    )
+import Cardano.Wallet.Application.Server
+    ( ListenError
+    )
 import Cardano.BM.Data.Severity
     ( Severity (..)
     )
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation
     , HasSeverityAnnotation (..)
-    )
-import Cardano.Wallet.Api.Http.Logging
-    ( ApiApplicationLog
-    )
-import Cardano.Wallet.Application.Server
-    ( ListenError
     )
 import Data.Text.Class
     ( ToText (..)

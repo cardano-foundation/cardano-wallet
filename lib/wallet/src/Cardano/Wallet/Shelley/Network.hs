@@ -12,11 +12,6 @@ module Cardano.Wallet.Shelley.Network
     , NetworkLayerLog (..)
     ) where
 
-import Cardano.BM.Tracing
-    ( HasPrivacyAnnotation
-    , HasSeverityAnnotation (..)
-    , Tracer
-    )
 import Cardano.Wallet.Network
     ( NetworkLayer
     )
@@ -35,6 +30,11 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..)
+    )
+import Cardano.BM.Tracing
+    ( HasPrivacyAnnotation
+    , HasSeverityAnnotation (..)
+    , Tracer
     )
 import Control.Monad.Trans.Cont
     ( ContT (ContT)

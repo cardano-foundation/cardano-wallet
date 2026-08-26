@@ -39,18 +39,6 @@ import Cardano.Api
     , NodeToClientVersion (..)
     , SlotNo (..)
     )
-import Cardano.BM.Data.Severity
-    ( Severity (..)
-    )
-import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation (..)
-    , HasSeverityAnnotation (..)
-    )
-import Cardano.BM.Extra
-    ( BracketLog
-    , bracketTracer
-    , produceTimings
-    )
 import Cardano.Balance.Tx.Eras
     ( MaybeInRecentEra (..)
     )
@@ -145,6 +133,18 @@ import Cardano.Wallet.Primitive.Types.StakePoolSummary
     )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..)
+    )
+import Cardano.BM.Data.Severity
+    ( Severity (..)
+    )
+import Cardano.BM.Data.Tracer
+    ( HasPrivacyAnnotation (..)
+    , HasSeverityAnnotation (..)
+    )
+import Cardano.BM.Extra
+    ( BracketLog
+    , bracketTracer
+    , produceTimings
     )
 import Control.Concurrent.Class.MonadSTM
     ( MonadSTM

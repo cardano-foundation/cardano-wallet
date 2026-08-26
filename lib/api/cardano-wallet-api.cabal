@@ -54,6 +54,7 @@ library
     , cardano-wallet-primitive
     , cardano-wallet-read
     , cardano-wallet-secrets
+    , iohk-monitoring-extra
     , containers
     , contra-tracer
     , crypto-primitives
@@ -68,7 +69,6 @@ library
     , http-media
     , http-types
     , int-cast
-    , iohk-monitoring
     , memory
     , mtl
     , network-uri

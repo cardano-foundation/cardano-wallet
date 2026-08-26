@@ -43,20 +43,6 @@ module Main where
 import Cardano.Address.Derivation
     ( XPrv
     )
-import Cardano.BM.Data.Severity
-    ( Severity (..)
-    )
-import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation (..)
-    , HasSeverityAnnotation (..)
-    )
-import Cardano.BM.Extra
-    ( trMessageText
-    )
-import Cardano.BM.Trace
-    ( Trace
-    , nullTracer
-    )
 import Cardano.Launcher.Node
     ( CardanoNodeConn
     )
@@ -228,6 +214,20 @@ import Cardano.Wallet.Primitive.Types.UTxOStatistics
     )
 import Cardano.Wallet.Shelley.Transaction
     ( newTransactionLayer
+    )
+import Cardano.BM.Data.Severity
+    ( Severity (..)
+    )
+import Cardano.BM.Data.Tracer
+    ( HasPrivacyAnnotation (..)
+    , HasSeverityAnnotation (..)
+    )
+import Cardano.BM.Extra
+    ( trMessageText
+    )
+import Cardano.BM.Trace
+    ( Trace
+    , nullTracer
     )
 import Cardano.Wallet.Transaction
     ( PreSelection (..)
@@ -520,7 +520,7 @@ cardanoRestoreBench
     -> IO ()
 cardanoRestoreBench bn ttr tr c socketFile = do
     (networkId, np, vData, _b) <- unsafeRunExceptT $ parseGenesisData c
-    (_, walletTr) <- initBenchmarkLogging "wallet" Notice
+    walletTr <- initBenchmarkLogging "wallet" Notice
 
     withSNetworkId networkId $ \(sNetwork :: SNetworkId n) -> do
         let network = networkDiscriminantVal sNetwork

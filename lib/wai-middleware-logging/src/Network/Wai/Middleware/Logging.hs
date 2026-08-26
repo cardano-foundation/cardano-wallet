@@ -278,7 +278,8 @@ instance ToText ApiLog where
             <> "] "
             <> toText msg
 
--- These instance are required by iohk-monitoring
+-- These instances are required by the Cardano.BM compatibility layer in
+-- iohk-monitoring-extra
 instance ToObject ApiLog
 instance FromJSON ApiLog where
     parseJSON _ = fail "FromJSON ApiLog stub"

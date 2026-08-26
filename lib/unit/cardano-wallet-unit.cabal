@@ -97,6 +97,7 @@ test-suite unit
     , cardano-wallet-read
     , cardano-wallet-secrets
     , cardano-wallet-test-utils
+    , iohk-monitoring-extra
     , cardano-wallet-unit:test-common
     , cardano-wallet:mock-token-metadata
     , cborg
@@ -131,8 +132,6 @@ test-suite unit
     , io-classes
     , io-classes:si-timers
     , io-sim
-    , iohk-monitoring
-    , iohk-monitoring-extra
     , lattices
     , lens
     , local-cluster
@@ -213,6 +212,7 @@ test-suite unit
     Cardano.Wallet.Api.ServerSpec
     Cardano.Wallet.Api.TypesSpec
     Cardano.Wallet.ApiSpec
+    Cardano.Wallet.Application.MonitoringSpec
     Cardano.Wallet.Balance.Migration.PlanningSpec
     Cardano.Wallet.Balance.Migration.SelectionSpec
     Cardano.Wallet.Balance.MigrationSpec

@@ -12,6 +12,9 @@ module Cardano.Wallet.Api.Http.Logging
     ( ApiApplicationLog (..)
     ) where
 
+import Cardano.Launcher.Node
+    ( CardanoNodeConn
+    )
 import Cardano.BM.Data.Tracer
     ( getSeverityAnnotation
     )
@@ -19,9 +22,6 @@ import Cardano.BM.Tracing
     ( HasPrivacyAnnotation
     , HasSeverityAnnotation
     , Severity (..)
-    )
-import Cardano.Launcher.Node
-    ( CardanoNodeConn
     )
 import Control.Exception
     ( SomeException

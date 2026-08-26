@@ -6,13 +6,6 @@
 
 module Cardano.Wallet.Shelley.NetworkSpec (spec) where
 
-import Cardano.BM.Data.Severity
-    ( Severity (..)
-    )
-import Cardano.BM.Trace
-    ( nullTracer
-    , traceInTVarIO
-    )
 import Cardano.Launcher.Node
     ( CardanoNodeConn
     , isWindows
@@ -60,6 +53,13 @@ import Cardano.Wallet.Primitive.SyncProgress
     )
 import Cardano.Wallet.Primitive.Types
     ( NetworkParameters (..)
+    )
+import Cardano.BM.Data.Severity
+    ( Severity (..)
+    )
+import Cardano.BM.Trace
+    ( nullTracer
+    , traceInTVarIO
     )
 import Control.Exception
     ( finally

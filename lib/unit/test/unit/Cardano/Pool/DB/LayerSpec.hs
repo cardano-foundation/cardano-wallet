@@ -10,9 +10,6 @@ module Cardano.Pool.DB.LayerSpec
     ( spec
     ) where
 
-import Cardano.BM.Trace
-    ( nullTracer
-    )
 import Cardano.DB.Sqlite
     ( DBLog (..)
     )
@@ -30,6 +27,9 @@ import Cardano.Pool.DB.Properties
     )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( dummyTimeInterpreter
+    )
+import Cardano.BM.Trace
+    ( nullTracer
     )
 import System.Directory
     ( copyFile

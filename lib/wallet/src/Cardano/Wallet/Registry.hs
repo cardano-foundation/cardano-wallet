@@ -35,6 +35,10 @@ module Cardano.Wallet.Registry
     , traceAfterThread
     ) where
 
+import Cardano.Wallet
+    ( HasLogger
+    , logger
+    )
 import Cardano.BM.Data.Severity
     ( Severity (..)
     )
@@ -44,10 +48,6 @@ import Cardano.BM.Data.Tracer
     )
 import Cardano.BM.Extra
     ( LoggedException (..)
-    )
-import Cardano.Wallet
-    ( HasLogger
-    , logger
     )
 import Control.Monad
     ( void

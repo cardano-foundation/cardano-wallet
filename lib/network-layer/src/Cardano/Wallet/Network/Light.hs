@@ -17,13 +17,6 @@ module Cardano.Wallet.Network.Light
     , LightLayerLog (..)
     ) where
 
-import Cardano.BM.Data.Severity
-    ( Severity (..)
-    )
-import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation (..)
-    , HasSeverityAnnotation (..)
-    )
 import Cardano.Wallet.Network
     ( ChainFollower (..)
     )
@@ -34,6 +27,13 @@ import Cardano.Wallet.Primitive.Types.Block
     )
 import Cardano.Wallet.Primitive.Types.BlockSummary
     ( BlockSummary (..)
+    )
+import Cardano.BM.Data.Severity
+    ( Severity (..)
+    )
+import Cardano.BM.Data.Tracer
+    ( HasPrivacyAnnotation (..)
+    , HasSeverityAnnotation (..)
     )
 import Control.Monad.Class.MonadTimer
     ( MonadDelay (..)

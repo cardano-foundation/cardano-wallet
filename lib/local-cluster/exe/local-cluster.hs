@@ -2,10 +2,6 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 
-import Cardano.BM.ToTextTracer
-    ( ToTextTracer (..)
-    , withToTextTracer
-    )
 import Cardano.Launcher.Node
     ( isWindows
     , mkWindowsPipeName
@@ -49,6 +45,10 @@ import Cardano.Wallet.Launch.Cluster.Monitoring.Phase
 import Cardano.Wallet.Primitive.NetworkId
     ( NetworkId (..)
     , withSNetworkId
+    )
+import Cardano.BM.ToTextTracer
+    ( ToTextTracer (..)
+    , withToTextTracer
     )
 import Control.Exception
     ( bracket
