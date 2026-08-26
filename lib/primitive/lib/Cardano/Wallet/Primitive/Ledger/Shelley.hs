@@ -296,7 +296,8 @@ import qualified Cardano.Ledger.Dijkstra as Ledger.Dijkstra
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Ledger.Shelley.API as SLAPI
 import qualified Cardano.Ledger.State as Ledger
-import qualified Cardano.Protocol.TPraos.BHeader as SL
+import qualified Cardano.Protocol.Praos.BlockHeader as Consensus
+import qualified Cardano.Protocol.TPraos.BlockHeader as SL
 import qualified Cardano.Slotting.Slot as Slotting
 import qualified Cardano.Wallet.Primitive.Ledger.Convert as Ledger
 import qualified Cardano.Wallet.Primitive.Slotting as W
@@ -344,7 +345,6 @@ import qualified Data.Set as Set
 import qualified GHC.IsList as GHC
 import qualified GHC.IsList as IsList
 import qualified Ouroboros.Consensus.Protocol.Praos as Consensus
-import qualified Ouroboros.Consensus.Protocol.Praos.Header as Consensus
 import qualified Ouroboros.Consensus.Protocol.TPraos as Consensus
 import qualified Ouroboros.Consensus.Shelley.Ledger as O
 import qualified Ouroboros.Network.Block as O
