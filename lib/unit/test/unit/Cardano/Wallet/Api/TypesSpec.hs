@@ -536,7 +536,8 @@ import Data.Function
     ( (&)
     )
 import Data.List
-    ( intercalate
+    ( foldl'
+    , intercalate
     )
 import Data.List.NonEmpty
     ( NonEmpty (..)

@@ -1256,6 +1256,13 @@ binaryCalculationsSpec' era = describe ("calculateBinary - " +|| era ||+ "") $ d
   where
     slotNo = SlotNo 7_750
     md = Nothing
+    calculateBinary
+        :: Cardano.NetworkId
+        -> UTxO
+        -> [TxOut]
+        -> [TxOut]
+        -> [(XPrv, Passphrase "encryption")]
+        -> ByteString
     calculateBinary net utxo outs chgs pairs =
         cardanoApiEraConstraints era $ hex (Cardano.serialiseToCBOR ledgerTx)
       where

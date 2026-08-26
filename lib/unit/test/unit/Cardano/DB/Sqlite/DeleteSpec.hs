@@ -17,7 +17,8 @@ import Control.Retry
     , limitRetries
     )
 import Control.Tracer
-    ( Tracer (..)
+    ( Tracer
+    , mkTracer
     )
 import Test.Hspec
     ( Spec
@@ -172,7 +173,7 @@ refCountTracer
     :: (DeleteDiagnostic -> IO ())
     -> Int
     -> Tracer IO (Maybe Int)
-refCountTracer publish resourceId = Tracer $ \count ->
+refCountTracer publish resourceId = mkTracer $ \count ->
     publish
         $ diagnostic
             resourceId
