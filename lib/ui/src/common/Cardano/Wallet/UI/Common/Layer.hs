@@ -75,6 +75,7 @@ import UnliftIO.STM
     )
 import Prelude
 
+import qualified Control.Tracer.Arrow as TA
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Map.Strict as Map
 
@@ -174,6 +175,7 @@ mkUILayer throttling oobChan sessions' s0 = UILayer{..}
   where
     oobMessages =
         Tracer
+            $ TA.emit
             $ throttling
                 . atomically
                 . writeTChan oobChan
@@ -189,7 +191,7 @@ mkUILayer throttling oobChan sessions' s0 = UILayer{..}
                 modifyTVar sessions' $ Map.insert sid session
                 pure session
 
-    signals = Tracer $ \case
+    signals = Tracer $ TA.emit $ \case
         NewTip -> throttling $ do
             sessions'' <- readTVarIO sessions'
             forM_ (Map.elems sessions'') $ \s -> do
