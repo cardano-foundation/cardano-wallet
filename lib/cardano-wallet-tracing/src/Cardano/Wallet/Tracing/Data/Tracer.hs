@@ -76,10 +76,18 @@ import qualified Data.Text.Lazy as TL
 -- | The single constructor helper for 'Tracer' values. Every tracer
 -- construction site in the wallet must route through this function so that
 -- both @contra-tracer-0.1@ and @>= 0.2@ are supported from one place.
-mkTracer :: (a -> m ()) -> Tracer m a
+--
+-- The signature is CPP-guarded alongside the body because the two arms have
+-- genuinely different types: @>= 0.2@ builds through
+-- 'Control.Tracer.Arrow.emit', which requires @Applicative m@, while the
+-- 0.1 constructor takes the function directly and does not. A single shared
+-- signature cannot satisfy both -- the constraint is required on one arm and
+-- reported as redundant (and thus fatal under -Werror) on the other.
 #if MIN_VERSION_contra_tracer(0,2,0)
+mkTracer :: Applicative m => (a -> m ()) -> Tracer m a
 mkTracer f = Tracer (TA.emit f)
 #else
+mkTracer :: (a -> m ()) -> Tracer m a
 mkTracer f = Tracer f
 #endif
 
