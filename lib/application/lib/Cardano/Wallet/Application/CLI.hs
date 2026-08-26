@@ -2171,8 +2171,8 @@ withLoggingNamed loggerName outputs action = bracket before after (\(_, tr) -> a
         Monitoring.initTracer
             loggerName
             outputs
-            ((\(h, p) -> (h, getPort p)) <$> ekgHP)
-            ((\(h, p) -> (h, getPort p)) <$> prometheusHP)
+            (Bi.second getPort <$> ekgHP)
+            (Bi.second getPort <$> prometheusHP)
     after (shutdown, tr) = do
         logDebug (appendName "main" tr) "Logging shutdown."
         shutdown
