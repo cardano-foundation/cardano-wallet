@@ -136,13 +136,19 @@ library
     , text
     , text-class
     , time
-    , unix
     , unliftio
     , unordered-containers
     , wai
     , wai-middleware-logging
     , warp
     , warp-tls
+
+  -- Counters.hs reads /proc and imports System.Posix only under
+  -- linux_HOST_OS, so the dependency is Linux-only. Declaring it
+  -- unconditionally breaks Windows cross-compilation and trips
+  -- -Wunused-packages elsewhere.
+  if os(linux)
+    build-depends: unix
 
   exposed-modules:
     Cardano.Wallet.Application.CLI

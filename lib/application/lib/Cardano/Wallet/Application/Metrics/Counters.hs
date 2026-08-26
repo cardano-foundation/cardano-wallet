@@ -1,7 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 -- |
@@ -338,7 +337,7 @@ readProcIO pid = do
 
 -- | Read net stats from @/proc/pid/net/netstat@.
 readProcNet :: ProcessID -> IO [Counter]
-readProcNet pid = do
+readProcNet pid = handle (\(_ :: IOException) -> return []) $ do
     fields <- T.words . fourthLine . T.lines <$> T.readFile (pathProcNet pid)
     case
         fmap readMaybeText $ take 2 $ drop 7 fields of

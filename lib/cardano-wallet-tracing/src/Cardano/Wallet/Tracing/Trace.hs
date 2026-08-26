@@ -1,5 +1,4 @@
 {-# LANGUAGE ConstraintKinds #-}
-
 -- 'TracerMonad' is @Monad m@ under @contra-tracer >= 0.2@, where 'traceWith'
 -- and 'contramap' on a 'Tracer' require it, and the empty constraint under
 -- 0.1, where they do not. GHC therefore reports it as redundant on the 0.1
@@ -94,8 +93,8 @@ traceNamedObject
     => Trace m a
     -> (LOMeta, LOContent a)
     -> m ()
-traceNamedObject logTrace lo =
-    traceWith (named logTrace) lo
+traceNamedObject logTrace =
+    traceWith (named logTrace)
 
 -- | Create a 'LogObject' and enter it into the trace.
 traceNamedItem

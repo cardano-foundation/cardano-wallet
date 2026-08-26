@@ -276,7 +276,7 @@ instance ToText FooMsg where
         LogFooIncomingEvent -> "Incoming foo event " <>  T.pack (show e)
 ```
 
-Finally, define the metadata which the switchboard needs to route
+Finally, define the metadata that the tracing layer needs to route
 these traces.
 
 ```haskell
@@ -285,13 +285,13 @@ import Cardano.Wallet.Tracing.Data.LogItem
 import Cardano.Wallet.Tracing.Data.Severity
     ( Severity (..) )
 import Cardano.Wallet.Tracing.Data.Tracer
-    ( DefinePrivacyAnnotation (..), DefineSeverity (..) )
+    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 
 -- Everything is public by default
-instance DefinePrivacyAnnotation FooMsg
+instance HasPrivacyAnnotation FooMsg
 
-instance DefineSeverity FooMsg
-    defineSeverity msg = case msg of
+instance HasSeverityAnnotation FooMsg where
+    getSeverityAnnotation msg = case msg of
         LogFooInit -> Debug
         LogFooError _ -> Error
         LogFooIncomingEvent -> Info

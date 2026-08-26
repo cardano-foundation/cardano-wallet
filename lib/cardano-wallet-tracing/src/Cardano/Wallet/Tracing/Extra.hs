@@ -6,7 +6,6 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE ViewPatterns #-}

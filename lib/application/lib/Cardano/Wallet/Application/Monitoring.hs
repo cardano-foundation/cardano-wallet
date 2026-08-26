@@ -123,8 +123,8 @@ import qualified Control.Concurrent.Async as Async
 import qualified Control.Concurrent.MVar as MV
 import qualified Data.Aeson.Text as Aeson
 import qualified Data.ByteString.Builder as B
-import qualified Data.ByteString.Char8 as BS8
-import qualified Data.ByteString.Lazy as LB
+import qualified Data.ByteString.Char8 as B8
+import qualified Data.ByteString.Lazy as BL
 import qualified Data.Char as Char
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Text as T
@@ -277,7 +277,7 @@ startMetrics
     -> IO (Maybe Metrics.Store, IO ())
 startMetrics mEkgUrl mPromUrl = case (mEkgUrl, mPromUrl) of
     (Just (host, port), _) -> do
-        server <- EKG.forkServer (BS8.pack host) port
+        server <- EKG.forkServer (B8.pack host) port
         let store = EKG.serverMetricStore server
         -- Wallet-owned equivalent of the former "iohk-monitoring version"
         -- label.
@@ -487,8 +487,10 @@ mkFileScribe fpath sev sevMax = do
             (openFile fpath WriteMode)
             ( \e -> do
                 prtoutException ("error while opening log: " ++ fpath) e
-                -- fallback to standard output in case of exception
-                return stdout
+                -- Fall back to standard output. Duplicate the handle: this
+                -- scribe's finalizer calls hClose, and closing the real
+                -- stdout would silence the rest of the process.
+                hDuplicate stdout
             )
     hSetBuffering h LineBuffering
     lock <- MV.newMVar ()
@@ -612,7 +614,7 @@ prepareName =
         . T.filter (\c -> Char.isLetter c || c == '_')
         . T.map (\c -> if c `elem` (".- " :: [Char]) then '_' else c)
 
-renderSimpleOutput :: Metrics.Sample -> LB.ByteString
+renderSimpleOutput :: Metrics.Sample -> BL.ByteString
 renderSimpleOutput sample =
     B.toLazyByteString
         $ mconcat

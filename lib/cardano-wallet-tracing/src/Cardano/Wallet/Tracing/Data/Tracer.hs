@@ -1,8 +1,8 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE ConstraintKinds #-}
-{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 -- |
@@ -112,7 +112,7 @@ mkTracer :: Applicative m => (a -> m ()) -> Tracer m a
 mkTracer f = Tracer (TA.emit f)
 #else
 mkTracer :: (a -> m ()) -> Tracer m a
-mkTracer f = Tracer f
+mkTracer = Tracer
 #endif
 
 -- | Verbosity levels passed to 'ToObject' renderers.
