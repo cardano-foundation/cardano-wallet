@@ -1,6 +1,6 @@
 # Functions model — #5397 L1
 
-No wallet function is designed by this ticket. The only expected signature
-adaptation replaces function-style `runTracer` call sites with `traceWith` at
-the existing emitted-value boundary, preserving the original tracer and value
-arguments.
+No wallet function is designed by this ticket. The tracing compatibility
+adaptations preserve the existing values, types, exports, and control flow:
+function-style `runTracer` becomes `traceWith`, and legacy `Tracer` function
+constructors wrap `TA.emit` from `Control.Tracer.Arrow`.

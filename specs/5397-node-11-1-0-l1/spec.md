@@ -13,9 +13,12 @@ dependency set: `cardano-wallet-application-extras`,
   with no required source adaptation is a complete no-change result, recorded
   with build/test evidence; an adapted package receives one signed local
   commit and is not subsequently modified in this bump.
-- **R2:** `iohk-monitoring-extra` replaces the two obsolete function uses of
-  `runTracer` in `Cardano.BM.Extra` with `traceWith`, preserving their emitted
-  values and existing control flow under `contra-tracer-0.2.1.1`.
+- **R2:** `iohk-monitoring-extra` mechanically adapts all ten compiler-reported
+  tracing API sites under `contra-tracer-0.2.1.1`: two function-style
+  `runTracer` uses become `traceWith`, and eight `Tracer $ \\x -> ...`
+  constructor uses become `Tracer $ TA.emit $ \\x -> ...` with
+  `Control.Tracer.Arrow` qualified as `TA`. Exports, types, emitted values,
+  and control flow remain unchanged.
 - **R3:** Build each package and its enabled tests with `-O0`; run fourmolu
   and hlint over touched Haskell files. Test failures are recorded, not fixed.
 - **R4 (BLOCKING):** The Dijkstra unsupported-stub census remains exactly

@@ -5,9 +5,11 @@
 2. Process L1 in topological order: application-extras, test-utils,
    crypto-primitives, iohk-monitoring-extra, temporary-extra, then
    wai-middleware-logging. Build before assuming an adaptation is needed.
-3. In `iohk-monitoring-extra`, make only the two required mechanical
-   `runTracer` to `traceWith` adaptations in `Cardano.BM.Extra`. Format and
-   lint touched Haskell files, build its tests, and commit that one package.
+3. In `iohk-monitoring-extra`, apply the compiler-derived ten-site adaptation:
+   two `runTracer` to `traceWith` substitutions and eight `Tracer` constructor
+   substitutions using `Tracer $ TA.emit $ \\x -> ...`, including the site in
+   `ToTextTracer.hs`. Format and lint touched Haskell files, build its tests,
+   and commit that one package.
 4. Record no-change receipts for the other packages if their builds require no
    source change. Before each commit run the immutable L1 gate; after the
    level rerun the gate and census and hand off receipts.
