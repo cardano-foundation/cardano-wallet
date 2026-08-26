@@ -1,4 +1,6 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -14,6 +16,7 @@ module Cardano.Wallet.Tracing.Data.Tracer
     ( -- * Tracers
       Tracer (..)
     , mkTracer
+    , TracerMonad
     , contramap
     , traceWith
     , nullTracer
@@ -66,12 +69,33 @@ import Prelude
 #if MIN_VERSION_contra_tracer(0,2,0)
 import qualified Control.Tracer.Arrow as TA
 #endif
+#if MIN_VERSION_contra_tracer(0,2,0)
+import Data.Kind
+    ( Type
+    )
+#else
+import Data.Kind
+    ( Constraint
+    , Type
+    )
+#endif
 import Data.Aeson.Text
     ( encodeToLazyText
     )
 
 import qualified Data.Aeson.KeyMap as KeyMap
 import qualified Data.Text.Lazy as TL
+
+-- | The monad context that tracer combinators require, which differs by
+-- -tracer@ version. On @>= 0.2@ a 'Tracer' is an arrow, so
+-- 'traceWith' and 'contramap' carry  m@; on 0.1 they carry nothing.
+-- Callers that are polymorphic in @ write  m =>@ once and stay
+-- correct across both, instead of CPP-guarding every signature.
+#if MIN_VERSION_contra_tracer(0,2,0)
+type TracerMonad (m :: Type -> Type) = Monad m
+#else
+type TracerMonad (m :: Type -> Type) = (() :: Constraint)
+#endif
 
 -- | The single constructor helper for 'Tracer' values. Every tracer
 -- construction site in the wallet must route through this function so that

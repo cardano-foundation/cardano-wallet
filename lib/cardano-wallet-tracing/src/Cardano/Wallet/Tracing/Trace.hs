@@ -1,3 +1,12 @@
+{-# LANGUAGE ConstraintKinds #-}
+
+-- 'TracerMonad' is @Monad m@ under @contra-tracer >= 0.2@, where 'traceWith'
+-- and 'contramap' on a 'Tracer' require it, and the empty constraint under
+-- 0.1, where they do not. GHC therefore reports it as redundant on the 0.1
+-- arm only, which is fatal under this repo's -Werror. The constraint is NOT
+-- redundant: dropping it breaks every build against 0.2.
+{-# OPTIONS_GHC -Wno-redundant-constraints #-}
+
 -- |
 -- Copyright: © 2018-2020 IOHK
 -- License: Apache-2.0
@@ -37,7 +46,8 @@ import Cardano.Wallet.Tracing.Data.Severity
     ( Severity (..)
     )
 import Cardano.Wallet.Tracing.Data.Tracer
-    ( mkTracer
+    ( TracerMonad
+    , mkTracer
     )
 import Control.Monad.IO.Class
     ( MonadIO
@@ -58,7 +68,7 @@ import qualified Data.Text as T
 type Trace m a = Tracer m (LoggerName, LogObject a)
 
 -- | Enter new named context. A new context name is prepended.
-appendName :: LoggerName -> Trace m a -> Trace m a
+appendName :: TracerMonad m => LoggerName -> Trace m a -> Trace m a
 appendName name tr = mkTracer $ \(names0, lo) ->
     let names = if names0 == T.empty then name else name <> "." <> names0
     in  traceWith tr (names, lo)
@@ -74,12 +84,14 @@ traceInTVarIO tvar = mkTracer $ \a ->
 
 -- | Contramap a trace and produce the naming context.
 named
-    :: Tracer m (LoggerName, LogObject a) -> Tracer m (LOMeta, LOContent a)
+    :: TracerMonad m
+    => Tracer m (LoggerName, LogObject a) -> Tracer m (LOMeta, LOContent a)
 named = contramap $ \(meta, loc) -> (mempty, LogObject mempty meta loc)
 
 -- | Trace a ('LOMeta', 'LOContent') pair through the trace.
 traceNamedObject
-    :: Trace m a
+    :: TracerMonad m
+    => Trace m a
     -> (LOMeta, LOContent a)
     -> m ()
 traceNamedObject logTrace lo =

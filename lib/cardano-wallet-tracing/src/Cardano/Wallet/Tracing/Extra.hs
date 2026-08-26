@@ -431,4 +431,4 @@ flatContramapTracer
     => (a -> Maybe b)
     -> Tracer m b
     -> Tracer m a
-flatContramapTracer p tr = mkTracer $ \a -> forM_ (p a) (runTracer tr)
+flatContramapTracer p tr = mkTracer $ \a -> forM_ (p a) (traceWith tr)
