@@ -109,6 +109,7 @@ library
     , cardano-data
     , cardano-diffusion:api
     , cardano-ledger-api
+    , cardano-ledger-binary
     , cardano-ledger-core
     , cardano-ledger-shelley
     , cardano-wallet-application-extras

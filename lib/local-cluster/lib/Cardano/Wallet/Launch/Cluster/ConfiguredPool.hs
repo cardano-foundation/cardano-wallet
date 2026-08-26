@@ -169,6 +169,7 @@ import Test.Utils.StaticServer
 import Prelude
 
 import qualified Cardano.Ledger.Address as Ledger
+import qualified Cardano.Ledger.Binary as Ledger
 import qualified Cardano.Ledger.Hashes as Ledger
 import qualified Cardano.Ledger.Shelley.API as Ledger
 import qualified Codec.CBOR.Read as CBOR
@@ -346,8 +347,8 @@ poolVrfFromFile vrfPub = do
     stakePoolVerKey <- readFailVerificationKeyOrFile @VrfKey vrfPub
     let bytes = serialiseToCBOR $ verificationKeyHash stakePoolVerKey
     pure
-        $ either (error . show) snd
-        $ CBOR.deserialiseFromBytes fromCBOR (BL.fromStrict bytes)
+        $ either (error . show) id
+        $ Ledger.decodeFull' Ledger.shelleyProtVer bytes
 
 stakingKeyHashFromFile
     :: HasCallStack
