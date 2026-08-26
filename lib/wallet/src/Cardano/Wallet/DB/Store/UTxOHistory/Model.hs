@@ -66,6 +66,7 @@ import Data.Delta
     )
 import Data.Foldable
     ( fold
+    , foldl'
     )
 import Data.Map.Strict
     ( Map

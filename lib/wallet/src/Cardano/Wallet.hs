@@ -819,6 +819,9 @@ import Data.Generics.Product.Typed
 import Data.IntCast
     ( intCast
     )
+import Data.List
+    ( foldl'
+    )
 import Data.List.NonEmpty
     ( NonEmpty (..)
     )
@@ -963,7 +966,6 @@ import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.Delta.Update as Delta
 import qualified Data.Foldable as F
-import qualified Data.Functor
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Set as Set
@@ -1509,7 +1511,7 @@ restoreBlocks ctx tr blocks nodeTip =
         -- However, this only works if the latest database checkpoint, `cp0`,
         -- does not change in the meantime.
         (filteredBlocks', cps') <-
-            liftIO $ Data.Functor.unzip <$> applyBlocks blocks cp0
+            liftIO $ NE.unzip <$> applyBlocks blocks cp0
         let cps = NE.map snd cps'
             filteredBlocks = concat filteredBlocks'
             slotPoolDelegations =
@@ -3027,6 +3029,7 @@ buildAndSignTransactionPure
       where
         era = recentEra @era
         wF = walletFlavor @s
+        anyCardanoEra :: Read.EraValue Read.Era
         anyCardanoEra = case era of
             Write.RecentEraConway -> Read.EraValue Read.Conway
             Write.RecentEraDijkstra -> Read.EraValue Read.Dijkstra

@@ -41,6 +41,9 @@ import Control.Lens
     , (&)
     , (.~)
     )
+import Data.List
+    ( foldl'
+    )
 import Prelude
 
 import qualified Data.Map.Strict as Map

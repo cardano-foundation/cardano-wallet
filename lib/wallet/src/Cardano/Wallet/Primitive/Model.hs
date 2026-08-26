@@ -147,6 +147,7 @@ import Data.Delta
     )
 import Data.Foldable
     ( Foldable (toList)
+    , foldl'
     )
 import Data.Functor.Identity
     ( Identity (..)
