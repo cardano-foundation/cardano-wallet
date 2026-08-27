@@ -1,0 +1,47 @@
+# Dijkstra stub census ratchet — cardano-wallet #5406 (child 0 of epic #5209).
+#
+# Runs the census and its negative control on every pull request and every push
+# to master, gated on nothing else. Deliberately NOT folded into ci.yml:
+#
+# - a separate workflow carries its own concurrency group and therefore can
+#   never cancel (or be cancelled by) ci.yml runs, whose group is
+#   ci-${{ github.ref }};
+# - no job in this file carries needs:, so a failed unrelated build cannot
+#   stop the census from running — a skipped census looks green, and a green
+#   census nobody ran is exactly what this ticket exists to make impossible.
+#
+# The checks carry no secrets reference by construction: the census is plain
+# bash + find + perl over the checked-out tree.
+name: Dijkstra Stub Census
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: dijkstra-census-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  census:
+    name: "Dijkstra Stub Census"
+    runs-on: nix-enabled-runners
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      # Negative control FIRST: a gate that has stopped being able to fail
+      # must be caught here, before any of its green is believed. Neither step
+      # below is conditional on another job or on any earlier outcome.
+      - name: Prove the census gate can fail (negative control)
+        run: ./scripts/ci/dijkstra-census-negative-control.sh .
+
+      - name: Run the Dijkstra stub census
+        run: ./scripts/ci/dijkstra-stub-gate.sh .

@@ -24,8 +24,10 @@ seed="$tree/lib/DijkstraCensusNegativeControlSeed.hs"
 say() { printf '%s\n' "$*"; }
 die() { printf 'negative-control: %s\n' "$*" >&2; exit 1; }
 
-cleanup() { rm -f -- "$seed"; }
-trap cleanup EXIT
+# Every exit path removes the seed — normal exit, failure, and signal.
+# Inline commands (not a function reference): see evidence note about this
+# host's shellcheck build flagging trap-referenced functions as never invoked.
+trap 'rm -f -- "$seed"' EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM HUP
 
