@@ -382,6 +382,7 @@ import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics
 import qualified Cardano.Wallet.Read as Read
 import qualified Control.Exception as E
+import qualified Control.Tracer.Arrow as TA
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
@@ -1153,7 +1154,7 @@ withWalletLayerTracer benchname pipelining traceToDisk act = do
                 $ \h -> do
                     -- Use a custom tracer to output (time, blockHeight) to a file
                     -- each time we apply blocks.
-                    let fileTr = Tracer $ \msg -> do
+                    let fileTr = Tracer $ TA.emit $ \msg -> do
                             liftIO . B8.hPut h . T.encodeUtf8 . (<> "\n") $ msg
                             hFlush h
                     act $ traceBlockHeadersProgressForPlotting t0 fileTr
@@ -1181,7 +1182,7 @@ traceBlockHeadersProgressForPlotting
     :: UTCTime
     -> Tracer IO Text
     -> Tracer IO (Maybe Read.BlockNo)
-traceBlockHeadersProgressForPlotting t0 tr = Tracer $ \bs -> do
+traceBlockHeadersProgressForPlotting t0 tr = Tracer $ TA.emit $ \bs -> do
     let mtip = Read.prettyBlockNo <$> bs
     time <- pretty . (`diffUTCTime` t0) <$> getCurrentTime
     case mtip of
