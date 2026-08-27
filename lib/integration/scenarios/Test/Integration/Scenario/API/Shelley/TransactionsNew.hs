@@ -11,6 +11,10 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
+-- Temporary: cardano-api 11.5 deprecates the legacy TxBody API in favour of
+-- Cardano.Api.Experimental. Retiring these sites is cardano-api removal work,
+-- owned by M1 (#5237). Remove this pragma when that lands.
+{-# OPTIONS_GHC -Wno-deprecations #-}
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 -- temportary, until addRequiredSigners is fixed
 {-# OPTIONS_GHC -Wno-unused-imports #-}
