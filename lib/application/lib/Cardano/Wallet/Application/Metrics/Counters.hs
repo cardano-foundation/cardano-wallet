@@ -235,6 +235,12 @@ readProcStats pid = do
 
     return $
         map (\(cn, pv) -> Counter StatInfo cn (PureI $ toInteger pv)) $
+            -- Indices into 'ps2', i.e. after "cputicks" is prepended and the
+            -- "unused" placeholders are dropped:
+            --   0 -> cputicks, 20 -> starttime, 24 -> startcode, 42 -> cguesttime
+            -- Derived from 'colnames' below and confirmed against the live
+            -- endpoint, which serves exactly Stat.{cputicks,starttime,
+            -- startcode,cguesttime}.
             metricWanted [0, 20, 24, 42] ps2
   where
     colnames =

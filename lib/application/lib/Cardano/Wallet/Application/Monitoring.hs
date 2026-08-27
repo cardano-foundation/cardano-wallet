@@ -455,16 +455,18 @@ mkScribe = \case
         stdoutScribe <- mkHandleScribe stdout True sev (pred Warning)
         pure [stderrScribe, stdoutScribe]
     LogToFile fp sev -> do
+        -- Ceiling is 'Critical', not 'maxBound', so 'Alert' and 'Emergency'
+        -- do not reach file scribes. Carried over verbatim from the
+        -- iohk-monitoring configuration; preserved deliberately because this
+        -- change is behaviour-preserving, not a place to alter routing.
         scribe <- mkFileScribe fp sev Critical
         pure [scribe]
 
 mkHandleScribe :: Handle -> Bool -> Severity -> Severity -> IO Scribe
-mkHandleScribe h colorize sev sevMax = do
-    h' <- hDuplicate h -- will be closed on exit
-    mkHandleScribeH h' colorize sev sevMax
-
-mkHandleScribeH :: Handle -> Bool -> Severity -> Severity -> IO Scribe
-mkHandleScribeH h colorize sev sevMax = do
+mkHandleScribe h0 colorize sev sevMax = do
+    -- Duplicate: 'scribeFinalize' closes the handle, and closing the real
+    -- stdout/stderr would silence the rest of the process.
+    h <- hDuplicate h0
     hSetBuffering h LineBuffering
     lock <- MV.newMVar ()
     let logger msg = MV.withMVar lock $ \_ -> TIO.hPutStrLn h msg
@@ -517,6 +519,23 @@ data MetricHandle
     = GaugeHandle !Gauge.Gauge
     | LabelHandle !Label.Label
 
+-- | A metric key was registered as one handle type and then read back as the
+-- other. The @.us/.ns/.s/.B/.int@ (gauge) and @.real/.sev@ (label) suffixes
+-- keep the two namespaces disjoint, so this is unreachable while that holds.
+-- It is spelled out rather than left as a failed pattern match so the
+-- invariant is named at the point it would break.
+wrongHandle :: Text -> Text -> IO a
+wrongHandle expected name =
+    error
+        $ "mkMetricsConsumer: metric "
+            <> T.unpack name
+            <> " is already registered as a "
+            <> (if expected == "gauge" then "label" else "gauge")
+            <> ", cannot use it as a "
+            <> T.unpack expected
+            <> ". The metric-name suffixes are supposed to keep gauge and"
+            <> " label keys disjoint."
+
 -- | Consume 'LogValue' metrics and mirror them into the ekg-core store,
 -- using exactly the key naming of the previous EKGView backend:
 -- gauges get the suffix @.us .ns .s .B .int@, labels @.real@ and @.sev@.
@@ -533,18 +552,22 @@ mkMetricsConsumer store = do
                     pure (HM.insert name h hm, h)
 
         setGauge logname ext v = do
-            GaugeHandle g <-
+            h <-
                 getMetric
                     (logname <> ext)
                     (fmap GaugeHandle . flip Metrics.createGauge store)
-            Gauge.set g v
+            case h of
+                GaugeHandle g -> Gauge.set g v
+                LabelHandle _ -> wrongHandle "gauge" (logname <> ext)
 
         setLabel logname ext v = do
-            LabelHandle l <-
+            h <-
                 getMetric
                     (logname <> ext)
                     (fmap LabelHandle . flip Metrics.createLabel store)
-            Label.set l v
+            case h of
+                LabelHandle l -> Label.set l v
+                GaugeHandle _ -> wrongHandle "label" (logname <> ext)
 
     pure $ \(logname, mvar) -> case mvar of
         Microseconds v -> setGauge logname ".us" (fromIntegral v)
