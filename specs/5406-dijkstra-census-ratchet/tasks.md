@@ -35,3 +35,31 @@
 | `INV-RATCHET-ONE-LINE` | `44` appears as a ratchet value in exactly one line of the repository | the value is duplicated and can drift |
 | `INV-NO-SECRETS` | the new workflow file contains no `secrets.` reference | a credential enters this ticket's surface |
 | `INV-NO-HASKELL` | no `lib/**/*.hs` is added, changed or deleted in the commit | a stub is touched by child 0 |
+
+## SL-1 repair — after audit submission 1 (report `1b711708…5f68314f`)
+
+- [ ] **T-006** Bind the control's verdict to a measured delta: emit
+      `seed=`, `pristine_total=`, `seeded_total=`, `delta=`, `gate_exit=` on
+      stdout, and exit 0 only when the pristine run exited 0, `delta == 1`, and
+      `gate_exit == 1`. The seeded file must introduce exactly one counted
+      shape — none in its comments. (REQ-8, `INV-CONTROL-DELTA-ONE`)
+- [ ] **T-007** Acquire ownership before arming cleanup: create the seed
+      atomically, arm the trap only after that succeeds, and leave a rejected
+      collision byte-identical on every exit path including `INT`/`TERM`/`HUP`
+      and a census exiting 2. (REQ-9, `INV-CONTROL-COLLISION-SAFE`)
+- [ ] **T-008** Make the census unsuppressable: no workflow-, job-, or
+      step-level `if:`, and no `paths`/`paths-ignore` filter, on
+      `.github/workflows/dijkstra-census.yml`.
+      (REQ-10, `INV-CENSUS-UNSUPPRESSED`)
+- [ ] **T-009** *(ticket owner)* Observe the census green in a live CI run at
+      the exact pushed head, and paste the seeded-RED and tree-GREEN runs into
+      the PR body. (REQ-11, `INV-LIVE-RUN`)
+
+## Version 2 invariants
+
+| ID | holds when | fails visibly when |
+|---|---|---|
+| `INV-CONTROL-DELTA-ONE` | the control measures the census total before and after seeding and requires the difference to be exactly 1 | the control passes while applying zero or two mutations, or while the census output was never parsed |
+| `INV-CONTROL-COLLISION-SAFE` | a pre-existing file at the seed path survives byte-identical and the control exits non-zero | the control deletes a file it did not create |
+| `INV-CENSUS-UNSUPPRESSED` | no `if:` or path filter can stop the census job or its steps | a suppressed job reports green by not running |
+| `INV-LIVE-RUN` | the census check is green in the PR's run log at the exact pushed head | the workflow is present and the pipeline never ran it |

@@ -78,3 +78,19 @@ DIJKSTRA_STUB_MAX=0 ./scripts/ci/dijkstra-stub-gate.sh
 
 plus a green **"Dijkstra Stub Census"** check on the PR, with both the seeded
 RED and the tree GREEN visible in its run log.
+
+---
+
+## Version 2 requirements — after audit submission 1
+
+- **REQ-8** The falsification control's success is bound to a **measured**
+  effect on the census total, not to its own report. It applies exactly one
+  counted mutation and says so in machine-readable output.
+- **REQ-9** The control never destroys a file it did not create. A rejected
+  collision leaves the pre-existing file byte-identical on every exit path.
+- **REQ-10** The census job cannot be suppressed. No workflow-, job-, or
+  step-level `if:`, and no `paths`/`paths-ignore` filter, may prevent it from
+  running on a pull request or on a push to `master`.
+- **REQ-11** The census is observed **green in a live CI run at the exact
+  pushed head**, in the run log, not inferred from the workflow file. This is
+  a ticket-owner completion condition; no local check can establish it.
