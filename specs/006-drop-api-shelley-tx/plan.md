@@ -23,7 +23,7 @@ After #5287, one smaller path became safe to move: the signed-wallet path can ca
 
 ## Technical Context
 
-**Language/Version**: Haskell, GHC 9.6 (per cabal.project; node 11.0.1 target).
+**Language/Version**: Haskell, GHC 9.6 (per cabal.project; node 11.1.0 target).
 **Primary Dependencies**: `cardano-ledger-*`, `cardano-wallet-read`, `cardano-api` (being removed).
 **Storage**: N/A — this is a refactor of in-memory transaction-construction code.
 **Testing**: Hspec + QuickCheck for unit/property; golden CBOR vectors for body bytes; integration against local cardano-node clusters.
