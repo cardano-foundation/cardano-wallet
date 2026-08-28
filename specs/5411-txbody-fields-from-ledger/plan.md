@@ -125,32 +125,39 @@ existence is not suitability:
 | `fromCardanoTxOut` | `fromConwayTxOut` |
 | `fromCardanoWdrls` | ledger reward-account accessors |
 
-## Open question, blocking slice definition
+## The second round-trip — RESOLVED, in scope (A-001)
 
-**`Wallet.hs` carries a second deprecated surface that the round-trip deletion
-does not reach.** `Cardano.TxBody` is deprecated in 11.5.0.0 and appears in two
-type signatures in the same module:
+`Wallet.hs`'s pragma has a **second cause** the four-field deletion does not
+reach. `TxBody` is deprecated in 11.5.0.0 and appears at two signatures:
 
-- `constructTransaction … -> ExceptT ErrConstructTx IO (Cardano.TxBody (CardanoApiEra era))`
-- `constructUnbalancedSharedTransaction … -> ExceptT ErrConstructTx IO (Cardano.TxBody (CardanoApiEra era))`
+- `:3441` `constructTransaction … -> ExceptT ErrConstructTx IO (Cardano.TxBody (CardanoApiEra era))`
+- `:3464` `constructUnbalancedSharedTransaction … -> …`
 
-Because the pragma is module-wide, **R-2 for `Wallet.hs` cannot be met by
-deleting the four-field round-trip alone.**
+Produced by `mkUnsignedTransaction` → `constructUnsignedTx` → `mkUnsignedTx`
+(`Shelley/Transaction.hs`, owned), consumed at
+`lib/api/.../Shelley/Server.hs:3177` and `:3650`, both of which immediately do
+`fromCardanoApiTx $ Cardano.Tx unbalancedTx []`.
 
-That return type is produced by `mkUnsignedTransaction`
-(`Shelley/Transaction.hs`, owned by this ticket, and itself a pre-existing
-suppression) via `constructUnsignedTx` → `mkUnsignedTx`, and is consumed in
-`lib/api/src/Cardano/Wallet/Api/Http/Shelley/Server.hs` at lines 3177 and 3650,
-where both call sites immediately do:
+In `Api/Extra.hs` the converters are an **identity pair** in Conway — wrap and
+unwrap. So this is the same round-trip one layer up, through the same two
+functions, needing no new type.
 
-```haskell
-tx = fromCardanoApiTx $ Cardano.Tx unbalancedTx []
-```
+**Ruling A-001: in scope.** The owned set gains **exactly** the
+`fromCardanoApiTx` import at `Server.hs:169` and its two call sites, for the
+sole purpose of dropping the converter application. **Not general licence over
+`lib/api/**`.** Five constraints bind:
 
-So it is **the same converter round-trip one layer up** — ledger to
-`cardano-api` and straight back — and needs no new type either. But retiring it
-edits `lib/api/**`, which this ticket does not own, and grows the work past
-"remove the cardano-api round-trip".
+1. `lib/wallet/src/Cardano/Api/Extra.hs` is **not** edited — call sites change,
+   the module does not. It retires with #5290.
+2. Converter orphaning is checked **after** the change as well as before.
+   Verified here, per converter, excluding imports and the definition:
+   `fromCardanoApiTx` retains `Shelley/Transaction.hs:360` and
+   `TransactionLedgerSpec.hs:1555`; `toCardanoApiTx` retains
+   `Shelley/Transaction.hs:362`, `:804` and three spec sites. Neither orphans.
+3. The return-type change and both consumers land in the **same commit**.
+   Satisfied by construction: the accepted candidate is squashed into one
+   behaviour commit.
+4. Both `Wallet.hs` signatures and both `Server.hs` sites, or none.
+5. #5411's published body states the widened scope — done and verified.
 
-Filed as `Q-001`. Slice definition, the models, and `tasks.md` follow the
-answer; nothing is guessed in the meantime.
+Slice definition, models and task IDs follow from this; see `tasks.md`.

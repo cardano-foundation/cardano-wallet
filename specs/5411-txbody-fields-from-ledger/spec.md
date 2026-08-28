@@ -59,13 +59,39 @@ inherited, including from the issue.
 retires with #5290; `lib/integration/scenarios/…/Shelley/TransactionsNew.hs`
 retires with #5412.
 
+## Owned set
+
+`lib/wallet/src/Cardano/Wallet.hs`, the Shelley transaction modules under
+`lib/wallet/src/Cardano/Wallet/Shelley/`, the unit specs for those surfaces,
+**and — per A-001, narrowly and by name — the `fromCardanoApiTx` import at
+`lib/api/src/Cardano/Wallet/Api/Http/Shelley/Server.hs:169` and its two call
+sites, for the sole purpose of dropping the converter application.**
+
+That is not general licence over `lib/api/**`.
+
 ## Out of scope
 
 1. No `Cardano.Api.Experimental` import.
-2. No new type modelling the transaction-body boundary.
-3. No file under `lib/integration/**`.
-4. `lib/wallet/src/Cardano/Api/Extra.hs` is not deleted.
-5. Bisect-safety, inherited from #5237.
+2. No new type modelling the transaction-body boundary — and no new function
+   whose result groups the four fields, which is the same design in another hat.
+3. No file under `lib/integration/**`. That surface is #5412's.
+4. `lib/wallet/src/Cardano/Api/Extra.hs` is neither edited nor deleted. Call
+   sites change; the module retires with #5290.
+5. No edit under `lib/api/**` beyond the named import and two call sites.
+6. Bisect-safety, inherited from #5237: every commit compiles, and the
+   return-type change lands with both its consumers.
+
+## Additional invariants from A-001
+
+| ID | invariant | fails when | passes when |
+|---|---|---|---|
+| **INV-8** | Neither `toCardanoApiTx` nor `fromCardanoApiTx` is left without callers | either has zero call sites after the change | both retain callers — **checked after, not only before** |
+| **INV-9** | The whole boundary moves or none of it does | one of the two `Wallet.hs` signatures or one of the two `Server.hs` sites is left behind | all four are retired together |
+| **INV-10** | No edit under `lib/api/**` outside `Server.hs`'s named import and two call sites | any other `lib/api` path or hunk appears | only those appear |
+
+**INV-8 is checked after the change because removing a caller is what orphans a
+callee.** A pre-change reading cannot see it. If either converter does become
+unused, that is a #5290 fact to report — not a licence to delete the module.
 
 ## Sanctioned build paths
 
