@@ -17,9 +17,11 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
--- Temporary: cardano-api 11.5 deprecates the legacy TxBody/TxBodyContent API
--- in favour of Cardano.Api.Experimental. Retiring these sites is cardano-api
--- removal work, owned by M1 (#5237). Remove this pragma when that lands.
+-- Narrowed residual (#5411): this suppression no longer covers the
+-- transaction-body boundary (Wallet.hs's was retired), only the
+-- signTransaction property pipeline over the deprecated cardano-api TxBody
+-- API, which retires with #5290. Measured by build (removing the pragma
+-- yields 27 -Wdeprecations here, all in that pipeline).
 {-# OPTIONS_GHC -Wno-deprecations #-}
 {- HLINT ignore "Use null" -}
 {- HLINT ignore "Use camelCase" -}
@@ -1276,22 +1278,28 @@ binaryCalculationsSpec' era = describe ("calculateBinary - " +|| era ||+ "") $ d
             mkByronWitness unsignedTx net addr
         addrWits = zipWith (mkByronWitness' unsigned) inps pairs
         fee = selectionDelta cs
+        unsigned :: Cardano.TxBody (CardanoApiEra era)
         unsigned =
-            either (error . show) id
-                $ mkUnsignedTx
-                    net
-                    (Nothing, slotNo)
-                    (Right cs)
-                    md
-                    NoWithdrawal
-                    []
-                    fee
-                    TokenMap.empty
-                    TokenMap.empty
-                    Map.empty
-                    Map.empty
-                    Nothing
-                    Nothing
+            case toCardanoApiTx
+                ( either
+                    (error . show)
+                    id
+                    $ mkUnsignedTx
+                        net
+                        (Nothing, slotNo)
+                        (Right cs)
+                        md
+                        NoWithdrawal
+                        []
+                        fee
+                        TokenMap.empty
+                        TokenMap.empty
+                        Map.empty
+                        Map.empty
+                        Nothing
+                        Nothing
+                ) of
+                Cardano.Tx body _ -> body
         cs =
             Selection
                 { inputs = NE.fromList inps
@@ -1353,7 +1361,8 @@ prop_sealedTxDefaultRecentEraRoundtrip (Pretty tc) =
                 (sealedTxFromBytes txBytes)
 
 makeShelleyTx
-    :: Write.IsRecentEra era
+    :: forall era
+     . Write.IsRecentEra era
     => RecentEra era
     -> DecodeSetup
     -> Cardano.Tx (CardanoApiEra era)
@@ -1362,22 +1371,28 @@ makeShelleyTx era' testCase =
         $ let DecodeSetup utxo outs md slotNo pairs netwk = testCase
               inps = Map.toList $ unUTxO utxo
               fee = selectionDelta cs
+              unsigned :: Cardano.TxBody (CardanoApiEra era)
               unsigned =
-                either (error . show) id
-                    $ mkUnsignedTx
-                        netwk
-                        (Nothing, slotNo)
-                        (Right cs)
-                        md
-                        NoWithdrawal
-                        []
-                        fee
-                        TokenMap.empty
-                        TokenMap.empty
-                        Map.empty
-                        Map.empty
-                        Nothing
-                        Nothing
+                case toCardanoApiTx
+                    ( either
+                        (error . show)
+                        id
+                        $ mkUnsignedTx
+                            netwk
+                            (Nothing, slotNo)
+                            (Right cs)
+                            md
+                            NoWithdrawal
+                            []
+                            fee
+                            TokenMap.empty
+                            TokenMap.empty
+                            Map.empty
+                            Map.empty
+                            Nothing
+                            Nothing
+                    ) of
+                    Cardano.Tx body _ -> body
               addrWits =
                 map (mkShelleyWitness unsigned) pairs
               cs =

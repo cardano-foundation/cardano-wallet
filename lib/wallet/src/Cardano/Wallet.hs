@@ -22,10 +22,6 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
--- Temporary: cardano-api 11.5 deprecates the legacy TxBody API in favour of
--- Cardano.Api.Experimental. Retiring these sites is cardano-api removal work,
--- owned by M1 (#5237). Remove this pragma when that lands.
-{-# OPTIONS_GHC -Wno-deprecations #-}
 -- suppress false warning
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
@@ -259,9 +255,7 @@ import Cardano.Address.Script
     ( Cosigner (..)
     )
 import Cardano.Api.Extra
-    ( CardanoApiEra
-    , cardanoApiEraConstraints
-    , toCardanoApiTx
+    ( cardanoApiEraConstraints
     )
 import Cardano.Balance.Tx.Balance
     ( ChangeAddressGen (..)
@@ -313,8 +307,10 @@ import Cardano.Ledger.Api
     )
 import Cardano.Ledger.Api.Tx.Body
     ( Withdrawals (..)
+    , collateralInputsTxBodyL
     , inputsTxBodyL
     , mintTxBodyL
+    , outputsTxBodyL
     , withdrawalsTxBodyL
     )
 import Cardano.Ledger.Binary
@@ -500,13 +496,11 @@ import Cardano.Wallet.Primitive.Ledger.Convert
 import Cardano.Wallet.Primitive.Ledger.Read.Block
     ( fromCardanoBlock
     )
+import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Withdrawals
+    ( fromLedgerWithdrawals
+    )
 import Cardano.Wallet.Primitive.Ledger.Read.Tx.TxExtended
     ( getTxExtended
-    )
-import Cardano.Wallet.Primitive.Ledger.Shelley
-    ( fromCardanoTxIn
-    , fromCardanoTxOut
-    , fromCardanoWdrls
     )
 import Cardano.Wallet.Primitive.Model
     ( BlockData (..)
@@ -910,13 +904,6 @@ import Prelude hiding
 import qualified Cardano.Address.KeyHash as CA
 import qualified Cardano.Address.Script as CA
 import qualified Cardano.Address.Style.Shelley as CAShelley
-import qualified Cardano.Api as Cardano
-    ( TxBody
-    , TxBodyContent (..)
-    , TxInsCollateral (..)
-    , getTxBody
-    , getTxBodyContent
-    )
 import qualified Cardano.Balance.Tx.Balance as Write
     ( PartialTx (..)
     , StakeKeyDepositLookup (..)
@@ -959,6 +946,7 @@ import qualified Cardano.Wallet.DB.WalletState as WS
 import qualified Cardano.Wallet.DB.WalletState as WalletState
 import qualified Cardano.Wallet.Network.Checkpoints.Policy as CP
 import qualified Cardano.Wallet.Primitive.Ledger.Convert as Convert
+import qualified Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Outputs as ReadTxOut
 import qualified Cardano.Wallet.Primitive.Slotting as Slotting
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
@@ -976,6 +964,7 @@ import qualified Data.Foldable as F
 import qualified Data.Functor
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
+import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Vector as V
@@ -2209,56 +2198,57 @@ buildCoinSelectionForTransaction
     depositRefund
     delegationAction
     tx =
-        cardanoApiEraConstraints
-            (Write.recentEra @era)
-            CoinSelection
-                { inputs = resolveInput . fromCardanoTxIn . fst =<< txIns
-                , outputs = paymentOutputs
-                , change = do
-                    out <-
-                        -- NOTE: We assume that the change outputs are always
-                        -- at the end of the list. This is true for the current
-                        -- 'balanceTx' implementation, but may not
-                        -- be true for other implementations.
-                        drop (length paymentOutputs) $ fromCardanoTxOut <$> txOuts
-                    let address = out ^. #address
-                    derivationPath <-
-                        maybeToList $ fst $ isOurs address (getState wallet)
-                    pure
-                        TxChange
-                            { address
-                            , amount = out ^. #tokens . #coin
-                            , assets = out ^. #tokens . #tokens
-                            , derivationPath
-                            }
-                , collateral =
-                    resolveInput . fromCardanoTxIn
-                        =<< case txInsCollateral of
-                            Cardano.TxInsCollateralNone -> []
-                            Cardano.TxInsCollateral _supported is -> is
-                , withdrawals =
-                    fromCardanoWdrls txWithdrawals
-                        <&> \(acct, coin) -> (acct, coin, rewardAcctPath)
-                , delegationAction = (,rewardAcctPath) <$> delegationAction
-                , deposit =
-                    case delegationAction of
-                        Just (JoinRegisteringKey _poolId) -> Just depositRefund
-                        _ -> Nothing
-                , refund =
-                    case delegationAction of
-                        Just Quit -> Just depositRefund
-                        _ -> Nothing
-                }
+        CoinSelection
+            { inputs = resolveInput =<< txIns
+            , outputs = paymentOutputs
+            , change = do
+                out <-
+                    -- NOTE: We assume that the change outputs are always
+                    -- at the end of the list. This is true for the current
+                    -- 'balanceTx' implementation, but may not
+                    -- be true for other implementations.
+                    drop (length paymentOutputs) txOuts
+                let address = out ^. #address
+                derivationPath <-
+                    maybeToList $ fst $ isOurs address (getState wallet)
+                pure
+                    TxChange
+                        { address
+                        , amount = out ^. #tokens . #coin
+                        , assets = out ^. #tokens . #tokens
+                        , derivationPath
+                        }
+            , collateral = resolveInput =<< txInsCollateral
+            , withdrawals =
+                txWithdrawals <&> \(acct, coin) -> (acct, coin, rewardAcctPath)
+            , delegationAction = (,rewardAcctPath) <$> delegationAction
+            , deposit =
+                case delegationAction of
+                    Just (JoinRegisteringKey _poolId) -> Just depositRefund
+                    _ -> Nothing
+            , refund =
+                case delegationAction of
+                    Just Quit -> Just depositRefund
+                    _ -> Nothing
+            }
       where
-        Cardano.TxBodyContent
-            { txIns
-            , txOuts
-            , txInsCollateral
-            , txWithdrawals
-            } =
-                Cardano.getTxBodyContent
-                    $ Cardano.getTxBody
-                    $ toCardanoApiTx tx
+        body = tx ^. bodyTxL
+        txIns = toWallet <$> Set.toList (body ^. inputsTxBodyL)
+        txOuts = case Write.recentEra @era of
+            Write.RecentEraConway ->
+                map (fst . ReadTxOut.fromConwayTxOut)
+                    . F.toList
+                    $ body ^. outputsTxBodyL
+            Write.RecentEraDijkstra ->
+                map (fst . ReadTxOut.fromDijkstraTxOut)
+                    . F.toList
+                    $ body ^. outputsTxBodyL
+        txInsCollateral =
+            toWallet <$> Set.toList (body ^. collateralInputsTxBodyL)
+        txWithdrawals =
+            Map.toList
+                $ fromLedgerWithdrawals
+                    (unWithdrawals (body ^. withdrawalsTxBodyL))
 
         resolveInput txIn = do
             (txOut, derivationPath) <- maybeToList (lookupTxIn wallet txIn)
@@ -3444,7 +3434,7 @@ constructTransaction
     -> DBLayer IO (SeqState n ShelleyKey)
     -> TransactionCtx
     -> PreSelection
-    -> ExceptT ErrConstructTx IO (Cardano.TxBody (CardanoApiEra era))
+    -> ExceptT ErrConstructTx IO (Write.Tx era)
 constructTransaction era db txCtx preSel = do
     (_, mRewardXPub, _) <- lift $ readRewardAccount db
     when (containsSelfWithdrawal (txCtx ^. #txWithdrawal))
@@ -3467,7 +3457,7 @@ constructUnbalancedSharedTransaction
     -> DBLayer IO (SharedState n SharedKey)
     -> TransactionCtx
     -> PreSelection
-    -> ExceptT ErrConstructTx IO (Cardano.TxBody (CardanoApiEra era))
+    -> ExceptT ErrConstructTx IO (Write.Tx era)
 constructUnbalancedSharedTransaction era db txCtx sel =
     db & \DBLayer{..} -> do
         cp <- lift $ atomically readCheckpoint

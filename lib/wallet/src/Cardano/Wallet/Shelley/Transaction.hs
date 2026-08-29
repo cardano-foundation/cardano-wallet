@@ -313,7 +313,7 @@ constructUnsignedTx
     -- ^ Delegation script
     -> Maybe (Script KeyHash)
     -- ^ Reference script
-    -> Either ErrMkTransaction (Cardano.TxBody (CardanoApiEra era))
+    -> Either ErrMkTransaction (Write.Tx era)
 constructUnsignedTx
     networkId
     (md, certs)
@@ -632,7 +632,7 @@ mkUnsignedTransaction
     -> Either PreSelection (SelectionOf TxOut)
     -- ^ A balanced coin selection where all change addresses have been
     -- assigned.
-    -> Either ErrMkTransaction (Cardano.TxBody (CardanoApiEra era))
+    -> Either ErrMkTransaction (Write.Tx era)
 mkUnsignedTransaction networkId stakeCred ctx selection = do
     let era = Write.recentEra @era
     let ttl = txValidityInterval ctx
@@ -790,7 +790,7 @@ mkUnsignedTx
     -> Map TxIn (Script KeyHash)
     -> Maybe (Script KeyHash)
     -> Maybe (Script KeyHash)
-    -> Either ErrMkTransaction (Cardano.TxBody (CardanoApiEra era))
+    -> Either ErrMkTransaction (Write.Tx era)
 mkUnsignedTx
     networkId
     ttl
@@ -819,8 +819,7 @@ mkUnsignedTx
                         cs
                         (toLedgerMintValue mintData burnData)
                         scriptWitnesses
-                Cardano.Tx body _ = toCardanoApiTx ledgerTx
-            in  Right body
+            in  Right ledgerTx
       where
         era = Write.recentEra @era
 
