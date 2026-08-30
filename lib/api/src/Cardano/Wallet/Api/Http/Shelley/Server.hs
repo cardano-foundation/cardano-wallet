@@ -901,6 +901,8 @@ import qualified Cardano.Address.KeyHash as CA
 import qualified Cardano.Address.Script as CA
 import qualified Cardano.Address.Style.Shelley as CA
 import qualified Cardano.Api as Cardano
+    ( Tx (..)
+    )
 import qualified Cardano.Balance.Tx.Balance as Write
     ( PartialTx (..)
     , Redeemer (..)

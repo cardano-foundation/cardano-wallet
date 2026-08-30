@@ -74,3 +74,16 @@ constraint 3 by construction.
 - [ ] **T-15** No `Cardano.Api.Experimental` import anywhere in the diff.
 - [ ] **T-16** No file under `lib/integration/**` in the diff.
 - [ ] **T-17** `lib/wallet/src/Cardano/Api/Extra.hs` unmodified.
+
+## S-0 — legibility prerequisite (landed before S-1)
+
+Authored by the ticket owner under an operator-directed exception to the
+ticket-owner fence on production code, and recorded as such.
+
+- [x] **T-18** Replace the wildcard `import qualified Cardano.Api as Cardano` in
+      `Cardano/Wallet.hs`, `Cardano/Wallet/Shelley/Transaction.hs` and
+      `Api/Http/Shelley/Server.hs` with explicit lists naming exactly the symbols
+      each module uses, so the S-1 migration shows up as deleted names rather
+      than an unchanged import line. Behaviour-preserving; verified under
+      `-Werror`, which is what proves the lists are not over-broad. The repo-wide
+      sweep of the remaining wildcards is #5414.

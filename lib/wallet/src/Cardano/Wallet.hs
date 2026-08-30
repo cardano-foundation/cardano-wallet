@@ -911,6 +911,12 @@ import qualified Cardano.Address.KeyHash as CA
 import qualified Cardano.Address.Script as CA
 import qualified Cardano.Address.Style.Shelley as CAShelley
 import qualified Cardano.Api as Cardano
+    ( TxBody
+    , TxBodyContent (..)
+    , TxInsCollateral (..)
+    , getTxBody
+    , getTxBodyContent
+    )
 import qualified Cardano.Balance.Tx.Balance as Write
     ( PartialTx (..)
     , StakeKeyDepositLookup (..)

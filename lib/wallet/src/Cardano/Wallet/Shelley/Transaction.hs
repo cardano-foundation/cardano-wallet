@@ -235,6 +235,24 @@ import Prelude
 import qualified Cardano.Address.Script as CA
 import qualified Cardano.Address.Style.Shelley as CA
 import qualified Cardano.Api as Cardano
+    ( Hash
+    , KeyWitness (..)
+    , NetworkId
+    , PaymentCredential (..)
+    , PaymentKey
+    , ShelleyWitnessSigningKey (..)
+    , SigningKey (..)
+    , StakeAddressReference (..)
+    , Tx (..)
+    , TxBody (..)
+    , TxBodyContent (..)
+    , TxExtraKeyWitnesses (..)
+    , TxInsCollateral (..)
+    , getTxBodyContent
+    , makeShelleyAddress
+    , makeShelleyKeyWitness
+    , makeSignedTransaction
+    )
 import qualified Cardano.Api.Byron as Byron
 import qualified Cardano.Balance.Tx.Eras as Write
 import qualified Cardano.Balance.Tx.Primitive as BT
