@@ -7,32 +7,6 @@ module Cardano.LauncherSpec
     ( spec
     ) where
 
-import Cardano.BM.Configuration.Model
-    ( setMinSeverity
-    )
-import Cardano.BM.Configuration.Static
-    ( defaultConfigStdout
-    )
-import Cardano.BM.Data.LogItem
-    ( LOContent (LogMessage)
-    , LogObject (..)
-    , LoggerName
-    , mkLOMeta
-    )
-import Cardano.BM.Data.Severity
-    ( Severity (..)
-    )
-import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation (..)
-    , HasSeverityAnnotation (..)
-    )
-import Cardano.BM.Setup
-    ( setupTrace_
-    , shutdown
-    )
-import Cardano.BM.Trace
-    ( logDebug
-    )
 import Cardano.Launcher
     ( Command (..)
     , IfToSendSigINT (DoNotSendSigINT)
@@ -43,11 +17,21 @@ import Cardano.Launcher
     , TimeoutInSecs (TimeoutInSecs)
     , withBackendProcess
     )
+import Cardano.Wallet.Tracing.Data.Severity
+    ( Severity (Debug)
+    )
+import Cardano.Wallet.Tracing.ToTextTracer
+    ( ToTextTracer (..)
+    , withToTextTracer
+    )
 import Control.Monad
     ( forever
     )
-import Control.Monad.IO.Class
-    ( MonadIO (..)
+import Control.Monad.Trans.Class
+    ( lift
+    )
+import Control.Monad.Trans.Cont
+    ( evalContT
     )
 import Control.Retry
     ( constantDelay
@@ -55,18 +39,13 @@ import Control.Retry
     , recoverAll
     )
 import Control.Tracer
-    ( Tracer (..)
-    , nullTracer
-    , traceWith
+    ( Tracer
     )
 import Data.Maybe
     ( isJust
     )
 import Data.Text
     ( Text
-    )
-import Data.Text.Class
-    ( ToText (..)
     )
 import Data.Time.Clock
     ( diffUTCTime
@@ -77,6 +56,9 @@ import Fmt
     )
 import System.Exit
     ( ExitCode (..)
+    )
+import System.IO
+    ( stdout
     )
 import System.Info
     ( os
@@ -104,8 +86,7 @@ import UnliftIO.Concurrent
     ( threadDelay
     )
 import UnliftIO.Exception
-    ( bracket
-    , try
+    ( try
     )
 import UnliftIO.MVar
     ( modifyMVar_
@@ -349,25 +330,11 @@ assertProcessesExited phs = recoverAll policy test
         statuses <- mapM getProcessExitCode phs
         statuses `shouldSatisfy` all isJust
 
+-- | Run an action with a real stdout tracer, so that launcher diagnostics are
+-- visible when a test fails. This is the wallet-owned equivalent of the former
+-- @defaultConfigStdout@ + @setupTrace_@ pair, which wired a @StdoutSK@ scribe
+-- at 'Debug' severity.
 withTestLogging :: (Tracer IO LauncherLog -> IO a) -> IO a
-withTestLogging action =
-    bracket before after (action . trMessageText . fst)
-  where
-    before = do
-        cfg <- defaultConfigStdout
-        setMinSeverity cfg Debug
-        setupTrace_ cfg "tests"
-    after (tr, sb) = do
-        logDebug tr "Logging shutdown."
-        shutdown sb
-
-trMessageText
-    :: (MonadIO m, ToText a, HasPrivacyAnnotation a, HasSeverityAnnotation a)
-    => Tracer m (LoggerName, LogObject Text)
-    -> Tracer m a
-trMessageText tr = Tracer $ \arg -> do
-    let msg = toText arg
-        tracer = if msg == mempty then nullTracer else tr
-    meta <-
-        mkLOMeta (getSeverityAnnotation arg) (getPrivacyAnnotation arg)
-    traceWith tracer (mempty, LogObject mempty meta (LogMessage msg))
+withTestLogging action = evalContT $ do
+    ToTextTracer tr <- withToTextTracer (Left stdout) (Just Debug)
+    lift $ action tr

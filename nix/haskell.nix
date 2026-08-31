@@ -450,11 +450,6 @@ haskell-nix.cabalProject' [
 
           # Build fixes for library dependencies
           {
-            # Packages we wish to ignore version bounds of.
-            # This is similar to jailbreakCabal, however it
-            # does not require any messing with cabal files.
-            packages.katip.doExactConfig = true;
-
             # Lets us put the pretty-simple tool in shell.nix.
             packages.pretty-simple.flags.buildexe = true;
           }

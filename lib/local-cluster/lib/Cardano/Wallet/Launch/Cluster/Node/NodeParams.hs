@@ -7,9 +7,6 @@ module Cardano.Wallet.Launch.Cluster.Node.NodeParams
     )
 where
 
-import Cardano.BM.Tracing
-    ( Severity
-    )
 import Cardano.Launcher.Node
     ( MaybeK
     )
@@ -28,6 +25,9 @@ import Cardano.Wallet.Launch.Cluster.Logging
     )
 import Cardano.Wallet.Launch.Cluster.Node.GenesisFiles
     ( GenesisFiles
+    )
+import Cardano.Wallet.Tracing.Tracing
+    ( Severity
     )
 import Prelude
 

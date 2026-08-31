@@ -15,9 +15,6 @@ module Cardano.Wallet.Launch.Cluster.ClusterM
     )
 where
 
-import Cardano.BM.Extra
-    ( bracketTracer
-    )
 import Cardano.Wallet.Launch.Cluster.Config
     ( Config (..)
     )
@@ -26,6 +23,9 @@ import Cardano.Wallet.Launch.Cluster.FileOf
     )
 import Cardano.Wallet.Launch.Cluster.Logging
     ( ClusterLog (..)
+    )
+import Cardano.Wallet.Tracing.Extra
+    ( bracketTracer
     )
 import Control.Monad.Reader
     ( MonadIO (..)

@@ -9,9 +9,6 @@ module Cardano.Wallet.RegistrySpec
     ( spec
     ) where
 
-import Cardano.BM.Trace
-    ( nullTracer
-    )
 import Cardano.Wallet.Primitive.Types
     ( WalletId (..)
     )
@@ -28,6 +25,9 @@ import Cardano.Wallet.Registry
     , unregister
     , workerId
     , workerThread
+    )
+import Cardano.Wallet.Tracing.Trace
+    ( nullTracer
     )
 import Control.Exception.Base
     ( AsyncException (..)

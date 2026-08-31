@@ -10,16 +10,6 @@ module Cardano.Pool.DB.Log
     , ParseFailure (..)
     ) where
 
-import Cardano.BM.Data.Severity
-    ( Severity (..)
-    )
-import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation (..)
-    , HasSeverityAnnotation (..)
-    )
-import Cardano.BM.Extra
-    ( BracketLog
-    )
 import Cardano.DB.Sqlite
     ( DBLog (..)
     )
@@ -29,6 +19,16 @@ import Cardano.Pool.Types
 import Cardano.Wallet.Primitive.Types
     ( EpochNo
     , PoolRetirementCertificate
+    )
+import Cardano.Wallet.Tracing.Data.Severity
+    ( Severity (..)
+    )
+import Cardano.Wallet.Tracing.Data.Tracer
+    ( HasPrivacyAnnotation (..)
+    , HasSeverityAnnotation (..)
+    )
+import Cardano.Wallet.Tracing.Extra
+    ( BracketLog
     )
 import Data.Text
     ( Text

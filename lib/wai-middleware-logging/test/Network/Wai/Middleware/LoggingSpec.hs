@@ -9,13 +9,13 @@
 
 module Network.Wai.Middleware.LoggingSpec (spec) where
 
-import Cardano.BM.Data.Severity
+import Cardano.Wallet.Tracing.Data.Severity
     ( Severity (..)
     )
-import Cardano.BM.Data.Tracer
+import Cardano.Wallet.Tracing.Data.Tracer
     ( HasSeverityAnnotation (..)
     )
-import Cardano.BM.Trace
+import Cardano.Wallet.Tracing.Trace
     ( traceInTVarIO
     )
 import Control.Monad

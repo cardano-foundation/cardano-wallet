@@ -49,16 +49,16 @@ module Cardano.Wallet.Network.Implementation.Ouroboros
     , send
     ) where
 
-import Cardano.BM.Data.Tracer
-    ( Tracer
-    , traceWith
-    )
 import Cardano.Slotting.Slot
     ( WithOrigin (..)
     )
 import Cardano.Wallet.Network
     ( ChainFollower (..)
     , ChainSyncLog (..)
+    )
+import Cardano.Wallet.Tracing.Data.Tracer
+    ( Tracer
+    , traceWith
     )
 import Control.Concurrent.Class.MonadSTM
     ( MonadSTM

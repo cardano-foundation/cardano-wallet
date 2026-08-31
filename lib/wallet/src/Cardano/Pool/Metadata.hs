@@ -38,13 +38,6 @@ module Cardano.Pool.Metadata
     , SMASHPoolId (..)
     ) where
 
-import Cardano.BM.Data.Severity
-    ( Severity (..)
-    )
-import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation (..)
-    , HasSeverityAnnotation (..)
-    )
 import Cardano.Pool.Metadata.Types
     ( StakePoolMetadata
     , StakePoolMetadataHash (..)
@@ -57,6 +50,13 @@ import Cardano.Pool.Types
     )
 import Cardano.Wallet.Address.Derivation
     ( hex
+    )
+import Cardano.Wallet.Tracing.Data.Severity
+    ( Severity (..)
+    )
+import Cardano.Wallet.Tracing.Data.Tracer
+    ( HasPrivacyAnnotation (..)
+    , HasSeverityAnnotation (..)
     )
 import Control.Error
     ( note

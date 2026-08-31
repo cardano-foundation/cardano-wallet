@@ -5,7 +5,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE ViewPatterns #-}
@@ -16,14 +16,14 @@
 -- License: Apache-2.0
 --
 -- This module contains utility functions for logging and mapping trace data.
-module Cardano.BM.Extra
-    ( -- * Conversions from BM framework
-      trMessage
-    , trMessageText
-
-      -- * Formatting typed messages as plain text
-    , transformTextTrace
+module Cardano.Wallet.Tracing.Extra
+    ( -- * Formatting typed messages as plain text
+      transformTextTrace
     , stdoutTextTracer
+
+      -- * Wrapping typed messages as log objects
+    , trMessage
+    , trMessageText
 
       -- * Logging helpers
     , traceWithExceptT
@@ -44,21 +44,21 @@ module Cardano.BM.Extra
     , flatContramapTracer
     ) where
 
-import Cardano.BM.Data.LogItem
+import Cardano.Wallet.Tracing.Data.LogItem
     ( LOContent (..)
     , LogObject (..)
     , LoggerName
     , mkLOMeta
     )
-import Cardano.BM.Data.Severity
+import Cardano.Wallet.Tracing.Data.Severity
     ( Severity (..)
     )
-import Cardano.BM.Data.Tracer
+import Cardano.Wallet.Tracing.Data.Tracer
     ( HasPrivacyAnnotation (..)
     , HasSeverityAnnotation (..)
-    , Transformable (..)
+    , mkTracer
     )
-import Cardano.BM.Trace
+import Cardano.Wallet.Tracing.Trace
     ( Trace
     )
 import Control.DeepSeq
@@ -66,9 +66,6 @@ import Control.DeepSeq
     )
 import Control.Monad
     ( when
-    )
-import Control.Monad.Catch
-    ( MonadMask
     )
 import Control.Monad.IO.Unlift
     ( MonadIO (..)
@@ -83,12 +80,6 @@ import Control.Tracer
     , contramap
     , nullTracer
     , traceWith
-    )
-import Control.Tracer.Transformers.ObserveOutcome
-    ( Outcome (..)
-    , OutcomeFidelity (..)
-    , OutcomeProgressionStatus (..)
-    , mkOutcomeExtractor
     )
 import Data.Aeson
     ( ToJSON (..)
@@ -116,8 +107,7 @@ import Data.Time.Clock.System
     , systemToTAITime
     )
 import Data.Time.Clock.TAI
-    ( AbsoluteTime
-    , diffAbsoluteTime
+    ( diffAbsoluteTime
     )
 import Fmt
     ( Buildable (..)
@@ -131,6 +121,10 @@ import GHC.Exts
     )
 import GHC.Generics
     ( Generic
+    )
+import UnliftIO
+    ( modifyMVar
+    , newMVar
     )
 import UnliftIO.Exception
     ( Exception (..)
@@ -156,7 +150,7 @@ trMessageText
     :: (MonadIO m, ToText a, HasPrivacyAnnotation a, HasSeverityAnnotation a)
     => Tracer m (LoggerName, LogObject Text)
     -> Tracer m a
-trMessageText tr = Tracer $ \arg -> do
+trMessageText tr = mkTracer $ \arg -> do
     let msg = toText arg
         tracer = if msg == mempty then nullTracer else tr
     meta <-
@@ -169,17 +163,10 @@ trMessage
     :: (MonadIO m, HasPrivacyAnnotation a, HasSeverityAnnotation a)
     => Tracer m (LoggerName, LogObject a)
     -> Tracer m a
-trMessage tr = Tracer $ \arg -> do
+trMessage tr = mkTracer $ \arg -> do
     meta <-
         mkLOMeta (getSeverityAnnotation arg) (getPrivacyAnnotation arg)
     traceWith tr (mempty, LogObject mempty meta (LogMessage arg))
-
-instance
-    forall m a
-     . (MonadIO m, ToText a, HasPrivacyAnnotation a, HasSeverityAnnotation a)
-    => Transformable Text m a
-    where
-    trTransformer _verb = Tracer . traceWith . trMessageText
 
 -- | Trace transformer which removes empty traces.
 filterNonEmpty
@@ -187,8 +174,9 @@ filterNonEmpty
      . (Monad m, Monoid a, Eq a)
     => Trace m a
     -> Trace m a
-filterNonEmpty tr = Tracer $ \arg -> do
-    when (nonEmptyMessage $ loContent $ snd arg)
+filterNonEmpty tr = mkTracer $ \arg -> do
+    when
+        (nonEmptyMessage $ loContent $ snd arg)
         $ traceWith tr arg
   where
     nonEmptyMessage (LogMessage msg) = msg /= mempty
@@ -197,7 +185,7 @@ filterNonEmpty tr = Tracer $ \arg -> do
 -- | Creates a tracer that prints any 'ToText' log message. This is useful for
 -- debugging functions in the REPL, when you need a 'Tracer' object.
 stdoutTextTracer :: (MonadIO m, ToText a) => Tracer m a
-stdoutTextTracer = Tracer $ liftIO . B8.putStrLn . T.encodeUtf8 . toText
+stdoutTextTracer = mkTracer $ liftIO . B8.putStrLn . T.encodeUtf8 . toText
 
 {-------------------------------------------------------------------------------
                                 Logging helpers
@@ -327,8 +315,6 @@ buildBracketLog toBuilder = \case
 
 instance HasPrivacyAnnotation (BracketLog' r)
 instance HasSeverityAnnotation (BracketLog' r) where
-    -- \| Default severities for 'BracketLog' - the enclosing log message may of
-    -- course use different values.
     getSeverityAnnotation = \case
         BracketStart -> Debug
         BracketFinish _ -> Debug
@@ -382,66 +368,57 @@ bracketTracer'' res msg tr action = do
         (action >>= \val -> traceWith tr (BracketFinish (msg val)) $> res val)
         (traceWith tr . exceptionMsg)
 
-instance MonadIO m => Outcome m (BracketLog' r) where
-    type IntermediateValue (BracketLog' r) = AbsoluteTime
-    type OutcomeMetric (BracketLog' r) = DiffTime
-
-    classifyObservable =
-        pure . \case
-            BracketStart -> OutcomeStarts
-            BracketFinish _ -> OutcomeEnds
-            BracketException _ -> OutcomeEnds
-            BracketAsyncException _ -> OutcomeEnds
-
-    -- NOTE: The AbsoluteTime functions are required so that measurements are
-    -- correct at times when leap seconds are applied. This is following the
-    -- tracer-transformers example.
-    captureObservableValue _ = systemToTAITime <$> liftIO getSystemTime
-    computeOutcomeMetric _ x y = pure $ diffAbsoluteTime y x
-
--- Pair up bracketlogs with some context information
-instance MonadIO m => Outcome m (ctx, BracketLog) where
-    type
-        IntermediateValue (ctx, BracketLog) =
-            (ctx, IntermediateValue BracketLog)
-    type OutcomeMetric (ctx, BracketLog) = (ctx, OutcomeMetric BracketLog)
-    classifyObservable (_ctx, b) = classifyObservable b
-    captureObservableValue (ctx, b) =
-        (ctx,) <$> captureObservableValue b
-    computeOutcomeMetric (ctx, b) (_, x) (_, y) =
-        (ctx,) <$> computeOutcomeMetric b x y
-
--- | Get metric results from 'mkOutcomeExtractor' and throw away the rest.
-fiddleOutcome
-    :: Monad m
-    => Tracer m (ctx, DiffTime)
-    -> Tracer m (Either (ctx, BracketLog) (OutcomeFidelity (ctx, DiffTime)))
-fiddleOutcome tr = Tracer $ \case
-    Right (ProgressedNormally dt) -> runTracer tr dt
-    _ -> pure ()
-
--- | Simplified wrapper for 'mkOutcomeExtractor'. This produces a timings
--- 'Tracer' from a 'Tracer' of messages @a@, and a function which can extract
--- the 'BracketLog' from @a@.
+-- | Replacement for the former @mkOutcomeExtractor@-based timings. This
+-- produces a timings 'Tracer' from a 'Tracer' of messages @a@, and a function
+-- which can extract the 'BracketLog' from @a@.
 --
 -- The extractor function can provide @ctx@, which could be the name of the
 -- timed operation for example.
 --
 -- The produced tracer will make just one trace for each finished bracket.
 -- It contains the @ctx@ from the extractor and the time difference.
+--
+-- The timing uses TAI time so that measurements are correct at times when
+-- leap seconds are applied, matching the previous @tracer-transformers@
+-- implementation.
+--
+-- The pending start is held in a /single/ slot, which is what
+-- @Control.Tracer.Transformers.ObserveOutcome.mkOutcomeExtractor@ did with its
+-- @MVar (Maybe (IntermediateValue a))@. That gives the two edge cases their
+-- former semantics:
+--
+--   * a second 'BracketStart' replaces the pending one (upstream emitted
+--     @StartsBeforeEnds@, which @fiddleOutcome@ discarded), so the state stays
+--     O(1) when starts outnumber ends;
+--   * a finish with no pending start emits nothing (upstream emitted
+--     @EndsBeforeStarted@, likewise discarded), rather than pairing the finish
+--     with an unrelated older start.
 produceTimings
-    :: (MonadUnliftIO m, MonadMask m)
+    :: forall m ctx a
+     . MonadUnliftIO m
     => (a -> Maybe (ctx, BracketLog))
     -- ^ Function to extract BracketLog messages from @a@, paired with context.
     -> Tracer m (ctx, DiffTime)
     -- ^ The timings tracer, has time deltas for each finished bracket.
     -> m (Tracer m a)
 produceTimings f trDiffTime = do
-    extractor <- mkOutcomeExtractor
-    let trOutcome = fiddleOutcome trDiffTime
-        trBracket = extractor trOutcome
-        tr = flatContramapTracer f trBracket
-    pure tr
+    openTime <- liftIO $ newMVar Nothing
+    pure $ mkTracer $ \arg ->
+        forM_ (f arg) $ \(ctx, blog) -> do
+            -- The clock is read INSIDE the critical section. Reading it
+            -- outside would let one thread capture a timestamp, be
+            -- descheduled while another thread completes a bracket and
+            -- clears the slot, and then install its stale timestamp -- so a
+            -- later finish would pair with an older start. 'MVar' rather than
+            -- 'TVar' because 'getSystemTime' is IO and cannot run in STM;
+            -- this restores the serialisation the pre-migration 'MVar'
+            -- implementation had.
+            mDelta <- liftIO $ modifyMVar openTime $ \mStart -> do
+                now <- systemToTAITime <$> getSystemTime
+                pure $ case blog of
+                    BracketStart -> (Just now, Nothing)
+                    _ -> (Nothing, diffAbsoluteTime now <$> mStart)
+            forM_ mDelta $ \delta -> traceWith trDiffTime (ctx, delta)
 
 {-------------------------------------------------------------------------------
                                Tracer conversions
@@ -453,4 +430,4 @@ flatContramapTracer
     => (a -> Maybe b)
     -> Tracer m b
     -> Tracer m a
-flatContramapTracer p tr = Tracer $ \a -> forM_ (p a) (runTracer tr)
+flatContramapTracer p tr = mkTracer $ \a -> forM_ (p a) (traceWith tr)

@@ -35,19 +35,19 @@ module Cardano.Wallet.Registry
     , traceAfterThread
     ) where
 
-import Cardano.BM.Data.Severity
-    ( Severity (..)
-    )
-import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation (..)
-    , HasSeverityAnnotation (..)
-    )
-import Cardano.BM.Extra
-    ( LoggedException (..)
-    )
 import Cardano.Wallet
     ( HasLogger
     , logger
+    )
+import Cardano.Wallet.Tracing.Data.Severity
+    ( Severity (..)
+    )
+import Cardano.Wallet.Tracing.Data.Tracer
+    ( HasPrivacyAnnotation (..)
+    , HasSeverityAnnotation (..)
+    )
+import Cardano.Wallet.Tracing.Extra
+    ( LoggedException (..)
     )
 import Control.Monad
     ( void

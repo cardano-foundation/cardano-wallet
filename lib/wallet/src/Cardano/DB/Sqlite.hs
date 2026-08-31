@@ -54,17 +54,6 @@ module Cardano.DB.Sqlite
     , ReadDBHandle
     ) where
 
-import Cardano.BM.Data.Severity
-    ( Severity (..)
-    )
-import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation (..)
-    , HasSeverityAnnotation (..)
-    )
-import Cardano.BM.Extra
-    ( BracketLog
-    , bracketTracer
-    )
 import Cardano.DB.Sqlite.ForeignKeys
     ( ForeignKeysSetting (..)
     , withForeignKeysDisabled
@@ -78,6 +67,17 @@ import Cardano.DB.Sqlite.Migration.Old
     )
 import Cardano.Wallet.DB.Migration
     ( ErrWrongVersion (..)
+    )
+import Cardano.Wallet.Tracing.Data.Severity
+    ( Severity (..)
+    )
+import Cardano.Wallet.Tracing.Data.Tracer
+    ( HasPrivacyAnnotation (..)
+    , HasSeverityAnnotation (..)
+    )
+import Cardano.Wallet.Tracing.Extra
+    ( BracketLog
+    , bracketTracer
     )
 import Control.Lens
     ( strict

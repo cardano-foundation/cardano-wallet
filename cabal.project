@@ -67,7 +67,7 @@ packages:
   lib/flaky-tests
   lib/faucet
   lib/integration
-  lib/iohk-monitoring-extra
+  lib/cardano-wallet-tracing
   lib/launcher
   lib/local-cluster
   lib/network-layer
@@ -149,7 +149,6 @@ source-repository-package
 allow-newer:
     async-timer:unliftio-core
   , servant-openapi3:*
-  , katip:Win32
   , ekg-wai:time
   , plutus-core:cardano-crypto
   , cardano-wallet-read:cardano-crypto
@@ -171,17 +170,6 @@ constraints:
   , bytesmith < 0.3.14
   , delta-types ==1.0.0.0
   , delta-store ==1.0.0.0
-
-  -- Force newer version of `lobemo-backend-ekg` here,
-  -- because older versions depend on `snap-server`,
-  -- which in turns fails to link on linux musl
-  -- due to some missing `sendfile64` hack.
-  -- (We use linux musl to get statically linked binaries.)
-
-  -- lower versions of katip won't build with the Win32-2.12.0.1
-  -- which is shipped with the ghc-9.2.8
-  , katip >= 0.8.7.4
-
 
   -- Cardano Node 11.0.1 dependencies:
   , cardano-api ==11.0.0.0

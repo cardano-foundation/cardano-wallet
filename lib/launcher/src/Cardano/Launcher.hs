@@ -27,16 +27,16 @@ module Cardano.Launcher
     , LauncherLog (..)
     ) where
 
-import Cardano.BM.Data.Severity
-    ( Severity (..)
-    )
-import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation (..)
-    , HasSeverityAnnotation (..)
-    )
 import Cardano.Startup
     ( interruptProcess
     , killProcess
+    )
+import Cardano.Wallet.Tracing.Data.Severity
+    ( Severity (..)
+    )
+import Cardano.Wallet.Tracing.Data.Tracer
+    ( HasPrivacyAnnotation (..)
+    , HasSeverityAnnotation (..)
     )
 import Control.Monad
     ( join

@@ -17,7 +17,7 @@ module Test.Utils.Trace
     , traceSpec
     ) where
 
-import Cardano.BM.Trace
+import Cardano.Wallet.Tracing.Trace
     ( traceInTVarIO
     )
 import Control.Monad.IO.Unlift

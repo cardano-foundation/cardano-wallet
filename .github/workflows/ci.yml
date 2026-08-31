@@ -687,6 +687,12 @@ jobs:
     name: ${{ matrix.name }}
     needs: build-gate-quality
     runs-on: nix-enabled-runners
+    env:
+      # These pods are ephemeral and their $HOME is not writable, so cabal
+      # cannot create its default ~/.config/cabal and dies with
+      # "createDirectory: permission denied". Give it a writable home of its
+      # own; CABAL_DIR affects cabal alone, unlike redirecting XDG_CONFIG_HOME.
+      CABAL_DIR: /tmp/cabal-dir/${{ github.job }}-${{ strategy.job-index }}
     strategy:
       fail-fast: false
       matrix:

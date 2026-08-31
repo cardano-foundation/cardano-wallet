@@ -168,10 +168,6 @@ import Cardano.Api.Extra
     ( cardanoApiEraConstraints
     , fromCardanoApiTx
     )
-import Cardano.BM.Tracing
-    ( HasPrivacyAnnotation (..)
-    , HasSeverityAnnotation (..)
-    )
 import Cardano.Balance.Tx.Eras
     ( AnyRecentEra (..)
     )
@@ -704,6 +700,10 @@ import Cardano.Wallet.Shelley.Transaction.Ledger
 import Cardano.Wallet.TokenMetadata
     ( TokenMetadataClient
     , fillMetadata
+    )
+import Cardano.Wallet.Tracing.Tracing
+    ( HasPrivacyAnnotation (..)
+    , HasSeverityAnnotation (..)
     )
 import Cardano.Wallet.Transaction
     ( AnyExplicitScript (..)

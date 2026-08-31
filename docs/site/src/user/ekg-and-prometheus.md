@@ -41,9 +41,9 @@ Following the example above metrics would be available in `localhost` under corr
 > curl -H "Accept: application/json" http://localhost:8070/ | jq
 
 {
-  "iohk-monitoring version": {
+  "cardano-wallet version": {
     "type": "l",
-    "val": "0.1.10.1"
+    "val": "v2026-08-21 (git revision: 0a7332482c49537d8169a7a3424a6ce72329c6d5)"
   },
   "ekg": {
     "server_timestamp_ms": {
@@ -64,12 +64,12 @@ Following the example above metrics would be available in `localhost` under corr
 ```
 > curl http://localhost:8080/metrics
 
-cardano_wallet_metrics_Stat_rtpriority_int 0
-cardano_wallet_metrics_Stat_itrealvalue_int 0
+cardano_wallet_metrics_Mem_size_int 268580194
+cardano_wallet_metrics_Mem_resident_int 27102
+cardano_wallet_metrics_Stat_cputicks_int 73
+cardano_wallet_metrics_IO_syscr_int 1384
+cardano_wallet_metrics_Net_IpExtInOctets_B 1139594746118
 rts_gc_par_max_bytes_copied 0
-cardano_wallet_metrics_IO_syscr_int 3722
-cardano_wallet_metrics_Stat_minflt_int 6731
-cardano_wallet_metrics_Stat_cminflt_int 0
 ```
 
 ### Binding monitoring

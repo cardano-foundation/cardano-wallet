@@ -12,10 +12,6 @@ module Cardano.Wallet.Launch.Cluster.CardanoCLI
     )
 where
 
-import Cardano.BM.Tracing
-    ( Tracer
-    , traceWith
-    )
 import Cardano.Launcher
     ( ProcessHasExited (..)
     )
@@ -32,6 +28,10 @@ import Cardano.Wallet.Launch.Cluster.Config
     )
 import Cardano.Wallet.Launch.Cluster.Logging
     ( ClusterLog (MsgCLI, MsgCLIRetry, MsgCLIRetryResult, MsgCLIStatus)
+    )
+import Cardano.Wallet.Tracing.Tracing
+    ( Tracer
+    , traceWith
     )
 import Control.Exception
     ( throwIO

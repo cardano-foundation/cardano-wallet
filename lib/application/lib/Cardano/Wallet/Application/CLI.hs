@@ -100,51 +100,6 @@ module Cardano.Wallet.Application.CLI
     , listenShelleyUiOption
     ) where
 
-import Cardano.BM.Backend.Switchboard
-    ( Switchboard
-    )
-import Cardano.BM.Configuration.Static
-    ( defaultConfigStdout
-    )
-import Cardano.BM.Counters
-    ( readCounters
-    )
-import Cardano.BM.Data.Configuration
-    ( Endpoint (..)
-    )
-import Cardano.BM.Data.Counter
-    ( Counter (..)
-    , nameCounter
-    )
-import Cardano.BM.Data.LogItem
-    ( LOContent (..)
-    , LoggerName
-    , PrivacyAnnotation (..)
-    , mkLOMeta
-    )
-import Cardano.BM.Data.Output
-    ( ScribeDefinition (..)
-    , ScribeFormat (..)
-    , ScribeId
-    , ScribeKind (..)
-    , ScribePrivacy (..)
-    )
-import Cardano.BM.Data.Severity
-    ( Severity (..)
-    )
-import Cardano.BM.Data.SubTrace
-    ( SubTrace (..)
-    )
-import Cardano.BM.Setup
-    ( setupTrace_
-    , shutdown
-    )
-import Cardano.BM.Trace
-    ( Trace
-    , appendName
-    , logDebug
-    , traceNamedObject
-    )
 import Cardano.Mnemonic
     ( MkSomeMnemonic (..)
     , SomeMnemonic (..)
@@ -201,6 +156,9 @@ import Cardano.Wallet.Api.Types.SchemaMetadata
 import Cardano.Wallet.Api.Types.Transaction
     ( ApiLimit (..)
     )
+import Cardano.Wallet.Application.Monitoring
+    ( LogOutput (..)
+    )
 import Cardano.Wallet.Application.Server
     ( Listen (..)
     )
@@ -248,6 +206,17 @@ import Cardano.Wallet.Primitive.Types.Hash
 import Cardano.Wallet.Primitive.Types.Tx.SealedTx
     ( SerialisedTx (..)
     )
+import Cardano.Wallet.Tracing.Data.LogItem
+    ( LoggerName
+    )
+import Cardano.Wallet.Tracing.Data.Severity
+    ( Severity (..)
+    )
+import Cardano.Wallet.Tracing.Trace
+    ( Trace
+    , appendName
+    , logDebug
+    )
 import Control.Applicative
     ( optional
     , some
@@ -258,15 +227,10 @@ import Control.Arrow
     , left
     )
 import Control.Monad
-    ( forM_
-    , forever
-    , join
+    ( join
     , unless
     , void
     , when
-    )
-import Control.Monad.IO.Class
-    ( MonadIO
     )
 import Data.Aeson
     ( ToJSON (..)
@@ -389,9 +353,6 @@ import System.IO
 import System.Info
     ( os
     )
-import UnliftIO.Concurrent
-    ( threadDelay
-    )
 import UnliftIO.Exception
     ( bracket
     )
@@ -445,9 +406,7 @@ import Prelude hiding
     ( getLine
     )
 
-import qualified Cardano.BM.Configuration.Model as CM
-import qualified Cardano.BM.Data.BackendKind as CM
-import qualified Cardano.BM.Data.Observable as Obs
+import qualified Cardano.Wallet.Application.Monitoring as Monitoring
 import qualified Cardano.Wallet.Read as Read
 import qualified Command.Key as Key
 import qualified Command.RecoveryPhrase as RecoveryPhrase
@@ -461,7 +420,6 @@ import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.IO as TIO
-import qualified UnliftIO.Async as Async
 import qualified "optparse-applicative" Options.Applicative.Help.Pretty as Printer
 
 {-------------------------------------------------------------------------------
@@ -2151,47 +2109,8 @@ data Verbosity
       Verbose
     deriving (Eq, Show)
 
-data LogOutput
-    = -- | Log to console, with the given minimum 'Severity'.
-      --
-      -- Logs of Warning or higher severity will be output to stderr. Notice or
-      -- lower severity logs will be output to stdout.
-      LogToStdStreams Severity
-    | LogToFile FilePath Severity
-    deriving (Eq, Show)
-
-mkScribe :: LogOutput -> [ScribeDefinition]
-mkScribe (LogToFile path sev) =
-    pure
-        $ ScribeDefinition
-            { scName = T.pack path
-            , scFormat = ScText
-            , scKind = FileSK
-            , scMinSev = sev
-            , scMaxSev = Critical
-            , scPrivacy = ScPublic
-            , scRotation = Nothing
-            }
-mkScribe (LogToStdStreams sev) =
-    [ mkScribe' (max errMin sev, maxBound, StderrSK)
-    , mkScribe' (sev, pred errMin, StdoutSK)
-    ]
-  where
-    errMin = Warning
-    mkScribe' (minSev, maxSev, kind) =
-        ScribeDefinition
-            { scName = "text"
-            , scFormat = ScText
-            , scKind = kind
-            , scMinSev = minSev
-            , scMaxSev = maxSev
-            , scPrivacy = ScPublic
-            , scRotation = Nothing
-            }
-
-mkScribeId :: LogOutput -> [ScribeId]
-mkScribeId (LogToStdStreams _) = ["StdoutSK::text", "StderrSK::text"]
-mkScribeId (LogToFile file _) = pure $ T.pack $ "FileSK::" <> file
+-- NOTE: The 'LogOutput' type lives in "Cardano.Wallet.Application.Monitoring"
+-- and is re-exported from this module for backwards compatibility.
 
 getPrometheusURL :: IO (Maybe (String, Port "Prometheus"))
 getPrometheusURL = do
@@ -2228,63 +2147,10 @@ getEKGURL = do
 ekgEnabled :: IO Bool
 ekgEnabled = isJust <$> getEKGURL
 
--- | Initialize logging at the specified minimum 'Severity' level.
-initTracer
-    :: LoggerName
-    -> [LogOutput]
-    -> IO (Switchboard Text, (CM.Configuration, Trace IO Text))
-initTracer loggerName outputs = do
-    prometheusHP <- getPrometheusURL
-    ekgHP <- getEKGURL
-    cfg <- do
-        c <- defaultConfigStdout
-        CM.setSetupBackends
-            c
-            [CM.KatipBK, CM.AggregationBK, CM.EKGViewBK, CM.EditorBK]
-        CM.setDefaultBackends c [CM.KatipBK]
-        CM.setSetupScribes c $ outputs >>= mkScribe
-        CM.setDefaultScribes c $ outputs >>= mkScribeId
-        CM.setBackends c "test-cluster.metrics" (Just [CM.EKGViewBK])
-        CM.setBackends c "cardano-wallet.metrics" (Just [CM.EKGViewBK])
-        forM_ ekgHP $ \(h, p) -> do
-            CM.setEKGBindAddr c $ Just (Endpoint (h, getPort p))
-        forM_ prometheusHP $ \(h, p) ->
-            CM.setPrometheusBindAddr c $ Just (h, getPort p)
-        pure c
-    (tr, sb) <- setupTrace_ cfg loggerName
-    ekgEnabled >>= flip when (startCapturingMetrics tr)
-    pure (sb, (cfg, tr))
-  where
-    -- https://github.com/IntersectMBO/cardano-node/blob/f7d57e30c47028ba2aeb306a4f21b47bb41dec01/cardano-node/src/Cardano/Node/Configuration/Logging.hs#L224
-    startCapturingMetrics :: Trace IO Text -> IO ()
-    startCapturingMetrics trace0 = do
-        let trace = appendName "metrics" trace0
-            counters =
-                [ Obs.MemoryStats
-                , Obs.ProcessStats
-                , Obs.NetStats
-                , Obs.IOStats
-                , Obs.GhcRtsStats
-                , Obs.SysStats
-                ]
-        _ <- Async.async $ forever $ do
-            cts <- readCounters (ObservableTraceSelf counters)
-            traceCounters trace cts
-            threadDelay 30_000_000 -- 30 seconds
-        pure ()
-      where
-        traceCounters
-            :: forall m a. MonadIO m => Trace m a -> [Counter] -> m ()
-        traceCounters _tr [] = return ()
-        traceCounters tr (c@(Counter _ct cn cv) : cs) = do
-            mle <- mkLOMeta Notice Confidential
-            traceNamedObject tr (mle, LogValue (nameCounter c <> "." <> cn) cv)
-            traceCounters tr cs
-
 -- | See 'withLoggingNamed'
 withLogging
     :: [LogOutput]
-    -> ((Switchboard Text, (CM.Configuration, Trace IO Text)) -> IO a)
+    -> (Trace IO Text -> IO a)
     -> IO a
 withLogging =
     withLoggingNamed "cardano-wallet"
@@ -2294,15 +2160,22 @@ withLogging =
 withLoggingNamed
     :: LoggerName
     -> [LogOutput]
-    -> ((Switchboard Text, (CM.Configuration, Trace IO Text)) -> IO a)
+    -> (Trace IO Text -> IO a)
     -- ^ The action to run with logging configured.
     -> IO a
-withLoggingNamed loggerName outputs = bracket before after
+withLoggingNamed loggerName outputs action = bracket before after (\(_, tr) -> action tr)
   where
-    before = initTracer loggerName outputs
-    after (sb, (_, tr)) = do
+    before = do
+        prometheusHP <- getPrometheusURL
+        ekgHP <- getEKGURL
+        Monitoring.initTracer
+            loggerName
+            outputs
+            (Bi.second getPort <$> ekgHP)
+            (Bi.second getPort <$> prometheusHP)
+    after (shutdown, tr) = do
         logDebug (appendName "main" tr) "Logging shutdown."
-        shutdown sb
+        shutdown
 
 data LoggingOptions tracers = LoggingOptions
     { loggingMinSeverity :: Severity

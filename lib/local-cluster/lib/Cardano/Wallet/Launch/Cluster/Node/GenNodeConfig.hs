@@ -1,4 +1,7 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -9,15 +12,6 @@ module Cardano.Wallet.Launch.Cluster.Node.GenNodeConfig
     )
 where
 
-import Cardano.BM.Data.Output
-    ( ScribeDefinition (..)
-    , ScribeFormat (..)
-    , ScribeKind (..)
-    , ScribePrivacy (..)
-    )
-import Cardano.BM.Data.Severity
-    ( Severity (..)
-    )
 import Cardano.Ledger.Shelley.API
     ( ShelleyGenesis (..)
     )
@@ -50,6 +44,9 @@ import Cardano.Wallet.Launch.Cluster.Node.GenesisFiles
     ( GenesisFiles
     , GenesisRecord (..)
     )
+import Cardano.Wallet.Tracing.Data.Severity
+    ( Severity (..)
+    )
 import Control.Lens
     ( (%~)
     , (&)
@@ -63,7 +60,9 @@ import Control.Monad.Reader
     , MonadReader (..)
     )
 import Data.Aeson
-    ( Key
+    ( FromJSON (..)
+    , Key
+    , ToJSON (..)
     , Value (..)
     , toJSON
     )
@@ -85,6 +84,15 @@ import Data.Maybe
 import Data.Tagged
     ( Tagged
     , untag
+    )
+import Data.Text
+    ( Text
+    )
+import Data.Word
+    ( Word64
+    )
+import GHC.Generics
+    ( Generic
     )
 import Ouroboros.Network.Magic
     ( NetworkMagic (..)
@@ -235,3 +243,42 @@ removeGenesisHashes value =
         & atKey "AlonzoGenesisHash" .~ Nothing
         & atKey "ConwayGenesisHash" .~ Nothing
         & atKey "DijkstraGenesisHash" .~ Nothing
+
+{-------------------------------------------------------------------------------
+    Scribe configuration types (node config JSON serialization)
+-------------------------------------------------------------------------------}
+
+data ScribeFormat = ScText | ScJson
+    deriving stock (Eq, Show, Generic)
+    deriving anyclass (FromJSON, ToJSON)
+
+data ScribeKind = FileSK | StdoutSK | StderrSK | DevNullSK
+    deriving stock (Eq, Show, Generic)
+    deriving anyclass (FromJSON, ToJSON)
+
+data ScribePrivacy = ScPublic | ScPrivate
+    deriving stock (Eq, Show, Generic)
+    deriving anyclass (FromJSON, ToJSON)
+
+-- | Local stand-in for @Cardano.BM.Data.Rotation.RotationParameters@. The
+-- field names are part of the node config JSON contract and must stay
+-- byte-compatible with the type this replaces.
+data ScribeRotation = ScribeRotation
+    { rpLogLimitBytes :: !Word64
+    , rpMaxAgeHours :: !Word
+    , rpKeepFilesNum :: !Word
+    }
+    deriving stock (Eq, Show, Generic)
+    deriving anyclass (FromJSON, ToJSON)
+
+data ScribeDefinition = ScribeDefinition
+    { scName :: !Text
+    , scFormat :: !ScribeFormat
+    , scKind :: !ScribeKind
+    , scMinSev :: !Severity
+    , scMaxSev :: !Severity
+    , scPrivacy :: !ScribePrivacy
+    , scRotation :: !(Maybe ScribeRotation)
+    }
+    deriving stock (Eq, Show, Generic)
+    deriving anyclass (FromJSON, ToJSON)

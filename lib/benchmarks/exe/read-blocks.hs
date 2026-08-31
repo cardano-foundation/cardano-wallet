@@ -1,9 +1,5 @@
 {-# LANGUAGE DataKinds #-}
 
-import Cardano.BM.ToTextTracer
-    ( ToTextTracer (..)
-    , withToTextTracer
-    )
 import Cardano.Wallet.Benchmarks.Collect
     ( newReporterFromEnv
     , noSemantic
@@ -22,6 +18,10 @@ import Cardano.Wallet.Read.Block
     )
 import Cardano.Wallet.Read.Block.Gen.Build
     ( exampleBlocks
+    )
+import Cardano.Wallet.Tracing.ToTextTracer
+    ( ToTextTracer (..)
+    , withToTextTracer
     )
 import Control.Monad.Cont
     ( evalContT

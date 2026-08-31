@@ -3,14 +3,6 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-import Cardano.BM.ToTextTracer
-    ( ToTextTracer (ToTextTracer)
-    , withToTextTracer
-    )
-import Cardano.BM.Tracing
-    ( HasSeverityAnnotation (..)
-    , Severity (..)
-    )
 import Cardano.Launcher
     ( ProcessHandles (..)
     )
@@ -38,6 +30,14 @@ import Cardano.Wallet.Benchmarks.Collect
     , newReporterFromEnv
     , noSemantic
     , report
+    )
+import Cardano.Wallet.Tracing.ToTextTracer
+    ( ToTextTracer (ToTextTracer)
+    , withToTextTracer
+    )
+import Cardano.Wallet.Tracing.Tracing
+    ( HasSeverityAnnotation (..)
+    , Severity (..)
     )
 import Control.Concurrent
     ( threadDelay

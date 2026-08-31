@@ -15,17 +15,17 @@ module Cardano.Wallet.Network.Logging.Aggregation
     , overCurrent
     ) where
 
-import Cardano.BM.Data.Severity
-    ( Severity (..)
-    )
-import Cardano.BM.Data.Tracer
-    ( HasSeverityAnnotation (..)
-    )
 import Cardano.Slotting.Slot
     ( SlotNo (..)
     )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..)
+    )
+import Cardano.Wallet.Tracing.Data.Severity
+    ( Severity (..)
+    )
+import Cardano.Wallet.Tracing.Data.Tracer
+    ( HasSeverityAnnotation (..)
     )
 import Control.Concurrent.Class.MonadSTM
     ( atomically

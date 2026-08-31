@@ -43,13 +43,6 @@ module Cardano.Wallet.DB.Layer
     , readWalletId
     ) where
 
-import Cardano.BM.Data.Severity
-    ( Severity (..)
-    )
-import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation (..)
-    , HasSeverityAnnotation (..)
-    )
 import Cardano.DB.Sqlite
     ( DBLog (..)
     , ForeignKeysSetting (ForeignKeysEnabled)
@@ -186,6 +179,13 @@ import Cardano.Wallet.Read.Eras
     )
 import Cardano.Wallet.Read.Tx.CBOR
     ( parseTxFromCBOR
+    )
+import Cardano.Wallet.Tracing.Data.Severity
+    ( Severity (..)
+    )
+import Cardano.Wallet.Tracing.Data.Tracer
+    ( HasPrivacyAnnotation (..)
+    , HasSeverityAnnotation (..)
     )
 import Control.DeepSeq
     ( force

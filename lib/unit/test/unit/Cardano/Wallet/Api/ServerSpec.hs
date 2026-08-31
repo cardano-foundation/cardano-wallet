@@ -8,9 +8,6 @@
 
 module Cardano.Wallet.Api.ServerSpec (spec) where
 
-import Cardano.BM.Trace
-    ( nullTracer
-    )
 import Cardano.Ledger.BaseTypes
     ( unsafeNonZero
     )
@@ -70,6 +67,9 @@ import Cardano.Wallet.Primitive.Types.Coin
     )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..)
+    )
+import Cardano.Wallet.Tracing.Trace
+    ( nullTracer
     )
 import Cardano.Wallet.Unsafe
     ( unsafeFromText

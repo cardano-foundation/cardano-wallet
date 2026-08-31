@@ -73,6 +73,7 @@ library
     , cardano-wallet-read
     , cardano-wallet-secrets
     , cardano-wallet-test-utils
+    , cardano-wallet-tracing
     , cborg
     , containers
     , contra-tracer
@@ -97,8 +98,6 @@ library
     , http-types
     , int-cast
     , io-classes
-    , iohk-monitoring
-    , iohk-monitoring-extra
     , lens
     , list-transformer
     , memory

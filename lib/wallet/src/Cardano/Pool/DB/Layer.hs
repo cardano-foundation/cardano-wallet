@@ -32,9 +32,6 @@ module Cardano.Pool.DB.Layer
     , createViews
     ) where
 
-import Cardano.BM.Extra
-    ( bracketTracer
-    )
 import Cardano.DB.Sqlite
     ( DBLog (..)
     , ForeignKeysSetting (ForeignKeysEnabled)
@@ -94,6 +91,9 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.DRep
     ( DRepMetaReference (..)
     , DRepMetadata (..)
+    )
+import Cardano.Wallet.Tracing.Extra
+    ( bracketTracer
     )
 import Cardano.Wallet.Unsafe
     ( unsafeMkPercentage

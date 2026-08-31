@@ -29,12 +29,12 @@ library
   build-depends:
       base
     , bytestring
+    , cardano-wallet-tracing
     , contra-tracer
     , directory
     , filepath
     , fmt
     , http-conduit
-    , iohk-monitoring
     , network
     , process
     , text
@@ -76,16 +76,17 @@ test-suite unit
     , bytestring
     , cardano-wallet-launcher
     , cardano-wallet-test-utils
+    , cardano-wallet-tracing
     , contra-tracer
     , fmt
     , hspec
     , hspec-core
     , hspec-expectations
-    , iohk-monitoring
     , retry
     , text
     , text-class
     , time
+    , transformers
     , unliftio
 
   build-tool-depends: hspec-discover:hspec-discover

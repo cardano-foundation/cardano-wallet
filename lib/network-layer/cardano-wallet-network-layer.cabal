@@ -89,6 +89,7 @@ library
     , cardano-wallet-launcher
     , cardano-wallet-primitive
     , cardano-wallet-read
+    , cardano-wallet-tracing
     , cborg
     , containers
     , contra-tracer
@@ -96,8 +97,6 @@ library
     , fmt
     , io-classes
     , io-classes:strict-stm
-    , iohk-monitoring
-    , iohk-monitoring-extra
     , network-mux
     , nothunks
     , ouroboros-consensus

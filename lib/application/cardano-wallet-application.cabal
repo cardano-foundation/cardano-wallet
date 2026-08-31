@@ -55,10 +55,8 @@ executable cardano-wallet
     , cardano-wallet-application:shelley
     , cardano-wallet-launcher
     , cardano-wallet-network-layer
+    , cardano-wallet-tracing
     , contra-tracer
-    , iohk-monitoring
-    , iohk-monitoring-extra
-    , lobemo-backend-ekg
     , network-uri
     , optparse-applicative
     , text
@@ -84,7 +82,6 @@ library shelley
     , cardano-wallet-ui:common
     , cardano-wallet-ui:shelley
     , contra-tracer
-    , extra
     , generic-lens
     , http-client-tls
     , network
@@ -106,6 +103,7 @@ library
     , aeson
     , aeson-pretty
     , ansi-terminal
+    , async
     , base
     , bytestring
     , cardano-addresses
@@ -116,17 +114,20 @@ library
     , cardano-wallet-primitive
     , cardano-wallet-read
     , cardano-wallet-secrets
+    , cardano-wallet-tracing
     , contra-tracer
     , directory
+    , ekg-core
+    , ekg-wai
     , file-embed
     , filepath
     , fmt
     , http-client
-    , iohk-monitoring
-    , iohk-monitoring-extra
+    , http-types
     , network
     , ntp-client
     , optparse-applicative
+    , scientific
     , servant-client
     , servant-client-core
     , servant-server
@@ -136,13 +137,24 @@ library
     , text-class
     , time
     , unliftio
+    , unordered-containers
+    , wai
     , wai-middleware-logging
     , warp
     , warp-tls
 
+  -- Counters.hs reads /proc and imports System.Posix only under
+  -- linux_HOST_OS, so the dependency is Linux-only. Declaring it
+  -- unconditionally breaks Windows cross-compilation and trips
+  -- -Wunused-packages elsewhere.
+  if os(linux)
+    build-depends: unix
+
   exposed-modules:
     Cardano.Wallet.Application.CLI
     Cardano.Wallet.Application.Logging
+    Cardano.Wallet.Application.Metrics.Counters
+    Cardano.Wallet.Application.Monitoring
     Cardano.Wallet.Application.Server
     Cardano.Wallet.Application.Tracers
     Cardano.Wallet.Application.Version

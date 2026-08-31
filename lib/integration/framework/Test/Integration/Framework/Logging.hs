@@ -8,24 +8,6 @@ module Test.Integration.Framework.Logging
     )
 where
 
-import Cardano.BM.Data.Severity
-    ( Severity (..)
-    )
-import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation (..)
-    , HasSeverityAnnotation (..)
-    )
-import Cardano.BM.Extra
-    ( BracketLog
-    , bracketTracer
-    , trMessageText
-    )
-import Cardano.BM.Plugin
-    ( loadPlugin
-    )
-import Cardano.BM.Trace
-    ( appendName
-    )
 import Cardano.Wallet.Application
     ( Tracers
     , setupTracers
@@ -33,7 +15,6 @@ import Cardano.Wallet.Application
     )
 import Cardano.Wallet.Application.CLI
     ( LogOutput (..)
-    , ekgEnabled
     , withLogging
     )
 import Cardano.Wallet.Launch.Cluster
@@ -49,8 +30,20 @@ import Cardano.Wallet.Launch.Cluster.FileOf
     , mkRelDirOf
     , toFilePath
     )
-import Control.Monad
-    ( when
+import Cardano.Wallet.Tracing.Data.Severity
+    ( Severity (..)
+    )
+import Cardano.Wallet.Tracing.Data.Tracer
+    ( HasPrivacyAnnotation (..)
+    , HasSeverityAnnotation (..)
+    )
+import Cardano.Wallet.Tracing.Extra
+    ( BracketLog
+    , bracketTracer
+    , trMessageText
+    )
+import Cardano.Wallet.Tracing.Trace
+    ( appendName
     )
 import Control.Tracer
     ( Tracer (..)
@@ -78,7 +71,6 @@ import UnliftIO.Exception
     )
 import Prelude
 
-import qualified Cardano.BM.Backend.EKGView as EKG
 import qualified Data.Text as T
 
 data TestsLog
@@ -162,9 +154,8 @@ withTracers testDir action = do
     testLogOutputs <-
         getLogOutputs testMinSeverityFromEnv $ relFile "test.log"
 
-    withLogging walletLogOutputs $ \(sb, (cfg, walTr)) -> do
-        ekgEnabled >>= flip when (EKG.plugin cfg walTr sb >>= loadPlugin sb)
-        withLogging testLogOutputs $ \(_, (_, testTr)) -> do
+    withLogging walletLogOutputs $ \walTr -> do
+        withLogging testLogOutputs $ \testTr -> do
             let trTests = appendName "integration" testTr
             let tracers = setupTracers (tracerSeverities (Just Debug)) walTr
             action (trMessageText trTests, tracers)

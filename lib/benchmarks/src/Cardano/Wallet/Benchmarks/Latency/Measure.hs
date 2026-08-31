@@ -16,23 +16,10 @@ module Cardano.Wallet.Benchmarks.Latency.Measure
     , meanAvg
     ) where
 
-import Cardano.BM.Backend.Switchboard
-    ( effectuate
-    )
-import Cardano.BM.Configuration.Static
-    ( defaultConfigStdout
-    )
-import Cardano.BM.Data.LogItem
+import Cardano.Wallet.Tracing.Data.LogItem
     ( LOContent (..)
     , LOMeta (..)
     , LogObject (..)
-    )
-import Cardano.BM.Data.Severity
-    ( Severity (..)
-    )
-import Cardano.BM.Setup
-    ( setupTrace_
-    , shutdown
     )
 import Control.Monad
     ( replicateM_
@@ -42,6 +29,10 @@ import Control.Monad.Cont
     )
 import Control.Monad.IO.Class
     ( MonadIO (..)
+    )
+import Data.Aeson
+    ( ToJSON (..)
+    , Value (..)
     )
 import Data.Maybe
     ( mapMaybe
@@ -69,8 +60,7 @@ import Network.Wai.Middleware.Logging
     , HandlerLog (..)
     )
 import UnliftIO.Exception
-    ( bracket
-    , onException
+    ( onException
     )
 import UnliftIO.STM
     ( TVar
@@ -81,7 +71,9 @@ import UnliftIO.STM
     )
 import Prelude
 
-import qualified Cardano.BM.Configuration.Model as CM
+import qualified Data.Aeson.Text as Aeson
+import qualified Data.Text.IO as TIO
+import qualified Data.Text.Lazy as TL
 
 meanAvg :: [NominalDiffTime] -> Double
 meanAvg ts = sum (map realToFrac ts) * 1000 / fromIntegral (length ts)
@@ -131,7 +123,7 @@ measureLatency count start finish capture action = do
     (logs, ()) <- capture $ replicateM_ count action
     pure $ extractTimings start finish logs
 
--- | Scan through iohk-monitoring logs and extract time differences between
+-- | Scan through the captured log objects and extract time differences between
 -- start and end messages.
 extractTimings
     :: forall a
@@ -194,18 +186,21 @@ withLatencyLogging
     :: (TVar [LogObject ApiLog] -> tracers)
     -> ContT r IO (tracers, LogCaptureFunc ApiLog b)
 withLatencyLogging setupTracers = do
-    cfg <- do
-        cfg <- liftIO defaultConfigStdout
-        liftIO $ CM.setMinSeverity cfg Debug
-        pure cfg
     tvar <- liftIO $ newTVarIO []
-    (_, sb) <-
-        ContT
-            $ bracket (setupTrace_ cfg "bench-latency") (shutdown . snd)
     ContT $ \k ->
         k (setupTracers tvar, logCaptureFunc tvar) `onException` do
             fmtLn "Action failed. Here are the captured logs:"
-            readTVarIO tvar >>= mapM_ (effectuate sb) . reverse
+            readTVarIO tvar >>= mapM_ dumpLogObject . reverse
+  where
+    dumpLogObject :: LogObject ApiLog -> IO ()
+    dumpLogObject lo = case loContent lo of
+        LogMessage msg -> case toJSON msg of
+            String t -> TIO.putStrLn t
+            v -> TIO.putStrLn $ TL.toStrict $ Aeson.encodeToLazyText v
+        LogError t -> TIO.putStrLn t
+        LogValue n v ->
+            TIO.putStrLn
+                $ n <> " = " <> TL.toStrict (Aeson.encodeToLazyText (show v))
 
 logCaptureFunc :: TVar [LogObject ApiLog] -> LogCaptureFunc ApiLog b
 logCaptureFunc tvar action = do

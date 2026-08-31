@@ -33,16 +33,6 @@ import Cardano.Address.Script
 import Cardano.Address.Style.Shelley
     ( shelleyTestnet
     )
-import Cardano.BM.Data.Tracer
-    ( nullTracer
-    )
-import Cardano.BM.Extra
-    ( bracketTracer
-    , stdoutTextTracer
-    )
-import Cardano.BM.ToTextTracer
-    ( ToTextTracer (..)
-    )
 import Cardano.Crypto.Wallet
     ( XPrv
     )
@@ -214,6 +204,16 @@ import Cardano.Wallet.Shelley.BlockchainSource
 import Cardano.Wallet.TokenMetadata.MockServer
     ( queryServerStatic
     , withMetadataServer
+    )
+import Cardano.Wallet.Tracing.Data.Tracer
+    ( nullTracer
+    )
+import Cardano.Wallet.Tracing.Extra
+    ( bracketTracer
+    , stdoutTextTracer
+    )
+import Cardano.Wallet.Tracing.ToTextTracer
+    ( ToTextTracer (..)
     )
 import Control.Concurrent
     ( threadDelay

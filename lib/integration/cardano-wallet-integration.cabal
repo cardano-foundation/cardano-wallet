@@ -64,6 +64,7 @@ library framework
     , cardano-wallet-primitive
     , cardano-wallet-secrets
     , cardano-wallet-test-utils
+    , cardano-wallet-tracing
     , cardano-wallet:mock-token-metadata
     , cborg
     , command
@@ -86,10 +87,7 @@ library framework
     , http-client
     , http-types
     , HUnit
-    , iohk-monitoring
-    , iohk-monitoring-extra
     , lens
-    , lobemo-backend-ekg
     , local-cluster
     , local-cluster:local-cluster-process
     , memory

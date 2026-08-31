@@ -20,7 +20,7 @@
   "cardano-wallet"
   "crypto-primitives"
   "faucet"
-  "iohk-monitoring-extra"
+  "cardano-wallet-tracing"
   "local-cluster"
   "std-gen-seed"
   "temporary-extra"

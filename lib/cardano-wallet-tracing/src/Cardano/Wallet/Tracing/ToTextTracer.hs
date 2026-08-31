@@ -1,6 +1,6 @@
 {-# LANGUAGE RankNTypes #-}
 
-module Cardano.BM.ToTextTracer
+module Cardano.Wallet.Tracing.ToTextTracer
     ( ToTextTracer (..)
     , logHandleFromFilePath
     , withFile
@@ -9,11 +9,12 @@ module Cardano.BM.ToTextTracer
     )
 where
 
-import Cardano.BM.Data.Tracer
+import Cardano.Wallet.Tracing.Data.Tracer
     ( HasSeverityAnnotation (..)
-    , Tracer (Tracer)
+    , Tracer
+    , mkTracer
     )
-import Cardano.BM.Tracing
+import Cardano.Wallet.Tracing.Tracing
     ( Severity
     )
 import Control.Monad
@@ -103,7 +104,7 @@ withToTextTracer mClusterLogsFile minSeverity = do
                 <> "] "
                 <> x
     ContT $ \k -> do
-        r <- k $ ToTextTracer $ Tracer $ \msg -> do
+        r <- k $ ToTextTracer $ mkTracer $ \msg -> do
             let severity = getSeverityAnnotation msg
             unless (Just severity < minSeverity) $ do
                 t <- getCurrentTime

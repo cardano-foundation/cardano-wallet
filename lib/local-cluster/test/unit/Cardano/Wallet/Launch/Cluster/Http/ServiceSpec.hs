@@ -14,9 +14,6 @@ module Cardano.Wallet.Launch.Cluster.Http.ServiceSpec
     )
 where
 
-import Cardano.BM.ToTextTracer
-    ( ToTextTracer (..)
-    )
 import Cardano.Binary
     ( serialize'
     )
@@ -115,6 +112,9 @@ import Cardano.Wallet.Read
     , Tx
     , applyEraFun
     , (:*:) (..)
+    )
+import Cardano.Wallet.Tracing.ToTextTracer
+    ( ToTextTracer (..)
     )
 import Control.Monad
     ( join

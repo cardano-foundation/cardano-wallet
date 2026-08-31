@@ -259,21 +259,6 @@ import Cardano.Api.Extra
     , cardanoApiEraConstraints
     , toCardanoApiTx
     )
-import Cardano.BM.Data.Severity
-    ( Severity (..)
-    )
-import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation (..)
-    , HasSeverityAnnotation (..)
-    )
-import Cardano.BM.Extra
-    ( BracketLog
-    , BracketLog' (..)
-    , bracketTracer
-    , formatResultMsg
-    , resultSeverity
-    , traceResult
-    )
 import Cardano.Balance.Tx.Balance
     ( ChangeAddressGen (..)
     , ErrBalanceTx (..)
@@ -683,6 +668,21 @@ import Cardano.Wallet.Shelley.Transaction.Ledger
     , mkShelleyWitnessLedger
     , mkTransaction
     , sealWriteTx
+    )
+import Cardano.Wallet.Tracing.Data.Severity
+    ( Severity (..)
+    )
+import Cardano.Wallet.Tracing.Data.Tracer
+    ( HasPrivacyAnnotation (..)
+    , HasSeverityAnnotation (..)
+    )
+import Cardano.Wallet.Tracing.Extra
+    ( BracketLog
+    , BracketLog' (..)
+    , bracketTracer
+    , formatResultMsg
+    , resultSeverity
+    , traceResult
     )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)

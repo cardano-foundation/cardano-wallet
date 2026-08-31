@@ -48,6 +48,7 @@ library
     , cardano-wallet-integration:framework
     , cardano-wallet-launcher
     , cardano-wallet-test-utils
+    , cardano-wallet-tracing
     , cassava
     , Chart
     , Chart-diagrams
@@ -66,8 +67,6 @@ library
     , hspec
     , http-client
     , http-types
-    , iohk-monitoring
-    , iohk-monitoring-extra
     , JuicyPixels
     , local-cluster
     , monoidal-containers
@@ -116,13 +115,12 @@ benchmark restore
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
     , cardano-wallet-read
+    , cardano-wallet-tracing
     , containers
     , contra-tracer
     , crypto-primitives
     , filepath
     , fmt
-    , iohk-monitoring
-    , iohk-monitoring-extra
     , optparse-applicative
     , say
     , text
@@ -152,6 +150,7 @@ benchmark latency
     , cardano-wallet-launcher
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
+    , cardano-wallet-tracing
     , directory
     , exceptions
     , extra
@@ -162,8 +161,6 @@ benchmark latency
     , hspec
     , http-client
     , http-types
-    , iohk-monitoring
-    , iohk-monitoring-extra
     , local-cluster
     , mtl
     , optparse-applicative
@@ -197,6 +194,7 @@ benchmark db
     , cardano-wallet-read
     , cardano-wallet-secrets
     , cardano-wallet-test-utils
+    , cardano-wallet-tracing
     , cardano-wallet-unit:test-common
     , containers
     , contra-tracer
@@ -209,8 +207,6 @@ benchmark db
     , filepath
     , fmt
     , foldl
-    , iohk-monitoring
-    , iohk-monitoring-extra
     , memory
     , mtl
     , random
@@ -237,12 +233,11 @@ benchmark api
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
     , cardano-wallet-read
+    , cardano-wallet-tracing
     , cardano-wallet-unit:test-common
     , containers
     , filepath
     , fmt
-    , iohk-monitoring
-    , iohk-monitoring-extra
     , mtl
     , say
     , text
@@ -261,8 +256,8 @@ benchmark read-blocks
     , cardano-wallet-benchmarks
     , cardano-wallet-primitive
     , cardano-wallet-read
+    , cardano-wallet-tracing
     , criterion
-    , iohk-monitoring-extra
     , mtl
     , time
 

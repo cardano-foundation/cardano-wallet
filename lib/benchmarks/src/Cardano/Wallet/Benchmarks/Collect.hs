@@ -36,7 +36,7 @@ module Cardano.Wallet.Benchmarks.Collect
     , convertUnit
     ) where
 
-import Cardano.BM.Tracing
+import Cardano.Wallet.Tracing.Tracing
     ( HasSeverityAnnotation (..)
     , Severity (..)
     , Tracer

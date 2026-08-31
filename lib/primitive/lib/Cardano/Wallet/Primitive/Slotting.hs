@@ -72,12 +72,6 @@ module Cardano.Wallet.Primitive.Slotting
     , SlotNo (..)
     ) where
 
-import Cardano.BM.Data.Severity
-    ( Severity (..)
-    )
-import Cardano.BM.Data.Tracer
-    ( HasSeverityAnnotation (..)
-    )
 import Cardano.Slotting.EpochInfo.API
     ( EpochInfo
     )
@@ -101,6 +95,12 @@ import Cardano.Wallet.Primitive.Types.SlottingParameters
     ( EpochLength (..)
     , SlotLength (..)
     , SlottingParameters
+    )
+import Cardano.Wallet.Tracing.Data.Severity
+    ( Severity (..)
+    )
+import Cardano.Wallet.Tracing.Data.Tracer
+    ( HasSeverityAnnotation (..)
     )
 import Control.DeepSeq
     ( NFData

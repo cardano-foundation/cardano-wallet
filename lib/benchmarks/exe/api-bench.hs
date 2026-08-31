@@ -40,17 +40,6 @@
 --   is incurred comparing to the HTTP API.)
 module Main where
 
-import Cardano.BM.Data.Tracer
-    ( filterSeverity
-    )
-import Cardano.BM.ToTextTracer
-    ( ToTextTracer (..)
-    , overToTextTracer
-    , withToTextTracer
-    )
-import Cardano.BM.Tracing
-    ( Severity (..)
-    )
 import Cardano.Wallet
     ( WalletLayer (..)
     , readWalletMeta
@@ -138,6 +127,17 @@ import Cardano.Wallet.Primitive.Types.UTxOStatistics
     )
 import Cardano.Wallet.Shelley.Transaction
     ( newTransactionLayer
+    )
+import Cardano.Wallet.Tracing.Data.Tracer
+    ( filterSeverity
+    )
+import Cardano.Wallet.Tracing.ToTextTracer
+    ( ToTextTracer (..)
+    , overToTextTracer
+    , withToTextTracer
+    )
+import Cardano.Wallet.Tracing.Tracing
+    ( Severity (..)
     )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT
