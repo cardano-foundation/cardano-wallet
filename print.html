@@ -2507,9 +2507,9 @@ CARDANO_WALLET_PROMETHEUS_HOST
 <pre><code>&gt; curl -H "Accept: application/json" http://localhost:8070/ | jq
 
 {
-  "iohk-monitoring version": {
+  "cardano-wallet version": {
     "type": "l",
-    "val": "0.1.10.1"
+    "val": "v2026-08-21 (git revision: 0a7332482c49537d8169a7a3424a6ce72329c6d5)"
   },
   "ekg": {
     "server_timestamp_ms": {
@@ -2527,12 +2527,12 @@ CARDANO_WALLET_PROMETHEUS_HOST
 <h3 id="prometheus-metrics"><a class="header" href="#prometheus-metrics">Prometheus metrics</a></h3>
 <pre><code>&gt; curl http://localhost:8080/metrics
 
-cardano_wallet_metrics_Stat_rtpriority_int 0
-cardano_wallet_metrics_Stat_itrealvalue_int 0
+cardano_wallet_metrics_Mem_size_int 268580194
+cardano_wallet_metrics_Mem_resident_int 27102
+cardano_wallet_metrics_Stat_cputicks_int 73
+cardano_wallet_metrics_IO_syscr_int 1384
+cardano_wallet_metrics_Net_IpExtInOctets_B 1139594746118
 rts_gc_par_max_bytes_copied 0
-cardano_wallet_metrics_IO_syscr_int 3722
-cardano_wallet_metrics_Stat_minflt_int 6731
-cardano_wallet_metrics_Stat_cminflt_int 0
 </code></pre>
 <h3 id="binding-monitoring"><a class="header" href="#binding-monitoring">Binding monitoring</a></h3>
 <p>By default both EKG and Prometheus monitoring is bound to <code>localhost</code> . One can bind it to different hostname or external ip using:</p>
@@ -5796,7 +5796,7 @@ enough information to be able scan the logs and see if the application
 is running normally, or if they need to do some action to fix their
 problem.</p>
 <h2 id="logging-levels"><a class="header" href="#logging-levels">Logging levels</a></h2>
-<p>The <a href="https://github.com/input-output-hk/iohk-monitoring-framework">iohk-monitoring-framework</a> defines a number of <a href="https://github.com/input-output-hk/iohk-monitoring-framework/blob/b0ea8317ba5a887d46969e9b3040862a10e6efb3/iohk-monitoring/src/Cardano/BM/Data/Severity.lhs#L33-L44">severity levels</a>:</p>
+<p>The wallet's tracing package <code>cardano-wallet-tracing</code> defines a number of <a href="https://github.com/cardano-foundation/cardano-wallet/blob/master/lib/cardano-wallet-tracing/src/Cardano/Wallet/Tracing/Data/Severity.hs">severity levels</a>:</p>
 <div class="table-wrapper"><table><thead><tr><th><strong>Severity Level</strong></th><th><strong>Meaning</strong></th></tr></thead><tbody>
 <tr><td>Debug</td><td>detailed information about values and decision flow</td></tr>
 <tr><td>Info</td><td>general information of events; progressing properly</td></tr>
@@ -5924,7 +5924,7 @@ because error messages can be automatically coloured.</p>
 <h3 id="server"><a class="header" href="#server">Server</a></h3>
 <div class="table-wrapper"><table><thead><tr><th><strong>Severity</strong></th><th><strong>Format</strong></th></tr></thead><tbody>
 <tr><td>Debug</td><td>Hidden unless enabled by the user</td></tr>
-<tr><td>The rest</td><td>As per defaults for <a href="https://github.com/input-output-hk/iohk-monitoring-framework">iohk-monitoring-framework</a></td></tr>
+<tr><td>The rest</td><td>As per defaults for <code>cardano-wallet-tracing</code></td></tr>
 </tbody></table>
 </div>
 <p>The server will support also support a log config file where the
@@ -5959,10 +5959,11 @@ to log as micro-benchmarks (<code>bracketObserveIO</code>).</p>
 <li>Time taken for node backend to respond to request.</li>
 </ul>
 <h2 id="privacy"><a class="header" href="#privacy">Privacy</a></h2>
-<p><a href="https://github.com/input-output-hk/iohk-monitoring-framework">iohk-monitoring-framework</a> provides "sensitive" variants of log
-functions (e.g. <code>logInfoS</code>). These allow sensitive information to be
-logged into separate files. Then users may send their logs to the
-technical support desk with a reasonable assurance of privacy.</p>
+<p>The wallet's tracing package <code>cardano-wallet-tracing</code> classifies traced
+messages with a privacy annotation (<code>Confidential</code> or <code>Public</code>).
+Confidential log messages never reach public scribes, so users may send
+their logs to the technical support desk with a reasonable assurance of
+privacy.</p>
 <p><strong>Note</strong>: The privacy guidelines are under discussion. We are
 considering making it simpler and only having two classifications:
 "Log" or "Do Not Log".</p>
@@ -5998,8 +5999,9 @@ DEBUG messages):</p>
 <li>Raw, un-filtered API request or response bodies.</li>
 </ul>
 <h2 id="increasing-logging-detail"><a class="header" href="#increasing-logging-detail">Increasing logging detail</a></h2>
-<p><a href="https://github.com/input-output-hk/iohk-monitoring-framework">iohk-monitoring-framework</a> provides a facility for adjusting log
-levels at runtime on a component by component basis.</p>
+<p>The wallet's tracing package <code>cardano-wallet-tracing</code> supports
+per-component severity filters configured at startup (see the
+<code>--trace-*</code> command-line options).</p>
 <p>However it's probably OK for now to change log levels by restarting
 cardano-wallet with different command-line options.</p>
 <h2 id="structured-logging-tutorial"><a class="header" href="#structured-logging-tutorial">Structured logging tutorial</a></h2>
@@ -6021,26 +6023,26 @@ instance ToText FooMsg where
         LogFooError e -&gt; "foo error: " &lt;&gt; T.pack (show e)
         LogFooIncomingEvent -&gt; "Incoming foo event " &lt;&gt;  T.pack (show e)
 </code></pre>
-<p>Finally, define the metadata which the switchboard needs to route
+<p>Finally, define the metadata that the tracing layer needs to route
 these traces.</p>
-<pre><code class="language-haskell">import Cardano.BM.Data.LogItem
+<pre><code class="language-haskell">import Cardano.Wallet.Tracing.Data.LogItem
     ( LoggerName, PrivacyAnnotation (..) )
-import Cardano.BM.Data.Severity
+import Cardano.Wallet.Tracing.Data.Severity
     ( Severity (..) )
-import Cardano.BM.Data.Tracer
-    ( DefinePrivacyAnnotation (..), DefineSeverity (..) )
+import Cardano.Wallet.Tracing.Data.Tracer
+    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 
 -- Everything is public by default
-instance DefinePrivacyAnnotation FooMsg
+instance HasPrivacyAnnotation FooMsg
 
-instance DefineSeverity FooMsg
-    defineSeverity msg = case msg of
+instance HasSeverityAnnotation FooMsg where
+    getSeverityAnnotation msg = case msg of
         LogFooInit -&gt; Debug
         LogFooError _ -&gt; Error
         LogFooIncomingEvent -&gt; Info
 </code></pre>
 <p>To use the logging in the <code>doFoo</code> function:</p>
-<pre><code class="language-haskell">import Cardano.BM.Trace
+<pre><code class="language-haskell">import Cardano.Wallet.Tracing.Trace
     ( Trace )
 import Cardano.Wallet.Logging
     ( logTrace )
