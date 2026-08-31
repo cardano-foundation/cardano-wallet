@@ -118,6 +118,7 @@ import UnliftIO.Exception
     ( IOException
     , catch
     , finally
+    , onException
     )
 import Prelude
 
@@ -176,7 +177,12 @@ initTracer
     -> IO (IO (), Trace IO Text)
 initTracer loggerName outputs mEkgUrl mPromUrl = do
     scribes <- concat <$> forM outputs mkScribe
-    (mConsumer, isOwner) <- acquireMonitoring mEkgUrl mPromUrl
+    -- 'acquireMonitoring' binds listeners and can throw. The scribe
+    -- finalizers only reach the shutdown action below on success, so roll
+    -- them back here or a failed acquisition leaks their handles.
+    (mConsumer, isOwner) <-
+        acquireMonitoring mEkgUrl mPromUrl
+            `onException` mapM_ scribeFinalize scribes
     let sink = mkTraceSink scribes mConsumer
         trace = appendName loggerName sink
     -- Counters are only captured when the EKG endpoint is enabled, like
@@ -282,19 +288,22 @@ startMetrics
 startMetrics mEkgUrl mPromUrl = case (mEkgUrl, mPromUrl) of
     (Just (host, port), _) -> do
         server <- EKG.forkServer (B8.pack host) port
-        let store = EKG.serverMetricStore server
-        -- Wallet-owned equivalent of the former "iohk-monitoring version"
-        -- label.
-        versionLabel <- Metrics.createLabel "cardano-wallet version" store
-        Label.set
-            versionLabel
-            (T.pack $ V.showFullVersion V.version V.gitRevision)
-        shutdownProm <-
-            maybe (pure (pure ())) (startPrometheus store) mPromUrl
-        pure
-            ( Just store
-            , killThread (EKG.serverThreadId server) `finally` shutdownProm
-            )
+        let killEkg = killThread (EKG.serverThreadId server)
+        -- The Prometheus bind below is synchronous and can throw. EKG is
+        -- already listening at this point, so without this rollback a failed
+        -- Prometheus bind would leave an unowned EKG listener holding its
+        -- port, and a retry in the same process could not rebind it.
+        flip onException killEkg $ do
+            let store = EKG.serverMetricStore server
+            -- Wallet-owned equivalent of the former "iohk-monitoring version"
+            -- label.
+            versionLabel <- Metrics.createLabel "cardano-wallet version" store
+            Label.set
+                versionLabel
+                (T.pack $ V.showFullVersion V.version V.gitRevision)
+            shutdownProm <-
+                maybe (pure (pure ())) (startPrometheus store) mPromUrl
+            pure (Just store, killEkg `finally` shutdownProm)
     (Nothing, Just promUrl) -> do
         store <- Metrics.newStore
         Metrics.registerGcMetrics store
