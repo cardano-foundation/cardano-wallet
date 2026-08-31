@@ -123,10 +123,8 @@ import GHC.Generics
     ( Generic
     )
 import UnliftIO
-    ( atomically
-    , newTVarIO
-    , readTVar
-    , writeTVar
+    ( modifyMVar
+    , newMVar
     )
 import UnliftIO.Exception
     ( Exception (..)
@@ -404,21 +402,23 @@ produceTimings
     -- ^ The timings tracer, has time deltas for each finished bracket.
     -> m (Tracer m a)
 produceTimings f trDiffTime = do
-    openTime <- liftIO $ newTVarIO Nothing
+    openTime <- liftIO $ newMVar Nothing
     pure $ mkTracer $ \arg ->
         forM_ (f arg) $ \(ctx, blog) -> do
-            now <- liftIO $ systemToTAITime <$> getSystemTime
-            case blog of
-                BracketStart ->
-                    atomically $ writeTVar openTime (Just now)
-                _ -> do
-                    mStart <- atomically $ do
-                        mt <- readTVar openTime
-                        writeTVar openTime Nothing
-                        pure mt
-                    forM_ mStart
-                        $ \start ->
-                            traceWith trDiffTime (ctx, diffAbsoluteTime now start)
+            -- The clock is read INSIDE the critical section. Reading it
+            -- outside would let one thread capture a timestamp, be
+            -- descheduled while another thread completes a bracket and
+            -- clears the slot, and then install its stale timestamp -- so a
+            -- later finish would pair with an older start. 'MVar' rather than
+            -- 'TVar' because 'getSystemTime' is IO and cannot run in STM;
+            -- this restores the serialisation the pre-migration 'MVar'
+            -- implementation had.
+            mDelta <- liftIO $ modifyMVar openTime $ \mStart -> do
+                now <- systemToTAITime <$> getSystemTime
+                pure $ case blog of
+                    BracketStart -> (Just now, Nothing)
+                    _ -> (Nothing, diffAbsoluteTime now <$> mStart)
+            forM_ mDelta $ \delta -> traceWith trDiffTime (ctx, delta)
 
 {-------------------------------------------------------------------------------
                                Tracer conversions

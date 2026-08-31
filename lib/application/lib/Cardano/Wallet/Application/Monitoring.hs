@@ -82,6 +82,9 @@ import Data.Maybe
 import Data.Scientific
     ( fromFloatDigits
     )
+import Data.Streaming.Network
+    ( bindPortTCP
+    )
 import Data.String
     ( fromString
     )
@@ -132,6 +135,7 @@ import qualified Data.Text.Encoding as T
 import qualified Data.Text.IO as TIO
 import qualified Data.Text.Lazy as TL
 import qualified Network.HTTP.Types as Http
+import qualified Network.Socket as Socket
 import qualified Network.Wai as Wai
 import qualified Network.Wai.Handler.Warp as Warp
 import qualified System.IO.Unsafe as Unsafe
@@ -625,8 +629,15 @@ startPrometheus store (host, port) = do
         settings =
             Warp.setHost (fromString host)
                 $ Warp.setPort port Warp.defaultSettings
-    warpAsync <- Async.async $ Warp.runSettings settings app
-    pure $ Async.cancel warpAsync
+    -- Bind synchronously, before the accept loop is spawned. Binding inside
+    -- the async would send an occupied-port or bad-host exception to the
+    -- async, which nothing ever waits on: 'initTracer' would return cleanly
+    -- and the wallet would run with a silently dead Prometheus endpoint.
+    sock <- bindPortTCP port (fromString host)
+    warpAsync <- Async.async $ Warp.runSettingsSocket settings sock app
+    pure $ do
+        Async.cancel warpAsync
+        Socket.close sock
 
 -- | Sanitize a metric name for Prometheus: dots, dashes and spaces become
 -- underscores, then only letters and underscores are kept.
