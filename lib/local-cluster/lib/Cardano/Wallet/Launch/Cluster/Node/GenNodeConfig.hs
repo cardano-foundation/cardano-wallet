@@ -1,6 +1,4 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DeriveAnyClass #-}
-{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -48,21 +46,16 @@ import Cardano.Wallet.Tracing.Data.Severity
     ( Severity (..)
     )
 import Control.Lens
-    ( (%~)
-    , (&)
+    ( (&)
     , (.~)
-    , (<&>)
     , (?~)
-    , (^?)
     )
 import Control.Monad.Reader
     ( MonadIO (..)
     , MonadReader (..)
     )
 import Data.Aeson
-    ( FromJSON (..)
-    , Key
-    , ToJSON (..)
+    ( Key
     , Value (..)
     , toJSON
     )
@@ -72,27 +65,13 @@ import Data.Aeson.Key
 import Data.Aeson.Lens
     ( atKey
     , key
-    , _Array
-    , _String
     )
 import Data.Generics.Labels
     (
     )
-import Data.Maybe
-    ( catMaybes
-    )
 import Data.Tagged
     ( Tagged
     , untag
-    )
-import Data.Text
-    ( Text
-    )
-import Data.Word
-    ( Word64
-    )
-import GHC.Generics
-    ( Generic
     )
 import Ouroboros.Network.Magic
     ( NetworkMagic (..)
@@ -129,30 +108,10 @@ genNodeConfig nodeSegment name genesisFiles clusterEra logCfg = do
 
     DirOf poolDir <- askNodeDir nodeSegment
 
-    let LogFileConfig severity mExtraLogFile extraSev = logCfg
+    let LogFileConfig{minSeverityTerminal = severity} = logCfg
 
         GenesisRecord byronFile shelleyFile alonzoFile conwayFile dijkstraFile =
             genesisFiles
-
-        scribes =
-            let
-                fileScribe (path, sev) =
-                    ScribeDefinition
-                        { scName = path
-                        , scFormat = ScText
-                        , scKind = FileSK
-                        , scMinSev = sev
-                        , scMaxSev = Critical
-                        , scPrivacy = ScPublic
-                        , scRotation = Nothing
-                        }
-            in
-                fileScribe
-                    <$> catMaybes
-                        [ Just ("cardano-node.log", severity)
-                        , mExtraLogFile <&> \(FileOf file) ->
-                            (T.pack $ toFilePath file, extraSev)
-                        ]
 
         patchConfig value =
             value
@@ -168,9 +127,7 @@ genNodeConfig nodeSegment name genesisFiles clusterEra logCfg = do
                 & setHardFork "AlonzoHardFork"
                 & setHardForksForLatestEras clusterEra
                 & key "TestMinSeverity" .~ toJSON Debug
-                & key "setupScribes" .~ toJSON scribes
-                & key "defaultScribes" .~ toJSON (scribeToJSON <$> scribes)
-                & addMinSeverityStdout severity
+                & setMinSeverity severity
                 & controlExperimental clusterEra
 
         poolNodeConfig =
@@ -212,12 +169,6 @@ setHardForksForLatestEras clusterEra =
 
 -- . setHardFork (T.pack $ show BabbageHardFork)
 
-scribeToJSON :: ScribeDefinition -> [Value]
-scribeToJSON ScribeDefinition{..} =
-    [ toJSON scKind
-    , toJSON scName
-    ]
-
 setFilePath :: Key -> FileOf x -> ChangeValue
 setFilePath keyName path =
     atKey keyName ?~ toJSON (absFilePathOf path)
@@ -226,14 +177,10 @@ setHardFork :: T.Text -> ChangeValue
 setHardFork hardFork =
     atKey ("Test" <> fromText hardFork <> "AtEpoch") ?~ Number 0
 
-addMinSeverityStdout :: Severity -> ChangeValue
-addMinSeverityStdout severity =
-    key "setupScribes" . _Array . traverse %~ setMinSev
-  where
-    setMinSev :: ChangeValue
-    setMinSev scribe = case scribe ^? key "scKind" . _String of
-        Just "StdoutSK" -> scribe & atKey "scMinSev" ?~ toJSON (show severity)
-        _ -> scribe
+setMinSeverity :: Severity -> ChangeValue
+setMinSeverity severity =
+    key "TraceOptions" . key "" . atKey "severity"
+        ?~ toJSON (show severity)
 
 removeGenesisHashes :: ChangeValue
 removeGenesisHashes value =
@@ -243,42 +190,3 @@ removeGenesisHashes value =
         & atKey "AlonzoGenesisHash" .~ Nothing
         & atKey "ConwayGenesisHash" .~ Nothing
         & atKey "DijkstraGenesisHash" .~ Nothing
-
-{-------------------------------------------------------------------------------
-    Scribe configuration types (node config JSON serialization)
--------------------------------------------------------------------------------}
-
-data ScribeFormat = ScText | ScJson
-    deriving stock (Eq, Show, Generic)
-    deriving anyclass (FromJSON, ToJSON)
-
-data ScribeKind = FileSK | StdoutSK | StderrSK | DevNullSK
-    deriving stock (Eq, Show, Generic)
-    deriving anyclass (FromJSON, ToJSON)
-
-data ScribePrivacy = ScPublic | ScPrivate
-    deriving stock (Eq, Show, Generic)
-    deriving anyclass (FromJSON, ToJSON)
-
--- | Local stand-in for @Cardano.BM.Data.Rotation.RotationParameters@. The
--- field names are part of the node config JSON contract and must stay
--- byte-compatible with the type this replaces.
-data ScribeRotation = ScribeRotation
-    { rpLogLimitBytes :: !Word64
-    , rpMaxAgeHours :: !Word
-    , rpKeepFilesNum :: !Word
-    }
-    deriving stock (Eq, Show, Generic)
-    deriving anyclass (FromJSON, ToJSON)
-
-data ScribeDefinition = ScribeDefinition
-    { scName :: !Text
-    , scFormat :: !ScribeFormat
-    , scKind :: !ScribeKind
-    , scMinSev :: !Severity
-    , scMaxSev :: !Severity
-    , scPrivacy :: !ScribePrivacy
-    , scRotation :: !(Maybe ScribeRotation)
-    }
-    deriving stock (Eq, Show, Generic)
-    deriving anyclass (FromJSON, ToJSON)

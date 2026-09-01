@@ -75,6 +75,7 @@ import Cardano.Wallet.Launch.Cluster.FileOf
     )
 import Cardano.Wallet.Launch.Cluster.Logging
     ( ClusterLog (..)
+    , LogFileConfig (extraLogDir)
     , setLoggingName
     )
 import Cardano.Wallet.Launch.Cluster.Node.GenNodeConfig
@@ -137,6 +138,7 @@ import Data.List.NonEmpty
     )
 import Data.Maybe
     ( fromMaybe
+    , maybeToList
     )
 import Data.MaybeK
     ( IsMaybe (IsNothing)
@@ -571,7 +573,14 @@ configurePool metadataServer recipe = do
                             , nodePort = Just (NodePort port)
                             , nodeLoggingHostname = Just name
                             , nodeExecutable = Nothing
-                            , nodeOutputFile = absFilePathOf <$> nodeOutput
+                            , nodeOutputFiles =
+                                [ toFilePath
+                                    $ poolDir </> relFile "cardano-node.log"
+                                ]
+                                    <> maybeToList
+                                        (absFilePathOf <$> extraLogDir logCfg')
+                                    <> maybeToList
+                                        (absFilePathOf <$> nodeOutput)
                             , nodeSocketPathFile = NothingK
                             }
 
