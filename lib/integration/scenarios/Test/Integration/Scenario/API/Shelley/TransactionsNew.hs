@@ -11,6 +11,10 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
+-- Temporary: cardano-api 11.5 deprecates the legacy TxBody API in favour of
+-- Cardano.Api.Experimental. Retiring these sites is cardano-api removal work,
+-- owned by M1 (#5237). Remove this pragma when that lands.
+{-# OPTIONS_GHC -Wno-deprecations #-}
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 -- temportary, until addRequiredSigners is fixed
 {-# OPTIONS_GHC -Wno-unused-imports #-}
@@ -120,7 +124,6 @@ import Cardano.Wallet.Api.Types.Error
     , ApiErrorTxOutputLovelaceInsufficient
         ( ApiErrorTxOutputLovelaceInsufficient
         )
-    , ApiErrorUnsupportedEra (..)
     )
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema (..)
@@ -3952,7 +3955,12 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             [ expectResponseCode HTTP.status500
             ]
 
-        -- using external submit users cannot push txs to the node constructed in past eras
+        -- Transactions built in pre-Alonzo eras are no longer rejected by the
+        -- wallet as an unsupported era: cardano-ledger-alonzo 1.16.0.0 made the
+        -- AlonzoTx mempool decoder backwards compatible with prior eras, so a
+        -- Mary transaction now decodes as Conway and is forwarded to the node.
+        -- It therefore behaves like the Babbage case above -- the node decides.
+        -- See #5410.
         submittedMaryTxExternal <-
             request @ApiTxId
                 ctx
@@ -3961,16 +3969,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 submitMaryPayload'
         verify
             submittedMaryTxExternal
-            [ expectResponseCode HTTP.status403
+            [ expectResponseCode HTTP.status500
             ]
-        let errInfo =
-                UnsupportedEra
-                    ( ApiErrorUnsupportedEra
-                        { unsupportedEra = ApiMary
-                        , supportedEras = fromList [ApiConway]
-                        }
-                    )
-        decodeErrorInfo submittedMaryTxExternal `shouldBe` errInfo
 
     it
         "TRANS_NEW_JOIN_01a - Can join stakepool, rejoin another and quit without voting in Babbage - old tx workflow"

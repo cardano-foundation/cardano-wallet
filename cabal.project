@@ -49,11 +49,11 @@ repository cardano-haskell-packages
     d4a35cd3121aa00d18544bb0ac01c3e1691d618f462c46129271bccf39f7e8ee
 
 -- repeating the index-state for hackage to work around hackage.nix parsing limitation
-index-state: 2026-03-26T20:21:33Z
+index-state: 2026-08-14T13:38:07Z
 
 index-state:
-  , hackage.haskell.org 2026-03-26T20:21:33Z
-  , cardano-haskell-packages 2026-07-20T14:49:58Z
+  , hackage.haskell.org 2026-08-14T13:38:07Z
+  , cardano-haskell-packages 2026-08-17T11:39:16Z
 
 packages:
   lib/address-derivation-discovery
@@ -125,8 +125,8 @@ source-repository-package
 source-repository-package
   type: git
   location: https://github.com/cardano-foundation/cardano-ledger-read
-  tag: 242c5c856f51aebe17f2d39b2320df6de1c05293
-  --sha256: 1k6vjzng1qmjs4kpz5123wps6phxqyss6c44g48z6riwiwnkzpjw
+  tag: f4d3f06454dfd51c16feb04ed3d7ed88b9b5601a
+  --sha256: 1sc2fgi3kv0vmd2w7pbfmlldv763ckhcqayp6p4w80kbgfcw84sq
 
 -- END cardano-ledger-read
 --------------------------------------------------------------------------------
@@ -137,8 +137,8 @@ source-repository-package
 source-repository-package
   type: git
   location: https://github.com/cardano-foundation/cardano-balance-transaction
-  tag: c3a340d1f55ba4d4e4f825b6e9061df9f6bae6d8
-  --sha256: 002sigimba2admcrg7gy5bgyd4hmlimzvl3pf7k4bfqpjifydqyw
+  tag: d0360834df9d4d4730d5a0b96623d50aadf010d5
+  --sha256: 0gsk7fqcz3cnh1v5xz7n90k6rpvibrw350ncclac9fin22kga07c
 
 -- END cardano-balance-tx
 --------------------------------------------------------------------------------
@@ -171,44 +171,57 @@ constraints:
   , delta-types ==1.0.0.0
   , delta-store ==1.0.0.0
 
-  -- Cardano Node 11.0.1 dependencies:
-  , cardano-api ==11.0.0.0
-  , cardano-binary ==1.8.0.0
-  , cardano-cli ==11.0.0.0
+  -- Cardano Node 11.1.0 dependencies:
+  , cardano-api ==11.5.0.0
+  , cardano-binary ==1.9.1.0
+  , cardano-cli ==11.2.1.0
   , cardano-crypto ==1.3.0
-  , cardano-crypto-class ==2.3.3.0
-  , cardano-crypto-praos ==2.2.2.0
+  , cardano-crypto-class ==2.5.1.0
+  , cardano-crypto-praos ==2.2.4.0
   , cardano-crypto-wrapper ==1.7.0.0
-  , cardano-data ==1.3.0.0
-  , cardano-ledger-allegra ==1.9.0.0
-  , cardano-ledger-alonzo ==1.15.0.1
-  , cardano-ledger-api ==1.13.0.0
-  , cardano-ledger-babbage ==1.13.0.0
-  , cardano-ledger-binary ==1.8.1.0
+  , cardano-data ==1.3.1.0
+  , cardano-ledger-allegra ==1.10.0.0
+  , cardano-ledger-alonzo ==1.16.0.0
+  , cardano-ledger-api ==1.14.0.0
+  , cardano-ledger-babbage ==1.14.0.0
+  , cardano-ledger-binary ==1.9.0.0
   , cardano-ledger-byron ==1.3.0.0
-  , cardano-ledger-conway ==1.22.1.0
-  , cardano-ledger-core ==1.20.0.0
-  , cardano-ledger-mary ==1.10.0.0
-  , cardano-ledger-shelley ==1.18.1.0
+  , cardano-ledger-conway ==1.23.0.0
+  , cardano-ledger-core ==1.21.0.0
+  , cardano-ledger-mary ==1.11.0.0
+  , cardano-ledger-shelley ==1.19.0.0
   , cardano-prelude ==0.2.2.0
-  , cardano-protocol-tpraos ==1.5.0.0
+  , cardano-protocol-tpraos ==1.6.0.0
   , cardano-slotting ==0.2.1.0
   , cardano-strict-containers ==0.1.6.0
-  , cardano-diffusion ==1.0.0.0
+  , cardano-diffusion ==1.1.1.0
   , io-classes ==1.8.0.1
   , io-classes -asserts
-  , ouroboros-consensus ==3.0.1.0
-  , ouroboros-network ==1.1.0.0
+  , ouroboros-consensus ==4.1.0.0
+  , ouroboros-network ==1.2.0.0
   , typed-protocols ==1.2.1.0
-  , network-mux ==0.10.1.0
+  , network-mux ==0.11.0.0
   , io-sim ==1.8.0.1
-  , cardano-ledger-dijkstra ==0.2.0.1
-  , small-steps ==1.1.3.0
-  , vector-map ==1.2.0.0
+  , cardano-ledger-dijkstra ==0.3.0.0
+  , small-steps ==1.1.4.0
+  , vector-map ==1.2.1.0
   , mempack ==0.2.1.0
-  , plutus-core ==1.63.0.0
-  , plutus-ledger-api ==1.63.0.0
-  , plutus-tx ==1.63.0.0
+  , plutus-core ==1.65.0.0
+  , plutus-ledger-api ==1.65.0.0
+  , plutus-tx ==1.65.0.0
+
+  -- Keep the TLS chain current. Nothing in the cardano-node 11.1.0 pin set
+  -- requires an old tls, but with no lower bound the solver settled on
+  -- tls-1.9.0 + warp-tls-3.4.9, whose server side cannot negotiate a cipher
+  -- with a modern client (DRep WorkerSpec HTTPS tests fail with
+  -- HandshakeFailed "no cipher in common with the client").
+  --
+  -- 2.2 is the exact floor that excludes warp-tls-3.4.9, which declares
+  -- tls >= 1.7 && < 2.2 and is what makes the downgrade reachable at all.
+  -- A looser ">= 2" would still admit warp-tls-3.4.9 with tls-2.0/2.1.
+  -- Upstream caps the chain at < 2.3 (crypton-connection, tls-session-manager),
+  -- so this resolves to tls-2.2.2, matching master.
+  , tls >= 2.2
 
 -- Related to: https://github.com/haskell/cabal/issues/8554
 if impl(ghc == 8.10.7)
@@ -332,3 +345,13 @@ package bitvec
    flags: -simd
 
 -- -------------------------------------------------------------------------
+
+-- cardano-coin-selection is pinned as a source-repository-package and is pure
+-- Haskell -- it carries no node pin set, so there is nothing to bump. GHC 9.12
+-- (arriving with the 11.1.0 pin set) promotes -Wdata-kinds-tc, and that repo's
+-- Cardano.CoinSelection.Types.Hash uses `Symbol` in a kind without an explicit
+-- DataKinds. The source is not ours to edit from here.
+-- Flag verified accepted by this GHC, with a bogus-flag negative control.
+-- Remove when the fix lands upstream in cardano-foundation/cardano-coin-selection.
+package cardano-coin-selection
+  ghc-options: -Wno-data-kinds-tc -Wno-unused-imports -Wno-unused-top-binds

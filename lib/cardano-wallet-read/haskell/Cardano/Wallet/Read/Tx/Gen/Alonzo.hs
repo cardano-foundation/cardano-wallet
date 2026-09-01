@@ -9,7 +9,7 @@ where
 
 import Cardano.Ledger.Alonzo.Tx
     ( AlonzoTx (AlonzoTx)
-    , IsValid (..)
+    , IsPhase2Valid (..)
     , Tx (MkAlonzoTx)
     )
 import Cardano.Ledger.Alonzo.TxAuxData
@@ -98,8 +98,8 @@ mkAlonzoTx
 mkAlonzoTx TxParameters{txInputs, txOutputs} =
     MkAlonzoTx $ AlonzoTx (body txInputs txOutputs) wits valid aux
 
-valid :: IsValid
-valid = IsValid True
+valid :: IsPhase2Valid
+valid = Phase2Valid
 
 wits :: AlonzoTxWits AlonzoEra
 wits = mempty

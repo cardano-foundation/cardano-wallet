@@ -14,7 +14,7 @@ module Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.ScriptValidity
 where
 
 import Cardano.Ledger.Alonzo.Tx
-    ( IsValid (..)
+    ( IsPhase2Valid (..)
     )
 import Cardano.Read.Ledger.Tx.ScriptValidity
     ( ScriptValidity (..)
@@ -41,6 +41,5 @@ getScriptValidity = case theEra @era of
     Dijkstra -> yesScriptValidity
   where
     noScriptValidity _ = Nothing
-    yesScriptValidity (ScriptValidity (IsValid b))
-        | b = Just W.TxScriptValid
-        | otherwise = Just W.TxScriptInvalid
+    yesScriptValidity (ScriptValidity Phase2Valid) = Just W.TxScriptValid
+    yesScriptValidity (ScriptValidity Phase2Invalid) = Just W.TxScriptInvalid

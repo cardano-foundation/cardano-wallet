@@ -42,6 +42,7 @@ library
     , base
     , bytestring
     , cardano-api
+    , cardano-base
     , cardano-binary
     , cardano-crypto-class
     , cardano-crypto-wrapper:testlib

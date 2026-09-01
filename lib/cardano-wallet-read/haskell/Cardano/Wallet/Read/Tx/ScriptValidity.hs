@@ -1,6 +1,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE ViewPatterns #-}
 
 -- |
 -- Copyright: © 2024 IOHK
@@ -8,12 +9,13 @@
 --
 -- Script validity of a transaction.
 module Cardano.Wallet.Read.Tx.ScriptValidity
-    ( IsValid (IsValidC)
+    ( type IsPhase2Valid
+    , pattern IsValidC
     , getScriptValidity
     ) where
 
 import Cardano.Ledger.Alonzo.Tx
-    ( IsValid (IsValid)
+    ( IsPhase2Valid (..)
     )
 import Cardano.Read.Ledger.Tx.ScriptValidity
     ( ScriptValidity (..)
@@ -29,12 +31,20 @@ import Cardano.Wallet.Read.Tx.Tx
     )
 import Prelude
 
+isPhase2ValidToBool :: IsPhase2Valid -> Bool
+isPhase2ValidToBool Phase2Valid = True
+isPhase2ValidToBool Phase2Invalid = False
+
+pattern IsValidC :: Bool -> IsPhase2Valid
+pattern IsValidC b <- (isPhase2ValidToBool -> b)
+    where
+        IsValidC True = Phase2Valid
+        IsValidC False = Phase2Invalid
+
 {-# COMPLETE IsValidC #-}
-pattern IsValidC :: Bool -> IsValid
-pattern IsValidC x = IsValid x
 
 {-# INLINEABLE getScriptValidity #-}
-getScriptValidity :: forall era. IsEra era => Tx era -> IsValid
+getScriptValidity :: forall era. IsEra era => Tx era -> IsPhase2Valid
 getScriptValidity = case theEra :: Era era of
     Byron -> onScriptValidity trueValid
     Shelley -> onScriptValidity trueValid
@@ -45,7 +55,7 @@ getScriptValidity = case theEra :: Era era of
     Conway -> onScriptValidity id
     Dijkstra -> onScriptValidity id
   where
-    trueValid = const (IsValid True)
+    trueValid = const Phase2Valid
 
 -- Helper function for type inference.
 onScriptValidity

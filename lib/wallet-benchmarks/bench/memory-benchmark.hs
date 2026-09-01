@@ -362,7 +362,7 @@ withCardanoNode tr nodeExe BenchmarkConfig{..} action =
             , C.nodePort = Just (C.NodePort 8061)
             , C.nodeLoggingHostname = Nothing
             , C.nodeExecutable = Just nodeExe
-            , C.nodeOutputFile = Nothing
+            , C.nodeOutputFiles = []
             , C.nodeSocketPathFile = JustK $ nodeDatabaseDir </> "node.socket"
             }
         $ \(JustK c) -> action c

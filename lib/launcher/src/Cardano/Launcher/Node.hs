@@ -30,9 +30,13 @@ module Cardano.Launcher.Node
 import Cardano.Launcher
     ( IfToSendSigINT (..)
     , LauncherLog
+    , ProcessHandles (..)
     , StdStream (..)
     , TimeoutInSecs (..)
     , withBackendCreateProcess
+    )
+import Control.Monad
+    ( unless
     )
 import Control.Tracer
     ( Tracer (..)
@@ -42,6 +46,7 @@ import Data.Bifunctor
     )
 import Data.List
     ( isPrefixOf
+    , nub
     )
 import Data.Maybe
     ( fromMaybe
@@ -65,11 +70,17 @@ import System.FilePath
     , takeFileName
     )
 import System.IO
-    ( IOMode (..)
+    ( Handle
+    , IOMode (..)
+    , hFlush
     , withFile
     )
 import System.Info
     ( os
+    )
+import UnliftIO.Async
+    ( link
+    , withAsync
     )
 import UnliftIO.Process
     ( CreateProcess (..)
@@ -77,6 +88,7 @@ import UnliftIO.Process
     )
 import Prelude
 
+import qualified Data.ByteString as BS
 import qualified Data.Text as T
 
 -- | Parameters for connecting to the node.
@@ -135,7 +147,7 @@ data CardanoNodeConfig d = CardanoNodeConfig
     , nodePort :: Maybe NodePort
     , nodeLoggingHostname :: Maybe String
     , nodeExecutable :: Maybe FilePath
-    , nodeOutputFile :: Maybe FilePath
+    , nodeOutputFiles :: [FilePath]
     , nodeSocketPathFile :: MaybeK d FilePath
     }
     deriving (Show, Eq)
@@ -153,14 +165,40 @@ withCardanoNode
     -> IO a
 withCardanoNode tr cfg action = do
     let socketPath = nodeSocketPathFile cfg
-    let run output = do
+    let run output useHandles = do
             cp <- cardanoNodeProcess cfg output
             withBackendCreateProcess tr cp (TimeoutInSecs 4) SendSigINT
-                $ \_ -> action $ fmap CardanoNodeConn socketPath
-    case nodeOutputFile cfg of
-        Nothing -> run Inherit
-        Just file ->
-            withFile file AppendMode $ \h -> run (UseHandle h)
+                $ \handles ->
+                    useHandles handles $ action $ fmap CardanoNodeConn socketPath
+    case nub $ nodeOutputFiles cfg of
+        [] -> run Inherit useDirectly
+        [file] ->
+            withFile file AppendMode $ \h -> run (UseHandle h) useDirectly
+        files ->
+            withFiles files $ \handles ->
+                run CreatePipe $ \processHandles continuation ->
+                    case outputHandle processHandles of
+                        Nothing -> continuation
+                        Just source ->
+                            withAsync (copyToFiles source handles) $ \copier -> do
+                                link copier
+                                continuation
+
+useDirectly :: ProcessHandles -> IO a -> IO a
+useDirectly _ action = action
+
+withFiles :: [FilePath] -> ([Handle] -> IO a) -> IO a
+withFiles [] action = action []
+withFiles (file : files) action =
+    withFile file AppendMode $ \handle ->
+        withFiles files $ action . (handle :)
+
+copyToFiles :: Handle -> [Handle] -> IO ()
+copyToFiles source targets = do
+    chunk <- BS.hGetSome source 65536
+    unless (BS.null chunk) $ do
+        mapM_ (\target -> BS.hPut target chunk >> hFlush target) targets
+        copyToFiles source targets
 
 {-------------------------------------------------------------------------------
                                     Helpers

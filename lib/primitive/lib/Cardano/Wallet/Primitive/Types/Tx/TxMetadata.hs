@@ -70,6 +70,10 @@ import Data.Map.Strict
 import Data.Maybe
     ( fromMaybe
     )
+import Data.MemPack.Buffer
+    ( byteArrayFromShortByteString
+    , byteArrayToShortByteString
+    )
 import Data.Text
     ( Text
     )
@@ -92,6 +96,7 @@ import Data.Attoparsec.ByteString.Char8 qualified as Atto
 import Data.ByteString qualified as BS
 import Data.ByteString.Base16 qualified as B16
 import Data.ByteString.Char8 qualified as B8
+import Data.ByteString.Short qualified as SBS
 import Data.List qualified as L
 import Data.Map.Lazy qualified as Map.Lazy
 import Data.Map.Strict qualified as Map
@@ -198,7 +203,8 @@ toShelleyMetadata = Map.map toShelleyMetadatum
 
 toShelleyMetadatum :: TxMetadataValue -> Shelley.Metadatum
 toShelleyMetadatum (TxMetaNumber x) = Shelley.I x
-toShelleyMetadatum (TxMetaBytes x) = Shelley.B x
+toShelleyMetadatum (TxMetaBytes x) =
+    Shelley.B (byteArrayFromShortByteString (SBS.toShort x))
 toShelleyMetadatum (TxMetaText x) = Shelley.S x
 toShelleyMetadatum (TxMetaList xs) =
     Shelley.List
@@ -217,7 +223,8 @@ fromShelleyMetadata = Map.Lazy.map fromShelleyMetadatum
 
 fromShelleyMetadatum :: Shelley.Metadatum -> TxMetadataValue
 fromShelleyMetadatum (Shelley.I x) = TxMetaNumber x
-fromShelleyMetadatum (Shelley.B x) = TxMetaBytes x
+fromShelleyMetadatum (Shelley.B x) =
+    TxMetaBytes (SBS.fromShort (byteArrayToShortByteString x))
 fromShelleyMetadatum (Shelley.S x) = TxMetaText x
 fromShelleyMetadatum (Shelley.List xs) =
     TxMetaList

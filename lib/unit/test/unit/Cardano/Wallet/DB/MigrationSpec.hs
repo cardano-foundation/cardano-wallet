@@ -19,6 +19,9 @@ import Cardano.Wallet.DB.Migration
 import Control.Category
     ( (.)
     )
+import Control.Exception
+    ( WhileHandling (..)
+    )
 import Control.Monad.Class.MonadThrow
     ( MonadThrow (..)
     , SomeException
@@ -100,6 +103,15 @@ spec = do
                     _ -> False
               in  runTestMigrations 0 m2
                     `shouldThrow` failure
+
+        it "can annotate a successful database action"
+            $ runMonadDatabase
+                (Database (Version 0) [] [])
+                ( annotateIO
+                    (WhileHandling $ toException $ userError "annotation")
+                    (liftState $ modify $ \db -> db{state = [1]})
+                )
+            `shouldReturn` Database (Version 0) [] [1]
 
 m1 :: Migration (ReaderT Handle MonadDatabase) 0 1
 m1 = mkMigration $ migrate [1]

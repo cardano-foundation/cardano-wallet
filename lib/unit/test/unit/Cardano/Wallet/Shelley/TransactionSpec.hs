@@ -17,6 +17,10 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
+-- Temporary: cardano-api 11.5 deprecates the legacy TxBody/TxBodyContent API
+-- in favour of Cardano.Api.Experimental. Retiring these sites is cardano-api
+-- removal work, owned by M1 (#5237). Remove this pragma when that lands.
+{-# OPTIONS_GHC -Wno-deprecations #-}
 {- HLINT ignore "Use null" -}
 {- HLINT ignore "Use camelCase" -}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -1256,6 +1260,13 @@ binaryCalculationsSpec' era = describe ("calculateBinary - " +|| era ||+ "") $ d
   where
     slotNo = SlotNo 7_750
     md = Nothing
+    calculateBinary
+        :: Cardano.NetworkId
+        -> UTxO
+        -> [TxOut]
+        -> [TxOut]
+        -> [(XPrv, Passphrase "encryption")]
+        -> ByteString
     calculateBinary net utxo outs chgs pairs =
         cardanoApiEraConstraints era $ hex (Cardano.serialiseToCBOR ledgerTx)
       where

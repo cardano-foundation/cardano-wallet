@@ -208,7 +208,7 @@ configureContext (E2EConfig preprodMnemonics alreadyRunningWallet) action =
                     , nodePort = Nothing
                     , nodeLoggingHostname = Nothing
                     , nodeExecutable = Nothing
-                    , nodeOutputFile = Nothing
+                    , nodeOutputFiles = []
                     , nodeSocketPathFile = JustK nodeSocket
                     }
 

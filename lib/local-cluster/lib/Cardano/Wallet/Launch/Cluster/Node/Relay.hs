@@ -48,6 +48,9 @@ import Cardano.Wallet.Launch.Cluster.Node.RunningNode
 import Control.Monad.Reader
     ( MonadIO (..)
     )
+import Data.Maybe
+    ( maybeToList
+    )
 import Data.MaybeK
     ( IsMaybe (..)
     , MaybeK (..)
@@ -57,6 +60,7 @@ import Data.Tagged
     )
 import System.Path
     ( relDir
+    , relFile
     , (</>)
     )
 import System.Path.Directory
@@ -120,9 +124,14 @@ withRelayNode params (RelDirOf nodeSegment) onClusterStart = do
                     , nodePort = Just (NodePort port)
                     , nodeLoggingHostname = Just name
                     , nodeExecutable = Nothing
-                    , nodeOutputFile =
-                        absFilePathOf
-                            <$> nodeParamsOutputFile params
+                    , nodeOutputFiles =
+                        [ toFilePath
+                            $ nodeDirPath </> relFile "cardano-node.log"
+                        ]
+                            <> maybeToList
+                                ( absFilePathOf
+                                    <$> nodeParamsOutputFile params
+                                )
                     , nodeSocketPathFile = fmap filePathOfOsNamedPipe socket
                     }
 

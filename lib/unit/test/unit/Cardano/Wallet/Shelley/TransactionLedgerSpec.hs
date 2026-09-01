@@ -18,6 +18,10 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
+-- Temporary: cardano-api 11.5 deprecates the legacy TxBody/TxBodyContent API
+-- in favour of Cardano.Api.Experimental. Retiring these sites is cardano-api
+-- removal work, owned by M1 (#5237). Remove this pragma when that lands.
+{-# OPTIONS_GHC -Wno-deprecations #-}
 {- HLINT ignore "Use null" -}
 {- HLINT ignore "Use camelCase" -}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
