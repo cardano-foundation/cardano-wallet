@@ -12,17 +12,9 @@
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
--- Narrowed residual (#5411): this suppression no longer covers the
--- transaction-body boundary (Wallet.hs's was retired), only the
--- signTransaction property pipeline over the deprecated cardano-api TxBody
--- API, which retires with #5290. Measured by build (removing the pragma
--- yields 27 -Wdeprecations here, all in that pipeline).
-{-# OPTIONS_GHC -Wno-deprecations #-}
 {- HLINT ignore "Use null" -}
 {- HLINT ignore "Use camelCase" -}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -56,14 +48,12 @@ import Cardano.Api.Extra
     ( CardanoApiEra
     , cardanoApiEraConstraints
     , cardanoEraFromRecentEra
-    , shelleyBasedEraFromRecentEra
+    , fromCardanoApiTx
     , toCardanoApiTx
     )
 import Cardano.Api.Gen
     ( genTx
-    , genTxBodyContent
     , genTxInEra
-    , genWitnesses
     )
 import Cardano.Balance.Tx.Balance
     ( ErrBalanceTx (..)
@@ -79,6 +69,22 @@ import Cardano.Balance.Tx.Gen
 import Cardano.Balance.Tx.SizeEstimation
     ( TxSkeleton (..)
     , estimateTxSize
+    )
+import Cardano.Ledger.Address
+    ( Withdrawals (..)
+    )
+import Cardano.Ledger.Api
+    ( addrTxWitsL
+    , bodyTxL
+    , bootAddrTxWitsL
+    , witsTxL
+    )
+import Cardano.Ledger.Api.Tx.Body
+    ( collateralInputsTxBodyL
+    , guardsTxBodyL
+    , inputsTxBodyL
+    , reqSignerHashesTxBodyL
+    , withdrawalsTxBodyL
     )
 import Cardano.Mnemonic
     ( SomeMnemonic (SomeMnemonic)
@@ -111,16 +117,14 @@ import Cardano.Wallet.Gen
     , genScript
     )
 import Cardano.Wallet.Primitive.Ledger.Convert
-    ( toLedgerCoin
+    ( Convert (toLedger)
+    , toLedgerCoin
     )
 import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Integrity
     ( txIntegrity
     )
 import Cardano.Wallet.Primitive.Ledger.Read.Tx.Sealed
     ( fromSealedTx
-    )
-import Cardano.Wallet.Primitive.Ledger.Shelley
-    ( toCardanoTxIn
     )
 import Cardano.Wallet.Primitive.NetworkId
     ( SNetworkId (..)
@@ -202,11 +206,14 @@ import Cardano.Wallet.Primitive.Types.UTxO
     )
 import Cardano.Wallet.Shelley.Transaction
     ( TxWitnessTag (..)
-    , mkByronWitness
-    , mkShelleyWitness
     , mkUnsignedTx
     , newTransactionLayer
     , txConstraints
+    )
+import Cardano.Wallet.Shelley.Transaction.Ledger
+    ( mkByronWitnessLedger
+    , mkShelleyWitnessLedger
+    , sealWriteTx
     )
 import Cardano.Wallet.Transaction
     ( SelectionOf (..)
@@ -220,6 +227,11 @@ import Cardano.Wallet.Unsafe
     )
 import Control.Arrow
     ( first
+    )
+import Control.Lens
+    ( (%~)
+    , (.~)
+    , (^.)
     )
 import Control.Monad
     ( replicateM
@@ -275,10 +287,6 @@ import Data.Quantity
 import Data.Semigroup
     ( mtimesDefault
     )
-import Data.Type.Equality
-    ( testEquality
-    , (:~:) (..)
-    )
 import Data.Word
     ( Word16
     , Word64
@@ -319,7 +327,7 @@ import Test.QuickCheck
     , counterexample
     , cover
     , forAll
-    , forAllShow
+    , forAllBlind
     , frequency
     , oneof
     , property
@@ -348,16 +356,19 @@ import Test.Utils.Pretty
 import Prelude
 
 import qualified Cardano.Api as Cardano
-import qualified Cardano.Api.Ledger as L
 import qualified Cardano.Balance.Tx.Eras as Write
     ( Conway
     , IsRecentEra
     , RecentEra (RecentEraConway, RecentEraDijkstra)
     )
 import qualified Cardano.Balance.Tx.Primitive as BT
+import qualified Cardano.Balance.Tx.Tx as Write
+    ( Tx
+    )
 import qualified Cardano.Crypto.Hash.Blake2b as Crypto
 import qualified Cardano.Crypto.Hash.Class as Crypto
 import qualified Cardano.Ledger.Coin as Ledger
+import qualified Cardano.Ledger.Keys as LedgerKeys
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.Ledger.Read.Eras as Eras
@@ -374,6 +385,7 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
+import qualified GHC.Exts as Exts
 
 spec :: Spec
 spec = describe "TransactionSpec" $ do
@@ -421,24 +433,6 @@ spec_forAllRecentErasPendingConway description p =
 instance Arbitrary SealedTx where
     arbitrary = sealedTxFromCardano <$> genTx
 
-showTransactionBody
-    :: RecentEra era
-    -> Cardano.TxBodyContent Cardano.BuildTx (CardanoApiEra era)
-    -> String
-showTransactionBody recentEra =
-    either show show
-        . Cardano.createTransactionBody
-            (shelleyBasedEraFromRecentEra recentEra)
-
-unsafeMakeTransactionBody
-    :: RecentEra era
-    -> Cardano.TxBodyContent Cardano.BuildTx (CardanoApiEra era)
-    -> Cardano.TxBody (CardanoApiEra era)
-unsafeMakeTransactionBody recentEra =
-    either (error . show) id
-        . Cardano.createTransactionBody
-            (shelleyBasedEraFromRecentEra recentEra)
-
 stakeAddressForKey
     :: SL.Network
     -> XPub
@@ -450,23 +444,6 @@ stakeAddressForKey net pubkey =
   where
     hash :: XPub -> Crypto.Hash Crypto.Blake2b_224 a
     hash = fromJust . Crypto.hashFromBytes . blake2b224 . xpubPublicKey
-
-withdrawalForKey
-    :: SL.Network
-    -> XPub
-    -> L.Coin
-    -> ( Cardano.StakeAddress
-       , L.Coin
-       , Cardano.BuildTxWith
-            Cardano.BuildTx
-            (Cardano.Witness Cardano.WitCtxStake era)
-       )
-withdrawalForKey net pubkey wdrlAmt =
-    ( stakeAddressForKey net pubkey
-    , wdrlAmt
-    , Cardano.BuildTxWith
-        $ Cardano.KeyWitness Cardano.KeyWitnessForStakeAddr
-    )
 
 mkCredentials
     :: (XPrv, Passphrase "encryption")
@@ -490,11 +467,6 @@ prop_signTransaction_addsRewardAccountKey
     wdrlAmt =
         cardanoApiEraConstraints recentEra $ withMaxSuccess 10 $ do
             let
-                shelleyEra :: Cardano.ShelleyBasedEra (CardanoApiEra era)
-                shelleyEra = shelleyBasedEraFromRecentEra recentEra
-
-                era = cardanoEraFromRecentEra recentEra
-
                 creds@(RootCredentials pk hpwd) = mkCredentials rootXPrv
 
                 rawRewardK :: (XPrv, Passphrase "encryption")
@@ -507,37 +479,30 @@ prop_signTransaction_addsRewardAccountKey
                 rewardAcctPubKey :: XPub
                 rewardAcctPubKey = toXPub $ fst rawRewardK
 
-                extraWdrls =
-                    [ withdrawalForKey
-                        SL.Mainnet
-                        rewardAcctPubKey
-                        (toLedgerCoin wdrlAmt)
-                    ]
+                rewardAccount =
+                    Cardano.toShelleyStakeAddr
+                        $ stakeAddressForKey SL.Mainnet rewardAcctPubKey
 
                 addWithdrawals
-                    :: Cardano.TxBodyContent Cardano.BuildTx (CardanoApiEra era)
-                    -> Cardano.TxBodyContent Cardano.BuildTx (CardanoApiEra era)
-                addWithdrawals txBodyContent =
-                    txBodyContent
-                        { Cardano.txWithdrawals =
-                            case Cardano.txWithdrawals txBodyContent of
-                                Cardano.TxWithdrawalsNone ->
-                                    Cardano.TxWithdrawals shelleyEra extraWdrls
-                                Cardano.TxWithdrawals _ wdrls ->
-                                    Cardano.TxWithdrawals shelleyEra
-                                        $ wdrls <> extraWdrls
-                        }
+                    :: Write.Tx era -> Write.Tx era
+                addWithdrawals =
+                    bodyTxL . withdrawalsTxBodyL %~ \(Withdrawals wdrls) ->
+                        Withdrawals
+                            $ Map.insert rewardAccount (toLedgerCoin wdrlAmt) wdrls
 
-            withBodyContent recentEra addWithdrawals $ \(txBody, wits) -> do
+            withLedgerTx recentEra addWithdrawals $ \tx -> do
                 let
                     tl = testTxLayer
+                    txBody = tx ^. bodyTxL
 
-                    sealedTx = sealedTxFromCardano' $ Cardano.Tx txBody wits
+                    sealedTx = sealWriteTx recentEra tx
                     sealedTx' =
                         signTransaction
                             ShelleyKeyS
                             tl
-                            (Eras.fromAnyCardanoEra (AnyCardanoEra era))
+                            ( Eras.fromAnyCardanoEra
+                                (AnyCardanoEra $ cardanoEraFromRecentEra recentEra)
+                            )
                             AnyWitnessCountCtx
                             (const Nothing)
                             Nothing
@@ -546,13 +511,17 @@ prop_signTransaction_addsRewardAccountKey
                             Nothing
                             sealedTx
 
-                    expectedWits :: [InAnyCardanoEra Cardano.KeyWitness]
                     expectedWits =
-                        InAnyCardanoEra era
-                            <$> [ mkShelleyWitness txBody rawRewardK
-                                ]
+                        [mkShelleyWitnessLedger recentEra txBody rawRewardK]
+                    actualWits =
+                        withSealedLedgerTx recentEra sealedTx'
+                            $ \signedTx ->
+                                Set.toList
+                                    $ signedTx
+                                        ^. witsTxL
+                                            . addrTxWitsL
 
-                expectedWits `checkSubsetOf` (getSealedTxWitnesses sealedTx')
+                expectedWits `checkSubsetOf` actualWits
 
 instance Arbitrary (ShelleyKey 'RootK XPrv) where
     shrink _ = []
@@ -589,14 +558,6 @@ prop_signTransaction_addsExtraKeyWitnesses
     extraKeys =
         cardanoApiEraConstraints recentEra $ withMaxSuccess 10 $ do
             let
-                alonzoOnwards :: Cardano.AlonzoEraOnwards (CardanoApiEra era)
-                alonzoOnwards = case recentEra of
-                    Write.RecentEraConway -> Cardano.AlonzoEraOnwardsConway
-                    Write.RecentEraDijkstra ->
-                        error "alonzoOnwards: Dijkstra not yet supported"
-
-                era = cardanoEraFromRecentEra recentEra
-
                 keys
                     :: (XPrv, Passphrase "encryption")
                     -> Cardano.SigningKey Cardano.PaymentExtendedKey
@@ -611,25 +572,29 @@ prop_signTransaction_addsExtraKeyWitnesses
                     )
                         <$> extraKeys
 
-                addExtraWits
-                    :: Cardano.TxBodyContent Cardano.BuildTx (CardanoApiEra era)
-                    -> Cardano.TxBodyContent Cardano.BuildTx (CardanoApiEra era)
-                addExtraWits txBodyContent =
-                    txBodyContent
-                        { Cardano.txExtraKeyWits =
-                            Cardano.TxExtraKeyWitnesses alonzoOnwards hashes
-                        }
+                requiredSignerHashes =
+                    Set.fromList
+                        $ (\(Cardano.PaymentKeyHash h) -> LedgerKeys.coerceKeyRole h)
+                            <$> hashes
 
-            withBodyContent recentEra addExtraWits $ \(txBody, wits) -> do
+                addExtraWits
+                    :: Write.Tx era -> Write.Tx era
+                addExtraWits =
+                    setRequiredSigners recentEra requiredSignerHashes
+
+            withLedgerTx recentEra addExtraWits $ \tx -> do
                 let
                     tl = testTxLayer
+                    txBody = tx ^. bodyTxL
 
-                    sealedTx = sealedTxFromCardano' $ Cardano.Tx txBody wits
+                    sealedTx = sealWriteTx recentEra tx
                     sealedTx' =
                         signTransaction
                             ShelleyKeyS
                             tl
-                            (Eras.fromAnyCardanoEra (AnyCardanoEra era))
+                            ( Eras.fromAnyCardanoEra
+                                (AnyCardanoEra $ cardanoEraFromRecentEra recentEra)
+                            )
                             AnyWitnessCountCtx
                             (lookupFnFromKeys extraKeys)
                             Nothing
@@ -638,13 +603,18 @@ prop_signTransaction_addsExtraKeyWitnesses
                             Nothing
                             sealedTx
 
-                    expectedWits :: [InAnyCardanoEra Cardano.KeyWitness]
                     expectedWits =
-                        InAnyCardanoEra era
-                            . mkShelleyWitness txBody
+                        mkShelleyWitnessLedger recentEra txBody
                             <$> extraKeys
+                    actualWits =
+                        withSealedLedgerTx recentEra sealedTx'
+                            $ \signedTx ->
+                                Set.toList
+                                    $ signedTx
+                                        ^. witsTxL
+                                            . addrTxWitsL
 
-                expectedWits `checkSubsetOf` (getSealedTxWitnesses sealedTx')
+                expectedWits `checkSubsetOf` actualWits
 
 keyToAddress :: (XPrv, Passphrase "encryption") -> Address
 keyToAddress (xprv, _pwd) =
@@ -694,24 +664,48 @@ lookupFnFromKeys keys addr =
     in
         Map.lookup addr addrMap
 
-withBodyContent
-    :: era ~ CardanoApiEra era'
-    => RecentEra era'
-    -> ( Cardano.TxBodyContent Cardano.BuildTx era
-         -> Cardano.TxBodyContent Cardano.BuildTx era
-       )
-    -> ((Cardano.TxBody era, [Cardano.KeyWitness era]) -> Property)
+withLedgerTx
+    :: Write.IsRecentEra era
+    => RecentEra era
+    -> (Write.Tx era -> Write.Tx era)
+    -> (Write.Tx era -> Property)
     -> Property
-withBodyContent recentEra modTxBody cont =
-    forAllShow (genTxBodyContent era) (showTransactionBody recentEra)
-        $ \txBodyContent -> do
-            let
-                txBodyContent' = modTxBody txBodyContent
-                txBody = unsafeMakeTransactionBody recentEra txBodyContent'
+withLedgerTx recentEra modifyTx cont =
+    cardanoApiEraConstraints recentEra
+        $ forAllBlind
+            ( fromCardanoApiTx
+                <$> genTxInEra (cardanoEraFromRecentEra recentEra)
+            )
+            (cont . modifyTx)
 
-            forAll (genWitnesses era txBody) $ \wits -> cont (txBody, wits)
+withSealedLedgerTx
+    :: RecentEra era
+    -> SealedTx
+    -> (Write.Tx era -> a)
+    -> a
+withSealedLedgerTx recentEra sealedTx cont = case recentEra of
+    Write.RecentEraConway -> case unsafeReadTx sealedTx of
+        Read.EraValue (Read.Tx tx :: Read.Tx txEra) -> case Read.theEra @txEra of
+            Read.Conway -> cont tx
+            _ -> eraMismatch
+    Write.RecentEraDijkstra -> case unsafeReadTx sealedTx of
+        Read.EraValue (Read.Tx tx :: Read.Tx txEra) -> case Read.theEra @txEra of
+            Read.Dijkstra -> cont tx
+            _ -> eraMismatch
   where
-    era = cardanoEraFromRecentEra recentEra
+    eraMismatch = error "withSealedLedgerTx: transaction era mismatch"
+
+setRequiredSigners
+    :: RecentEra era
+    -> Set.Set (LedgerKeys.KeyHash LedgerKeys.Guard)
+    -> Write.Tx era
+    -> Write.Tx era
+setRequiredSigners recentEra requiredSignerHashes = case recentEra of
+    Write.RecentEraConway ->
+        bodyTxL . reqSignerHashesTxBodyL .~ requiredSignerHashes
+    Write.RecentEraDijkstra ->
+        bodyTxL . guardsTxBodyL
+            .~ Exts.fromList (SL.KeyHashObj <$> Set.toList requiredSignerHashes)
 
 checkSubsetOf :: (Eq a, Show a) => [a] -> [a] -> Property
 checkSubsetOf as bs =
@@ -743,7 +737,7 @@ prop_signTransaction_addsTxInWitnesses
     -- ^ Keys
     -> Property
 prop_signTransaction_addsTxInWitnesses
-    (AnyRecentEra recentEra)
+    (AnyRecentEra (recentEra :: RecentEra era))
     rootK
     extraKeysNE =
         cardanoApiEraConstraints recentEra $ withMaxSuccess 10 $ do
@@ -751,34 +745,29 @@ prop_signTransaction_addsTxInWitnesses
 
             utxoFromKeys extraKeys $ \utxo -> do
                 let
-                    era = cardanoEraFromRecentEra recentEra
-
                     txIns :: [TxIn]
                     txIns = Map.keys $ unUTxO utxo
 
                     addTxIns
-                        :: Cardano.TxBodyContent Cardano.BuildTx era
-                        -> Cardano.TxBodyContent Cardano.BuildTx era
-                    addTxIns txBodyContent =
-                        txBodyContent
-                            { Cardano.txIns =
-                                (,Cardano.BuildTxWith
-                                    (Cardano.KeyWitness Cardano.KeyWitnessForSpending))
-                                    . toCardanoTxIn
-                                    <$> txIns
-                            }
+                        :: Write.Tx era -> Write.Tx era
+                    addTxIns =
+                        bodyTxL . inputsTxBodyL
+                            .~ Set.fromList (toLedger <$> txIns)
 
-                withBodyContent recentEra addTxIns $ \(txBody, wits) -> do
+                withLedgerTx recentEra addTxIns $ \tx -> do
                     let
                         tl = testTxLayer
+                        txBody = tx ^. bodyTxL
 
-                        sealedTx = sealedTxFromCardano' $ Cardano.Tx txBody wits
+                        sealedTx = sealWriteTx recentEra tx
                         sealedTx' =
                             signTransaction
                                 ShelleyKeyS
                                 tl
                                 ( Eras.fromAnyCardanoEra
-                                    (AnyCardanoEra $ cardanoEraFromRecentEra recentEra)
+                                    ( AnyCardanoEra
+                                        $ cardanoEraFromRecentEra recentEra
+                                    )
                                 )
                                 AnyWitnessCountCtx
                                 (lookupFnFromKeys extraKeys)
@@ -788,13 +777,18 @@ prop_signTransaction_addsTxInWitnesses
                                 Nothing
                                 sealedTx
 
-                        expectedWits :: [InAnyCardanoEra Cardano.KeyWitness]
                         expectedWits =
-                            InAnyCardanoEra era
-                                . mkShelleyWitness txBody
+                            mkShelleyWitnessLedger recentEra txBody
                                 <$> extraKeys
+                        actualWits =
+                            withSealedLedgerTx recentEra sealedTx'
+                                $ \signedTx ->
+                                    Set.toList
+                                        $ signedTx
+                                            ^. witsTxL
+                                                . addrTxWitsL
 
-                    expectedWits `checkSubsetOf` (getSealedTxWitnesses sealedTx')
+                    expectedWits `checkSubsetOf` actualWits
 
 prop_signTransaction_addsTxInCollateralWitnesses
     :: AnyRecentEra
@@ -809,16 +803,7 @@ prop_signTransaction_addsTxInCollateralWitnesses
     rootK
     extraKeysNE =
         cardanoApiEraConstraints recentEra $ withMaxSuccess 10 $ do
-            let
-                alonzoOnwards :: Cardano.AlonzoEraOnwards (CardanoApiEra era)
-                alonzoOnwards = case recentEra of
-                    Write.RecentEraConway -> Cardano.AlonzoEraOnwardsConway
-                    Write.RecentEraDijkstra ->
-                        error "alonzoOnwards: Dijkstra not yet supported"
-
-                era = cardanoEraFromRecentEra recentEra
-
-                extraKeys = NE.toList extraKeysNE
+            let extraKeys = NE.toList extraKeysNE
 
             utxoFromKeys extraKeys $ \utxo -> do
                 let
@@ -826,26 +811,26 @@ prop_signTransaction_addsTxInCollateralWitnesses
                     txIns = Map.keys $ unUTxO utxo
 
                     addTxCollateralIns
-                        :: Cardano.TxBodyContent Cardano.BuildTx (CardanoApiEra era)
-                        -> Cardano.TxBodyContent Cardano.BuildTx (CardanoApiEra era)
-                    addTxCollateralIns txBodyContent =
-                        txBodyContent
-                            { Cardano.txInsCollateral =
-                                Cardano.TxInsCollateral
-                                    alonzoOnwards
-                                    (toCardanoTxIn <$> txIns)
-                            }
+                        :: Write.Tx era -> Write.Tx era
+                    addTxCollateralIns =
+                        bodyTxL . collateralInputsTxBodyL
+                            .~ Set.fromList (toLedger <$> txIns)
 
-                withBodyContent recentEra addTxCollateralIns $ \(txBody, wits) -> do
+                withLedgerTx recentEra addTxCollateralIns $ \tx -> do
                     let
                         tl = testTxLayer
+                        txBody = tx ^. bodyTxL
 
-                        sealedTx = sealedTxFromCardano' $ Cardano.Tx txBody wits
+                        sealedTx = sealWriteTx recentEra tx
                         sealedTx' =
                             signTransaction
                                 ShelleyKeyS
                                 tl
-                                (Eras.fromAnyCardanoEra (AnyCardanoEra era))
+                                ( Eras.fromAnyCardanoEra
+                                    ( AnyCardanoEra
+                                        $ cardanoEraFromRecentEra recentEra
+                                    )
+                                )
                                 AnyWitnessCountCtx
                                 (lookupFnFromKeys extraKeys)
                                 Nothing
@@ -854,13 +839,18 @@ prop_signTransaction_addsTxInCollateralWitnesses
                                 Nothing
                                 sealedTx
 
-                        expectedWits :: [InAnyCardanoEra Cardano.KeyWitness]
                         expectedWits =
-                            InAnyCardanoEra era
-                                . mkShelleyWitness txBody
+                            mkShelleyWitnessLedger recentEra txBody
                                 <$> extraKeys
+                        actualWits =
+                            withSealedLedgerTx recentEra sealedTx'
+                                $ \signedTx ->
+                                    Set.toList
+                                        $ signedTx
+                                            ^. witsTxL
+                                                . addrTxWitsL
 
-                    expectedWits `checkSubsetOf` (getSealedTxWitnesses sealedTx')
+                    expectedWits `checkSubsetOf` actualWits
 
 prop_signTransaction_neverRemovesWitnesses
     :: AnyRecentEra
@@ -918,24 +908,25 @@ prop_signTransaction_neverChangesTxBody
     -- ^ Extra keys to form basis of address -> key lookup function
     -> Property
 prop_signTransaction_neverChangesTxBody
-    (AnyRecentEra recentEra)
+    (AnyRecentEra (recentEra :: RecentEra era))
     rootK
     utxo
     extraKeys =
         cardanoApiEraConstraints recentEra
             $ withMaxSuccess 10
-            $ forAll (genTxInEra $ cardanoEraFromRecentEra recentEra)
+            $ withLedgerTx recentEra id
             $ \tx -> do
                 let
-                    era = cardanoEraFromRecentEra recentEra
                     tl = testTxLayer
 
-                    sealedTx = sealedTxFromCardano' tx
+                    sealedTx = sealWriteTx recentEra tx
                     sealedTx' =
                         signTransaction
                             ShelleyKeyS
                             tl
-                            (Eras.fromAnyCardanoEra (AnyCardanoEra era))
+                            ( Eras.fromAnyCardanoEra
+                                (AnyCardanoEra $ cardanoEraFromRecentEra recentEra)
+                            )
                             AnyWitnessCountCtx
                             (lookupFnFromKeys extraKeys)
                             Nothing
@@ -944,28 +935,10 @@ prop_signTransaction_neverChangesTxBody
                             Nothing
                             sealedTx
 
-                    txBodyContent
-                        :: InAnyCardanoEra Cardano.Tx
-                        -> InAnyCardanoEra (Cardano.TxBodyContent Cardano.ViewTx)
-                    txBodyContent
-                        (InAnyCardanoEra e (Cardano.Tx body _wits)) =
-                            InAnyCardanoEra e $ Cardano.getTxBodyContent body
-
-                    bodyContentBefore = txBodyContent $ cardanoTx sealedTx
-                    bodyContentAfter = txBodyContent $ cardanoTx sealedTx'
-
-                    equal
-                        :: InAnyCardanoEra (Cardano.TxBodyContent Cardano.ViewTx)
-                        -> InAnyCardanoEra (Cardano.TxBodyContent Cardano.ViewTx)
-                        -> Bool
-                    equal (InAnyCardanoEra era1 x1) (InAnyCardanoEra era2 x2) =
-                        case era1 `testEquality` era2 of
-                            Nothing -> False
-                            Just Refl ->
-                                unsafeWithShelleyBasedEra era1
-                                    $ x1 == x2
-
-                bodyContentBefore `equal` bodyContentAfter
+                withSealedLedgerTx recentEra sealedTx'
+                    $ \signedTx ->
+                        (tx ^. bodyTxL)
+                            === (signedTx ^. bodyTxL)
 
 prop_signTransaction_preservesScriptIntegrity
     :: AnyRecentEra
@@ -1270,36 +1243,43 @@ binaryCalculationsSpec' era = describe ("calculateBinary - " +|| era ||+ "") $ d
         -> [(XPrv, Passphrase "encryption")]
         -> ByteString
     calculateBinary net utxo outs chgs pairs =
-        cardanoApiEraConstraints era $ hex (Cardano.serialiseToCBOR ledgerTx)
+        cardanoApiEraConstraints era
+            $ hex
+            $ Cardano.serialiseToCBOR
+            $ toCardanoApiTx ledgerTx
       where
-        ledgerTx :: Cardano.Tx (CardanoApiEra era)
-        ledgerTx = Cardano.makeSignedTransaction addrWits unsigned
-        mkByronWitness' unsignedTx (_, (TxOut addr _)) =
-            mkByronWitness unsignedTx net addr
-        addrWits = zipWith (mkByronWitness' unsigned) inps pairs
+        ledgerTx :: Write.Tx era
+        ledgerTx =
+            baseTx
+                & witsTxL . bootAddrTxWitsL .~ Set.fromList byronWits
+        body = baseTx ^. bodyTxL
+        byronWits =
+            zipWith
+                ( \(_, TxOut addr _) ->
+                    mkByronWitnessLedger era body net addr
+                )
+                inps
+                pairs
         fee = selectionDelta cs
-        unsigned :: Cardano.TxBody (CardanoApiEra era)
-        unsigned =
-            case toCardanoApiTx
-                ( either
-                    (error . show)
-                    id
-                    $ mkUnsignedTx
-                        net
-                        (Nothing, slotNo)
-                        (Right cs)
-                        md
-                        NoWithdrawal
-                        []
-                        fee
-                        TokenMap.empty
-                        TokenMap.empty
-                        Map.empty
-                        Map.empty
-                        Nothing
-                        Nothing
-                ) of
-                Cardano.Tx body _ -> body
+        baseTx :: Write.Tx era
+        baseTx =
+            either
+                (error . show)
+                id
+                $ mkUnsignedTx
+                    net
+                    (Nothing, slotNo)
+                    (Right cs)
+                    md
+                    NoWithdrawal
+                    []
+                    fee
+                    TokenMap.empty
+                    TokenMap.empty
+                    Map.empty
+                    Map.empty
+                    Nothing
+                    Nothing
         cs =
             Selection
                 { inputs = NE.fromList inps
@@ -1371,30 +1351,30 @@ makeShelleyTx era' testCase =
         $ let DecodeSetup utxo outs md slotNo pairs netwk = testCase
               inps = Map.toList $ unUTxO utxo
               fee = selectionDelta cs
-              unsigned :: Cardano.TxBody (CardanoApiEra era)
-              unsigned =
-                case toCardanoApiTx
-                    ( either
-                        (error . show)
-                        id
-                        $ mkUnsignedTx
-                            netwk
-                            (Nothing, slotNo)
-                            (Right cs)
-                            md
-                            NoWithdrawal
-                            []
-                            fee
-                            TokenMap.empty
-                            TokenMap.empty
-                            Map.empty
-                            Map.empty
-                            Nothing
-                            Nothing
-                    ) of
-                    Cardano.Tx body _ -> body
-              addrWits =
-                map (mkShelleyWitness unsigned) pairs
+              baseTx :: Write.Tx era
+              baseTx =
+                either
+                    (error . show)
+                    id
+                    $ mkUnsignedTx
+                        netwk
+                        (Nothing, slotNo)
+                        (Right cs)
+                        md
+                        NoWithdrawal
+                        []
+                        fee
+                        TokenMap.empty
+                        TokenMap.empty
+                        Map.empty
+                        Map.empty
+                        Nothing
+                        Nothing
+              body = baseTx ^. bodyTxL
+              addrWits = map (mkShelleyWitnessLedger era' body) pairs
+              ledgerTx =
+                baseTx
+                    & witsTxL . addrTxWitsL .~ Set.fromList addrWits
               cs =
                 Selection
                     { inputs = NE.fromList inps
@@ -1407,7 +1387,7 @@ makeShelleyTx era' testCase =
                       assetsToMint = TokenMap.empty
                     , assetsToBurn = TokenMap.empty
                     }
-          in  Cardano.makeSignedTransaction addrWits unsigned
+          in  toCardanoApiTx ledgerTx
 
 encodingFromTheFuture :: AnyRecentEra -> AnyCardanoEra -> Bool
 encodingFromTheFuture tx current = shelleyEraNum tx > eraNum current
