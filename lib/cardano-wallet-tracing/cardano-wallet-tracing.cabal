@@ -1,6 +1,6 @@
 cabal-version: 3.0
 name:          cardano-wallet-tracing
-version:       0.2026.8.21
+version:       0.2026.9.2
 synopsis:      Wallet-owned tracing and monitoring compatibility layer
 license:       Apache-2.0
 license-file:  LICENSE
