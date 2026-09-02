@@ -34,8 +34,9 @@ constraint 3 by construction.
       `constructTransaction` / `constructUnbalancedSharedTransaction`.
       Result types only; argument names and types unchanged.
 - [x] **T-5** Drop the converter application at the two consumers,
-      `lib/api/.../Shelley/Server.hs:3177` and `:3650`, and the now-unused
-      `fromCardanoApiTx` import at `:169`. **Nothing else under `lib/api/**`.**
+      `constructTransaction` and `constructSharedTransaction` in
+      `lib/api/.../Shelley/Server.hs`, and the now-unused `fromCardanoApiTx`
+      import. **Nothing else under `lib/api/**`.**
 - [x] **T-6** All four of T-4's `Wallet.hs` signatures and T-5's call sites, or
       none. Half the boundary leaves the pragma in place and the diff
       misleading.

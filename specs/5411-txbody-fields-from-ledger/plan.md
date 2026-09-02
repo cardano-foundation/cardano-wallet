@@ -135,7 +135,8 @@ reach. `TxBody` is deprecated in 11.5.0.0 and appears at two signatures:
 
 Produced by `mkUnsignedTransaction` → `constructUnsignedTx` → `mkUnsignedTx`
 (`Shelley/Transaction.hs`, owned), consumed at
-`lib/api/.../Shelley/Server.hs:3177` and `:3650`, both of which immediately do
+`constructTransaction` and `constructSharedTransaction` in
+`lib/api/.../Shelley/Server.hs`, both of which immediately do
 `fromCardanoApiTx $ Cardano.Tx unbalancedTx []`.
 
 In `Api/Extra.hs` the converters are an **identity pair** in Conway — wrap and
@@ -143,7 +144,7 @@ unwrap. So this is the same round-trip one layer up, through the same two
 functions, needing no new type.
 
 **Ruling A-001: in scope.** The owned set gains **exactly** the
-`fromCardanoApiTx` import at `Server.hs:169` and its two call sites, for the
+`fromCardanoApiTx` import in `Server.hs` and its two call sites, for the
 sole purpose of dropping the converter application. **Not general licence over
 `lib/api/**`.** Five constraints bind:
 
@@ -151,8 +152,7 @@ sole purpose of dropping the converter application. **Not general licence over
    the module does not. It retires with #5290.
 2. Converter orphaning is checked **after** the change as well as before.
    Verified here, per converter, excluding imports and the definition:
-   `fromCardanoApiTx` retains `Shelley/Transaction.hs:360` and
-   `TransactionLedgerSpec.hs:1555`; `toCardanoApiTx` retains
+   `fromCardanoApiTx` retains `Shelley/Transaction.hs:360`; `toCardanoApiTx` retains
    `Shelley/Transaction.hs:362`, `:804` and three spec sites. Neither orphans.
 3. The return-type change and both consumers land in the **same commit**.
    Satisfied by construction: the accepted candidate is squashed into one

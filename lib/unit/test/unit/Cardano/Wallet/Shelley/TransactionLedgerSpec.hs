@@ -1714,46 +1714,48 @@ propParity eraW sel ws ctx =
 reviewResponse5413Spec :: Spec
 reviewResponse5413Spec = describe "5413 review response" $ do
     it
-        "the pre-cardano-api round trip is an identity with multiple scripts" $ do
-        let tx = reviewResponseTx (Coin 1_000_000)
-        Map.size (parityScriptWits tx) `shouldSatisfy` (>= 2)
-        let roundTripped =
-                case toCardanoApiTx tx of
-                    Cardano.Tx body _ ->
-                        fromCardanoApiTx (Cardano.Tx body [])
-                            & witsTxL . scriptTxWitsL .~ mempty
-        roundTripped `shouldBe` tx
+        "the pre-cardano-api round trip is an identity with multiple scripts"
+        $ do
+            let tx = reviewResponseTx (Coin 1_000_000)
+            Map.size (parityScriptWits tx) `shouldSatisfy` (>= 2)
+            let roundTripped =
+                    case toCardanoApiTx tx of
+                        Cardano.Tx body _ ->
+                            fromCardanoApiTx (Cardano.Tx body [])
+            roundTripped `shouldBe` tx
 
     it "presents at least two distinct scripts at the balanceTx boundary" $ do
-        let declared = Map.deleteMin $ parityScriptWits reviewTx
+        let declared = parityScriptWits reviewTx
         Map.size declared `shouldSatisfy` (>= 2)
 
     it "balanceTx preserves every declared script" $ do
         balanced <- balanceReviewResponseTx (Coin 1_000_000)
         let declared = Map.keysSet $ parityScriptWits reviewTx
-        let observed =
-                Map.keysSet
-                    $ parityScriptWits
-                    $ balanced
-                    & witsTxL . scriptTxWitsL .~ mempty
+        let observed = Map.keysSet $ parityScriptWits balanced
         Set.isSubsetOf declared observed `shouldBe` True
-        Set.size declared `shouldSatisfy` (>= 2)
+        Set.size declared `shouldBe` 2
 
     it "balanceTx selects an input when declared inputs are insufficient" $ do
-        balanced <- balanceReviewResponseTx (Coin 10_000_000)
+        balanced <- balanceReviewResponseTx (Coin 1_000_000)
+        let initialInputs = reviewInputs reviewTx
         Set.size (reviewInputs balanced)
-            `shouldSatisfy` (> Set.size (reviewInputs sufficientReviewTx))
+            `shouldSatisfy` (> Set.size initialInputs)
+        Set.difference (reviewInputs balanced) initialInputs
+            `shouldBe` Set.singleton (toLedger $ TxIn dummyTxId 2)
 
     it "balanceTx appends the script for its selected input" $ do
         balanced <- balanceReviewResponseTx (Coin 1_000_000)
-        Map.keysSet (parityScriptWits balanced)
+        let scripts = parityScriptWits balanced
+        Map.size scripts `shouldBe` 3
+        Map.keysSet scripts
             `shouldSatisfy` Set.member reviewAddedInputScriptHash
   where
     reviewTx = reviewResponseTx (Coin 1_000_000)
-    sufficientReviewTx = reviewResponseTx (Coin 10_000_000)
 
--- | This oracle exists only for the cardano-api migration window. Delete it
--- with 'toCardanoApiTx' and 'fromCardanoApiTx' when those converters retire.
+-- | This oracle exists only for the cardano-api migration window.
+--
+-- Delete it with 'toCardanoApiTx' and 'fromCardanoApiTx' when those converters
+-- retire.
 reviewResponseTx :: Coin -> Write.Tx Write.Conway
 reviewResponseTx inputCoin =
     buildLegacyParityTx
@@ -1956,7 +1958,9 @@ genDifferentialCase = do
             `suchThat` (\xs -> length (nub xs) == length xs)
     nOuts <- choose (1, 2) :: Gen Int
     nCol <- choose (0, 2) :: Gen Int
-    colIxs <- vectorOf nCol (choose (0, 9) :: Gen Int)
+    colIxs <-
+        vectorOf nCol (choose (0, 9) :: Gen Int)
+            `suchThat` (\xs -> length (nub xs) == length xs)
     let mkIn ix =
             ( TxIn dummyTxId (fromIntegral ix)
             , TxOut (ownedAddrs !! ix) (coinToBundle 10_000_000)

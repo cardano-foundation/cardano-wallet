@@ -64,7 +64,7 @@ retires with #5412.
 `lib/wallet/src/Cardano/Wallet.hs`, the Shelley transaction modules under
 `lib/wallet/src/Cardano/Wallet/Shelley/`, the unit specs for those surfaces,
 **and — per A-001, narrowly and by name — the `fromCardanoApiTx` import at
-`lib/api/src/Cardano/Wallet/Api/Http/Shelley/Server.hs:169` and its two call
+`lib/api/src/Cardano/Wallet/Api/Http/Shelley/Server.hs` and its two call
 sites, for the sole purpose of dropping the converter application.**
 
 That is not general licence over `lib/api/**`.
