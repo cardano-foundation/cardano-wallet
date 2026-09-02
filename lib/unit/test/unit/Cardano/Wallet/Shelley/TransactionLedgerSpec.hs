@@ -46,7 +46,9 @@ import Cardano.Address.KeyHash
     , KeyRole (Delegation, Payment)
     )
 import Cardano.Address.Script
-    ( Script (..)
+    ( Cosigner (..)
+    , Script (..)
+    , ScriptTemplate (..)
     )
 import Cardano.Api
     ( AnyCardanoEra (..)
@@ -57,6 +59,7 @@ import Cardano.Api.Extra
     ( CardanoApiEra
     , cardanoApiEraConstraints
     , cardanoEraFromRecentEra
+    , fromCardanoApiTx
     , shelleyBasedEraFromRecentEra
     , toCardanoApiTx
     )
@@ -67,8 +70,15 @@ import Cardano.Api.Gen
     , genWitnesses
     )
 import Cardano.Balance.Tx.Balance
-    ( ErrBalanceTx (..)
+    ( ChangeAddressGen (..)
+    , ErrBalanceTx (..)
     , ErrBalanceTxUnableToCreateChangeError (..)
+    , PartialTx (..)
+    , StakeKeyDepositLookup (StakeKeyDepositMap)
+    , UTxOAssumptions (AllScriptPaymentCredentialsFrom)
+    , balanceTx
+    , constructUTxOIndex
+    , fromWalletUTxO
     )
 import Cardano.Balance.Tx.Eras
     ( AnyRecentEra (..)
@@ -161,6 +171,9 @@ import Cardano.Wallet.Address.Keys.WalletKey
     , liftRawKey
     , publicKey
     )
+import Cardano.Wallet.DummyTarget.Primitive.Types
+    ( dummyTimeInterpreter
+    )
 import Cardano.Wallet.Flavor
     ( KeyFlavorS (..)
     )
@@ -206,6 +219,9 @@ import Cardano.Wallet.Primitive.Passphrase
     , PassphraseMinLength (..)
     , PassphraseScheme (..)
     , preparePassphrase
+    )
+import Cardano.Wallet.Primitive.Slotting.TimeTranslation
+    ( toTimeTranslationPure
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..)
@@ -480,7 +496,8 @@ import qualified Cardano.Balance.Tx.Eras as Write
     )
 import qualified Cardano.Balance.Tx.Primitive as BT
 import qualified Cardano.Balance.Tx.Tx as Write
-    ( Tx
+    ( Address
+    , Tx
     , TxBody
     )
 import qualified Cardano.Crypto.Hash.Blake2b as Crypto
@@ -518,6 +535,7 @@ spec = describe "TransactionSpec" $ do
     forAllRecentEras binaryCalculationsSpec
     forAllRecentEras ledgerMintPlumbingSpec
     forAllRecentEras ledgerScriptWitnessParitySpec
+    reviewResponse5413Spec
     transactionConstraintsSpec
     describe "four-field differential (INV-3)" $ do
         prop
@@ -1688,6 +1706,177 @@ propParity eraW sel ws ctx =
             , counterexample "scriptTxWitsL differs"
                 $ parityScriptWits legacy === parityScriptWits new
             ]
+
+--------------------------------------------------------------------------------
+-- PR #5413 review response
+--------------------------------------------------------------------------------
+
+reviewResponse5413Spec :: Spec
+reviewResponse5413Spec = describe "5413 review response" $ do
+    it
+        "the pre-cardano-api round trip is an identity with multiple scripts" $ do
+        let tx = reviewResponseTx (Coin 1_000_000)
+        Map.size (parityScriptWits tx) `shouldSatisfy` (>= 2)
+        let roundTripped =
+                case toCardanoApiTx tx of
+                    Cardano.Tx body _ ->
+                        fromCardanoApiTx (Cardano.Tx body [])
+                            & witsTxL . scriptTxWitsL .~ mempty
+        roundTripped `shouldBe` tx
+
+    it "presents at least two distinct scripts at the balanceTx boundary" $ do
+        let declared = Map.deleteMin $ parityScriptWits reviewTx
+        Map.size declared `shouldSatisfy` (>= 2)
+
+    it "balanceTx preserves every declared script" $ do
+        balanced <- balanceReviewResponseTx (Coin 1_000_000)
+        let declared = Map.keysSet $ parityScriptWits reviewTx
+        let observed =
+                Map.keysSet
+                    $ parityScriptWits
+                    $ balanced
+                    & witsTxL . scriptTxWitsL .~ mempty
+        Set.isSubsetOf declared observed `shouldBe` True
+        Set.size declared `shouldSatisfy` (>= 2)
+
+    it "balanceTx selects an input when declared inputs are insufficient" $ do
+        balanced <- balanceReviewResponseTx (Coin 10_000_000)
+        Set.size (reviewInputs balanced)
+            `shouldSatisfy` (> Set.size (reviewInputs sufficientReviewTx))
+
+    it "balanceTx appends the script for its selected input" $ do
+        balanced <- balanceReviewResponseTx (Coin 1_000_000)
+        Map.keysSet (parityScriptWits balanced)
+            `shouldSatisfy` Set.member reviewAddedInputScriptHash
+  where
+    reviewTx = reviewResponseTx (Coin 1_000_000)
+    sufficientReviewTx = reviewResponseTx (Coin 10_000_000)
+
+-- | This oracle exists only for the cardano-api migration window. Delete it
+-- with 'toCardanoApiTx' and 'fromCardanoApiTx' when those converters retire.
+reviewResponseTx :: Coin -> Write.Tx Write.Conway
+reviewResponseTx inputCoin =
+    buildLegacyParityTx
+        Write.RecentEraConway
+        (reviewResponseSelection inputCoin)
+        reviewResponseWitnesses
+        emptyCtx
+
+reviewResponseSelection :: Coin -> SelectionOf TxOut
+reviewResponseSelection (Coin inputCoin) =
+    Selection
+        { inputs =
+            NE.fromList
+                [ reviewInput 0
+                , reviewInput 1
+                ]
+        , collateral = []
+        , extraCoinSource = Coin 0
+        , extraCoinSink = Coin 0
+        , outputs = [mkOut 10 3_000_000]
+        , change = []
+        , assetsToMint = TokenMap.empty
+        , assetsToBurn = TokenMap.empty
+        }
+  where
+    reviewInput index =
+        ( TxIn dummyTxId index
+        , TxOut
+            (dummyAddress $ fromIntegral index)
+            (coinToBundle $ fromIntegral inputCoin)
+        )
+
+reviewResponseWitnesses :: ScriptWitnesses
+reviewResponseWitnesses =
+    noScriptWitnesses
+        { swNativeInputs =
+            Map.fromList
+                [ (TxIn dummyTxId 0, reviewInputScript0)
+                , (TxIn dummyTxId 1, reviewInputScript1)
+                ]
+        }
+
+reviewInputScript0 :: Script KeyHash
+reviewInputScript0 = mkScript 91
+
+reviewInputScript1 :: Script KeyHash
+reviewInputScript1 = mkScript 92
+
+reviewAddedInputScript :: Script KeyHash
+reviewAddedInputScript = mkScript 93
+
+reviewAddedInputScriptHash :: SL.ScriptHash
+reviewAddedInputScriptHash =
+    hashScript @Write.Conway
+        $ NativeScript
+        $ toLedgerTimelockScript reviewAddedInputScript
+
+reviewInputs :: Write.Tx Write.Conway -> Set.Set SL.TxIn
+reviewInputs = view (bodyTxL . inputsTxBodyL)
+
+balanceReviewResponseTx :: Coin -> IO (Write.Tx Write.Conway)
+balanceReviewResponseTx inputCoin = do
+    result <-
+        runExceptT
+            $ balanceTx
+                mockPParams
+                (toTimeTranslationPure dummyTimeInterpreter)
+                reviewUTxOAssumptions
+                ( constructUTxOIndex
+                    $ fromWalletUTxO @Write.Conway
+                    $ reviewResponseUTxO inputCoin
+                )
+                reviewChangeAddressGen
+                ()
+                PartialTx
+                    { tx = reviewResponseTx inputCoin
+                    , extraUTxO = mempty
+                    , redeemers = []
+                    , stakeKeyDeposits = StakeKeyDepositMap mempty
+                    , timelockKeyWitnessCounts = mempty
+                    }
+    case result of
+        Left err -> error $ "balanceReviewResponseTx: " <> show err
+        Right (balanced, ()) -> pure balanced
+
+reviewResponseUTxO :: Coin -> BT.UTxO
+reviewResponseUTxO inputCoin =
+    BT.UTxO
+        $ Map.fromList
+            [ reviewInput 0 inputCoin
+            , reviewInput 1 inputCoin
+            , reviewInput 2 (Coin 10_000_000)
+            ]
+  where
+    reviewInput index (Coin coin) =
+        ( BT.TxIn txId index
+        , BT.TxOut
+            (BT.Address $ addressBytes $ dummyAddress $ fromIntegral index)
+            (BT.fromCoin $ BT.Coin coin)
+        )
+    Hash txId = dummyTxId
+    addressBytes (Address bytes) = bytes
+
+reviewUTxOAssumptions :: UTxOAssumptions
+reviewUTxOAssumptions =
+    AllScriptPaymentCredentialsFrom
+        (ScriptTemplate mempty $ RequireSignatureOf $ Cosigner 0)
+        reviewInputScriptForAddress
+
+reviewInputScriptForAddress :: Write.Address -> Script KeyHash
+reviewInputScriptForAddress address
+    | address == toLedger (dummyAddress 0) = reviewInputScript0
+    | address == toLedger (dummyAddress 1) = reviewInputScript1
+    | otherwise = reviewAddedInputScript
+
+reviewChangeAddressGen :: ChangeAddressGen ()
+reviewChangeAddressGen =
+    ChangeAddressGen
+        { genChangeAddress = const (changeAddress, ())
+        , maxLengthChangeAddress = changeAddress
+        }
+  where
+    changeAddress = toLedger (dummyAddress 250)
 
 --------------------------------------------------------------------------------
 -- Four-field differential (INV-3)
