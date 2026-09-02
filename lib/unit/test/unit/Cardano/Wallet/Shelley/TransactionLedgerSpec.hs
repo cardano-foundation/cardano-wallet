@@ -87,6 +87,9 @@ import Cardano.Balance.Tx.Eras
 import Cardano.Balance.Tx.Gen
     ( mockPParams
     )
+import Cardano.Balance.Tx.Sign
+    ( TimelockKeyWitnessCounts (TimelockKeyWitnessCounts)
+    )
 import Cardano.Balance.Tx.SizeEstimation
     ( TxSkeleton (..)
     , estimateTxSize
@@ -1718,11 +1721,7 @@ reviewResponse5413Spec = describe "5413 review response" $ do
         $ do
             let tx = reviewResponseTx (Coin 1_000_000)
             Map.size (parityScriptWits tx) `shouldSatisfy` (>= 2)
-            let roundTripped =
-                    case toCardanoApiTx tx of
-                        Cardano.Tx body _ ->
-                            fromCardanoApiTx (Cardano.Tx body [])
-            roundTripped `shouldBe` tx
+            roundTripThroughCardanoApi tx `shouldBe` tx
 
     it "presents at least two distinct scripts at the balanceTx boundary" $ do
         let declared = parityScriptWits reviewTx
@@ -1732,8 +1731,9 @@ reviewResponse5413Spec = describe "5413 review response" $ do
         balanced <- balanceReviewResponseTx (Coin 1_000_000)
         let declared = Map.keysSet $ parityScriptWits reviewTx
         let observed = Map.keysSet $ parityScriptWits balanced
+        Set.member reviewPreservedScriptHash declared `shouldBe` True
         Set.isSubsetOf declared observed `shouldBe` True
-        Set.size declared `shouldBe` 2
+        Set.size declared `shouldBe` 3
 
     it "balanceTx selects an input when declared inputs are insufficient" $ do
         balanced <- balanceReviewResponseTx (Coin 1_000_000)
@@ -1746,23 +1746,38 @@ reviewResponse5413Spec = describe "5413 review response" $ do
     it "balanceTx appends the script for its selected input" $ do
         balanced <- balanceReviewResponseTx (Coin 1_000_000)
         let scripts = parityScriptWits balanced
-        Map.size scripts `shouldBe` 3
         Map.keysSet scripts
             `shouldSatisfy` Set.member reviewAddedInputScriptHash
   where
     reviewTx = reviewResponseTx (Coin 1_000_000)
 
--- | This oracle exists only for the cardano-api migration window.
+-- | Migration-window oracle for the round-trip example only.
 --
--- Delete it with 'toCardanoApiTx' and 'fromCardanoApiTx' when those converters
--- retire.
+-- Delete this helper and its example with 'toCardanoApiTx' and
+-- 'fromCardanoApiTx' when those converters retire.
+roundTripThroughCardanoApi
+    :: Write.Tx Write.Conway -> Write.Tx Write.Conway
+roundTripThroughCardanoApi tx =
+    case toCardanoApiTx tx of
+        Cardano.Tx body _ -> fromCardanoApiTx (Cardano.Tx body [])
+
 reviewResponseTx :: Coin -> Write.Tx Write.Conway
 reviewResponseTx inputCoin =
     buildLegacyParityTx
         Write.RecentEraConway
         (reviewResponseSelection inputCoin)
         reviewResponseWitnesses
-        emptyCtx
+        reviewResponseCtx
+
+reviewResponseCtx :: ScriptParityCtx
+reviewResponseCtx =
+    emptyCtx
+        { ctxWithdrawal =
+            WithdrawalSelf
+                (FromScriptHash $ scriptKeyHashBytes reviewPreservedScript)
+                dummyDerivPath
+                (Coin 1)
+        }
 
 reviewResponseSelection :: Coin -> SelectionOf TxOut
 reviewResponseSelection (Coin inputCoin) =
@@ -1796,6 +1811,7 @@ reviewResponseWitnesses =
                 [ (TxIn dummyTxId 0, reviewInputScript0)
                 , (TxIn dummyTxId 1, reviewInputScript1)
                 ]
+        , swStakingScript = Just reviewPreservedScript
         }
 
 reviewInputScript0 :: Script KeyHash
@@ -1804,14 +1820,23 @@ reviewInputScript0 = mkScript 91
 reviewInputScript1 :: Script KeyHash
 reviewInputScript1 = mkScript 92
 
+reviewPreservedScript :: Script KeyHash
+reviewPreservedScript = mkScript 94
+
+reviewPreservedScriptHash :: SL.ScriptHash
+reviewPreservedScriptHash = reviewScriptHash reviewPreservedScript
+
 reviewAddedInputScript :: Script KeyHash
 reviewAddedInputScript = mkScript 93
 
 reviewAddedInputScriptHash :: SL.ScriptHash
-reviewAddedInputScriptHash =
+reviewAddedInputScriptHash = reviewScriptHash reviewAddedInputScript
+
+reviewScriptHash :: Script KeyHash -> SL.ScriptHash
+reviewScriptHash script =
     hashScript @Write.Conway
         $ NativeScript
-        $ toLedgerTimelockScript reviewAddedInputScript
+        $ toLedgerTimelockScript script
 
 reviewInputs :: Write.Tx Write.Conway -> Set.Set SL.TxIn
 reviewInputs = view (bodyTxL . inputsTxBodyL)
@@ -1835,7 +1860,9 @@ balanceReviewResponseTx inputCoin = do
                     , extraUTxO = mempty
                     , redeemers = []
                     , stakeKeyDeposits = StakeKeyDepositMap mempty
-                    , timelockKeyWitnessCounts = mempty
+                    , timelockKeyWitnessCounts =
+                        TimelockKeyWitnessCounts
+                            $ Map.singleton reviewPreservedScriptHash 1
                     }
     case result of
         Left err -> error $ "balanceReviewResponseTx: " <> show err

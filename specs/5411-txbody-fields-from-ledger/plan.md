@@ -151,9 +151,7 @@ sole purpose of dropping the converter application. **Not general licence over
 1. `lib/wallet/src/Cardano/Api/Extra.hs` is **not** edited — call sites change,
    the module does not. It retires with #5290.
 2. Converter orphaning is checked **after** the change as well as before.
-   Verified here, per converter, excluding imports and the definition:
-   `fromCardanoApiTx` retains `Shelley/Transaction.hs:360`; `toCardanoApiTx` retains
-   `Shelley/Transaction.hs:362`, `:804` and three spec sites. Neither orphans.
+   Neither converter is orphaned.
 3. The return-type change and both consumers land in the **same commit**.
    Satisfied by construction: the accepted candidate is squashed into one
    behaviour commit.
