@@ -166,7 +166,6 @@ import Cardano.Address.Script
 
 import Cardano.Api.Extra
     ( cardanoApiEraConstraints
-    , fromCardanoApiTx
     )
 import Cardano.Balance.Tx.Eras
     ( AnyRecentEra (..)
@@ -900,7 +899,6 @@ import Prelude
 import qualified Cardano.Address.KeyHash as CA
 import qualified Cardano.Address.Script as CA
 import qualified Cardano.Address.Style.Shelley as CA
-import qualified Cardano.Api as Cardano
 import qualified Cardano.Balance.Tx.Balance as Write
     ( PartialTx (..)
     , Redeemer (..)
@@ -3174,7 +3172,7 @@ constructTransaction api knownPools poolStatus apiWalletId body = do
                     pp
                     timeTranslation
                     Write.PartialTx
-                        { tx = fromCardanoApiTx $ Cardano.Tx unbalancedTx []
+                        { tx = unbalancedTx
                         , extraUTxO = mempty
                         , redeemers = mempty
                         , stakeKeyDeposits = Write.StakeKeyDepositMap mempty
@@ -3646,9 +3644,7 @@ constructSharedTransaction
                                 pp
                                 timeTranslation
                                 Write.PartialTx
-                                    { tx =
-                                        fromCardanoApiTx
-                                            $ Cardano.Tx unbalancedTx []
+                                    { tx = unbalancedTx
                                     , extraUTxO = mempty
                                     , redeemers = mempty
                                     , stakeKeyDeposits = Write.StakeKeyDepositMap mempty

@@ -18,9 +18,11 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
--- Temporary: cardano-api 11.5 deprecates the legacy TxBody/TxBodyContent API
--- in favour of Cardano.Api.Experimental. Retiring these sites is cardano-api
--- removal work, owned by M1 (#5237). Remove this pragma when that lands.
+-- Narrowed residual (#5411): this suppression no longer covers the
+-- transaction-body boundary (Wallet.hs's was retired), only the
+-- signTransaction property pipeline over the deprecated cardano-api TxBody
+-- API, which retires with #5290. Measured by build (removing the pragma
+-- yields 25 -Wdeprecations here, all in that pipeline).
 {-# OPTIONS_GHC -Wno-deprecations #-}
 {- HLINT ignore "Use null" -}
 {- HLINT ignore "Use camelCase" -}
@@ -44,7 +46,9 @@ import Cardano.Address.KeyHash
     , KeyRole (Delegation, Payment)
     )
 import Cardano.Address.Script
-    ( Script (..)
+    ( Cosigner (..)
+    , Script (..)
+    , ScriptTemplate (..)
     )
 import Cardano.Api
     ( AnyCardanoEra (..)
@@ -66,8 +70,15 @@ import Cardano.Api.Gen
     , genWitnesses
     )
 import Cardano.Balance.Tx.Balance
-    ( ErrBalanceTx (..)
+    ( ChangeAddressGen (..)
+    , ErrBalanceTx (..)
     , ErrBalanceTxUnableToCreateChangeError (..)
+    , PartialTx (..)
+    , StakeKeyDepositLookup (StakeKeyDepositMap)
+    , UTxOAssumptions (AllScriptPaymentCredentialsFrom)
+    , balanceTx
+    , constructUTxOIndex
+    , fromWalletUTxO
     )
 import Cardano.Balance.Tx.Eras
     ( AnyRecentEra (..)
@@ -75,6 +86,9 @@ import Cardano.Balance.Tx.Eras
     )
 import Cardano.Balance.Tx.Gen
     ( mockPParams
+    )
+import Cardano.Balance.Tx.Sign
+    ( TimelockKeyWitnessCounts (TimelockKeyWitnessCounts)
     )
 import Cardano.Balance.Tx.SizeEstimation
     ( TxSkeleton (..)
@@ -107,11 +121,14 @@ import Cardano.Ledger.Api
     , witsTxL
     )
 import Cardano.Ledger.Api.Tx.Body
-    ( mintTxBodyL
+    ( collateralInputsTxBodyL
+    , inputsTxBodyL
+    , mintTxBodyL
+    , outputsTxBodyL
+    , withdrawalsTxBodyL
     )
 import Cardano.Ledger.BaseTypes
-    ( Network (Mainnet, Testnet)
-    , StrictMaybe (..)
+    ( StrictMaybe (..)
     )
 import Cardano.Ledger.Binary
     ( serialize
@@ -120,8 +137,10 @@ import Cardano.Mnemonic
     ( SomeMnemonic (SomeMnemonic)
     )
 import Cardano.Wallet
-    ( Fee (..)
+    ( CoinSelection (..)
+    , Fee (..)
     , Percentile (..)
+    , buildCoinSelectionForTransaction
     , calculateFeePercentiles
     , signTransaction
     )
@@ -131,14 +150,32 @@ import Cardano.Wallet.Address.Derivation
     , deriveRewardAccount
     , hex
     , paymentAddress
+    , stakeDerivationPath
     )
 import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey
+    , unsafeGenerateKeyFromSeed
+    )
+import Cardano.Wallet.Address.Discovery
+    ( ChangeAddressMode (..)
+    , IsOurs (..)
+    , KnownAddresses (..)
+    )
+import Cardano.Wallet.Address.Discovery.Sequential
+    ( SeqState (..)
+    , defaultAddressPoolGap
+    , purposeCIP1852
+    )
+import Cardano.Wallet.Address.Keys.SequentialAny
+    ( mkSeqStateFromRootXPrv
     )
 import Cardano.Wallet.Address.Keys.WalletKey
     ( getRawKey
     , liftRawKey
     , publicKey
+    )
+import Cardano.Wallet.DummyTarget.Primitive.Types
+    ( dummyTimeInterpreter
     )
 import Cardano.Wallet.Flavor
     ( KeyFlavorS (..)
@@ -157,14 +194,27 @@ import Cardano.Wallet.Primitive.Ledger.Convert
 import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Integrity
     ( txIntegrity
     )
+import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Withdrawals
+    ( fromLedgerWithdrawals
+    )
 import Cardano.Wallet.Primitive.Ledger.Read.Tx.Sealed
     ( fromSealedTx
     )
 import Cardano.Wallet.Primitive.Ledger.Shelley
-    ( toCardanoTxIn
+    ( fromCardanoTxIn
+    , fromCardanoTxOut
+    , fromCardanoWdrls
+    , toCardanoTxIn
+    )
+import Cardano.Wallet.Primitive.Model
+    ( Wallet
+    , getState
+    , totalUTxO
+    , unsafeInitWallet
     )
 import Cardano.Wallet.Primitive.NetworkId
-    ( SNetworkId (..)
+    ( NetworkDiscriminant (..)
+    , SNetworkId (..)
     )
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..)
@@ -172,6 +222,9 @@ import Cardano.Wallet.Primitive.Passphrase
     , PassphraseMinLength (..)
     , PassphraseScheme (..)
     , preparePassphrase
+    )
+import Cardano.Wallet.Primitive.Slotting.TimeTranslation
+    ( toTimeTranslationPure
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..)
@@ -181,6 +234,9 @@ import Cardano.Wallet.Primitive.Types.AssetId
     )
 import Cardano.Wallet.Primitive.Types.AssetName
     ( AssetName (UnsafeAssetName)
+    )
+import Cardano.Wallet.Primitive.Types.Block
+    ( BlockHeader (..)
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
@@ -224,6 +280,7 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
     )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..)
+    , TxChange (..)
     , TxMetadata (..)
     , TxMetadataValue (..)
     , sealedTxFromBytes
@@ -284,7 +341,8 @@ import Cardano.Wallet.Transaction
     , selectionDelta
     )
 import Cardano.Wallet.Unsafe
-    ( unsafeFromHex
+    ( someDummyMnemonic
+    , unsafeFromHex
     )
 import Control.Arrow
     ( first
@@ -316,9 +374,13 @@ import Data.ByteString
 import Data.Either
     ( isRight
     )
+import Data.Foldable
 import Data.Function
     ( on
     , (&)
+    )
+import Data.Functor
+    ( (<&>)
     )
 import Data.IntCast
     ( intCast
@@ -335,6 +397,7 @@ import Data.Map.Strict
 import Data.Maybe
     ( fromJust
     , isJust
+    , maybeToList
     )
 import Data.Ord
     ( comparing
@@ -397,6 +460,7 @@ import Test.QuickCheck
     , cover
     , elements
     , forAll
+    , forAllBlind
     , forAllShow
     , frequency
     , ioProperty
@@ -435,7 +499,8 @@ import qualified Cardano.Balance.Tx.Eras as Write
     )
 import qualified Cardano.Balance.Tx.Primitive as BT
 import qualified Cardano.Balance.Tx.Tx as Write
-    ( Tx
+    ( Address
+    , Tx
     , TxBody
     )
 import qualified Cardano.Crypto.Hash.Blake2b as Crypto
@@ -449,9 +514,11 @@ import qualified Cardano.Ledger.Coin as Ledger
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.Ledger.Read.Eras as Eras
+import qualified Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Outputs as ReadTxOut
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
+import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Read as Read
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
@@ -471,7 +538,15 @@ spec = describe "TransactionSpec" $ do
     forAllRecentEras binaryCalculationsSpec
     forAllRecentEras ledgerMintPlumbingSpec
     forAllRecentEras ledgerScriptWitnessParitySpec
+    reviewResponse5413Spec
     transactionConstraintsSpec
+    describe "four-field differential (INV-3)" $ do
+        prop
+            "ledger reads equal the cardano-api reads, per field"
+            prop_fourFieldDifferential
+        prop
+            "production coin selection matches the cardano-api path"
+            prop_productionCoinSelectionMatchesCardanoApiPath
     describe "V2 key witness" $ do
         prop "V2 root witness matches V1 for same key material"
             $ forAll genShelleyKeyAndPwd (uncurry prop_v2WitnessMatchesV1)
@@ -1229,7 +1304,7 @@ ledgerMintPlumbingSpec' era =
                 ( buildLedgerTx
                     era
                     sampleTtl
-                    Testnet
+                    SL.Testnet
                     NoWithdrawal
                     (Coin 0)
                     Nothing
@@ -1246,7 +1321,7 @@ ledgerMintPlumbingSpec' era =
                 ( buildLedgerTxRaw
                     era
                     sampleTtl
-                    Testnet
+                    SL.Testnet
                     NoWithdrawal
                     (Coin 0)
                     Nothing
@@ -1263,7 +1338,7 @@ ledgerMintPlumbingSpec' era =
                 ( buildLedgerTxRaw
                     era
                     sampleTtl
-                    Testnet
+                    SL.Testnet
                     NoWithdrawal
                     (Coin 0)
                     Nothing
@@ -1323,10 +1398,12 @@ ledgerMintPlumbingSpec' era =
 -- Script-witness parity (PR #5288)
 --
 -- Six enumerated scenarios + one property compare two builders byte-for-byte:
---   * the legacy Cardano.Wallet.Shelley.Transaction.mkUnsignedTx (cardano-api)
---   * the new   Cardano.Wallet.Shelley.Transaction.Ledger.buildLedgerTx
+--   * Cardano.Wallet.Shelley.Transaction.mkUnsignedTx
+--   * Cardano.Wallet.Shelley.Transaction.Ledger.buildLedgerTx
 --
--- After both builders produce a Conway-era body, we compare:
+-- Both builders now produce a ledger 'Write.Tx Write.Conway' directly
+-- (mkUnsignedTx retired its cardano-api body in #5411), so the comparison is
+-- between the two production entry points. We compare:
 --   (a) CBOR of `tx ^. bodyTxL` (via serialize @Conway)
 --   (b) `tx ^. witsTxL . scriptTxWitsL`
 --
@@ -1511,7 +1588,8 @@ parityTtl = (Nothing, SlotNo 100)
 parityFee :: Coin
 parityFee = Coin 200_000
 
--- | Build the legacy body via mkUnsignedTx and lift it to a ledger Tx Conway.
+-- | Build the body via mkUnsignedTx, which (like 'buildNewParityTx') yields
+-- a ledger 'Write.Tx Write.Conway' directly since #5411.
 buildLegacyParityTx
     :: RecentEra Write.Conway
     -> SelectionOf TxOut
@@ -1552,7 +1630,7 @@ buildLegacyParityTx _eraW sel ws ctx =
                     $ "buildLegacyParityTx: mkUnsignedTx failed: "
                         <> show err
             Right b -> b
-    in  fromCardanoApiTx (Cardano.makeSignedTransaction [] body)
+    in  body
 
 -- | Build the new ledger body via buildLedgerTx (extended with ScriptWitnesses).
 buildNewParityTx
@@ -1574,7 +1652,7 @@ buildNewParityTx eraW sel ws ctx =
     in  buildLedgerTx
             eraW
             parityTtl
-            Mainnet -- ledger Network; matches Cardano.Mainnet on legacy side
+            SL.Mainnet -- ledger Network; matches Cardano.Mainnet on legacy side
             (ctxWithdrawal ctx)
             parityFee
             Nothing
@@ -1631,6 +1709,483 @@ propParity eraW sel ws ctx =
             , counterexample "scriptTxWitsL differs"
                 $ parityScriptWits legacy === parityScriptWits new
             ]
+
+--------------------------------------------------------------------------------
+-- PR #5413 review response
+--------------------------------------------------------------------------------
+
+reviewResponse5413Spec :: Spec
+reviewResponse5413Spec = describe "5413 review response" $ do
+    it
+        "the pre-cardano-api round trip is an identity with multiple scripts"
+        $ do
+            let tx = reviewResponseTx (Coin 1_000_000)
+            Map.size (parityScriptWits tx) `shouldSatisfy` (>= 2)
+            roundTripThroughCardanoApi tx `shouldBe` tx
+
+    it "presents at least two distinct scripts at the balanceTx boundary" $ do
+        let declared = parityScriptWits reviewTx
+        Map.size declared `shouldSatisfy` (>= 2)
+
+    it "balanceTx preserves every declared script" $ do
+        balanced <- balanceReviewResponseTx (Coin 1_000_000)
+        let declared = Map.keysSet $ parityScriptWits reviewTx
+        let observed = Map.keysSet $ parityScriptWits balanced
+        Set.member reviewPreservedScriptHash declared `shouldBe` True
+        Set.isSubsetOf declared observed `shouldBe` True
+        Set.size declared `shouldBe` 3
+
+    it "balanceTx selects an input when declared inputs are insufficient" $ do
+        balanced <- balanceReviewResponseTx (Coin 1_000_000)
+        let initialInputs = reviewInputs reviewTx
+        Set.size (reviewInputs balanced)
+            `shouldSatisfy` (> Set.size initialInputs)
+        Set.difference (reviewInputs balanced) initialInputs
+            `shouldBe` Set.singleton (toLedger $ TxIn dummyTxId 2)
+
+    it "balanceTx appends the script for its selected input" $ do
+        balanced <- balanceReviewResponseTx (Coin 1_000_000)
+        let scripts = parityScriptWits balanced
+        Map.keysSet scripts
+            `shouldSatisfy` Set.member reviewAddedInputScriptHash
+  where
+    reviewTx = reviewResponseTx (Coin 1_000_000)
+
+-- | Migration-window oracle for the round-trip example only.
+--
+-- Delete this helper and its example with 'toCardanoApiTx' and
+-- 'fromCardanoApiTx' when those converters retire.
+roundTripThroughCardanoApi
+    :: Write.Tx Write.Conway -> Write.Tx Write.Conway
+roundTripThroughCardanoApi tx =
+    case toCardanoApiTx tx of
+        Cardano.Tx body _ -> fromCardanoApiTx (Cardano.Tx body [])
+
+reviewResponseTx :: Coin -> Write.Tx Write.Conway
+reviewResponseTx inputCoin =
+    buildLegacyParityTx
+        Write.RecentEraConway
+        (reviewResponseSelection inputCoin)
+        reviewResponseWitnesses
+        reviewResponseCtx
+
+reviewResponseCtx :: ScriptParityCtx
+reviewResponseCtx =
+    emptyCtx
+        { ctxWithdrawal =
+            WithdrawalSelf
+                (FromScriptHash $ scriptKeyHashBytes reviewPreservedScript)
+                dummyDerivPath
+                (Coin 1)
+        }
+
+reviewResponseSelection :: Coin -> SelectionOf TxOut
+reviewResponseSelection (Coin inputCoin) =
+    Selection
+        { inputs =
+            NE.fromList
+                [ reviewInput 0
+                , reviewInput 1
+                ]
+        , collateral = []
+        , extraCoinSource = Coin 0
+        , extraCoinSink = Coin 0
+        , outputs = [mkOut 10 3_000_000]
+        , change = []
+        , assetsToMint = TokenMap.empty
+        , assetsToBurn = TokenMap.empty
+        }
+  where
+    reviewInput index =
+        ( TxIn dummyTxId index
+        , TxOut
+            (dummyAddress $ fromIntegral index)
+            (coinToBundle $ fromIntegral inputCoin)
+        )
+
+reviewResponseWitnesses :: ScriptWitnesses
+reviewResponseWitnesses =
+    noScriptWitnesses
+        { swNativeInputs =
+            Map.fromList
+                [ (TxIn dummyTxId 0, reviewInputScript0)
+                , (TxIn dummyTxId 1, reviewInputScript1)
+                ]
+        , swStakingScript = Just reviewPreservedScript
+        }
+
+reviewInputScript0 :: Script KeyHash
+reviewInputScript0 = mkScript 91
+
+reviewInputScript1 :: Script KeyHash
+reviewInputScript1 = mkScript 92
+
+reviewPreservedScript :: Script KeyHash
+reviewPreservedScript = mkScript 94
+
+reviewPreservedScriptHash :: SL.ScriptHash
+reviewPreservedScriptHash = reviewScriptHash reviewPreservedScript
+
+reviewAddedInputScript :: Script KeyHash
+reviewAddedInputScript = mkScript 93
+
+reviewAddedInputScriptHash :: SL.ScriptHash
+reviewAddedInputScriptHash = reviewScriptHash reviewAddedInputScript
+
+reviewScriptHash :: Script KeyHash -> SL.ScriptHash
+reviewScriptHash script =
+    hashScript @Write.Conway
+        $ NativeScript
+        $ toLedgerTimelockScript script
+
+reviewInputs :: Write.Tx Write.Conway -> Set.Set SL.TxIn
+reviewInputs = view (bodyTxL . inputsTxBodyL)
+
+balanceReviewResponseTx :: Coin -> IO (Write.Tx Write.Conway)
+balanceReviewResponseTx inputCoin = do
+    result <-
+        runExceptT
+            $ balanceTx
+                mockPParams
+                (toTimeTranslationPure dummyTimeInterpreter)
+                reviewUTxOAssumptions
+                ( constructUTxOIndex
+                    $ fromWalletUTxO @Write.Conway
+                    $ reviewResponseUTxO inputCoin
+                )
+                reviewChangeAddressGen
+                ()
+                PartialTx
+                    { tx = reviewResponseTx inputCoin
+                    , extraUTxO = mempty
+                    , redeemers = []
+                    , stakeKeyDeposits = StakeKeyDepositMap mempty
+                    , timelockKeyWitnessCounts =
+                        TimelockKeyWitnessCounts
+                            $ Map.singleton reviewPreservedScriptHash 1
+                    }
+    case result of
+        Left err -> error $ "balanceReviewResponseTx: " <> show err
+        Right (balanced, ()) -> pure balanced
+
+reviewResponseUTxO :: Coin -> BT.UTxO
+reviewResponseUTxO inputCoin =
+    BT.UTxO
+        $ Map.fromList
+            [ reviewInput 0 inputCoin
+            , reviewInput 1 inputCoin
+            , reviewInput 2 (Coin 10_000_000)
+            ]
+  where
+    reviewInput index (Coin coin) =
+        ( BT.TxIn txId index
+        , BT.TxOut
+            (BT.Address $ addressBytes $ dummyAddress $ fromIntegral index)
+            (BT.fromCoin $ BT.Coin coin)
+        )
+    Hash txId = dummyTxId
+    addressBytes (Address bytes) = bytes
+
+reviewUTxOAssumptions :: UTxOAssumptions
+reviewUTxOAssumptions =
+    AllScriptPaymentCredentialsFrom
+        (ScriptTemplate mempty $ RequireSignatureOf $ Cosigner 0)
+        reviewInputScriptForAddress
+
+reviewInputScriptForAddress :: Write.Address -> Script KeyHash
+reviewInputScriptForAddress address
+    | address == toLedger (dummyAddress 0) = reviewInputScript0
+    | address == toLedger (dummyAddress 1) = reviewInputScript1
+    | otherwise = reviewAddedInputScript
+
+reviewChangeAddressGen :: ChangeAddressGen ()
+reviewChangeAddressGen =
+    ChangeAddressGen
+        { genChangeAddress = const (changeAddress, ())
+        , maxLengthChangeAddress = changeAddress
+        }
+  where
+    changeAddress = toLedger (dummyAddress 250)
+
+--------------------------------------------------------------------------------
+-- Four-field differential (INV-3)
+--
+-- For the same generated transaction, the values the migrated production
+-- code reads from the ledger must equal the values obtained THROUGH
+-- cardano-api. The oracle below is the literal deprecated call
+-- ('Cardano.getTxBodyContent' of 'Cardano.getTxBody' of 'toCardanoApiTx tx'):
+-- the same expression the pre-migration production site evaluated. The
+-- differential is enforced at two levels, each with a labelled comparison
+-- per field:
+--
+--  * 'prop_fourFieldDifferential' compares the raw four values.
+--  * 'prop_productionCoinSelectionMatchesCardanoApiPath' compares the
+--    'CoinSelection' that 'buildCoinSelectionForTransaction' actually
+--    returns against the same oracle fed through the pre-migration
+--    construction, so production cannot swap a lens and stay green.
+--
+-- Both properties execute as part of the unit suite (gate.sh is
+-- compile-only); receipts in the commit-owner evidence directory show the
+-- run.
+--------------------------------------------------------------------------------
+
+-- | Deterministic Shelley sequential state; the fixture wallet owns the
+-- addresses it derives, so input resolution and change filtering fire exactly
+-- as they do in production.
+fixtureState :: SeqState 'Mainnet ShelleyKey
+fixtureState =
+    mkSeqStateFromRootXPrv
+        ShelleyKeyS
+        (RootCredentials fixtureRootKey mempty)
+        purposeCIP1852
+        defaultAddressPoolGap
+        IncreasingChangeAddresses
+
+fixtureRootKey :: ShelleyKey 'RootK XPrv
+fixtureRootKey =
+    unsafeGenerateKeyFromSeed
+        (someDummyMnemonic (Proxy @12), Nothing)
+        mempty
+
+-- | Addresses owned by 'fixtureState', used for every input, output and
+-- collateral entry of the generated transaction.
+fixtureOwnedAddresses :: [Address]
+fixtureOwnedAddresses =
+    take 15 $ map (\(addr, _, _) -> addr) (knownAddresses fixtureState)
+
+dummyTip :: BlockHeader
+dummyTip =
+    BlockHeader
+        { slotNo = SlotNo 0
+        , blockHeight = Quantity 0
+        , headerHash = Hash BS.empty
+        , parentHeaderHash = Nothing
+        }
+
+-- | Generate a fixture wallet and a Conway ledger transaction whose body
+-- carries all four fields: inputs, outputs, collateral inputs and
+-- withdrawals. The wallet's UTxO holds an entry (at an owned address) for
+-- every index the generator can pick, so input and collateral resolution
+-- succeeds on both sides of the differential. Built with the ledger-side
+-- builder used in production; collateral is injected through the body lens
+-- because 'buildLedgerTx' does not take collateral inputs. The resulting
+-- body is never validated, only read, so synthetic collateral inputs are
+-- fine.
+genDifferentialCase
+    :: Gen
+        ( Wallet (SeqState 'Mainnet ShelleyKey)
+        , Write.Tx Write.Conway
+        , [TxOut]
+        )
+genDifferentialCase = do
+    let ownedAddrs = fixtureOwnedAddresses
+    nIns <- choose (1, 3) :: Gen Int
+    inputIxs <-
+        vectorOf nIns (choose (0, 9) :: Gen Int)
+            `suchThat` (\xs -> length (nub xs) == length xs)
+    nOuts <- choose (1, 2) :: Gen Int
+    nCol <- choose (0, 2) :: Gen Int
+    colIxs <-
+        vectorOf nCol (choose (0, 9) :: Gen Int)
+            `suchThat` (\xs -> length (nub xs) == length xs)
+    let mkIn ix =
+            ( TxIn dummyTxId (fromIntegral ix)
+            , TxOut (ownedAddrs !! ix) (coinToBundle 10_000_000)
+            )
+        outs =
+            [ TxOut
+                (ownedAddrs !! (10 + k))
+                (coinToBundle (fromIntegral k * 1_000))
+            | k <- [1 .. nOuts]
+            ]
+        sel =
+            Selection
+                { inputs = NE.fromList (map mkIn inputIxs)
+                , collateral = []
+                , extraCoinSource = Coin 0
+                , extraCoinSink = Coin 0
+                , outputs = outs
+                , change = []
+                , assetsToMint = TokenMap.empty
+                , assetsToBurn = TokenMap.empty
+                }
+    wdrlAcct <-
+        oneof
+            [ pure (FromKeyHash (BS.pack [1 .. 28]))
+            , pure (FromScriptHash (BS.pack [1 .. 28]))
+            ]
+    hasWdrl <- arbitrary
+    let ctx =
+            emptyCtx
+                { ctxWithdrawal =
+                    if hasWdrl
+                        then WithdrawalSelf wdrlAcct dummyDerivPath (Coin 1)
+                        else NoWithdrawal
+                }
+        tx0 = buildNewParityTx Write.RecentEraConway sel noScriptWitnesses ctx
+        collateral =
+            Set.fromList
+                [toLedger (TxIn dummyTxId (fromIntegral ix)) | ix <- colIxs]
+        tx = tx0 & bodyTxL . collateralInputsTxBodyL .~ collateral
+        utxoEntries =
+            [ ( TxIn dummyTxId (fromIntegral ix)
+              , TxOut (ownedAddrs !! ix) (coinToBundle 10_000_000)
+              )
+            | ix <- [0 .. 9]
+            ]
+        wallet =
+            unsafeInitWallet
+                (UTxO (Map.fromList utxoEntries))
+                dummyTip
+                fixtureState
+    paymentOutputs <- oneof [pure [], pure (take 1 outs)]
+    pure (wallet, tx, paymentOutputs)
+
+-- | The four wallet values as the ledger reads produce them: the same lens
+-- reads and converters the migrated production code uses.
+ledgerFieldValues
+    :: Write.Tx Write.Conway
+    -> ( [TxIn]
+       , [TxOut]
+       , [TxIn]
+       , [(RewardAccount, Coin)]
+       )
+ledgerFieldValues tx =
+    ( map toWallet (Set.toList (body ^. inputsTxBodyL))
+    , map
+        (fst . ReadTxOut.fromConwayTxOut)
+        (F.toList (body ^. outputsTxBodyL))
+    , map toWallet (Set.toList (body ^. collateralInputsTxBodyL))
+    , Map.toList
+        (fromLedgerWithdrawals (unWithdrawals (body ^. withdrawalsTxBodyL)))
+    )
+  where
+    body = tx ^. bodyTxL
+
+-- | The literal cardano-api read of the four fields: exactly the expression
+-- the pre-migration production site evaluated.
+apiPathContent
+    :: Write.Tx Write.Conway
+    -> Cardano.TxBodyContent Cardano.ViewTx Cardano.ConwayEra
+apiPathContent tx =
+    Cardano.getTxBodyContent $ Cardano.getTxBody $ toCardanoApiTx tx
+
+prop_fourFieldDifferential :: Property
+prop_fourFieldDifferential =
+    forAllBlind genDifferentialCase $ \(_wallet, tx, _paymentOutputs) ->
+        let content = apiPathContent tx
+            (lIns, lOuts, lCol, lWdrl) = ledgerFieldValues tx
+            aIns = map (fromCardanoTxIn . fst) (Cardano.txIns content)
+            aOuts = map fromCardanoTxOut (Cardano.txOuts content)
+            aCol = case Cardano.txInsCollateral content of
+                Cardano.TxInsCollateralNone -> []
+                Cardano.TxInsCollateral _supported is ->
+                    map fromCardanoTxIn is
+            aWdrl = fromCardanoWdrls (Cardano.txWithdrawals content)
+        in  conjoin
+                [ counterexample "inputs" (lIns === aIns)
+                , counterexample "outputs" (lOuts === aOuts)
+                , counterexample "collateral" (lCol === aCol)
+                , counterexample "withdrawals" (lWdrl === aWdrl)
+                ]
+
+-- | The pre-migration production construction, fed exclusively by the
+-- literal cardano-api read: what 'buildCoinSelectionForTransaction' produced
+-- before the migration and must still produce.
+oracleCoinSelection
+    :: Wallet (SeqState 'Mainnet ShelleyKey)
+    -> [TxOut]
+    -> Cardano.TxBodyContent Cardano.ViewTx Cardano.ConwayEra
+    -> CoinSelection
+oracleCoinSelection wallet paymentOutputs content =
+    CoinSelection
+        { inputs =
+            oracleResolveInput wallet . fromCardanoTxIn . fst
+                =<< Cardano.txIns content
+        , outputs = paymentOutputs
+        , change = do
+            out <-
+                drop (length paymentOutputs)
+                    $ fromCardanoTxOut
+                        <$> Cardano.txOuts content
+            let address = out ^. #address
+            derivationPath <-
+                maybeToList $ fst $ isOurs address (getState wallet)
+            pure
+                TxChange
+                    { address
+                    , amount = out ^. #tokens . #coin
+                    , assets = out ^. #tokens . #tokens
+                    , derivationPath
+                    }
+        , collateral =
+            oracleResolveInput wallet . fromCardanoTxIn
+                =<< case Cardano.txInsCollateral content of
+                    Cardano.TxInsCollateralNone -> []
+                    Cardano.TxInsCollateral _supported is -> is
+        , withdrawals =
+            fromCardanoWdrls (Cardano.txWithdrawals content)
+                <&> \(acct, coin) -> (acct, coin, rewardAcctPath)
+        , delegationAction = Nothing
+        , deposit = Nothing
+        , refund = Nothing
+        }
+  where
+    oracleResolveInput w txIn = do
+        out@(TxOut addr _) <-
+            maybeToList (UTxO.lookup txIn (totalUTxO mempty w))
+        derivationPath <- maybeToList (fst (isOurs addr (getState w)))
+        pure (txIn, out, derivationPath)
+    rewardAcctPath =
+        stakeDerivationPath (derivationPrefix (getState wallet))
+
+-- | The CoinSelection 'buildCoinSelectionForTransaction' actually returns,
+-- from its internal ledger reads, against the same oracle: production cannot
+-- read a different lens than the cardano-api path without this going red.
+prop_productionCoinSelectionMatchesCardanoApiPath :: Property
+prop_productionCoinSelectionMatchesCardanoApiPath =
+    forAllBlind genDifferentialCase $ \(wallet, tx, paymentOutputs) ->
+        let content = apiPathContent tx
+            actual =
+                buildCoinSelectionForTransaction
+                    wallet
+                    paymentOutputs
+                    (Coin 0)
+                    Nothing
+                    tx
+            expected = oracleCoinSelection wallet paymentOutputs content
+        in  case (actual, expected) of
+                ( CoinSelection
+                        { inputs = ai
+                        , outputs = ao
+                        , change = ac
+                        , collateral = acl
+                        , withdrawals = aw
+                        , delegationAction = ada
+                        , deposit = ad
+                        , refund = ar
+                        }
+                    , CoinSelection
+                        { inputs = ei
+                        , outputs = eo
+                        , change = ec
+                        , collateral = ecl
+                        , withdrawals = ew
+                        , delegationAction = eda
+                        , deposit = ed
+                        , refund = er
+                        }
+                    ) ->
+                        conjoin
+                            [ counterexample "inputs" (ai === ei)
+                            , counterexample "outputs" (ao === eo)
+                            , counterexample "change" (ac === ec)
+                            , counterexample "collateral" (acl === ecl)
+                            , counterexample "withdrawals" (aw === ew)
+                            , counterexample "delegationAction" (ada === eda)
+                            , counterexample "deposit" (ad === ed)
+                            , counterexample "refund" (ar === er)
+                            ]
 
 --------------------------------------------------------------------------------
 -- Script-witness parity: small fixture helpers
