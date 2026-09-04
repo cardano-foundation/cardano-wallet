@@ -48,7 +48,6 @@ import Cardano.Api.Extra
     ( CardanoApiEra
     , cardanoApiEraConstraints
     , cardanoEraFromRecentEra
-    , fromCardanoApiTx
     , toCardanoApiTx
     )
 import Cardano.Api.Gen
@@ -81,9 +80,7 @@ import Cardano.Ledger.Api
     )
 import Cardano.Ledger.Api.Tx.Body
     ( collateralInputsTxBodyL
-    , guardsTxBodyL
     , inputsTxBodyL
-    , reqSignerHashesTxBodyL
     , withdrawalsTxBodyL
     )
 import Cardano.Mnemonic
@@ -215,6 +212,12 @@ import Cardano.Wallet.Shelley.Transaction.Ledger
     , mkShelleyWitnessLedger
     , sealWriteTx
     )
+import Cardano.Wallet.Shelley.TransactionSpecSupport
+    ( checkSubsetOf
+    , setRequiredSigners
+    , withLedgerTx
+    , withSealedLedgerTx
+    )
 import Cardano.Wallet.Transaction
     ( SelectionOf (..)
     , TransactionLayer (..)
@@ -275,9 +278,6 @@ import Data.Maybe
     ( fromJust
     , isJust
     )
-import Data.Ord
-    ( comparing
-    )
 import Data.Proxy
     ( Proxy (..)
     )
@@ -327,7 +327,6 @@ import Test.QuickCheck
     , counterexample
     , cover
     , forAll
-    , forAllBlind
     , frequency
     , oneof
     , property
@@ -385,7 +384,6 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
-import qualified GHC.Exts as Exts
 
 spec :: Spec
 spec = describe "TransactionSpec" $ do
@@ -663,81 +661,6 @@ lookupFnFromKeys keys addr =
                     (first (liftRawKey ShelleyKeyS) <$> keys)
     in
         Map.lookup addr addrMap
-
-withLedgerTx
-    :: Write.IsRecentEra era
-    => RecentEra era
-    -> (Write.Tx era -> Write.Tx era)
-    -> (Write.Tx era -> Property)
-    -> Property
-withLedgerTx recentEra modifyTx cont =
-    cardanoApiEraConstraints recentEra
-        $ forAllBlind
-            ( fromCardanoApiTx
-                <$> genTxInEra (cardanoEraFromRecentEra recentEra)
-            )
-            (cont . modifyTx)
-
-withSealedLedgerTx
-    :: RecentEra era
-    -> SealedTx
-    -> (Write.Tx era -> a)
-    -> a
-withSealedLedgerTx recentEra sealedTx cont = case recentEra of
-    Write.RecentEraConway -> case unsafeReadTx sealedTx of
-        Read.EraValue (Read.Tx tx :: Read.Tx txEra) -> case Read.theEra @txEra of
-            Read.Conway -> cont tx
-            _ -> eraMismatch
-    Write.RecentEraDijkstra -> case unsafeReadTx sealedTx of
-        Read.EraValue (Read.Tx tx :: Read.Tx txEra) -> case Read.theEra @txEra of
-            Read.Dijkstra -> cont tx
-            _ -> eraMismatch
-  where
-    eraMismatch = error "withSealedLedgerTx: transaction era mismatch"
-
-setRequiredSigners
-    :: RecentEra era
-    -> Set.Set (LedgerKeys.KeyHash LedgerKeys.Guard)
-    -> Write.Tx era
-    -> Write.Tx era
-setRequiredSigners recentEra requiredSignerHashes = case recentEra of
-    Write.RecentEraConway ->
-        bodyTxL . reqSignerHashesTxBodyL .~ requiredSignerHashes
-    -- TODO(#5209): the Dijkstra arm below is unverified, and nothing on this
-    -- branch can verify it -- the era only activates at the hard fork. Dijkstra
-    -- drops @reqSignerHashesTxBodyL@ (it is @notSupportedInThisEraL@ there) and
-    -- reaches required signers only through @reqSignerHashesTxBodyG@, a getter
-    -- over @guardsTxBodyL@ that keeps @KeyHashObj@ credentials and discards
-    -- @ScriptHashObj@ ones; writing @KeyHashObj@ credentials into guards is the
-    -- inverse of that getter, which is why it is plausible, not why it is
-    -- correct. It is also invisible to the Dijkstra census, whose population is
-    -- code that announces itself unimplemented: an @error@ or a @pendingWith@
-    -- whose message names the era. A stub fails loudly; this one succeeds, and
-    -- would succeed wrongly.
-    Write.RecentEraDijkstra ->
-        bodyTxL . guardsTxBodyL
-            .~ Exts.fromList (SL.KeyHashObj <$> Set.toList requiredSignerHashes)
-
-checkSubsetOf :: (Eq a, Show a) => [a] -> [a] -> Property
-checkSubsetOf as bs =
-    property
-        $ counterexample counterexampleText
-        $ all ((`Set.member` ys) . ShowOrd) as
-  where
-    xs = Set.fromList (ShowOrd <$> as)
-    ys = Set.fromList (ShowOrd <$> bs)
-
-    counterexampleText =
-        unlines
-            [ "the following set:"
-            , showSet xs
-            , "is not a subset of:"
-            , showSet ys
-            , "rogue elements:"
-            , showSet (xs `Set.difference` ys)
-            ]
-      where
-        showSet = pretty . fmap (show . unShowOrd) . F.toList
 
 prop_signTransaction_addsTxInWitnesses
     :: AnyRecentEra
@@ -1789,15 +1712,3 @@ instance Buildable a => Show (ShowBuildable a) where
 
 instance Arbitrary (Hash "Datum") where
     arbitrary = pure $ Hash $ BS.pack $ replicate 28 0
-
---------------------------------------------------------------------------------
--- Utilities
---------------------------------------------------------------------------------
-
--- | A convenient wrapper type that allows values of any type with a 'Show'
---   instance to be ordered.
-newtype ShowOrd a = ShowOrd {unShowOrd :: a}
-    deriving (Eq, Show)
-
-instance (Eq a, Show a) => Ord (ShowOrd a) where
-    compare = comparing show
