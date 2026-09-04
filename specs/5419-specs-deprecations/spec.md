@@ -30,7 +30,7 @@ This ticket removes the two suppressions **by removing their cause**.
 | REQ-2 | `TransactionSpec.hs` likewise. |
 | REQ-3 | The deprecated call sites are retired by reading the transaction body from the ledger transaction, the direction #5413 established — not by suppressing, renaming, or deleting the assertions that depend on them. |
 | REQ-4 | Every assertion the two modules made before this change still holds and can still fail afterwards. |
-| REQ-5 | The change is confined to the two named spec files. |
+| REQ-5 | No production module is edited. The Haskell behaviour change is confined to the two named spec modules; test support extracted from them, this ticket's planning documents under `specs/5419-specs-deprecations/`, and the `cardano-wallet-unit` test-suite stanza that has to list such a module are in scope. |
 | REQ-6 | The Dijkstra stub surface does not grow. |
 
 ## Observable success
@@ -58,9 +58,13 @@ This ticket removes the two suppressions **by removing their cause**.
 - **R-4** Satisfying the census by rewording a stub so the counter stops
   matching it. Renaming a stub is not retiring it; it moves the number without
   moving the debt. **Attempted on 2026-09-01 and refused — see `plan.md`.**
-- **R-5** Any edit outside the two files: `Gen.hs` (dies with the shim in
-  #5290), `TransactionsNew.hs` (separate slice), any pre-existing `master`
-  pragma (M1's, #5418), any production module.
+- **R-5** Any edit to a production module — anything under `lib/*/src/` or
+  `lib/*/lib/` — and specifically `Gen.hs` (dies with the shim in #5290),
+  `TransactionsNew.hs` (separate slice), and any pre-existing `master` pragma
+  (M1's, #5418). The subject of this rejection is **production code, not a
+  file count**: test support extracted from the two spec modules is not an
+  edit outside them, it is the same code with one definition site instead of
+  two.
 - **R-6** A new type introduced to model the transaction-body boundary. That is
   M1 architecture, not a test fix — stop and escalate.
 

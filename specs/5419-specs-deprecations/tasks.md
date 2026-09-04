@@ -30,7 +30,11 @@ Ceiling: 45 lines. Stamped by the ticket owner on acceptance only.
 - [x] T14 Dijkstra stub census **does not exceed** 44 hits / 15 files, with the
       positive control proving the counter counts and the negative control
       proving it can return zero, plus the full added/removed site delta.
-- [x] T15 Scope fence: `base..candidate` touches exactly the two files.
+- [x] T15 Scope fence, quantified over the whole `base..candidate` diff rather
+      than over a list of names: no path under `lib/*/src/` or `lib/*/lib/` is
+      touched. The diff is wider than the two spec modules — it also carries
+      this ticket's planning documents — so a two-file count measures the wrong
+      thing and was never true on this branch.
 - [x] T16 Focused suites green under release flags: `Sign transaction`,
       `calculateBinary`, `SealedTx serialisation/deserialisation`.
 

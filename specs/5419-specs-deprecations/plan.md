@@ -21,11 +21,14 @@ conversion round-trips can be dropped rather than replaced.
   force-updated from `9c90a55b` mid-slice when #5413 retargeted to `master`
   after #5399 merged. Numbers taken before that move were re-measured, not
   carried forward.
-- **Deliverable is two commits, one per file. No PR.** They fold into #5413.
-  Human review is this project's binding constraint — #5402 waited five days,
-  #5413 still has none — and these files are ones #5413 already edits, so a
-  separate PR costs a whole review cycle for nothing.
-- **Do not push.** The branch is handed to `%4` on acceptance.
+- **Deliverable was planned as two commits, one per file, folded into #5413
+  with no PR of its own.** Human review is this project's binding constraint —
+  #5402 waited five days — and these files are ones #5413 already edited, so a
+  separate PR looked like a review cycle spent for nothing. **That plan was
+  overtaken: #5413 merged first, as `1fdc2d8b41`, so this work went out as its
+  own PR #5420 and carries a third commit adding these planning documents.**
+- **The commit owner does not push.** The branch was handed to `%4` on
+  acceptance and pushed from there.
 - `--flags=release` or nothing.
 - `/code/cardano-wallet` is read-only; every seat takes its own worktree.
 
