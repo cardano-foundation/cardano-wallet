@@ -105,3 +105,86 @@ population of zero. A count computed over a silently shortened set is a lower
 bound wearing the denominator's name; the refusal is what stops it being
 reported as a zero. That refusal is itself falsified by the ticket gate, which
 runs the gate against both shapes and requires exit 2 from each.
+
+---
+
+# Version 2 — after submission 1's audit
+
+Version 1 said the pinned stdout lines are "the contract M-2 **and the ticket
+gate** parse". That sentence is the defect. `./gate.sh` is untracked and
+gitignored, so half of the contract was guarded by a checker that expires when
+the ticket closes — and the audit demonstrated the consequence: a mutant gate
+stripped of six contract lines, with the advisory fall branch inverted into a
+hard failure, produced output from the shipped control that was **byte-identical**
+to the real candidate's. The whole shipped CI surface could not tell the two
+apart.
+
+Version 2 moves those assertions into the change set. It supersedes the
+corresponding Version 1 clauses; everything Version 1 says that is not
+contradicted here still stands.
+
+## V2-1 — M-2 asserts the whole published contract, not three lines of it
+
+`cardano-api-closure-negative-control.sh` parses and asserts **every** line the
+stdout contract pins, on the pristine run:
+
+- the three `<row> = <n>   (MAX=<n>)` lines (already present);
+- `packages = <n>`, non-empty;
+- all three `licence <row>: ...` lines;
+- both `witness ...` lines;
+- the `self-check: ...` line, and that it reports `PASS`;
+- the `NOTE: GATE GREEN does not mean the ratchet is current` line.
+
+A missing or malformed line is a control failure with a named reason, exactly as
+a wrong delta is. The ticket gate keeps its own copies of these checks; it is now
+an **additional** checker, never the only one.
+
+## V2-2 — M-2 exercises both branches of the exit contract
+
+Version 1's control seeded three rises and required exit 1. It never ran the
+fall branch, which is half of the stated contract and the half this repository
+has already been burned by.
+
+M-2 additionally, for each row, runs M-1 with that row's `MAX` raised by one and
+requires:
+
+- exit **0**, and
+- a `RATCHET SLACK: <row> <n> < MAX=<n>` line naming **that** row, and
+- no `GATE RED` line.
+
+A control that goes red here is asserting the opposite of the intended
+behaviour, so the leg must be shown able to fail in both directions.
+
+## V2-3 — the RED line names the row that actually rose (ratifies CAND-1)
+
+For each seeded rise, M-2 requires the emitted `GATE RED:` line to name **that
+row**. Version 1 bound the exit status and the three row values but not the row
+named in the message, so a gate that computes correctly and names the wrong row
+shipped green.
+
+## V2-4 — the suppression positive control instantiates the product
+
+`build_fixture` instantiates one case per **(file class × spelling)** cell —
+`*.hs`, `*.cabal`, `cabal.project*` crossed with `-Wno-deprecations` and
+`-fno-warn-deprecations`, six cells — and the fixture self-check requires the
+exact expected count, so dropping any single matcher or file class makes it
+`FAIL`. Version 1's fixture instantiated two of the six, and three verified
+point mutants survived it.
+
+This is INV-18. It is not a suppression-specific rule: `closure-lib` and
+`closure-any` already satisfy it, which is why eight mutants against them were
+killed and three against the suppression row were not.
+
+## V2-5 — `build-tool-depends` exclusion is reported (ratifies CAND-2)
+
+`data-model.md` requires the excluded tool-dependency edges to be "recorded and
+reported separately so its exclusion is visible rather than silent"; Version 1's
+stdout contract listed no such line, so the two documents disagreed. They agree
+now. M-1 prints:
+
+| line | meaning |
+|---|---|
+| `excluded build-tool-depends = <n>` | tool-dependency edges seen and deliberately not counted |
+
+and M-2 asserts its presence under V2-1. There is no live instance in `lib/*`
+today, which is precisely why the line has to exist before there is one.

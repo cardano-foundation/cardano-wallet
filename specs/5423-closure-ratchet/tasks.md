@@ -20,3 +20,18 @@
       runs green, self-check forced to FAIL, shellcheck, YAML parse, fence
       check, and the INV-17 no-build assertion — each with its own exit status
       read immediately.
+
+## S-1 repair — submission 1 findings
+
+- [ ] **T-7** F-1 / INV-18: `build_fixture` instantiates all six (file class ×
+      spelling) cells, and the fixture self-check fails if any single matcher or
+      file class is dropped.
+- [ ] **T-8** F-2 / INV-19: `cardano-api-closure-negative-control.sh` asserts
+      every pinned stdout line on the pristine run (V2-1), exercises the
+      advisory fall branch per row requiring exit 0 and a `RATCHET SLACK` line
+      naming that row (V2-2), and binds the `GATE RED` line to the row that rose
+      (V2-3).
+- [ ] **T-9** V2-5: M-1 prints `excluded build-tool-depends = <n>`, asserted by
+      M-2 under V2-1.
+- [ ] **T-10** Re-measure all three rows on the repaired tree and confirm each
+      `MAX` still equals its measured value.

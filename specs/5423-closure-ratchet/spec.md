@@ -79,6 +79,8 @@ obligation of whoever lands the change, checked at review.
 | INV-15 | Every control is demonstrated red before its green is believed | a control that has stopped being able to fail |
 | INV-16 | Additive fence holds (REQ-8) | a sibling lane's file is touched |
 | INV-17 | The change set contains no Haskell, Cabal, `cabal.project` or Nix input, asserted mechanically | the "no build needed" claim is asserted rather than measured |
+| INV-18 | A counter implemented as N matchers over M input classes has a positive control instantiating the **product** — one fixture case per (class, matcher) cell — not their union | a matcher loses one spelling or one file class, the fixture still passes, and the row **under-counts**. A one-directional ratchet cannot observe under-counting: a fall is advisory by design, so the run prints slack, exits 0, and whoever lands it lowers `MAX` on the instrument's own advice. Under-counting is caught by the positive control or it is not caught at all |
+| INV-19 | Every clause of the published stdout contract, and every branch of the stated exit-code contract, has an assertion that **ships in the same change set** | an assertion lives only in `./gate.sh`, which is gitignored and does not survive the ticket. A land-time check is not a property: it expires the moment the ticket closes, and the clause it guarded can then be removed or inverted with CI green |
 
 ## Land-time measurement (planning-time value, to be re-measured)
 
