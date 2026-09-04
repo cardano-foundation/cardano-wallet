@@ -847,6 +847,17 @@ setRequiredSigners
 setRequiredSigners recentEra requiredSignerHashes = case recentEra of
     Write.RecentEraConway ->
         bodyTxL . reqSignerHashesTxBodyL .~ requiredSignerHashes
+    -- TODO(#5209): the Dijkstra arm below is unverified, and nothing on this
+    -- branch can verify it -- the era only activates at the hard fork. Dijkstra
+    -- drops @reqSignerHashesTxBodyL@ (it is @notSupportedInThisEraL@ there) and
+    -- reaches required signers only through @reqSignerHashesTxBodyG@, a getter
+    -- over @guardsTxBodyL@ that keeps @KeyHashObj@ credentials and discards
+    -- @ScriptHashObj@ ones; writing @KeyHashObj@ credentials into guards is the
+    -- inverse of that getter, which is why it is plausible, not why it is
+    -- correct. It is also invisible to the Dijkstra census, whose population is
+    -- code that announces itself unimplemented: an @error@ or a @pendingWith@
+    -- whose message names the era. A stub fails loudly; this one succeeds, and
+    -- would succeed wrongly.
     Write.RecentEraDijkstra ->
         bodyTxL . guardsTxBodyL
             .~ Exts.fromList (SL.KeyHashObj <$> Set.toList requiredSignerHashes)
