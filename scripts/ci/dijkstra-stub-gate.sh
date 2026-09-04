@@ -51,7 +51,7 @@ total=$((tot_e+tot_p))
 # MAX is the number of Dijkstra stubs currently tolerated. It only ever goes
 # DOWN. Each child that retires stubs lowers it in the same PR; its terminal
 # value is 0, which is issue #5209's acceptance criterion.
-MAX=${DIJKSTRA_STUB_MAX:-44}
+MAX=${DIJKSTRA_STUB_MAX:-39}
 
 echo "total = $total across $files files   (ratchet MAX=$MAX)"
 
