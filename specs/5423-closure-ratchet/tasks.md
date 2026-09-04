@@ -35,3 +35,18 @@
       M-2 under V2-1.
 - [ ] **T-10** Re-measure all three rows on the repaired tree and confirm each
       `MAX` still equals its measured value.
+
+## S-2 — close the second audit's findings (fresh owner campaign)
+
+- [ ] **T-11** V3-1 / INV-4: the `ghc-options:` matcher reads the **field**, not
+      the head line; the fixture carries both shapes per `.cabal`-class cell.
+- [ ] **T-12** V3-2 / INV-20: one declaration of file classes and spellings; the
+      matchers are built from it, so `cells` covers a matcher's whole extent in
+      both directions.
+- [ ] **T-13** V3-3 / INV-21: M-2 binds exit 2 to an input — both self-test break
+      families and at least two refusal populations — against a positive control.
+- [ ] **T-14** V3-4 / INV-22: M-2 asserts each conditional line absent for the
+      rows whose condition does not hold.
+- [ ] **T-15** V3-5 / INV-23: M-2 asserts each licence line's text.
+- [ ] **T-16** Re-measure all three rows field-scoped and confirm each `MAX`
+      still equals its measured value.

@@ -208,3 +208,87 @@ now. M-1 prints:
 
 and M-2 asserts its presence under V2-1. There is no live instance in `lib/*`
 today, which is precisely why the line has to exist before there is one.
+
+---
+
+# Version 3 — after submission 2's audit
+
+Version 2 closed the stdout half of INV-19 and left the exit-code half standing,
+and it made the fixture's extent *reportable* without making the report
+answerable to anything. Both gaps were then demonstrated, so Version 3 states
+them as requirements rather than leaving them to be inferred from V2.
+
+Version 3 supersedes the clauses it names; everything in Versions 1 and 2 not
+contradicted here still stands.
+
+## V3-1 — the `ghc-options:` matcher is field-scoped (INV-4, ratifies CAND-4)
+
+A Cabal field is its head line together with the lines indented under it. The
+matcher must read the field, not the head line.
+
+Measured on the tracked tree: **16** `ghc-options:` field heads carry their
+value on continuation lines and **96** carry it on the head line. Both forms are
+live, `cabal-fmt` produces the continuation form for multi-flag options, and a
+line-scoped matcher is blind to the first.
+
+There are zero `.cabal`/`cabal.project*` suppressions today under either
+reading, so this changes no `MAX` — re-measured field-scoped at `6b42c36b58`:
+still 9. The whole cost of the defect is in the future, which is the only place
+a ratchet operates.
+
+The fixture instantiates **both** shapes for each `.cabal`-class cell, so
+dropping continuation handling makes it `FAIL`.
+
+## V3-2 — the fixture's cell set is derived from the matchers (INV-20, ratifies CAND-3)
+
+Version 2's `cells=<n>` closed the losing direction: remove a spelling from a
+matcher and the fixture notices. It left the gaining direction open, because the
+cell set lives in arrays that the matchers do not read. Adding a third spelling
+to both matchers leaves `cells=6`, `fixture=PASS`, exit 0 — the seventh, eighth
+and ninth cells are never instantiated and nothing says so.
+
+There must be **one** declaration of the file classes and the spellings, and the
+matchers must be built from it. Then `cells` is the size of the product of that
+one declaration, and a cell cannot exist in a matcher without existing in the
+fixture. A gate that has to be edited in two places to keep covering its subject
+will eventually be edited in one.
+
+## V3-3 — exit 2 has a shipped assertion bound to an input (INV-21)
+
+M-2 must, on every run:
+
+- invoke M-1 with `CARDANO_API_CLOSURE_SELFTEST_BREAK=fixture` and again with
+  `=population`, and require **exit 2** and the matching `FAIL` field each time;
+- construct at least the "no `lib/`" and "`lib/` with no `.cabal`" populations
+  and require **exit 2** from each, against a positive control on the real tree
+  that exits 0 — so a refusal that fires unconditionally is not read as a pass.
+
+This is the difference between asserting a report and asserting the fact it
+reports. A gate whose entire self-check apparatus is deleted — no fixture built,
+`fixture=PASS` and `cells=6` printed as literals — is accepted today with exit
+0, so every INV-10..INV-13 and INV-18 demonstration, and the `cells` extent
+V2-4 added so the fixture would be "checkable without reading the source", can
+be removed after this ticket closes with CI green.
+
+`cells` is likewise bound: it must respond to the break, not merely parse as an
+integer ≥ 6.
+
+## V3-4 — conditional lines are asserted absent as well as present (INV-22)
+
+The contract says `GATE RED:` is printed *once per rising row* and
+`RATCHET SLACK:` *once per fallen row*. M-2 asserts, for each seeded rise, that
+the **other two** rows carry no `GATE RED`, and for each fall, that the other two
+carry no `RATCHET SLACK`.
+
+V2-3 was ratified because a gate naming the wrong row shipped green. A gate
+naming **every** row ships green today: same misdirection, mirrored. And
+`RATCHET SLACK` on a row sitting exactly at its `MAX` invites lowering a `MAX`
+that is already correct, which is the one action the fall branch exists to
+prompt.
+
+## V3-5 — licence text is asserted correct (INV-23, ratifies CAND-5)
+
+V2-1 asserted the three `licence` lines are present. Swapping the `closure-lib`
+and `closure-any` texts is therefore accepted. M-2 asserts each licence line's
+**text**, not its presence: INV-7's stated failure is "a number is read as the
+criterion printed next to it", and a swap produces exactly that.

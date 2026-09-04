@@ -42,8 +42,15 @@ Let `T` = `cardano-api`.
   depending on a package does not build that package's test-suite, so a further
   `ANY` hop would over-count.
 - `S` (`suppressions`) — occurrences, not files: lines matching `^{-# OPTIONS_GHC`
-  in `*.hs`, plus lines matching an anchored `ghc-options:` in `*.cabal` and
+  in `*.hs`, plus anchored `ghc-options:` **fields** in `*.cabal` and
   `cabal.project*`, that name `-Wno-deprecations` or `-fno-warn-deprecations`.
+
+  A Cabal field is its head line **plus the lines indented under it**, and this
+  repository writes 16 `ghc-options:` field heads that way, a form `cabal-fmt`
+  produces for multi-flag options. A line-scoped matcher is blind to a
+  suppression written in a shape the tree already uses. One field naming both
+  spellings is one occurrence; the field ends at the first line indented no
+  further than its head, or at a blank line.
 
 ## State invariants
 
