@@ -248,8 +248,11 @@ count_suppressions() {
     } | awk '{ found[++count]=$0 } END { print "count\t" count; for (i=1; i<=count; i++) print found[i] }'
 }
 
+suppression_file_classes=(hs cabal project)
+suppression_spellings=(-Wno-deprecations -fno-warn-deprecations)
+
 build_fixture() {
-    local root=$1
+    local root=$1 file_class spelling cell_id
     mkdir -p "$root/lib"/{direct,any-only,neutral,common-lib,prefix,cycle-a,cycle-b,self}
     cat >"$root/lib/direct/direct.cabal" <<'EOF'
 cabal-version: 3.4
@@ -293,7 +296,6 @@ description: prose ghc-options: -Wno-deprecations is not a field
 library
   build-depends: cardano-api-extra
   build-tool-depends: cardano-api:tool
-  ghc-options: -fno-warn-deprecations
 EOF
     cat >"$root/lib/cycle-a/cycle-a.cabal" <<'EOF'
 cabal-version: 3.4
@@ -316,10 +318,30 @@ version: 0
 library
   build-depends: self, cardano-api
 EOF
-    cat >"$root/lib/direct/Direct.hs" <<'EOF'
-{-# OPTIONS_GHC -Wno-deprecations #-}
-module Direct where
-EOF
+    : >"$root/suppression-cells"
+    cell_id=0
+    for file_class in "${suppression_file_classes[@]}"; do
+        for spelling in "${suppression_spellings[@]}"; do
+            cell_id=$((cell_id + 1))
+            case $file_class in
+                hs)
+                    printf '{-# OPTIONS_GHC %s #-}\nmodule Suppression%s where\n' \
+                        "$spelling" "$cell_id" \
+                        >"$root/lib/direct/Suppression${cell_id}.hs"
+                    ;;
+                cabal)
+                    printf '  ghc-options: %s\n' "$spelling" \
+                        >>"$root/lib/prefix/prefix.cabal"
+                    ;;
+                project)
+                    printf 'package *\n  ghc-options: %s\n' "$spelling" \
+                        >>"$root/cabal.project.fixture"
+                    ;;
+                *) return 1 ;;
+            esac
+            printf '%s\t%s\n' "$file_class" "$spelling" >>"$root/suppression-cells"
+        done
+    done
     cat >"$root/README" <<'EOF'
 Prose mentioning {-# OPTIONS_GHC -Wno-deprecations #-} and
 ghc-options: -fno-warn-deprecations must not be counted.
@@ -367,9 +389,10 @@ self_check() {
     local fixture_result=PASS population_result=PASS
     local packages="$scratch/fixture-packages" edges="$scratch/fixture-edges"
     local closures="$scratch/fixture-closures" suppressions="$scratch/fixture-suppressions"
-    local package_count lib_count any_count suppression_count
+    local package_count lib_count any_count suppression_count tool_count
+    local fixture_cells expected_fixture_cells
 
-    build_fixture "$fixture"
+    build_fixture "$fixture" || fixture_result=FAIL
     prepare_population "$fixture" "$packages" "$edges" || population_result=FAIL
     package_count=$(wc -l <"$packages")
     closure_rows "$target_package" <"$edges" >"$closures"
@@ -377,12 +400,19 @@ self_check() {
     lib_count=$(awk -F '\t' '$1 == "closure-lib-count" { print $2 }' "$closures")
     any_count=$(awk -F '\t' '$1 == "closure-any-count" { print $2 }' "$closures")
     suppression_count=$(awk -F '\t' '$1 == "count" { print $2 }' "$suppressions")
+    tool_count=$(awk -F '\t' -v target="$target_package" \
+        '$3 == "build-tool-depends" && $4 == target { count++ } END { print count+0 }' "$edges")
+    fixture_cells=$(wc -l <"$fixture/suppression-cells")
+    expected_fixture_cells=$((${#suppression_file_classes[@]} * ${#suppression_spellings[@]}))
 
     [ "$package_count" -eq 8 ] || population_result=FAIL
     mkdir -p "$empty/lib/no-cabal"
     [ -z "$(discover_packages "$empty")" ] || population_result=FAIL
 
-    [ "$lib_count" = 5 ] && [ "$any_count" = 6 ] && [ "$suppression_count" = 2 ] || fixture_result=FAIL
+    [ "$lib_count" = 5 ] && [ "$any_count" = 6 ] && [ "$tool_count" = 1 ] || fixture_result=FAIL
+    [ "$expected_fixture_cells" -ge 6 ] &&
+        [ "$fixture_cells" -eq "$expected_fixture_cells" ] &&
+        [ "$suppression_count" -eq "$fixture_cells" ] || fixture_result=FAIL
     for package in direct common-lib cycle-a cycle-b self; do
         grep -Fqx "closure-lib-member"$'\t'"$package" "$closures" || fixture_result=FAIL
     done
@@ -400,7 +430,7 @@ self_check() {
         population) population_result=FAIL ;;
         *) fixture_result=FAIL; population_result=FAIL ;;
     esac
-    printf '%s\t%s\n' "$fixture_result" "$population_result"
+    printf '%s\t%s\t%s\n' "$fixture_result" "$population_result" "$fixture_cells"
 }
 
 [ -d "$tree_root" ] || die_instrument "tree root '$tree_root' is not a directory"
@@ -412,7 +442,7 @@ edges_file="$scratch/edges"
 closures_file="$scratch/closures"
 suppressions_file="$scratch/suppressions"
 
-read -r fixture_check population_check < <(self_check "$scratch/self-check")
+read -r fixture_check population_check fixture_cells < <(self_check "$scratch/self-check")
 if ! prepare_population "$tree_root" "$packages_file" "$edges_file"; then
     population_check=FAIL
 fi
@@ -428,6 +458,8 @@ else
     closure_lib=0 closure_any=0 suppressions=0
     : >"$closures_file"
 fi
+excluded_build_tool_depends=$(awk -F '\t' -v target="$target_package" \
+    '$3 == "build-tool-depends" && $4 == target { count++ } END { print count+0 }' "$edges_file")
 
 closure_lib_max=${CARDANO_API_CLOSURE_LIB_MAX:-12}
 closure_any_max=${CARDANO_API_CLOSURE_ANY_MAX:-13}
@@ -437,6 +469,7 @@ is_nonnegative_integer "$closure_any_max" || die_instrument "CARDANO_API_CLOSURE
 is_nonnegative_integer "$suppressions_max" || die_instrument "CARDANO_API_SUPPRESSIONS_MAX is not a non-negative integer"
 
 printf 'packages = %s\n' "$packages"
+printf 'excluded build-tool-depends = %s\n' "$excluded_build_tool_depends"
 printf 'closure-lib = %s   (MAX=%s)\n' "$closure_lib" "$closure_lib_max"
 printf 'closure-any = %s   (MAX=%s)\n' "$closure_any" "$closure_any_max"
 printf 'suppressions = %s   (MAX=%s)\n' "$suppressions" "$suppressions_max"
@@ -460,7 +493,8 @@ printf 'witness cardano-wallet-read: in-closure-dependents=%s closure-lib=%s clo
 printf 'witness cardano-wallet-blackbox-benchmarks: closure-lib=%s closure-any=%s\n' \
     "$(yes_no_member closure-lib-member cardano-wallet-blackbox-benchmarks "$closures_file")" \
     "$(yes_no_member closure-any-member cardano-wallet-blackbox-benchmarks "$closures_file")"
-printf 'self-check: fixture=%s population=%s\n' "$fixture_check" "$population_check"
+printf 'self-check: fixture=%s population=%s cells=%s\n' \
+    "$fixture_check" "$population_check" "$fixture_cells"
 
 if [ "$fixture_check" != PASS ] || [ "$population_check" != PASS ]; then
     printf '%s\n' 'instrument error: a self-check failed; reported counts must not be trusted' >&2

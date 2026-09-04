@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Negative control for the cardano-api closure ratchet — cardano-wallet #5423.
 #
-# Seeds one violation per reported row, reads the gate's own counters before
-# and after, and accepts only the exact expected delta together with exit 1.
+# Asserts the pristine stdout contract and both ratchet directions, then seeds
+# one violation per row and accepts only the exact delta, named RED, and exit 1.
 # Seed paths are collision-checked and removed on every exit path.
 
 set -uo pipefail
@@ -39,6 +39,46 @@ read_rows() {
     closure_lib=$(printf '%s\n' "$output" | row_value closure-lib)
     closure_any=$(printf '%s\n' "$output" | row_value closure-any)
     suppressions=$(printf '%s\n' "$output" | row_value suppressions)
+}
+line_count() {
+    local pattern=$1 output=$2
+    printf '%s\n' "$output" | grep -Ec "$pattern" || true
+}
+require_one_line() {
+    local reason=$1 pattern=$2 output=$3
+    if [ "$(line_count "$pattern" "$output")" -ne 1 ]; then
+        note "pristine-contract-$reason"
+        failures=$((failures + 1))
+    fi
+}
+validate_pristine_contract() {
+    local output=$1 row cells
+
+    require_one_line packages '^packages = [1-9][0-9]*$' "$output"
+    require_one_line excluded-build-tool-depends '^excluded build-tool-depends = [0-9]+$' "$output"
+    for row in closure-lib closure-any suppressions; do
+        require_one_line "row-$row" "^$row = [0-9]+   \\(MAX=[0-9]+\\)$" "$output"
+        require_one_line "licence-$row" "^licence $row: .+" "$output"
+    done
+    require_one_line witness-cardano-wallet-read \
+        '^witness cardano-wallet-read: in-closure-dependents=[0-9]+ closure-lib=(yes|no) closure-any=(yes|no)$' "$output"
+    require_one_line witness-cardano-wallet-blackbox-benchmarks \
+        '^witness cardano-wallet-blackbox-benchmarks: closure-lib=(yes|no) closure-any=(yes|no)$' "$output"
+    require_one_line self-check \
+        '^self-check: fixture=PASS population=PASS cells=[0-9]+$' "$output"
+    cells=$(printf '%s\n' "$output" | sed -nE \
+        's/^self-check: fixture=PASS population=PASS cells=([0-9]+)$/\1/p' | head -1)
+    if ! is_nonnegative_integer "$cells" || [ "$cells" -lt 6 ]; then
+        note "pristine-contract-self-check-cells-at-least-6"
+        failures=$((failures + 1))
+    fi
+    require_one_line gate-green '^GATE GREEN: .+' "$output"
+    require_one_line note-green-not-current \
+        '^NOTE: GATE GREEN does not mean the ratchet is current\. .+' "$output"
+    if printf '%s\n' "$output" | grep -q '^GATE RED:'; then
+        note "pristine-contract-unexpected-gate-red"
+        failures=$((failures + 1))
+    fi
 }
 rows_are_valid() {
     is_nonnegative_integer "$closure_lib" &&
@@ -115,10 +155,45 @@ pristine_suppressions=$suppressions
 printf 'pristine closure-lib=%s closure-any=%s suppressions=%s exit=%s\n' \
     "$pristine_lib" "$pristine_any" "$pristine_suppressions" "$pristine_status"
 
-if [ "$pristine_status" -ne 0 ] || ! rows_are_valid; then
-    note "pristine run is not a parseable green baseline"
+validate_pristine_contract "$gate_output"
+if [ "$pristine_status" -ne 0 ]; then
+    note "pristine-gate-exit-$pristine_status-not-0"
+    failures=$((failures + 1))
+fi
+if ! rows_are_valid; then
+    note "pristine-rows-not-parseable"
+    failures=$((failures + 1))
+fi
+if [ "$failures" -ne 0 ]; then
+    note "FAIL — pristine gate violated $failures baseline contract clause(s)"
     exit 1
 fi
+
+run_fall() {
+    local row=$1 value=$2 maximum_var=$3 raised reason
+    raised=$((value + 1))
+    gate_output=$(env "$maximum_var=$raised" "$gate" "$tree" 2>&1)
+    gate_status=$?
+    reason=
+    [ "$gate_status" -eq 0 ] || reason="$reason gate-exit-$gate_status-not-0"
+    printf '%s\n' "$gate_output" |
+        grep -qE "^RATCHET SLACK: $row $value < MAX=$raised " ||
+        reason="$reason missing-ratchet-slack-$row"
+    if printf '%s\n' "$gate_output" | grep -q '^GATE RED:'; then
+        reason="$reason unexpected-gate-red"
+    fi
+    printf 'fall %s value=%s max=%s exit=%s\n' "$row" "$value" "$raised" "$gate_status"
+    if [ -z "$reason" ]; then
+        printf 'verdict fall-%s = PASS advisory-slack-and-gate-exit\n' "$row"
+    else
+        printf 'verdict fall-%s = FAIL%s\n' "$row" "$reason"
+        failures=$((failures + 1))
+    fi
+}
+
+run_fall closure-lib "$pristine_lib" CARDANO_API_CLOSURE_LIB_MAX
+run_fall closure-any "$pristine_any" CARDANO_API_CLOSURE_ANY_MAX
+run_fall suppressions "$pristine_suppressions" CARDANO_API_SUPPRESSIONS_MAX
 
 run_seed() {
     local label=$1 seed_function=$2 seed_path=$3
@@ -157,6 +232,8 @@ run_seed() {
     [ "$delta_any" = "$want_any" ] || reason="$reason closure-any-delta"
     [ "$delta_suppressions" = "$want_suppressions" ] || reason="$reason suppressions-delta"
     [ "$gate_status" -eq 1 ] || reason="$reason gate-exit-$gate_status-not-1"
+    printf '%s\n' "$gate_output" | grep -qE "^GATE RED: $label " ||
+        reason="$reason missing-gate-red-$label"
     if [ -z "$reason" ]; then
         printf 'verdict %s = PASS measured-delta-and-gate-exit\n' "$label"
     else
@@ -174,8 +251,8 @@ run_seed suppressions seed_suppressions \
     lib/cardano-api-closure-control-suppression/Control.hs 0 0 1
 
 if [ "$failures" -ne 0 ]; then
-    note "FAIL — $failures seeded row(s) did not cause the required measured RED"
+    note "FAIL — $failures ratchet contract check(s) failed"
     exit 1
 fi
 
-note "PASS — all three independently seeded rows caused their exact measured delta and exit 1"
+note "PASS — pristine contract, per-row falls, and independently seeded rises all held"
