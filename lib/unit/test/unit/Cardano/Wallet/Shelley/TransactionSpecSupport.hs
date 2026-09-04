@@ -57,9 +57,10 @@ import Fmt
     )
 import Test.QuickCheck
     ( Property
+    , checkCoverage
     , counterexample
+    , cover
     , forAllBlind
-    , property
     )
 import Prelude
 
@@ -137,9 +138,20 @@ setRequiredSigners recentEra requiredSignerHashes = case recentEra of
             .~ Exts.fromList (SL.KeyHashObj <$> Set.toList requiredSignerHashes)
 
 -- | @as \`checkSubsetOf\` bs@ holds when every element of @as@ occurs in @bs@.
+--
+-- An empty @as@ satisfies that for free, without ever comparing a witness, so
+-- a property whose expected set is always empty passes while asserting
+-- nothing. The coverage requirement below is what stops that: 'cover' states
+-- that the non-vacuous case must be reached, and 'checkCoverage' is what makes
+-- the statement fatal rather than advisory — a bare 'cover' only prints a
+-- warning, which is a guard that cannot fail.
+--
+-- The threshold is deliberately low. The claim being enforced is "this
+-- comparison is reached with something to compare", not "it usually is".
 checkSubsetOf :: (Eq a, Show a) => [a] -> [a] -> Property
 checkSubsetOf as bs =
-    property
+    checkCoverage
+        $ cover 10 (not (null as)) "expected set is non-empty"
         $ counterexample counterexampleText
         $ all ((`Set.member` ys) . ShowOrd) as
   where
