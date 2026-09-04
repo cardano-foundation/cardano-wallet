@@ -12,8 +12,14 @@ defaults to `.`.
 `2` a self-check failed, i.e. the instrument is not trustworthy and no count it
 printed may be believed.
 
-**Environment:** `CARDANO_API_CLOSURE_LIB_MAX`, `CARDANO_API_CLOSURE_ANY_MAX`,
-`CARDANO_API_SUPPRESSIONS_MAX` — each an integer overriding that row's ratchet.
+**Environment:**
+
+- `CARDANO_API_CLOSURE_LIB_MAX`, `CARDANO_API_CLOSURE_ANY_MAX`,
+  `CARDANO_API_SUPPRESSIONS_MAX` — each an integer overriding that row's ratchet.
+- `CARDANO_API_CLOSURE_SELFTEST_BREAK` — `fixture` or `population`; forces that
+  self-check family to FAIL so INV-15 can be demonstrated without editing the
+  script. It can only turn a green run red, never the reverse, so it is not a
+  bypass; a value it does not recognise is itself an error.
 
 **Required stdout, machine-readable, one key per line.** These are the contract
 M-2 and the ticket gate parse; their spelling is part of the interface.
@@ -29,7 +35,7 @@ M-2 and the ticket gate parse; their spelling is part of the interface.
 | `licence suppressions: ...` | what a zero on that row licenses |
 | `witness cardano-wallet-read: in-closure-dependents=<n> closure-lib=<yes\|no> closure-any=<yes\|no>` | measured, reported, never asserted |
 | `witness cardano-wallet-blackbox-benchmarks: closure-lib=<yes\|no> closure-any=<yes\|no>` | measured, reported, never asserted |
-| `self-check: fixture=<PASS\|FAIL> population=<PASS\|FAIL> falsification=<PASS\|FAIL>` | the three self-check families |
+| `self-check: fixture=<PASS\|FAIL> population=<PASS\|FAIL>` | the two self-check families |
 | `GATE RED: <row> <n> > MAX=<n> — a <thing> was ADDED.` | printed once per rising row, before exit 1 |
 | `RATCHET SLACK: <row> <n> < MAX=<n> ...` | printed once per fallen row; does not change the exit status |
 | `GATE GREEN: ...` | printed only when no row rose |
@@ -82,6 +88,20 @@ The second row is what proves the closure rows are two computations rather than
 one number printed twice (INV-3); a `closure-lib` delta of anything but 0 there
 is a control failure.
 
+**Environment:** M-2 invokes M-1 in the ambient environment and never clears
+or overrides the three ratchet variables. The ticket gate relies on this to
+raise one row while it perturbs that row, so that a correct control is not
+failed for a perturbation the probe itself introduced.
+
 **Seed ownership:** each seed path is refused if it already exists, created
 without clobbering, owned only after a successful create, and removed on every
 exit path including signals. No seed is placed under `lib/integration/`.
+
+## Population refusal (INV-14)
+
+`cardano-api-closure-gate.sh <root>` where `<root>` has no `lib/`, or a `lib/`
+containing no `*.cabal`, must exit **2** and must not print a green run over a
+population of zero. A count computed over a silently shortened set is a lower
+bound wearing the denominator's name; the refusal is what stops it being
+reported as a zero. That refusal is itself falsified by the ticket gate, which
+runs the gate against both shapes and requires exit 2 from each.
