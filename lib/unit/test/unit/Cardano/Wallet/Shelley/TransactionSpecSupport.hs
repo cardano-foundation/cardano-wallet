@@ -22,9 +22,15 @@ module Cardano.Wallet.Shelley.TransactionSpecSupport
     ( withLedgerTx
     , withSealedLedgerTx
     , setRequiredSigners
+    , guardKeyHash
     , checkSubsetOf
     ) where
 
+import Cardano.Address.Derivation
+    ( XPrv
+    , toXPub
+    , xpubPublicKey
+    )
 import Cardano.Api.Extra
     ( cardanoApiEraConstraints
     , cardanoEraFromRecentEra
@@ -35,6 +41,9 @@ import Cardano.Api.Gen
     )
 import Cardano.Balance.Tx.Eras
     ( RecentEra
+    )
+import Cardano.Binary.FixedSizeCodec
+    ( rawDecodeFixedSized
     )
 import Cardano.Ledger.Api
     ( bodyTxL
@@ -136,6 +145,25 @@ setRequiredSigners recentEra requiredSignerHashes = case recentEra of
     Write.RecentEraDijkstra ->
         bodyTxL . guardsTxBodyL
             .~ Exts.fromList (SL.KeyHashObj <$> Set.toList requiredSignerHashes)
+
+-- | The ledger key hash a wallet key will sign with, in the role the required
+-- signers field wants.
+--
+-- This is derived the same way 'Cardano.Wallet.Shelley.Transaction.Ledger.mkShelleyWitnessLedger'
+-- derives the key of the witness it builds — a fixed-size raw decode over
+-- @xpubPublicKey . toXPub@ — so the hash a property declares as required and
+-- the hash signing actually produces come from one derivation rather than two.
+--
+-- 'LedgerKeys.hashKey' is @VKey kd -> KeyHash kd@, so the role is chosen by the
+-- return type and no key role is coerced. The previous spelling reached the
+-- same bytes through @cardano-api@ and then cast @KeyHash Payment@ to
+-- @KeyHash Guard@ with @coerceKeyRole@, which type-checks between any two
+-- roles and therefore checked nothing.
+guardKeyHash :: XPrv -> LedgerKeys.KeyHash LedgerKeys.Guard
+guardKeyHash xprv =
+    case rawDecodeFixedSized (xpubPublicKey (toXPub xprv)) of
+        Just vk -> LedgerKeys.hashKey (LedgerKeys.VKey vk)
+        Nothing -> error "guardKeyHash: invalid public key"
 
 -- | @as \`checkSubsetOf\` bs@ holds when every element of @as@ occurs in @bs@.
 --

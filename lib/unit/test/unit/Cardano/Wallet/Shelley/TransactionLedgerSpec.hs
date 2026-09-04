@@ -315,6 +315,7 @@ import Cardano.Wallet.Shelley.Transaction.Ledger
     )
 import Cardano.Wallet.Shelley.TransactionSpecSupport
     ( checkSubsetOf
+    , guardKeyHash
     , setRequiredSigners
     , withLedgerTx
     , withSealedLedgerTx
@@ -492,7 +493,6 @@ import qualified Cardano.Crypto.WalletHD.Encrypted as EncHD
     , deriveExtKeyMaterial
     )
 import qualified Cardano.Ledger.Coin as Ledger
-import qualified Cardano.Ledger.Keys as LedgerKeys
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.Ledger.Read.Eras as Eras
@@ -701,24 +701,8 @@ prop_signTransaction_addsExtraKeyWitnesses
     extraKeys =
         cardanoApiEraConstraints recentEra $ withMaxSuccess 10 $ do
             let
-                keys
-                    :: (XPrv, Passphrase "encryption")
-                    -> Cardano.SigningKey Cardano.PaymentExtendedKey
-                keys = Cardano.PaymentExtendedSigningKey . fst
-
-                hashes :: [Cardano.Hash Cardano.PaymentKey]
-                hashes =
-                    ( Cardano.verificationKeyHash
-                        . Cardano.castVerificationKey
-                        . Cardano.getVerificationKey
-                        . keys
-                    )
-                        <$> extraKeys
-
                 requiredSignerHashes =
-                    Set.fromList
-                        $ (\(Cardano.PaymentKeyHash h) -> LedgerKeys.coerceKeyRole h)
-                            <$> hashes
+                    Set.fromList $ guardKeyHash . fst <$> extraKeys
 
                 addExtraWits
                     :: Write.Tx era -> Write.Tx era
