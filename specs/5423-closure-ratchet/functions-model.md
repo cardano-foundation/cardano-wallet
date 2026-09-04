@@ -171,6 +171,26 @@ exact expected count, so dropping any single matcher or file class makes it
 `FAIL`. Version 1's fixture instantiated two of the six, and three verified
 point mutants survived it.
 
+### The cell count is reported, so V2-4 is checkable without reading the source
+
+A fixture that instantiates the product is invisible from outside, and a claim
+only a reader can check is a lead rather than evidence. So the fixture derives
+its cell set from the two lists — file classes and spellings — rather than
+listing cases, verifies one seeded suppression per cell, and M-1 reports the
+extent it actually covered:
+
+```
+self-check: fixture=<PASS|FAIL> population=<PASS|FAIL> cells=<n>
+```
+
+`<n>` is measured, never a literal. The fixture `FAIL`s if the derived product
+is empty or shorter than the six cells the three file classes and two spellings
+require — the quantifier must not range over a truncated set and report success
+having tested nothing. M-2 asserts under V2-1 that `cells` is present and at
+least 6.
+
+This supersedes Version 1's `self-check:` line, which carried two fields.
+
 This is INV-18. It is not a suppression-specific rule: `closure-lib` and
 `closure-any` already satisfy it, which is why eight mutants against them were
 killed and three against the suppression row were not.
