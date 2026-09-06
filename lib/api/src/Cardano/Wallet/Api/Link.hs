@@ -950,7 +950,7 @@ quitStakePool w = endpoint @(Api.QuitStakePool Net) (wid &)
 
 getDelegationFee
     :: forall w. HasType (ApiT WalletId) w => w -> (Method, Text)
-getDelegationFee w = endpoint @Api.DelegationFee (wid &)
+getDelegationFee w = endpoint @Api.DelegationFee (\mk -> mk wid Nothing)
   where
     wid = w ^. typed @(ApiT WalletId)
 

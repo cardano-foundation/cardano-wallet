@@ -321,6 +321,9 @@ import Control.Tracer
 import Data.ByteString
     ( ByteString
     )
+import Data.Text
+    ( Text
+    )
 import Data.Generics.Internal.VL.Lens
     ( Lens'
     )
@@ -841,6 +844,7 @@ type DelegationFee =
     "wallets"
         :> Capture "walletId" (ApiT WalletId)
         :> "delegation-fees"
+        :> QueryParam "preferred_collateral" Text
         :> Get '[JSON] ApiFee
 
 type ListStakeKeys n =
