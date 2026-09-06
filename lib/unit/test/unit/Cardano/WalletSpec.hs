@@ -497,7 +497,6 @@ import qualified Cardano.Wallet.Address.Book as Sqlite
 import qualified Cardano.Wallet.Address.Derivation.Byron as Byron
 import qualified Cardano.Wallet.Address.Derivation.Icarus as Icarus
 import qualified Cardano.Wallet.Balance.Migration as Migration
-import qualified Cardano.Wallet.DB.Sqlite.Types as DB
 import qualified Cardano.Wallet.DB.Store.Checkpoints.Store as Sqlite
 import qualified Cardano.Wallet.Primitive.Types.Range as Range
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle

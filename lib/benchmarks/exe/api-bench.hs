@@ -400,6 +400,7 @@ benchmarksSeq reporter BenchmarkConfig{benchmarkName, ctx} = do
             (W.dbLayer_ ctx)
             (W.networkLayer_ ctx)
             (W.defaultChangeAddressGen (delegationAddressS @n))
+            mempty
 
     let seqResult =
             BenchSeqResults
