@@ -97,6 +97,9 @@ data VoteRequest
 {-----------------------------------------------------------------------------
     Join stake pool
 ------------------------------------------------------------------------------}
+-- Deleting this split is recorded unsafe in specs/5422-delete-era-split/sweep.md:
+-- the vote coupling decided here rests on Conway registration certificates, which
+-- Dijkstra reshapes (deposit-free registration expunged).
 joinStakePoolDelegationAction
     :: Write.IsRecentEra era
     => Write.RecentEra era
@@ -158,6 +161,9 @@ joinStakePoolDelegationAction
                 . view #retirementEpoch
                 <$> W.getPoolRetirementCertificate poolStatus
 
+-- Deleting this split is recorded unsafe in specs/5422-delete-era-split/sweep.md:
+-- the duplicate-vote policy was decided against Conway's certificate space, not
+-- Dijkstra's.
 guardJoin
     :: Write.IsRecentEra era
     => Write.RecentEra era
@@ -288,6 +294,9 @@ joinDRepVotingAction era targetDRep dlg stakeKeyIsRegistered = do
         $ ErrAlreadyVoted targetDRep
     second (const votingAction) $ guardEraIsConway era
   where
+    -- Deleting this split is recorded unsafe in specs/5422-delete-era-split/sweep.md:
+    -- era-blind acceptance would silence a rejection the Dijkstra certificate space
+    -- has not earned.
     guardEraIsConway
         :: Write.IsRecentEra era
         => Write.RecentEra era

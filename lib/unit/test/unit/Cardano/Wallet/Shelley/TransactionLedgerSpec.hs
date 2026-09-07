@@ -124,18 +124,18 @@ import Cardano.Ledger.Api.Tx.Body
     , vldtTxBodyL
     , withdrawalsTxBodyL
     )
+import Cardano.Ledger.BaseTypes
+    ( StrictMaybe (..)
+    )
+import Cardano.Ledger.Binary
+    ( serialize
+    )
 import Cardano.Ledger.Core
     ( TxAuxData
     , auxDataHashTxBodyL
     , hashTxAuxData
     , metadataTxAuxDataL
     , mkBasicTxAuxData
-    )
-import Cardano.Ledger.BaseTypes
-    ( StrictMaybe (..)
-    )
-import Cardano.Ledger.Binary
-    ( serialize
     )
 import Cardano.Mnemonic
     ( SomeMnemonic (SomeMnemonic)
@@ -2511,24 +2511,35 @@ prop_mkLedgerTxReturnsComponents =
                         metadata
                 body = tx ^. bodyTxL
             in  conjoin
-                    [ counterexample "inputs"
+                    [ counterexample
+                        "inputs"
                         (view inputsTxBodyL body ==== Set.singleton (toLedger txIn))
-                    , counterexample "outputs"
+                    , counterexample
+                        "outputs"
                         (view outputsTxBodyL body ==== fromList [])
-                    , counterexample "fee"
+                    , counterexample
+                        "fee"
                         (view feeTxBodyL body ==== toLedgerCoin (Coin.Coin 1_000_000))
-                    , counterexample "validity interval"
+                    , counterexample
+                        "validity interval"
                         (view vldtTxBodyL body ==== validity)
-                    , counterexample "withdrawals"
+                    , counterexample
+                        "withdrawals"
                         (view withdrawalsTxBodyL body ==== Withdrawals Map.empty)
-                    , counterexample "certificates"
+                    , counterexample
+                        "certificates"
                         (view certsTxBodyL body ==== mempty)
-                    , counterexample "mint"
+                    , counterexample
+                        "mint"
                         (view mintTxBodyL body ==== toLedgerMintValue mempty mempty)
-                    , counterexample "auxiliary data hash"
+                    , counterexample
+                        "auxiliary data hash"
                         (view auxDataHashTxBodyL body ==== SJust (hashTxAuxData auxData))
-                    , counterexample "metadata"
-                        (fmap (view metadataTxAuxDataL) (view auxDataTxL tx) ==== SJust metadata)
+                    , counterexample
+                        "metadata"
+                        ( fmap (view metadataTxAuxDataL) (view auxDataTxL tx)
+                            ==== SJust metadata
+                        )
                     ]
 
 -- | Population guard for 'prop_mkLedgerTxReturnsComponents': the property
