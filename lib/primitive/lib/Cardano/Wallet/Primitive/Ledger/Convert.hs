@@ -482,11 +482,9 @@ toWalletUTxOConway (Ledger.UTxO m) =
 
 toWalletScript
     :: forall era
-     . ( Scripts.AllegraEraScript era
-       , Ledger.NativeScript era ~ Scripts.Timelock era
-       )
+     . Scripts.AllegraEraScript era
     => (Hash "VerificationKey" -> KeyRole)
-    -> Scripts.Timelock era
+    -> Ledger.NativeScript era
     -> Script KeyHash
 toWalletScript tokeyrole = \case
     Scripts.RequireSignature (Ledger.KeyHash h) ->
@@ -503,7 +501,9 @@ toWalletScript tokeyrole = \case
         ActiveUntilSlot $ fromIntegral slot
     Scripts.RequireTimeStart (SlotNo slot) ->
         ActiveFromSlot $ fromIntegral slot
-    _ -> error "toWalletScript: impossible"
+    _ ->
+        error
+            "toWalletScript: a Dijkstra native script shape has no wallet representation"
 
 toWalletScriptFromShelley
     :: forall era

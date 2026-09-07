@@ -130,9 +130,6 @@ import Control.Monad
 import Data.Char
     ( toLower
     )
-import Data.List
-    ( isInfixOf
-    )
 import Data.Proxy
     ( Proxy (..)
     )
@@ -275,12 +272,45 @@ spec = describe "Cardano.Wallet.Primitive.Ledger.ConvertSpec"
                 it "ledger . wallet == id" $ property $ \s -> do
                     ledger (wallet s) === s
 
+        describe
+            "Dijkstra native scripts (toWalletScript, shared conversion)"
+            $ do
+                it
+                    "shared shapes convert to the same wallet script as their Conway counterparts"
+                    $ property
+                    $ forAll genDijkstraSharedNativeScript
+                    $ \d ->
+                        toWalletScript (const Unknown) d
+                            === toWalletScript
+                                (const Unknown)
+                                (toConwayCounterpart d)
+
+                it "a guard over a KeyHashObj credential reaches the named failure"
+                    $ property
+                    $ forAll genDijkstraKeyHashGuard
+                    $ \g ->
+                        ioProperty
+                            ( assertDijkstraConversionFails
+                                (toWalletScript (const Unknown) g)
+                            )
+
+                it "a guard over a ScriptHashObj credential reaches the named failure"
+                    $ property
+                    $ forAll genDijkstraScriptHashGuard
+                    $ \g ->
+                        ioProperty
+                            ( assertDijkstraConversionFails
+                                (toWalletScript (const Unknown) g)
+                            )
+
         describe "dijkstraAnyExplicitScript (Dijkstra call site, end to end)" $ do
             let ctx = AnyWitnessCountCtx
 
-            it "shared shapes decode to the same explicit script as the Conway decoding"
+            it
+                "shared shapes decode to the same explicit script as the Conway decoding"
                 $ property
-                $ forAll genDijkstraSharedNativeScript $ \d ->
+                $ forAll genDijkstraSharedNativeScript
+                $ \d ->
                     forAll arbitrary $ \(h :: LedgerApi.ScriptHash) ->
                         dijkstraAnyExplicitScript ctx (ViaSpending, h, Alonzo.NativeScript d)
                             === conwayAnyExplicitScript
@@ -289,7 +319,8 @@ spec = describe "Cardano.Wallet.Primitive.Ledger.ConvertSpec"
 
             it "a guard script fails naming the era, without claiming the shape"
                 $ property
-                $ forAll genDijkstraGuardNativeScript $ \g ->
+                $ forAll genDijkstraGuardNativeScript
+                $ \g ->
                     forAll arbitrary $ \(h :: LedgerApi.ScriptHash) ->
                         classify (guardCredentialForm g == "KeyHashObj") "KeyHashObj guard"
                             $ classify
@@ -305,7 +336,8 @@ spec = describe "Cardano.Wallet.Primitive.Ledger.ConvertSpec"
                                     )
                                 )
 
-            it "the generated shared-shape population contains every shared shape, nested"
+            it
+                "the generated shared-shape population contains every shared shape, nested"
                 $ do
                     samples <-
                         generate
@@ -356,28 +388,31 @@ spec = describe "Cardano.Wallet.Primitive.Ledger.ConvertSpec"
 
 -- | The six native script shapes Dijkstra shares with 'Timelock', including
 -- nested compounds.
-genDijkstraSharedNativeScript :: Gen (LedgerApi.NativeScript DijkstraEra)
+genDijkstraSharedNativeScript
+    :: Gen (LedgerApi.NativeScript DijkstraEra)
 genDijkstraSharedNativeScript = sized $ \(n :: Int) ->
     if n <= 1
         then genSharedLeaf
         else oneof [genSharedLeaf, genSharedNode]
   where
-    genSharedLeaf = oneof
-        [ LedgerScripts.RequireSignature <$> arbitrary
-        , LedgerScripts.RequireTimeStart <$> genSlotNo
-        , LedgerScripts.RequireTimeExpire <$> genSlotNo
-        ]
-    genSharedNode = oneof
-        [ compound LedgerScripts.RequireAllOf
-        , compound LedgerScripts.RequireAnyOf
-        , do
-            subs <- listOf1 sub
-            Positive k <- arbitrary
-            pure
-                $ LedgerScripts.RequireMOf
-                    (1 + (k - 1) `mod` length subs)
-                    (StrictSeq.fromList subs)
-        ]
+    genSharedLeaf =
+        oneof
+            [ LedgerScripts.RequireSignature <$> arbitrary
+            , LedgerScripts.RequireTimeStart <$> genSlotNo
+            , LedgerScripts.RequireTimeExpire <$> genSlotNo
+            ]
+    genSharedNode =
+        oneof
+            [ compound LedgerScripts.RequireAllOf
+            , compound LedgerScripts.RequireAnyOf
+            , do
+                subs <- listOf1 sub
+                Positive k <- arbitrary
+                pure
+                    $ LedgerScripts.RequireMOf
+                        (1 + (k - 1) `mod` length subs)
+                        (StrictSeq.fromList subs)
+            ]
     compound mk = mk . StrictSeq.fromList <$> listOf1 sub
     sub = scale (`div` 2) genDijkstraSharedNativeScript
     genSlotNo = SlotNo <$> choose (0, 2 ^ (40 :: Int))
@@ -391,14 +426,16 @@ genDijkstraScriptHashGuard :: Gen (LedgerApi.NativeScript DijkstraEra)
 genDijkstraScriptHashGuard = RequireGuard . ScriptHashObj <$> arbitrary
 
 -- | Guard scripts over both credential forms.
-genDijkstraGuardNativeScript :: Gen (LedgerApi.NativeScript DijkstraEra)
+genDijkstraGuardNativeScript
+    :: Gen (LedgerApi.NativeScript DijkstraEra)
 genDijkstraGuardNativeScript =
     oneof [genDijkstraKeyHashGuard, genDijkstraScriptHashGuard]
 
 -- | The Conway counterpart of a shared-shape Dijkstra native script: the
 -- identical structure over 'Timelock ConwayEra'. Shape-for-shape this mirrors
 -- the ledger's own 'upgradeTimelock' mapping.
-toConwayCounterpart :: LedgerApi.NativeScript DijkstraEra -> Timelock ConwayEra
+toConwayCounterpart
+    :: LedgerApi.NativeScript DijkstraEra -> Timelock ConwayEra
 toConwayCounterpart = \case
     LedgerScripts.RequireSignature kh -> LedgerScripts.RequireSignature kh
     LedgerScripts.RequireAllOf xs ->
@@ -421,7 +458,8 @@ data SharedShape
     deriving (Bounded, Enum, Eq, Ord, Show)
 
 -- | Every shared shape occurring anywhere in the script, nested or not.
-allSharedShapes :: LedgerApi.NativeScript DijkstraEra -> Set SharedShape
+allSharedShapes
+    :: LedgerApi.NativeScript DijkstraEra -> Set SharedShape
 allSharedShapes = \case
     LedgerScripts.RequireSignature _ -> Set.singleton ShapeRequireSignature
     LedgerScripts.RequireAllOf xs ->
