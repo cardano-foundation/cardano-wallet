@@ -360,6 +360,9 @@ buildLedgerTxRaw
             Just m -> toShelleyMetadata (unTxMetadata m)
 
 -- | Install script-witness extras on a freshly-built ledger 'Tx'.
+-- Deleting this split is recorded unsafe in specs/5422-delete-era-split/sweep.md:
+-- script witnesses are era-indexed values and the Conway helper below is
+-- Conway-typed; the compiler rejects the deletion.
 installScriptWitnesses
     :: RecentEra era
     -> ScriptWitnesses
@@ -537,6 +540,9 @@ extractValidatedOutputs sel =
                                     txOutMaxTokenQuantity
                                 }
 
+-- Deleting this split is recorded unsafe in specs/5422-delete-era-split/sweep.md:
+-- Dijkstra expunges deposit-free registration, so the Conway decision below does
+-- not describe Dijkstra behavior.
 certificateFromDelegationActionLedger
     :: RecentEra era
     -> Either XPub (Script KeyHash)
@@ -594,6 +600,9 @@ certificateFromDelegationActionLedger
             "certificateFromDelegationAction\
             \Ledger: Dijkstra not yet supported"
 
+-- Deleting this split is recorded unsafe in specs/5422-delete-era-split/sweep.md:
+-- the vote half survives in Dijkstra but the coupled registration half does not
+-- (deposit-free registration expunged).
 certificateFromVotingActionLedger
     :: RecentEra era
     -> Either XPub (Script KeyHash)
