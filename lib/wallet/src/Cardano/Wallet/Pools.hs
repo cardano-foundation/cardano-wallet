@@ -73,17 +73,12 @@ import Cardano.Wallet.Network
     , ChainFollower (..)
     , NetworkLayer (..)
     )
-import Cardano.Wallet.Primitive.Ledger.Read.Block
-    ( fromCardanoBlock
-    )
 import Cardano.Wallet.Primitive.Ledger.Read.Block.Header
     ( getBlockHeader
     )
 import Cardano.Wallet.Primitive.Ledger.Shelley
     ( StandardCrypto
-    , getBabbageProducer
-    , getConwayProducer
-    , getProducer
+    , poolMonitoringStep
     )
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException (..)
@@ -252,7 +247,6 @@ import Numeric.Natural
     )
 import Ouroboros.Consensus.Cardano.Block
     ( CardanoBlock
-    , HardForkBlock (..)
     )
 import System.Random
     ( RandomGen
@@ -759,18 +753,7 @@ monitorStakePools tr (NetworkParameters gp sp _pp) genesisPools nl DBLayer{..} =
     forward latestGarbageCollectionEpochRef blocks _ =
         atomically $ forAllAndLastM blocks forAllBlocks forLastBlock
       where
-        forAllBlocks c = case c of
-            BlockByron _ -> pure ()
-            BlockShelley blk -> forEachShelleyBlock b' (getProducer blk)
-            BlockAllegra blk -> forEachShelleyBlock b' (getProducer blk)
-            BlockMary blk -> forEachShelleyBlock b' (getProducer blk)
-            BlockAlonzo blk -> forEachShelleyBlock b' (getProducer blk)
-            BlockBabbage blk -> forEachShelleyBlock b' (getBabbageProducer blk)
-            BlockConway blk -> forEachShelleyBlock b' (getConwayProducer blk)
-            BlockDijkstra _ ->
-                error "forAllBlocks: DijkstraEra not yet supported"
-          where
-            b' = fromCardanoBlock getGenesisBlockHash c
+        forAllBlocks = poolMonitoringStep getGenesisBlockHash forEachShelleyBlock
 
         forLastBlock = putHeader . getBlockHeader getGenesisBlockHash
 

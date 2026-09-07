@@ -259,6 +259,7 @@ test-suite unit
     Cardano.Wallet.Primitive.TypesSpec
     Cardano.Wallet.RegistrySpec
     Cardano.Wallet.Shelley.CompatibilitySpec
+    Cardano.Wallet.Shelley.DijkstraTxOutSpec
     Cardano.Wallet.Shelley.LaunchSpec
     Cardano.Wallet.Shelley.NetworkSpec
     Cardano.Wallet.Shelley.TransactionLedgerSpec

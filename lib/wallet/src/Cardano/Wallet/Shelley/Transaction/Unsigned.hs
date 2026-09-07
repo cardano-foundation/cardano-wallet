@@ -34,6 +34,7 @@ module Cardano.Wallet.Shelley.Transaction.Unsigned
       -- * Ledger-native certificates
     , certificateFromDelegationActionLedger
     , certificateFromVotingActionLedger
+    , toLedgerTxOut
     ) where
 
 import Cardano.Address.Derivation
@@ -459,10 +460,8 @@ toLedgerTxOut
     -> Write.TxOut era
 toLedgerTxOut =
     case Write.recentEra @era :: Write.RecentEra era of
-        RecentEraConway -> Convert.toConwayTxOut
-        RecentEraDijkstra ->
-            error
-                "toLedgerTxOut: Dijkstra not yet supported"
+        RecentEraConway -> Convert.toBabbageTxOutInEra
+        RecentEraDijkstra -> Convert.toBabbageTxOutInEra
 
 mkValidityInterval
     :: (Maybe SlotNo, SlotNo) -> ValidityInterval

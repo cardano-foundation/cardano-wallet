@@ -190,7 +190,7 @@ import Cardano.Wallet.Gen
     )
 import Cardano.Wallet.Primitive.Ledger.Convert
     ( Convert (..)
-    , toConwayTxOut
+    , toBabbageTxOutInEra
     , toLedgerCoin
     , toLedgerMintValue
     , toLedgerTimelockScript
@@ -2424,7 +2424,7 @@ binaryCalculationsSpec' era = describe ("calculateBinary - " +|| era ||+ "") $ d
                 era
                 (Set.fromList $ map (toLedger . fst) inps)
                 ( fromList
-                    $ map toConwayTxOut (outs <> chgs)
+                    $ map (toBabbageTxOutInEra @Write.Conway) (outs <> chgs)
                 )
                 fee
                 ( ValidityInterval
@@ -2622,7 +2622,7 @@ makeShelleyTx era' testCase = case era' of
                             $ map (toLedger . fst) inps
                         )
                         ( fromList
-                            $ map toConwayTxOut outs
+                            $ map (toBabbageTxOutInEra @Write.Conway) outs
                         )
                         fee
                         ( ValidityInterval

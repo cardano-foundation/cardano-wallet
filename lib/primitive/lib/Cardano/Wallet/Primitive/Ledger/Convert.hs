@@ -44,14 +44,14 @@ module Cardano.Wallet.Primitive.Ledger.Convert
     , Convert (..)
 
       -- * Conversions for transaction outputs in recent eras
+    , toBabbageTxOutInEra
+    , fromBabbageTxOutInEra
+    , toLedgerUTxOInEra
     , toBabbageTxOut
-    , toConwayTxOut
     , fromBabbageTxOut
-    , fromConwayTxOut
     , toWalletUTxOBabbage
     , toWalletUTxOConway
     , toLedgerUTxOBabbage
-    , toLedgerUTxOConway
     ) where
 
 import Cardano.Address.KeyHash
@@ -404,15 +404,26 @@ toBabbageTxOut (TxOut addr bundle) =
         Ledger.NoDatum
         Ledger.SNothing
 
-toConwayTxOut
-    :: TxOut
-    -> Babbage.BabbageTxOut ConwayEra
-toConwayTxOut (TxOut addr bundle) =
-    Babbage.BabbageTxOut
-        (toLedger addr)
-        (toLedger bundle)
-        Ledger.NoDatum
-        Ledger.SNothing
+toBabbageTxOutInEra
+    :: ( LCore.EraTxOut era
+       , LCore.Value era ~ Ledger.MaryValue
+       )
+    => TxOut
+    -> LCore.TxOut era
+toBabbageTxOutInEra (TxOut addr bundle) =
+    LCore.mkBasicTxOut (toLedger addr) (toLedger bundle)
+
+-- | Converts a ledger output of the Babbage shape back to a wallet output at
+-- the era the caller demands. Only the address and the value survive, exactly
+-- as in 'fromBabbageTxOut' and 'fromConwayTxOut'.
+fromBabbageTxOutInEra
+    :: ( LCore.Era era
+       , LCore.Value era ~ Ledger.MaryValue
+       )
+    => Babbage.BabbageTxOut era
+    -> TxOut
+fromBabbageTxOutInEra (Babbage.BabbageTxOut addr val _ _) =
+    TxOut (toWallet addr) (toWallet val)
 
 -- NOTE: Inline scripts and datums will be lost in the conversion.
 fromConwayTxOut
@@ -438,11 +449,20 @@ toLedgerUTxOBabbage (UTxO m) =
         $ Map.mapKeys toLedger
         $ Map.map toBabbageTxOut m
 
-toLedgerUTxOConway :: UTxO -> Ledger.UTxO ConwayEra
-toLedgerUTxOConway (UTxO m) =
+-- | Converts a wallet UTxO to a ledger UTxO at the era the caller demands.
+-- The key set is preserved and each output is converted by
+-- 'toBabbageTxOutInEra'.
+toLedgerUTxOInEra
+    :: forall era
+     . ( LCore.EraTxOut era
+       , LCore.Value era ~ Ledger.MaryValue
+       )
+    => UTxO
+    -> Ledger.UTxO era
+toLedgerUTxOInEra (UTxO m) =
     Ledger.UTxO
         $ Map.mapKeys toLedger
-        $ Map.map toConwayTxOut m
+        $ Map.map (toBabbageTxOutInEra @era) m
 
 toWalletUTxOBabbage :: Ledger.UTxO BabbageEra -> UTxO
 toWalletUTxOBabbage (Ledger.UTxO m) =

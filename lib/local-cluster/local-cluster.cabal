@@ -241,6 +241,7 @@ common test-common
     , cardano-ledger-mary
     , cardano-ledger-read
     , cardano-ledger-shelley
+    , cardano-strict-containers
     , cardano-wallet-launcher
     , cardano-wallet-network-layer
     , cardano-wallet-primitive

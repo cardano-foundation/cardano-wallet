@@ -24,6 +24,8 @@
 module Cardano.Wallet.Primitive.Ledger.Shelley
     ( CardanoBlock
     , StandardCrypto
+    , Praos
+    , ShelleyBlock
     , ShelleyEra
 
       -- * Protocol Parameters
@@ -78,12 +80,14 @@ module Cardano.Wallet.Primitive.Ledger.Shelley
     , fromNonMyopicMemberRewards
     , optimumNumberOfPools
     , getProducer
+    , getPraosProducer
+    , cardanoBlockProducer
+    , blockPoolProduction
+    , poolMonitoringStep
     , toCardanoEra
     , fromShelleyTxOut
     , fromGenesisData
     , slottingParametersFromGenesis
-    , getBabbageProducer
-    , getConwayProducer
 
       -- * Internal Conversions
     , decentralizationLevelFromPParams
@@ -170,6 +174,9 @@ import Cardano.Slotting.Slot
 import Cardano.Wallet.Primitive.Ledger.Byron
     ( maryTokenBundleMaxSize
     )
+import Cardano.Wallet.Primitive.Ledger.Read.Block
+    ( fromCardanoBlock
+    )
 import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Certificates
     ( fromStakeCredential
     )
@@ -221,6 +228,9 @@ import Data.Coerce
 import Data.Either.Extra
     ( eitherToMaybe
     )
+import Data.Foldable
+    ( for_
+    )
 import Data.IntCast
     ( intCast
     , intCastMaybe
@@ -266,6 +276,9 @@ import Ouroboros.Consensus.HardFork.Combinator.AcrossEras
     )
 import Ouroboros.Consensus.HardFork.History.Summary
     ( Bound (..)
+    )
+import Ouroboros.Consensus.Protocol.Praos
+    ( Praos
     )
 import Ouroboros.Consensus.Shelley.Eras
     ( StandardCrypto
@@ -401,15 +414,49 @@ getProducer
 getProducer (ShelleyBlock (SL.Block (SL.BHeader header _) _) _) =
     fromPoolKeyHash $ SL.hashKey (SL.bheaderVk header)
 
-getBabbageProducer
+-- | The stake pool that produced a Shelley-based (Praos) block. Every era
+-- from Babbage onwards signs blocks the same way, so the accessor is stated
+-- once over the era.
+getPraosProducer
     :: ShelleyBlock (Consensus.Praos StandardCrypto) era -> PoolId
-getBabbageProducer (ShelleyBlock (SL.Block (Consensus.Header header _) _) _) =
+getPraosProducer (ShelleyBlock (SL.Block (Consensus.Header header _) _) _) =
     fromPoolKeyHash $ SL.hashKey (Consensus.hbVk header)
 
-getConwayProducer
-    :: ShelleyBlock (Consensus.Praos StandardCrypto) era -> PoolId
-getConwayProducer (ShelleyBlock (SL.Block (Consensus.Header header _) _) _) =
-    fromPoolKeyHash $ SL.hashKey (Consensus.hbVk header)
+-- | The stake pool that produced a 'CardanoBlock', for every era with block
+-- production. Byron blocks carry no producer.
+cardanoBlockProducer :: CardanoBlock StandardCrypto -> Maybe PoolId
+cardanoBlockProducer = \case
+    BlockByron _ -> Nothing
+    BlockShelley blk -> Just (getProducer blk)
+    BlockAllegra blk -> Just (getProducer blk)
+    BlockMary blk -> Just (getProducer blk)
+    BlockAlonzo blk -> Just (getProducer blk)
+    BlockBabbage blk -> Just (getPraosProducer blk)
+    BlockConway blk -> Just (getPraosProducer blk)
+    BlockDijkstra blk -> Just (getPraosProducer blk)
+
+-- | The per-block work of the pool-monitoring loop as pure data: the block's
+-- wallet view with its pool certificates, paired with the producing pool, if
+-- the block has one. Byron blocks carry no production.
+blockPoolProduction
+    :: W.Hash "Genesis"
+    -> CardanoBlock StandardCrypto
+    -> Maybe ((W.Block, [W.PoolCertificate]), PoolId)
+blockPoolProduction gp c =
+    (,) (fromCardanoBlock gp c) <$> cardanoBlockProducer c
+
+-- | Runs the pool-monitoring action for every block of a chain fragment that
+-- carries a producer, in order. The monitoring loop owns the action and the
+-- effect it has; this function owns which blocks produce and what the action
+-- receives.
+poolMonitoringStep
+    :: Applicative f
+    => W.Hash "Genesis"
+    -> ((W.Block, [W.PoolCertificate]) -> PoolId -> f ())
+    -> CardanoBlock StandardCrypto
+    -> f ()
+poolMonitoringStep gp runProduction c =
+    for_ (blockPoolProduction gp c) (uncurry runProduction)
 
 numberOfTransactionsInBlock
     :: CardanoBlock StandardCrypto -> (Int, (Read.BlockNo, O.SlotNo))
