@@ -1,0 +1,33 @@
+# cardano-api closure and deprecation-suppression ratchet — #5423.
+# This standalone workflow has no needs edge and uses its own concurrency group,
+# so unrelated CI failure or cancellation cannot silently skip the instrument.
+name: cardano-api Closure Ratchet
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: cardano-api-closure-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  closure-ratchet:
+    name: cardano-api closure ratchet
+    runs-on: nix-enabled-runners
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Prove every ratchet row can fail
+        run: ./scripts/ci/cardano-api-closure-negative-control.sh .
+
+      - name: Measure the cardano-api closure and suppressions
+        run: ./scripts/ci/cardano-api-closure-gate.sh .
