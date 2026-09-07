@@ -15,10 +15,11 @@ mkLedgerTx
     -> Tx era
 ```
 
-Per decision D-1 the first argument is retained and becomes an unused binder.
-No constraint is added. **Adding a constraint to make a site compile is an era
-arm by another name and is forbidden by X-2** — at site 12 it would mean the
-deletion failed and X-1's finding applies.
+The first argument is retained and becomes an unused binder, so no call site
+changes. No constraint is added. **Adding a constraint to make a site compile is
+an era arm by another name and is forbidden** — at the deletion site it would
+mean the deletion failed, which is a finding that changes the ticket rather than
+something absorbed into it.
 
 ## New functions
 
