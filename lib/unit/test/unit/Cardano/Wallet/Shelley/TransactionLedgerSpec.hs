@@ -71,7 +71,9 @@ import Cardano.Balance.Tx.Balance
     )
 import Cardano.Balance.Tx.Eras
     ( AnyRecentEra (..)
+    , IsRecentEra
     , RecentEra (..)
+    , allRecentEras
     )
 import Cardano.Balance.Tx.Gen
     ( mockPParams
@@ -109,12 +111,25 @@ import Cardano.Ledger.Api
     , scriptTxWitsL
     , witsTxL
     )
+import Cardano.Ledger.Api.Tx
+    ( auxDataTxL
+    )
 import Cardano.Ledger.Api.Tx.Body
-    ( collateralInputsTxBodyL
+    ( certsTxBodyL
+    , collateralInputsTxBodyL
+    , feeTxBodyL
     , inputsTxBodyL
     , mintTxBodyL
     , outputsTxBodyL
+    , vldtTxBodyL
     , withdrawalsTxBodyL
+    )
+import Cardano.Ledger.Core
+    ( TxAuxData
+    , auxDataHashTxBodyL
+    , hashTxAuxData
+    , metadataTxAuxDataL
+    , mkBasicTxAuxData
     )
 import Cardano.Ledger.BaseTypes
     ( StrictMaybe (..)
@@ -421,7 +436,8 @@ import Ouroboros.Network.Block
     ( SlotNo (..)
     )
 import Test.Hspec
-    ( Spec
+    ( Expectation
+    , Spec
     , describe
     , it
     , pendingWith
@@ -522,6 +538,7 @@ spec = describe "TransactionSpec" $ do
     forAllRecentEras ledgerScriptWitnessParitySpec
     reviewResponse5413Spec
     transactionConstraintsSpec
+    mkLedgerTxEraPolymorphismSpec
     describe "four-field differential (INV-3)" $ do
         prop
             "ledger reads equal the generated fields, per field"
@@ -2436,6 +2453,93 @@ transactionConstraintsSpec = describe "Transaction constraints" $ do
     it "size of empty transaction" prop_txConstraints_txBaseSize
     it "size of non-empty transaction"
         $ property prop_txConstraints_txSize
+
+--------------------------------------------------------------------------------
+-- mkLedgerTx is era-polymorphic (issue #5422)
+--------------------------------------------------------------------------------
+
+mkLedgerTxEraPolymorphismSpec :: Spec
+mkLedgerTxEraPolymorphismSpec = describe "mkLedgerTx" $ do
+    it
+        "returns the components it was handed, in every recent era"
+        (property prop_mkLedgerTxReturnsComponents)
+    it
+        "extent guard: allRecentEras is non-empty and contains Dijkstra"
+        prop_mkLedgerTxExtentContainsDijkstra
+
+-- | The components handed to 'mkLedgerTx' come back out of the built
+-- transaction, for every era in the extent discovered from 'allRecentEras'.
+-- The extent is read out of the library rather than listed by hand, so a
+-- future era is covered without editing this test.
+prop_mkLedgerTxReturnsComponents :: Property
+prop_mkLedgerTxReturnsComponents =
+    forAll genTxIn $ \txIn ->
+        conjoin
+            [ returnsComponents txIn anyEra
+            | anyEra <- Set.toAscList allRecentEras
+            ]
+  where
+    returnsComponents :: TxIn -> AnyRecentEra -> Property
+    returnsComponents txIn (AnyRecentEra era) = case era of
+        RecentEraConway -> go RecentEraConway
+        RecentEraDijkstra -> go RecentEraDijkstra
+      where
+        go
+            :: forall era
+             . IsRecentEra era
+            => RecentEra era
+            -> Property
+        go e =
+            let metadata =
+                    toShelleyMetadata (Map.singleton 7 (TxMetaNumber 42))
+                auxData :: TxAuxData era
+                auxData =
+                    mkBasicTxAuxData
+                        & metadataTxAuxDataL .~ metadata
+                validity =
+                    ValidityInterval (SJust (SlotNo 24)) (SJust (SlotNo 2_424))
+                tx =
+                    mkLedgerTx
+                        e
+                        (Set.singleton (toLedger txIn))
+                        (fromList [])
+                        (toLedgerCoin (Coin.Coin 1_000_000))
+                        validity
+                        (Withdrawals Map.empty)
+                        mempty
+                        mempty
+                        metadata
+                body = tx ^. bodyTxL
+            in  conjoin
+                    [ counterexample "inputs"
+                        (view inputsTxBodyL body ==== Set.singleton (toLedger txIn))
+                    , counterexample "outputs"
+                        (view outputsTxBodyL body ==== fromList [])
+                    , counterexample "fee"
+                        (view feeTxBodyL body ==== toLedgerCoin (Coin.Coin 1_000_000))
+                    , counterexample "validity interval"
+                        (view vldtTxBodyL body ==== validity)
+                    , counterexample "withdrawals"
+                        (view withdrawalsTxBodyL body ==== Withdrawals Map.empty)
+                    , counterexample "certificates"
+                        (view certsTxBodyL body ==== mempty)
+                    , counterexample "mint"
+                        (view mintTxBodyL body ==== toLedgerMintValue mempty mempty)
+                    , counterexample "auxiliary data hash"
+                        (view auxDataHashTxBodyL body ==== SJust (hashTxAuxData auxData))
+                    , counterexample "metadata"
+                        (fmap (view metadataTxAuxDataL) (view auxDataTxL tx) ==== SJust metadata)
+                    ]
+
+-- | Population guard for 'prop_mkLedgerTxReturnsComponents': the property
+-- ranges over the extent read from 'allRecentEras', so an empty or truncated
+-- extent would make it report success having tested nothing. This guard
+-- asserts the extent is non-empty and contains the era this ticket is about.
+prop_mkLedgerTxExtentContainsDijkstra :: Expectation
+prop_mkLedgerTxExtentContainsDijkstra = do
+    let extent = Set.toList allRecentEras
+    extent `shouldSatisfy` not . null
+    extent `shouldSatisfy` elem (AnyRecentEra RecentEraDijkstra)
 
 --------------------------------------------------------------------------------
 -- Roundtrip tests for SealedTx
