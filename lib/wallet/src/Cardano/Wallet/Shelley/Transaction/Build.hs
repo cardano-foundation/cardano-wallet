@@ -1,6 +1,5 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE GADTs #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 -- |
@@ -15,7 +14,7 @@ module Cardano.Wallet.Shelley.Transaction.Build
 
 import Cardano.Balance.Tx.Eras
     ( IsRecentEra
-    , RecentEra (..)
+    , RecentEra
     )
 import Cardano.Balance.Tx.Tx
     ( Tx
@@ -106,31 +105,25 @@ mkLedgerTx
     -> Map Word64 Metadatum
     -- ^ Metadata
     -> Tx era
-mkLedgerTx era ins outs fee validity wdrls certs mint metadata =
-    case era of
-        RecentEraConway -> go
-        RecentEraDijkstra ->
-            error "mkLedgerTx: Dijkstra era not yet supported"
-  where
-    go =
-        let
-            auxData
-                | Map.null metadata = SNothing
-                | otherwise =
-                    SJust
-                        $ mkBasicTxAuxData
-                        & metadataTxAuxDataL .~ metadata
-            body =
-                mkBasicTxBody
-                    & inputsTxBodyL .~ ins
-                    & outputsTxBodyL .~ outs
-                    & feeTxBodyL .~ fee
-                    & vldtTxBodyL .~ validity
-                    & withdrawalsTxBodyL .~ wdrls
-                    & certsTxBodyL .~ certs
-                    & mintTxBodyL .~ mint
-                    & auxDataHashTxBodyL
-                        .~ fmap hashTxAuxData auxData
-        in
-            mkBasicTx body
-                & auxDataTxL .~ auxData
+mkLedgerTx _era ins outs fee validity wdrls certs mint metadata =
+    let
+        auxData
+            | Map.null metadata = SNothing
+            | otherwise =
+                SJust
+                    $ mkBasicTxAuxData
+                    & metadataTxAuxDataL .~ metadata
+        body =
+            mkBasicTxBody
+                & inputsTxBodyL .~ ins
+                & outputsTxBodyL .~ outs
+                & feeTxBodyL .~ fee
+                & vldtTxBodyL .~ validity
+                & withdrawalsTxBodyL .~ wdrls
+                & certsTxBodyL .~ certs
+                & mintTxBodyL .~ mint
+                & auxDataHashTxBodyL
+                    .~ fmap hashTxAuxData auxData
+    in
+        mkBasicTx body
+            & auxDataTxL .~ auxData
