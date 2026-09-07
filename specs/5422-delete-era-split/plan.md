@@ -115,10 +115,19 @@ code read directly.
 `scripts/ci/dijkstra-stub-gate.sh` carries `MAX=${DIJKSTRA_STUB_MAX:-39}`. The
 default moves to 38. Measured on the merged script with exit codes read
 directly and not through a pipe: adding a stub exits **1**; retiring one and
-leaving the maximum alone prints `RATCHET SLACK` and exits **0**. So CI enforces
-the census falling and does **not** enforce the ratchet moving. The ticket gate
-closes that hole locally by running the same script with
-`DIJKSTRA_STUB_STRICT=1`, under which slack is a hard failure.
+leaving the maximum alone prints `RATCHET SLACK` and exits **0**.
+
+That is a fact about the **script**, and it does not settle what **CI** does —
+the workflow runs more than the script. Measured on the workflow: the census
+negative control is a separate step that seeds one stub and requires the gate to
+exit 1. With the census at 38 and the maximum at 39, the seeded total is 39,
+which is *at* the ratchet, so the gate exits 0 and the control cannot fire:
+`negative-control: FAIL — gate-exit-0-not-1`. **CI does catch a ratchet left
+carrying slack**, by way of the control rather than the census. Lowering the
+maximum to 38 restores `gate_exit=1` and the control passes.
+
+The ticket gate also closes it locally by running the same script under
+`DIJKSTRA_STUB_STRICT=1`, where slack is a hard failure directly.
 
 ## Slices
 

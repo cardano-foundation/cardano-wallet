@@ -81,8 +81,10 @@ or `Cardano/Api/Extra.hs` — other desks' scope, and `Api/Extra.hs`'s five stub
 die with #5290.
 
 **The ratchet is never raised and never left where it was.** It only ever goes
-down, and CI *cannot* catch a ratchet left carrying slack — it prints the remedy
-and exits 0.
+down. The gate script itself exits 0 on slack — it prints the remedy and passes —
+but the workflow runs the census negative control as its own step, and slack
+makes that control unfalsifiable, so the job does go red. A ratchet carrying
+slack is a gate that cannot fail, and the control is what notices.
 
 ## Observable success
 
