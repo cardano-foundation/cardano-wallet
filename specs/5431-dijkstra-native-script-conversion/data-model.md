@@ -12,12 +12,13 @@ carrying a credential that may be either a key hash or a script hash.
 `Script KeyHash` from `cardano-addresses`, whose constructors are
 `RequireSignatureOf`, `RequireAllOf`, `RequireAnyOf`, `RequireSomeOf`,
 `ActiveFromSlot`, `ActiveUntilSlot`. None of them can carry a guard credential,
-and the available key roles contain no guard role.
+and the available key roles contain no guard role. The type is not changed by
+this ticket and no field is added to `AnyScript` or `AnyExplicitScript`.
 
 ## State invariants
 
-- The six shared shapes round-trip to the same wallet script regardless of which
-  era's native script they came from.
-- A guard script has exactly one outcome, and it is total. Which outcome is the
-  open decision recorded in `spec.md`; the fields it may add to `AnyScript` and
-  `AnyExplicitScript` are specified once that is settled, not before.
+- The six shared shapes convert to the same wallet script regardless of which
+  era's native script they came from. Nesting is part of this: a shape holding
+  sub-scripts converts its children by the same rule.
+- A guard script has exactly one outcome, a named failure, and it occurs in one
+  place.

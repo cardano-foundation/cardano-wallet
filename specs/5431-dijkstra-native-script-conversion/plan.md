@@ -10,45 +10,43 @@ Measured with `scripts/ci/dijkstra-stub-gate.sh` on the tree at the merge base
 `d75c8365aa`, twice — once on this worktree and once in a separate detached
 checkout of that commit: total **39**, declared ratchet **39**, with this
 ticket's two sites contributing **one each** as read from the per-file
-breakdown. The target is therefore **37** with the ratchet at 37 in the same
-tree.
+breakdown. `Convert.hs` is not in that breakdown today.
 
-Every commit below this branch is docs-only, so the stack has not moved the
-count yet. The planned end state of the slices below is lower than 39; this
-plan records what the tree says rather than that projection, and re-measures
-if the base moves again.
+The target is **38** with the ratchet at 38: two counted stubs are deleted and
+one is created in the shared conversion. Every commit below this branch is
+docs-only, so the stack has not moved the count yet; re-measure if the base
+moves again.
 
 ## Constraints
 
 - `cardano-ledger-dijkstra` is pinned at `0.3.0.0` by `cabal.project`. Every
   claim about the Dijkstra script type is read from that version.
 - `Script` and `KeyRole` belong to `cardano-addresses` and are not changed here.
-- `AnyScript` and `AnyExplicitScript` are serialized into the public REST API.
-  Any change to them carries the swagger regeneration step.
+- `AnyScript` and `AnyExplicitScript` are not changed here. They are serialized
+  into the public REST API and the decision to widen them is taken elsewhere.
 - The census script is not edited except for its ratchet declaration.
+- No file claimed by the slice below is touched. That slice covers
+  `Cardano/Wallet.hs`, `Shelley/Transaction.hs`, `Shelley/Transaction/Unsigned.hs`,
+  `Pools.hs` and a local-cluster spec; this one covers `lib/primitive` only.
 
 ## Ordered slices
 
-Each is bisect-safe on its own.
+Both are bisect-safe.
 
 1. **Widen the conversion.** `toWalletScript` loses its `Timelock` equality
-   constraint and takes `NativeScript era`. Existing callers are unaffected
-   because their `NativeScript era` is already `Timelock era`. No behaviour
-   changes in any era that exists today. This slice does not touch the two
-   Dijkstra sites and does not move the census.
+   constraint and takes `NativeScript era`. Its unmatched branch becomes
+   reachable for Dijkstra and names the era. Existing callers are unaffected
+   because their `NativeScript era` is already `Timelock era`. This slice adds
+   one to the census and removes none, so it is not landed alone.
 
-2. **Resolve the guard case.** Blocked on the open decision in `spec.md`. Gives
-   `RequireGuard` its total outcome and, if the decision requires it, adds the
-   corresponding case to `AnyScript` and `AnyExplicitScript` with the swagger
-   regeneration that follows.
+2. **Route both readers through it.** Both Dijkstra arms call the shared
+   conversion and their `error`s are deleted. The census falls by two here, for
+   a net one across the pair, and the ratchet declaration moves with it in the
+   same tree.
 
-3. **Delete both stubs.** Both Dijkstra arms call the widened conversion. The
-   census falls by two and the ratchet declaration moves with it in the same
-   tree.
-
-Slice 1 is available now. Slices 2 and 3 are not started before the decision,
-because it determines the conversion's result type and therefore slice 1's
-signature is the only part that is settled.
+The two slices land together in one pull request. Slice 1 alone would raise the
+count, which the census hard-fails, so splitting them across pull requests is
+not available.
 
 ## Verification
 
@@ -69,8 +67,15 @@ era, so a repair that merely stops naming Dijkstra lowers the count and leaves
 the crash. Nothing mechanical catches that, which is why R1 says "by deletion"
 and why it is checked by reading the diff.
 
+Tests live in `lib/primitive/test/spec/Cardano/Wallet/Primitive/Ledger/ConvertSpec.hs`,
+which already holds the `Timelock` roundtrip properties for `BabbageEra` and is
+the Conway-side control for R3. That suite does **not** currently depend on
+`cardano-ledger-dijkstra`; the dependency is added so a real Dijkstra native
+script can be constructed rather than simulated.
+
 ## Live boundary
 
 None. Both functions are pure decoders over a transaction already in memory.
-The boundary that matters is the ledger type, and it is exercised by
-constructing real Dijkstra native scripts rather than by mocking them.
+The boundary that matters is the ledger type, and it is crossed by constructing
+real `DijkstraNativeScript` values through the ledger's own class methods rather
+than by mocking them.
