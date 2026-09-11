@@ -14,19 +14,29 @@ import Cardano.Address.KeyHash
 import Cardano.Address.Script
     ( Script (..)
     )
+import Cardano.Ledger.Api
+    ( ConwayEra
+    , DijkstraEra
+    )
 import Cardano.Ledger.Babbage
     ( BabbageEra
     )
 import Cardano.Wallet.Primitive.Ledger.Convert
     ( Convert (..)
+    , fromBabbageTxOutInEra
+    , toBabbageTxOutInEra
     , toLedgerAssetName
     , toLedgerMintValue
     , toLedgerTimelockScript
     , toLedgerTokenPolicyId
     , toLedgerTokenQuantity
+    , toLedgerUTxOInEra
     , toWalletAssetName
     , toWalletScript
     , toWalletTokenPolicyId
+    )
+import Cardano.Wallet.Primitive.Types.Address
+    ( Address (..)
     )
 import Cardano.Wallet.Primitive.Types.AssetId
     ( AssetId (..)
@@ -44,7 +54,8 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle
     )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
-    ( genTokenBundleSmallRange
+    ( genTokenBundle
+    , genTokenBundleSmallRange
     , shrinkTokenBundleSmallRange
     )
 import Cardano.Wallet.Primitive.Types.TokenMap
@@ -74,9 +85,18 @@ import Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen
     ( genTxIn
     , shrinkTxIn
     )
+import Cardano.Wallet.Primitive.Types.Tx.TxOut
+    ( TxOut (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen
     ( genTxOutCoin
     , shrinkTxOutCoin
+    )
+import Cardano.Wallet.Primitive.Types.UTxO
+    ( UTxO (..)
+    )
+import Control.Monad
+    ( replicateM
     )
 import Data.Proxy
     ( Proxy (..)
@@ -105,19 +125,32 @@ import Test.QuickCheck
     , Positive (Positive)
     , Property
     , arbitrarySizedNatural
+    , checkCoverage
     , choose
+    , conjoin
     , counterexample
+    , cover
     , elements
+    , forAll
+    , frequency
     , oneof
     , property
     , scale
     , sized
+    , tabulate
     , vectorOf
     , (===)
     , (==>)
     )
 import Prelude
 
+import qualified Cardano.Ledger.Address as Ledger
+    ( Addr
+    )
+import qualified Cardano.Ledger.Api.UTxO as Ledger
+    ( UTxO (..)
+    )
+import qualified Cardano.Ledger.Babbage.TxOut as Babbage
 import qualified Cardano.Ledger.Mary.Value as Ledger
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.ByteString as BS
@@ -128,6 +161,40 @@ spec :: Spec
 spec = describe "Cardano.Wallet.Primitive.Ledger.ConvertSpec"
     $ modifyMaxSuccess (const 1000)
     $ do
+        describe "recent-era tx output conversions" $ do
+            it "round-trips a generated output at the Dijkstra era"
+                $ property
+                $ forAll genRecentEraOutput
+                $ \o ->
+                    fromBabbageTxOutInEra
+                        (toBabbageTxOutInEra o :: Babbage.BabbageTxOut DijkstraEra)
+                        === o
+
+            it "agrees with the Conway conversion field by field"
+                $ property
+                $ forAll (genRecentEraOutputWith genTokenBundle)
+                $ \o -> case ( toBabbageTxOutInEra o :: Babbage.BabbageTxOut ConwayEra
+                             , toBabbageTxOutInEra o :: Babbage.BabbageTxOut DijkstraEra
+                             ) of
+                    (Babbage.BabbageTxOut ca cv _ _, Babbage.BabbageTxOut da dv _ _) ->
+                        conjoin
+                            [ (toWallet (ca :: Ledger.Addr) :: Address)
+                                === (toWallet (da :: Ledger.Addr) :: Address)
+                            , cv === dv
+                            ]
+
+            it "preserves the UTxO map at the Dijkstra era"
+                $ property
+                $ forAll genRecentEraUTxO
+                $ \u -> case toLedgerUTxOInEra u :: Ledger.UTxO DijkstraEra of
+                    Ledger.UTxO m' -> case u of
+                        UTxO m ->
+                            Map.mapKeys toWallet (fmap fromBabbageTxOutInEra m')
+                                === m
+
+            it "the era generator actually reaches the Dijkstra era"
+                $ property prop_eraGeneratorReachesDijkstra
+
         describe "Roundtrip conversions" $ do
             ledgerRoundtrip $ Proxy @Coin
             ledgerRoundtrip $ Proxy @TokenBundle
@@ -390,7 +457,82 @@ instance Arbitrary (Script KeyHash) where
                     , RequireSomeOf atLeast scripts'
                     ]
 
+-- | A wallet output whose address is well-formed for the ledger decoder
+-- (base address: header byte plus two 28-byte key hashes) and whose bundle
+-- varies. The dummy addresses of genTxOut are deliberately not usable
+-- here: the recent-era conversions decode the address.
+genRecentEraOutput :: Gen TxOut
+genRecentEraOutput =
+    genRecentEraOutputWith genTokenBundleSmallRange
+
+-- | The bundle generator is a parameter so the field-comparison properties
+-- can widen the value coverage beyond the small-range default (R5).
+genRecentEraOutputWith :: Gen TokenBundle -> Gen TxOut
+genRecentEraOutputWith genBundle =
+    TxOut
+        <$> genWellFormedAddress
+        <*> genBundle
+
+genWellFormedAddress :: Gen Address
+genWellFormedAddress = do
+    payment <- BS.pack <$> vectorOf 28 arbitrary
+    stake <- BS.pack <$> vectorOf 28 arbitrary
+    pure $ Address (0x01 `BS.cons` (payment <> stake))
+
+genRecentEraUTxO :: Gen UTxO
+genRecentEraUTxO = sized $ \size -> do
+    n <- choose (0, size)
+    UTxO . Map.fromList
+        <$> replicateM n ((,) <$> genTxIn <*> genRecentEraOutput)
+
 instance Arbitrary KeyHash where
     arbitrary = do
         cred <- elements [Payment, Delegation, Policy, Unknown]
         KeyHash cred . BS.pack <$> vectorOf 28 arbitrary
+
+--------------------------------------------------------------------------------
+-- Era coverage for the recent-era output conversion
+--------------------------------------------------------------------------------
+
+data EraToken = EraBabbage | EraConway | EraDijkstra
+    deriving (Eq, Show)
+
+-- | The generated population is Dijkstra-heavy on purpose: the required
+-- coverage is on the Dijkstra case, and 'checkCoverage' in
+-- 'prop_eraGeneratorReachesDijkstra' fails the property when it falls below
+-- 90%. Babbage and Conway stay reachable so regression there is still
+-- visible.
+instance Arbitrary EraToken where
+    arbitrary =
+        frequency
+            [ (95, pure EraDijkstra)
+            , (3, pure EraBabbage)
+            , (2, pure EraConway)
+            ]
+    shrink = const []
+
+-- | The era generator must actually reach the Dijkstra case. A property
+-- whose generated population never produces the Dijkstra conversion is
+-- blind to it at any number of runs; 'checkCoverage' fails this property
+-- when the Dijkstra share drops below 90%.
+prop_eraGeneratorReachesDijkstra :: EraToken -> Property
+prop_eraGeneratorReachesDijkstra tok =
+    forAll genRecentEraOutput $ \o ->
+        checkCoverage
+            $ cover
+                90
+                (tok == EraDijkstra)
+                "Dijkstra era in generated population"
+            $ tabulate "era" [show tok]
+            $ convertInEra tok o === o
+  where
+    convertInEra t x = case t of
+        EraBabbage ->
+            fromBabbageTxOutInEra
+                (toBabbageTxOutInEra x :: Babbage.BabbageTxOut BabbageEra)
+        EraConway ->
+            fromBabbageTxOutInEra
+                (toBabbageTxOutInEra x :: Babbage.BabbageTxOut ConwayEra)
+        EraDijkstra ->
+            fromBabbageTxOutInEra
+                (toBabbageTxOutInEra x :: Babbage.BabbageTxOut DijkstraEra)

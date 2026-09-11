@@ -248,6 +248,8 @@ test-suite test
     , cardano-ledger-mary
     , cardano-ledger-shelley
     , cardano-numeric
+    , cardano-protocol
+    , cardano-protocol-tpraos
     , cardano-slotting
     , cardano-wallet-primitive
     , cardano-wallet-test-utils
@@ -286,6 +288,7 @@ test-suite test
   other-modules:
     Cardano.Wallet.Primitive.CollateralSpec
     Cardano.Wallet.Primitive.Ledger.ConvertSpec
+    Cardano.Wallet.Primitive.Ledger.PraosProducerSpec
     Cardano.Wallet.Primitive.Ledger.ShelleySpec
     Cardano.Wallet.Primitive.SlottingSpec
     Cardano.Wallet.Primitive.SyncProgressSpec
