@@ -55,6 +55,7 @@ import Cardano.Wallet.Address.Discovery
     , KnownAddresses (..)
     , emptyPendingIxs
     , genChange
+    , pendingIxsToList
     )
 import Cardano.Wallet.Address.Discovery.Sequential
     ( AddressPoolGap (..)
@@ -240,6 +241,9 @@ spec = do
         it
             "Can generate new change addresses after discovering a pending one"
             (property prop_changeNoLock)
+        it
+            "Single receiving mode reuses external index 0 without consuming internal reservations"
+            (property prop_singleReceivingAddress)
 
     describe "IsOwned" $ do
         it "Any discovered address has a corresponding private key!" $ do
@@ -368,6 +372,40 @@ prop_changeNoLock (s0, ix) =
     (_, s') = isOurs addr s
     (ys, _) = changeAddresses [] s'
 
+
+prop_singleReceivingAddress :: Property
+prop_singleReceivingAddress =
+    conjoin
+        [ ShowFmt canonical === ShowFmt expected
+        , pendingIxsToList (pendingChangeIxs onState)
+            === pendingIxsToList (pendingChangeIxs reserved)
+        , property $ isJust $ fst $ isOurs canonical
+            (onState :: SeqState 'Mainnet ShelleyKey)
+        , property
+            $ length (pendingIxsToList $ pendingChangeIxs offState)
+                > length (pendingIxsToList $ pendingChangeIxs onState)
+        ]
+  where
+    mkAddress k reward = delegationAddress SMainnet k reward
+    s0 :: SeqState 'Mainnet ShelleyKey
+    s0 =
+        SeqState
+            (newSeqAddressPool @'Mainnet @'UtxoInternal ourAccount defaultAddressPoolGap)
+            (newSeqAddressPool @'Mainnet @'UtxoExternal ourAccount defaultAddressPoolGap)
+            emptyPendingIxs
+            ourAccount
+            Nothing
+            rewardAccount
+            defaultPrefix
+            SingleChangeAddress
+    (_, reserved) = genChange mkAddress s0
+    expected = delegationAddress SMainnet
+        (deriveAddressPublicKey ourAccount UtxoExternal minBound)
+        rewardAccount
+    (canonical, onState) =
+        genChange mkAddress reserved{changeAddressMode = SingleReceivingAddress}
+    (_, offState) =
+        genChange mkAddress onState{changeAddressMode = IncreasingChangeAddresses}
 prop_lookupDiscovered
     :: (SeqState 'Mainnet ShelleyKey, Address)
     -> Property

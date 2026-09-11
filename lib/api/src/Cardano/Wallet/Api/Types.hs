@@ -984,6 +984,7 @@ data ApiCoinSelectionCollateral (n :: NetworkDiscriminant)
 data ApiWallet = ApiWallet
     { id :: !(ApiT WalletId)
     , addressPoolGap :: !(ApiT AddressPoolGap)
+    , singleAddressMode :: !Bool
     , balance :: !ApiWalletBalance
     , assets :: !ApiWalletAssetsBalance
     , delegation :: !ApiWalletDelegation
@@ -1108,6 +1109,7 @@ data WalletPostData = WalletPostData
     , name :: !(ApiT WalletName)
     , passphrase :: !(ApiT (Passphrase "user"))
     , oneChangeAddressMode :: !(Maybe Bool)
+    , singleAddressMode :: !(Maybe Bool)
     , restorationMode :: Maybe ApiRestorationMode
     }
     deriving (FromJSON, ToJSON) via DefaultRecord WalletPostData
@@ -1173,6 +1175,7 @@ data AccountPostData = AccountPostData
     { name :: !(ApiT WalletName)
     , accountPublicKey :: !ApiAccountPublicKey
     , addressPoolGap :: !(Maybe (ApiT AddressPoolGap))
+    , singleAddressMode :: !(Maybe Bool)
     , restorationMode :: Maybe ApiRestorationMode
     }
     deriving (FromJSON, ToJSON) via DefaultRecord AccountPostData
@@ -1188,6 +1191,7 @@ newtype ApiWalletPutData = ApiWalletPutData
 data ApiWalletPutDataExtended = ApiWalletPutDataExtended
     { name :: (Maybe (ApiT WalletName))
     , oneChangeAddressMode :: (Maybe Bool)
+    , singleAddressMode :: (Maybe Bool)
     }
     deriving (Eq, Generic)
     deriving (FromJSON, ToJSON) via DefaultRecord ApiWalletPutDataExtended

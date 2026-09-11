@@ -428,6 +428,7 @@ massiveFixtureWallet massiveMnemonic = do
                 , name = ApiT $ unsafeFromText "Massive wallet"
                 , passphrase = ApiT $ unsafeFromText fixturePassphrase
                 , oneChangeAddressMode = Nothing
+                , singleAddressMode = Nothing
                 , restorationMode = Nothing
                 }
     finallyDeleteWallet wal1

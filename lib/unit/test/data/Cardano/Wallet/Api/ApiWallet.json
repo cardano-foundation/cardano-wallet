@@ -33,6 +33,7 @@
                 "encryption_method": "pbkdf2-hmac-sha512",
                 "last_updated_at": "1876-06-09T16:59:51.772459457027Z"
             },
+            "single_address_mode": true,
             "state": {
                 "status": "ready"
             },
@@ -79,6 +80,7 @@
                 "encryption_method": "pbkdf2-hmac-sha512",
                 "last_updated_at": "1874-12-18T00:00:00Z"
             },
+            "single_address_mode": true,
             "state": {
                 "status": "not_responding"
             },
@@ -130,6 +132,7 @@
             },
             "id": "8833785c86a69ebc1750a106e97588c9132c1d07",
             "name": "zJ(",
+            "single_address_mode": true,
             "state": {
                 "status": "ready"
             },
@@ -181,6 +184,7 @@
             },
             "id": "b2678d1a0d5cf139154b8a3d8156cf045453848c",
             "name": "[",
+            "single_address_mode": true,
             "state": {
                 "progress": {
                     "quantity": 42.9,
@@ -241,6 +245,7 @@
                 "encryption_method": "argon2id-v2",
                 "last_updated_at": "1890-04-15T09:02:03.855382978792Z"
             },
+            "single_address_mode": true,
             "state": {
                 "status": "ready"
             },
@@ -288,6 +293,7 @@
                 "encryption_method": "argon2id-v2",
                 "last_updated_at": "1903-11-08T20:45:47Z"
             },
+            "single_address_mode": true,
             "state": {
                 "progress": {
                     "quantity": 48.15,
@@ -347,6 +353,7 @@
                 "encryption_method": "pbkdf2-hmac-sha512",
                 "last_updated_at": "1869-06-02T00:00:00Z"
             },
+            "single_address_mode": true,
             "state": {
                 "progress": {
                     "quantity": 5.26,
@@ -398,6 +405,7 @@
                 "encryption_method": "argon2id-v2",
                 "last_updated_at": "1899-04-06T00:00:00Z"
             },
+            "single_address_mode": true,
             "state": {
                 "progress": {
                     "quantity": 70.36,
@@ -449,6 +457,7 @@
                 "encryption_method": "argon2id-v2",
                 "last_updated_at": "1882-03-23T05:06:15.754153541639Z"
             },
+            "single_address_mode": true,
             "state": {
                 "status": "ready"
             },
@@ -501,6 +510,7 @@
             },
             "id": "ca7fda64fdb40d1bdc20556b9c6525519dfeb6e7",
             "name": "H\\",
+            "single_address_mode": true,
             "state": {
                 "status": "ready"
             },

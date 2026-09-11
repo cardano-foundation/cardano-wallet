@@ -192,6 +192,7 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
                     ctx
                     accXPub
                     restoredWalletName
+            wDest' ^. #singleAddressMode `shouldBe` True
 
             eventually "Balance of restored wallet is as expected" $ do
                 rGet <-

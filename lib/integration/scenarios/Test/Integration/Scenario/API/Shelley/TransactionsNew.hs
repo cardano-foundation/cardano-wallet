@@ -416,6 +416,7 @@ import Test.Integration.Framework.DSL
     , waitForTxImmutability
     , waitNumberOfEpochBoundaries
     , walletId
+    , (</>)
     , (.<)
     , (.>)
     )
@@ -467,8 +468,223 @@ import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types.Status as HTTP
 import qualified Test.Integration.Plutus as PlutusScenario
 
+singleReceivingPath :: NE.NonEmpty (ApiT DerivationIndex)
+singleReceivingPath =
+    NE.fromList
+        $ map
+            (ApiT . DerivationIndex)
+            [0x8000073C, 0x80000717, 0x80000000, 0, 0]
+
 spec :: forall n. HasSNetworkId n => SpecWith Context
 spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
+    it "SINGLE_ADDRESS_MODE_01 - change uses the first receiving address"
+        $ \ctx -> runResourceT $ do
+            wa <- fixtureWalletWith @n ctx [20_000_000]
+            wb <- emptyWallet ctx
+            faucet <- fixtureWallet ctx
+            let wid = wa ^. walletId
+                walletUrl = ("PUT", "v2/wallets" </> wid)
+                path role index =
+                    NE.fromList
+                        [ ApiT (DerivationIndex 2_147_485_500)
+                        , ApiT (DerivationIndex 2_147_485_463)
+                        , ApiT (DerivationIndex 2_147_483_648)
+                        , ApiT (DerivationIndex role)
+                        , ApiT (DerivationIndex index)
+                        ]
+                canonicalPath = path 0 0
+                externalOnePath = path 0 1
+                internalZeroPath = path 1 0
+                internalNextPath = path 1 1
+                atPath expected addresses =
+                    case filter
+                        (\(ApiAddressWithPath _ _ actual) -> actual == expected)
+                        addresses of
+                        [address] -> address
+                        _ -> error "expected exactly one address at derivation path"
+                payment destination amount passphrase =
+                    Json
+                        [json|{
+                            "payments": [{
+                                "address": #{destination},
+                                "amount": {
+                                    "quantity": #{amount},
+                                    "unit": "lovelace"
+                                }
+                            }],
+                            "passphrase": #{passphrase}
+                        }|]
+                submitPayment source destination amount = do
+                    response <-
+                        request @(ApiTransaction n)
+                            ctx
+                            (Link.createTransactionOld @'Shelley source)
+                            Default
+                            (payment destination amount fixturePassphrase)
+                    expectResponseCode HTTP.status202 response
+                    pure $ getFromResponse #id response
+                waitForTransaction wallet txid =
+                    eventually "Transaction is discovered" $
+                        request @(ApiTransaction n)
+                            ctx
+                            (Link.getTransaction @'Shelley wallet (ApiTxId txid))
+                            Default
+                            Empty
+                            >>= expectField #status (`shouldBe` ApiT InLedger)
+                construct destination amount = do
+                    response <-
+                        request @(ApiConstructTransaction n)
+                            ctx
+                            (Link.createUnsignedTransaction @'Shelley wa)
+                            Default
+                            (Json
+                                [json|{
+                                    "payments": [{
+                                        "address": #{destination},
+                                        "amount": {
+                                            "quantity": #{amount},
+                                            "unit": "lovelace"
+                                        }
+                                    }]
+                                }|]
+                            )
+                    expectResponseCode HTTP.status202 response
+                    pure response
+
+            request @ApiWallet
+                ctx
+                (Link.getWallet @'Shelley wa)
+                Default
+                Empty
+                >>= flip
+                    verify
+                    [ expectResponseCode HTTP.status200
+                    , expectField #singleAddressMode (`shouldBe` True)
+                    ]
+            sourceAddresses <- listAddresses @n ctx wa
+            let canonical = atPath canonicalPath sourceAddresses
+                externalOne = atPath externalOnePath sourceAddresses
+            targetAddresses <- listAddresses @n ctx wb
+            let target = case targetAddresses of
+                    (address : _) -> address ^. #id
+                    [] -> error "expected target address"
+
+            request @ApiWallet
+                ctx
+                walletUrl
+                Default
+                (Json [json|{"single_address_mode": false}|])
+                >>= flip
+                    verify
+                    [ expectResponseCode HTTP.status200
+                    , expectField #singleAddressMode (`shouldBe` False)
+                    ]
+            internalTx <- submitPayment wa target (5_000_000 :: Natural)
+            waitForTransaction wa internalTx
+            waitForTransaction wb internalTx
+            externalTx <-
+                submitPayment faucet (externalOne ^. #id) (20_000_000 :: Natural)
+            waitForTransaction faucet externalTx
+            waitForTransaction wa externalTx
+
+            request @ApiWallet
+                ctx
+                walletUrl
+                Default
+                (Json [json|{"single_address_mode": true}|])
+                >>= expectField #singleAddressMode (`shouldBe` True)
+            available <-
+                getFromResponse (#balance . #available . #toNatural)
+                    <$> request @ApiWallet
+                        ctx
+                        (Link.getWallet @'Shelley wa)
+                        Default
+                        Empty
+            spendingBoth <- construct target (available - 2_000_000)
+            let selectedPaths =
+                    Set.fromList
+                        $ map (^. #derivationPath)
+                        $ getFromResponse (#coinSelection . #inputs) spendingBoth
+                changeOutputs =
+                    getFromResponse (#coinSelection . #change) spendingBoth
+            selectedPaths
+                `shouldSatisfy` (Set.fromList [internalZeroPath, externalOnePath]
+                    `Set.isSubsetOf`)
+            changeOutputs `shouldSatisfy` (not . null)
+            changeOutputs
+                `shouldSatisfy` all
+                    ( \output ->
+                        output ^. #address == canonical ^. #id
+                            && output ^. #derivationPath == canonicalPath
+                    )
+            getFromResponse (#coinSelection . #outputs) spendingBoth
+                `shouldSatisfy` any ((== target) . (^. #address))
+
+            selfPayment <- construct (externalOne ^. #id) (2_000_000 :: Natural)
+            getFromResponse (#coinSelection . #outputs) selfPayment
+                `shouldSatisfy` any ((== externalOne ^. #id) . (^. #address))
+            getFromResponse (#coinSelection . #change) selfPayment
+                `shouldSatisfy` all
+                    ( \output ->
+                        output ^. #address == canonical ^. #id
+                            && output ^. #derivationPath == canonicalPath
+                    )
+
+            offResponse <-
+                request @ApiWallet
+                    ctx
+                    walletUrl
+                    Default
+                    (Json [json|{"single_address_mode": false}|])
+            verify
+                offResponse
+                [ expectResponseCode HTTP.status200
+                , expectField #singleAddressMode (`shouldBe` False)
+                ]
+            let originalName = getFromResponse #name offResponse
+            offTx <- construct target (2_000_000 :: Natural)
+            getFromResponse (#coinSelection . #change) offTx
+                `shouldSatisfy` all
+                    ((== internalNextPath) . (^. #derivationPath))
+
+            nameOnlyResponse <-
+                request @ApiWallet
+                    ctx
+                    walletUrl
+                    Default
+                    (Json [json|{"name": "single-mode-name-only"}|])
+            expectField #singleAddressMode (`shouldBe` False) nameOnlyResponse
+            let retainedName = getFromResponse #name nameOnlyResponse
+            request @ApiWallet
+                ctx
+                walletUrl
+                Default
+                (Json
+                    [json|{
+                        "name": "must-not-be-applied",
+                        "single_address_mode": true,
+                        "one_change_address_mode": true
+                    }|]
+                )
+                >>= flip
+                    verify
+                    [ expectResponseCode HTTP.status400
+                    , expectErrorMessage
+                        "Specify either single_address_mode or one_change_address_mode, not both."
+                    ]
+            request @ApiWallet
+                ctx
+                (Link.getWallet @'Shelley wa)
+                Default
+                Empty
+                >>= flip
+                    verify
+                    [ expectResponseCode HTTP.status200
+                    , expectField #singleAddressMode (`shouldBe` False)
+                    , expectField #name (`shouldBe` retainedName)
+                    , expectField #name (`shouldNotBe` originalName)
+                    ]
+
     it "TRANS_NEW_CREATE_01a - Empty payload is not allowed" $ \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
         let emptyPayload = Json [json|{}|]
@@ -846,6 +1062,11 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             [ expectResponseCode HTTP.status202
             , expectField (#coinSelection . #metadata) (`shouldBe` Nothing)
             , expectField (#coinSelection . #withdrawals) (`shouldSatisfy` null)
+            , expectField
+                (#coinSelection . #change)
+                (`shouldSatisfy` all
+                    ((== singleReceivingPath) . (^. #derivationPath))
+                )
             ]
         let expectedFee = getFromResponse (#fee . #toNatural) rTx
 
@@ -5832,6 +6053,11 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             verify
                 rTx2
                 [ expectResponseCode HTTP.status202
+                , expectField
+                    (#coinSelection . #change)
+                    (`shouldSatisfy` all
+                        ((== singleReceivingPath) . (^. #derivationPath))
+                    )
                 ]
             let ApiSerialisedTransaction apiTx2 _ = getFromResponse #transaction rTx2
             signedTx2 <-

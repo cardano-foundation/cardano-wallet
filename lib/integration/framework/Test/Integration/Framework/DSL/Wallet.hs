@@ -136,6 +136,7 @@ createWalletFromXPub xpub refine = do
                 { name = ApiT $ unsafeFromText "Wallet from mnemonic"
                 , accountPublicKey = ApiAccountPublicKey $ ApiT xpub
                 , addressPoolGap = Nothing
+                , singleAddressMode = Nothing
                 , restorationMode = Nothing
                 }
     pure $ fmap (view #id) apiWallet'
@@ -158,6 +159,7 @@ createWalletFromMnemonics m15 refine = do
                 , name = ApiT $ unsafeFromText "Wallet from mnemonic"
                 , passphrase = ApiT $ unsafeFromText fixturePassphrase
                 , oneChangeAddressMode = Nothing
+                , singleAddressMode = Nothing
                 , restorationMode = Nothing
                 }
     pure $ fmap (view #id) apiWallet'

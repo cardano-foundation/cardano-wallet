@@ -30,6 +30,7 @@ import Cardano.Wallet.DB.Sqlite.Migration.Old
     )
 import Cardano.Wallet.DB.Store.Checkpoints.Migration
     ( migratePrologue
+    , migrateSingleAddressMode
     )
 import Control.Category
     ( (.)
@@ -63,9 +64,10 @@ import qualified Cardano.Wallet.DB.Store.Submissions.Migrations.V6.Migration as 
     Specific migrations
 ------------------------------------------------------------------------------}
 
-newStyleMigrations :: Migration (ReadDBHandle IO) 2 6
+newStyleMigrations :: Migration (ReadDBHandle IO) 2 7
 newStyleMigrations =
-    V6.migrateSubmissions
+    migrateSingleAddressMode
+        . V6.migrateSubmissions
         . V5.migrateDelegations
         . migratePrologue
         . V3.migrateDelegations

@@ -101,6 +101,7 @@ newWallet xs name' passphrase' =
             (ApiT $ fromRight $ fromText passphrase')
             Nothing
             Nothing
+            Nothing
 
 postWallet
     :: HasSNetworkId n
