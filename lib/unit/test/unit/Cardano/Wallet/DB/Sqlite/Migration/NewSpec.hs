@@ -87,7 +87,7 @@ spec = do
                         $ Sqlite.rawSql "SELECT tx FROM submissions WHERE status = 0" []
                 v5 <- BS.readFile dbf
                 runNewStyleMigrations nullTracer dbf
-                schemaVersion dbf `shouldReturn` 6
+                schemaVersion dbf `shouldReturn` 7
                 claims <-
                     Sqlite.runSqlite (T.pack dbf)
                         $ Sqlite.rawSql

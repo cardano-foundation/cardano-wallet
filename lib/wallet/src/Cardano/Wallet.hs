@@ -284,10 +284,11 @@ import Cardano.Balance.Tx.TimeTranslation
 import Cardano.Balance.Tx.Tx
     ( toRecentEraGADT
     )
+import Cardano.Binary.FixedSizeCodec
+    ( rawDecodeFixedSized
+    )
 import Cardano.Crypto.DSIGN
     ( VerKeyDSIGN
-    , rawDeserialiseSigDSIGN
-    , rawDeserialiseVerKeyDSIGN
     , verifyDSIGN
     , verifySignedDSIGN
     )
@@ -720,7 +721,6 @@ import Cardano.Wallet.Tracing.Extra
     ( BracketLog
     , BracketLog' (..)
     , bracketTracer
-    , formatResultMsg
     , resultSeverity
     , traceResult
     )

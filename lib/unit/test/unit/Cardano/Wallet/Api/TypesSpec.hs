@@ -1734,7 +1734,7 @@ instance Arbitrary AccountPostData where
     arbitrary = do
         wName <- ApiT <$> arbitrary
         accXPub <- arbitrary
-        pure $ AccountPostData wName accXPub Nothing Nothing
+        pure $ AccountPostData wName accXPub Nothing Nothing Nothing
 
 instance Arbitrary WalletPostData where
     arbitrary = genericArbitrary

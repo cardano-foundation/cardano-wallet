@@ -1143,6 +1143,7 @@ postShelleyWallet
     -> WalletPostData
     -> Handler ApiWallet
 postShelleyWallet ctx generateKey body = do
+    rejectConflictingChangeModes body
     let state =
             mkSeqStateFromRootXPrv
                 (keyFlavorFromState @s)
@@ -1178,9 +1179,10 @@ postShelleyWallet ctx generateKey body = do
     wid = WalletId $ digest ShelleyKeyS $ publicKey ShelleyKeyS rootXPrv
     wName = getApiT (body ^. #name)
     (genesisBlock, networkParams) = ctx ^. #netParams
-    changeAddrMode = case body ^. #oneChangeAddressMode of
-        Just True -> SingleChangeAddress
-        _ -> IncreasingChangeAddresses
+    changeAddrMode = case (body ^. #singleAddressMode, body ^. #oneChangeAddressMode) of
+        (Just enabled, Nothing) -> toSingleAddressMode enabled
+        (Nothing, Just True) -> SingleChangeAddress
+        _ -> SingleReceivingAddress
 
 postAccountWallet
     :: forall ctx s k n w
@@ -1208,7 +1210,7 @@ postAccountWallet ctx mkWallet liftKey coworker body = do
                 Nothing
                 purposeCIP1852
                 g
-                IncreasingChangeAddresses
+                (toSingleAddressMode $ fromMaybe True $ body ^. #singleAddressMode)
         initialState = InitialState state genesisBlock restorationPoint
     void
         $ liftHandler
@@ -1266,6 +1268,8 @@ mkShelleyWallet ctx@ApiLayer{..} wid cp meta delegation pending progress = do
                 cp
     let available = availableBalance pending cp
     let total = totalBalance pending reward cp
+    let singleAddressMode =
+            getState cp ^. #changeAddressMode == SingleReceivingAddress
     pure
         ApiWallet
             { addressPoolGap = ApiT $ getGap $ getState cp ^. #externalPool
@@ -1287,6 +1291,7 @@ mkShelleyWallet ctx@ApiLayer{..} wid cp meta delegation pending progress = do
             , name = ApiT $ meta ^. #name
             , passphrase = toApiPassphraseInfo <$> meta ^. #passphraseInfo
             , state = ApiT progress
+            , singleAddressMode
             , tip
             }
 
@@ -2139,31 +2144,57 @@ putWallet
     -> ApiWalletPutDataExtended
     -> Handler apiWallet
 putWallet ctx mkApiWallet (ApiT wid) body = do
+    rejectConflictingChangeModes body
+    case walletFlavor @s of
+        ShelleyWallet -> return ()
+        _ -> when (isJust $ body ^. #singleAddressMode)
+            $ Handler
+            $ throwE
+            $ apiError err400 BadRequest
+                "single_address_mode is supported only for Shelley wallets."
     case body ^. #name of
         Nothing ->
             return ()
         Just (ApiT wName) -> withWorkerCtx ctx wid liftE liftE $ \wrk -> do
             handler $ W.updateWallet wrk (modify wName)
     case walletFlavor @s of
-        ShelleyWallet ->
-            case body ^. #oneChangeAddressMode of
-                Just modeOnOff -> withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+        ShelleyWallet -> withWorkerCtx ctx wid liftE liftE $ \wrk ->
+            case (body ^. #singleAddressMode, body ^. #oneChangeAddressMode) of
+                (Just modeOnOff, Nothing) ->
+                    handler $ W.setChangeAddressMode wrk (toSingleAddressMode modeOnOff)
+                (Nothing, Just modeOnOff) ->
                     handler $ W.setChangeAddressMode wrk (toOneAddrMode modeOnOff)
-                _ ->
-                    return ()
+                _ -> return ()
         SharedWallet ->
             case body ^. #oneChangeAddressMode of
-                Just modeOnOff -> withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+                Just modeOnOff -> withWorkerCtx ctx wid liftE liftE $ \wrk ->
                     handler $ W.setChangeAddressModeShared wrk (toOneAddrMode modeOnOff)
-                _ ->
-                    return ()
-        _ ->
-            return ()
+                _ -> return ()
+        _ -> return ()
     fst <$> getWallet ctx mkApiWallet (ApiT wid)
   where
     toOneAddrMode = \case
         True -> SingleChangeAddress
         False -> IncreasingChangeAddresses
+
+toSingleAddressMode :: Bool -> ChangeAddressMode
+toSingleAddressMode = \case
+    True -> SingleReceivingAddress
+    False -> IncreasingChangeAddresses
+
+rejectConflictingChangeModes
+    :: ( HasField' "singleAddressMode" body (Maybe Bool)
+       , HasField' "oneChangeAddressMode" body (Maybe Bool)
+       )
+    => body
+    -> Handler ()
+rejectConflictingChangeModes body =
+    when
+        (isJust (body ^. #singleAddressMode) && isJust (body ^. #oneChangeAddressMode))
+        $ Handler
+        $ throwE
+        $ apiError err400 BadRequest
+            "Specify either single_address_mode or one_change_address_mode, not both."
 
 putWalletPassphrase
     :: forall ctx s k
