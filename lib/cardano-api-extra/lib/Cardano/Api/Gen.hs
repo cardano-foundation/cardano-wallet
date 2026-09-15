@@ -1,4 +1,5 @@
 {-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
@@ -1560,8 +1561,7 @@ genTxCertificate sbe =
         $ oneof
             [ Compat.makeStakeAddressRegistrationCertificate
                 <$> genStakeRegistrationRequirements sbe
-            , Compat.makeStakeAddressUnregistrationCertificate
-                <$> genStakeCredential
+            , genStakeAddressUnregistrationCertificate sbe
             , Compat.makeStakeAddressDelegationCertificate
                 <$> genStakeCredential
                 <*> genDelegatee sbe
@@ -1590,6 +1590,42 @@ genTxCertificate sbe =
             Compat.StakeCredentialAndDeposit
                 <$> genStakeCredential
                 <*> genCoin
+
+    -- cardano-api 11.6.0.0 dropped ShelleyEraTxCert from
+    -- ShelleyBasedEraConstraints and put it on the certificate constructors.
+    -- ShelleyEraTxCert carries AtMostEra "Conway", so the legacy
+    -- unregistration certificate cannot be built for Dijkstra; that era uses
+    -- the deposit-carrying form, mirroring genStakeRegistrationRequirements.
+    genStakeAddressUnregistrationCertificate
+        :: ShelleyBasedEra era
+        -> Gen (Exp.Certificate (Api.ShelleyLedgerEra era))
+    genStakeAddressUnregistrationCertificate = \case
+        ShelleyBasedEraShelley -> unRegNoDeposit
+        ShelleyBasedEraAllegra -> unRegNoDeposit
+        ShelleyBasedEraMary -> unRegNoDeposit
+        ShelleyBasedEraAlonzo -> unRegNoDeposit
+        ShelleyBasedEraBabbage -> unRegNoDeposit
+        ShelleyBasedEraConway -> unRegNoDeposit
+        ShelleyBasedEraDijkstra -> unRegWithDeposit
+      where
+        unRegNoDeposit
+            :: forall e
+             . ( Api.IsShelleyBasedEra e
+               , Ledger.ShelleyEraTxCert (Api.ShelleyLedgerEra e)
+               )
+            => Gen (Exp.Certificate (Api.ShelleyLedgerEra e))
+        unRegNoDeposit =
+            Compat.makeStakeAddressUnregistrationCertificate
+                <$> genStakeCredential
+
+        unRegWithDeposit
+            :: Gen (Exp.Certificate (Api.ShelleyLedgerEra Api.DijkstraEra))
+        unRegWithDeposit =
+            fmap Exp.Certificate
+                $ Ledger.mkUnRegDepositTxCert
+                    . Api.toShelleyStakeCredential
+                    <$> genStakeCredential
+                    <*> genCoin
 
     genDelegatee
         :: ShelleyBasedEra era -> Gen (Compat.Delegatee era)
