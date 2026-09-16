@@ -18,7 +18,9 @@ module Cardano.Wallet.DB.Pure.Layer
     ) where
 
 import Cardano.Wallet.DB
-    ( DBLayer (..)
+    ( ContextChange (..)
+    , ContextClock (..)
+    , DBLayer (..)
     , DBLayerParams
     )
 import Cardano.Wallet.DB.Pure.Implementation
@@ -58,6 +60,7 @@ import Control.Applicative
 import Control.Concurrent.MVar
     ( MVar
     , modifyMVar
+    , modifyMVar_
     , newMVar
     , withMVar
     )
@@ -109,6 +112,7 @@ withBootDBLayer
     -> m ()
 withBootDBLayer timeInterpreter wid params k = do
     lock <- liftIO $ newMVar ()
+    contextClock <- liftIO $ newMVar $ ContextClock 0 0 0 False
     db <- liftIO $ newMVar $ mInitializeWallet wid params
     durable <- liftIO $ newMVar []
     k
@@ -124,6 +128,8 @@ withBootDBLayer timeInterpreter wid params k = do
               walletState = error "MVar.walletState: not implemented"
             , transactionsStore = error "MVar.transactionsStore: not implemented"
             , readCheckpoint = throwErrorReadDB db mReadCheckpoint
+            , readInSubmissionTransactions =
+                error "readInSubmissionTransactions not tested in State Machine tests"
             , listCheckpoints = fromMaybe [] <$> readDBMaybe db mListCheckpoints
             , rollbackTo =
                 noErrorAlterDB db
@@ -183,7 +189,42 @@ withBootDBLayer timeInterpreter wid params k = do
             , claimDurableSubmissionAttempt = claimPureDurable durable wid
             , updateDurableSubmission = updatePureDurable durable
             , readDurableSubmissions = readPureDurable durable wid
+            , atomicallyWithContextChange = \change action ->
+                withMVar lock $ \() -> do
+                    after <-
+                        liftIO $ withMVar contextClock $ either fail pure . advance change
+                    result <- action
+                    liftIO $ modifyMVar_ contextClock $ const $ pure after
+                    pure result
+            , atomicallyReadContext = \action ->
+                withMVar lock $ \() -> do
+                    result <- action
+                    clock <- liftIO $ withMVar contextClock pure
+                    pure (result, clock)
             }
+  where
+    advance
+        change
+        ContextClock
+            { walletGeneration
+            , pendingGeneration
+            , contextIncarnation
+            , contextDeleted
+            } =
+            ContextClock
+                <$> bump
+                    [WalletContextChange, WalletAndPendingContextChange]
+                    walletGeneration
+                <*> bump
+                    [PendingContextChange, WalletAndPendingContextChange]
+                    pendingGeneration
+                <*> pure contextIncarnation
+                <*> pure contextDeleted
+          where
+            bump changes value
+                | change `notElem` changes = Right value
+                | value == maxBound = Left "dApp context generation exhausted"
+                | otherwise = Right $ value + 1
 
 data PureDurableSubmission = PureDurableSubmission
     { pureSubmission :: DurableSubmission

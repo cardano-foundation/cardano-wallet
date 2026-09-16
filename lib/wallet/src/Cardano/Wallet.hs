@@ -432,7 +432,8 @@ import Cardano.Wallet.Checkpoints
     , pruneCheckpoints
     )
 import Cardano.Wallet.DB
-    ( DBLayer (..)
+    ( ContextChange (..)
+    , DBLayer (..)
     , DBLayerParams (..)
     , ErrNoSuchTransaction (..)
     , ErrRemoveTx (..)
@@ -1098,6 +1099,17 @@ onWalletState ctx update' =
   where
     db = ctx ^. dbLayer
 
+onWalletStateWithContextChange
+    :: WalletLayer m s
+    -> ContextChange
+    -> Delta.Update (WalletState.DeltaWalletState s) r
+    -> m r
+onWalletStateWithContextChange ctx change update' =
+    db & \DBLayer{..} ->
+        atomicallyWithContextChange change $ Delta.onDBVar walletState update'
+  where
+    db = ctx ^. dbLayer
+
 {-------------------------------------------------------------------------------
                                    Wallet
 -------------------------------------------------------------------------------}
@@ -1467,7 +1479,8 @@ rollbackBlocks
     -> IO ChainPoint
 rollbackBlocks ctx point =
     db & \DBLayer{..} ->
-        atomically $ rollbackTo point
+        atomicallyWithContextChange WalletAndPendingContextChange
+            $ rollbackTo point
   where
     db = ctx ^. dbLayer
 
@@ -1488,7 +1501,7 @@ restoreBlocks
     -> Read.ChainTip
     -> IO ()
 restoreBlocks ctx tr blocks nodeTip =
-    db & \DBLayer{..} -> atomically $ do
+    db & \DBLayer{..} -> atomicallyWithContextChange WalletAndPendingContextChange $ do
         slottingParams <- liftIO $ currentSlottingParameters nl
         cp0 <- readCheckpoint
         unless (cp0 `isParentOf` firstHeader blocks)
@@ -2672,7 +2685,7 @@ buildSignSubmitTransaction
                                 Read.EraValue Read.Conway
                             Write.RecentEraDijkstra ->
                                 Read.EraValue Read.Dijkstra
-                    (unsignedTx, wallet, slot) <- atomically $ do
+                    (unsignedTx, wallet, slot) <- atomicallyWithContextChange WalletContextChange $ do
                         pendingTxs <-
                             fmap fromTransactionInfo
                                 <$> readTransactions
@@ -2834,7 +2847,7 @@ buildSignSubmitTransaction
                                 , builtTxMeta
                                 , builtSealedTx
                                 }
-                    atomically
+                    atomicallyWithContextChange PendingContextChange
                         $ Delta.onDBVar walletState
                             . WalletState.updateSubmissions
                             . Delta.update
@@ -2848,7 +2861,7 @@ buildSignSubmitTransaction
                         & fmap (builtTx,)
                         & liftIO
                 RootKeyAccessV1 rootKey scheme -> lift $ do
-                    (BuiltTx{..}, slot) <- atomically $ do
+                    (BuiltTx{..}, slot) <- atomicallyWithContextChange WalletAndPendingContextChange $ do
                         pendingTxs <-
                             fmap fromTransactionInfo
                                 <$> readTransactions
@@ -3543,11 +3556,11 @@ submitTx
     -> NetworkLayer m block
     -> BuiltTx
     -> ExceptT ErrSubmitTx m ()
-submitTx tr DBLayer{walletState, atomically} nw tx@BuiltTx{..} =
+submitTx tr DBLayer{walletState, atomicallyWithContextChange} nw tx@BuiltTx{..} =
     traceResult (MsgWallet . MsgTxSubmit . MsgSubmitTx tx >$< tr) $ do
         withExceptT ErrSubmitTxNetwork $ postSealedTx nw builtSealedTx
         lift
-            . atomically
+            . atomicallyWithContextChange PendingContextChange
             . Delta.onDBVar walletState
             . WalletState.updateSubmissions
             . Delta.update
@@ -3670,7 +3683,7 @@ forgetTx
     -> ExceptT ErrRemoveTx m ()
 forgetTx ctx txid =
     ExceptT
-        . onWalletState ctx
+        . onWalletStateWithContextChange ctx PendingContextChange
         . WalletState.updateSubmissions
         . Delta.updateWithError
         $ Submissions.removePendingOrExpiredTx txid
@@ -3756,7 +3769,8 @@ runLocalTxSubmissionPool cfg ctx =
                     runExceptT
                         $ traceResult (trRetry (st ^. #txId))
                         $ postSealedTx nw (st ^. #submittedTx)
-                atomically $ resubmitTx (st ^. #txId) sl
+                atomicallyWithContextChange PendingContextChange
+                    $ resubmitTx (st ^. #txId) sl
         watchNodeTip nw submitPending
   where
     nw = networkLayer_ ctx
@@ -4665,7 +4679,7 @@ writePolicyPublicKey ctx wid pwd =
 
         let seqState' = seqState & #policyXPub .~ Just policyXPub
         lift
-            $ atomically
+            $ atomicallyWithContextChange WalletContextChange
             $ Delta.onDBVar walletState
             $ Delta.update
             $ \_ -> [ReplacePrologue $ SeqPrologue seqState']
@@ -4681,7 +4695,7 @@ setChangeAddressMode
     -> ChangeAddressMode
     -> IO ()
 setChangeAddressMode ctx mode =
-    onWalletState ctx $ update $ \s ->
+    onWalletStateWithContextChange ctx WalletContextChange $ update $ \s ->
         let (SeqPrologue seqState) = WS.prologue s
             seqState' = seqState & #changeAddressMode .~ mode
         in  [ReplacePrologue $ SeqPrologue seqState']
@@ -4693,7 +4707,7 @@ setChangeAddressModeShared
     -> ChangeAddressMode
     -> IO ()
 setChangeAddressModeShared ctx mode =
-    onWalletState ctx $ update $ \s ->
+    onWalletStateWithContextChange ctx WalletContextChange $ update $ \s ->
         let (SharedPrologue sharedState) = WS.prologue s
             sharedState' = sharedState & #changeAddressMode .~ mode
         in  [ReplacePrologue $ SharedPrologue sharedState']

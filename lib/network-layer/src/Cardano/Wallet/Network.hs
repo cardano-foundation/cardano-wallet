@@ -6,6 +6,8 @@
 module Cardano.Wallet.Network
     ( -- * Interface
       NetworkLayer (..)
+    , DappTransactionContext (..)
+    , ErrDappTransactionContext (..)
 
       -- * Errors
     , ErrPostTx (..)
@@ -26,6 +28,9 @@ module Cardano.Wallet.Network
     , updateStats
     ) where
 
+import Cardano.Api
+    ( AnyCardanoEra
+    )
 import Cardano.Balance.Tx.Eras
     ( MaybeInRecentEra
     )
@@ -167,6 +172,10 @@ data NetworkLayer m block = NetworkLayer
     , getUTxOByTxIn
         :: Set Write.TxIn
         -> m (MaybeInRecentEra Write.UTxO)
+    , getDappTransactionContext
+        :: Read.ChainPoint
+        -> Set Write.TxIn
+        -> m (Either ErrDappTransactionContext DappTransactionContext)
     , getStakeDelegDeposits
         :: Set Write.StakeCredential
         -> m (Map Write.StakeCredential Write.Coin)
@@ -197,6 +206,15 @@ data NetworkLayer m block = NetworkLayer
     -- 'NotResponding' rather than block in the edge case when the era
     -- history has not yet been fetched from the node on startup.
     }
+
+data DappTransactionContext = DappTransactionContext
+    { contextEra :: AnyCardanoEra
+    , contextProtocolParameters :: Read.EraValue Read.PParams
+    , contextUTxO :: MaybeInRecentEra Write.UTxO
+    }
+
+data ErrDappTransactionContext = ErrDappTransactionContextPointUnavailable
+    deriving (Eq, Show)
 
 instance Functor m => Functor (NetworkLayer m) where
     fmap f nl =
