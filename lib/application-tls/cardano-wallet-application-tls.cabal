@@ -45,6 +45,7 @@ library
     , crypton
     , crypton-asn1-encoding
     , crypton-asn1-types
+    , crypton-connection
     , crypton-x509
     , crypton-x509-store
     , crypton-x509-validation
@@ -53,6 +54,8 @@ library
     , directory
     , exceptions
     , filepath
+    , http-client
+    , http-client-tls
     , ip
     , text
     , time-hourglass
@@ -77,9 +80,6 @@ test-suite unit
     , bytestring
     , cardano-wallet-application-tls
     , cardano-wallet-test-utils
-    , crypton-connection
-    , crypton-x509
-    , crypton-x509-store
     , crypton-x509-system
     , data-default
     , directory
@@ -90,7 +90,6 @@ test-suite unit
     , http-types
     , network
     , streaming-commons
-    , tls
     , unliftio
     , wai
     , warp
