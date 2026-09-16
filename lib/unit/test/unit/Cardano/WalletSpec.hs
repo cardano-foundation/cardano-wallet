@@ -51,16 +51,16 @@ import Cardano.Mnemonic
     ( SomeMnemonic (..)
     )
 import Cardano.Wallet
-    ( ErrUpdatePassphrase (..)
+    ( DappStakeRegistration (..)
+    , ErrUpdatePassphrase (..)
     , ErrWithRootKey (..)
     , InitialState (..)
     , LocalTxSubmissionConfig (..)
     , RootKeyAccess (..)
     , SelectionWithoutChange
-    , DappStakeRegistration (..)
+    , WalletLayer (..)
     , dappCip95KeyState
     , dappStakeRegistrationState
-    , WalletLayer (..)
     , dbLayer
     , migrationPlanToSelectionWithdrawals
     , readPrivateKey
@@ -499,6 +499,7 @@ import qualified Cardano.Wallet.Read.Hash as Hash
 import qualified Cardano.Wallet.Submissions.Submissions as Smbs
 import qualified Cardano.Wallet.Submissions.TxStatus as Sbms
 import qualified Data.ByteArray as BA
+import qualified Data.ByteArray.Encoding as BAE
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Foldable as F
@@ -661,7 +662,8 @@ spec = describe "Cardano.WalletSpec" $ do
                 dappStakeRegistrationState True [] `shouldBe` True
                 dappStakeRegistrationState False [RegisterStakeKey] `shouldBe` True
                 dappStakeRegistrationState True [DeregisterStakeKey] `shouldBe` False
-                dappStakeRegistrationState False
+                dappStakeRegistrationState
+                    False
                     [RegisterStakeKey, DeregisterStakeKey, RegisterStakeKey]
                     `shouldBe` False
         it
@@ -1081,15 +1083,19 @@ dappCip95PublicKeys = do
         decodeVector :: ByteString -> ByteString
         decodeVector = either (error . show) id . BAE.convertFromBase BAE.Base16
         expectedDRep =
-            decodeVector "1582d51cb4077e5a36fe1ea712881c0b613b38f82e94b1b279182e3d203b4770"
+            decodeVector
+                "1582d51cb4077e5a36fe1ea712881c0b613b38f82e94b1b279182e3d203b4770"
         expectedStake =
-            decodeVector "a22d0b8709e6bc04d11257dc405410d1ace01f207c391ba4788ea17198ee1a08"
+            decodeVector
+                "a22d0b8709e6bc04d11257dc405410d1ace01f207c391ba4788ea17198ee1a08"
         (drep, registered, unregistered) = dappCip95KeyState walletState False []
     drep `shouldBe` expectedDRep
     BS.length drep `shouldBe` 32
     registered `shouldBe` []
     unregistered `shouldBe` [expectedStake]
-    map getDerivationIndex (NE.toList $ drepDerivationPath $ derivationPrefix walletState)
+    map
+        getDerivationIndex
+        (NE.toList $ drepDerivationPath $ derivationPrefix walletState)
         `shouldBe` [0x8000073c, 0x80000717, 0x80000000, 3, 0]
 
 -- | A fixed (WalletId, WalletName, DummyState) used by the migration tests.

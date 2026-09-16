@@ -99,8 +99,7 @@ import Cardano.Ledger.Conway.Governance
     , VotingProcedures (VotingProcedures)
     )
 import Cardano.Ledger.Conway.TxBody
-    ( proposalProceduresTxBodyL
-    , votingProceduresTxBodyL
+    ( votingProceduresTxBodyL
     )
 import Cardano.Ledger.Conway.TxCert
     ( ConwayGovCert (..)
