@@ -258,6 +258,12 @@ data ApiErrorInfo
     | BalanceTxInlinePlutusV3ScriptNotSupportedInBabbage
     | BalanceTxInlinePlutusV4ScriptNotSupportedInConway
     | BalanceTxNativeScriptNotSupportedInConway
+    | DappInvalidRequest
+    | DappContextConflict
+    | DappAccountChanged
+    | DappContextUnavailable
+    | DappInternalError
+    | DappDeprecatedCertificate
     | UnsupportedEra !ApiErrorUnsupportedEra
     deriving (Eq, Generic, Show, Data)
     deriving anyclass (NFData)
@@ -281,6 +287,7 @@ apiErrorInfoOptions =
 data DappError
     = InvalidDappRequest
     | DappContextConflictError
+    | DappAccountChangedError
     | DappContextUnavailableError
     | DappInternalErrorResponse
     | DappDeprecatedCertificateError

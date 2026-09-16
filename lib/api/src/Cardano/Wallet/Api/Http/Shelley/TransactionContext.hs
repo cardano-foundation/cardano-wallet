@@ -21,6 +21,7 @@ module Cardano.Wallet.Api.Http.Shelley.TransactionContext
     , decodeTx
     , decodeDappTx
     , resolveOutput
+    , resolveTransactionContext
     , validateTransactionContextResponseForRequest
     , validVKeyWitnessHashes
     , buildProofInventory
@@ -37,6 +38,13 @@ module Cardano.Wallet.Api.Http.Shelley.TransactionContext
 
 import Cardano.Address.Derivation
     ( xpubPublicKey
+    )
+import Cardano.Api
+    ( AnyCardanoEra (AnyCardanoEra)
+    , CardanoEra (ConwayEra)
+    )
+import Cardano.Balance.Tx.Eras
+    ( MaybeInRecentEra (InRecentEraConway)
     )
 import Cardano.Crypto.DSIGN
     ( verifySignedDSIGN
@@ -64,16 +72,22 @@ import Cardano.Ledger.Api
     ( Addr (..)
     , ValidityInterval
     , addrTxOutL
+    , ppProtocolVersionL
     , referenceScriptTxOutL
     , serialiseAddr
     )
+import Cardano.Ledger.Api.UTxO
+    ( UTxO (UTxO)
+    )
 import Cardano.Ledger.BaseTypes
     ( Network (Mainnet, Testnet)
+    , ProtVer (ProtVer)
     , StrictMaybe (SJust, SNothing)
     , TxIx (TxIx)
     )
 import Cardano.Ledger.Binary
     ( DecoderError
+    , getVersion
     , serialize'
     , shelleyProtVer
     )
@@ -138,6 +152,11 @@ import Cardano.Read.Ledger.Tx.ReferenceInputs
     ( ReferenceInputs (ReferenceInputs)
     , getEraReferenceInputs
     )
+import Cardano.Wallet
+    ( WalletLayer
+    , dbLayer
+    , networkLayer
+    )
 import Cardano.Wallet.Address.Derivation
     ( DerivationIndex (getDerivationIndex)
     , Index (Index, getIndex)
@@ -160,12 +179,30 @@ import Cardano.Wallet.Address.Keys.WalletKey
 import Cardano.Wallet.Api
     ( ApiLayer (..)
     )
+import Cardano.Wallet.Api.Lib.ApiT
+    ( ApiT (ApiT)
+    )
 import Cardano.Wallet.Api.Types.Dapp.Context
 import Cardano.Wallet.Api.Types.Error
     ( DappError (..)
     )
+import Cardano.Wallet.DB
+    ( ContextClock (..)
+    , DBLayer (..)
+    )
+import Cardano.Wallet.DB.Sqlite.Types
+    ( DappSubmissionStatusEnum (..)
+    , TxId (..)
+    )
+import Cardano.Wallet.DB.Store.Submissions.Operations
+    ( DurableSubmission (..)
+    )
 import Cardano.Wallet.Flavor
     ( KeyFlavorS (ShelleyKeyS)
+    )
+import Cardano.Wallet.Network
+    ( DappTransactionContext (..)
+    , NetworkLayer (..)
     )
 import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Certificates
     ( getCertificates
@@ -177,9 +214,14 @@ import Cardano.Wallet.Primitive.NetworkId
 import Cardano.Wallet.Primitive.Types
     ( GenesisParameters (getGenesisBlockHash)
     , NetworkParameters (NetworkParameters)
+    , WalletId
+    , chainPointFromBlockHeader
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (Address)
+    )
+import Cardano.Wallet.Primitive.Types.Block
+    ( fromWalletChainPoint
     )
 import Cardano.Wallet.Primitive.Types.Certificates
     ( Certificate (CertificateOther)
@@ -192,12 +234,25 @@ import Cardano.Wallet.Primitive.Types.ProtocolMagic
     ( ProtocolMagic (getProtocolMagic)
     , magicSNetworkId
     )
+import Cardano.Wallet.Primitive.Types.Tx
+    ( SealedTx
+    , serialisedTx
+    )
 import Control.Lens
-    ( (^.)
+    ( view
+    , (^.)
     )
 import Control.Monad
     ( foldM
     , unless
+    )
+import Control.Monad.IO.Class
+    ( liftIO
+    )
+import Control.Monad.Trans.Except
+    ( ExceptT (ExceptT)
+    , runExceptT
+    , throwE
     )
 import Cryptography.Hash.Blake
     ( blake2b224
@@ -214,8 +269,12 @@ import Data.Coerce
 import Data.Foldable
     ( toList
     )
+import Data.Function
+    ( (&)
+    )
 import Data.List
     ( sort
+    , sortOn
     )
 import Data.Map.Strict
     ( Map
@@ -225,6 +284,9 @@ import Data.Maybe
     )
 import Data.Set
     ( Set
+    )
+import Data.Text.Class
+    ( toText
     )
 import Data.Word
     ( Word32
@@ -237,12 +299,16 @@ import Cardano.Ledger.Hashes qualified as Ledger
 import Cardano.Ledger.Keys qualified as LedgerKeys
 import Cardano.Ledger.TxIn qualified as Ledger
 import Cardano.Wallet.Address.Discovery.Sequential qualified as Seq
+import Cardano.Wallet.Primitive.Model qualified as Wallet
+import Cardano.Wallet.Primitive.Types.Tx.TxIn qualified as Wallet
+import Cardano.Wallet.Primitive.Types.UTxO qualified as Wallet
 import Cardano.Wallet.Read qualified as Read
 import Cardano.Wallet.Read.Hash qualified as ReadHash
 import Data.ByteString.Lazy qualified as BL
 import Data.List.NonEmpty qualified as NE
 import Data.Map.Strict qualified as Map
 import Data.Set qualified as Set
+import Data.Text.Encoding qualified as Text
 
 data DecodedTx = DecodedTx
     { bytes :: !ByteString
@@ -254,6 +320,13 @@ data DecodedTx = DecodedTx
     , outputs :: !(Map Ledger.TxIn (Output Read.Conway, ByteString))
     , expiry :: !(Maybe Word64)
     , valid :: !Bool
+    }
+data Capture s = Capture
+    { point :: !Read.ChainPoint
+    , clock :: !ContextClock
+    , checkpoint :: !(Set Ledger.TxIn)
+    , pending :: ![DecodedTx]
+    , discovery :: !s
     }
 
 data ProofInventory = ProofInventory
@@ -292,6 +365,119 @@ data ProofObligationResult = ProofObligationResult
     , satisfiedWithoutCandidate :: !(Map ByteString Bool)
     }
     deriving (Eq, Show)
+
+resolveTransactionContext
+    :: forall n
+     . HasSNetworkId n
+    => ApiLayer (SeqState n ShelleyKey)
+    -> WalletLayer IO (SeqState n ShelleyKey)
+    -> ApiT WalletId
+    -> ApiDappTransactionContextRequest
+    -> IO (Either DappError ApiDappTransactionContextResponse)
+resolveTransactionContext api worker (ApiT wid) request = runExceptT $ do
+    expectedNetwork <- fromEither $ configuredNetwork @n api
+    require InvalidDappRequest $ request.network == expectedNetwork
+    requested <- fromEither $ mapM decodeDappTx request.transactions
+    retry (3 :: Int) expectedNetwork requested
+  where
+    retry 0 _ _ = throwE DappContextUnavailableError
+    retry attempts expectedNetwork requested = do
+        capture <- ExceptT $ captureContext worker
+        let (available, spent, wanted) =
+                contextSets capture.checkpoint capture.pending requested
+        queried <-
+            liftIO
+                $ getDappTransactionContext
+                    (api ^. networkLayer)
+                    capture.point
+                    wanted
+        case queried of
+            Left _ -> retry (attempts - 1) expectedNetwork requested
+            Right context -> do
+                confirmed <- ExceptT $ confirmContext worker capture
+                if not confirmed
+                    then retry (attempts - 1) expectedNetwork requested
+                    else
+                        fromEither
+                            $ assemble
+                                api
+                                wid
+                                expectedNetwork
+                                request
+                                requested
+                                capture
+                                available
+                                spent
+                                wanted
+                                context
+
+captureContext
+    :: WalletLayer IO (SeqState n ShelleyKey)
+    -> IO (Either DappError (Capture (SeqState n ShelleyKey)))
+captureContext worker =
+    worker ^. dbLayer & \DBLayer{..} -> do
+        ((wallet, durable), clock) <-
+            atomicallyReadContext
+                $ (,)
+                    <$> readCheckpoint
+                    <*> readDurableSubmissions
+        pure $ do
+            requireEither DappAccountChangedError $ not clock.contextDeleted
+            pending <-
+                first (const DappContextUnavailableError)
+                    $ mapM decodeDurable (filter hasLiveClaim durable)
+            checkpoint <-
+                Set.fromList
+                    <$> first
+                        (const DappInternalErrorResponse)
+                        ( mapM walletInputToLedger
+                            $ Set.toList
+                            $ Wallet.dom
+                            $ Wallet.utxo wallet
+                        )
+            pure
+                Capture
+                    { point =
+                        fromWalletChainPoint
+                            $ chainPointFromBlockHeader
+                            $ Wallet.currentTip wallet
+                    , clock
+                    , checkpoint
+                    , pending
+                    , discovery = Wallet.getState wallet
+                    }
+
+confirmContext
+    :: WalletLayer IO s -> Capture s -> IO (Either DappError Bool)
+confirmContext worker Capture{point, clock} =
+    worker ^. dbLayer & \DBLayer{..} -> do
+        (wallet, currentClock) <- atomicallyReadContext readCheckpoint
+        pure $ do
+            requireEither DappAccountChangedError
+                $ not currentClock.contextDeleted
+            pure
+                $ clock == currentClock
+                    && point
+                        == fromWalletChainPoint
+                            (chainPointFromBlockHeader $ Wallet.currentTip wallet)
+
+decodePending :: Hash "Tx" -> SealedTx -> Either String DecodedTx
+decodePending (Hash storedId) sealed = do
+    decoded <- decodeTx $ ApiDappHex $ serialisedTx sealed
+    requireEither "pending transaction id mismatch"
+        $ decoded.txId == storedId
+    pure decoded
+
+-- | Durable journal records own the same normal/collateral overlay while they
+-- are potentially spendable. Terminal and in-ledger records have released it.
+hasLiveClaim :: DurableSubmission -> Bool
+hasLiveClaim DurableSubmission{durableStatus} =
+    durableStatus
+        `elem` [AuthorizedE, BroadcastingE, SubmittedE, OutcomeUnknownE]
+
+decodeDurable :: DurableSubmission -> Either String DecodedTx
+decodeDurable DurableSubmission{durableTxId = TxId txId, durableSealedTx} =
+    decodePending txId durableSealedTx
 
 decodeTx :: ApiDappHex -> Either String DecodedTx
 decodeTx (ApiDappHex bytes) = do
@@ -394,6 +580,161 @@ contextSets checkpoint pending requested =
     requestedInputs =
         Set.unions
             $ concatMap (\tx -> [tx.normal, tx.collateral, tx.reference]) requested
+assemble
+    :: HasSNetworkId n
+    => ApiLayer (SeqState n ShelleyKey)
+    -> WalletId
+    -> ApiDappContextNetwork
+    -> ApiDappTransactionContextRequest
+    -> [DecodedTx]
+    -> Capture (SeqState n ShelleyKey)
+    -> Set Ledger.TxIn
+    -> Set Ledger.TxIn
+    -> Set Ledger.TxIn
+    -> DappTransactionContext
+    -> Either DappError ApiDappTransactionContextResponse
+assemble
+    api
+    wid
+    configured
+    request
+    requested
+    capture
+    available
+    spent
+    wanted
+    DappTransactionContext{..} = do
+        requireEither InvalidDappRequest
+            $ contextEra == AnyCardanoEra ConwayEra
+        (protocolVersion, protocolBytes) <- case contextProtocolParameters of
+            Read.EraValue (Read.PParams pparams :: Read.PParams era) ->
+                case Read.theEra @era of
+                    Read.Conway ->
+                        let ProtVer major minor = view ppProtocolVersionL pparams
+                        in  Right
+                                ( ApiDappProtocolVersion
+                                    (getVersion major)
+                                    (fromIntegral minor)
+                                , serialize' shelleyProtVer pparams
+                                )
+                    _ -> Left InvalidDappRequest
+        nodeOutputs <- case contextUTxO of
+            InRecentEraConway (UTxO values) -> Right values
+            _ -> Left InvalidDappRequest
+        let pendingOutputs = Map.unions $ (.outputs) <$> capture.pending
+            roleMap = foldl' addRoles mempty requested
+            nodeSources =
+                (\output -> (Output output, serialize' shelleyProtVer output))
+                    <$> nodeOutputs
+        (earlierOutputs, batchOverlay) <-
+            buildBatchOverlay requested capture.pending pendingOutputs
+        resolved <-
+            traverse
+                ( resolveOutput
+                    available
+                    roleMap
+                    earlierOutputs
+                    pendingOutputs
+                    nodeSources
+                )
+                $ Set.toList wanted
+        let outputValues =
+                (\(_, value, _) -> value)
+                    <$> sortOn (\(encoded, _, _) -> encoded) resolved
+            pendingValues = sortOn (.txId) capture.pending
+            pendingApi = toPending <$> pendingValues
+            protocolRecord =
+                ProtocolRecord
+                    configured.networkId
+                    configured.networkMagic
+                    protocolVersion.major
+                    protocolVersion.minor
+                    protocolBytes
+            outputRecords = outputRecord <$> outputValues
+            pendingRecords = pendingRecord <$> pendingValues
+        ProofInventory
+            { ownershipEvidence = ownership
+            , requiredProofEvidence = requiredWalletProofs
+            } <-
+            buildProofInventory configured capture.discovery requested resolved
+        let ownershipRecords = ownershipRecord <$> ownership
+            requiredRecords = requiredProofRecord <$> requiredWalletProofs
+            recordValues =
+                protocolRecord
+                    : outputRecords
+                        <> ownershipRecords
+                        <> pendingRecords
+                        <> requiredRecords
+            point = toApiPoint capture.point
+            walletText = toText wid
+            walletBytes = Text.encodeUtf8 walletText
+            genesisBytes = getApiDappHex configured.genesisHash
+            ContextClock{walletGeneration, pendingGeneration} = capture.clock
+        records <-
+            first (const DappInternalErrorResponse)
+                $ canonicalContextRecords recordValues
+        contextDigest <-
+            first (const DappInternalErrorResponse)
+                $ computeContextDigest
+                    ContextDigestInput
+                        { walletId = walletBytes
+                        , genesisHash = genesisBytes
+                        , chainPoint = point
+                        , walletGeneration
+                        , pendingGeneration
+                        , transactions = getApiDappHex <$> request.transactions
+                        , records = recordValues
+                        }
+        contextToken <-
+            first (const DappInternalErrorResponse)
+                $ encodeContextToken
+                    api.dappHmacKey
+                    ContextTokenClaims
+                        { processGeneration = api.dappProcessGeneration
+                        , capabilityRevision = 1
+                        , walletId = walletBytes
+                        , genesisHash = genesisBytes
+                        , contextDigest
+                        }
+        let response =
+                ApiDappTransactionContextResponse
+                    { revision = 1
+                    , walletId = walletText
+                    , network = configured
+                    , chainPoint = point
+                    , walletGeneration = ApiDappWord64 walletGeneration
+                    , pendingGeneration = ApiDappWord64 pendingGeneration
+                    , era = "conway"
+                    , protocolVersion
+                    , protocolParametersCbor = ApiDappHex protocolBytes
+                    , volatileDelta =
+                        ApiDappVolatileDelta point
+                            $ sort
+                                [ transactionInputCbor
+                                | ApiDappContextOutput
+                                    { transactionInputCbor
+                                    , provenance
+                                    } <-
+                                    outputValues
+                                , Node `elem` provenance
+                                ]
+                    , outputs = outputValues
+                    , pendingOverlay =
+                        ApiDappPendingOverlay
+                            pendingApi
+                            (sort $ toOutpoint <$> Set.toList spent)
+                            []
+                    , ownership
+                    , requiredWalletProofs
+                    , batchOverlay
+                    , records = ApiDappHex <$> records
+                    , contextDigest = ApiDappHex contextDigest
+                    , contextToken = ApiDappHex contextToken
+                    }
+        first (const DappInternalErrorResponse)
+            $ validateTransactionContextResponseForRequest request response
+        pure response
+
 resolveOutput
     :: Set Ledger.TxIn
     -> Map Ledger.TxIn (Set ApiDappRole)
@@ -1506,7 +1847,6 @@ duplicateTransactionsAreIdentical requested = all identical txGroups
             $ Map.fromListWith (<>) [(tx.txId, [tx.bytes]) | tx <- requested]
     identical [] = True
     identical (value : values) = all (== value) values
-
 addRoles
     :: Map Ledger.TxIn (Set ApiDappRole)
     -> DecodedTx
@@ -1540,6 +1880,56 @@ outputRecord
             pendingState
             source
 
+ownershipRecord :: ApiDappOwnership -> ContextRecord
+ownershipRecord
+    ApiDappOwnership
+        { credentialKind
+        , credential = ApiDappHex credential
+        , ownership
+        , derivationPath
+        , proofKinds
+        } =
+        OwnershipRecord
+            credentialKind
+            credential
+            ownership
+            derivationPath
+            proofKinds
+
+requiredProofRecord :: ApiDappRequiredWalletProof -> ContextRecord
+requiredProofRecord
+    ApiDappRequiredWalletProof
+        { transactionIndex
+        , proofKind
+        , credentialKind
+        , credential = ApiDappHex credential
+        , required
+        } =
+        RequiredProofRecord
+            transactionIndex
+            proofKind
+            credentialKind
+            credential
+            required
+
+pendingRecord :: DecodedTx -> ContextRecord
+pendingRecord DecodedTx{bytes, txId, normal, collateral, expiry} =
+    PendingTransactionRecord
+        txId
+        bytes
+        (sort $ toOutpoint <$> Set.toList normal)
+        (sort $ toOutpoint <$> Set.toList collateral)
+        expiry
+
+toPending :: DecodedTx -> ApiDappPendingTransaction
+toPending DecodedTx{bytes, txId, normal, collateral, expiry} =
+    ApiDappPendingTransaction
+        (ApiDappHex txId)
+        OutcomeUnknown
+        (ApiDappHex bytes)
+        (sort $ toOutpoint <$> Set.toList normal)
+        (sort $ toOutpoint <$> Set.toList collateral)
+        (ApiDappWord64 <$> expiry)
 toOutpoint :: Ledger.TxIn -> ApiDappOutpoint
 toOutpoint (Ledger.TxIn txid (TxIx index)) =
     ApiDappOutpoint (ApiDappHex $ txIdBytes txid) (fromIntegral index)
@@ -1547,6 +1937,15 @@ toOutpoint (Ledger.TxIn txid (TxIx index)) =
 txIdBytes :: Ledger.TxId -> ByteString
 txIdBytes = ReadHash.hashToBytes . Read.hashFromTxId
 
+walletInputToLedger :: Wallet.TxIn -> Either String Ledger.TxIn
+walletInputToLedger (Wallet.TxIn (Hash txid) index) = do
+    hash <-
+        maybe (Left "invalid wallet transaction id") Right
+            $ Crypto.hashFromBytes txid
+    pure
+        $ Ledger.TxIn
+            (Ledger.TxId $ Ledger.unsafeMakeSafeHash hash)
+            (TxIx $ fromIntegral index)
 configuredNetwork
     :: forall n s
      . HasSNetworkId n
@@ -1558,5 +1957,18 @@ configuredNetwork api = do
         magic = fromIntegral $ getProtocolMagic $ magicSNetworkId $ sNetworkId @n
     pure $ ApiDappContextNetwork networkId magic (ApiDappHex genesisHash)
 
+toApiPoint :: Read.ChainPoint -> ApiDappChainPoint
+toApiPoint Read.GenesisPoint = ApiDappChainPointGenesis
+toApiPoint (Read.BlockPoint (Read.SlotNo slot) hash) =
+    ApiDappChainPointBlock
+        (ApiDappWord64 $ fromIntegral slot)
+        (ApiDappHex $ ReadHash.hashToBytes hash)
+
+require :: e -> Bool -> ExceptT e IO ()
+require err condition = unless condition $ throwE err
+
 requireEither :: e -> Bool -> Either e ()
 requireEither err condition = unless condition $ Left err
+
+fromEither :: Either e a -> ExceptT e IO a
+fromEither = ExceptT . pure
