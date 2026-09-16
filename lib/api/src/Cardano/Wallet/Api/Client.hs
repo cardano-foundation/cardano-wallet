@@ -90,6 +90,8 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Api.Types.Dapp.Context
     ( ApiDappTransactionContextRequest
     , ApiDappTransactionContextResponse
+    , ApiDappWitnessSignRequest
+    , ApiDappWitnessSignResponse
     )
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema
@@ -243,8 +245,11 @@ data TransactionClient = TransactionClient
         :: ApiT WalletId
         -> ApiDappTransactionContextRequest
         -> ClientM ApiDappTransactionContextResponse
+    , dappWitnesses
+        :: ApiT WalletId
+        -> ApiDappWitnessSignRequest
+        -> ClientM ApiDappWitnessSignResponse
     }
-
 data AddressClient = AddressClient
     { listAddresses
         :: ApiT WalletId
@@ -357,7 +362,8 @@ transactionClient =
             :<|> _balanceTransaction
             :<|> _decodeTransaction
             :<|> _submitTransaction
-            :<|> _transactionContext =
+            :<|> _transactionContext
+            :<|> _dappWitnesses =
                 client (Proxy @("v2" :> (ShelleyTransactions Aeson.Value)))
 
         _postExternalTransaction =
@@ -378,6 +384,7 @@ transactionClient =
             , decodeTransaction = _decodeTransaction
             , submitTransaction = _submitTransaction
             , transactionContext = _transactionContext
+            , dappWitnesses = _dappWitnesses
             }
 
 fromSerialisedTx :: ApiBytesT base SerialisedTx -> ApiT SealedTx
@@ -413,6 +420,8 @@ byronTransactionClient =
                 error "submit transaction endpoint not supported for byron"
             , transactionContext =
                 error "transaction context endpoint not supported for byron"
+            , dappWitnesses =
+                error "transaction witnesses endpoint not supported for byron"
             , signTransaction =
                 error "sign transaction endpoint not supported for byron"
             , constructTransaction =

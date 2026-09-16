@@ -166,4 +166,5 @@ test-suite dapp-context
     , http-media
     , memory
     , servant
+    , servant-server
     , text

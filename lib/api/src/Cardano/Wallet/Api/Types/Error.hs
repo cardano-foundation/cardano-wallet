@@ -260,6 +260,7 @@ data ApiErrorInfo
     | BalanceTxNativeScriptNotSupportedInConway
     | DappInvalidRequest
     | DappContextConflict
+    | DappTxProofGeneration
     | DappAccountChanged
     | DappContextUnavailable
     | DappInternalError
@@ -288,6 +289,7 @@ apiErrorInfoOptions =
 data DappError
     = InvalidDappRequest
     | DappContextConflictError
+    | DappTxProofGenerationError
     | DappAccountChangedError
     | DappContextUnavailableError
     | DappInternalErrorResponse

@@ -92,6 +92,7 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Api.Types.Dapp.Context
     ( ApiDappTransactionContextRequest
+    , ApiDappWitnessSignRequest
     , DappJSON
     )
 import Cardano.Wallet.Primitive.NetworkId
@@ -2446,6 +2447,9 @@ instance Malformed (BodyParam ApiMaintenanceActionPostData) where
                 ]
 
 instance Malformed (BodyParam ApiDappTransactionContextRequest) where
+    malformed = [(BodyParam "}", "Invalid backend request")]
+
+instance Malformed (BodyParam ApiDappWitnessSignRequest) where
     malformed = [(BodyParam "}", "Invalid backend request")]
 
 --

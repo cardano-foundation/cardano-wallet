@@ -245,6 +245,8 @@ dappServerError = \case
         fixed err400 DappInvalidRequest "Invalid backend request"
     DappContextConflictError ->
         fixed err400 DappContextConflict "Backend context conflict"
+    DappTxProofGenerationError ->
+        fixed err403 DappTxProofGeneration "Transaction proof unavailable"
     DappAccountChangedError ->
         fixed err409 DappAccountChanged "Wallet or network changed"
     DappContextUnavailableError ->
@@ -1465,6 +1467,7 @@ instance IsServerError (Request, ServerError) where
                         `elem` [ (400, DappInvalidRequest, "Invalid backend request")
                                , (400, DappContextConflict, "Backend context conflict")
                                , (403, DappUnsupportedEra, "Unsupported backend era")
+                               , (403, DappTxProofGeneration, "Transaction proof unavailable")
                                , (403, DappDeprecatedCertificate, "Deprecated certificate")
                                , (409, DappAccountChanged, "Wallet or network changed")
                                , (503, DappContextUnavailable, "Wallet context unavailable")
@@ -1478,7 +1481,9 @@ instance IsServerError (Request, ServerError) where
             _ -> InvalidDappRequest
         isTransactionContextPath request = case pathInfo request of
             "v2" : "wallets" : _walletId : "transaction-context" : _ -> True
+            "v2" : "wallets" : _walletId : "transaction-witnesses" : _ -> True
             "wallets" : _walletId : "transaction-context" : _ -> True
+            "wallets" : _walletId : "transaction-witnesses" : _ -> True
             _ -> False
 
 instance IsServerError WriteTx.ErrInvalidTxOutInEra where
