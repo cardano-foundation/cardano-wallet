@@ -264,6 +264,15 @@ dappServerError = \case
         fixed err403 DappDeprecatedCertificate "Deprecated certificate"
     DappUnsupportedEraError ->
         fixed err403 DappUnsupportedEra "Unsupported backend era"
+    DappIdentityConflictError ->
+        fixed err400 DappIdentityConflict "Submission identity conflict"
+    DappSubmissionFailedError ->
+        fixed err409 DappSubmissionFailed "Transaction submission failed"
+    DappSubmissionUnavailableError ->
+        fixed
+            err503
+            DappSubmissionUnavailable
+            "Transaction submission unavailable"
   where
     fixed status info message = apiError status info message
 

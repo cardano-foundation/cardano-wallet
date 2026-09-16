@@ -576,9 +576,6 @@ import Cardano.Wallet.DB
 import Cardano.Wallet.DB.Sqlite.Types
     ( DappSubmissionStatusEnum (..)
     )
-import Cardano.Wallet.DB.Store.Submissions.Operations
-    ( DurableSubmission (..)
-    )
 import Cardano.Wallet.DRep.Layer
     ( DRepInfo (..)
     , DRepLayer
@@ -1020,7 +1017,6 @@ import qualified Cardano.Wallet.Api.Types as Api
 import qualified Cardano.Wallet.Api.Types.Amount as ApiAmount
 import qualified Cardano.Wallet.Api.Types.WalletAssets as ApiWalletAssets
 import qualified Cardano.Wallet.DB as W
-import qualified Cardano.Wallet.DB.Sqlite.Types as Sql
 import qualified Cardano.Wallet.DRep.Layer as DRepLayer
 import qualified Cardano.Wallet.Delegation as WD
 import qualified Cardano.Wallet.IO.Delegation as IODeleg
@@ -5908,11 +5904,14 @@ postDappSubmission
     -> ApiT WalletId
     -> ApiDappSubmissionRequest
     -> Handler ApiDappSubmissionResponse
-postDappSubmission ctx wid@(ApiT walletId)
+postDappSubmission ctx (ApiT walletId)
     ApiDappSubmissionRequest{network = requestNetwork, transaction = ApiDappHex bytes} = do
         expectedNetwork <- either throwDapp pure $ configuredNetwork @n ctx
         unless (requestNetwork == expectedNetwork)
             $ throwDapp DappAccountChangedError
+        liftIO (NW.currentNodeEra $ ctx ^. networkLayer)
+            >>= either throwDapp pure . requireConwayNodeEra
+        decoded <- either throwDapp pure $ decodeDappTx (ApiDappHex bytes)
         sealed <- either (const $ throwDapp InvalidDappRequest) pure $ sealedTxFromBytes bytes
         -- This decoder only consumes sealed bytes. It produces the body id,
         -- input claims and validity bound before 'submitWalletScoped' can
@@ -5920,7 +5919,7 @@ postDappSubmission ctx wid@(ApiT walletId)
         let extended =
                 decodeTx
                     (ctx ^. W.transactionLayer @ShelleyKey @'CredFromKeyK)
-                    (Read.EraValue Read.Dijkstra)
+                    (Read.EraValue Read.Conway)
                     sealed
             tx = walletTx extended
             Hash txBytes = tx ^. #txId
@@ -5929,6 +5928,7 @@ postDappSubmission ctx wid@(ApiT walletId)
                     SlotNo $ getQuantity invalidHereafter
                 )
                     <$> validity extended
+        unless (txBytes == decoded.txId) $ throwDapp InvalidDappRequest
         status <-
             atomicallyWithHandler
                 (ctx ^. walletLocks)
@@ -5938,7 +5938,9 @@ postDappSubmission ctx wid@(ApiT walletId)
                 walletId
                 (const $ throwDapp DappAccountChangedError)
                 (const $ throwDapp DappContextUnavailableError)
-            $ \worker ->
+            $ \worker -> do
+                liftIO (NW.currentNodeEra $ ctx ^. networkLayer)
+                    >>= either throwDapp pure . requireConwayNodeEra
                 liftHandler
                     $ W.submitWalletScoped
                         (tracerTxSubmit ctx)

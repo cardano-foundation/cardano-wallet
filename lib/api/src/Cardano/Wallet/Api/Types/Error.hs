@@ -268,6 +268,9 @@ data ApiErrorInfo
     | DappInternalError
     | DappDeprecatedCertificate
     | DappUnsupportedEra
+    | DappIdentityConflict
+    | DappSubmissionFailed
+    | DappSubmissionUnavailable
     | UnsupportedEra !ApiErrorUnsupportedEra
     deriving (Eq, Generic, Show, Data)
     deriving anyclass (NFData)
@@ -299,6 +302,9 @@ data DappError
     | DappInternalErrorResponse
     | DappDeprecatedCertificateError
     | DappUnsupportedEraError
+    | DappIdentityConflictError
+    | DappSubmissionFailedError
+    | DappSubmissionUnavailableError
     deriving (Eq, Show)
 
 data ApiErrorUnsupportedEra = ApiErrorUnsupportedEra
