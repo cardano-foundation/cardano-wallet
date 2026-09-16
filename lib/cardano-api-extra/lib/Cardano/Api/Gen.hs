@@ -1604,6 +1604,7 @@ genTxCertificate sbe =
 
 genTxCertificates
     :: CardanoEra era -> Gen (TxCertificates BuildTx era)
+genTxCertificates DijkstraEra = pure TxCertificatesNone
 genTxCertificates era = withEraWitness era $ \sbe -> do
     let stakingCore =
             (,)
