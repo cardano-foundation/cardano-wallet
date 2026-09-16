@@ -23,6 +23,7 @@ module Cardano.Wallet.DB
 
       -- * DBLayer building blocks
     , DBLayerCollection (..)
+    , DBDurableSubmissions (..)
     , DBCheckpoints (..)
     , DBTxHistory (..)
     , mkDBLayerFromParts
@@ -36,12 +37,18 @@ import Cardano.Wallet.DB.Errors
 import Cardano.Wallet.DB.Migration
     ( Version
     )
+import Cardano.Wallet.DB.Sqlite.Types
+    ( TxId
+    )
 import Cardano.Wallet.DB.Store.Submissions.Layer
     ( getInSubmissionTransaction
     , getInSubmissionTransactions
     )
 import Cardano.Wallet.DB.Store.Submissions.Operations
-    ( SubmissionMeta (..)
+    ( DurableSubmission
+    , DurableSubmissionInput
+    , DurableSubmissionInsert
+    , SubmissionMeta (..)
     , TxSubmissions
     , TxSubmissionsStatus
     )
@@ -148,8 +155,14 @@ import Data.Ord
 import Data.Store
     ( Store (..)
     )
+import Data.Time.Clock
+    ( UTCTime
+    )
 import Data.Traversable
     ( for
+    )
+import Data.Word
+    ( Word64
     )
 import GHC.Num
     ( Natural
@@ -282,6 +295,21 @@ data DBLayer m s = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
     , atomically
         :: forall a. stm a -> m a
     -- ^ Execute operations of the database in isolation and atomically.
+    -- | The durable wallet-scoped submission journal.
+    , insertDurableSubmission
+        :: DurableSubmission
+        -> [DurableSubmissionInput]
+        -> stm DurableSubmissionInsert
+    , updateDurableSubmission
+        :: DurableSubmission
+        -> stm ()
+    , claimDurableSubmissionAttempt
+        :: TxId
+        -> Word64
+        -> UTCTime
+        -> stm (Maybe DurableSubmission)
+    , readDurableSubmissions
+        :: stm [DurableSubmission]
     }
 
 {- Note [DBLayerRecordFields]
@@ -357,6 +385,25 @@ data DBLayerCollection stm m s = DBLayerCollection
         :: forall a. stm a -> m a
     , transactionsStore_
         :: Store stm QueryTxWalletsHistory DeltaTxWalletsHistory
+    , durableSubmissions_ :: DBDurableSubmissions stm
+    }
+
+-- | Durable external-submission actions supplied by the concrete database.
+data DBDurableSubmissions stm = DBDurableSubmissions
+    { insertDurableSubmission_
+        :: DurableSubmission
+        -> [DurableSubmissionInput]
+        -> stm DurableSubmissionInsert
+    , updateDurableSubmission_
+        :: DurableSubmission
+        -> stm ()
+    , claimDurableSubmissionAttempt_
+        :: TxId
+        -> Word64
+        -> UTCTime
+        -> stm (Maybe DurableSubmission)
+    , readDurableSubmissions_
+        :: stm [DurableSubmission]
     }
 
 {- HLINT ignore mkDBLayerFromParts "Avoid lambda" -}
@@ -435,6 +482,11 @@ mkDBLayerFromParts ti wid_ DBLayerCollection{..} =
         , rollbackTo = rollbackTo_
         , getSchemaVersion = getSchemaVersion_
         , atomically = atomically_
+        , insertDurableSubmission = insertDurableSubmission_ durableSubmissions_
+        , updateDurableSubmission = updateDurableSubmission_ durableSubmissions_
+        , claimDurableSubmissionAttempt =
+            claimDurableSubmissionAttempt_ durableSubmissions_
+        , readDurableSubmissions = readDurableSubmissions_ durableSubmissions_
         }
   where
     withSubmissions :: forall a. (TxSubmissions -> stm a) -> stm a
