@@ -135,6 +135,7 @@ import Cardano.Wallet.Api.Http.Shelley.Server
     , patchSharedWallet
     , postAccountPublicKey
     , postAccountWallet
+    , postDappDataSignature
     , postDappWitnesses
     , postExternalTransaction
     , postIcarusWallet
@@ -418,6 +419,7 @@ server byron icarus shelley multisig spl drepLayer ntp blockchainSource =
             :<|> submitTransaction @_ @_ @_ @n shelley
             :<|> postTransactionContext @n shelley
             :<|> postDappWitnesses @n shelley
+            :<|> postDappDataSignature @n shelley
 
     shelleyMigrations :: Server (ShelleyMigrations n)
     shelleyMigrations =
