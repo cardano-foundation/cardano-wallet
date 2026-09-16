@@ -4779,6 +4779,90 @@ x-errNotFound: &errNotFound
       type: string
       enum: ['not_found']
 
+x-errDappInvalidRequest: &errDappInvalidRequest
+  <<: *responsesErr
+  title: dapp_invalid_request
+  properties:
+    message: { type: string, enum: ['Invalid backend request'] }
+    code: { type: string, enum: ['dapp_invalid_request'] }
+
+x-errDappContextConflict: &errDappContextConflict
+  <<: *responsesErr
+  title: dapp_context_conflict
+  properties:
+    message: { type: string, enum: ['Backend context conflict'] }
+    code: { type: string, enum: ['dapp_context_conflict'] }
+
+x-errDappIdentityConflict: &errDappIdentityConflict
+  <<: *responsesErr
+  title: dapp_identity_conflict
+  properties:
+    message: { type: string, enum: ['Submission identity conflict'] }
+    code: { type: string, enum: ['dapp_identity_conflict'] }
+
+x-errDappAccountChanged: &errDappAccountChanged
+  <<: *responsesErr
+  title: dapp_account_changed
+  properties:
+    message: { type: string, enum: ['Wallet or network changed'] }
+    code: { type: string, enum: ['dapp_account_changed'] }
+
+x-errDappContextUnavailable: &errDappContextUnavailable
+  <<: *responsesErr
+  title: dapp_context_unavailable
+  properties:
+    message: { type: string, enum: ['Wallet context unavailable'] }
+    code: { type: string, enum: ['dapp_context_unavailable'] }
+
+x-errDappInternalError: &errDappInternalError
+  <<: *responsesErr
+  title: dapp_internal_error
+  properties:
+    message: { type: string, enum: ['Backend operation failed'] }
+    code: { type: string, enum: ['dapp_internal_error'] }
+
+x-errDappTxProofGeneration: &errDappTxProofGeneration
+  <<: *responsesErr
+  title: dapp_tx_proof_generation
+  properties:
+    message: { type: string, enum: ['Transaction proof unavailable'] }
+    code: { type: string, enum: ['dapp_tx_proof_generation'] }
+
+x-errDappDeprecatedCertificate: &errDappDeprecatedCertificate
+  <<: *responsesErr
+  title: dapp_deprecated_certificate
+  properties:
+    message: { type: string, enum: ['Deprecated certificate'] }
+    code: { type: string, enum: ['dapp_deprecated_certificate'] }
+
+x-errDappDataProofGeneration: &errDappDataProofGeneration
+  <<: *responsesErr
+  title: dapp_data_proof_generation
+  properties:
+    message: { type: string, enum: ['Data proof unavailable'] }
+    code: { type: string, enum: ['dapp_data_proof_generation'] }
+
+x-errDappDataAddressNotPk: &errDappDataAddressNotPk
+  <<: *responsesErr
+  title: dapp_data_address_not_pk
+  properties:
+    message: { type: string, enum: ['Address is not a public-key credential'] }
+    code: { type: string, enum: ['dapp_data_address_not_pk'] }
+
+x-errDappSubmissionFailed: &errDappSubmissionFailed
+  <<: *responsesErr
+  title: dapp_submission_failed
+  properties:
+    message: { type: string, enum: ['Transaction submission failed'] }
+    code: { type: string, enum: ['dapp_submission_failed'] }
+
+x-errDappSubmissionUnavailable: &errDappSubmissionUnavailable
+  <<: *responsesErr
+  title: dapp_submission_unavailable
+  properties:
+    message: { type: string, enum: ['Transaction submission unavailable'] }
+    code: { type: string, enum: ['dapp_submission_unavailable'] }
+
 x-errSoftDerivationRequired: &errSoftDerivationRequired
   <<: *responsesErr
   title: not_found
