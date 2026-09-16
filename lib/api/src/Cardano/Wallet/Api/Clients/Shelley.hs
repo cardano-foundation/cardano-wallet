@@ -25,6 +25,7 @@ import Cardano.Wallet.Api
     , ListTransactions
     , MigrateShelleyWallet
     , PostAnyAddress
+    , PostDappWitnesses
     , PostTransactionContext
     , PostTransactionFeeOld
     , Proxy_
@@ -71,6 +72,8 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Api.Types.Dapp.Context
     ( ApiDappTransactionContextRequest
     , ApiDappTransactionContextResponse
+    , ApiDappWitnessSignRequest
+    , ApiDappWitnessSignResponse
     )
 import Cardano.Wallet.Api.Types.Transaction
     ( ApiAddress
@@ -250,6 +253,13 @@ transactionContext
     -> ClientM ApiDappTransactionContextResponse
 transactionContext =
     client (Proxy @("v2" :> PostTransactionContext))
+
+dappWitnesses
+    :: ApiT WalletId
+    -> ApiDappWitnessSignRequest
+    -> ClientM ApiDappWitnessSignResponse
+dappWitnesses =
+    client (Proxy @("v2" :> PostDappWitnesses))
 
 postExternalTransaction
     :: ApiT SealedTx -> ClientM ApiTxId

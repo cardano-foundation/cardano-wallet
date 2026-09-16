@@ -441,6 +441,7 @@ import qualified Cardano.Read.Ledger.Tx.Tx as LedgerTx
 import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Cardano.Wallet.Api.Types.Amount as ApiAmount
+import qualified Cardano.Wallet.Api.Types.Dapp.Context as Dapp
 import qualified Cardano.Wallet.Api.Types.WalletAssets as ApiWalletAssets
 import qualified Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Metadata as Meta
     ( getMetadata
@@ -454,6 +455,7 @@ import qualified Cardano.Wallet.Read as Read
 import qualified Cardano.Wallet.Read.Hash as ReadHash
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteArray as BA
+import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Short as SBS
 import qualified Data.List.NonEmpty as NE
@@ -1235,6 +1237,83 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 , expectField #ownership (`shouldSatisfy` hasReferencePolicy)
                 ]
 
+            partialWitnesses <-
+                request @Dapp.ApiDappWitnessSignResponse
+                    ctx
+                    (Link.dappWitnesses wa)
+                    Default
+                    ( Json
+                        $ toJSON
+                        $ Dapp.ApiDappWitnessSignRequest
+                            1
+                            (getResponse response)
+                            [Dapp.ApiDappWitnessSignItem (ApiDappHex contextBytes) True]
+                            (ApiT $ Passphrase $ BA.convert $ T.encodeUtf8 fixturePassphrase)
+                    )
+            verify partialWitnesses [expectResponseCode HTTP.status200]
+            let Dapp.ApiDappWitnessSignResponse
+                    1
+                    [ Dapp.ApiDappWitnessResult
+                            0
+                            (ApiDappHex bodyHash)
+                            (ApiDappHex witnessSet)
+                        ] =
+                        getResponse partialWitnesses
+                expectedBodyHash =
+                    ReadHash.hashToBytes
+                        $ Read.hashFromTxId
+                        $ Read.getTxId contextTx
+            liftIO $ do
+                bodyHash `shouldBe` expectedBodyHash
+                witnessSet `shouldBe` "\xa0"
+
+            incompleteWitnesses <-
+                request @Dapp.ApiDappWitnessSignResponse
+                    ctx
+                    (Link.dappWitnesses wa)
+                    Default
+                    ( Json
+                        $ toJSON
+                        $ Dapp.ApiDappWitnessSignRequest
+                            1
+                            (getResponse response)
+                            [Dapp.ApiDappWitnessSignItem (ApiDappHex contextBytes) False]
+                            (ApiT $ Passphrase $ BA.convert $ T.encodeUtf8 fixturePassphrase)
+                    )
+            verify incompleteWitnesses [expectResponseCode HTTP.status403]
+
+            let duplicateRequest =
+                    contextRequest
+                        { transactions = replicate 2 (ApiDappHex contextBytes)
+                        }
+            duplicateContext <-
+                request @ApiDappTransactionContextResponse
+                    ctx
+                    (Link.transactionContext wa)
+                    Default
+                    (Json $ toJSON duplicateRequest)
+            verify duplicateContext [expectResponseCode HTTP.status200]
+            batchFailure <-
+                request @Dapp.ApiDappWitnessSignResponse
+                    ctx
+                    (Link.dappWitnesses wa)
+                    Default
+                    ( Json
+                        $ toJSON
+                        $ Dapp.ApiDappWitnessSignRequest
+                            1
+                            (getResponse duplicateContext)
+                            [ Dapp.ApiDappWitnessSignItem (ApiDappHex contextBytes) True
+                            , Dapp.ApiDappWitnessSignItem (ApiDappHex contextBytes) False
+                            ]
+                            (ApiT $ Passphrase $ BA.convert $ T.encodeUtf8 fixturePassphrase)
+                    )
+            verify
+                batchFailure
+                [ expectResponseCode HTTP.status403
+                , expectErrorInfo (`shouldBe` DappTxProofGeneration)
+                ]
+
             policyOwnerResponse <-
                 request @ApiDappTransactionContextResponse
                     ctx
@@ -1398,6 +1477,58 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     #requiredWalletProofs
                     (`shouldSatisfy` hasNormalRequirement True)
                 ]
+
+            existingWitnesses <-
+                request @Dapp.ApiDappWitnessSignResponse
+                    ctx
+                    (Link.dappWitnesses wb)
+                    Default
+                    ( Json
+                        $ toJSON
+                        $ Dapp.ApiDappWitnessSignRequest
+                            1
+                            (getResponse signedContextResponse)
+                            [Dapp.ApiDappWitnessSignItem (ApiDappHex signedContextBytes) True]
+                            (ApiT $ Passphrase $ BA.convert $ T.encodeUtf8 fixturePassphrase)
+                    )
+            verify existingWitnesses [expectResponseCode HTTP.status200]
+            let Dapp.ApiDappWitnessSignResponse
+                    1
+                    [Dapp.ApiDappWitnessResult 0 _ (ApiDappHex existingWitnessSet)] =
+                        getResponse existingWitnesses
+            liftIO $ existingWitnessSet `shouldBe` "\xa0"
+
+            let ApiDappTransactionContextRequest _ _ [ApiDappHex wrongBodyBytes] =
+                    wrongBodyRequest
+                expectedFreshBodyHash =
+                    ReadHash.hashToBytes
+                        $ Read.hashFromTxId
+                        $ Read.getTxId wrongBodyTx
+            freshWitnesses <-
+                request @Dapp.ApiDappWitnessSignResponse
+                    ctx
+                    (Link.dappWitnesses wb)
+                    Default
+                    ( Json
+                        $ toJSON
+                        $ Dapp.ApiDappWitnessSignRequest
+                            1
+                            (getResponse wrongBodyResponse)
+                            [Dapp.ApiDappWitnessSignItem (ApiDappHex wrongBodyBytes) True]
+                            (ApiT $ Passphrase $ BA.convert $ T.encodeUtf8 fixturePassphrase)
+                    )
+            verify freshWitnesses [expectResponseCode HTTP.status200]
+            let Dapp.ApiDappWitnessSignResponse
+                    1
+                    [ Dapp.ApiDappWitnessResult
+                            0
+                            (ApiDappHex freshBodyHash)
+                            (ApiDappHex freshWitnessSet)
+                        ] =
+                        getResponse freshWitnesses
+            liftIO $ do
+                freshBodyHash `shouldBe` expectedFreshBodyHash
+                BS.take 3 freshWitnessSet `shouldBe` "\xa1\x00\x81"
 
             let contextTxId = Read.getTxId contextTx
                 earlierInput = LedgerTxIn.TxIn contextTxId (TxIx 0)

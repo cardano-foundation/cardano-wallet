@@ -45,6 +45,8 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Api.Types.Dapp.Context
     ( ApiDappTransactionContextRequest
     , ApiDappTransactionContextResponse
+    , ApiDappWitnessSignRequest
+    , ApiDappWitnessSignResponse
     )
 import Cardano.Wallet.Api.Types.Transaction
     ( ApiAddress
@@ -198,6 +200,12 @@ transactionContext
     -> ApiDappTransactionContextRequest
     -> ClientM ApiDappTransactionContextResponse
 transactionContext = Shelley.transactionContext
+
+dappWitnesses
+    :: ApiT WalletId
+    -> ApiDappWitnessSignRequest
+    -> ClientM ApiDappWitnessSignResponse
+dappWitnesses = Shelley.dappWitnesses
 
 postExternalTransaction
     :: ApiT SealedTx -> ClientM ApiTxId

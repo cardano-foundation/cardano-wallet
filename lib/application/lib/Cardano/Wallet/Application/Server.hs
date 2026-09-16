@@ -144,9 +144,12 @@ start settings tr tlsConfig socket application = do
 
 isSensitiveDappRoute :: Wai.Request -> Bool
 isSensitiveDappRoute request = case Wai.pathInfo request of
-    "v2" : "wallets" : _walletId : "transaction-context" : _ -> True
-    "wallets" : _walletId : "transaction-context" : _ -> True
+    "v2" : "wallets" : _walletId : route : _ -> sensitive route
+    "wallets" : _walletId : route : _ -> sensitive route
     _ -> False
+  where
+    sensitive route =
+        route `elem` ["transaction-context", "transaction-witnesses"]
 
 -- | Run an action with a TCP socket bound to a port specified by the `Listen`
 -- parameter.
