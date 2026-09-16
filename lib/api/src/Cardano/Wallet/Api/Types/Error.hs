@@ -261,6 +261,8 @@ data ApiErrorInfo
     | DappInvalidRequest
     | DappContextConflict
     | DappTxProofGeneration
+    | DappDataProofGeneration
+    | DappDataAddressNotPk
     | DappAccountChanged
     | DappContextUnavailable
     | DappInternalError
@@ -289,6 +291,8 @@ data DappError
     = InvalidDappRequest
     | DappContextConflictError
     | DappTxProofGenerationError
+    | DappDataProofGenerationError
+    | DappDataAddressNotPkError
     | DappAccountChangedError
     | DappContextUnavailableError
     | DappInternalErrorResponse
