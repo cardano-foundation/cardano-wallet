@@ -2761,12 +2761,10 @@ signDappData root userPwd path expectedHash message = do
         | BS.length public /= 32 || BS.length signature /= 64 =
             Left "invalid data signature length"
         | otherwise = do
-            vkey <-
-                maybe (Left "invalid data public key") Right
-                    $ (rawDeserialiseVerKeyDSIGN public :: Maybe (VerKeyDSIGN DSIGN))
-            sig <-
-                maybe (Left "invalid data signature") Right
-                    $ rawDeserialiseSigDSIGN signature
+            vkey <- maybe (Left "invalid data public key") Right
+                $ (rawDecodeFixedSized public :: Maybe (VerKeyDSIGN DSIGN))
+            sig <- maybe (Left "invalid data signature") Right
+                $ rawDecodeFixedSized signature
             if verifyDSIGN () vkey message sig == Right ()
                 then Right result
                 else Left "generated data signature does not verify"
