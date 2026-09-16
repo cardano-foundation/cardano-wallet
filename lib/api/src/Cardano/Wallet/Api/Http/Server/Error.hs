@@ -253,6 +253,8 @@ dappServerError = \case
         fixed err500 DappInternalError "Backend operation failed"
     DappDeprecatedCertificateError ->
         fixed err403 DappDeprecatedCertificate "Deprecated certificate"
+    DappUnsupportedEraError ->
+        fixed err403 DappUnsupportedEra "Unsupported backend era"
   where
     fixed status info message = apiError status info message
 

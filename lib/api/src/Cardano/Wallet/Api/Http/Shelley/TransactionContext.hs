@@ -22,6 +22,7 @@ module Cardano.Wallet.Api.Http.Shelley.TransactionContext
     , decodeDappTx
     , resolveOutput
     , resolveTransactionContext
+    , requireConwayNodeEra
     , validateTransactionContextResponseForRequest
     , validVKeyWitnessHashes
     , buildProofInventory
@@ -266,6 +267,9 @@ import Data.ByteString
 import Data.Coerce
     ( coerce
     )
+import Data.Either
+    ( isRight
+    )
 import Data.Foldable
     ( toList
     )
@@ -382,6 +386,7 @@ resolveTransactionContext api worker (ApiT wid) request = runExceptT $ do
   where
     retry 0 _ _ = throwE DappContextUnavailableError
     retry attempts expectedNetwork requested = do
+        checkNodeEra
         capture <- ExceptT $ captureContext worker
         let (available, spent, wanted) =
                 contextSets capture.checkpoint capture.pending requested
@@ -394,12 +399,14 @@ resolveTransactionContext api worker (ApiT wid) request = runExceptT $ do
         case queried of
             Left _ -> retry (attempts - 1) expectedNetwork requested
             Right context -> do
-                confirmed <- ExceptT $ confirmContext worker capture
-                if not confirmed
+                checkNodeEra
+                if context.contextEra /= AnyCardanoEra ConwayEra
                     then retry (attempts - 1) expectedNetwork requested
-                    else
-                        fromEither
-                            $ assemble
+                    else do
+                        confirmed <- ExceptT $ confirmContext worker capture
+                        if not confirmed
+                            then retry (attempts - 1) expectedNetwork requested
+                            else case assemble
                                 api
                                 wid
                                 expectedNetwork
@@ -409,7 +416,19 @@ resolveTransactionContext api worker (ApiT wid) request = runExceptT $ do
                                 available
                                 spent
                                 wanted
-                                context
+                                context of
+                                Left DappContextUnavailableError ->
+                                    retry (attempts - 1) expectedNetwork requested
+                                result -> fromEither result
+    checkNodeEra =
+        liftIO (currentNodeEra $ api ^. networkLayer)
+            >>= fromEither . requireConwayNodeEra
+
+requireConwayNodeEra
+    :: Read.EraValue Read.Era -> Either DappError ()
+requireConwayNodeEra (Read.EraValue era) = case era of
+    Read.Conway -> Right ()
+    _ -> Left DappUnsupportedEraError
 
 captureContext
     :: WalletLayer IO (SeqState n ShelleyKey)
@@ -524,8 +543,14 @@ decodeDappTx value@(ApiDappHex bytes) =
         Left _
             | hasDeprecatedCertificate bytes ->
                 Left DappDeprecatedCertificateError
+            | recognizedOlderTx bytes ->
+                Left DappUnsupportedEraError
             | otherwise -> Left InvalidDappRequest
   where
+    recognizedOlderTx source =
+        let encoded = BL.fromStrict source
+        in  isRight (deserializeTx encoded :: Either DecoderError (Read.Tx Read.Alonzo))
+                || isRight (deserializeTx encoded :: Either DecoderError (Read.Tx Read.Babbage))
     hasDeprecatedCertificate source = case deserializeTx (BL.fromStrict source)
                                             :: Either DecoderError (Read.Tx Read.Shelley) of
         Right transaction ->
@@ -604,7 +629,7 @@ assemble
     spent
     wanted
     DappTransactionContext{..} = do
-        requireEither InvalidDappRequest
+        requireEither DappContextUnavailableError
             $ contextEra == AnyCardanoEra ConwayEra
         (protocolVersion, protocolBytes) <- case contextProtocolParameters of
             Read.EraValue (Read.PParams pparams :: Read.PParams era) ->
@@ -617,10 +642,10 @@ assemble
                                     (fromIntegral minor)
                                 , serialize' shelleyProtVer pparams
                                 )
-                    _ -> Left InvalidDappRequest
+                    _ -> Left DappContextUnavailableError
         nodeOutputs <- case contextUTxO of
             InRecentEraConway (UTxO values) -> Right values
-            _ -> Left InvalidDappRequest
+            _ -> Left DappContextUnavailableError
         let pendingOutputs = Map.unions $ (.outputs) <$> capture.pending
             roleMap = foldl' addRoles mempty requested
             nodeSources =

@@ -57,6 +57,7 @@ import Cardano.Wallet.Api.Http.Shelley.TransactionContext
     , dependencySource
     , evaluateObligation
     , requiredProofs
+    , requireConwayNodeEra
     , scriptProofKinds
     , supportedCertificate
     , validatePendingProvenance
@@ -88,6 +89,9 @@ import Cardano.Wallet.Api.Types.Dapp.Context
     , encodeContextRecord
     , encodeContextToken
     , validateContextToken
+    )
+import Cardano.Wallet.Api.Types.Error
+    ( DappError (DappUnsupportedEraError)
     )
 import Cardano.Wallet.Flavor
     ( KeyFlavorS (ShelleyKeyS)
@@ -144,6 +148,17 @@ import qualified Data.Text.Encoding as T
 main :: IO ()
 main = hspec $ do
     describe "revision-1 transaction context" $ do
+        it "refuses non-Conway node eras before API-era conversion" $ do
+            requireConwayNodeEra (Read.EraValue Read.Conway)
+                `shouldBe` Right ()
+            forM_
+                [ Read.EraValue Read.Alonzo
+                , Read.EraValue Read.Babbage
+                , Read.EraValue Read.Dijkstra
+                ]
+                $ \era ->
+                    requireConwayNodeEra era
+                        `shouldBe` Left DappUnsupportedEraError
         it "classifies requested outputs without adding signer proofs" $ do
             let ownAddress = case knownAddresses reviewDiscovery of
                     (Address address, _, _) : _ -> address
