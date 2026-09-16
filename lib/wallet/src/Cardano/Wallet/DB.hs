@@ -137,9 +137,6 @@ import Control.Lens
 import Control.Monad
     ( join
     )
-import Data.Time.Clock
-    ( UTCTime
-    )
 import Control.Monad.IO.Class
     ( MonadIO
     , liftIO
@@ -303,31 +300,16 @@ data DBLayer m s = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
     , atomically
         :: forall a. stm a -> m a
     -- ^ Execute operations of the database in isolation and atomically.
-    -- | The durable wallet-scoped submission journal.
-    , insertDurableSubmission
-        :: DurableSubmission
-        -> [DurableSubmissionInput]
-        -> stm DurableSubmissionInsert
-    , updateDurableSubmission
-        :: DurableSubmission
-        -> stm ()
-    , claimDurableSubmissionAttempt
-        :: TxId
-        -> Word64
-        -> UTCTime
-        -> stm (Maybe DurableSubmission)
-    , readDurableSubmissions
-        :: stm [DurableSubmission]
     , atomicallyWithContextChange
         :: forall a. ContextChange -> stm a -> m a
     , atomicallyReadContext
         :: forall a. stm a -> m (a, ContextClock)
-    -- | The durable wallet-scoped submission journal. These operations share
-    -- the same database transaction boundary as context changes.
     , insertDurableSubmission
         :: DurableSubmission
         -> [DurableSubmissionInput]
         -> stm DurableSubmissionInsert
+    -- ^ The durable wallet-scoped submission journal. These operations share
+    -- the same database transaction boundary as context changes.
     , updateDurableSubmission
         :: DurableSubmission
         -> stm ()
@@ -456,25 +438,6 @@ data DBDurableSubmissions stm = DBDurableSubmissions
         :: stm [DurableSubmission]
     }
 
--- | Durable external-submission actions supplied by the concrete database.
-data DBDurableSubmissions stm = DBDurableSubmissions
-    { insertDurableSubmission_
-        :: DurableSubmission
-        -> [DurableSubmissionInput]
-        -> stm DurableSubmissionInsert
-    , updateDurableSubmission_
-        :: DurableSubmission
-        -> stm ()
-    , claimDurableSubmissionAttempt_
-        :: TxId
-        -> Word64
-        -> UTCTime
-        -> stm (Maybe DurableSubmission)
-    , readDurableSubmissions_
-        :: stm [DurableSubmission]
-    }
-
-
 {- HLINT ignore mkDBLayerFromParts "Avoid lambda" -}
 
 -- | Create a legacy 'DBLayer' from smaller database layers.
@@ -557,11 +520,6 @@ mkDBLayerFromParts ti wid_ DBLayerCollection{..} =
         , rollbackTo = rollbackTo_
         , getSchemaVersion = getSchemaVersion_
         , atomically = atomically_
-        , insertDurableSubmission = insertDurableSubmission_ durableSubmissions_
-        , updateDurableSubmission = updateDurableSubmission_ durableSubmissions_
-        , claimDurableSubmissionAttempt =
-            claimDurableSubmissionAttempt_ durableSubmissions_
-        , readDurableSubmissions = readDurableSubmissions_ durableSubmissions_
         , atomicallyWithContextChange = const atomically_
         , atomicallyReadContext = \action ->
             (\result -> (result, ContextClock 0 0 0 False)) <$> atomically_ action
