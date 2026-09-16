@@ -44,9 +44,14 @@ library
     , cardano-balance-tx
     , cardano-binary
     , cardano-crypto
+    , cardano-crypto-class
     , cardano-ledger-api
+    , cardano-ledger-alonzo
+    , cardano-ledger-allegra
     , cardano-ledger-binary
     , cardano-ledger-core
+    , cardano-ledger-conway
+    , cardano-ledger-mary
     , cardano-ledger-read
     , cardano-wallet
     , cardano-wallet-launcher
@@ -69,6 +74,7 @@ library
     , http-media
     , http-types
     , int-cast
+    , lens
     , memory
     , mtl
     , network-uri
@@ -107,6 +113,7 @@ library
     Cardano.Wallet.Api.Http.Server.Handlers.NetworkInformation
     Cardano.Wallet.Api.Http.Server.Handlers.TxCBOR
     Cardano.Wallet.Api.Http.Shelley.Server
+    Cardano.Wallet.Api.Http.Shelley.TransactionContext
     Cardano.Wallet.Api.Lib.ApiAsArray
     Cardano.Wallet.Api.Lib.ApiT
     Cardano.Wallet.Api.Lib.ExtendedObject
@@ -116,6 +123,7 @@ library
     Cardano.Wallet.Api.Types.Amount
     Cardano.Wallet.Api.Types.BlockHeader
     Cardano.Wallet.Api.Types.Certificate
+    Cardano.Wallet.Api.Types.Dapp.Context
     Cardano.Wallet.Api.Types.Era
     Cardano.Wallet.Api.Types.Error
     Cardano.Wallet.Api.Types.Key
@@ -128,3 +136,34 @@ library
     Cardano.Wallet.Api.Types.WalletAssets
 
   other-modules:   Paths_cardano_wallet_api
+
+test-suite dapp-context
+  import:             language
+  type:               exitcode-stdio-1.0
+  hs-source-dirs:     test
+  main-is:            dapp-context-test.hs
+  ghc-options:        -Wall
+  build-depends:
+    , address-derivation-discovery
+    , aeson
+    , base
+    , binary
+    , bytestring
+    , cardano-crypto-class
+    , cardano-ledger-allegra
+    , cardano-ledger-core
+    , cardano-ledger-conway
+    , cardano-ledger-read
+    , cardano-strict-containers
+    , cardano-wallet-api
+    , cardano-wallet
+    , cardano-wallet-primitive
+    , cardano-wallet-read
+    , cardano-wallet-secrets
+    , containers
+    , crypto-primitives
+    , hspec
+    , http-media
+    , memory
+    , servant
+    , text
