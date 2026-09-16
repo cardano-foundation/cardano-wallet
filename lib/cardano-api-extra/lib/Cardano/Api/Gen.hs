@@ -1,4 +1,5 @@
 {-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
@@ -1554,10 +1555,24 @@ genStakePoolParameters =
 genTxCertificate
     :: forall era
      . ShelleyBasedEra era
-    -> Gen (Exp.Certificate (Api.ShelleyLedgerEra era))
-genTxCertificate sbe =
-    Api.shelleyBasedEraConstraints sbe
-        $ oneof
+    -> Maybe (Gen (Exp.Certificate (Api.ShelleyLedgerEra era)))
+genTxCertificate = \case
+    ShelleyBasedEraShelley -> Just $ gen ShelleyBasedEraShelley
+    ShelleyBasedEraAllegra -> Just $ gen ShelleyBasedEraAllegra
+    ShelleyBasedEraMary -> Just $ gen ShelleyBasedEraMary
+    ShelleyBasedEraAlonzo -> Just $ gen ShelleyBasedEraAlonzo
+    ShelleyBasedEraBabbage -> Just $ gen ShelleyBasedEraBabbage
+    ShelleyBasedEraConway -> Just $ gen ShelleyBasedEraConway
+    ShelleyBasedEraDijkstra -> Nothing
+  where
+    gen
+        :: ( Ledger.ShelleyEraTxCert (Api.ShelleyLedgerEra era')
+           , Api.ShelleyBasedEraConstraints era'
+           )
+        => ShelleyBasedEra era'
+        -> Gen (Exp.Certificate (Api.ShelleyLedgerEra era'))
+    gen sbe =
+        oneof
             [ Compat.makeStakeAddressRegistrationCertificate
                 <$> genStakeRegistrationRequirements sbe
             , Compat.makeStakeAddressUnregistrationCertificate
@@ -1572,10 +1587,10 @@ genTxCertificate sbe =
                 <$> genPoolId
                 <*> genEpochNo
             ]
-  where
     genStakeRegistrationRequirements
-        :: ShelleyBasedEra era
-        -> Gen (Compat.StakeRegistrationRequirements era)
+        :: forall era'
+         . ShelleyBasedEra era'
+        -> Gen (Compat.StakeRegistrationRequirements era')
     genStakeRegistrationRequirements = \case
         ShelleyBasedEraShelley -> genStakeCredential
         ShelleyBasedEraAllegra -> genStakeCredential
@@ -1592,7 +1607,7 @@ genTxCertificate sbe =
                 <*> genCoin
 
     genDelegatee
-        :: ShelleyBasedEra era -> Gen (Compat.Delegatee era)
+        :: forall era'. ShelleyBasedEra era' -> Gen (Compat.Delegatee era')
     genDelegatee = \case
         ShelleyBasedEraShelley -> genPoolId
         ShelleyBasedEraAllegra -> genPoolId
@@ -1604,25 +1619,28 @@ genTxCertificate sbe =
 
 genTxCertificates
     :: CardanoEra era -> Gen (TxCertificates BuildTx era)
-genTxCertificates DijkstraEra = pure TxCertificatesNone
-genTxCertificates era = withEraWitness era $ \sbe -> do
-    let stakingCore =
-            (,)
-                <$> genStakeCredential
-                <*> genWitnessStake era
-        staking = BuildTxWith <$> oneof [pure Nothing, Just <$> stakingCore]
-        stakingCertificate = do
-            cert <- genTxCertificate sbe
-            stake <- staking
-            pure (cert, stake)
-        certificates =
-            scale (`div` 3)
-                $ TxCertificates sbe . OMap.fromList
-                    <$> listOf stakingCertificate
-    oneof
-        [ pure TxCertificatesNone
-        , certificates
-        ]
+genTxCertificates era = withEraWitness era $ \sbe ->
+    case genTxCertificate sbe of
+        Nothing -> pure TxCertificatesNone
+        Just certificate -> do
+            let stakingCore =
+                    (,)
+                        <$> genStakeCredential
+                        <*> genWitnessStake era
+                staking =
+                    BuildTxWith <$> oneof [pure Nothing, Just <$> stakingCore]
+                stakingCertificate =
+                    (,)
+                        <$> certificate
+                        <*> staking
+                certificates =
+                    scale (`div` 3)
+                        $ TxCertificates sbe . OMap.fromList
+                            <$> listOf stakingCertificate
+            oneof
+                [ pure TxCertificatesNone
+                , certificates
+                ]
 
 genProtocolParametersUpdate
     :: ShelleyToBabbageEra era -> Gen (EraBasedProtocolParametersUpdate era)
