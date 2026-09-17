@@ -39,6 +39,7 @@ module Cardano.Wallet.Address.Derivation
     , utxoInternal
     , mutableAccount
     , zeroAccount
+    , drepDerivationPath
     , stakeDerivationPath
     , DerivationType (..)
     , HardDerivation (..)
@@ -293,6 +294,19 @@ utxoInternal = toEnum $ fromEnum UtxoInternal
 -- key level (a.k.a mutable account)
 mutableAccount :: Index 'Soft 'RoleK
 mutableAccount = toEnum $ fromEnum MutableAccount
+
+-- | Full path to the fixed CIP-105 DRep key.
+drepDerivationPath :: DerivationPrefix -> NonEmpty DerivationIndex
+drepDerivationPath (DerivationPrefix (purpose, coin, acc)) =
+    fromIndex purpose
+        :| [ fromIndex coin
+           , fromIndex acc
+           , DerivationIndex 3
+           , DerivationIndex 0
+           ]
+  where
+    fromIndex :: Index t l -> DerivationIndex
+    fromIndex = DerivationIndex . getIndex
 
 zeroAccount :: Index 'Soft 'CredFromKeyK
 zeroAccount = minBound

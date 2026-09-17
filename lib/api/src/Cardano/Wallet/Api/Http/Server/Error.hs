@@ -22,6 +22,7 @@ module Cardano.Wallet.Api.Http.Server.Error
     , liftE
     , apiError
     , err425
+    , dappServerError
     , showT
     , handler
     )
@@ -126,8 +127,10 @@ import Cardano.Wallet.Api.Types
     , Iso8601Time (..)
     )
 import Cardano.Wallet.Api.Types.Error
-    ( ApiErrorBalanceTxUnderestimatedFee (..)
+    ( ApiError (..)
+    , ApiErrorBalanceTxUnderestimatedFee (..)
     , ApiErrorInfo (..)
+    , ApiErrorMessage (..)
     , ApiErrorMissingWitnessesInTransaction (..)
     , ApiErrorNoSuchPool (..)
     , ApiErrorNoSuchTransaction (..)
@@ -143,6 +146,7 @@ import Cardano.Wallet.Api.Types.Error
     , ApiErrorTxOutputLovelaceInsufficient (..)
     , ApiErrorUnsupportedEra (..)
     , ApiErrorWrongEncryptionPassphrase (..)
+    , DappError (..)
     )
 import Cardano.Wallet.Primitive.Ledger.Convert
     ( Convert (toWallet)
@@ -234,6 +238,41 @@ import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
+
+dappServerError :: DappError -> ServerError
+dappServerError = \case
+    InvalidDappRequest ->
+        fixed err400 DappInvalidRequest "Invalid backend request"
+    DappContextConflictError ->
+        fixed err400 DappContextConflict "Backend context conflict"
+    DappTxProofGenerationError ->
+        fixed err403 DappTxProofGeneration "Transaction proof unavailable"
+    DappDataProofGenerationError ->
+        fixed err403 DappDataProofGeneration "Data proof unavailable"
+    DappDataAddressNotPkError ->
+        fixed
+            err403
+            DappDataAddressNotPk
+            "Address is not a public-key credential"
+    DappAccountChangedError ->
+        fixed err409 DappAccountChanged "Wallet or network changed"
+    DappContextUnavailableError ->
+        fixed err503 DappContextUnavailable "Wallet context unavailable"
+    DappInternalErrorResponse ->
+        fixed err500 DappInternalError "Backend operation failed"
+    DappDeprecatedCertificateError ->
+        fixed err403 DappDeprecatedCertificate "Deprecated certificate"
+    DappIdentityConflictError ->
+        fixed err400 DappIdentityConflict "Submission identity conflict"
+    DappSubmissionFailedError ->
+        fixed err409 DappSubmissionFailed "Transaction submission failed"
+    DappSubmissionUnavailableError ->
+        fixed
+            err503
+            DappSubmissionUnavailable
+            "Transaction submission unavailable"
+  where
+    fixed status info message = apiError status info message
 
 instance IsServerError WalletException where
     toServerError = \case
@@ -875,7 +914,12 @@ instance IsServerError ErrSubmitTx where
     toServerError = \case
         ErrSubmitTxNetwork e -> toServerError e
         ErrSubmitTxImpossible e -> toServerError e
-
+        ErrSubmitTxIdentityConflict ->
+            dappServerError DappIdentityConflictError
+        ErrSubmitTxInputConflict ->
+            dappServerError DappContextConflictError
+        ErrSubmitTxOutcomeUnknown ->
+            dappServerError DappSubmissionUnavailableError
 instance IsServerError ErrUpdatePassphrase where
     toServerError = \case
         ErrUpdatePassphraseWithRootKey e -> toServerError e
@@ -1354,7 +1398,32 @@ instance IsServerError (ErrInvalidDerivationIndex 'Hardened level) where
 
 instance IsServerError (Request, ServerError) where
     toServerError (req, err@(ServerError code _ body _))
-        | not (isJSON body) = case code of
+        | isDappPath req && isAllowedDappError code body = err
+        | isDappSubmissionPath req && normalizeDappTransport code body =
+            apiError err (transportInfo code) "Invalid backend request"
+        | isDappSubmissionPath req && code == 503 =
+            dappServerError DappSubmissionUnavailableError
+        | isDappSubmissionPath req && isSubmissionBackendError body =
+            dappServerError $ case code of
+                400 -> InvalidDappRequest
+                _ -> DappSubmissionFailedError
+        | isDappSubmissionPath req && code == 400 =
+            apiError err BadRequest (utf8 body)
+        | isDappSubmissionPath req && code == 405 =
+            apiError err MethodNotAllowed
+                $ mconcat
+                    [ "You've reached a known endpoint but I don't know how to handle "
+                    , "the HTTP method specified. Please double-check both the "
+                    , "endpoint and the method: one of them is likely to be incorrect "
+                    , "(for example: POST instead of PUT, or GET instead of POST...)."
+                    ]
+        | isDappPath req && isStandardTransportError body = err
+        | isDappPath req && normalizeDappTransport code body =
+            dappServerError InvalidDappRequest
+        | isDappPath req =
+            dappServerError DappInternalErrorResponse
+        | isJSON body = err
+        | otherwise = case code of
             400
                 | "Failed reading" `BS.isInfixOf` BL.toStrict body ->
                     apiError err BadRequest
@@ -1429,10 +1498,66 @@ instance IsServerError (Request, ServerError) where
                         , "some information about what happened: "
                         , utf8 body
                         ]
-        | otherwise = err
       where
         utf8 = T.replace "\"" "'" . T.decodeUtf8 . BL.toStrict
         isJSON = isJust . Aeson.decode @Aeson.Value
+        isAllowedDappError status payload = case Aeson.decode @ApiError payload of
+            Just decodedError@(ApiError info (ApiErrorMessage message)) ->
+                Aeson.encode decodedError == payload
+                    && (status, info, message)
+                        `elem` [ (400, DappInvalidRequest, "Invalid backend request")
+                               , (400, DappContextConflict, "Backend context conflict")
+                               , (400, DappIdentityConflict, "Submission identity conflict")
+                               , (403, DappTxProofGeneration, "Transaction proof unavailable")
+                               , (403, DappDataProofGeneration, "Data proof unavailable")
+                               , (403, DappDataAddressNotPk, "Address is not a public-key credential")
+                               , (409, DappAccountChanged, "Wallet or network changed")
+                               , (409, DappSubmissionFailed, "Transaction submission failed")
+                               , (503, DappContextUnavailable, "Wallet context unavailable")
+                               , (503, DappSubmissionUnavailable, "Transaction submission unavailable")
+                               , (500, DappInternalError, "Backend operation failed")
+                               ]
+            Nothing -> False
+        isSubmissionBackendError payload =
+            isJSON payload && not (isStandardTransportError payload)
+        isStandardTransportError payload = case Aeson.decode @ApiError payload of
+            Just (ApiError info _) ->
+                info
+                    `elem` [ BadRequest
+                           , MethodNotAllowed
+                           , NotAcceptable
+                           , NotFound
+                           , UnsupportedMediaType
+                           ]
+            Nothing -> False
+        normalizeDappTransport status payload =
+            status `elem` [406, 415]
+                || ( status == 400
+                        && ( "Unexpected" `BS.isInfixOf` BL.toStrict payload
+                                || "Failed reading" `BS.isInfixOf` BL.toStrict payload
+                           )
+                   )
+        transportInfo = \case
+            406 -> NotAcceptable
+            415 -> UnsupportedMediaType
+            _ -> BadRequest
+        isDappPath = isTransactionContextPath
+        isDappSubmissionPath request = case pathInfo request of
+            "v2" : "wallets" : _walletId : "transaction-submission" : _ -> True
+            "wallets" : _walletId : "transaction-submission" : _ -> True
+            _ -> False
+        isTransactionContextPath request = case pathInfo request of
+            "v2" : "wallets" : _walletId : "transaction-submission" : _ -> True
+            "v2" : "wallets" : _walletId : "transaction-context" : _ -> True
+            "v2" : "wallets" : _walletId : "transaction-witnesses" : _ -> True
+            "v2" : "wallets" : _walletId : "data-signatures" : _ -> True
+            "v2" : "wallets" : _walletId : "cip95-key-state" : _ -> True
+            "wallets" : _walletId : "transaction-submission" : _ -> True
+            "wallets" : _walletId : "transaction-context" : _ -> True
+            "wallets" : _walletId : "transaction-witnesses" : _ -> True
+            "wallets" : _walletId : "data-signatures" : _ -> True
+            "wallets" : _walletId : "cip95-key-state" : _ -> True
+            _ -> False
 
 instance IsServerError WriteTx.ErrInvalidTxOutInEra where
     toServerError = \case

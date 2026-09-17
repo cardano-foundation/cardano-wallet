@@ -87,6 +87,17 @@ import Cardano.Wallet.Api.Types
     , PostTransactionOldDataT
     , WalletPutPassphraseData (..)
     )
+import Cardano.Wallet.Api.Types.Dapp.Context
+    ( ApiDappDataSignRequest
+    , ApiDappDataSignResponse
+    , ApiDappCip95KeyState
+    , ApiDappSubmissionRequest
+    , ApiDappSubmissionResponse
+    , ApiDappTransactionContextRequest
+    , ApiDappTransactionContextResponse
+    , ApiDappWitnessSignRequest
+    , ApiDappWitnessSignResponse
+    )
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema
     , toSimpleMetadataFlag
@@ -235,6 +246,25 @@ data TransactionClient = TransactionClient
         :: ApiT WalletId
         -> ApiSerialisedTransaction
         -> ClientM ApiTxId
+    , dappSubmission
+        :: ApiT WalletId
+        -> ApiDappSubmissionRequest
+        -> ClientM ApiDappSubmissionResponse
+    , transactionContext
+        :: ApiT WalletId
+        -> ApiDappTransactionContextRequest
+        -> ClientM ApiDappTransactionContextResponse
+    , dappWitnesses
+        :: ApiT WalletId
+        -> ApiDappWitnessSignRequest
+        -> ClientM ApiDappWitnessSignResponse
+    , dappDataSignature
+        :: ApiT WalletId
+        -> ApiDappDataSignRequest
+        -> ClientM ApiDappDataSignResponse
+    , dappCip95KeyState
+        :: ApiT WalletId
+        -> ClientM ApiDappCip95KeyState
     }
 
 data AddressClient = AddressClient
@@ -348,7 +378,12 @@ transactionClient =
             :<|> _postTransactionFee
             :<|> _balanceTransaction
             :<|> _decodeTransaction
-            :<|> _submitTransaction =
+            :<|> _submitTransaction
+            :<|> _dappSubmission
+            :<|> _transactionContext
+            :<|> _dappWitnesses
+            :<|> _dappDataSignature
+            :<|> _dappCip95KeyState =
                 client (Proxy @("v2" :> (ShelleyTransactions Aeson.Value)))
 
         _postExternalTransaction =
@@ -368,6 +403,11 @@ transactionClient =
             , balanceTransaction = _balanceTransaction
             , decodeTransaction = _decodeTransaction
             , submitTransaction = _submitTransaction
+            , dappSubmission = _dappSubmission
+            , transactionContext = _transactionContext
+            , dappWitnesses = _dappWitnesses
+            , dappDataSignature = _dappDataSignature
+            , dappCip95KeyState = _dappCip95KeyState
             }
 
 fromSerialisedTx :: ApiBytesT base SerialisedTx -> ApiT SealedTx
@@ -401,6 +441,16 @@ byronTransactionClient =
                 error "decode transaction endpoint not supported for byron"
             , submitTransaction =
                 error "submit transaction endpoint not supported for byron"
+            , transactionContext =
+                error "transaction context endpoint not supported for byron"
+            , dappSubmission =
+                error "dapp submission endpoint not supported for byron"
+            , dappWitnesses =
+                error "transaction witnesses endpoint not supported for byron"
+            , dappDataSignature =
+                error "data signatures endpoint not supported for byron"
+            , dappCip95KeyState =
+                error "CIP-95 key state endpoint not supported for byron"
             , signTransaction =
                 error "sign transaction endpoint not supported for byron"
             , constructTransaction =
