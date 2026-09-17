@@ -16,6 +16,7 @@ import Cardano.Wallet.Api
     , DecodeTransaction
     , DeleteTransaction
     , GetDRepSummary
+    , GetDappCip95KeyState
     , GetTransaction
     , InspectAddress
     , JoinStakePool
@@ -25,6 +26,9 @@ import Cardano.Wallet.Api
     , ListTransactions
     , MigrateShelleyWallet
     , PostAnyAddress
+    , PostDappDataSignature
+    , PostDappWitnesses
+    , PostTransactionContext
     , PostTransactionFeeOld
     , Proxy_
     , QuitStakePool
@@ -66,6 +70,15 @@ import Cardano.Wallet.Api.Types
     , PostTransactionOldData
     , WalletOrAccountPostData
     , WalletPutPassphraseData
+    )
+import Cardano.Wallet.Api.Types.Dapp.Context
+    ( ApiDappDataSignRequest
+    , ApiDappDataSignResponse
+    , ApiDappCip95KeyState
+    , ApiDappTransactionContextRequest
+    , ApiDappTransactionContextResponse
+    , ApiDappWitnessSignRequest
+    , ApiDappWitnessSignResponse
     )
 import Cardano.Wallet.Api.Types.Transaction
     ( ApiAddress
@@ -238,6 +251,33 @@ submitTransaction
     -> ClientM ApiTxId
 submitTransaction =
     client (Proxy @("v2" :> SubmitTransaction))
+
+transactionContext
+    :: ApiT WalletId
+    -> ApiDappTransactionContextRequest
+    -> ClientM ApiDappTransactionContextResponse
+transactionContext =
+    client (Proxy @("v2" :> PostTransactionContext))
+
+dappWitnesses
+    :: ApiT WalletId
+    -> ApiDappWitnessSignRequest
+    -> ClientM ApiDappWitnessSignResponse
+dappWitnesses =
+    client (Proxy @("v2" :> PostDappWitnesses))
+
+dappDataSignature
+    :: ApiT WalletId
+    -> ApiDappDataSignRequest
+    -> ClientM ApiDappDataSignResponse
+dappDataSignature =
+    client (Proxy @("v2" :> PostDappDataSignature))
+
+dappCip95KeyState
+    :: ApiT WalletId
+    -> ClientM ApiDappCip95KeyState
+dappCip95KeyState =
+    client (Proxy @("v2" :> GetDappCip95KeyState))
 
 postExternalTransaction
     :: ApiT SealedTx -> ClientM ApiTxId

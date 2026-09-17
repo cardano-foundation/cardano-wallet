@@ -7,6 +7,7 @@
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -76,12 +77,16 @@ import Cardano.Wallet.Checkpoints
     ( DeltaCheckpoints (..)
     )
 import Cardano.Wallet.DB
-    ( DBCheckpoints (..)
+    ( ContextChange (..)
+    , ContextClock (..)
+    , DBCheckpoints (..)
+    , DBDurableSubmissions (..)
     , DBFactory (..)
     , DBLayer (..)
     , DBLayerCollection (..)
     , DBLayerParams (..)
     , DBTxHistory (..)
+    , ErrContextAccountChanged (..)
     , ErrNoSuchWallet (..)
     , ErrNotGenesisBlockHeader (ErrNotGenesisBlockHeader)
     , ErrWalletAlreadyInitialized (ErrWalletAlreadyInitialized)
@@ -112,6 +117,7 @@ import Cardano.Wallet.DB.Sqlite.Schema
     )
 import Cardano.Wallet.DB.Sqlite.Types
     ( BlockId (..)
+    , DappSubmissionStatusEnum (..)
     , TxId (..)
     )
 import Cardano.Wallet.DB.Store.Checkpoints.Store
@@ -128,7 +134,8 @@ import Cardano.Wallet.DB.Store.Submissions.Layer
     ( rollBackSubmissions
     )
 import Cardano.Wallet.DB.Store.Submissions.Operations
-    ( submissionMetaFromTxMeta
+    ( DurableSubmission (..)
+    , submissionMetaFromTxMeta
     )
 import Cardano.Wallet.DB.Store.Transactions.Decoration
     ( TxInDecorator
@@ -197,7 +204,9 @@ import Control.Exception
     )
 import Control.Monad
     ( forM
+    , forM_
     , unless
+    , when
     )
 import Control.Monad.IO.Class
     ( MonadIO (..)
@@ -240,6 +249,7 @@ import Data.Text.Class
     )
 import Data.Word
     ( Word32
+    , Word64
     )
 import Database.Persist.Sql
     ( Entity (..)
@@ -273,13 +283,16 @@ import UnliftIO.Exception
     , tryJust
     )
 import UnliftIO.MVar
-    ( modifyMVar
+    ( MVar
+    , modifyMVar
     , modifyMVar_
     , newMVar
     , readMVar
+    , withMVar
     )
 import Prelude
 
+import qualified Cardano.Wallet.DB.Store.Submissions.Operations as Durable
 import qualified Cardano.Wallet.Delegation.Model as Dlgs
 import qualified Cardano.Wallet.Primitive.Model as W
 import qualified Cardano.Wallet.Primitive.Types as W
@@ -328,27 +341,32 @@ newDBFactory wf tr defaultFieldValues ti = \case
         -- called after using the database. In practice, this is only a problem
         -- for testing.
         mvar <- newMVar mempty
+        clocks <- newMVar mempty
         pure
             DBFactory
                 { withDatabaseLoad = \wid _action -> do
                     throw $ ErrNoSuchWallet wid
                 , withDatabaseBoot = \wid params action -> do
-                    db <- modifyMVar mvar $ \m -> case Map.lookup wid m of
-                        Just db -> pure (m, db)
+                    (db, created) <- modifyMVar mvar $ \m -> case Map.lookup wid m of
+                        Just db -> pure (m, (db, False))
                         Nothing -> do
                             let tr' = contramap (MsgWalletDB "") tr
                             (_cleanup, db) <-
                                 newBootDBLayerInMemory wf tr' ti wid params
-                            pure (Map.insert wid db m, db)
-                    action db
+                            pure (Map.insert wid db m, (db, True))
+                    when created $ reviveContextClock clocks wid
+                    withContextClock clocks wid action db
                 , removeDatabase = \wid -> do
                     traceWith tr $ MsgRemoving (pretty wid)
+                    advanceDeletedClock clocks wid
                     modifyMVar_ mvar (pure . Map.delete wid)
+                , markDatabaseDeleted = advanceDeletedClock clocks
                 , listDatabases =
                     Map.keys <$> readMVar mvar
                 }
     Just databaseDir -> do
         refs <- newRefCount
+        clocks <- newMVar mempty
         pure
             DBFactory
                 { withDatabaseLoad = \wid action ->
@@ -360,7 +378,7 @@ newDBFactory wf tr defaultFieldValues ti = \case
                             wid
                             (Just defaultFieldValues)
                             (databaseFile wid)
-                            action
+                            (withContextClock clocks wid action)
                 , withDatabaseBoot = \wid params action ->
                     withRef refs wid
                         $ withBootDBLayerFromFile
@@ -371,7 +389,9 @@ newDBFactory wf tr defaultFieldValues ti = \case
                             (Just defaultFieldValues)
                             params
                             (databaseFile wid)
-                            action
+                            ( \db ->
+                                reviveContextClock clocks wid >> withContextClock clocks wid action db
+                            )
                 , removeDatabase = \wid -> do
                     let widp = pretty wid
                     -- try to wait for all 'withDatabaseBoot' calls to finish before
@@ -385,7 +405,10 @@ newDBFactory wf tr defaultFieldValues ti = \case
                             $ MsgRemovingInUse widp inUse
                         traceWith tr $ MsgRemoving widp
                         let trDel = contramap (MsgRemovingDatabaseFile widp) tr
+                        advanceDeletedClock clocks wid
                         deleteSqliteDatabase trDel (databaseFile wid)
+                            `onException` reviveContextClock clocks wid
+                , markDatabaseDeleted = advanceDeletedClock clocks
                 , listDatabases =
                     findDatabases key tr databaseDir
                 }
@@ -398,6 +421,109 @@ newDBFactory wf tr defaultFieldValues ti = \case
                     <> "."
                     <> T.unpack (toText wid)
                     <> ".sqlite"
+
+withContextClock
+    :: MVar (Map.Map W.WalletId (MVar ContextClock))
+    -> W.WalletId
+    -> (DBLayer IO s -> IO a)
+    -> DBLayer IO s
+    -> IO a
+withContextClock clocks wid action db = do
+    clock <- contextClockFor clocks wid
+    incarnation <- contextIncarnation <$> readMVar clock
+    action $ decorateDBLayer incarnation clock db
+
+contextClockFor
+    :: MVar (Map.Map W.WalletId (MVar ContextClock))
+    -> W.WalletId
+    -> IO (MVar ContextClock)
+contextClockFor clocks wid = modifyMVar clocks $ \values -> case Map.lookup wid values of
+    Just clock -> pure (values, clock)
+    Nothing -> do
+        clock <- newMVar $ ContextClock 0 0 0 False
+        pure (Map.insert wid clock values, clock)
+
+decorateDBLayer
+    :: Word64 -> MVar ContextClock -> DBLayer IO s -> DBLayer IO s
+decorateDBLayer incarnation clock DBLayer{..} =
+    DBLayer
+        { atomically = \action -> withMVar clock $ \current -> do
+            ensureCurrent current
+            atomically action
+        , atomicallyWithContextChange = \change action ->
+            modifyMVar clock $ \before -> do
+                ensureCurrent before
+                after <-
+                    either (throwIO . userError) pure $ advanceClock change before
+                result <- atomically action
+                pure (after, result)
+        , atomicallyReadContext = \action ->
+            withMVar clock $ \current -> do
+                ensureCurrent current
+                (\result -> (result, current)) <$> atomically action
+        , ..
+        }
+  where
+    ensureCurrent current =
+        unless
+            ( contextIncarnation current == incarnation
+                && not (contextDeleted current)
+            )
+            $ throwIO ErrContextAccountChanged
+
+advanceDeletedClock
+    :: MVar (Map.Map W.WalletId (MVar ContextClock)) -> W.WalletId -> IO ()
+advanceDeletedClock clocks wid = do
+    clock <- contextClockFor clocks wid
+    modifyMVar_ clock $ \before -> do
+        if contextDeleted before
+            then pure before
+            else do
+                after <-
+                    either (throwIO . userError) pure
+                        $ advanceClock WalletAndPendingContextChange before
+                incarnation <-
+                    either (throwIO . userError) pure
+                        $ checkedIncrement
+                        $ contextIncarnation after
+                pure after{contextIncarnation = incarnation, contextDeleted = True}
+
+reviveContextClock
+    :: MVar (Map.Map W.WalletId (MVar ContextClock)) -> W.WalletId -> IO ()
+reviveContextClock clocks wid = do
+    clock <- contextClockFor clocks wid
+    modifyMVar_ clock $ \current -> pure current{contextDeleted = False}
+
+advanceClock
+    :: ContextChange -> ContextClock -> Either String ContextClock
+advanceClock
+    change
+    ContextClock
+        { walletGeneration
+        , pendingGeneration
+        , contextIncarnation
+        , contextDeleted
+        } =
+        ContextClock
+            <$> advanceWallet walletGeneration
+            <*> advancePending pendingGeneration
+            <*> pure contextIncarnation
+            <*> pure contextDeleted
+      where
+        checked = checkedIncrement
+        advanceWallet = case change of
+            WalletContextChange -> checked
+            WalletAndPendingContextChange -> checked
+            _ -> Right
+        advancePending = case change of
+            PendingContextChange -> checked
+            WalletAndPendingContextChange -> checked
+            _ -> Right
+
+checkedIncrement :: Word64 -> Either String Word64
+checkedIncrement value
+    | value == maxBound = Left "dApp context generation exhausted"
+    | otherwise = Right $ value + 1
 
 -- | Return all wallet databases that match the specified key type within the
 --   specified directory.
@@ -770,6 +896,14 @@ mkDBLayerCollection ti wid atomically_ walletState =
         , rollbackTo_
         , atomically_
         , transactionsStore_
+        , durableSubmissions_ =
+            DBDurableSubmissions
+                { insertDurableSubmission_ = Durable.insertOrClassifyDurableSubmission
+                , updateDurableSubmission_ = Durable.updateDurableSubmission
+                , claimDurableSubmissionAttempt_ =
+                    Durable.claimDurableSubmissionAttempt wid
+                , readDurableSubmissions_ = Durable.readDurableSubmissions wid
+                }
         }
   where
     transactionsQS = newQueryStoreTxWalletsHistory
@@ -829,6 +963,18 @@ mkDBLayerCollection ti wid atomically_ walletState =
             nearestPoint = currentTip ^. #slotNo
         updateS transactionsQS Nothing
             $ RollbackTxWalletsHistory nearestPoint
+        durable <- Durable.readDurableSubmissions wid
+        forM_ durable $ \row ->
+            when
+                ( durableStatus row == InLedgerDappE
+                    && maybe False (> nearestPoint) (durableAcceptance row)
+                )
+                $ Durable.updateDurableSubmission
+                    row
+                        { durableAuthorized = True
+                        , durableStatus = SubmittedE
+                        , durableAcceptance = Nothing
+                        }
         pure $ W.chainPointFromBlockHeader currentTip
 
     {-----------------------------------------------------------------------

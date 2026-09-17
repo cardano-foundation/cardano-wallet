@@ -24,6 +24,7 @@
 --     - In particular sections 4.1, 4.2, 4.6 and 4.8
 module Cardano.Wallet.Network.Implementation
     ( withNetworkLayer
+    , runBoundedQuery
     , NetworkParams (..)
     , Observer (query, startObserving, stopObserving)
     , newObserver
@@ -65,6 +66,8 @@ import Cardano.Wallet.Network
     ( ChainFollowLog (..)
     , ChainFollower
     , ChainSyncLog (..)
+    , DappTransactionContext (..)
+    , ErrDappTransactionContext (..)
     , ErrFetchBlock (..)
     , ErrPostTx (..)
     , NetworkLayer (..)
@@ -76,6 +79,7 @@ import Cardano.Wallet.Network.Implementation.Ouroboros
     ( FetchBlockCmd (..)
     , LSQ (..)
     , LocalStateQueryCmd (..)
+    , LocalStateQueryResult (..)
     , LocalTxSubmissionCmd (..)
     , PipeliningStrategy
     , chainSyncFetchNextBlock
@@ -530,6 +534,8 @@ withNodeNetworkLayerBase
                     _stakeDistribution queryRewardQ
                 , getUTxOByTxIn =
                     _getUTxOByTxIn queryRewardQ readCurrentNodeEra
+                , getDappTransactionContext =
+                    queryDappTransactionContext (handlers ClientDelegationRewards)
                 , getStakeDelegDeposits =
                     _getStakeDelegDeposits queryRewardQ
                 , getCachedRewardAccountBalance =
@@ -600,6 +606,23 @@ withNodeNetworkLayerBase
                 =<< async
                     (connectClient trRewardsClient handlers client versionData conn)
             pure q
+
+        queryDappTransactionContext retryHandlers point ins = do
+            q <- atomically newTQueue
+            let client = mkDelegationRewardsClient tr cfg q
+                trDappClient = MsgConnectionStatus ClientDelegationRewards >$< tr
+                runClient =
+                    connectClient
+                        trDappClient
+                        retryHandlers
+                        client
+                        versionData
+                        conn
+                query = _getDappTransactionContext q point ins
+            -- ponytail: isolate each bounded query; pool only if throughput matters.
+            runBoundedQuery (threadDelay 30_000_000) runClient query <&> \case
+                Just result -> result
+                Nothing -> Left ErrDappTransactionContextPointUnavailable
 
         runFetchBlockClient
             :: forall block
@@ -681,6 +704,23 @@ withNodeNetworkLayerBase
             | otherwise =
                 bracketQuery "getUTxOByTxIn" tr
                     $ queue `send` SomeLSQ (LSQ.getUTxOByTxIn ins)
+        _getDappTransactionContext queue point ins = do
+            result <-
+                bracketQuery "getDappTransactionContext" tr
+                    $ queue
+                        `send` SomeLSQAt
+                            (toOuroborosPoint point)
+                            (LSQ.getDappTransactionContext ins)
+            pure $ case result of
+                LocalStateQueryAcquireFailed ->
+                    Left ErrDappTransactionContextPointUnavailable
+                LocalStateQueryAcquired (era, pparams, utxo) ->
+                    Right
+                        DappTransactionContext
+                            { contextEra = era
+                            , contextProtocolParameters = pparams
+                            , contextUTxO = utxo
+                            }
         _getStakeDelegDeposits queue creds
             | creds == mempty = mempty
             | otherwise =
@@ -768,6 +808,12 @@ consensusGenTxFromTxRecent (Read.Tx tx) = case Read.theEra @era of
             $ Consensus.GenTxConway
             $ Consensus.ShelleyTx (txIdTx tx) tx
     era -> Left $ ErrPostTxEraUnsupported (Read.EraValue era)
+
+runBoundedQuery :: IO () -> IO () -> IO a -> IO (Maybe a)
+runBoundedQuery timeout runClient query =
+    race timeout (race runClient query) <&> \case
+        Right (Right result) -> Just result
+        _ -> Nothing
 
 {-------------------------------------------------------------------------------
     NetworkClient
