@@ -1,10 +1,13 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE ExplicitNamespaces #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -43,7 +46,28 @@ import Cardano.Crypto.DSIGN.Class
     ( rawDeserialiseVerKeyDSIGN
     )
 import Cardano.Ledger.Alonzo.Core
-    ( reqSignerHashesTxBodyL
+    ( isValidTxL
+    , reqSignerHashesTxBodyL
+    )
+import Cardano.Ledger.Api
+    ( Datum (..)
+    , bodyTxL
+    , collateralInputsTxBodyL
+    , datumTxOutL
+    , feeTxBodyL
+    , hashBinaryData
+    , inputsTxBodyL
+    , makeBinaryData
+    , outputsTxBodyL
+    , referenceInputsTxBodyL
+    , referenceScriptTxOutL
+    , scriptTxWitsL
+    , witsTxL
+    , pattern IsValid
+    )
+import Cardano.Ledger.BaseTypes
+    ( StrictMaybe (..)
+    , TxIx (..)
     )
 import Cardano.Mnemonic
     ( SomeMnemonic (..)
@@ -79,6 +103,7 @@ import Cardano.Wallet.Api.Types
     , ApiAddressWithPath (..)
     , ApiAnyCertificate (..)
     , ApiAssetMintBurn (..)
+    , ApiBalanceTransactionPostData (..)
     , ApiCertificate (..)
     , ApiCoinSelection (withdrawals)
     , ApiConstructTransaction (..)
@@ -113,6 +138,23 @@ import Cardano.Wallet.Api.Types.Amount
 import Cardano.Wallet.Api.Types.Certificate
     ( ApiRewardAccount (..)
     )
+import Cardano.Wallet.Api.Types.Dapp.Context
+    ( ApiDappConflict (..)
+    , ApiDappContextNetwork (..)
+    , ApiDappContextOutput (..)
+    , ApiDappCredentialKind (..)
+    , ApiDappDependency (ApiDappDependency)
+    , ApiDappHex (..)
+    , ApiDappOutpoint (..)
+    , ApiDappOwnership (..)
+    , ApiDappOwnershipKind (..)
+    , ApiDappProofKind (..)
+    , ApiDappProvenance (..)
+    , ApiDappRequiredWalletProof (..)
+    , ApiDappRole (..)
+    , ApiDappTransactionContextRequest (..)
+    , ApiDappTransactionContextResponse
+    )
 import Cardano.Wallet.Api.Types.Era
     ( ApiEra (..)
     )
@@ -146,6 +188,9 @@ import Cardano.Wallet.Faucet
 import Cardano.Wallet.Flavor
     ( KeyFlavorS (..)
     )
+import Cardano.Wallet.Launch.Cluster
+    ( TestnetMagic (testnetMagicToNatural)
+    )
 import Cardano.Wallet.Pools
     ( StakePool
     )
@@ -157,6 +202,8 @@ import Cardano.Wallet.Primitive.Passphrase
     )
 import Cardano.Wallet.Primitive.Types
     ( EpochNo (..)
+    , GenesisParameters (getGenesisBlockHash)
+    , NetworkParameters (..)
     , NonWalletCertificate (..)
     , SlotNo (..)
     )
@@ -196,6 +243,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxMetadata (..)
     , TxMetadataValue (..)
     , TxScriptValidity (..)
+    , sealedTxFromLedgerTx
     )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..)
@@ -225,6 +273,7 @@ import Control.Arrow
 import Control.Monad
     ( foldM_
     , forM_
+    , when
     )
 import Control.Monad.IO.Unlift
     ( MonadIO (..)
@@ -253,6 +302,9 @@ import Data.ByteArray.Encoding
     , convertFromBase
     , convertToBase
     )
+import Data.Foldable
+    ( toList
+    )
 import Data.Function
     ( (&)
     )
@@ -260,7 +312,8 @@ import Data.Functor
     ( (<&>)
     )
 import Data.Generics.Internal.VL.Lens
-    ( view
+    ( set
+    , view
     , (^.)
     )
 import Data.Generics.Wrapped
@@ -366,17 +419,25 @@ import Test.Integration.Framework.DSL
     , (.<)
     , (.>)
     )
+import UnliftIO.Directory
+    ( renameFile
+    )
 import UnliftIO.Exception
-    ( fromEither
+    ( bracket_
+    , fromEither
     )
 import Prelude
 
 import qualified Cardano.Address.KeyHash as CA
 import qualified Cardano.Api as Cardano
+import qualified Cardano.Ledger.Coin as LedgerCoin
 import qualified Cardano.Ledger.Keys as Ledger
+import qualified Cardano.Ledger.TxIn as LedgerTxIn
+import qualified Cardano.Read.Ledger.Tx.CBOR as TxCBOR
 import qualified Cardano.Read.Ledger.Tx.Metadata as Meta
     ( getEraMetadata
     )
+import qualified Cardano.Read.Ledger.Tx.Tx as LedgerTx
 import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Cardano.Wallet.Api.Types.Amount as ApiAmount
@@ -390,9 +451,11 @@ import qualified Cardano.Wallet.Primitive.Types.Tx.TxMetadata as W
     ( metadataValueToJsonNoSchema
     )
 import qualified Cardano.Wallet.Read as Read
+import qualified Cardano.Wallet.Read.Hash as ReadHash
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString.Lazy as BL
+import qualified Data.ByteString.Short as SBS
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Percentage as Percentage
@@ -930,6 +993,541 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             [ expectResponseCode HTTP.status202
             , expectField #withdrawals (`shouldSatisfy` (withdrawalWith External))
             ]
+
+    it "TASK_201 - resolves a Conway transaction context over HTTP" $ \ctx ->
+        runResourceT $ do
+            when (_mainEra ctx /= ApiConway) $ liftIO $ pendingWith "Conway only"
+            wa <- fixtureWallet ctx
+            wb <- emptyWallet ctx
+            featureWallet <- fixtureWallet ctx
+            addresses <- listAddresses @n ctx wb
+            let destination = (addresses !! 1) ^. #id
+                amount = 10_000_000 :: Natural
+                policyPayload =
+                    Json
+                        [json|{
+                            "policy_script_template":
+                                { "all": [ "cosigner#0" ] }
+                        }|]
+            policyResponse <-
+                request @ApiPolicyId
+                    ctx
+                    (Link.postPolicyId @'Shelley featureWallet)
+                    Default
+                    policyPayload
+            verify policyResponse [expectResponseCode HTTP.status202]
+            let ApiPolicyId (ApiT policyId) = getResponse policyResponse
+                featurePayload =
+                    Json
+                        [json|{
+                            "reference_policy_script_template":
+                                { "all": [ "cosigner#0" ] },
+                            "payments": [
+                                { "address": #{destination}, "amount": { "quantity": #{amount}, "unit": "lovelace" } },
+                                { "address": #{destination}, "amount": { "quantity": #{amount}, "unit": "lovelace" } },
+                                { "address": #{destination}, "amount": { "quantity": #{amount}, "unit": "lovelace" } }
+                            ]
+                        }|]
+            featureConstructed <-
+                request @(ApiConstructTransaction n)
+                    ctx
+                    (Link.createUnsignedTransaction @'Shelley featureWallet)
+                    Default
+                    featurePayload
+            verify featureConstructed [expectResponseCode HTTP.status202]
+
+            let sealedTx response =
+                    getApiT
+                        $ getFromResponse
+                            (#transaction . #serialisedTxSealed)
+                            response
+                decodeSealed sealed =
+                    either
+                        (fail . show)
+                        pure
+                        $ TxCBOR.deserializeTxWithOutputBytes @Read.Conway
+                        $ BL.fromStrict
+                        $ serialisedTx
+                            sealed
+            TxCBOR.TxWithOutputBytes{transaction = featureTx} <-
+                liftIO $ decodeSealed $ sealedTx featureConstructed
+            datum <-
+                liftIO
+                    $ either fail pure
+                    $ makeBinaryData
+                    $ SBS.toShort "\x18\x2a"
+            let LedgerTx.Tx featureLedgerTx = featureTx
+                featureOutputs = toList $ featureLedgerTx ^. bodyTxL . outputsTxBodyL
+                modifiedOutputs = case featureOutputs of
+                    referenceOutput : datumHashOutput : inlineDatumOutput : rest ->
+                        referenceOutput
+                            : set datumTxOutL (DatumHash $ hashBinaryData datum) datumHashOutput
+                            : set datumTxOutL (Datum datum) inlineDatumOutput
+                            : rest
+                    _ -> error "expected three feature outputs"
+                modifiedTx :: Read.Tx Read.Conway
+                modifiedTx =
+                    LedgerTx.Tx
+                        $ set
+                            (bodyTxL . outputsTxBodyL)
+                            (fromList modifiedOutputs)
+                            featureLedgerTx
+                ApiSerialisedTransaction _ encoding =
+                    getFromResponse #transaction featureConstructed
+                balancePayload =
+                    Json
+                        $ toJSON
+                        $ ApiBalanceTransactionPostData @n
+                            (ApiT $ sealedTxFromLedgerTx modifiedTx)
+                            []
+                            []
+                            (Just encoding)
+            balanced <-
+                request @ApiSerialisedTransaction
+                    ctx
+                    (Link.balanceTransaction @'Shelley featureWallet)
+                    Default
+                    balancePayload
+            verify balanced [expectResponseCode HTTP.status202]
+            let balancedSealed = getFromResponse #serialisedTxSealed balanced
+            TxCBOR.TxWithOutputBytes
+                { transaction = balancedTx
+                , outputsWithBytes = balancedOutputBytes
+                } <-
+                liftIO $ decodeSealed $ getApiT balancedSealed
+            let LedgerTx.Tx balancedLedgerTx = balancedTx
+                balancedOutputs = toList $ balancedLedgerTx ^. bodyTxL . outputsTxBodyL
+            liftIO $ do
+                view referenceScriptTxOutL (balancedOutputs !! 0)
+                    `shouldNotBe` SNothing
+                view datumTxOutL (balancedOutputs !! 1)
+                    `shouldBe` DatumHash (hashBinaryData datum)
+                view datumTxOutL (balancedOutputs !! 2)
+                    `shouldBe` Datum datum
+
+            signed <-
+                signTx
+                    ctx
+                    featureWallet
+                    balancedSealed
+                    [expectResponseCode HTTP.status202]
+            submitted <- submitTxWithWid ctx featureWallet signed
+            verify submitted [expectSuccess, expectResponseCode HTTP.status202]
+            let submittedId = getFromResponse #id submitted
+            eventually "feature outputs are in the ledger" $ do
+                confirmed <-
+                    request @(ApiTransaction n)
+                        ctx
+                        (Link.getTransaction @'Shelley featureWallet (ApiTxId submittedId))
+                        Default
+                        Empty
+                verify
+                    confirmed
+                    [expectField (#status . #getApiT) (`shouldBe` InLedger)]
+
+            let referenceScriptInput =
+                    ReferenceInput $ TxIn (getApiT submittedId) 0
+                Right assetName = AssetName.fromByteString "task202"
+                mintPayload =
+                    Json
+                        [json|{
+                            "mint_burn": [{
+                                "policy_id": #{toText policyId},
+                                "reference_input": #{toJSON referenceScriptInput},
+                                "asset_name": #{toText assetName},
+                                "operation": {
+                                    "mint": {
+                                        "receiving_address": #{destination},
+                                        "quantity": 1
+                                    }
+                                }
+                            }]
+                        }|]
+            contextConstructed <-
+                request @(ApiConstructTransaction n)
+                    ctx
+                    (Link.createUnsignedTransaction @'Shelley featureWallet)
+                    Default
+                    mintPayload
+            verify contextConstructed [expectResponseCode HTTP.status202]
+            TxCBOR.TxWithOutputBytes{transaction = contextBaseTx} <-
+                liftIO $ decodeSealed $ sealedTx contextConstructed
+            let featureTxId = Read.getTxId balancedTx
+                normalInput = LedgerTxIn.TxIn featureTxId (TxIx 1)
+                collateralInput = LedgerTxIn.TxIn featureTxId (TxIx 2)
+                referenceInput = LedgerTxIn.TxIn featureTxId (TxIx 0)
+                LedgerTx.Tx ledgerTx = contextBaseTx
+                contextTx :: Read.Tx Read.Conway
+                contextTx =
+                    LedgerTx.Tx
+                        $ set
+                            (bodyTxL . inputsTxBodyL)
+                            (Set.singleton normalInput)
+                        $ set
+                            (bodyTxL . collateralInputsTxBodyL)
+                            (Set.singleton collateralInput)
+                        $ set
+                            (bodyTxL . referenceInputsTxBodyL)
+                            (Set.singleton referenceInput)
+                            ledgerTx
+            liftIO $ view (witsTxL . scriptTxWitsL) ledgerTx `shouldBe` mempty
+
+            let contextBytes =
+                    BL.toStrict $ TxCBOR.serializeTx contextTx
+                NetworkParameters genesis _ _ = _networkParameters ctx
+                Hash genesisHashBytes = getGenesisBlockHash genesis
+                contextNetwork =
+                    ApiDappContextNetwork
+                        0
+                        (fromIntegral $ testnetMagicToNatural $ _testnetMagic ctx)
+                        (ApiDappHex genesisHashBytes)
+                contextRequest =
+                    ApiDappTransactionContextRequest
+                        1
+                        contextNetwork
+                        [ApiDappHex contextBytes]
+
+            response <-
+                request @ApiDappTransactionContextResponse
+                    ctx
+                    (Link.transactionContext wa)
+                    Default
+                    (Json $ toJSON contextRequest)
+            let outputBytes index =
+                    BL.toStrict
+                        $ snd
+                        $ balancedOutputBytes !! fromIntegral index
+                hasForeignOutput role expectedIndex =
+                    any
+                        ( \ApiDappContextOutput
+                            { outpoint = ApiDappOutpoint{index}
+                            , sourceTransactionOutputCbor
+                            , roles
+                            , provenance
+                            , walletMember
+                            } ->
+                                role `elem` roles
+                                    && index == expectedIndex
+                                    && sourceTransactionOutputCbor
+                                        == ApiDappHex (outputBytes expectedIndex)
+                                    && provenance == [Node]
+                                    && not walletMember
+                        )
+                hasReferencePolicy = any $ \case
+                    ApiDappOwnership
+                        { credentialKind = PolicyCredential
+                        , ownership = ScriptOwned
+                        , proofKinds
+                        } -> PolicyProof `elem` proofKinds
+                    _ -> False
+            verify
+                response
+                [ expectResponseCode HTTP.status200
+                , expectField #revision (`shouldBe` 1)
+                , expectField #walletId (`shouldBe` toText (getApiT $ wa ^. #id))
+                , expectField #network (`shouldBe` contextNetwork)
+                , expectField #era (`shouldBe` "conway")
+                , expectField #outputs (`shouldSatisfy` (not . null))
+                , expectField #records (`shouldSatisfy` (not . null))
+                , expectField #outputs (`shouldSatisfy` hasForeignOutput Normal 1)
+                , expectField #outputs (`shouldSatisfy` hasForeignOutput Collateral 2)
+                , expectField #outputs (`shouldSatisfy` hasForeignOutput Reference 0)
+                , expectField #ownership (`shouldSatisfy` hasReferencePolicy)
+                ]
+
+            policyOwnerResponse <-
+                request @ApiDappTransactionContextResponse
+                    ctx
+                    (Link.transactionContext featureWallet)
+                    Default
+                    (Json $ toJSON contextRequest)
+            let hasOwnedPolicyLeaf =
+                    any
+                        ( \ApiDappOwnership
+                            { credentialKind
+                            , ownership
+                            , derivationPath
+                            , proofKinds
+                            } ->
+                                credentialKind == PolicyCredential
+                                    && ownership == OwnedKey
+                                    && derivationPath
+                                        == [0x8000073f, 0x80000717, 0x80000000]
+                                    && PolicyProof `elem` proofKinds
+                        )
+                hasRequiredPolicy =
+                    any
+                        ( \ApiDappRequiredWalletProof
+                            { proofKind
+                            , credentialKind
+                            , required
+                            } ->
+                                proofKind == PolicyProof
+                                    && credentialKind == PolicyCredential
+                                    && required
+                        )
+            verify
+                policyOwnerResponse
+                [ expectResponseCode HTTP.status200
+                , expectField #ownership (`shouldSatisfy` hasOwnedPolicyLeaf)
+                , expectField #requiredWalletProofs (`shouldSatisfy` hasRequiredPolicy)
+                ]
+
+            ownedResponse <-
+                request @ApiDappTransactionContextResponse
+                    ctx
+                    (Link.transactionContext wb)
+                    Default
+                    (Json $ toJSON contextRequest)
+            let ownedCredentials =
+                    [ credential
+                    | ApiDappOwnership
+                        { credentialKind = PaymentCredential
+                        , credential
+                        , ownership = OwnedKey
+                        , derivationPath = [0x8000073c, 0x80000717, 0x80000000, 0, 1]
+                        , proofKinds
+                        } <-
+                        getFromResponse #ownership ownedResponse
+                    , NormalInputProof `elem` proofKinds
+                    , CollateralProof `elem` proofKinds
+                    ]
+            ownedCredential <- case ownedCredentials of
+                credential : _ -> pure credential
+                [] -> fail "expected owned payment credential evidence"
+            let hasRequiredProof proof =
+                    any
+                        ( \ApiDappRequiredWalletProof
+                            { transactionIndex
+                            , proofKind
+                            , credentialKind
+                            , credential
+                            , required
+                            } ->
+                                transactionIndex == 0
+                                    && proofKind == proof
+                                    && credentialKind == PaymentCredential
+                                    && credential == ownedCredential
+                                    && required
+                        )
+            verify
+                ownedResponse
+                [ expectResponseCode HTTP.status200
+                , expectField
+                    #requiredWalletProofs
+                    (`shouldSatisfy` hasRequiredProof NormalInputProof)
+                , expectField
+                    #requiredWalletProofs
+                    (`shouldSatisfy` hasRequiredProof CollateralProof)
+                ]
+
+            witnessPayload <-
+                liftIO $ mkTxPayload ctx wa (minUTxOValue ApiConway) 1
+            witnessConstructed <-
+                request @(ApiConstructTransaction n)
+                    ctx
+                    (Link.createUnsignedTransaction @'Shelley wb)
+                    Default
+                    witnessPayload
+            verify witnessConstructed [expectResponseCode HTTP.status202]
+            signedContext <-
+                signTx
+                    ctx
+                    wb
+                    (ApiT $ sealedTx witnessConstructed)
+                    [expectResponseCode HTTP.status202]
+            let ApiSerialisedTransaction signedSealed _ = signedContext
+                signedContextBytes = serialisedTx $ getApiT signedSealed
+                signedRequest =
+                    contextRequest
+                        { transactions = [ApiDappHex signedContextBytes]
+                        }
+                hasNormalRequirement expected =
+                    any
+                        ( \ApiDappRequiredWalletProof
+                            { proofKind
+                            , credentialKind
+                            , required
+                            } ->
+                                proofKind == NormalInputProof
+                                    && credentialKind == PaymentCredential
+                                    && required == expected
+                        )
+            signedContextResponse <-
+                request @ApiDappTransactionContextResponse
+                    ctx
+                    (Link.transactionContext wb)
+                    Default
+                    (Json $ toJSON signedRequest)
+            verify
+                signedContextResponse
+                [ expectResponseCode HTTP.status200
+                , expectField
+                    #requiredWalletProofs
+                    (`shouldSatisfy` hasNormalRequirement False)
+                ]
+
+            TxCBOR.TxWithOutputBytes{transaction = Read.Tx signedLedgerTx} <-
+                liftIO $ decodeSealed $ getApiT signedSealed
+            let LedgerCoin.Coin signedFee = view (bodyTxL . feeTxBodyL) signedLedgerTx
+                wrongBodyTx :: Read.Tx Read.Conway
+                wrongBodyTx =
+                    LedgerTx.Tx
+                        $ set
+                            (bodyTxL . feeTxBodyL)
+                            (LedgerCoin.Coin $ signedFee + 1)
+                            signedLedgerTx
+                wrongBodyRequest =
+                    contextRequest
+                        { transactions =
+                            [ ApiDappHex
+                                $ BL.toStrict
+                                $ TxCBOR.serializeTx wrongBodyTx
+                            ]
+                        }
+            wrongBodyResponse <-
+                request @ApiDappTransactionContextResponse
+                    ctx
+                    (Link.transactionContext wb)
+                    Default
+                    (Json $ toJSON wrongBodyRequest)
+            verify
+                wrongBodyResponse
+                [ expectResponseCode HTTP.status200
+                , expectField
+                    #requiredWalletProofs
+                    (`shouldSatisfy` hasNormalRequirement True)
+                ]
+
+            let contextTxId = Read.getTxId contextTx
+                earlierInput = LedgerTxIn.TxIn contextTxId (TxIx 0)
+                earlierOutpoint =
+                    ApiDappOutpoint
+                        (ApiDappHex $ ReadHash.hashToBytes $ Read.hashFromTxId contextTxId)
+                        0
+                normalOutpoint =
+                    ApiDappOutpoint
+                        (ApiDappHex $ ReadHash.hashToBytes $ Read.hashFromTxId featureTxId)
+                        1
+                LedgerTx.Tx contextLedgerTx = contextTx
+                childTx :: Read.Tx Read.Conway
+                childTx =
+                    LedgerTx.Tx
+                        $ set
+                            (bodyTxL . inputsTxBodyL)
+                            (Set.singleton earlierInput)
+                        $ set
+                            (bodyTxL . collateralInputsTxBodyL)
+                            (Set.singleton normalInput)
+                        $ set
+                            (bodyTxL . referenceInputsTxBodyL)
+                            (Set.singleton referenceInput)
+                            contextLedgerTx
+                childBytes = BL.toStrict $ TxCBOR.serializeTx childTx
+                batchRequest =
+                    contextRequest
+                        { transactions =
+                            [ApiDappHex contextBytes, ApiDappHex childBytes]
+                        }
+                hasEarlierOutput =
+                    any
+                        ( \ApiDappContextOutput
+                            { outpoint
+                            , roles
+                            , provenance
+                            } ->
+                                outpoint == earlierOutpoint
+                                    && Normal `elem` roles
+                                    && Earlier `elem` provenance
+                        )
+                hasEarlierDependency =
+                    any
+                        ( \( ApiDappDependency
+                                transactionIndex
+                                inputRole
+                                outpoint
+                                source
+                                sourceTransactionIndex
+                            ) ->
+                                transactionIndex == 1
+                                    && inputRole == Normal
+                                    && outpoint == earlierOutpoint
+                                    && source == Earlier
+                                    && sourceTransactionIndex == Just 0
+                        )
+                hasCollateralConflict =
+                    any
+                        ( \ApiDappConflict
+                            { transactionIndex
+                            , inputRole
+                            , outpoint
+                            , earlierTransactionIndex
+                            } ->
+                                transactionIndex == 1
+                                    && inputRole == Collateral
+                                    && outpoint == normalOutpoint
+                                    && earlierTransactionIndex == 0
+                        )
+            batchResponse <-
+                request @ApiDappTransactionContextResponse
+                    ctx
+                    (Link.transactionContext wb)
+                    Default
+                    (Json $ toJSON batchRequest)
+            verify
+                batchResponse
+                [ expectResponseCode HTTP.status200
+                , expectField #outputs (`shouldSatisfy` hasEarlierOutput)
+                , expectField
+                    (#batchOverlay . #dependencies)
+                    (`shouldSatisfy` hasEarlierDependency)
+                , expectField
+                    (#batchOverlay . #conflicts)
+                    (`shouldSatisfy` hasCollateralConflict)
+                ]
+
+            let invalidTx :: Read.Tx Read.Conway
+                invalidTx =
+                    LedgerTx.Tx
+                        $ set isValidTxL (IsValid False) contextLedgerTx
+                invalidRequest =
+                    contextRequest
+                        { transactions =
+                            [ ApiDappHex
+                                $ BL.toStrict
+                                $ TxCBOR.serializeTx invalidTx
+                            ]
+                        }
+            invalidResponse <-
+                request @ApiDappTransactionContextResponse
+                    ctx
+                    (Link.transactionContext wb)
+                    Default
+                    (Json $ toJSON invalidRequest)
+            verify
+                invalidResponse
+                [ expectResponseCode HTTP.status400
+                , expectErrorInfo (`shouldBe` DappInvalidRequest)
+                ]
+
+            let socket = _nodeSocketPath ctx
+                unavailableSocket = socket <> ".task-201-unavailable"
+            unavailable <-
+                liftIO
+                    $ bracket_
+                        (renameFile socket unavailableSocket)
+                        (renameFile unavailableSocket socket)
+                    $ request @ApiDappTransactionContextResponse
+                        ctx
+                        (Link.transactionContext wa)
+                        Default
+                        (Json $ toJSON contextRequest)
+            verify
+                unavailable
+                [ expectResponseCode HTTP.status503
+                , expectErrorInfo (`shouldBe` DappContextUnavailable)
+                , expectErrorMessage "Wallet context unavailable"
+                ]
 
     it
         "TRANS_NEW_CREATE_04a - Single Output Transaction with decode transaction"
