@@ -60,6 +60,11 @@ module Cardano.Wallet.Api
     , BalanceTransaction
     , DecodeTransaction
     , SubmitTransaction
+    , PostDappSubmission
+    , PostTransactionContext
+    , PostDappWitnesses
+    , PostDappDataSignature
+    , GetDappCip95KeyState
     , StakePools
     , ListStakePools
     , JoinStakePool
@@ -243,6 +248,18 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Api.Types.BlockHeader
     ( ApiBlockHeader
+    )
+import Cardano.Wallet.Api.Types.Dapp.Context
+    ( ApiDappDataSignRequest
+    , ApiDappDataSignResponse
+    , ApiDappCip95KeyState
+    , ApiDappSubmissionRequest
+    , ApiDappSubmissionResponse
+    , ApiDappTransactionContextRequest
+    , ApiDappTransactionContextResponse
+    , ApiDappWitnessSignRequest
+    , ApiDappWitnessSignResponse
+    , DappJSON
     )
 import Cardano.Wallet.Api.Types.Transaction
     ( ApiLimit
@@ -627,6 +644,44 @@ type ShelleyTransactions n =
         :<|> BalanceTransaction n
         :<|> DecodeTransaction n
         :<|> SubmitTransaction
+        :<|> PostDappSubmission
+        :<|> PostTransactionContext
+        :<|> PostDappWitnesses
+        :<|> PostDappDataSignature
+        :<|> GetDappCip95KeyState
+type PostDappSubmission =
+    "wallets"
+        :> Capture "walletId" (ApiT WalletId)
+        :> "transaction-submission"
+        :> ReqBody '[DappJSON] ApiDappSubmissionRequest
+        :> Post '[DappJSON] ApiDappSubmissionResponse
+
+type PostTransactionContext =
+    "wallets"
+        :> Capture "walletId" (ApiT WalletId)
+        :> "transaction-context"
+        :> ReqBody '[DappJSON] ApiDappTransactionContextRequest
+        :> Post '[DappJSON] ApiDappTransactionContextResponse
+
+type PostDappWitnesses =
+    "wallets"
+        :> Capture "walletId" (ApiT WalletId)
+        :> "transaction-witnesses"
+        :> ReqBody '[DappJSON] ApiDappWitnessSignRequest
+        :> Post '[DappJSON] ApiDappWitnessSignResponse
+
+type PostDappDataSignature =
+    "wallets"
+        :> Capture "walletId" (ApiT WalletId)
+        :> "data-signatures"
+        :> ReqBody '[DappJSON] ApiDappDataSignRequest
+        :> Post '[DappJSON] ApiDappDataSignResponse
+
+type GetDappCip95KeyState =
+    "wallets"
+        :> Capture "walletId" (ApiT WalletId)
+        :> "cip95-key-state"
+        :> Get '[DappJSON] ApiDappCip95KeyState
 
 -- | https://cardano-foundation.github.io/cardano-wallet/api/#operation/constructTransaction
 type ConstructTransaction n =
@@ -1398,20 +1453,22 @@ data ApiLayer s
     , _workerRegistry :: WorkerRegistry WalletId (DBLayer IO s)
     , concierge :: Concierge IO WalletLock
     , _tokenMetadataClient :: TokenMetadataClient IO
+    , dappProcessGeneration :: !ByteString
+    , dappHmacKey :: !ByteString
     }
     deriving (Generic)
 
 -- | Locks that are held by the wallet in order to enforce
 -- sequential execution of some API actions.
 -- Used with "Control.Concurrent.Concierge".
-data WalletLock = PostTransactionOld WalletId
+data WalletLock = WalletSubmission WalletId
     deriving (Eq, Ord, Show)
 
 instance HasWorkerCtx (DBLayer IO s) (ApiLayer s) where
     type WorkerCtx (ApiLayer s) = WalletLayer IO s
     type WorkerMsg (ApiLayer s) = WalletWorkerLog
     type WorkerKey (ApiLayer s) = WalletId
-    hoistResource db transform (ApiLayer _ tr gp nw tl _ _ _ _) =
+    hoistResource db transform (ApiLayer _ tr gp nw tl _ _ _ _ _ _) =
         WalletLayer (contramap transform tr) gp nw tl db
 
 {-------------------------------------------------------------------------------

@@ -143,4 +143,5 @@ test-suite unit
   main-is:            Main.hs
   other-modules:
     Cardano.Wallet.Network.Checkpoints.PolicySpec
+    Cardano.Wallet.Network.ImplementationSpec
     Cardano.Wallet.Network.LightSpec

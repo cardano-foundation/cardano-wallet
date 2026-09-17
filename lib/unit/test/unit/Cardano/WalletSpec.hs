@@ -10,6 +10,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
@@ -50,13 +51,16 @@ import Cardano.Mnemonic
     ( SomeMnemonic (..)
     )
 import Cardano.Wallet
-    ( ErrUpdatePassphrase (..)
+    ( DappStakeRegistration (..)
+    , ErrUpdatePassphrase (..)
     , ErrWithRootKey (..)
     , InitialState (..)
     , LocalTxSubmissionConfig (..)
     , RootKeyAccess (..)
     , SelectionWithoutChange
     , WalletLayer (..)
+    , dappCip95KeyState
+    , dappStakeRegistrationState
     , dbLayer
     , migrationPlanToSelectionWithdrawals
     , readPrivateKey
@@ -72,6 +76,7 @@ import Cardano.Wallet.Address.Derivation
     , Index (..)
     , Role (..)
     , deriveAccountPrivateKey
+    , drepDerivationPath
     )
 import Cardano.Wallet.Address.Derivation.Byron
     ( ByronKey
@@ -97,6 +102,7 @@ import Cardano.Wallet.Address.Discovery.Random
     )
 import Cardano.Wallet.Address.Discovery.Sequential
     ( SeqState
+    , derivationPrefix
     , mkAddressPoolGap
     , mkSeqStateFromAccountXPub
     , purposeCIP1852
@@ -108,13 +114,31 @@ import Cardano.Wallet.Address.States.Features
 import Cardano.Wallet.Address.States.Test.State
     ( TestState (..)
     )
+import Cardano.Wallet.Api
+    ( ApiLayer (..)
+    )
+import Cardano.Wallet.Api.Http.Shelley.TransactionContext
+    ( resolveTransactionContext
+    )
+import Cardano.Wallet.Api.Lib.ApiT
+    ( ApiT (..)
+    )
+import Cardano.Wallet.Api.Types.Dapp.Context
+    ( ApiDappContextNetwork (..)
+    , ApiDappHex (..)
+    , ApiDappTransactionContextRequest (..)
+    )
+import Cardano.Wallet.Api.Types.Error
+    ( DappError (..)
+    )
 import Cardano.Wallet.Balance.Migration.SelectionSpec
     ( MockTxConstraints (..)
     , genTokenBundleMixed
     , unMockTxConstraints
     )
 import Cardano.Wallet.DB
-    ( DBLayer (..)
+    ( ContextClock (..)
+    , DBLayer (..)
     , hoistDBLayer
     , putTxHistory
     )
@@ -137,14 +161,16 @@ import Cardano.Wallet.DummyTarget.Primitive.Types
 import Cardano.Wallet.Flavor
     ( CredFromOf
     , KeyOf
-    , WalletFlavorS (ByronWallet, IcarusWallet, TestStateS)
+    , WalletFlavorS (ByronWallet, IcarusWallet, ShelleyWallet, TestStateS)
     )
 import Cardano.Wallet.Gen
     ( genMnemonic
     , genSlotNo
     )
 import Cardano.Wallet.Network
-    ( NetworkLayer (..)
+    ( DappTransactionContext (..)
+    , ErrDappTransactionContext (ErrDappTransactionContextPointUnavailable)
+    , NetworkLayer (..)
     )
 import Cardano.Wallet.Network.RestorationMode
     ( RestorationPoint (..)
@@ -165,6 +191,7 @@ import Cardano.Wallet.Primitive.Passphrase.Types
     )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
+    , GenesisParameters (getGenesisBlockHash)
     , NetworkParameters (..)
     , SlotNo (..)
     , SlottingParameters (..)
@@ -331,6 +358,12 @@ import Data.Generics.Internal.VL
     , view
     , (^.)
     )
+import Data.IORef
+    ( atomicModifyIORef'
+    , modifyIORef'
+    , newIORef
+    , readIORef
+    )
 import Data.List
     ( nubBy
     , sort
@@ -384,6 +417,7 @@ import Test.Hspec
     , expectationFailure
     , it
     , shouldBe
+    , shouldReturn
     , shouldSatisfy
     , xit
     )
@@ -465,6 +499,7 @@ import qualified Cardano.Wallet.Read.Hash as Hash
 import qualified Cardano.Wallet.Submissions.Submissions as Smbs
 import qualified Cardano.Wallet.Submissions.TxStatus as Sbms
 import qualified Data.ByteArray as BA
+import qualified Data.ByteArray.Encoding as BAE
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Foldable as F
@@ -475,6 +510,88 @@ import qualified Data.Text as T
 
 spec :: Spec
 spec = describe "Cardano.WalletSpec" $ do
+    describe "transaction-context-retries" $ do
+        let mkApi network =
+                ApiLayer
+                    { tracerTxSubmit = nullTracer
+                    , tracerWalletWorker = nullTracer
+                    , netParams = (block0, dummyNetworkParameters)
+                    , netLayer = network
+                    , txLayer = dummyTransactionLayer
+                    , _dbFactory = error "unused db factory"
+                    , _workerRegistry = error "unused worker registry"
+                    , concierge = error "unused concierge"
+                    , _tokenMetadataClient = error "unused token metadata client"
+                    , dappProcessGeneration = BS.replicate 16 1
+                    , dappHmacKey = BS.replicate 32 2
+                    }
+            NetworkParameters genesis _ _ = dummyNetworkParameters
+            Hash genesisHash = getGenesisBlockHash genesis
+            request =
+                ApiDappTransactionContextRequest
+                    1
+                    (ApiDappContextNetwork 1 764_824_073 $ ApiDappHex genesisHash)
+                    []
+
+        it "stops after three unavailable exact-point queries" $ do
+            WalletLayerFixture _ worker wid <-
+                setupFixture ShelleyWallet testShelleyWallet
+            calls <- newIORef (0 :: Int)
+            let network =
+                    dummyNetworkLayer
+                        { getDappTransactionContext = \_ _ -> do
+                            modifyIORef' calls (+ 1)
+                            pure $ Left ErrDappTransactionContextPointUnavailable
+                        }
+
+            result <-
+                resolveTransactionContext @'Mainnet
+                    (mkApi network)
+                    worker
+                    (ApiT wid)
+                    request
+
+            result `shouldBe` Left DappContextUnavailableError
+            readIORef calls `shouldReturn` 3
+
+        it "stops after three capture-confirm clock races" $ do
+            WalletLayerFixture db worker wid <-
+                setupFixture ShelleyWallet testShelleyWallet
+            calls <- newIORef (0 :: Int)
+            clocks <- newIORef (0 :: Word64)
+            let racingDB DBLayer{..} =
+                    DBLayer
+                        { atomicallyReadContext = \action -> do
+                            result <- atomically action
+                            clock <- atomicModifyIORef' clocks $ \n ->
+                                (n + 1, ContextClock n 0 0 False)
+                            pure (result, clock)
+                        , ..
+                        }
+                network =
+                    dummyNetworkLayer
+                        { getDappTransactionContext = \_ _ -> do
+                            modifyIORef' calls (+ 1)
+                            pure
+                                $ Right
+                                $ DappTransactionContext
+                                    (error "context era is not assembled")
+                                    (error "protocol parameters are not assembled")
+                                    (error "UTxO is not assembled")
+                        }
+                racingWorker = worker{dbLayer_ = racingDB db}
+
+            result <-
+                resolveTransactionContext
+                    @'Mainnet
+                    (mkApi network)
+                    racingWorker
+                    (ApiT wid)
+                    request
+
+            result `shouldBe` Left DappContextUnavailableError
+            readIORef calls `shouldReturn` 3
+
     describe
         "Pointless mockEventSource to cover 'Show' instances for errors"
         $ do
@@ -536,6 +653,19 @@ spec = describe "Cardano.WalletSpec" $ do
         it
             "password change V1→V2 preserves derived public keys"
             walletPasswordChangeV1ToV2PreservesPublicKey
+        it
+            "derives raw CIP-105 DRep and stake public keys from the account XPub"
+            dappCip95PublicKeys
+        it "classifies confirmed, pending, and conflicting stake state"
+            $ do
+                dappStakeRegistrationState False [] `shouldBe` False
+                dappStakeRegistrationState True [] `shouldBe` True
+                dappStakeRegistrationState False [RegisterStakeKey] `shouldBe` True
+                dappStakeRegistrationState True [DeregisterStakeKey] `shouldBe` False
+                dappStakeRegistrationState
+                    False
+                    [RegisterStakeKey, DeregisterStakeKey, RegisterStakeKey]
+                    `shouldBe` False
         it
             "Byron attachPrivateKeyFromPwd stores V1, never V2"
             byronAttachPrivateKeyFromPwdNeverV2
@@ -947,6 +1077,27 @@ walletPasswordChangeV1ToV2PreservesPublicKey = do
     -- 6. The derived public key must be identical regardless of encryption format.
     pubKeyAfter `shouldBe` pubKeyBefore
 
+dappCip95PublicKeys :: IO ()
+dappCip95PublicKeys = do
+    let (_, _, walletState) = testShelleyWallet
+        decodeVector :: ByteString -> ByteString
+        decodeVector = either (error . show) id . BAE.convertFromBase BAE.Base16
+        expectedDRep =
+            decodeVector
+                "1582d51cb4077e5a36fe1ea712881c0b613b38f82e94b1b279182e3d203b4770"
+        expectedStake =
+            decodeVector
+                "a22d0b8709e6bc04d11257dc405410d1ace01f207c391ba4788ea17198ee1a08"
+        (drep, registered, unregistered) = dappCip95KeyState walletState False []
+    drep `shouldBe` expectedDRep
+    BS.length drep `shouldBe` 32
+    registered `shouldBe` []
+    unregistered `shouldBe` [expectedStake]
+    map
+        getDerivationIndex
+        (NE.toList $ drepDerivationPath $ derivationPrefix walletState)
+        `shouldBe` [0x8000073c, 0x80000717, 0x80000000, 3, 0]
+
 -- | A fixed (WalletId, WalletName, DummyState) used by the migration tests.
 testWallet :: (WalletId, WalletName, DummyState)
 testWallet =
@@ -954,6 +1105,31 @@ testWallet =
     , WalletName "Migration Test Wallet"
     , TestState mempty
     )
+
+testShelleyWallet
+    :: (WalletId, WalletName, SeqState 'Mainnet ShelleyKey)
+testShelleyWallet =
+    ( WalletId (hash @BS.ByteString "shelley-context-test-wallet")
+    , WalletName "Shelley Context Test Wallet"
+    , mkSeqStateFromAccountXPub
+        testShelleyAccXPub
+        Nothing
+        purposeCIP1852
+        ( either (error "testShelleyWallet: invalid gap") id
+            $ mkAddressPoolGap 20
+        )
+        IncreasingChangeAddresses
+    )
+
+testShelleyAccXPub :: ShelleyKey 'AccountK XPub
+testShelleyAccXPub =
+    ShelleyKey
+        $ toXPub
+        $ getKey
+        $ deriveAccountPrivateKey
+            (preparePassphrase testPwd)
+            testKey
+            minBound
 
 -- | A fixed test passphrase (>= 10 chars to satisfy 'validatePassphrase').
 testPwd :: Passphrase "user"
@@ -1539,37 +1715,16 @@ prop_localTxSubmission tc = monadicIO $ do
           , "logs:"
           ]
             ++ map (T.unpack . toText) (resLogs res)
-    -- props:
-    --  1. pending transactions in pool are retried
-    let requested x = x `elem` (builtSealedTx <$> retryTestPool tc)
-    assert' "all txs in submissions pool were required"
-        $ all requested
-        $ resSubmittedTxs res
+    -- The pool is reconciliation-only: only the explicit calls above may post.
+    assert' "pool never submits pending transactions"
+        $ length (resSubmittedTxs res) == length (retryTestPool tc)
 
-    let inPool BuiltTx{builtTx} =
-            (Just . DB.TxId $ builtTx ^. #txId)
-                `elem` fmap (fmap fst . Sbms.getTx . view Smbs.txStatus) resEnd
-
-    assert' "all required txs are in submissions pool"
-        $ all inPool
-        $ retryTestPool tc
-
-    assert' "start submissions pool is not empty"
-        $ not
-        $ null resStart
-
-    assert' "end submissions pool has all txs of start pool"
-        $ resStart `eqByTxIds` resEnd
+    assert' "legacy submissions pool remains unused"
+        $ null resStart && null resEnd
   where
     assert' :: String -> Bool -> PropertyM IO ()
     assert' _msg True = return ()
     assert' msg False = fail msg
-    eqByTxIds
-        :: [TxSubmissionsStatus]
-        -> [TxSubmissionsStatus]
-        -> Bool
-    eqByTxIds =
-        (==) `on` (sort . fmap (fmap fst . Sbms.getTx . view Smbs.txStatus))
     runTest
         :: TxRetryTestState
         -> (TxRetryTestCtx -> TxRetryTestM a)
@@ -1595,26 +1750,33 @@ prop_localTxSubmission tc = monadicIO $ do
     mockNetwork var =
         dummyNetworkLayer
             { currentSlottingParameters = pure (testSlottingParameters tc)
-            , postSealedTx = \tx -> ExceptT $ do
-                stash var tx
-                pure $ case lookup tx (postSealedTxResults tc) of
-                    Just True -> Right ()
-                    Just False -> Left (W.ErrPostTxValidationError "intended")
-                    Nothing -> Left (W.ErrPostTxValidationError "unexpected")
+            , postSealedTx = post
+            , postSealedTxOneShot = post
             , watchNodeTip = mockNodeTip (numSlots tc) 0
+            , currentNodeTip = pure $ mockTip (numSlots tc)
+            , isTxInMempool = const $ pure $ Just True
             }
+      where
+        post tx = ExceptT $ do
+            stash var tx
+            pure $ case lookup tx (postSealedTxResults tc) of
+                Just True -> Right ()
+                Just False -> Left (W.ErrPostTxValidationError "intended")
+                Nothing -> Left (W.ErrPostTxValidationError "unexpected")
 
     mockNodeTip end slot callback
         | slot < end = do
-            let tip =
-                    Read.BlockTip
-                        { slotNo = Read.SlotNo $ fromIntegral slot
-                        , headerHash = mockHash
-                        , blockNo = Read.BlockNo $ fromIntegral slot
-                        }
+            let tip = mockTip slot
             void $ callback tip
             mockNodeTip end (slot + 1) callback
         | otherwise = pure ()
+
+    mockTip slot =
+        Read.BlockTip
+            { slotNo = Read.SlotNo $ fromIntegral slot
+            , headerHash = mockHash
+            , blockNo = Read.BlockNo $ fromIntegral slot
+            }
 
     mockHash :: Read.RawHeaderHash
     mockHash = Read.mockRawHeaderHash 0

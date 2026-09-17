@@ -40,8 +40,13 @@ module Cardano.Wallet.Network.Implementation.Ouroboros
     , LocalTxSubmissionCmd (..)
     , localTxSubmission
 
+      -- * LocalTxMonitor
+    , LocalTxMonitorCmd (..)
+    , localTxMonitor
+
       -- * LocalStateQuery
     , LSQ (..)
+    , LocalStateQueryResult (..)
     , LocalStateQueryCmd (..)
     , localStateQuery
 
@@ -169,6 +174,7 @@ import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
 import qualified Ouroboros.Network.Protocol.ChainSync.ClientPipelined as P
 import qualified Ouroboros.Network.Protocol.LocalStateQuery.Client as LSQ
+import qualified Ouroboros.Network.Protocol.LocalTxMonitor.Client as Monitor
 
 --------------------------------------------------------------------------------
 --
@@ -659,6 +665,15 @@ data LocalStateQueryCmd block m
     = forall a. SomeLSQ
         (LSQ block m a)
         (a -> m ())
+    | forall a. SomeLSQAt
+        (Point block)
+        (LSQ block m a)
+        (LocalStateQueryResult a -> m ())
+
+data LocalStateQueryResult a
+    = LocalStateQueryAcquired a
+    | LocalStateQueryAcquireFailed
+    deriving (Eq, Show)
 
 -- | Client for the 'Local State Query' mini-protocol.
 --
@@ -701,8 +716,13 @@ localStateQuery queue =
   where
     clientStIdle
         :: m (LSQ.ClientStIdle block (Point block) (Query block) m Void)
-    clientStIdle =
-        LSQ.SendMsgAcquire VolatileTip . clientStAcquiring <$> awaitNextCmd
+    clientStIdle = do
+        cmd <- awaitNextCmd
+        pure $ LSQ.SendMsgAcquire (target cmd) (clientStAcquiring cmd)
+
+    target :: LocalStateQueryCmd block m -> Target (Point block)
+    target SomeLSQ{} = VolatileTip
+    target (SomeLSQAt point _ _) = SpecificPoint point
 
     clientStAcquiring
         :: LocalStateQueryCmd block m
@@ -710,14 +730,35 @@ localStateQuery queue =
     clientStAcquiring qry =
         LSQ.ClientStAcquiring
             { recvMsgAcquired = clientStAcquired qry
-            , recvMsgFailure = \_failure -> do
-                pure $ LSQ.SendMsgAcquire VolatileTip (clientStAcquiring qry)
+            , recvMsgFailure = \_failure -> case qry of
+                SomeLSQ{} ->
+                    pure $ LSQ.SendMsgAcquire VolatileTip (clientStAcquiring qry)
+                SomeLSQAt _ _ respond -> do
+                    respond LocalStateQueryAcquireFailed
+                    finalizeCmd
+                    clientStIdle
             }
 
     clientStAcquired
         :: LocalStateQueryCmd block m
         -> m (LSQ.ClientStAcquired block (Point block) (Query block) m Void)
-    clientStAcquired (SomeLSQ cmd respond) = pure $ go cmd $ \res ->
+    clientStAcquired (SomeLSQ cmd respond) = pure $ runLSQ cmd $ \res ->
+        release (respond res)
+    clientStAcquired (SomeLSQAt _ cmd respond) = pure $ runLSQ cmd $ \res ->
+        release (respond (LocalStateQueryAcquired res))
+
+    runLSQ
+        :: forall a
+         . LSQ block m a
+        -> (a -> LSQ.ClientStAcquired block (Point block) (Query block) m Void)
+        -> LSQ.ClientStAcquired block (Point block) (Query block) m Void
+    runLSQ (LSQPure a) cont = cont a
+    runLSQ (LSQry qry) cont = LSQ.SendMsgQuery (BlockQuery qry)
+        $ LSQ.ClientStQuerying
+        $ \res -> pure $ cont res
+    runLSQ (LSQBind ma f) cont = runLSQ ma $ \a -> runLSQ (f a) cont
+
+    release action =
         -- We currently release the handle to the node state after
         -- each query in the queue. This allows the node to release
         -- resources (such as a stake distribution snapshot) after
@@ -736,31 +777,9 @@ localStateQuery queue =
             -- (Asynchronous exceptions are fine, as the connection to the node
             -- will not attempt to recover from that, and it doesn't matter
             -- whether a command is left in the queue or not.)
-            respond res
+            action
             finalizeCmd
             clientStIdle
-      where
-        go
-            :: forall a
-             . LSQ block m a
-            -> (a -> (LSQ.ClientStAcquired block (Point block) (Query block) m Void))
-            -> (LSQ.ClientStAcquired block (Point block) (Query block) m Void)
-        go (LSQPure a) cont = cont a
-        go (LSQry qry) cont = LSQ.SendMsgQuery (BlockQuery qry)
-            $
-            -- We only need to support queries of the type `BlockQuery`.
-            LSQ.ClientStQuerying
-            $ \res -> do
-                pure $ cont res
-        -- It would be nice to trace the time it takes to run the
-        -- queries. We don't have a good opportunity to run IO after a
-        -- point is acquired, but before the query is send, however.
-        -- Heinrich: Actually, this can be done by adding a 'Tracer m'
-        -- to the scope and using it here. However, I believe that we
-        -- already have sufficiently good logging of execution times
-        -- in Cardano.Wallet.Shelley.Network .
-        go (LSQBind ma f) cont = go ma $ \a -> do
-            go (f a) $ \b -> cont b
 
     -- \| Note that we for LSQ and TxSubmission use peekTQueue when starting the
     -- request, and only remove the command from the queue after we have
@@ -850,6 +869,31 @@ localTxSubmission queue = LocalTxSubmissionClient clientStIdle
                     -- here.
                     _processedCmd <- atomically (readTQueue queue)
                     clientStIdle
+
+-- | Commands handled by the persistent local transaction monitor client.
+data LocalTxMonitorCmd txid (m :: Type -> Type)
+    = CmdHasTx txid (Bool -> m ())
+
+-- | Query fresh mempool snapshots without ever submitting a transaction.
+localTxMonitor
+    :: (MonadSTM m)
+    => TQueue m (LocalTxMonitorCmd txid m)
+    -> Monitor.LocalTxMonitorClient txid tx slot m Void
+localTxMonitor queue =
+    Monitor.LocalTxMonitorClient
+        $ pure
+        $ Monitor.SendMsgAcquire
+        $ const runCommand
+  where
+    runCommand = do
+        CmdHasTx txid respond <- atomically $ readTQueue queue
+        pure
+            $ Monitor.SendMsgHasTx txid
+            $ \present -> do
+                respond present
+                pure
+                    $ Monitor.SendMsgAwaitAcquire
+                    $ const runCommand
 
 {-------------------------------------------------------------------------------
     Helpers
