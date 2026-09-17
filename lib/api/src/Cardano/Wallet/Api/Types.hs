@@ -910,14 +910,16 @@ data ApiSelectCoinsPayments (n :: NetworkDiscriminant) = ApiSelectCoinsPayments
     { payments :: NonEmpty (ApiTxOutput n)
     , withdrawal :: !(Maybe ApiWithdrawalPostData)
     , metadata :: !(Maybe (ApiT TxMetadata))
+    , preferredCollateral :: !(Maybe [ApiT TxIn])
     }
     deriving (Eq, Generic, Show)
     deriving
         (FromJSON, ToJSON)
         via DefaultRecord (ApiSelectCoinsPayments n)
 
-newtype ApiSelectCoinsAction = ApiSelectCoinsAction
+data ApiSelectCoinsAction = ApiSelectCoinsAction
     { delegationAction :: ApiDelegationAction
+    , preferredCollateral :: !(Maybe [ApiT TxIn])
     }
     deriving (Eq, Generic)
     deriving (FromJSON, ToJSON) via DefaultRecord ApiSelectCoinsAction
@@ -982,6 +984,7 @@ data ApiCoinSelectionCollateral (n :: NetworkDiscriminant)
 data ApiWallet = ApiWallet
     { id :: !(ApiT WalletId)
     , addressPoolGap :: !(ApiT AddressPoolGap)
+    , singleAddressMode :: !Bool
     , balance :: !ApiWalletBalance
     , assets :: !ApiWalletAssetsBalance
     , delegation :: !ApiWalletDelegation
@@ -1053,8 +1056,9 @@ data ApiWalletDelegationStatus
     deriving (FromJSON, ToJSON) via DefaultSum ApiWalletDelegationStatus
     deriving anyclass (NFData)
 
-newtype ApiWalletPassphrase = ApiWalletPassphrase
+data ApiWalletPassphrase = ApiWalletPassphrase
     { passphrase :: ApiT (Passphrase "lenient")
+    , preferredCollateral :: !(Maybe [ApiT TxIn])
     }
     deriving (Eq, Generic)
     deriving (FromJSON, ToJSON) via DefaultRecord ApiWalletPassphrase
@@ -1105,6 +1109,7 @@ data WalletPostData = WalletPostData
     , name :: !(ApiT WalletName)
     , passphrase :: !(ApiT (Passphrase "user"))
     , oneChangeAddressMode :: !(Maybe Bool)
+    , singleAddressMode :: !(Maybe Bool)
     , restorationMode :: Maybe ApiRestorationMode
     }
     deriving (FromJSON, ToJSON) via DefaultRecord WalletPostData
@@ -1170,6 +1175,7 @@ data AccountPostData = AccountPostData
     { name :: !(ApiT WalletName)
     , accountPublicKey :: !ApiAccountPublicKey
     , addressPoolGap :: !(Maybe (ApiT AddressPoolGap))
+    , singleAddressMode :: !(Maybe Bool)
     , restorationMode :: Maybe ApiRestorationMode
     }
     deriving (FromJSON, ToJSON) via DefaultRecord AccountPostData
@@ -1185,6 +1191,7 @@ newtype ApiWalletPutData = ApiWalletPutData
 data ApiWalletPutDataExtended = ApiWalletPutDataExtended
     { name :: (Maybe (ApiT WalletName))
     , oneChangeAddressMode :: (Maybe Bool)
+    , singleAddressMode :: (Maybe Bool)
     }
     deriving (Eq, Generic)
     deriving (FromJSON, ToJSON) via DefaultRecord ApiWalletPutDataExtended
@@ -1310,6 +1317,7 @@ data ApiConstructTransactionData (n :: NetworkDiscriminant)
     , validityInterval :: !(Maybe ApiValidityInterval)
     , referencePolicyScriptTemplate :: !(Maybe (ApiT (Script Cosigner)))
     , encoding :: !(Maybe ApiSealedTxEncoding)
+    , preferredCollateral :: !(Maybe [ApiT TxIn])
     }
     deriving (Eq, Generic, Show)
     deriving
@@ -1377,6 +1385,7 @@ data PostTransactionOldData (n :: NetworkDiscriminant) = PostTransactionOldData
     , withdrawal :: !(Maybe ApiWithdrawalPostData)
     , metadata :: !(Maybe TxMetadataWithSchema)
     , timeToLive :: !(Maybe (Quantity "second" NominalDiffTime))
+    , preferredCollateral :: !(Maybe [ApiT TxIn])
     }
     deriving (Eq, Generic, Show)
     deriving
@@ -1390,6 +1399,7 @@ data PostTransactionFeeOldData (n :: NetworkDiscriminant)
     , withdrawal :: !(Maybe ApiWithdrawalPostData)
     , metadata :: !(Maybe TxMetadataWithSchema)
     , timeToLive :: !(Maybe (Quantity "second" NominalDiffTime))
+    , preferredCollateral :: !(Maybe [ApiT TxIn])
     }
     deriving (Eq, Generic, Show)
     deriving

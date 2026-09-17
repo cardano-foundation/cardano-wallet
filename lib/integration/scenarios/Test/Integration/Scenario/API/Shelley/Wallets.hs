@@ -298,6 +298,7 @@ spec = describe "SHELLEY_WALLETS" $ do
                         , name = ApiT $ unsafeFromText "Wallet from tip"
                         , passphrase = ApiT $ unsafeFromText fixturePassphrase
                         , oneChangeAddressMode = Nothing
+                        , singleAddressMode = Nothing
                         , restorationMode = Just $ ApiT RestoreFromTip
                         }
             r <- eventually "Wallet state is ready" $ do

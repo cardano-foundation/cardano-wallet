@@ -567,19 +567,29 @@ instance
         ArgGenChange (SeqState n k) =
             (k 'CredFromKeyK XPub -> k 'CredFromKeyK XPub -> Address)
 
-    genChange mkAddress st = (addr, st{pendingChangeIxs = pending'})
-      where
-        ixMin = minBound @(Index 'Soft 'CredFromKeyK)
-        updatePending pendingIxs =
-            pendingIxsFromList $ L.nub $ (pendingIxsToList pendingIxs) <> [ixMin]
-        (ix, pending') =
-            case changeAddressMode st of
+    genChange mkAddress st = case changeAddressMode st of
+        SingleReceivingAddress ->
+            ( mkAddress
+                (deriveAddressPublicKey (accountXPub st) UtxoExternal ixMin)
+                (rewardAccountKey st)
+            , st
+            )
+        mode ->
+            ( mkAddress
+                (deriveAddressPublicKey (accountXPub st) UtxoInternal ix)
+                (rewardAccountKey st)
+            , st{pendingChangeIxs = pending'}
+            )
+          where
+            (ix, pending') = case mode of
                 SingleChangeAddress ->
                     (ixMin, updatePending (pendingChangeIxs st))
                 IncreasingChangeAddresses ->
                     nextChangeIndex (getPool $ internalPool st) (pendingChangeIxs st)
-        addressXPub = deriveAddressPublicKey (accountXPub st) UtxoInternal ix
-        addr = mkAddress addressXPub (rewardAccountKey st)
+      where
+        ixMin = minBound @(Index 'Soft 'CredFromKeyK)
+        updatePending pendingIxs =
+            pendingIxsFromList $ L.nub $ pendingIxsToList pendingIxs <> [ixMin]
 
 isOwned
     :: forall n k

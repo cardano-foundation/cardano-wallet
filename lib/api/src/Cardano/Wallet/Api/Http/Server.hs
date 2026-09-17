@@ -110,6 +110,7 @@ import Cardano.Wallet.Api.Http.Shelley.Server
     , getCurrentEpoch
     , getDRep
     , getDRepSummary
+    , getDappCip95KeyState
     , getNetworkClock
     , getNetworkInformation
     , getNetworkParameters
@@ -135,6 +136,8 @@ import Cardano.Wallet.Api.Http.Shelley.Server
     , patchSharedWallet
     , postAccountPublicKey
     , postAccountWallet
+    , postDappDataSignature
+    , postDappWitnesses
     , postExternalTransaction
     , postIcarusWallet
     , postLedgerWallet
@@ -144,6 +147,8 @@ import Cardano.Wallet.Api.Http.Shelley.Server
     , postRandomWallet
     , postRandomWalletFromXPrv
     , postSharedWallet
+    , postDappSubmission
+    , postTransactionContext
     , postTransactionFeeOld
     , postTransactionOld
     , postTrezorWallet
@@ -369,7 +374,7 @@ server byron icarus shelley multisig spl drepLayer ntp blockchainSource =
         ( \wid -> \case
             ApiSelectForPayment ascp ->
                 selectCoins shelley (delegationAddressS @n) wid ascp
-            ApiSelectForDelegation (ApiSelectCoinsAction action) ->
+            ApiSelectForDelegation (ApiSelectCoinsAction action reservedInputs) ->
                 case action of
                     Join pid ->
                         selectCoinsForJoin
@@ -378,8 +383,9 @@ server byron icarus shelley multisig spl drepLayer ntp blockchainSource =
                             (getPoolLifeCycleStatus spl)
                             (getApiT pid)
                             (getApiT wid)
+                            reservedInputs
                     Quit ->
-                        selectCoinsForQuit shelley wid
+                        selectCoinsForQuit shelley wid reservedInputs
         )
 
     shelleyTransactions :: Server (ShelleyTransactions n)
@@ -414,6 +420,11 @@ server byron icarus shelley multisig spl drepLayer ntp blockchainSource =
             :<|> balanceTransaction shelley
             :<|> decodeTransaction shelley
             :<|> submitTransaction @_ @_ @_ @n shelley
+            :<|> postDappSubmission @n shelley
+            :<|> postTransactionContext @n shelley
+            :<|> postDappWitnesses @n shelley
+            :<|> postDappDataSignature @n shelley
+            :<|> getDappCip95KeyState @n shelley
 
     shelleyMigrations :: Server (ShelleyMigrations n)
     shelleyMigrations =
