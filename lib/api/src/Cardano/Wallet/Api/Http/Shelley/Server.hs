@@ -1950,6 +1950,7 @@ deleteWallet ctx (ApiT wid) = do
         (const $ pure ())
         (const $ pure ())
 
+    liftIO $ markDatabaseDeleted df wid
     liftIO $ Registry.unregister re wid
     liftIO $ removeDatabase df wid
 

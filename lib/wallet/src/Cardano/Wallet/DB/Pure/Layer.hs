@@ -1,5 +1,6 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -17,7 +18,9 @@ module Cardano.Wallet.DB.Pure.Layer
     ) where
 
 import Cardano.Wallet.DB
-    ( DBLayer (..)
+    ( ContextChange (..)
+    , ContextClock (..)
+    , DBLayer (..)
     , DBLayerParams
     )
 import Cardano.Wallet.DB.Pure.Implementation
@@ -32,6 +35,15 @@ import Cardano.Wallet.DB.Pure.Implementation
     , mReadTxHistory
     , mRollbackTo
     )
+import Cardano.Wallet.DB.Sqlite.Types
+    ( DappSubmissionStatusEnum (..)
+    , TxId
+    )
+import Cardano.Wallet.DB.Store.Submissions.Operations
+    ( DurableSubmission (..)
+    , DurableSubmissionInput (..)
+    , DurableSubmissionInsert (..)
+    )
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter
     )
@@ -42,9 +54,13 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Tx.TransactionInfo
     ( TransactionInfo (..)
     )
+import Control.Applicative
+    ( (<|>)
+    )
 import Control.Concurrent.MVar
     ( MVar
     , modifyMVar
+    , modifyMVar_
     , newMVar
     , withMVar
     )
@@ -57,8 +73,23 @@ import Control.Monad.IO.Class
 import Data.Functor.Identity
     ( Identity (..)
     )
+import Data.List
+    ( find
+    , nub
+    , sort
+    )
+import Data.Map.Strict
+    ( Map
+    )
 import Data.Maybe
     ( fromMaybe
+    )
+import Data.Time.Clock
+    ( UTCTime
+    )
+import Data.Word
+    ( Word32
+    , Word64
     )
 import UnliftIO.Exception
     ( Exception
@@ -67,6 +98,7 @@ import UnliftIO.Exception
 import Prelude
 
 import qualified Cardano.Wallet.Primitive.Types.Range as Range
+import qualified Data.Map.Strict as Map
 
 -- | Instantiate a new in-memory "database" layer that simply stores data in
 -- a local MVar. Data vanishes if the software is shut down.
@@ -80,7 +112,9 @@ withBootDBLayer
     -> m ()
 withBootDBLayer timeInterpreter wid params k = do
     lock <- liftIO $ newMVar ()
+    contextClock <- liftIO $ newMVar $ ContextClock 0 0 0 False
     db <- liftIO $ newMVar $ mInitializeWallet wid params
+    durable <- liftIO $ newMVar []
     k
         $ DBLayer
             { {-----------------------------------------------------------------------
@@ -94,6 +128,8 @@ withBootDBLayer timeInterpreter wid params k = do
               walletState = error "MVar.walletState: not implemented"
             , transactionsStore = error "MVar.transactionsStore: not implemented"
             , readCheckpoint = throwErrorReadDB db mReadCheckpoint
+            , readInSubmissionTransactions =
+                error "readInSubmissionTransactions not tested in State Machine tests"
             , listCheckpoints = fromMaybe [] <$> readDBMaybe db mListCheckpoints
             , rollbackTo =
                 noErrorAlterDB db
@@ -149,7 +185,184 @@ withBootDBLayer timeInterpreter wid params k = do
               getSchemaVersion =
                 error "getSchemaVersion not tested in State Machine tests"
             , atomically = \action -> withMVar lock $ \() -> action
+            , insertDurableSubmission = insertPureDurable durable
+            , claimDurableSubmissionAttempt = claimPureDurable durable wid
+            , updateDurableSubmission = updatePureDurable durable
+            , readDurableSubmissions = readPureDurable durable wid
+            , atomicallyWithContextChange = \change action ->
+                withMVar lock $ \() -> do
+                    after <-
+                        liftIO $ withMVar contextClock $ either fail pure . advance change
+                    result <- action
+                    liftIO $ modifyMVar_ contextClock $ const $ pure after
+                    pure result
+            , atomicallyReadContext = \action ->
+                withMVar lock $ \() -> do
+                    result <- action
+                    clock <- liftIO $ withMVar contextClock pure
+                    pure (result, clock)
             }
+  where
+    advance
+        change
+        ContextClock
+            { walletGeneration
+            , pendingGeneration
+            , contextIncarnation
+            , contextDeleted
+            } =
+            ContextClock
+                <$> bump
+                    [WalletContextChange, WalletAndPendingContextChange]
+                    walletGeneration
+                <*> bump
+                    [PendingContextChange, WalletAndPendingContextChange]
+                    pendingGeneration
+                <*> pure contextIncarnation
+                <*> pure contextDeleted
+          where
+            bump changes value
+                | change `notElem` changes = Right value
+                | value == maxBound = Left "dApp context generation exhausted"
+                | otherwise = Right $ value + 1
+
+data PureDurableSubmission = PureDurableSubmission
+    { pureSubmission :: DurableSubmission
+    , pureInputs :: [DurableSubmissionInput]
+    , pureClaimsActive :: Bool
+    }
+
+insertPureDurable
+    :: MVar [PureDurableSubmission]
+    -> DurableSubmission
+    -> [DurableSubmissionInput]
+    -> IO DurableSubmissionInsert
+insertPureDurable store submission requested =
+    modifyMVar store $ \rows ->
+        case find (sameSubmission submission . pureSubmission) rows of
+            Just stored
+                | valid
+                    && sameIdentity submission (pureSubmission stored)
+                    && claims == pureInputs stored ->
+                    pure
+                        ( rows
+                        , DurableSubmissionReplay $ pureSubmission stored
+                        )
+                | otherwise ->
+                    pure (rows, DurableSubmissionIdentityConflict)
+            Nothing
+                | not valid || any (overlaps claims) rows ->
+                    pure (rows, DurableSubmissionInputConflict)
+                | otherwise ->
+                    pure
+                        ( PureDurableSubmission submission claims True : rows
+                        , DurableSubmissionAuthorized
+                        )
+  where
+    valid = length requested == length (nub requested)
+    claims = normalizeInputs requested
+
+claimPureDurable
+    :: MVar [PureDurableSubmission]
+    -> WalletId
+    -> TxId
+    -> Word64
+    -> UTCTime
+    -> IO (Maybe DurableSubmission)
+claimPureDurable store walletId txId generation started =
+    modifyMVar store $ \rows ->
+        let (result, updated) = unzip $ claim <$> rows
+        in  pure (updated, foldr (<|>) Nothing result)
+  where
+    claim stored@PureDurableSubmission{pureSubmission = submission}
+        | durableWalletId submission == walletId
+            && durableTxId submission == txId
+            && durableAuthorized submission
+            && durableStatus submission == AuthorizedE
+            && durableAttemptGeneration submission == generation =
+            let broadcasting =
+                    submission
+                        { durableStatus = BroadcastingE
+                        , durableBroadcastGeneration = Just generation
+                        , durableBroadcastStarted = Just started
+                        }
+            in  (Just broadcasting, stored{pureSubmission = broadcasting})
+        | otherwise = (Nothing, stored)
+
+updatePureDurable
+    :: MVar [PureDurableSubmission]
+    -> DurableSubmission
+    -> IO ()
+updatePureDurable store replacement =
+    modifyMVar store $ \rows -> do
+        let prior = find (sameSubmission replacement . pureSubmission) rows
+            restoring =
+                durableStatus replacement == SubmittedE
+                    && maybe
+                        False
+                        ((== InLedgerDappE) . durableStatus . pureSubmission)
+                        prior
+            replacementInputs = maybe [] pureInputs prior
+        if restoring
+            && any (overlaps replacementInputs) (filter (not . sameRow) rows)
+            then
+                fail
+                    "cannot roll back a submission while another active claim owns one of its inputs"
+            else pure (replace <$> rows, ())
+  where
+    sameRow = sameSubmission replacement . pureSubmission
+    replace stored
+        | sameRow stored =
+            stored
+                { pureSubmission = replacement
+                , pureClaimsActive =
+                    case durableStatus replacement of
+                        RejectedE -> False
+                        ExpiredDappE -> False
+                        InLedgerDappE -> False
+                        _ -> True
+                }
+        | otherwise = stored
+
+readPureDurable
+    :: MVar [PureDurableSubmission]
+    -> WalletId
+    -> IO [DurableSubmission]
+readPureDurable store walletId =
+    withMVar store
+        $ pure
+            . fmap pureSubmission
+            . filter ((== walletId) . durableWalletId . pureSubmission)
+
+normalizeInputs
+    :: [DurableSubmissionInput] -> [DurableSubmissionInput]
+normalizeInputs =
+    sort
+        . Map.elems
+        . Map.fromListWith min
+        . fmap (\input -> (inputKey input, input))
+
+overlaps :: [DurableSubmissionInput] -> PureDurableSubmission -> Bool
+overlaps requested PureDurableSubmission{pureInputs, pureClaimsActive} =
+    pureClaimsActive
+        && any (`Map.member` claimed) (inputKey <$> requested)
+  where
+    claimed :: Map (TxId, Word32) ()
+    claimed = Map.fromList $ (\input -> (inputKey input, ())) <$> pureInputs
+
+inputKey :: DurableSubmissionInput -> (TxId, Word32)
+inputKey DurableSubmissionInput{durableInputTxId, durableInputIndex} =
+    (durableInputTxId, durableInputIndex)
+
+sameSubmission :: DurableSubmission -> DurableSubmission -> Bool
+sameSubmission left right =
+    durableWalletId left == durableWalletId right
+        && durableTxId left == durableTxId right
+
+sameIdentity :: DurableSubmission -> DurableSubmission -> Bool
+sameIdentity left right =
+    sameSubmission left right
+        && durableSealedTx left == durableSealedTx right
 
 -- | Read the database, but return 'Nothing' if the operation fails.
 readDBMaybe
