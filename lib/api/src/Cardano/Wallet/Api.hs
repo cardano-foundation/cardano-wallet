@@ -60,6 +60,8 @@ module Cardano.Wallet.Api
     , BalanceTransaction
     , DecodeTransaction
     , SubmitTransaction
+    , PostTransactionContext
+    , PostDappWitnesses
     , StakePools
     , ListStakePools
     , JoinStakePool
@@ -243,6 +245,13 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Api.Types.BlockHeader
     ( ApiBlockHeader
+    )
+import Cardano.Wallet.Api.Types.Dapp.Context
+    ( ApiDappTransactionContextRequest
+    , ApiDappTransactionContextResponse
+    , ApiDappWitnessSignRequest
+    , ApiDappWitnessSignResponse
+    , DappJSON
     )
 import Cardano.Wallet.Api.Types.Transaction
     ( ApiLimit
@@ -627,6 +636,21 @@ type ShelleyTransactions n =
         :<|> BalanceTransaction n
         :<|> DecodeTransaction n
         :<|> SubmitTransaction
+        :<|> PostTransactionContext
+        :<|> PostDappWitnesses
+type PostTransactionContext =
+    "wallets"
+        :> Capture "walletId" (ApiT WalletId)
+        :> "transaction-context"
+        :> ReqBody '[DappJSON] ApiDappTransactionContextRequest
+        :> Post '[DappJSON] ApiDappTransactionContextResponse
+
+type PostDappWitnesses =
+    "wallets"
+        :> Capture "walletId" (ApiT WalletId)
+        :> "transaction-witnesses"
+        :> ReqBody '[DappJSON] ApiDappWitnessSignRequest
+        :> Post '[DappJSON] ApiDappWitnessSignResponse
 
 -- | https://cardano-foundation.github.io/cardano-wallet/api/#operation/constructTransaction
 type ConstructTransaction n =
@@ -1398,6 +1422,8 @@ data ApiLayer s
     , _workerRegistry :: WorkerRegistry WalletId (DBLayer IO s)
     , concierge :: Concierge IO WalletLock
     , _tokenMetadataClient :: TokenMetadataClient IO
+    , dappProcessGeneration :: !ByteString
+    , dappHmacKey :: !ByteString
     }
     deriving (Generic)
 
@@ -1411,7 +1437,7 @@ instance HasWorkerCtx (DBLayer IO s) (ApiLayer s) where
     type WorkerCtx (ApiLayer s) = WalletLayer IO s
     type WorkerMsg (ApiLayer s) = WalletWorkerLog
     type WorkerKey (ApiLayer s) = WalletId
-    hoistResource db transform (ApiLayer _ tr gp nw tl _ _ _ _) =
+    hoistResource db transform (ApiLayer _ tr gp nw tl _ _ _ _ _ _) =
         WalletLayer (contramap transform tr) gp nw tl db
 
 {-------------------------------------------------------------------------------
