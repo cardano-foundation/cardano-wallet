@@ -428,6 +428,7 @@ massiveFixtureWallet massiveMnemonic = do
                 , name = ApiT $ unsafeFromText "Massive wallet"
                 , passphrase = ApiT $ unsafeFromText fixturePassphrase
                 , oneChangeAddressMode = Nothing
+                , singleAddressMode = Nothing
                 , restorationMode = Nothing
                 }
     finallyDeleteWallet wal1
@@ -459,6 +460,7 @@ repeatPostTx wDest amtToSend batchSize amtExp = do
                         , withdrawal = Nothing
                         , metadata = Nothing
                         , timeToLive = Nothing
+                        , preferredCollateral = Nothing
                         }
             request $ C.postTransaction wSrcId payload
 
@@ -549,6 +551,7 @@ runScenario reporter scenario = lift . runResourceT $ do
                 , withdrawal = Nothing
                 , metadata = Nothing
                 , timeToLive = Nothing
+                , preferredCollateral = Nothing
                 }
     sceneOfClientMR "postTransactionFee"
         $ C.postTransactionFee wal1Id payload
@@ -561,6 +564,7 @@ runScenario reporter scenario = lift . runResourceT $ do
                 , withdrawal = Nothing
                 , metadata = Nothing
                 , timeToLive = Nothing
+                , preferredCollateral = Nothing
                 }
     sceneOfClientMR "postTransaction" $ C.postTransaction wal1Id payloadTx
     waitForChange
@@ -579,6 +583,7 @@ runScenario reporter scenario = lift . runResourceT $ do
                 , withdrawal = Nothing
                 , metadata = Nothing
                 , timeToLive = Nothing
+                , preferredCollateral = Nothing
                 }
     sceneOfClientMR "postTransactionTo5Addrs"
         $ C.postTransaction wal1Id payloadTxTo5Addr
@@ -601,6 +606,7 @@ runScenario reporter scenario = lift . runResourceT $ do
                 , withdrawal = Nothing
                 , metadata = Nothing
                 , timeToLive = Nothing
+                , preferredCollateral = Nothing
                 }
     -- Todo ADP-3293
     pend

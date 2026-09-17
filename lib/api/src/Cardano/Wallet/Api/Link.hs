@@ -86,6 +86,11 @@ module Cardano.Wallet.Api.Link
     , balanceTransaction
     , decodeTransaction
     , submitTransaction
+    , dappSubmission
+    , transactionContext
+    , dappWitnesses
+    , dappDataSignature
+    , dappCip95KeyState
 
       -- * StakePools
     , listStakePools
@@ -108,6 +113,7 @@ module Cardano.Wallet.Api.Link
     , getNetworkParams
     , getNetworkClock
     , getNetworkClock'
+    , getDappCapabilities
     , getBlocksLatestHeader
 
       -- * Proxy
@@ -863,6 +869,51 @@ submitTransaction w =
   where
     wid = w ^. typed @(ApiT WalletId)
 
+dappSubmission
+    :: forall w
+     . HasType (ApiT WalletId) w
+    => w
+    -> (Method, Text)
+dappSubmission w = endpoint @Api.PostDappSubmission (wid &)
+  where
+    wid = w ^. typed @(ApiT WalletId)
+
+transactionContext
+    :: forall w
+     . HasType (ApiT WalletId) w
+    => w
+    -> (Method, Text)
+transactionContext w = endpoint @Api.PostTransactionContext (wid &)
+  where
+    wid = w ^. typed @(ApiT WalletId)
+
+dappWitnesses
+    :: forall w
+     . HasType (ApiT WalletId) w
+    => w
+    -> (Method, Text)
+dappWitnesses w = endpoint @Api.PostDappWitnesses (wid &)
+  where
+    wid = w ^. typed @(ApiT WalletId)
+
+dappDataSignature
+    :: forall w
+     . HasType (ApiT WalletId) w
+    => w
+    -> (Method, Text)
+dappDataSignature w = endpoint @Api.PostDappDataSignature (wid &)
+  where
+    wid = w ^. typed @(ApiT WalletId)
+
+dappCip95KeyState
+    :: forall w
+     . HasType (ApiT WalletId) w
+    => w
+    -> (Method, Text)
+dappCip95KeyState w = endpoint @Api.GetDappCip95KeyState (wid &)
+  where
+    wid = w ^. typed @(ApiT WalletId)
+
 --
 -- Stake Pools
 --
@@ -900,7 +951,7 @@ quitStakePool w = endpoint @(Api.QuitStakePool Net) (wid &)
 
 getDelegationFee
     :: forall w. HasType (ApiT WalletId) w => w -> (Method, Text)
-getDelegationFee w = endpoint @Api.DelegationFee (wid &)
+getDelegationFee w = endpoint @Api.DelegationFee (\mk -> mk wid Nothing)
   where
     wid = w ^. typed @(ApiT WalletId)
 
@@ -947,6 +998,9 @@ getNetworkClock'
     -- ^ When 'True', block and force NTP check
     -> (Method, Text)
 getNetworkClock' forceNtpCheck = endpoint @Api.GetNetworkClock (forceNtpCheck &)
+
+getDappCapabilities :: (Method, Text)
+getDappCapabilities = endpoint @Api.GetDappCapabilities id
 
 --
 -- Proxy

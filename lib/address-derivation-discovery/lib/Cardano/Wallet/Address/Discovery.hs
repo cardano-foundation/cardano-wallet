@@ -169,8 +169,10 @@ class GetAccount s (key :: Depth -> Type -> Type) | s -> key where
 
 -- | How to generate change addresses.
 data ChangeAddressMode
-    = -- | Use a single address for all change outputs.
+    = -- | Use a single internal address for all change outputs.
       SingleChangeAddress
+    | -- | Use the first external receiving address for all change outputs.
+      SingleReceivingAddress
     | -- | For every change output, increase a counter and derive an address from that.
       IncreasingChangeAddresses
     deriving stock (Generic, Show, Eq)
@@ -179,6 +181,7 @@ instance NFData ChangeAddressMode
 
 instance Buildable ChangeAddressMode where
     build SingleChangeAddress = fromString "single change address mode"
+    build SingleReceivingAddress = fromString "single receiving address mode"
     build IncreasingChangeAddresses = fromString "increasing change address mode"
 
 {-------------------------------------------------------------------------------

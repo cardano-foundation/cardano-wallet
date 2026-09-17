@@ -229,7 +229,7 @@ configureContext (E2EConfig preprodMnemonics alreadyRunningWallet) action =
 
     contextFromWalletPort :: PortNumber -> IO Context
     contextFromWalletPort walletPort = do
-        manager <- httpManager
+        manager <- httpManager Nothing
         let mUri = parseURI ("http://localhost:" <> show walletPort <> "/")
         let baseUri = case mUri of
                 Just uri -> uri
@@ -240,6 +240,8 @@ configureContext (E2EConfig preprodMnemonics alreadyRunningWallet) action =
                     { _manager = (baseUri, manager)
                     , _walletPort =
                         Port $ fromIntegral walletPort
+                    , _nodeSocketPath =
+                        error "_nodeSocketPath not implemented"
                     , _mainEra =
                         ApiConway
                     , _faucet =

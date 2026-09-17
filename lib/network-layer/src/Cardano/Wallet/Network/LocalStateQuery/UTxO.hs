@@ -7,8 +7,12 @@
 -- A local state query that looks up UTxOs based on TxIns.
 module Cardano.Wallet.Network.LocalStateQuery.UTxO
     ( getUTxOByTxIn
+    , getDappTransactionContext
     ) where
 
+import Cardano.Api
+    ( AnyCardanoEra
+    )
 import Cardano.Balance.Tx.Eras
     ( MaybeInRecentEra (..)
     )
@@ -22,7 +26,11 @@ import Cardano.Wallet.Network.Implementation.Ouroboros
     ( LSQ (..)
     )
 import Cardano.Wallet.Network.LocalStateQuery.Extra
-    ( onAnyEra
+    ( currentEra
+    , onAnyEra
+    )
+import Cardano.Wallet.Network.LocalStateQuery.PParams
+    ( protocolParams
     )
 import Data.Set
     ( Set
@@ -35,6 +43,7 @@ import Ouroboros.Consensus.Shelley.Eras
     )
 import Prelude
 
+import qualified Cardano.Wallet.Read as Read
 import qualified Ouroboros.Consensus.Shelley.Ledger as Shelley
 
 {-----------------------------------------------------------------------------
@@ -55,3 +64,14 @@ getUTxOByTxIn ins =
         (pure InNonRecentEraBabbage)
         (InRecentEraConway <$> LSQry (Shelley.GetUTxOByTxIn ins))
         (InRecentEraDijkstra <$> LSQry (Shelley.GetUTxOByTxIn ins))
+
+getDappTransactionContext
+    :: Set TxIn
+    -> LSQ'
+        m
+        ( AnyCardanoEra
+        , Read.EraValue Read.PParams
+        , MaybeInRecentEra UTxO
+        )
+getDappTransactionContext ins =
+    (,,) <$> currentEra <*> protocolParams <*> getUTxOByTxIn ins

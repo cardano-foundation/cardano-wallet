@@ -42,6 +42,15 @@ import Cardano.Wallet.Api.Types
     , WalletOrAccountPostData
     , WalletPutPassphraseData
     )
+import Cardano.Wallet.Api.Types.Dapp.Context
+    ( ApiDappDataSignRequest
+    , ApiDappDataSignResponse
+    , ApiDappCip95KeyState
+    , ApiDappTransactionContextRequest
+    , ApiDappTransactionContextResponse
+    , ApiDappWitnessSignRequest
+    , ApiDappWitnessSignResponse
+    )
 import Cardano.Wallet.Api.Types.Transaction
     ( ApiAddress
     , ApiDecodedTransaction
@@ -188,6 +197,29 @@ submitTransaction
     -> ApiSerialisedTransaction
     -> ClientM ApiTxId
 submitTransaction = Shelley.submitTransaction
+
+transactionContext
+    :: ApiT WalletId
+    -> ApiDappTransactionContextRequest
+    -> ClientM ApiDappTransactionContextResponse
+transactionContext = Shelley.transactionContext
+
+dappWitnesses
+    :: ApiT WalletId
+    -> ApiDappWitnessSignRequest
+    -> ClientM ApiDappWitnessSignResponse
+dappWitnesses = Shelley.dappWitnesses
+
+dappDataSignature
+    :: ApiT WalletId
+    -> ApiDappDataSignRequest
+    -> ClientM ApiDappDataSignResponse
+dappDataSignature = Shelley.dappDataSignature
+
+dappCip95KeyState
+    :: ApiT WalletId
+    -> ClientM ApiDappCip95KeyState
+dappCip95KeyState = Shelley.dappCip95KeyState
 
 postExternalTransaction
     :: ApiT SealedTx -> ClientM ApiTxId
