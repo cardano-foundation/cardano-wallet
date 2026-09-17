@@ -90,6 +90,12 @@ import Cardano.Wallet.Api.Types
     , WalletOrAccountPostData
     , WalletPutPassphraseData
     )
+import Cardano.Wallet.Api.Types.Dapp.Context
+    ( ApiDappDataSignRequest
+    , ApiDappTransactionContextRequest
+    , ApiDappWitnessSignRequest
+    , DappJSON
+    )
 import Cardano.Wallet.Primitive.NetworkId
     ( NetworkDiscriminant (..)
     )
@@ -2441,6 +2447,15 @@ instance Malformed (BodyParam ApiMaintenanceActionPostData) where
                     )
                 ]
 
+instance Malformed (BodyParam ApiDappTransactionContextRequest) where
+    malformed = [(BodyParam "}", "Invalid backend request")]
+
+instance Malformed (BodyParam ApiDappWitnessSignRequest) where
+    malformed = [(BodyParam "}", "Invalid backend request")]
+
+instance Malformed (BodyParam ApiDappDataSignRequest) where
+    malformed = [(BodyParam "}", "Invalid backend request")]
+
 --
 -- Class instances (Header)
 --
@@ -2456,6 +2471,12 @@ instance Malformed (Header "Content-Type" JSON) where
                     , "I'm really sorry but I only understand 'application/json'. I need you to tell me what language you're speaking in order for me to understand your message. Please double-check your 'Content-Type' request header and make sure it's set to 'application/json'."
                     )
                 ]
+
+instance Wellformed (Header "Content-Type" DappJSON) where
+    wellformed = [Header "application/json"]
+
+instance Malformed (Header "Content-Type" DappJSON) where
+    malformed = [(Header "plain/text", "Invalid backend request")]
 
 instance Wellformed (Header "Content-Type" OctetStream) where
     wellformed =
@@ -2482,6 +2503,12 @@ instance Malformed (Header "Accept" JSON) where
                     , "It seems as though you don't accept 'application/json', but unfortunately I only speak 'application/json'! Please double-check your 'Accept' request header and make sure it's set to 'application/json'."
                     )
                 ]
+
+instance Wellformed (Header "Accept" DappJSON) where
+    wellformed = [Header "application/json"]
+
+instance Malformed (Header "Accept" DappJSON) where
+    malformed = [(Header "plain/text", "Invalid backend request")]
 
 instance Wellformed (Header "Accept" OctetStream) where
     wellformed =

@@ -31,5 +31,6 @@ import Cardano.Wallet.Network.LocalStateQuery.StakeDistribution
     ( stakeDistribution
     )
 import Cardano.Wallet.Network.LocalStateQuery.UTxO
-    ( getUTxOByTxIn
+    ( getDappTransactionContext
+    , getUTxOByTxIn
     )

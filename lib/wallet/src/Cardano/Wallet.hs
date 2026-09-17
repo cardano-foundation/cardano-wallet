@@ -199,6 +199,8 @@ module Cardano.Wallet
     , submitExternalTx
     , submitTx
     , signTransactionV2
+    , signDappWitnesses
+    , signDappData
     , readLocalTxSubmissionPending
     , LocalTxSubmissionConfig (..)
     , defaultLocalTxSubmissionConfig
@@ -248,6 +250,7 @@ module Cardano.Wallet
 import Cardano.Address.Derivation
     ( XPrv
     , XPub
+    , xpubPublicKey
     )
 import Cardano.Address.KeyHash
     ( KeyHash
@@ -277,6 +280,13 @@ import Cardano.Balance.Tx.TimeTranslation
 import Cardano.Balance.Tx.Tx
     ( toRecentEraGADT
     )
+import Cardano.Crypto.DSIGN
+    ( VerKeyDSIGN
+    , rawDeserialiseSigDSIGN
+    , rawDeserialiseVerKeyDSIGN
+    , verifyDSIGN
+    , verifySignedDSIGN
+    )
 import Cardano.Crypto.Wallet
     ( toXPub
     , xpub
@@ -295,6 +305,7 @@ import Cardano.Crypto.WalletHD.Encrypted
     , encryptedDerivePrivate
     , encryptedPublic
     , encryptedValidatePassphrase
+    , extKeyMaterialPublicKey
     , publicKeyByteString
     , signWithExtKeyMaterial
     , withDecryptedExtKeyMaterial
@@ -320,6 +331,19 @@ import Cardano.Ledger.Binary
     )
 import Cardano.Ledger.Core
     ( certsTxBodyL
+    )
+import Cardano.Ledger.Hashes
+    ( EraIndependentTxBody
+    , HashAnnotated (hashAnnotated)
+    , extractHash
+    )
+import Cardano.Ledger.Keys
+    ( DSIGN
+    , VKey (..)
+    , Witness
+    )
+import Cardano.Ledger.Keys.WitVKey
+    ( WitVKey (..)
     )
 import Cardano.Mnemonic
     ( SomeMnemonic
@@ -352,6 +376,7 @@ import Cardano.Wallet.Address.Derivation
     , liftIndex
     , paymentAddressS
     , stakeDerivationPath
+    , zeroAccount
     )
 import Cardano.Wallet.Address.Derivation.Byron
     ( ByronKey (..)
@@ -373,6 +398,7 @@ import Cardano.Wallet.Address.Derivation.SharedKey
 import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey (..)
     , deriveAccountPrivateKeyShelley
+    , deriveAddressPrivateKeyShelley
     )
 import Cardano.Wallet.Address.Discovery
     ( ChangeAddressMode (..)
@@ -432,7 +458,8 @@ import Cardano.Wallet.Checkpoints
     , pruneCheckpoints
     )
 import Cardano.Wallet.DB
-    ( DBLayer (..)
+    ( ContextChange (..)
+    , DBLayer (..)
     , DBLayerParams (..)
     , ErrNoSuchTransaction (..)
     , ErrRemoveTx (..)
@@ -663,6 +690,8 @@ import Cardano.Wallet.Shelley.Transaction.Ledger
     ( certificateFromDelegationActionLedger
     , certificateFromVotingActionLedger
     , constructUnsignedTxLedger
+    , mkDappVKeyWitnessFromExtKeyMaterial
+    , mkDappVKeyWitnessLedger
     , mkShelleyWitnessFromExtKeyMaterial
     , mkShelleyWitnessLedger
     , mkTransaction
@@ -764,6 +793,7 @@ import Control.Tracer
     )
 import Cryptography.Hash.Blake
     ( Blake2b_256
+    , blake2b224
     )
 import Cryptography.Hash.Core
     ( hash
@@ -925,6 +955,7 @@ import qualified Cardano.Balance.Tx.Tx as Write
     , PParams
     , PParamsInAnyRecentEra (PParamsInAnyRecentEra)
     , Tx
+    , TxBody
     , UTxO (UTxO)
     , feeOfBytes
     , forceUTxOToEra
@@ -1095,6 +1126,17 @@ onWalletState
 onWalletState ctx update' =
     db & \DBLayer{..} ->
         atomically $ Delta.onDBVar walletState update'
+  where
+    db = ctx ^. dbLayer
+
+onWalletStateWithContextChange
+    :: WalletLayer m s
+    -> ContextChange
+    -> Delta.Update (WalletState.DeltaWalletState s) r
+    -> m r
+onWalletStateWithContextChange ctx change update' =
+    db & \DBLayer{..} ->
+        atomicallyWithContextChange change $ Delta.onDBVar walletState update'
   where
     db = ctx ^. dbLayer
 
@@ -1467,7 +1509,8 @@ rollbackBlocks
     -> IO ChainPoint
 rollbackBlocks ctx point =
     db & \DBLayer{..} ->
-        atomically $ rollbackTo point
+        atomicallyWithContextChange WalletAndPendingContextChange
+            $ rollbackTo point
   where
     db = ctx ^. dbLayer
 
@@ -1488,7 +1531,7 @@ restoreBlocks
     -> Read.ChainTip
     -> IO ()
 restoreBlocks ctx tr blocks nodeTip =
-    db & \DBLayer{..} -> atomically $ do
+    db & \DBLayer{..} -> atomicallyWithContextChange WalletAndPendingContextChange $ do
         slottingParams <- liftIO $ currentSlottingParameters nl
         cp0 <- readCheckpoint
         unless (cp0 `isParentOf` firstHeader blocks)
@@ -2458,6 +2501,191 @@ signTransactionV2 era sealedTx wallet walletUtxo ekey userPwd =
                     $ sealWriteTx recentEra'
                     $ over (witsTxL . addrTxWitsL) (Set.union (Set.fromList wits)) ledgerTx
 
+-- | Sign only explicitly authenticated Shelley derivation candidates.
+-- This deliberately has no wallet-state, UTxO, or transaction-envelope input.
+signDappWitnesses
+    :: RootKeyAccess ShelleyKey
+    -> Passphrase "user"
+    -> Write.TxBody Read.Conway
+    -> [([Word32], ByteString)]
+    -> IO (Either String [WitVKey Witness])
+signDappWitnesses root userPwd body candidates =
+    fmap (>>= verifyAndDeduplicate) $ case root of
+        RootKeyAccessV1 rootKey scheme ->
+            pure
+                $ traverse
+                    (signV1 rootKey $ preparePassphrase scheme userPwd)
+                    candidates
+        RootKeyAccessV2 encryptedKey _ _ -> do
+            results <- withDecryptedExtKeyMaterial encryptedKey userPwd $ \rootMaterial -> do
+                derived <- forM candidates $ \(path, expectedHash) ->
+                    withDerivedExtKeyMaterial DerivationScheme2 rootMaterial path $ \material ->
+                        if blake2b224 (publicKeyByteString $ extKeyMaterialPublicKey material)
+                            /= expectedHash
+                            then pure $ Right $ Left "candidate key hash mismatch"
+                            else
+                                fmap Right
+                                    $ mkDappVKeyWitnessFromExtKeyMaterial
+                                        Write.RecentEraConway
+                                        body
+                                        material
+                pure $ sequence derived
+            pure $ first show results >>= sequence
+  where
+    signV1 rootKey encryptionPwd (path, expectedHash) = do
+        raw <- deriveV1 rootKey encryptionPwd path
+        if blake2b224 (xpubPublicKey $ toXPub raw) /= expectedHash
+            then Left "candidate key hash mismatch"
+            else
+                mkDappVKeyWitnessLedger
+                    Write.RecentEraConway
+                    body
+                    (raw, encryptionPwd)
+
+    deriveV1 rootKey encryptionPwd = \case
+        [purpose, coinType, account, role, address]
+            | purpose == 0x8000073c
+                && coinType == 0x80000717
+                && account >= 0x80000000
+                && role <= 1
+                && address < 0x80000000 ->
+                let accountKey =
+                        deriveAccountPrivateKeyShelley
+                            (Index purpose)
+                            encryptionPwd
+                            (getRawKey ShelleyKeyS rootKey)
+                            (Index account)
+                in  Right
+                        $ deriveAddressPrivateKeyShelley
+                            encryptionPwd
+                            accountKey
+                            (if role == 0 then UtxoExternal else UtxoInternal)
+                            (Index address :: Index 'Soft 'CredFromKeyK)
+        [purpose, coinType, account, role, address]
+            | purpose == 0x8000073c
+                && coinType == 0x80000717
+                && account >= 0x80000000
+                && role == 2
+                && address == 0 ->
+                let accountKey =
+                        deriveAccountPrivateKeyShelley
+                            (Index purpose)
+                            encryptionPwd
+                            (getRawKey ShelleyKeyS rootKey)
+                            (Index account)
+                in  Right
+                        $ deriveAddressPrivateKeyShelley
+                            encryptionPwd
+                            accountKey
+                            MutableAccount
+                            zeroAccount
+        [0x8000073f, 0x80000717, 0x80000000] ->
+            Right
+                $ derivePolicyPrivateKey
+                    encryptionPwd
+                    (getRawKey ShelleyKeyS rootKey)
+                    minBound
+        _ -> Left "unsupported derivation path"
+
+    verifyAndDeduplicate witnesses
+        | all (verifyWitness bodyHash) witnesses =
+            Right $ Set.toList $ Set.fromList witnesses
+        | otherwise = Left "generated witness does not verify"
+      where
+        bodyHash =
+            extractHash
+                $ hashAnnotated @_ @EraIndependentTxBody body
+        verifyWitness digest (WitVKey (VKey key) signature) =
+            verifySignedDSIGN () key digest signature == Right ()
+
+-- | Sign exact application bytes with an explicitly verified CIP-1852 child.
+-- No payload transformation is permitted here.
+signDappData
+    :: RootKeyAccess ShelleyKey
+    -> Passphrase "user"
+    -> [Word32]
+    -> ByteString
+    -> ByteString
+    -> IO (Either String (ByteString, ByteString))
+signDappData root userPwd path expectedHash message = do
+    result <- case root of
+        RootKeyAccessV1 rootKey scheme ->
+            pure $ signV1 rootKey (preparePassphrase scheme userPwd)
+        RootKeyAccessV2 encryptedKey _ _ -> do
+            signed <- withDecryptedExtKeyMaterial encryptedKey userPwd $ \rootMaterial ->
+                withDerivedExtKeyMaterial DerivationScheme2 rootMaterial path $ \material -> do
+                    let public = publicKeyByteString $ extKeyMaterialPublicKey material
+                    if blake2b224 public /= expectedHash
+                        then pure $ Right $ Left "candidate key hash mismatch"
+                        else
+                            fmap
+                                ( fmap $ \case
+                                    EncHD.Signature signature -> Right (public, signature)
+                                )
+                                $ signWithExtKeyMaterial material message
+            pure $ first show signed >>= id
+    pure $ result >>= verifyResult
+  where
+    signV1 rootKey encryptionPwd = do
+        raw <- deriveV1 rootKey encryptionPwd path
+        let public = xpubPublicKey $ toXPub raw
+        if blake2b224 public /= expectedHash
+            then Left "candidate key hash mismatch"
+            else Right (public, BA.convert $ CC.sign encryptionPwd raw message)
+
+    deriveV1 rootKey encryptionPwd = \case
+        [purpose, coinType, account, role, address]
+            | purpose == 0x8000073c
+                && coinType == 0x80000717
+                && account >= 0x80000000
+                && role <= 1
+                && address < 0x80000000 ->
+                let accountKey =
+                        deriveAccountPrivateKeyShelley
+                            (Index purpose)
+                            encryptionPwd
+                            (getRawKey ShelleyKeyS rootKey)
+                            (Index account)
+                in  Right
+                        $ deriveAddressPrivateKeyShelley
+                            encryptionPwd
+                            accountKey
+                            (if role == 0 then UtxoExternal else UtxoInternal)
+                            (Index address :: Index 'Soft 'CredFromKeyK)
+        [purpose, coinType, account, role, address]
+            | purpose == 0x8000073c
+                && coinType == 0x80000717
+                && account >= 0x80000000
+                && role == 2
+                && address == 0 ->
+                let accountKey =
+                        deriveAccountPrivateKeyShelley
+                            (Index purpose)
+                            encryptionPwd
+                            (getRawKey ShelleyKeyS rootKey)
+                            (Index account)
+                in  Right
+                        $ deriveAddressPrivateKeyShelley
+                            encryptionPwd
+                            accountKey
+                            MutableAccount
+                            zeroAccount
+        _ -> Left "unsupported derivation path"
+
+    verifyResult result@(public, signature)
+        | BS.length public /= 32 || BS.length signature /= 64 =
+            Left "invalid data signature length"
+        | otherwise = do
+            vkey <-
+                maybe (Left "invalid data public key") Right
+                    $ (rawDeserialiseVerKeyDSIGN public :: Maybe (VerKeyDSIGN DSIGN))
+            sig <-
+                maybe (Left "invalid data signature") Right
+                    $ rawDeserialiseSigDSIGN signature
+            if verifyDSIGN () vkey message sig == Right ()
+                then Right result
+                else Left "generated data signature does not verify"
+
 type MakeRewardAccountBuilder k =
     ClearCredentials k -> (XPrv, Passphrase "encryption")
 
@@ -2672,7 +2900,7 @@ buildSignSubmitTransaction
                                 Read.EraValue Read.Conway
                             Write.RecentEraDijkstra ->
                                 Read.EraValue Read.Dijkstra
-                    (unsignedTx, wallet, slot) <- atomically $ do
+                    (unsignedTx, wallet, slot) <- atomicallyWithContextChange WalletContextChange $ do
                         pendingTxs <-
                             fmap fromTransactionInfo
                                 <$> readTransactions
@@ -2834,7 +3062,7 @@ buildSignSubmitTransaction
                                 , builtTxMeta
                                 , builtSealedTx
                                 }
-                    atomically
+                    atomicallyWithContextChange PendingContextChange
                         $ Delta.onDBVar walletState
                             . WalletState.updateSubmissions
                             . Delta.update
@@ -2848,7 +3076,7 @@ buildSignSubmitTransaction
                         & fmap (builtTx,)
                         & liftIO
                 RootKeyAccessV1 rootKey scheme -> lift $ do
-                    (BuiltTx{..}, slot) <- atomically $ do
+                    (BuiltTx{..}, slot) <- atomicallyWithContextChange WalletAndPendingContextChange $ do
                         pendingTxs <-
                             fmap fromTransactionInfo
                                 <$> readTransactions
@@ -3543,11 +3771,11 @@ submitTx
     -> NetworkLayer m block
     -> BuiltTx
     -> ExceptT ErrSubmitTx m ()
-submitTx tr DBLayer{walletState, atomically} nw tx@BuiltTx{..} =
+submitTx tr DBLayer{walletState, atomicallyWithContextChange} nw tx@BuiltTx{..} =
     traceResult (MsgWallet . MsgTxSubmit . MsgSubmitTx tx >$< tr) $ do
         withExceptT ErrSubmitTxNetwork $ postSealedTx nw builtSealedTx
         lift
-            . atomically
+            . atomicallyWithContextChange PendingContextChange
             . Delta.onDBVar walletState
             . WalletState.updateSubmissions
             . Delta.update
@@ -3670,7 +3898,7 @@ forgetTx
     -> ExceptT ErrRemoveTx m ()
 forgetTx ctx txid =
     ExceptT
-        . onWalletState ctx
+        . onWalletStateWithContextChange ctx PendingContextChange
         . WalletState.updateSubmissions
         . Delta.updateWithError
         $ Submissions.removePendingOrExpiredTx txid
@@ -3756,7 +3984,8 @@ runLocalTxSubmissionPool cfg ctx =
                     runExceptT
                         $ traceResult (trRetry (st ^. #txId))
                         $ postSealedTx nw (st ^. #submittedTx)
-                atomically $ resubmitTx (st ^. #txId) sl
+                atomicallyWithContextChange PendingContextChange
+                    $ resubmitTx (st ^. #txId) sl
         watchNodeTip nw submitPending
   where
     nw = networkLayer_ ctx
@@ -4665,7 +4894,7 @@ writePolicyPublicKey ctx wid pwd =
 
         let seqState' = seqState & #policyXPub .~ Just policyXPub
         lift
-            $ atomically
+            $ atomicallyWithContextChange WalletContextChange
             $ Delta.onDBVar walletState
             $ Delta.update
             $ \_ -> [ReplacePrologue $ SeqPrologue seqState']
@@ -4681,7 +4910,7 @@ setChangeAddressMode
     -> ChangeAddressMode
     -> IO ()
 setChangeAddressMode ctx mode =
-    onWalletState ctx $ update $ \s ->
+    onWalletStateWithContextChange ctx WalletContextChange $ update $ \s ->
         let (SeqPrologue seqState) = WS.prologue s
             seqState' = seqState & #changeAddressMode .~ mode
         in  [ReplacePrologue $ SeqPrologue seqState']
@@ -4693,7 +4922,7 @@ setChangeAddressModeShared
     -> ChangeAddressMode
     -> IO ()
 setChangeAddressModeShared ctx mode =
-    onWalletState ctx $ update $ \s ->
+    onWalletStateWithContextChange ctx WalletContextChange $ update $ \s ->
         let (SharedPrologue sharedState) = WS.prologue s
             sharedState' = sharedState & #changeAddressMode .~ mode
         in  [ReplacePrologue $ SharedPrologue sharedState']

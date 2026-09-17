@@ -85,6 +85,12 @@ import Cardano.Balance.Tx.SizeEstimation
     ( TxSkeleton (..)
     , estimateTxSize
     )
+import Cardano.Crypto.DSIGN
+    ( SignedDSIGN (SignedDSIGN)
+    , rawDeserialiseSigDSIGN
+    , rawDeserialiseVerKeyDSIGN
+    , verifySignedDSIGN
+    )
 import Cardano.Crypto.Wallet.Types
     ( DerivationScheme (DerivationScheme2)
     )
@@ -107,6 +113,7 @@ import Cardano.Ledger.Api
     , bodyTxL
     , bootAddrTxWitsL
     , eraProtVerLow
+    , feeTxBodyL
     , hashScript
     , scriptTxWitsL
     , witsTxL
@@ -117,7 +124,6 @@ import Cardano.Ledger.Api.Tx
 import Cardano.Ledger.Api.Tx.Body
     ( certsTxBodyL
     , collateralInputsTxBodyL
-    , feeTxBodyL
     , inputsTxBodyL
     , mintTxBodyL
     , outputsTxBodyL
@@ -137,6 +143,18 @@ import Cardano.Ledger.Core
     , metadataTxAuxDataL
     , mkBasicTxAuxData
     )
+import Cardano.Ledger.Hashes
+    ( EraIndependentTxBody
+    , HashAnnotated (hashAnnotated)
+    , extractHash
+    )
+import Cardano.Ledger.Keys
+    ( VKey (..)
+    , Witness
+    )
+import Cardano.Ledger.Keys.WitVKey
+    ( WitVKey (..)
+    )
 import Cardano.Mnemonic
     ( SomeMnemonic (SomeMnemonic)
     )
@@ -144,13 +162,18 @@ import Cardano.Wallet
     ( CoinSelection (..)
     , Fee (..)
     , Percentile (..)
+    , RootKeyAccess (..)
     , buildCoinSelectionForTransaction
     , calculateFeePercentiles
+    , signDappData
+    , signDappWitnesses
     , signTransaction
     )
 import Cardano.Wallet.Address.Derivation
     ( Depth (..)
     , DerivationIndex (..)
+    , Index (..)
+    , Role (UtxoExternal)
     , deriveRewardAccount
     , hex
     , paymentAddress
@@ -322,6 +345,8 @@ import Cardano.Wallet.Shelley.Transaction.Ledger
     , buildLedgerTxRaw
     , certificateFromDelegationActionLedger
     , mkByronWitnessLedger
+    , mkDappVKeyWitnessFromExtKeyMaterial
+    , mkDappVKeyWitnessLedger
     , mkShelleyWitnessFromExtKeyMaterial
     , mkShelleyWitnessLedger
     , noScriptWitnesses
@@ -553,6 +578,18 @@ spec = describe "TransactionSpec" $ do
             $ forAll
                 ((,) <$> genShelleyKeyAndPwd <*> arbitrary)
                 (\((key, pwd), ix) -> prop_v2DerivedWitnessMatchesV1 key pwd ix)
+    describe "DAPP_WITNESS_SIGNING" $ do
+        prop
+            "V1 and V2 sign the exact original body with the same VKey witness"
+            $ forAll genShelleyKeyAndPwd (uncurry prop_dappVKeyWitnessesMatch)
+        prop "rejects candidate path/key-hash mismatches"
+            $ forAll
+                genShelleyKeyAndPwd
+                (uncurry prop_dappVKeyWitnessRejectsHashMismatch)
+    describe "DAPP_DATA_SIGNING" $ do
+        prop
+            "V1 and V2 sign exact non-UTF8 bytes with the authenticated public key"
+            $ forAll genShelleyKeyAndPwd (uncurry prop_dappDataSignsExactBytes)
     describe "Sign transaction" $ do
         -- TODO [ADP-2849] The implementation must be restricted to work only in
         -- 'RecentEra's, not just the tests.
@@ -3112,3 +3149,141 @@ prop_v2DerivedWitnessMatchesV1 xprvKey encPwd ix =
                     . mkShelleyWitnessFromExtKeyMaterial RecentEraConway minimalConwayTxBody
         v2Wit <- either (error . show) pure witE
         pure $ v1Wit == v2Wit
+
+prop_dappVKeyWitnessesMatch
+    :: ShelleyKey 'RootK XPrv
+    -> Passphrase "encryption"
+    -> Property
+prop_dappVKeyWitnessesMatch xprvKey encPwd = ioProperty $ withFastKdfForTesting $ do
+    let rawXprv = getRawKey ShelleyKeyS xprvKey
+        plaintextXprv = CC.xPrvChangePass encPwd (mempty :: BS.ByteString) rawXprv
+        raw128 = CC.unXPrv plaintextXprv
+        masterKey96 = BS.take 64 raw128 <> BS.drop 96 raw128
+        expected =
+            mkDappVKeyWitnessLedger
+                RecentEraConway
+                minimalConwayTxBody
+                (plaintextXprv, mempty)
+    ekeyE <-
+        encryptedCreateDirectWithTweak masterKey96 (mempty :: BS.ByteString)
+    case ekeyE of
+        Left _ -> pure False
+        Right ekey -> do
+            actual <- withDecryptedExtKeyMaterial ekey (mempty :: BS.ByteString) $ \km ->
+                fmap Right
+                    $ mkDappVKeyWitnessFromExtKeyMaterial
+                        RecentEraConway
+                        minimalConwayTxBody
+                        km
+            pure $ case (expected, actual) of
+                (Right v1, Right (Right v2)) ->
+                    v1 == v2
+                        && verifiesDappWitness minimalConwayTxBody v1
+                        && verifiesDappWitness minimalConwayTxBody v2
+                        && not (verifiesDappWitness wrongBody v1)
+                        && not (verifiesDappWitness wrongBody v2)
+                _ -> False
+  where
+    wrongBody = minimalConwayTxBody & feeTxBodyL .~ Ledger.Coin 1_000_001
+
+prop_dappVKeyWitnessRejectsHashMismatch
+    :: ShelleyKey 'RootK XPrv
+    -> Passphrase "encryption"
+    -> Property
+prop_dappVKeyWitnessRejectsHashMismatch xprvKey encPwd =
+    ioProperty $ do
+        let Passphrase bytes = encPwd
+            userPwd :: Passphrase "user"
+            userPwd = Passphrase bytes
+            encryptionPwd = preparePassphrase EncryptWithPBKDF2 userPwd
+            rootKey =
+                liftRawKey ShelleyKeyS
+                    $ CC.xPrvChangePass
+                        encPwd
+                        encryptionPwd
+                        (getRawKey ShelleyKeyS xprvKey)
+        result <-
+            signDappWitnesses
+                (RootKeyAccessV1 rootKey EncryptWithPBKDF2)
+                userPwd
+                minimalConwayTxBody
+                [
+                    ( [0x8000073c, 0x80000717, 0x80000000, 0, 0]
+                    , BS.replicate 28 0
+                    )
+                ]
+        pure $ result == Left "candidate key hash mismatch"
+prop_dappDataSignsExactBytes
+    :: ShelleyKey 'RootK XPrv
+    -> Passphrase "encryption"
+    -> Property
+prop_dappDataSignsExactBytes xprvKey encPwd = ioProperty $ withFastKdfForTesting $ do
+    let userPwd = Passphrase $ case encPwd of Passphrase bytes -> bytes
+        encryptionPwd = preparePassphrase EncryptWithPBKDF2 userPwd
+        rootKey =
+            liftRawKey ShelleyKeyS
+                $ CC.xPrvChangePass encPwd encryptionPwd (getRawKey ShelleyKeyS xprvKey)
+        path = [0x8000073c, 0x80000717, 0x80000000, 0, 0]
+        accountKey =
+            Shelley.deriveAccountPrivateKeyShelley
+                (Index 0x8000073c)
+                encryptionPwd
+                (getRawKey ShelleyKeyS rootKey)
+                (Index 0x80000000)
+        addressKey =
+            Shelley.deriveAddressPrivateKeyShelley
+                encryptionPwd
+                accountKey
+                UtxoExternal
+                (Index 0)
+        credential = blake2b224 $ xpubPublicKey $ toXPub addressKey
+        message = BS.pack [0x00, 0xff, 0x80, 0x41]
+        altered = BS.reverse message
+        rawXprv =
+            CC.xPrvChangePass encPwd (mempty :: BS.ByteString)
+                $ getRawKey ShelleyKeyS xprvKey
+        raw128 = CC.unXPrv rawXprv
+        masterKey96 = BS.take 64 raw128 <> BS.drop 96 raw128
+    ekeyE <- encryptedCreateDirectWithTweak masterKey96 userPwd
+    case ekeyE of
+        Left _ -> pure False
+        Right ekey -> do
+            v1 <-
+                signDappData
+                    (RootKeyAccessV1 rootKey EncryptWithPBKDF2)
+                    userPwd
+                    path
+                    credential
+                    message
+            v2 <-
+                signDappData
+                    (RootKeyAccessV2 ekey Nothing userPwd)
+                    userPwd
+                    path
+                    credential
+                    message
+            pure $ case (v1, v2) of
+                (Right signed1@(public, signature), Right signed2) ->
+                    signed1 == signed2
+                        && blake2b224 public == credential
+                        && verifiesDappData message public signature
+                        && not (verifiesDappData altered public signature)
+                _ -> False
+
+verifiesDappData :: ByteString -> ByteString -> ByteString -> Bool
+verifiesDappData message public signature = case ( VKey <$> rawDeserialiseVerKeyDSIGN public :: Maybe (VKey Witness)
+                                                 , SignedDSIGN <$> rawDeserialiseSigDSIGN signature
+                                                 ) of
+    (Just (VKey vkey), Just sig) -> verifySignedDSIGN () vkey message sig == Right ()
+    _ -> False
+
+verifiesDappWitness
+    :: Write.TxBody Write.Conway
+    -> WitVKey Witness
+    -> Bool
+verifiesDappWitness body (WitVKey (VKey vkey) signature) =
+    verifySignedDSIGN () vkey bodyHash signature == Right ()
+  where
+    bodyHash =
+        extractHash
+            $ hashAnnotated @_ @EraIndependentTxBody body

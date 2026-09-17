@@ -4406,6 +4406,187 @@ components:
           enum: ["base16", "base64"]
           description: Encoding of transaction CBOR returned in response (base64 by default).
 
+    ApiDappTransactionContextRequest: &ApiDappTransactionContextRequest
+      type: object
+      additionalProperties: false
+      required: [revision, network, transactions]
+      properties:
+        revision: { type: integer, enum: [1] }
+        network: &ApiDappContextNetwork
+          type: object
+          additionalProperties: false
+          required: [network_id, network_magic, genesis_hash]
+          properties:
+            network_id: { type: integer, enum: [0, 1] }
+            network_magic: { type: integer, minimum: 0, maximum: 4294967295 }
+            genesis_hash: { type: string, pattern: '^[0-9a-f]{64}$' }
+        transactions:
+          type: array
+          minItems: 0
+          maxItems: 50
+          items: { type: string, pattern: '^(?:[0-9a-f]{2}){1,65536}$' }
+
+    ApiDappTransactionContextResponse: &ApiDappTransactionContextResponse
+      type: object
+      additionalProperties: false
+      required: [revision, wallet_id, network, chain_point, wallet_generation, pending_generation, era, protocol_version, protocol_parameters_cbor, volatile_delta, outputs, pending_overlay, records, context_digest, context_token]
+      properties:
+        revision: { type: integer, enum: [1] }
+        wallet_id: { type: string, pattern: '^[0-9a-f]{40}$' }
+        network: *ApiDappContextNetwork
+        chain_point: &ApiDappChainPoint
+          oneOf:
+            - type: object
+              additionalProperties: false
+              required: [kind]
+              properties:
+                kind: { type: string, enum: [genesis] }
+            - type: object
+              additionalProperties: false
+              required: [kind, slot, block_hash]
+              properties:
+                kind: { type: string, enum: [block] }
+                slot: &ApiDappWord64
+                  type: string
+                  pattern: '^(0|[1-9][0-9]{0,18}|1[0-7][0-9]{18}|18[0-3][0-9]{17}|184[0-3][0-9]{16}|1844[0-5][0-9]{15}|18446[0-6][0-9]{14}|184467[0-3][0-9]{13}|1844674[0-3][0-9]{12}|184467440[0-6][0-9]{10}|1844674407[0-2][0-9]{9}|18446744073[0-6][0-9]{8}|1844674407370[0-8][0-9]{6}|18446744073709[0-4][0-9]{5}|184467440737095[0-4][0-9]{4}|18446744073709550[0-9]{3}|18446744073709551[0-5][0-9]{2}|1844674407370955160[0-9]|1844674407370955161[0-5])$'
+                block_hash: { type: string, pattern: '^[0-9a-f]{64}$' }
+        wallet_generation: *ApiDappWord64
+        pending_generation: *ApiDappWord64
+        era: { type: string, enum: [conway] }
+        protocol_version:
+          type: object
+          additionalProperties: false
+          required: [major, minor]
+          properties:
+            major: { type: integer, minimum: 0, maximum: 4294967295 }
+            minor: { type: integer, minimum: 0, maximum: 4294967295 }
+        protocol_parameters_cbor: &ApiDappNonEmptyHex { type: string, pattern: '^(?:[0-9a-f]{2})+$' }
+        volatile_delta:
+          type: object
+          additionalProperties: false
+          required: [point, node_transaction_inputs]
+          properties:
+            point: *ApiDappChainPoint
+            node_transaction_inputs:
+              type: array
+              items: *ApiDappNonEmptyHex
+        outputs:
+          type: array
+          items: &ApiDappContextOutput
+            type: object
+            additionalProperties: false
+            required: [outpoint, transaction_input_cbor, source_transaction_output_cbor, canonical_transaction_output_cbor, transaction_unspent_output_cbor, provenance, roles, wallet_member, pending_state]
+            properties:
+              outpoint: &ApiDappOutpoint
+                type: object
+                additionalProperties: false
+                required: [transaction_id, index]
+                properties:
+                  transaction_id: { type: string, pattern: '^[0-9a-f]{64}$' }
+                  index: { type: integer, minimum: 0, maximum: 4294967295 }
+              transaction_input_cbor: *ApiDappNonEmptyHex
+              source_transaction_output_cbor: *ApiDappNonEmptyHex
+              canonical_transaction_output_cbor: *ApiDappNonEmptyHex
+              transaction_unspent_output_cbor: *ApiDappNonEmptyHex
+              provenance:
+                type: array
+                minItems: 1
+                uniqueItems: true
+                items: { type: string, enum: [pending, node] }
+              roles:
+                type: array
+                minItems: 1
+                uniqueItems: true
+                items: { type: string, enum: [normal, collateral, reference, wallet_snapshot] }
+              wallet_member: { type: boolean }
+              pending_state: { type: string, enum: [none, outcome_unknown] }
+        pending_overlay:
+          type: object
+          additionalProperties: false
+          required: [transactions, spent_wallet_inputs, produced_wallet_outputs]
+          properties:
+            transactions:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required: [transaction_id, state, transaction_cbor, normal_inputs, collateral_inputs, expiry_slot]
+                properties:
+                  transaction_id: { type: string, pattern: '^[0-9a-f]{64}$' }
+                  state: { type: string, enum: [outcome_unknown] }
+                  transaction_cbor: *ApiDappNonEmptyHex
+                  normal_inputs: { type: array, items: *ApiDappOutpoint }
+                  collateral_inputs: { type: array, items: *ApiDappOutpoint }
+                  expiry_slot:
+                    <<: *ApiDappWord64
+                    nullable: true
+            spent_wallet_inputs: { type: array, items: *ApiDappOutpoint }
+            produced_wallet_outputs: { type: array, maxItems: 0, items: *ApiDappOutpoint }
+        records: { type: array, items: *ApiDappNonEmptyHex }
+        context_digest: { type: string, pattern: '^[0-9a-f]{64}$' }
+        context_token: *ApiDappNonEmptyHex
+
+    ApiDappWitnessSignRequest: &ApiDappWitnessSignRequest
+      type: object
+      additionalProperties: false
+      required: [revision, context, transactions, passphrase]
+      properties:
+        revision: { type: integer, enum: [1] }
+        context: *ApiDappTransactionContextResponse
+        transactions:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items:
+            type: object
+            additionalProperties: false
+            required: [cbor, partial_sign]
+            properties:
+              cbor: { type: string, pattern: '^(?:[0-9a-f]{2}){1,65536}$' }
+              partial_sign: { type: boolean }
+        passphrase: *lenientPassphrase
+
+    ApiDappWitnessSignResponse: &ApiDappWitnessSignResponse
+      type: object
+      additionalProperties: false
+      required: [revision, witnesses]
+      properties:
+        revision: { type: integer, enum: [1] }
+        witnesses:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items:
+            type: object
+            additionalProperties: false
+            required: [transaction_index, body_hash, witness_set_cbor]
+            properties:
+              transaction_index: { type: integer, minimum: 0, maximum: 49 }
+              body_hash: { type: string, pattern: '^[0-9a-f]{64}$' }
+              witness_set_cbor: *ApiDappNonEmptyHex
+
+    ApiDappDataSignRequest: &ApiDappDataSignRequest
+      type: object
+      additionalProperties: false
+      required: [revision, network, address, payload, passphrase]
+      properties:
+        revision: { type: integer, enum: [1] }
+        network: *ApiDappContextNetwork
+        address: { type: string, pattern: '^[0-9a-f]{58,118}$' }
+        payload: { type: string, pattern: '^(?:[0-9a-f]{2}){0,65536}$' }
+        passphrase: *lenientPassphrase
+
+    ApiDappDataSignResponse: &ApiDappDataSignResponse
+      type: object
+      additionalProperties: false
+      required: [revision, credential_kind, credential, cose_sign1, cose_key]
+      properties:
+        revision: { type: integer, enum: [1] }
+        credential_kind: { type: string, enum: [payment, stake] }
+        credential: { type: string, pattern: '^[0-9a-f]{56}$' }
+        cose_sign1: *ApiDappNonEmptyHex
+        cose_key: *ApiDappNonEmptyHex
+
     ApiBlockHeader: &ApiBlockHeader
         description: |
           A Block Header.
@@ -4658,6 +4839,90 @@ x-errNotFound: &errNotFound
     code:
       type: string
       enum: ['not_found']
+
+x-errDappInvalidRequest: &errDappInvalidRequest
+  <<: *responsesErr
+  title: dapp_invalid_request
+  properties:
+    message: { type: string, enum: ['Invalid backend request'] }
+    code: { type: string, enum: ['dapp_invalid_request'] }
+
+x-errDappContextConflict: &errDappContextConflict
+  <<: *responsesErr
+  title: dapp_context_conflict
+  properties:
+    message: { type: string, enum: ['Backend context conflict'] }
+    code: { type: string, enum: ['dapp_context_conflict'] }
+
+x-errDappIdentityConflict: &errDappIdentityConflict
+  <<: *responsesErr
+  title: dapp_identity_conflict
+  properties:
+    message: { type: string, enum: ['Submission identity conflict'] }
+    code: { type: string, enum: ['dapp_identity_conflict'] }
+
+x-errDappAccountChanged: &errDappAccountChanged
+  <<: *responsesErr
+  title: dapp_account_changed
+  properties:
+    message: { type: string, enum: ['Wallet or network changed'] }
+    code: { type: string, enum: ['dapp_account_changed'] }
+
+x-errDappContextUnavailable: &errDappContextUnavailable
+  <<: *responsesErr
+  title: dapp_context_unavailable
+  properties:
+    message: { type: string, enum: ['Wallet context unavailable'] }
+    code: { type: string, enum: ['dapp_context_unavailable'] }
+
+x-errDappInternalError: &errDappInternalError
+  <<: *responsesErr
+  title: dapp_internal_error
+  properties:
+    message: { type: string, enum: ['Backend operation failed'] }
+    code: { type: string, enum: ['dapp_internal_error'] }
+
+x-errDappTxProofGeneration: &errDappTxProofGeneration
+  <<: *responsesErr
+  title: dapp_tx_proof_generation
+  properties:
+    message: { type: string, enum: ['Transaction proof unavailable'] }
+    code: { type: string, enum: ['dapp_tx_proof_generation'] }
+
+x-errDappDeprecatedCertificate: &errDappDeprecatedCertificate
+  <<: *responsesErr
+  title: dapp_deprecated_certificate
+  properties:
+    message: { type: string, enum: ['Deprecated certificate'] }
+    code: { type: string, enum: ['dapp_deprecated_certificate'] }
+
+x-errDappDataProofGeneration: &errDappDataProofGeneration
+  <<: *responsesErr
+  title: dapp_data_proof_generation
+  properties:
+    message: { type: string, enum: ['Data proof unavailable'] }
+    code: { type: string, enum: ['dapp_data_proof_generation'] }
+
+x-errDappDataAddressNotPk: &errDappDataAddressNotPk
+  <<: *responsesErr
+  title: dapp_data_address_not_pk
+  properties:
+    message: { type: string, enum: ['Address is not a public-key credential'] }
+    code: { type: string, enum: ['dapp_data_address_not_pk'] }
+
+x-errDappSubmissionFailed: &errDappSubmissionFailed
+  <<: *responsesErr
+  title: dapp_submission_failed
+  properties:
+    message: { type: string, enum: ['Transaction submission failed'] }
+    code: { type: string, enum: ['dapp_submission_failed'] }
+
+x-errDappSubmissionUnavailable: &errDappSubmissionUnavailable
+  <<: *responsesErr
+  title: dapp_submission_unavailable
+  properties:
+    message: { type: string, enum: ['Transaction submission unavailable'] }
+    code: { type: string, enum: ['dapp_submission_unavailable'] }
 
 x-errSoftDerivationRequired: &errSoftDerivationRequired
   <<: *responsesErr
@@ -7095,6 +7360,106 @@ x-responsesGetSmashHealth: &responsesGetSmashHealth
       application/json:
         schema: *ApiHealthCheck
 
+x-responsesDappTransactionContext: &responsesDappTransactionContext
+  200:
+    description: Exact transaction context captured at one wallet chain point.
+    content:
+      application/json:
+        schema: *ApiDappTransactionContextResponse
+  400:
+    description: Invalid request or conflicting authoritative output bytes.
+    content:
+      application/json:
+        schema:
+          oneOf:
+            - *errDappInvalidRequest
+            - *errDappContextConflict
+  409:
+    description: Wallet or configured network changed.
+    content:
+      application/json:
+        schema: *errDappAccountChanged
+  503:
+    description: Exact wallet context is unavailable.
+    content:
+      application/json:
+        schema: *errDappContextUnavailable
+  500:
+    description: Internal context operation failure.
+    content:
+      application/json:
+        schema: *errDappInternalError
+
+x-responsesDappWitnesses: &responsesDappWitnesses
+  200:
+    description: Fresh Shelley VKey witnesses for the reviewed transaction vector.
+    content:
+      application/json:
+        schema: *ApiDappWitnessSignResponse
+  400:
+    description: Invalid reviewed request or context binding.
+    content:
+      application/json:
+        schema:
+          oneOf:
+            - *errDappInvalidRequest
+            - *errDappContextConflict
+  403:
+    description: A required wallet proof cannot be generated.
+    content:
+      application/json:
+        schema: *errDappTxProofGeneration
+  409:
+    description: Wallet or configured network changed.
+    content:
+      application/json:
+        schema: *errDappAccountChanged
+  503:
+    description: Authenticated context material is unavailable.
+    content:
+      application/json:
+        schema: *errDappContextUnavailable
+  500:
+    description: Internal reviewed-signing failure.
+    content:
+      application/json:
+        schema: *errDappInternalError
+
+x-responsesDappDataSignature: &responsesDappDataSignature
+  200:
+    description: Complete untagged CIP-8 COSE_Sign1 and COSE_Key over the exact attached payload.
+    content:
+      application/json:
+        schema: *ApiDappDataSignResponse
+  400:
+    description: Invalid revision-1 request, configured network, raw Shelley address, or payload.
+    content:
+      application/json:
+        schema: *errDappInvalidRequest
+  403:
+    description: The selected address credential is script-based or its wallet proof cannot be generated.
+    content:
+      application/json:
+        schema:
+          oneOf:
+            - *errDappDataAddressNotPk
+            - *errDappDataProofGeneration
+  409:
+    description: Wallet or configured network changed.
+    content:
+      application/json:
+        schema: *errDappAccountChanged
+  503:
+    description: Wallet material is unavailable.
+    content:
+      application/json:
+        schema: *errDappContextUnavailable
+  500:
+    description: Internal COSE construction failure.
+    content:
+      application/json:
+        schema: *errDappInternalError
+
 x-responsesBalanceTransaction: &responsesBalanceTransaction
   400:
     description: Bad Request
@@ -8078,6 +8443,60 @@ paths:
           application/json:
             schema: *ApiBalanceTransactionPostData
       responses: *responsesBalanceTransaction
+
+  /wallets/{walletId}/transaction-context:
+    post:
+      operationId: postTransactionContext
+      tags: ["Transactions New"]
+      summary: Resolve exact transaction context
+      description: |
+        Resolves complete Conway ledger outputs, protocol parameters, and the
+        current pending overlay at one coherent wallet chain point. This route
+        does not activate the dApp capability document.
+      parameters:
+        - *parametersWalletId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiDappTransactionContextRequest
+      responses: *responsesDappTransactionContext
+
+  /wallets/{walletId}/transaction-witnesses:
+    post:
+      operationId: postDappWitnesses
+      tags: ["Transactions New"]
+      summary: Sign reviewed transactions with fresh VKey witnesses
+      description: |
+        Revalidates an authenticated Conway transaction context and returns only
+        fresh VKey witness-set CBOR. The route does not activate any dApp
+        capability and never returns a transaction envelope.
+      parameters:
+        - *parametersWalletId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiDappWitnessSignRequest
+      responses: *responsesDappWitnesses
+
+  /wallets/{walletId}/data-signatures:
+    post:
+      operationId: postDappDataSignature
+      tags: ["Transactions New"]
+      summary: Dormant CIP-8 data signing
+      description: |
+        Signs the exact attached payload selected by the raw Shelley address and
+        returns complete untagged canonical COSE_Sign1 and COSE_Key values. It
+        never hashes or converts payload bytes and does not activate dApp capability.
+      parameters:
+        - *parametersWalletId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiDappDataSignRequest
+      responses: *responsesDappDataSignature
 
   /byron-wallets:
     post:
