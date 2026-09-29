@@ -56,11 +56,20 @@ visible_body=$(
 )
 
 closing_pattern='(^|[^[:alnum:]_])(close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved):?[[:space:]]+#[1-9][0-9]*([^[:alnum:]_]|$)'
+partial_pattern='(^|[^[:alnum:]_])(part[[:space:]]+of|towards):?[[:space:]]+#[1-9][0-9]*([^[:alnum:]_]|$)'
 
 if printf '%s\n' "$visible_body" | grep -Eiq "$closing_pattern"; then
     echo "PR body contains a valid closing reference."
     exit 0
 fi
 
-echo "PR body must contain a visible GitHub issue-closing reference, for example: Closes #123 (or Fixes #123)." >&2
+# A PR that is only one step of a larger issue must not close it. The reference
+# is still required, so the PR stays traceable, but GitHub will not close the
+# issue on merge; the final PR of the issue carries the closing keyword.
+if printf '%s\n' "$visible_body" | grep -Eiq "$partial_pattern"; then
+    echo "PR body contains a valid partial reference; the issue will not close on merge."
+    exit 0
+fi
+
+echo "PR body must contain a visible GitHub issue reference: Closes #123 (or Fixes #123) to close it, or Part of #123 (or Towards #123) when the PR is only part of it." >&2
 exit 1
