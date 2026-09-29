@@ -47,6 +47,15 @@ run_case() {
             printf '%s\n' "$output" | grep -Fq 'Closes #123' ||
                 fail "[$case_name] rejection omitted Closes #123 remediation; output: $output"
             ;;
+        accept-partial)
+            [ "$status" -eq 0 ] ||
+                fail "[$case_name] expected partial acceptance, exit=$status; output: $output"
+            printf '%s\n' "$output" | grep -Fqi 'valid partial' ||
+                fail "[$case_name] acceptance omitted the valid-partial signal"
+            if printf '%s\n' "$output" | grep -Fqi 'valid closing'; then
+                fail "[$case_name] partial reference was reported as a closing reference"
+            fi
+            ;;
         skip)
             [ "$status" -eq 0 ] ||
                 fail "[$case_name] expected a successful skip, exit=$status; output: $output"
@@ -84,6 +93,16 @@ for fixture in "${accepted_fixtures[@]}"; do
     run_case pull_request accept "$fixture_dir/$fixture"
 done
 
+partial_fixtures=(
+    valid-part-of.json
+    valid-towards.json
+    valid-part-of-uppercase-colon.json
+)
+
+for fixture in "${partial_fixtures[@]}"; do
+    run_case pull_request accept-partial "$fixture_dir/$fixture"
+done
+
 rejected_fixtures=(
     invalid-missing-body.json
     invalid-empty-body.json
@@ -98,6 +117,12 @@ rejected_fixtures=(
     invalid-multiline-comment-only.json
     invalid-comment-token-join.json
     invalid-comment-boundary-separator.json
+    invalid-part-of-comment-only.json
+    invalid-part-of-bare.json
+    invalid-part-of-zero.json
+    invalid-part-of-substring.json
+    invalid-part-without-of.json
+    invalid-towards-nonnumeric.json
 )
 
 for fixture in "${rejected_fixtures[@]}"; do
