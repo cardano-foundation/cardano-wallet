@@ -1412,7 +1412,7 @@ instance IsServerError (Request, ServerError) where
                 400 -> InvalidDappRequest
                 _ -> DappSubmissionFailedError
         | isDappSubmissionPath req && code == 400 =
-            apiError err BadRequest (utf8 body)
+            dappServerError InvalidDappRequest
         | isDappSubmissionPath req && code == 405 =
             apiError err MethodNotAllowed
                 $ mconcat
@@ -1421,8 +1421,9 @@ instance IsServerError (Request, ServerError) where
                     , "endpoint and the method: one of them is likely to be incorrect "
                     , "(for example: POST instead of PUT, or GET instead of POST...)."
                     ]
-        | isDappPath req && isStandardTransportError body = err
         | isDappPath req && normalizeDappTransport code body =
+            dappServerError InvalidDappRequest
+        | isDappPath req && code == 400 =
             dappServerError InvalidDappRequest
         | isDappPath req =
             dappServerError DappInternalErrorResponse
