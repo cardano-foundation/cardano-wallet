@@ -10,6 +10,7 @@
 
 module Cardano.Wallet.Launch.Cluster.Cluster
     ( withCluster
+    , withSingleNodeCluster
     , FaucetFunds (..)
     ) where
 
@@ -162,19 +163,8 @@ data FaucetFunds = FaucetFunds
     }
     deriving stock (Eq, Show)
 
--- | Execute an action after starting a cluster of stake pools. The cluster also
--- contains a single BFT node that is pre-configured with keys available in the
--- test data.
---
--- This BFT node is essential in order to bootstrap the chain and allow
--- registering pools. Passing `0` as a number of pool will simply start a single
--- BFT node.
---
--- The cluster is configured to automatically hard fork to Shelley at epoch 1
--- and then to Allegra at epoch 2. Callback actions can be provided to run
--- a little time after the hard forks are scheduled.
---
--- The onClusterStart actions are not guaranteed to use the same node.
+-- | Execute an action after starting the configured stake-pool producers and
+-- a relay with the configured node-to-client socket.
 withCluster
     :: HasCallStack
     => Config
@@ -182,8 +172,29 @@ withCluster
     -> (RunningNode -> IO a)
     -- ^ Action to run once when all pools have started.
     -> IO a
-withCluster config@Config{..} faucetFunds onClusterStart = runClusterM config
-    $ bracketTracer' "withCluster"
+withCluster = withClusterMode False
+
+-- | Run the first configured producer directly, without other pools or a
+-- relay. Genesis generation, faucet setup and process cleanup are shared with
+-- 'withCluster'; the producer exposes the configured node-to-client socket.
+withSingleNodeCluster
+    :: HasCallStack
+    => Config
+    -> FaucetFunds
+    -> (RunningNode -> IO a)
+    -> IO a
+withSingleNodeCluster config =
+    withClusterMode True config{cfgStakePools = pure $ NE.head $ cfgStakePools config}
+
+withClusterMode
+    :: HasCallStack
+    => Bool
+    -> Config
+    -> FaucetFunds
+    -> (RunningNode -> IO a)
+    -> IO a
+withClusterMode singleNode config@Config{..} faucetFunds onClusterStart = runClusterM config
+    $ bracketTracer' (if singleNode then "withSingleNodeCluster" else "withCluster")
     $ do
         let debug :: MonadIO m => Text -> m ()
             debug x = liftIO $ traceWith cfgTracer $ MsgDebug x
@@ -217,49 +228,62 @@ withCluster config@Config{..} faucetFunds onClusterStart = runClusterM config
             let pool0port :| poolPorts = NE.fromList (rotate poolsTcpPorts)
             let pool0 :| otherPools = configuredPools
 
-            contT_
-                $ operatePool pool0
-                $ NodeParams
-                    genesisFiles
-                    cfgLastHardFork
-                    pool0port
-                    cfgNodeLogging
-                    cfgNodeOutputFile
-                    NothingK
-
-            let relayNodeParams =
-                    NodeParams
-                        { nodeGenesisFiles = genesisFiles
-                        , nodeHardForks = cfgLastHardFork
-                        , nodePeers = (extraPort, poolsTcpPorts)
-                        , nodeLogConfig =
-                            LogFileConfig
-                                { minSeverityTerminal = Info
-                                , extraLogDir = Nothing
-                                , minSeverityFile = Info
-                                }
-                        , nodeParamsOutputFile =
+            if singleNode
+                then do
+                    producer <-
+                        ContT $ operatePoolNode pool0 $ NodeParams
+                            genesisFiles
+                            cfgLastHardFork
+                            (fst pool0port, [])
+                            cfgNodeLogging
                             cfgNodeOutputFile
-                        , nodeSocket = JustK cfgNodeToClientSocket
-                        }
-            relayNode <-
-                ContT $ withRelayNode relayNodeParams cfgRelayNodePath
-            lift $ extraClusterSetupUsingNode configuredPools relayNode
+                            (JustK cfgNodeToClientSocket)
+                    lift $ extraClusterSetupUsingNode configuredPools producer
+                    liftIO $ onClusterStart producer
+                else do
+                    contT_
+                        $ operatePool pool0
+                        $ NodeParams
+                            genesisFiles
+                            cfgLastHardFork
+                            pool0port
+                            cfgNodeLogging
+                            cfgNodeOutputFile
+                            NothingK
 
-            case NE.nonEmpty otherPools of
-                Nothing -> liftIO $ onClusterStart relayNode
-                Just others -> do
-                    ContT $ \k -> do
-                        debug "Starting pools"
-                        r <-
-                            launchPools
-                                others
-                                genesisFiles
-                                poolPorts
-                                $ k ()
-                        debug "Pools are down"
-                        pure r
-                    liftIO $ onClusterStart relayNode
+                    let relayNodeParams =
+                            NodeParams
+                                { nodeGenesisFiles = genesisFiles
+                                , nodeHardForks = cfgLastHardFork
+                                , nodePeers = (extraPort, poolsTcpPorts)
+                                , nodeLogConfig =
+                                    LogFileConfig
+                                        { minSeverityTerminal = Info
+                                        , extraLogDir = Nothing
+                                        , minSeverityFile = Info
+                                        }
+                                , nodeParamsOutputFile =
+                                    cfgNodeOutputFile
+                                , nodeSocket = JustK cfgNodeToClientSocket
+                                }
+                    relayNode <-
+                        ContT $ withRelayNode relayNodeParams cfgRelayNodePath
+                    lift $ extraClusterSetupUsingNode configuredPools relayNode
+
+                    case NE.nonEmpty otherPools of
+                        Nothing -> liftIO $ onClusterStart relayNode
+                        Just others -> do
+                            ContT $ \k -> do
+                                debug "Starting pools"
+                                r <-
+                                    launchPools
+                                        others
+                                        genesisFiles
+                                        poolPorts
+                                        $ k ()
+                                debug "Pools are down"
+                                pure r
+                            liftIO $ onClusterStart relayNode
   where
     contT_ :: Monad m => (m a -> m a) -> ContT a m ()
     contT_ f = ContT $ \k -> f $ k ()

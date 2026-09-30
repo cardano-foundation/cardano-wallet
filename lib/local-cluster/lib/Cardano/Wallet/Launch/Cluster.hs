@@ -6,6 +6,7 @@
 module Cardano.Wallet.Launch.Cluster
     ( -- * Local test cluster launcher
       withCluster
+    , withSingleNodeCluster
     , withFaucet
     , Config (..)
     , ShelleyGenesisModifier
@@ -53,6 +54,7 @@ module Cardano.Wallet.Launch.Cluster
 import Cardano.Wallet.Launch.Cluster.Cluster
     ( FaucetFunds (..)
     , withCluster
+    , withSingleNodeCluster
     )
 import Cardano.Wallet.Launch.Cluster.ClusterEra
     ( ClusterEra (..)

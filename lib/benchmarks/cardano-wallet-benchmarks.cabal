@@ -136,10 +136,18 @@ benchmark latency
   hs-source-dirs: exe
   main-is:        latency-bench.hs
   build-depends:
+    , address-derivation-discovery
     , aeson
     , base
+    , bytestring
     , cardano-addresses
+    , cardano-api
+    , cardano-balance-tx
+    , cardano-diffusion:api
+    , cardano-ledger-api
     , cardano-ledger-core
+    , cardano-ledger-shelley
+    , cardano-ledger-read
     , cardano-wallet
     , cardano-wallet-api
     , cardano-wallet-application
@@ -150,7 +158,11 @@ benchmark latency
     , cardano-wallet-launcher
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
+    , cardano-wallet-read
     , cardano-wallet-tracing
+    , containers
+    , crypto-primitives
+    , deepseq
     , directory
     , exceptions
     , extra
@@ -163,16 +175,20 @@ benchmark latency
     , http-types
     , local-cluster
     , mtl
+    , ouroboros-network:api
     , optparse-applicative
     , pathtype
+    , process
     , resourcet
     , servant-client
     , temporary-extra
     , text
+    , text-class
     , time
     , unliftio
     , unliftio-core
     , wai-middleware-logging
+    , yaml
     , with-utf8
 
 benchmark db

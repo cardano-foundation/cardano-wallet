@@ -6,13 +6,19 @@
 -- Copyright: © 2026 Cardano Foundation
 -- License: Apache-2.0
 --
--- Bounded smoke: start two wallet workers, send the shipped SIGTERM,
--- and observe the matching close callbacks before process exit.
+-- Start two wallet workers, observe SIGTERM drain, then reopen the same
+-- databases and verify fixed-address settings and exact journal replay.
 module Test.Integration.Framework.ShutdownDrain
     ( spec
     )
 where
 
+import Cardano.DB.Sqlite
+    ( SqliteContext (..)
+    , noAutoMigrations
+    , noManualMigration
+    , withSqliteContextFile
+    )
 import Cardano.Faucet.Mnemonics
     ( MnemonicLength (..)
     , generateSome
@@ -22,6 +28,15 @@ import Cardano.Launcher.Node
     )
 import Cardano.Mnemonic.Extended
     ( someMnemonicToWords
+    )
+import Cardano.Wallet.DB.Sqlite.Types
+    ( DappSubmissionStatusEnum (..)
+    )
+import Cardano.Wallet.DB.Store.Submissions.Operations
+    ( DurableSubmission (..)
+    , claimDurableSubmissionAttempt
+    , insertOrClassifyDurableSubmission
+    , readDurableSubmissions
     )
 import Cardano.Wallet.Launch.Cluster
     ( FaucetFunds (..)
@@ -47,16 +62,26 @@ import Control.Monad.Cont
 import Control.Monad.IO.Class
     ( liftIO
     )
+import Control.Tracer
+    ( nullTracer
+    )
 import Data.Aeson
-    ( encode
+    ( Key
+    , Value (..)
+    , eitherDecode
+    , encode
     , object
     , (.=)
+    )
+import Data.ByteString
+    ( ByteString
     )
 import Data.Char
     ( isDigit
     )
 import Data.List
-    ( isInfixOf
+    ( find
+    , isInfixOf
     , isPrefixOf
     , isSuffixOf
     , nub
@@ -67,6 +92,12 @@ import Data.Maybe
     )
 import Data.Text
     ( Text
+    )
+import Data.Text.Class
+    ( fromText
+    )
+import Data.Time
+    ( getCurrentTime
     )
 import Network.HTTP.Client
     ( Manager
@@ -79,10 +110,14 @@ import Network.HTTP.Client
     , requestBody
     , requestHeaders
     , responseStatus
+    , responseBody
     )
 import Network.HTTP.Types.Status
-    ( status200
+    ( Status
+    , status200
+    , status400
     , status201
+    , status409
     )
 import System.Directory
     ( canonicalizePath
@@ -110,6 +145,7 @@ import Test.Hspec
     ( Spec
     , describe
     , it
+    , shouldReturn
     )
 import Test.Hspec.Core.Spec
     ( sequential
@@ -128,6 +164,7 @@ import UnliftIO.Exception
     ( SomeException
     , bracket
     , catch
+    , onException
     )
 import UnliftIO.Process
     ( CreateProcess (..)
@@ -143,6 +180,9 @@ import UnliftIO.Temporary
     )
 import Prelude
 
+import qualified Data.Aeson.KeyMap as KeyMap
+import qualified Data.Text as T
+
 spec :: Spec
 spec = sequential $ describe "shutdown drain" $ do
     it
@@ -152,7 +192,7 @@ spec = sequential $ describe "shutdown drain" $ do
         "fails when observed close files do not match acquired files"
         rejectObservedCloseMismatch
     it
-        "SIGTERM drain observes two wallet close callbacks"
+        "SIGTERM drain and restart preserve V7 mode and exact journal replay"
         runSigtermDrainSmoke
 
 rejectObservedAcquiredBelowTwo :: IO ()
@@ -207,6 +247,7 @@ runSigtermDrainSmoke = evalContT $ do
                 genesis
                 (fromIntegral port)
                 dir
+                `onException` (readFile (dir </> "wallet.log") >>= putStrLn)
 
 emptyFunds :: FaucetFunds
 emptyFunds =
@@ -250,11 +291,83 @@ runWalletSmoke socket genesis port dir = do
                     (walletProc socket genesis dbDir port logHandle)
                     $ \_ _ _ ph -> do
                         waitForApi manager port
-                        createShelleyWallet manager port "drain-one"
-                        createShelleyWallet manager port "drain-two"
+                        wid <- createShelleyWallet manager port "drain-one" False
+                        otherWid <- createShelleyWallet manager port "drain-two" True
+                        capabilities <-
+                            requestJson manager port "GET"
+                                "/v2/dapp-capabilities" status200 Nothing
+                        network <- field "network" capabilities
+                        let requestNetwork = case network of
+                                Object fields ->
+                                    Object $ KeyMap.delete "current_era" fields
+                                _ -> network
+                            submit tx expected =
+                                requestJson manager port "POST"
+                                    ("/v2/wallets/" <> T.unpack wid
+                                        <> "/transaction-submission")
+                                    expected
+                                    $ Just $ object
+                                        [ "revision" .= (1 :: Int)
+                                        , "network" .= requestNetwork
+                                        , "transaction" .= (tx :: Text)
+                                        ]
+                        -- Well-formed Conway body; the node rejects its zero fee.
+                        original <-
+                            submit "84a4008001800200031a7fffffffa0f5f6" status409
+                        field "code" original
+                            `shouldReturn` String "dapp_submission_failed"
+                        field "message" original
+                            `shouldReturn` String "Transaction submission failed"
                         acquiredPaths <- sheSqliteFiles dbDir
                         terminateProcess ph
                         code <- waitForExit ph
+                        seedInterruptedBroadcast acquiredPaths wid otherWid
+                        -- withCreateProcess consumes UseHandle; reopen on restart.
+                        bracket
+                            (openFile logPath AppendMode)
+                            (\h -> hClose h `catch` (\(_ :: SomeException) -> pure ()))
+                            $ \restartLog ->
+                            withCreateProcess
+                                (walletProc socket genesis dbDir port restartLog)
+                            $ \_ _ _ restarted -> do
+                                waitForApi manager port
+                                restored <-
+                                    requestJson manager port "GET"
+                                        ("/v2/wallets/" <> T.unpack wid)
+                                        status200 Nothing
+                                field "single_address_mode" restored
+                                    `shouldReturn` Bool False
+                                replay <-
+                                    submit "84a4008001800200031a7fffffffa0f5f6" status409
+                                replay `shouldBe` original
+                                -- Same body, with a valid native-script witness.
+                                conflict <-
+                                    submit "84a4008001800200031a7fffffffa101d9010281820400f5f6"
+                                        status400
+                                field "code" conflict
+                                    `shouldReturn` String "dapp_identity_conflict"
+                                unknown <-
+                                    requestJson manager port "POST"
+                                        ("/v2/wallets/" <> T.unpack otherWid
+                                            <> "/transaction-submission")
+                                        status200
+                                        $ Just $ object
+                                            [ "revision" .= (1 :: Int)
+                                            , "network" .= requestNetwork
+                                            , "transaction"
+                                                .= ("84a4008001800200031a7fffffffa0f5f6" :: Text)
+                                            ]
+                                field "status" unknown
+                                    `shouldReturn` String "outcome_unknown"
+                                otherRestored <-
+                                    requestJson manager port "GET"
+                                        ("/v2/wallets/" <> T.unpack otherWid)
+                                        status200 Nothing
+                                field "single_address_mode" otherRestored
+                                    `shouldReturn` Bool True
+                                terminateProcess restarted
+                                _ <- waitForExit restarted
+                                pure ()
                         pure (acquiredPaths, code)
     logs <- readFile logPath
     let (acquiredPaths, exit) = outcome
@@ -280,6 +393,8 @@ runWalletSmoke socket genesis port dir = do
     sawSigTerm `shouldBe` True
     acquired `shouldSatisfy` (>= 2)
     closed `shouldBe` acquired
+    length (filter (isInfixOf "Posting transaction") $ lines logs)
+        `shouldBe` 1
 
 walletProc
     :: FilePath
@@ -302,6 +417,8 @@ walletProc socket genesis dbDir port logHandle =
         , "127.0.0.1"
         , "--port"
         , show port
+        , "--trace-network"
+        , "debug"
         ]
     )
         { std_out = UseHandle logHandle
@@ -330,8 +447,8 @@ waitForApi manager port = go 90_000_000
         resp <- httpLbs req manager
         pure $ responseStatus resp == status200
 
-createShelleyWallet :: Manager -> Int -> Text -> IO ()
-createShelleyWallet manager port name = do
+createShelleyWallet :: Manager -> Int -> Text -> Bool -> IO Text
+createShelleyWallet manager port name singleAddressMode = do
     mnemonic <- generateSome M15
     initReq <-
         parseRequest
@@ -344,6 +461,7 @@ createShelleyWallet manager port name = do
                 , "mnemonic_sentence"
                     .= someMnemonicToWords mnemonic
                 , "passphrase" .= ("cardano-wallet" :: Text)
+                , "single_address_mode" .= singleAddressMode
                 ]
         req =
             initReq
@@ -354,6 +472,69 @@ createShelleyWallet manager port name = do
                 }
     resp <- httpLbs req manager
     responseStatus resp `shouldBe` status201
+    value <- either fail pure $ eitherDecode $ responseBody resp
+    ident <- field "id" value
+    case ident of
+        String wid -> pure wid
+        _ -> fail "wallet id is not a string"
+
+requestJson
+    :: Manager
+    -> Int
+    -> ByteString
+    -> String
+    -> Status
+    -> Maybe Value
+    -> IO Value
+requestJson manager port verb path expected body = do
+    initial <- parseRequest $ "http://127.0.0.1:" <> show port <> path
+    let req = initial
+            { method = verb
+            , requestBody = RequestBodyLBS $ maybe mempty encode body
+            , requestHeaders = [("Content-Type", "application/json")]
+            }
+    resp <- httpLbs req manager
+    responseStatus resp `shouldBe` expected
+    either fail pure $ eitherDecode $ responseBody resp
+
+field :: Key -> Value -> IO Value
+field key (Object fields) =
+    maybe (fail $ "missing JSON field " <> show key) pure $ KeyMap.lookup key fields
+field _ _ = fail "expected JSON object"
+
+-- Seed the exact durable state left by an interrupted network attempt,
+-- using the real store/claim operations between two real daemon lifetimes.
+seedInterruptedBroadcast :: [FilePath] -> Text -> Text -> IO ()
+seedInterruptedBroadcast paths sourceId targetId = do
+    source <- either (fail . show) pure $ fromText sourceId
+    target <- either (fail . show) pure $ fromText targetId
+    let walletFile wid =
+            maybe (fail "wallet database is missing") pure $
+                find (isInfixOf $ T.unpack wid) paths
+    sourceFile <- walletFile sourceId
+    targetFile <- walletFile targetId
+    original <-
+        withSqliteContextFile nullTracer sourceFile noManualMigration noAutoMigrations $
+            \db -> runQuery db $ readDurableSubmissions source
+    [row] <- either (fail . show) pure original
+    let authorized = row
+            { durableWalletId = target
+            , durableAuthorized = True
+            , durableStatus = AuthorizedE
+            , durableAttemptGeneration = 0
+            , durableBroadcastGeneration = Nothing
+            , durableBroadcastStarted = Nothing
+            , durableAcceptance = Nothing
+            , durableRejectionCode = Nothing
+            }
+    started <- getCurrentTime
+    seeded <-
+        withSqliteContextFile nullTracer targetFile noManualMigration noAutoMigrations $
+            \db -> runQuery db $ do
+                _ <- insertOrClassifyDurableSubmission authorized []
+                claimDurableSubmissionAttempt target (durableTxId row) 0 started
+    claimed <- either (fail . show) pure seeded
+    fmap durableStatus claimed `shouldBe` Just BroadcastingE
 
 waitForExit :: ProcessHandle -> IO ExitCode
 waitForExit ph = do

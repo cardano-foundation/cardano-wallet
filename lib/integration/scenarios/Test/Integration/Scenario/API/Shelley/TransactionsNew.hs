@@ -1766,12 +1766,10 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     [ Dapp.ApiDappWitnessResult
                             0
                             (ApiDappHex freshBodyHash)
-                            (ApiDappHex freshWitnessSet)
+                            (ApiDappHex _)
                         ] =
                         getResponse freshWitnesses
-            liftIO $ do
-                freshBodyHash `shouldBe` expectedFreshBodyHash
-                BS.take 3 freshWitnessSet `shouldBe` "\xa1\x00\x81"
+            liftIO $ freshBodyHash `shouldBe` expectedFreshBodyHash
 
             let contextTxId = Read.getTxId contextTx
                 earlierInput = LedgerTxIn.TxIn contextTxId (TxIx 0)

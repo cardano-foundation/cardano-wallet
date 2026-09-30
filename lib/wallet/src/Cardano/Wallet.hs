@@ -263,9 +263,7 @@ import Cardano.Address.Script
     ( Cosigner (..)
     )
 import Cardano.Api.Extra
-    ( CardanoApiEra
-    , cardanoApiEraConstraints
-    , toCardanoApiTx
+    ( cardanoApiEraConstraints
     )
 import Cardano.Balance.Tx.Balance
     ( ChangeAddressGen (..)

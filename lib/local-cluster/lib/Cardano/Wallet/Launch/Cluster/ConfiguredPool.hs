@@ -61,6 +61,7 @@ import Cardano.Wallet.Launch.Cluster.ClusterM
     )
 import Cardano.Wallet.Launch.Cluster.Config
     ( Config (..)
+    , filePathOfOsNamedPipe
     )
 import Cardano.Wallet.Launch.Cluster.Faucet
     ( faucetAmt
@@ -141,7 +142,7 @@ import Data.Maybe
     , maybeToList
     )
 import Data.MaybeK
-    ( IsMaybe (IsNothing)
+    ( IsMaybe (IsNothing, IsJust)
     )
 import Data.Tagged
     ( Tagged (..)
@@ -192,6 +193,12 @@ data ConfiguredPool = ConfiguredPool
         -> ClusterM a
         -> ClusterM a
     -- ^ Precondition: the pool must first be registered.
+    , operatePoolNode
+        :: forall a
+         . NodeParams IsJust
+        -> (RunningNode -> ClusterM a)
+        -> ClusterM a
+    -- ^ Operate this registered producer with a node-to-client socket.
     , metadataUrl
         :: Text
     , recipe
@@ -533,14 +540,23 @@ configurePool metadataServer recipe = do
                         "retirement cert"
             traverse_ retire mRetirementEpoch
         operatePool :: NodeParams IsNothing -> ClusterM a -> ClusterM a
-        operatePool nodeParams action = do
+        operatePool nodeParams action =
+            operateConfiguredPool nodeParams $ \NothingK -> action
+        operatePoolNode :: NodeParams IsJust -> (RunningNode -> ClusterM a) -> ClusterM a
+        operatePoolNode nodeParams action =
+            operateConfiguredPool nodeParams $ \(JustK node) -> action node
+        operateConfiguredPool
+            :: NodeParams socket
+            -> (MaybeK socket RunningNode -> ClusterM a)
+            -> ClusterM a
+        operateConfiguredPool nodeParams action = do
             let NodeParams
                     genesisFiles
                     hardForks
                     (port, peers)
                     logCfg
                     nodeOutput
-                    NothingK =
+                    nodeSocket =
                         nodeParams
             let logCfg' = setLoggingName name logCfg
 
@@ -548,7 +564,7 @@ configurePool metadataServer recipe = do
             liftIO $ withStaticServer (toFilePath poolDir) $ \url -> do
                 traceWith cfgTracer $ MsgStartedStaticServer url poolDirPath
 
-                (nodeConfig, _genesisData, _vd) <-
+                (nodeConfig, genesisData, versionData) <-
                     withConfig
                         $ genNodeConfig
                             nodeRelativePath
@@ -581,10 +597,12 @@ configurePool metadataServer recipe = do
                                         (absFilePathOf <$> extraLogDir logCfg')
                                     <> maybeToList
                                         (absFilePathOf <$> nodeOutput)
-                            , nodeSocketPathFile = NothingK
+                            , nodeSocketPathFile = fmap filePathOfOsNamedPipe nodeSocket
                             }
 
                 withConfig
                     $ withCardanoNodeProcess name cfg
-                    $ \NothingK -> action
+                    $ \connection -> action $ case connection of
+                        NothingK -> NothingK
+                        JustK conn -> JustK $ RunningNode conn genesisData versionData
     pure ConfiguredPool{..}
