@@ -2021,16 +2021,18 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                             (\ApiDappRequiredWalletProof{proofKind, required} ->
                                 proofKind == NormalInputProof && required))
                     ]
+                let signPayload =
+                        Json $ toJSON $ Dapp.ApiDappWitnessSignRequest
+                            1
+                            (getResponse context)
+                            [Dapp.ApiDappWitnessSignItem (ApiDappHex sourceBytes) False]
+                            (ApiT $ Passphrase $ BA.convert $ T.encodeUtf8 fixturePassphrase)
                 witnesses <-
                     request @Dapp.ApiDappWitnessSignResponse
                         ctx
                         (Link.dappWitnesses wallet)
                         Default
-                        (Json $ toJSON $ Dapp.ApiDappWitnessSignRequest
-                            1
-                            (getResponse context)
-                            [Dapp.ApiDappWitnessSignItem (ApiDappHex sourceBytes) False]
-                            (ApiT $ Passphrase $ BA.convert $ T.encodeUtf8 fixturePassphrase))
+                        signPayload
                 verify witnesses [expectResponseCode HTTP.status200]
                 let Dapp.ApiDappWitnessSignResponse
                         1
@@ -2080,6 +2082,18 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                         [expectResponseCode HTTP.status200
                         , expectField (#status . #getApiT) (`shouldBe` InLedger)
                         ]
+                stale <-
+                    request @Dapp.ApiDappWitnessSignResponse
+                        ctx
+                        (Link.dappWitnesses wallet)
+                        Default
+                        signPayload
+                liftIO $ fst stale `shouldSatisfy`
+                    (`elem` [HTTP.status400, HTTP.status503])
+                verify stale
+                    [ expectErrorInfo (`shouldSatisfy`
+                        (`elem` [DappContextConflict, DappContextUnavailable]))
+                    ]
                 let badBytes = "\x81\x00"
                     unsupported =
                         BL.toStrict
