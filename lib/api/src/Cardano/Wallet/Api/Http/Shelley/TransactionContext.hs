@@ -466,19 +466,21 @@ captureContext worker =
                     , discovery = Wallet.getState wallet
                     }
 
+-- The LSQ query already acquired the captured chain point. New blocks do not
+-- invalidate that immutable point-in-time snapshot; a pending-overlay or
+-- wallet-identity change requires recapture. Signing independently re-resolves
+-- reviewed facts before returning witnesses.
 confirmContext
     :: WalletLayer IO s -> Capture s -> IO (Either DappError Bool)
-confirmContext worker Capture{point, clock} =
+confirmContext worker Capture{clock} =
     worker ^. dbLayer & \DBLayer{..} -> do
-        (wallet, currentClock) <- atomicallyReadContext readCheckpoint
+        (_, currentClock) <- atomicallyReadContext (pure ())
         pure $ do
             requireEither DappAccountChangedError
                 $ not currentClock.contextDeleted
             pure
-                $ clock == currentClock
-                    && point
-                        == fromWalletChainPoint
-                            (chainPointFromBlockHeader $ Wallet.currentTip wallet)
+                $ clock.pendingGeneration == currentClock.pendingGeneration
+                    && clock.contextIncarnation == currentClock.contextIncarnation
 
 decodePending :: Hash "Tx" -> SealedTx -> Either String DecodedTx
 decodePending (Hash storedId) sealed = do
@@ -549,7 +551,10 @@ decodeDappTx value@(ApiDappHex bytes) =
   where
     recognizedOlderTx source =
         let encoded = BL.fromStrict source
-        in  isRight (deserializeTx encoded :: Either DecoderError (Read.Tx Read.Alonzo))
+        in  isRight (deserializeTx encoded :: Either DecoderError (Read.Tx Read.Shelley))
+                || isRight (deserializeTx encoded :: Either DecoderError (Read.Tx Read.Allegra))
+                || isRight (deserializeTx encoded :: Either DecoderError (Read.Tx Read.Mary))
+                || isRight (deserializeTx encoded :: Either DecoderError (Read.Tx Read.Alonzo))
                 || isRight (deserializeTx encoded :: Either DecoderError (Read.Tx Read.Babbage))
     hasDeprecatedCertificate source = case deserializeTx (BL.fromStrict source)
                                             :: Either DecoderError (Read.Tx Read.Shelley) of
