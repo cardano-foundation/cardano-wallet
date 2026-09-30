@@ -1464,6 +1464,8 @@ instance IsServerError (Request, ServerError) where
                     && (status, info, message)
                         `elem` [ (400, DappInvalidRequest, "Invalid backend request")
                                , (400, DappContextConflict, "Backend context conflict")
+                               , (403, DappUnsupportedEra, "Unsupported backend era")
+                               , (403, DappDeprecatedCertificate, "Deprecated certificate")
                                , (409, DappAccountChanged, "Wallet or network changed")
                                , (503, DappContextUnavailable, "Wallet context unavailable")
                                , (500, DappInternalError, "Backend operation failed")
