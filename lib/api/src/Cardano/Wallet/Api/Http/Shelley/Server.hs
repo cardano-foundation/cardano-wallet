@@ -6045,6 +6045,8 @@ postDappDataSignature ctx (ApiT walletId) request = do
                 (const $ throwDapp DappContextUnavailableError)
                 $ \worker -> do
                     result <- liftIO $ runExceptT $ do
+                        liftIO (NW.currentNodeEra $ ctx ^. networkLayer)
+                            >>= either throwE pure . requireConwayNodeEra
                         let db = worker ^. W.dbLayer @IO @(SeqState n ShelleyKey)
                             pwd = coerce $ getApiT request.passphrase
                         checkpoint <-
