@@ -1479,7 +1479,7 @@ rollbackBlocks
     -> IO ChainPoint
 rollbackBlocks ctx point =
     db & \DBLayer{..} ->
-        atomicallyWithContextChange WalletAndPendingContextChange
+        atomicallyWithContextChange WalletContextChange
             $ rollbackTo point
   where
     db = ctx ^. dbLayer
@@ -1490,6 +1490,8 @@ rollbackBlocks ctx point =
 -- Concurrency: `restoreBlocks` is atomic.
 -- However, in the future, we may assume that
 -- it is called in a sequential fashion for each wallet.
+-- Chain changes invalidate wallet snapshots; the durable pending overlay has
+-- its own journal updates and must not change generation on every new block.
 restoreBlocks
     :: ( IsOurs s Address
        , IsOurs s RewardAccount
@@ -1501,7 +1503,7 @@ restoreBlocks
     -> Read.ChainTip
     -> IO ()
 restoreBlocks ctx tr blocks nodeTip =
-    db & \DBLayer{..} -> atomicallyWithContextChange WalletAndPendingContextChange $ do
+    db & \DBLayer{..} -> atomicallyWithContextChange WalletContextChange $ do
         slottingParams <- liftIO $ currentSlottingParameters nl
         cp0 <- readCheckpoint
         unless (cp0 `isParentOf` firstHeader blocks)
