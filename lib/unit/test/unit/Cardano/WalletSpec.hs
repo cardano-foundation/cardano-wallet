@@ -148,8 +148,11 @@ import Cardano.Wallet.DB.Fixtures
 import Cardano.Wallet.DB.Layer
     ( newBootDBLayerInMemory
     )
+import Cardano.Wallet.DB.Sqlite.Types
+    ( DappSubmissionStatusEnum (..)
+    )
 import Cardano.Wallet.DB.Store.Submissions.Operations
-    ( TxSubmissionsStatus
+    ( DurableSubmission (..)
     )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( block0
@@ -234,7 +237,9 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..)
     , Tx (..)
-    , mockSealedTx
+    )
+import Cardano.Wallet.Primitive.Types.Tx.SealedTx
+    ( unsafeSealedTxFromBytes
     )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( txOutMaxCoin
@@ -315,6 +320,7 @@ import Control.Monad.Trans.Except
     ( ExceptT (..)
     , except
     , runExceptT
+    , throwE
     )
 import Control.Monad.Trans.Maybe
     ( MaybeT (..)
@@ -348,7 +354,8 @@ import Data.Either
     ( isLeft
     )
 import Data.Function
-    ( on
+    ( (&)
+    , on
     )
 import Data.Functor.Identity
     ( Identity (..)
@@ -492,12 +499,13 @@ import qualified Cardano.Wallet.Address.Derivation.Icarus as Icarus
 import qualified Cardano.Wallet.Balance.Migration as Migration
 import qualified Cardano.Wallet.DB.Sqlite.Types as DB
 import qualified Cardano.Wallet.DB.Store.Checkpoints.Store as Sqlite
+import qualified Cardano.Wallet.Primitive.Types.Range as Range
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Read as Read
 import qualified Cardano.Wallet.Read.Hash as Hash
-import qualified Cardano.Wallet.Submissions.Submissions as Smbs
-import qualified Cardano.Wallet.Submissions.TxStatus as Sbms
+import qualified Codec.CBOR.Term as CBOR
+import qualified Codec.CBOR.Write as CBOR
 import qualified Data.ByteArray as BA
 import qualified Data.ByteArray.Encoding as BAE
 import qualified Data.ByteString as BS
@@ -510,6 +518,97 @@ import qualified Data.Text as T
 
 spec :: Spec
 spec = describe "Cardano.WalletSpec" $ do
+    describe "ordinary-submission-history" $ do
+        let sealed = fixtureSealedTx (BS.replicate 32 7)
+            tid = fixtureTxId sealed
+            tx = Tx
+                { txId = tid
+                , txCBOR = Nothing
+                , fee = Nothing
+                , resolvedInputs = []
+                , resolvedCollateralInputs = []
+                , outputs = []
+                , collateralOutput = Nothing
+                , withdrawals = mempty
+                , metadata = Nothing
+                , scriptValidity = Nothing
+                }
+            confirmed = TxMeta InLedger Outgoing (SlotNo 1) (Quantity 1) (Coin 0) Nothing
+            pending = TxMeta Pending Outgoing (SlotNo 0) (Quantity 0) (Coin 0) Nothing
+            built = BuiltTx tx pending sealed
+        it "exposes a successful submission in the pending selection source" $ do
+            WalletLayerFixture db _ _ <- setupFixture dummyStateF testWallet
+            let network = dummyNetworkLayer{postSealedTxOneShot = \_ -> pure ()}
+            unsafeRunExceptT $ submitTx nullTracer db network built
+            db & \DBLayer{atomically, readTransactions, getTx} -> do
+                selected <- atomically $
+                    readTransactions Nothing Descending Range.everything
+                        (Just Pending) Nothing Nothing
+                map (\info -> (txInfoId info, status $ txInfoMeta info)) selected
+                    `shouldBe` [(tid, Pending)]
+                visible <- atomically $ getTx tid
+                fmap txInfoId visible `shouldBe` Just tid
+        it "does not replace confirmation discovered during the node attempt" $ do
+            WalletLayerFixture db _ _ <- setupFixture dummyStateF testWallet
+            let network = dummyNetworkLayer
+                    { postSealedTxOneShot = \_ -> liftIO $
+                        db & \DBLayer{atomically, putTxHistory, readDurableSubmissions, updateDurableSubmission} ->
+                            atomically $ do
+                                rows <- readDurableSubmissions
+                                row <- case rows of
+                                    [submission] -> pure submission
+                                    _ -> error "expected one broadcasting submission"
+                                updateDurableSubmission row
+                                    { durableAuthorized = False
+                                    , durableStatus = InLedgerDappE
+                                    , durableAcceptance = Just (SlotNo 1)
+                                    }
+                                putTxHistory [(tx, confirmed)]
+                    }
+            unsafeRunExceptT $
+                submitTx nullTracer db network built
+            db & \DBLayer{atomically, getTx, readDurableSubmissions} -> do
+                result <- atomically $ getTx tid
+                fmap txInfoMeta result `shouldBe` Just confirmed
+                rows <- atomically readDurableSubmissions
+                map durableStatus rows `shouldBe` [InLedgerDappE]
+        it "refuses a rejected exact replay without another network attempt" $ do
+            WalletLayerFixture db _ _ <- setupFixture dummyStateF testWallet
+            calls <- newIORef (0 :: Int)
+            let network = dummyNetworkLayer
+                    { postSealedTxOneShot = \_ -> do
+                        liftIO $ modifyIORef' calls (+ 1)
+                        throwE $ W.ErrPostTxValidationError "refused by node"
+                    }
+            first <- runExceptT $ submitTx nullTracer db network built
+            replay <- runExceptT $ submitTx nullTracer db network built
+            first `shouldBe` Left (W.ErrSubmitTxNetwork $
+                W.ErrPostTxValidationError "refused by node")
+            replay `shouldBe` Left (W.ErrSubmitTxNetwork $
+                W.ErrPostTxValidationError "This transaction was previously rejected.")
+            readIORef calls `shouldReturn` 1
+            db & \DBLayer{atomically, getTx} ->
+                atomically (getTx tid) `shouldReturn` Nothing
+        it "reports uncertainty when expiry crosses before pending registration" $ do
+            WalletLayerFixture db _ _ <- setupFixture dummyStateF testWallet
+            let expiring = built{builtTxMeta = pending{expiry = Just (SlotNo 1)}}
+                network = dummyNetworkLayer
+                    { postSealedTxOneShot = \_ -> liftIO $
+                        db & \DBLayer{atomically, rollForwardTxSubmissions} ->
+                            atomically $ rollForwardTxSubmissions (SlotNo 1) []
+                    }
+            result <- runExceptT $ submitTx nullTracer db network expiring
+            result `shouldBe` Left W.ErrSubmitTxOutcomeUnknown
+        it "does not accept an expired pool record as a pending replay" $ do
+            WalletLayerFixture db _ _ <- setupFixture dummyStateF testWallet
+            let expiring = built{builtTxMeta = pending{expiry = Just (SlotNo 1)}}
+                network = dummyNetworkLayer{postSealedTxOneShot = \_ -> pure ()}
+            unsafeRunExceptT $ submitTx nullTracer db network expiring
+            db & \DBLayer{atomically, rollForwardTxSubmissions} ->
+                atomically $ rollForwardTxSubmissions (SlotNo 1) []
+            replay <- runExceptT $ submitTx nullTracer db network expiring
+            replay `shouldBe` Left W.ErrSubmitTxOutcomeUnknown
+
     describe "transaction-context-retries" $ do
         let mkApi network =
                 ApiLayer
@@ -686,7 +785,7 @@ spec = describe "Cardano.WalletSpec" $ do
 
     describe "LocalTxSubmission" $ do
         it
-            "LocalTxSubmission pool retries pending transactions"
+            "Reconciliation never rebroadcasts ordinary submissions"
             (property prop_localTxSubmission)
         it
             "LocalTxSubmission updates are limited in frequency"
@@ -1611,12 +1710,13 @@ instance Arbitrary GenSubmissions where
             sl <- genSmallSlot
             let bh = Quantity $ fromIntegral $ unSlotNo sl
             expry <- oneof [fmap (Just . (+ sl)) genSmallSlot, pure Nothing]
-            i <- arbitrary
+            i <- arbitrary :: Gen (Hash "Tx")
+            let sealed = fixtureSealedTx (getHash i)
             pure
                 $ BuiltTx
-                    (mkTx i)
+                    (mkTx $ fixtureTxId sealed)
                     (TxMeta Pending Outgoing sl bh (Coin 0) expry)
-                    (fakeSealedTx (i, []))
+                    sealed
         genSmallSlot =
             SlotNo . fromIntegral <$> sized (\n -> choose (1, 1 + 4 * n))
 
@@ -1697,21 +1797,14 @@ prop_localTxSubmission tc = monadicIO $ do
             unsafeRunExceptT
                 $ forM_ (retryTestPool tc)
                 $ submitTx tr db nl
-            res0 <- W.readLocalTxSubmissionPending ctx
             -- Run test
-            let cfg = LocalTxSubmissionConfig (timeStep st) 10
+            let cfg = LocalTxSubmissionConfig (timeStep st)
             W.runLocalTxSubmissionPool cfg ctx
 
-            -- Gather state
-            res1 <- W.readLocalTxSubmissionPending ctx
-            pure (res0, res1)
-
-    let (resStart, resEnd) = resAction res
     monitor
         $ counterexample
         $ unlines
         $ [ "posted txs = " ++ show (resSubmittedTxs res)
-          , "final pool state = " ++ show resEnd
           , "logs:"
           ]
             ++ map (T.unpack . toText) (resLogs res)
@@ -1719,8 +1812,6 @@ prop_localTxSubmission tc = monadicIO $ do
     assert' "pool never submits pending transactions"
         $ length (resSubmittedTxs res) == length (retryTestPool tc)
 
-    assert' "legacy submissions pool remains unused"
-        $ null resStart && null resEnd
   where
     assert' :: String -> Bool -> PropertyM IO ()
     assert' _msg True = return ()
@@ -2340,10 +2431,25 @@ dummyIcarusTransactionLayer =
                 "dummyIcarusTransactionLayer: transactionWitnessTag not implemented"
         }
 
-fakeSealedTx :: HasCallStack => (Hash "Tx", [ByteString]) -> SealedTx
-fakeSealedTx (tx, wit) = mockSealedTx $ B8.pack repr
-  where
-    repr = show (tx, wit)
+-- Typed, decodable Conway envelopes with distinct auxiliary hashes.
+fixtureSealedTx :: HasCallStack => ByteString -> SealedTx
+fixtureSealedTx nonce =
+    unsafeSealedTxFromBytes $ CBOR.toStrictByteString $ CBOR.encodeTerm $
+        CBOR.TList
+            [ CBOR.TMap
+                [ (CBOR.TInt 0, CBOR.TList [])
+                , (CBOR.TInt 1, CBOR.TList [])
+                , (CBOR.TInt 2, CBOR.TInt 0)
+                , (CBOR.TInt 7, CBOR.TBytes nonce)
+                ]
+            , CBOR.TMap []
+            , CBOR.TBool True
+            , CBOR.TNull
+            ]
+
+fixtureTxId :: SealedTx -> Hash "Tx"
+fixtureTxId sealed = case unsafeReadTx sealed of
+    Read.EraValue tx -> Hash $ Hash.hashToBytes $ Read.hashFromTxId $ Read.getTxId tx
 
 mockNetworkLayer :: Monad m => NetworkLayer m block
 mockNetworkLayer =

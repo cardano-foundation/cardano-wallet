@@ -4233,10 +4233,13 @@ submitTransaction ctx apiw@(ApiT wid) apitx = do
                 walletTx
                     $ decodeTx tl (Read.EraValue Read.Dijkstra) sealedTx
             db = wrk ^. dbLayer
-        ttl <- liftIO $ W.transactionExpirySlot (NW.timeInterpreter nl) Nothing
+        expirySlot <- maybe
+            (liftIO $ W.transactionExpirySlot (NW.timeInterpreter nl) Nothing)
+            pure
+            expiration
         let txCtx =
                 defaultTransactionCtx
-                    { txValidityInterval = (Nothing, fromMaybe ttl expiration)
+                    { txValidityInterval = (Nothing, expirySlot)
                     }
         txMeta <-
             handler

@@ -102,9 +102,6 @@ import Cardano.Wallet.DB.Sqlite.Migration.New
     ( latestVersion
     , runNewStyleMigrations
     )
-import Cardano.Wallet.DB.Sqlite.Types
-    ( DappSubmissionStatusEnum (..)
-    )
 import Cardano.Wallet.DB.Sqlite.Migration.Old
     ( DefaultFieldValues (..)
     , SchemaVersion (..)
@@ -141,7 +138,6 @@ import Cardano.Wallet.DB.Store.Submissions.Operations
     ( DurableSubmission (..)
     , submissionMetaFromTxMeta
     )
-import qualified Cardano.Wallet.DB.Store.Submissions.Operations as Durable
 import Cardano.Wallet.DB.Store.Transactions.Decoration
     ( TxInDecorator
     , decorateTxInsForReadTxFromLookupTxOut
@@ -905,6 +901,8 @@ mkDBLayerCollection ti wid atomically_ walletState =
             DBDurableSubmissions
                 { insertDurableSubmission_ = Durable.insertOrClassifyDurableSubmission
                 , updateDurableSubmission_ = Durable.updateDurableSubmission
+                , compareAndUpdateDurableSubmission_ =
+                    Durable.compareAndUpdateDurableSubmission
                 , claimDurableSubmissionAttempt_ =
                     Durable.claimDurableSubmissionAttempt wid
                 , readDurableSubmissions_ = Durable.readDurableSubmissions wid

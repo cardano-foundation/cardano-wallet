@@ -43,6 +43,8 @@ import Cardano.Wallet.DB.Store.Submissions.Operations
     ( DurableSubmission (..)
     , DurableSubmissionInput (..)
     , DurableSubmissionInsert (..)
+    , isRollbackConflict
+    , rollbackConflictCode
     )
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter
@@ -186,6 +188,7 @@ withBootDBLayer timeInterpreter wid params k = do
             , insertDurableSubmission = insertPureDurable durable
             , claimDurableSubmissionAttempt = claimPureDurable durable wid
             , updateDurableSubmission = updatePureDurable durable
+            , compareAndUpdateDurableSubmission = compareAndUpdatePureDurable durable
             , readDurableSubmissions = readPureDurable durable wid
             , atomicallyWithContextChange = \change action ->
                 withMVar lock $ \() -> do
@@ -292,35 +295,63 @@ updatePureDurable
     -> DurableSubmission
     -> IO ()
 updatePureDurable store replacement =
-    modifyMVar store $ \rows -> do
-        let prior = find (sameSubmission replacement . pureSubmission) rows
-            restoring =
-                durableStatus replacement == SubmittedE
-                    && maybe
-                        False
-                        ((== InLedgerDappE) . durableStatus . pureSubmission)
-                        prior
-            replacementInputs = maybe [] pureInputs prior
-        if restoring
-            && any (overlaps replacementInputs) (filter (not . sameRow) rows)
-            then
-                fail
-                    "cannot roll back a submission while another active claim owns one of its inputs"
-            else pure (replace <$> rows, ())
+    modifyMVar_ store $ pure . fst . transitionPureDurable replacement
+
+compareAndUpdatePureDurable
+    :: MVar [PureDurableSubmission]
+    -> DurableSubmission
+    -> DurableSubmission
+    -> IO (Maybe DurableSubmission)
+compareAndUpdatePureDurable store expected replacement =
+    modifyMVar store $ \rows ->
+        case find (sameSubmission expected . pureSubmission) rows of
+            Just stored
+                | expected == replacement -> pure (rows, Just $ pureSubmission stored)
+                | pureSubmission stored == expected
+                    && sameIdentity expected replacement
+                    && durableExpiration expected == durableExpiration replacement ->
+                    pure $ transitionPureDurable replacement rows
+            current -> pure (rows, pureSubmission <$> current)
+
+transitionPureDurable
+    :: DurableSubmission
+    -> [PureDurableSubmission]
+    -> ([PureDurableSubmission], Maybe DurableSubmission)
+transitionPureDurable replacement rows =
+    case find sameRow rows of
+        Nothing -> (rows, Nothing)
+        Just prior ->
+            let restoring =
+                    durableStatus replacement == SubmittedE
+                        && (durableStatus (pureSubmission prior) == InLedgerDappE
+                            || isRollbackConflict (pureSubmission prior))
+                restored =
+                    not restoring
+                        || not (any (overlaps (pureInputs prior))
+                            (filter (not . sameRow) rows))
+                finalCode
+                    | not restored = Just rollbackConflictCode
+                    | durableRejectionCode replacement == Just rollbackConflictCode = Nothing
+                    | otherwise = durableRejectionCode replacement
+                final =
+                    replacement
+                        { durableAuthorized = restored && durableAuthorized replacement
+                        , durableStatus =
+                            if restored then durableStatus replacement else OutcomeUnknownE
+                        , durableRejectionCode = finalCode
+                        }
+                active = case durableStatus replacement of
+                    RejectedE -> False
+                    ExpiredDappE -> False
+                    InLedgerDappE -> False
+                    _ | restoring -> restored
+                      | otherwise -> pureClaimsActive prior
+                replace stored
+                    | sameRow stored = stored{pureSubmission = final, pureClaimsActive = active}
+                    | otherwise = stored
+            in (replace <$> rows, Just final)
   where
     sameRow = sameSubmission replacement . pureSubmission
-    replace stored
-        | sameRow stored =
-            stored
-                { pureSubmission = replacement
-                , pureClaimsActive =
-                    case durableStatus replacement of
-                        RejectedE -> False
-                        ExpiredDappE -> False
-                        InLedgerDappE -> False
-                        _ -> True
-                }
-        | otherwise = stored
 
 readPureDurable
     :: MVar [PureDurableSubmission]

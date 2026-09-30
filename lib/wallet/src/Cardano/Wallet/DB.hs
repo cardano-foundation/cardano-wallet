@@ -251,8 +251,8 @@ data DBLayer m s = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
     , putTxHistory :: [(Tx, TxMeta)] -> stm ()
     -- ^ Augments the transaction history for a known wallet.
     --
-    -- If an entry for a particular transaction already exists it is not
-    -- altered nor merged (just ignored).
+    -- Existing metadata is replaced; callers inserting pending history must
+    -- not overwrite a transaction already discovered on-chain.
     , readTransactions
         :: Maybe Coin
         -> SortOrder
@@ -312,6 +312,15 @@ data DBLayer m s = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
     , updateDurableSubmission
         :: DurableSubmission
         -> stm ()
+    -- ^ Unconditional transition for synchronous transaction-local work.
+    -- Asynchronous readers must use 'compareAndUpdateDurableSubmission'.
+    , compareAndUpdateDurableSubmission
+        :: DurableSubmission
+        -> DurableSubmission
+        -> stm (Maybe DurableSubmission)
+    -- ^ Compare the complete expected predecessor, then atomically transition
+    -- its state and claims. Return the persisted row, unchanged on mismatch,
+    -- or 'Nothing' only when absent. Use for asynchronous completions.
     , claimDurableSubmissionAttempt
         :: TxId
         -> Word64
@@ -428,6 +437,10 @@ data DBDurableSubmissions stm = DBDurableSubmissions
     , updateDurableSubmission_
         :: DurableSubmission
         -> stm ()
+    , compareAndUpdateDurableSubmission_
+        :: DurableSubmission
+        -> DurableSubmission
+        -> stm (Maybe DurableSubmission)
     , claimDurableSubmissionAttempt_
         :: TxId
         -> Word64
@@ -518,6 +531,8 @@ mkDBLayerFromParts ti wid_ DBLayerCollection{..} =
             (\result -> (result, ContextClock 0 0 0 False)) <$> atomically_ action
         , insertDurableSubmission = insertDurableSubmission_ durableSubmissions_
         , updateDurableSubmission = updateDurableSubmission_ durableSubmissions_
+        , compareAndUpdateDurableSubmission =
+            compareAndUpdateDurableSubmission_ durableSubmissions_
         , claimDurableSubmissionAttempt =
             claimDurableSubmissionAttempt_ durableSubmissions_
         , readDurableSubmissions = readDurableSubmissions_ durableSubmissions_

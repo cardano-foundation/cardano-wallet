@@ -33,6 +33,7 @@ import Cardano.Wallet.DB.Store.Submissions.Operations
     , DurableSubmissionInsert (..)
     , SubmissionMeta (..)
     , claimDurableSubmissionAttempt
+    , compareAndUpdateDurableSubmission
     , isRollbackConflict
     , insertOrClassifyDurableSubmission
     , mkStoreSubmissions
@@ -56,9 +57,6 @@ import Cardano.Wallet.Primitive.Types.Tx
 import Cardano.Wallet.Primitive.Types.Tx.TxMeta
     ( Direction (Outgoing)
     )
-import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..)
-    )
 import Cardano.Wallet.Submissions.OperationsSpec
     ( genOperationsDelta
     )
@@ -66,7 +64,8 @@ import Cardano.Wallet.Submissions.Submissions
     ( Submissions (..)
     )
 import Control.Monad
-    ( replicateM
+    ( forM
+    , replicateM
     )
 import Cryptography.Hash.Core
     ( hash
@@ -238,6 +237,70 @@ spec = do
                     pure $ durableStatus stored
                 status `shouldBe` OutcomeUnknownE
 
+            it "rejects stale durable transitions without changing claims" $ \db -> do
+                let wid = WalletId $ hash @BS.ByteString "submission-stale-transitions"
+                    source = TxId $ Hash $ BS.replicate 32 9
+                    started = read "2026-01-01 00:00:00 UTC"
+                    submission tx =
+                        DurableSubmission wid tx (mockSealedTx "body")
+                            Nothing True AuthorizedE 0 Nothing Nothing Nothing Nothing
+                outcomes <- runQuery db $ do
+                    initializeWalletTable wid
+                    rawExecute
+                        "CREATE UNIQUE INDEX IF NOT EXISTS dapp_submission_claim ON dapp_submission_input \
+                        \(wallet_id, source_tx_id, source_index) WHERE active = 1"
+                        []
+                    forM [(0, InLedgerDappE), (1, ExpiredDappE)] $ \(index, status) -> do
+                        let tx = TxId $ Hash $ BS.replicate 32 (fromIntegral index + 1)
+                            competingTx = TxId $ Hash $ BS.replicate 32 (fromIntegral index + 3)
+                            thirdTx = TxId $ Hash $ BS.replicate 32 (fromIntegral index + 5)
+                            authorized = submission tx
+                            claim = DurableSubmissionInput source index NormalInputE
+                            expired = authorized
+                                { durableStatus = ExpiredDappE, durableAuthorized = False }
+                        _ <- insertOrClassifyDurableSubmission authorized [claim]
+                        Just broadcasting <- claimDurableSubmissionAttempt wid tx 0 started
+                        staleWatcher <- compareAndUpdateDurableSubmission authorized expired
+                        blocked <- insertOrClassifyDurableSubmission (submission competingTx) [claim]
+                        -- Same status is not the same predecessor: attempt ABA,
+                        -- authorization, timing and exact evidence must all match.
+                        mismatches <- forM
+                            [ broadcasting{durableAttemptGeneration = 1}
+                            , broadcasting{durableBroadcastGeneration = Just 1}
+                            , broadcasting{durableBroadcastStarted = Nothing}
+                            , broadcasting{durableAuthorized = False}
+                            , broadcasting{durableSealedTx = mockSealedTx "other"}
+                            ] $ \expected ->
+                                compareAndUpdateDurableSubmission expected expired
+                        let terminal = broadcasting
+                                { durableStatus = status, durableAuthorized = False }
+                            submitted = broadcasting
+                                { durableStatus = SubmittedE
+                                , durableAuthorized = False
+                                , durableBroadcastStarted = Nothing
+                                }
+                        completed <- compareAndUpdateDurableSubmission broadcasting terminal
+                        lateSuccess <- compareAndUpdateDurableSubmission broadcasting submitted
+                        released <- insertOrClassifyDurableSubmission (submission competingTx) [claim]
+                        lateRejection <- compareAndUpdateDurableSubmission broadcasting
+                            submitted{durableStatus = RejectedE}
+                        stillBlocked <- insertOrClassifyDurableSubmission (submission thirdTx) [claim]
+                        rows <- readDurableSubmissions wid
+                        let persisted = find ((== tx) . durableTxId) rows
+                        pure
+                            ( staleWatcher == Just broadcasting
+                                && all (== Just broadcasting) mismatches
+                                && completed == Just terminal
+                                && lateSuccess == Just terminal
+                                && lateRejection == Just terminal
+                                && persisted == Just terminal
+                            , blocked, released, stillBlocked
+                            )
+                outcomes `shouldBe` replicate 2
+                    ( True, DurableSubmissionInputConflict
+                    , DurableSubmissionAuthorized, DurableSubmissionInputConflict
+                    )
+
             it "restores rolled-back claims after a competing submission releases them" $ \db -> do
                 let wid = WalletId $ hash @BS.ByteString "submission-rollback"
                     tx1 = TxId $ Hash $ BS.replicate 32 1
@@ -255,22 +318,24 @@ spec = do
                         \(wallet_id, source_tx_id, source_index) WHERE active = 1"
                         []
                     first <- insertOrClassifyDurableSubmission (submission tx1) [claim]
-                    updateDurableSubmission (submission tx1)
-                        { durableAuthorized = False, durableStatus = InLedgerDappE }
+                    let inLedger = (submission tx1)
+                            { durableAuthorized = False, durableStatus = InLedgerDappE }
+                    updateDurableSubmission inLedger
                     second <- insertOrClassifyDurableSubmission (submission tx2) [claim]
-                    updateDurableSubmission (submission tx1)
-                        { durableAuthorized = False, durableStatus = SubmittedE }
+                    conflicted <- compareAndUpdateDurableSubmission inLedger
+                        inLedger{durableStatus = SubmittedE}
                     rows <- readDurableSubmissions wid
                     old <- maybe (fail "missing rolled-back row") pure
                         $ find ((== tx1) . durableTxId) rows
                     newer <- maybe (fail "missing competing row") pure
                         $ find ((== tx2) . durableTxId) rows
+                    noOp <- compareAndUpdateDurableSubmission old old
                     attempted <- claimDurableSubmissionAttempt wid tx1 0
                         (read "2026-01-01 00:00:00 UTC")
                     updateDurableSubmission newer
                         { durableAuthorized = False, durableStatus = RejectedE }
-                    updateDurableSubmission old
-                        { durableAuthorized = False, durableStatus = SubmittedE }
+                    restoredResult <- compareAndUpdateDurableSubmission old
+                        old{durableAuthorized = False, durableStatus = SubmittedE}
                     restoredRows <- readDurableSubmissions wid
                     restored <- maybe (fail "missing restored row") pure
                         $ find ((== tx1) . durableTxId) restoredRows
@@ -280,11 +345,13 @@ spec = do
                     pure (first, second, isRollbackConflict old,
                         durableStatus old, durableAuthorized old,
                         durableStatus <$> attempted, isRollbackConflict restored,
-                        isRollbackConflict migrated, blocked)
+                        isRollbackConflict migrated, blocked,
+                        conflicted == Just old && noOp == Just old
+                            && restoredResult == Just restored)
                 outcomes `shouldBe`
                     ( DurableSubmissionAuthorized, DurableSubmissionAuthorized,
                       True, OutcomeUnknownE, False, Nothing, False, False,
-                      DurableSubmissionInputConflict )
+                      DurableSubmissionInputConflict, True )
 
 deriving instance Random SlotNo
 

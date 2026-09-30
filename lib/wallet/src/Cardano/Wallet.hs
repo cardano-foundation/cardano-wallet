@@ -206,7 +206,6 @@ module Cardano.Wallet
     , dappCip95KeyState
     , DappStakeRegistration (..)
     , dappStakeRegistrationState
-    , readLocalTxSubmissionPending
     , LocalTxSubmissionConfig (..)
     , defaultLocalTxSubmissionConfig
     , runLocalTxSubmissionPool
@@ -491,7 +490,6 @@ import Cardano.Wallet.DB.Store.Submissions.Operations
     ( DurableSubmission (..)
     , DurableSubmissionInput (..)
     , DurableSubmissionInsert (..)
-    , TxSubmissionsStatus
     , isRollbackConflict
     )
 import Cardano.Wallet.DB.Sqlite.Types
@@ -896,7 +894,6 @@ import Data.Void
     )
 import Data.Word
     ( Word32
-    , Word64
     )
 import Fmt
     ( Buildable
@@ -3150,23 +3147,8 @@ buildSignSubmitTransaction
                                 , builtTxMeta
                                 , builtSealedTx
                                 }
-                    _ <-
-                        runExceptT
-                            ( submitWalletScoped
-                                nullTracer
-                                db
-                                netLayer
-                                False
-                                txResolved
-                                builtSealedTx
-                                (expiry builtTxMeta)
-                            )
-                            >>= either (throwIO . ExceptionSubmitTx) pure
-                    atomicallyWithContextChange PendingContextChange
-                        $ Delta.onDBVar walletState
-                        . WalletState.updateSubmissions
-                        . Delta.update
-                        $ \_ -> Submissions.addTxSubmission builtTx slot
+                    runExceptT (submitTx nullTracer db netLayer builtTx)
+                        >>= either (throwIO . ExceptionSubmitTx) pure
                     slotToUTCTime slot
                         & interpretQuery
                             (neverFails "slot is ahead of the node tip" ti)
@@ -3213,23 +3195,8 @@ buildSignSubmitTransaction
 
                         pure txWithSlot
 
-                    _ <-
-                        runExceptT
-                            ( submitWalletScoped
-                                nullTracer
-                                db
-                                netLayer
-                                False
-                                builtTx
-                                builtSealedTx
-                                (expiry builtTxMeta)
-                            )
-                            >>= either (throwIO . ExceptionSubmitTx) pure
-                    atomicallyWithContextChange PendingContextChange
-                        $ Delta.onDBVar walletState
-                        . WalletState.updateSubmissions
-                        . Delta.update
-                        $ \_ -> Submissions.addTxSubmission built slot
+                    runExceptT (submitTx nullTracer db netLayer built)
+                        >>= either (throwIO . ExceptionSubmitTx) pure
 
                     slotToUTCTime slot
                         & interpretQuery (neverFails "slot is ahead of the node tip" ti)
@@ -3904,13 +3871,23 @@ submitWalletScoped tr DBLayer{..} nw conwayOnly tx sealed expiration = do
         lift
             $ atomicallyWithContextChange PendingContextChange
             $ insertDurableSubmission submission claims
-    case decision of
+    result <- case decision of
         DurableSubmissionAuthorized -> broadcast submission
         DurableSubmissionReplay stored
             | durableStatus stored == AuthorizedE -> broadcast stored
             | otherwise -> pure $ durableStatus stored
         DurableSubmissionIdentityConflict -> throwE ErrSubmitTxIdentityConflict
         DurableSubmissionInputConflict -> throwE ErrSubmitTxInputConflict
+    if conwayOnly
+        then pure result
+        else case result of
+            SubmittedE -> pure result
+            InLedgerDappE -> pure result
+            RejectedE -> throwE $ ErrSubmitTxNetwork $
+                ErrPostTxValidationError "This transaction was previously rejected."
+            ExpiredDappE -> throwE $ ErrSubmitTxNetwork $
+                ErrPostTxValidationError "This transaction has expired."
+            _ -> throwE ErrSubmitTxOutcomeUnknown
   where
     claim role TxIn{inputId, inputIx} =
         DurableSubmissionInput (Sql.TxId inputId) inputIx role
@@ -3923,16 +3900,19 @@ submitWalletScoped tr DBLayer{..} nw conwayOnly tx sealed expiration = do
     broadcast authorized = do
         requireConway
         started <- lift getCurrentTime
-        mBroadcasting <-
-            lift
-                $ atomicallyWithContextChange PendingContextChange
-                $ claimDurableSubmissionAttempt
+        claimed <-
+            lift $ atomicallyWithContextChange PendingContextChange $ do
+                attempt <- claimDurableSubmissionAttempt
                     (durableTxId authorized)
                     (durableAttemptGeneration authorized)
                     started
-        case mBroadcasting of
-            Nothing -> pure BroadcastingE
-            Just broadcasting -> do
+                case attempt of
+                    Nothing -> Left <$> compareAndUpdateDurableSubmission authorized authorized
+                    Just broadcasting -> pure $ Right broadcasting
+        case claimed of
+            Left current ->
+                maybe (throwE ErrSubmitTxOutcomeUnknown) (pure . durableStatus) current
+            Right broadcasting -> do
                 outcome <-
                     lift
                         $ ( Right
@@ -3954,10 +3934,7 @@ submitWalletScoped tr DBLayer{..} nw conwayOnly tx sealed expiration = do
                                     { durableStatus = SubmittedE
                                     , durableBroadcastStarted = Nothing
                                     }
-                        lift
-                            $ atomicallyWithContextChange PendingContextChange
-                            $ updateDurableSubmission submitted
-                        pure SubmittedE
+                        complete broadcasting submitted
                     Right (Right (Left err)) -> do
                         let rejected =
                                 broadcasting
@@ -3966,20 +3943,25 @@ submitWalletScoped tr DBLayer{..} nw conwayOnly tx sealed expiration = do
                                     , durableBroadcastStarted = Nothing
                                     , durableRejectionCode = Just $ rejectionCode err
                                     }
-                        lift
-                            $ atomicallyWithContextChange PendingContextChange
-                            $ updateDurableSubmission rejected
-                        throwE $ ErrSubmitTxNetwork err
+                        actual <- complete broadcasting rejected
+                        if actual == RejectedE && not conwayOnly
+                            then throwE $ ErrSubmitTxNetwork err
+                            else pure actual
     unknown broadcasting = do
         let unknownSubmission =
                 broadcasting
                     { durableStatus = OutcomeUnknownE
                     , durableBroadcastStarted = Nothing
                     }
-        lift
-            $ atomicallyWithContextChange PendingContextChange
-            $ updateDurableSubmission unknownSubmission
-        throwE ErrSubmitTxOutcomeUnknown
+        actual <- complete broadcasting unknownSubmission
+        if actual == OutcomeUnknownE
+            then throwE ErrSubmitTxOutcomeUnknown
+            else pure actual
+    complete expected replacement = do
+        current <- lift $
+            atomicallyWithContextChange PendingContextChange $
+                compareAndUpdateDurableSubmission expected replacement
+        maybe (throwE ErrSubmitTxOutcomeUnknown) (pure . durableStatus) current
     rejectionCode = \case
         ErrPostTxValidationError _ -> "validation"
         ErrPostTxMempoolFull -> "mempool_full"
@@ -3994,9 +3976,9 @@ submitTx
     -> NetworkLayer m block
     -> BuiltTx
     -> ExceptT ErrSubmitTx m ()
-submitTx tr db nw BuiltTx{builtTx, builtTxMeta, builtSealedTx} = do
-    void
-        $ submitWalletScoped
+submitTx tr db nw built@BuiltTx{builtTx, builtTxMeta, builtSealedTx} = do
+    submissionStatus <-
+        submitWalletScoped
             (contramap (MsgWallet . MsgTxSubmit) tr)
             db
             nw
@@ -4004,9 +3986,20 @@ submitTx tr db nw BuiltTx{builtTx, builtTxMeta, builtSealedTx} = do
             builtTx
             builtSealedTx
             (expiry builtTxMeta)
-    lift $ db & \DBLayer{atomicallyWithContextChange, putTxHistory} ->
-        atomicallyWithContextChange PendingContextChange
-            $ putTxHistory [(builtTx, builtTxMeta)]
+    when (submissionStatus == SubmittedE) $ do
+        registered <- lift $ db & \DBLayer{atomicallyWithContextChange, getTx, walletState} ->
+            atomicallyWithContextChange PendingContextChange $ do
+                existing <- getTx (txId builtTx)
+                visible <- case existing of
+                    Nothing -> do
+                        Delta.onDBVar walletState
+                            . WalletState.updateSubmissions
+                            . Delta.update
+                            $ \_ -> Submissions.addTxSubmission built (builtTxMeta ^. #slotNo)
+                        getTx (txId builtTx)
+                    Just _ -> pure existing
+                pure $ maybe False ((`elem` [Pending, InLedger]) . status . txInfoMeta) visible
+        unless registered $ throwE ErrSubmitTxOutcomeUnknown
 
 -- | Broadcast an externally-signed transaction to the network.
 --
@@ -4130,39 +4123,17 @@ forgetTx ctx txid =
         . Delta.updateWithError
         $ Submissions.removePendingOrExpiredTx txid
 
--- | List all transactions from the local submission pool which are
--- still pending as of the latest checkpoint of the given wallet. The
--- slot numbers for first submission and most recent submission are
--- included.
-readLocalTxSubmissionPending
-    :: WalletLayer m s
-    -> m [TxSubmissionsStatus]
-readLocalTxSubmissionPending ctx =
-    db & \DBLayer{..} ->
-        atomically
-            $ readLocalTxSubmissionPending' <$> readDBVar walletState
-  where
-    db = ctx ^. dbLayer
-
-    readLocalTxSubmissionPending' =
-        filter Submissions.isInSubmission
-            . Submissions.getInSubmissionTransactions
-            . WalletState.submissions
-
-
 -- | Parameters for the local submission reconciliation watcher.
 data LocalTxSubmissionConfig = LocalTxSubmissionConfig
     { rateLimit :: DiffTime
     -- ^ Minimum time between reconciliation checks.
-    , blockInterval :: Word64
-    -- ^ Retained for configuration compatibility. Reconciliation never submits.
     }
     deriving (Generic, Show, Eq)
 
 -- | The watcher only observes pending transactions. Submission is always owned
 -- by the caller that durably authorized it.
 defaultLocalTxSubmissionConfig :: LocalTxSubmissionConfig
-defaultLocalTxSubmissionConfig = LocalTxSubmissionConfig 1 10
+defaultLocalTxSubmissionConfig = LocalTxSubmissionConfig 1
 
 -- | Continuous process which watches the chain tip for reconciliation work.
 --
@@ -4192,8 +4163,9 @@ runLocalTxSubmissionPool cfg ctx = do
             rows <- atomically readDurableSubmissions
             forM_ rows $ \row ->
                 when (durableStatus row == BroadcastingE)
+                    $ void
                     $ atomicallyWithContextChange PendingContextChange
-                    $ updateDurableSubmission
+                    $ compareAndUpdateDurableSubmission row
                         row
                             { durableStatus = OutcomeUnknownE
                             , durableBroadcastStarted = Nothing
@@ -4207,9 +4179,9 @@ runLocalTxSubmissionPool cfg ctx = do
                         if checkpointAtNodeTip checkpoint nodeTip
                             then Just <$> getTx transactionId
                             else pure Nothing
-                saveRow row =
-                    atomicallyWithContextChange PendingContextChange
-                        $ updateDurableSubmission row
+                saveRow expected replacement =
+                    void $ atomicallyWithContextChange PendingContextChange $
+                        compareAndUpdateDurableSubmission expected replacement
             forM_ rows $ \row ->
                 when
                     ( durableStatus row
@@ -4230,11 +4202,11 @@ runLocalTxSubmissionPool cfg ctx = do
                         then reconcileRow lookupTxAt saveRow row (attempts - 1)
                         else
                             if maybe False ((== InLedger) . status . txInfoMeta) observed
-                                then forM_ (classify tipAfter observed False row) saveRow
+                                then forM_ (classify tipAfter observed False row) (saveRow row)
                                 else case mempool of
                                     Nothing -> pure ()
                                     Just present ->
-                                        forM_ (classify tipAfter observed present row) saveRow
+                                        forM_ (classify tipAfter observed present row) (saveRow row)
     classify tip observed present row
         | maybe False ((== InLedger) . status . txInfoMeta) observed =
             Just

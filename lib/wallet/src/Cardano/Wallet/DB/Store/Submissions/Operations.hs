@@ -23,10 +23,12 @@ module Cardano.Wallet.DB.Store.Submissions.Operations
     , submissionMetaFromTxMeta
     , DurableSubmission (..)
     , isRollbackConflict
+    , rollbackConflictCode
     , DurableSubmissionInput (..)
     , DurableSubmissionInsert (..)
     , insertOrClassifyDurableSubmission
     , updateDurableSubmission
+    , compareAndUpdateDurableSubmission
     , claimDurableSubmissionAttempt
     , releaseDurableSubmissionClaims
     , restoreDurableSubmissionClaims
@@ -108,6 +110,7 @@ import Data.Word
     )
 import Database.Persist
     ( Entity (..)
+    , PersistStoreRead (get)
     , PersistStoreWrite (delete, insert, repsert, update)
     , selectList
     , (=.)
@@ -322,7 +325,28 @@ claimDurableSubmissionAttempt walletId txId generation started = do
                 pure $ Just broadcasting
         _ -> pure Nothing
 
--- | Transition state and claims in the same database transaction.
+-- | Compare the entire predecessor before changing state or claims. The
+-- caller's database transaction serializes the comparison and update.
+-- Equal expected/replacement arguments only read the actual current row.
+compareAndUpdateDurableSubmission
+    :: DurableSubmission
+    -> DurableSubmission
+    -> SqlPersistT IO (Maybe DurableSubmission)
+compareAndUpdateDurableSubmission expected replacement = do
+    current <- get key
+    case current of
+        Just row
+            | expected == replacement -> pure $ Just $ durableFromRow row
+            | durableFromRow row == expected
+                && sameDurableIdentity row replacement
+                && durableExpiration expected == durableExpiration replacement -> do
+                updateDurableSubmission replacement
+                fmap durableFromRow <$> get key
+        unchanged -> pure $ durableFromRow <$> unchanged
+  where
+    key = DappSubmissionKey (durableWalletId expected) (durableTxId expected)
+
+-- | Unconditional state-and-claims transition for transaction-local work.
 updateDurableSubmission :: DurableSubmission -> SqlPersistT IO ()
 updateDurableSubmission DurableSubmission{..} = do
     prior <-
