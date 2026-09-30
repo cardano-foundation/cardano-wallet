@@ -1,0 +1,48 @@
+{
+    "samples": [
+        {
+            "api_version": 1,
+            "backend_build": {
+                "source_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "version": "v2026-07-23"
+            },
+            "capabilities": [
+                {
+                    "available_eras": [
+                        "conway"
+                    ],
+                    "name": "transaction-context",
+                    "revision": 1
+                },
+                {
+                    "available_eras": [
+                        "conway"
+                    ],
+                    "name": "reviewed-context-signing",
+                    "revision": 1
+                },
+                {
+                    "available_eras": [
+                        "conway"
+                    ],
+                    "name": "cip8-cip95",
+                    "revision": 1
+                },
+                {
+                    "available_eras": [
+                        "conway"
+                    ],
+                    "name": "durable-wallet-submit",
+                    "revision": 1
+                }
+            ],
+            "network": {
+                "current_era": "conway",
+                "genesis_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "network_id": 0,
+                "network_magic": 1
+            }
+        }
+    ],
+    "seed": 1654082556
+}

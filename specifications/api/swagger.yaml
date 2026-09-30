@@ -2462,6 +2462,68 @@ components:
     ApiNetworkClock: &ApiNetworkClock
       <<: *networkInformationNtpStatus
 
+    ApiDappBackendBuild: &ApiDappBackendBuild
+      type: object
+      additionalProperties: false
+      required: [version, source_revision]
+      properties:
+        version:
+          type: string
+        source_revision:
+          type: string
+          pattern: '^[0-9a-f]{40}$'
+
+    ApiDappNetwork: &ApiDappNetwork
+      type: object
+      additionalProperties: false
+      required: [network_id, network_magic, genesis_hash, current_era]
+      properties:
+        network_id:
+          type: integer
+          minimum: 0
+          maximum: 1
+        network_magic:
+          type: integer
+          minimum: 0
+          maximum: 4294967295
+        genesis_hash:
+          type: string
+          pattern: '^[0-9a-f]{64}$'
+        current_era: *ApiEra
+
+    ApiDappCapability: &ApiDappCapability
+      type: object
+      additionalProperties: false
+      required: [name, revision, available_eras]
+      properties:
+        name:
+          type: string
+          pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$'
+        revision:
+          type: integer
+          minimum: 1
+          maximum: 9007199254740991
+        available_eras:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: *ApiEra
+
+    ApiDappCapabilities: &ApiDappCapabilities
+      type: object
+      additionalProperties: false
+      required: [api_version, backend_build, network, capabilities]
+      properties:
+        api_version:
+          type: integer
+          enum: [1]
+        backend_build: *ApiDappBackendBuild
+        network: *ApiDappNetwork
+        capabilities:
+          type: array
+          minItems: 4
+          items: *ApiDappCapability
+
     nullableEpochInfo: &nullableEpochInfo
       <<: *epochInfo
       nullable: True
@@ -7491,6 +7553,15 @@ x-responsesGetNetworkParameters: &responsesGetNetworkParameters
       application/json:
         schema: *ApiNetworkParameters
 
+x-responsesGetDappCapabilities: &responsesGetDappCapabilities
+  200:
+    description: Available only after all revision-1 operation families are implemented.
+    content:
+      application/json:
+        schema: *ApiDappCapabilities
+  404:
+    description: The complete dApp backend capability is unavailable.
+
 x-responsesPostRandomAddress: &responsesPostRandomAddress
   <<:
     - *responsesErr400
@@ -8726,8 +8797,7 @@ paths:
       summary: Resolve exact transaction context
       description: |
         Resolves complete Conway ledger outputs, protocol parameters, and the
-        current pending overlay at one coherent wallet chain point. This route
-        does not activate the dApp capability document.
+        current pending overlay at one coherent wallet chain point.
       parameters:
         - *parametersWalletId
       requestBody:
@@ -8744,8 +8814,7 @@ paths:
       summary: Sign reviewed transactions with fresh VKey witnesses
       description: |
         Revalidates an authenticated Conway transaction context and returns only
-        fresh VKey witness-set CBOR. The route does not activate any dApp
-        capability and never returns a transaction envelope.
+        fresh VKey witness-set CBOR; it never returns a transaction envelope.
       parameters:
         - *parametersWalletId
       requestBody:
@@ -8759,11 +8828,11 @@ paths:
     post:
       operationId: postDappDataSignature
       tags: ["Transactions New"]
-      summary: Dormant CIP-8 data signing
+      summary: CIP-8 data signing
       description: |
         Signs the exact attached payload selected by the raw Shelley address and
         returns complete untagged canonical COSE_Sign1 and COSE_Key values. It
-        never hashes or converts payload bytes and does not activate dApp capability.
+        never hashes or converts payload bytes.
       parameters:
         - *parametersWalletId
       requestBody:
@@ -8777,10 +8846,10 @@ paths:
     get:
       operationId: getDappCip95KeyState
       tags: ["Transactions New"]
-      summary: Read dormant CIP-95 public key state
+      summary: Read CIP-95 public key state
       description: |
         Returns only raw public keys derived from the persisted account XPub.
-        No private material, capability activation, or governance action is exposed.
+        No private material or governance action is exposed.
       parameters:
         - *parametersWalletId
       responses: *responsesDappCip95KeyState
@@ -9235,6 +9304,17 @@ paths:
 
         Returns the set of network parameters for the current epoch.
       responses: *responsesGetNetworkParameters
+
+  /dapp-capabilities:
+    get:
+      operationId: getDappCapabilities
+      tags: ["Network"]
+      summary: dApp backend capabilities
+      description: |
+        Reports the complete revision-1 dApp backend contract. Unsupported eras
+        and invalid build or network identity fail closed with an ordinary 404;
+        partial capabilities are never published.
+      responses: *responsesGetDappCapabilities
 
   /proxy/transactions:
     post:

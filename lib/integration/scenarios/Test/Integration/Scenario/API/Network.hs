@@ -10,6 +10,7 @@ module Test.Integration.Scenario.API.Network
 
 import Cardano.Wallet.Api.Types
     ( ApiByronWallet
+    , ApiDappCapabilities
     , ApiNetworkClock
     , ApiNetworkInformation
     , ApiWalletMode (..)
@@ -77,6 +78,20 @@ import qualified Network.HTTP.Types.Status as HTTP
 
 spec :: SpecWith Context
 spec = describe "COMMON_NETWORK" $ do
+    it "DAPP_CAPABILITIES - Publishes complete aggregate contract" $ \ctx -> do
+        response <-
+            request @ApiDappCapabilities
+                ctx
+                Link.getDappCapabilities
+                Default
+                Empty
+        expectResponseCode @IO HTTP.status200 response
+        verify
+            response
+            [ expectField #apiVersion (`shouldBe` 1)
+            , expectField #capabilities ((`shouldBe` 4) . length)
+            ]
+
     it "NETWORK - Can query network information" $ \ctx -> do
         eventually "wallet's syncProgress = Ready" $ do
             now <- liftIO getCurrentTime
