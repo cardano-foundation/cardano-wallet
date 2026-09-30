@@ -151,6 +151,9 @@ spec = do
         it "passes only exact fixed dApp errors" $ do
             let expected = dappServerError DappContextConflictError
             toServerError (request, expected) `shouldBe` expected
+        it "preserves the fixed unsupported-era refusal" $ do
+            let expected = dappServerError DappUnsupportedEraError
+            toServerError (request, expected) `shouldBe` expected
         it "normalizes arbitrary JSON errors" $ do
             let generic =
                     err400{errBody = "{\"code\":\"bad_request\",\"message\":\"details\"}"}
@@ -369,6 +372,13 @@ dappErrors =
         , "dapp_tx_proof_generation"
         , DappTxProofGeneration
         , "Transaction proof unavailable"
+        )
+    ,
+        ( DappUnsupportedEraError
+        , 403
+        , "dapp_unsupported_era"
+        , DappUnsupportedEra
+        , "Unsupported backend era"
         )
     ,
         ( DappDeprecatedCertificateError

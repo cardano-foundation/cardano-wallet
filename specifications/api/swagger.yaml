@@ -7655,6 +7655,11 @@ x-responsesDappSubmission: &responsesDappSubmission
           oneOf:
             - *errDappInvalidRequest
             - *errDappIdentityConflict
+  403:
+    description: Connected node era or transaction encoding is incompatible.
+    content:
+      application/json:
+        schema: *errDappUnsupportedEra
   409:
     description: Wallet, network, or submission state changed.
     content:
@@ -7684,10 +7689,13 @@ x-responsesDappTransactionContext: &responsesDappTransactionContext
             - *errDappInvalidRequest
             - *errDappContextConflict
   403:
-    description: Connected node era or transaction encoding is incompatible.
+    description: Connected node era or transaction encoding is incompatible, or a deprecated certificate is present.
     content:
       application/json:
-        schema: *errDappUnsupportedEra
+        schema:
+          oneOf:
+            - *errDappUnsupportedEra
+            - *errDappDeprecatedCertificate
   409:
     description: Wallet or configured network changed.
     content:
@@ -7719,11 +7727,12 @@ x-responsesDappWitnesses: &responsesDappWitnesses
             - *errDappInvalidRequest
             - *errDappContextConflict
   403:
-    description: A required wallet proof cannot be generated or a deprecated certificate is present.
+    description: The connected node or transaction encoding is incompatible, a wallet proof is unavailable, or a deprecated certificate is present.
     content:
       application/json:
         schema:
           oneOf:
+            - *errDappUnsupportedEra
             - *errDappTxProofGeneration
             - *errDappDeprecatedCertificate
   409:
@@ -7754,11 +7763,12 @@ x-responsesDappDataSignature: &responsesDappDataSignature
       application/json:
         schema: *errDappInvalidRequest
   403:
-    description: The selected address credential is script-based or its wallet proof cannot be generated.
+    description: The connected node is not Conway, the selected credential is script-based, or its wallet proof cannot be generated.
     content:
       application/json:
         schema:
           oneOf:
+            - *errDappUnsupportedEra
             - *errDappDataAddressNotPk
             - *errDappDataProofGeneration
   409:
@@ -7783,6 +7793,11 @@ x-responsesDappCip95KeyState: &responsesDappCip95KeyState
     content:
       application/json:
         schema: *ApiDappCip95KeyState
+  403:
+    description: The connected node is not Conway.
+    content:
+      application/json:
+        schema: *errDappUnsupportedEra
   409:
     description: Wallet state changed while reading key state.
     content:
@@ -8793,6 +8808,9 @@ paths:
         Durably records the exact envelope before contacting the local node.
         Exact replays return the existing identity; this route never uses the
         unscoped proxy transaction endpoint.
+        Only on a Conway node; Alonzo-, Babbage-, and Conway-built envelopes
+        are accepted when their original bytes are valid under Conway rules.
+        Unsupported features fail before journal authorization or broadcast.
       parameters:
         - *parametersWalletId
       requestBody:
@@ -8810,6 +8828,9 @@ paths:
       description: |
         Resolves complete Conway ledger outputs, protocol parameters, and the
         current pending overlay at one coherent wallet chain point.
+        Alonzo-, Babbage-, and Conway-built envelopes are interpreted under
+        Conway rules on a Conway node without rewriting the original bytes.
+        A non-Conway node or recognized incompatible transaction is refused.
       parameters:
         - *parametersWalletId
       requestBody:
