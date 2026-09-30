@@ -203,6 +203,7 @@ import Cardano.Wallet.DB.Sqlite.Types
     )
 import Cardano.Wallet.DB.Store.Submissions.Operations
     ( DurableSubmission (..)
+    , isRollbackConflict
     )
 import Cardano.Wallet.Flavor
     ( KeyFlavorS (ShelleyKeyS)
@@ -498,9 +499,9 @@ decodePending (Hash storedId) sealed = do
 -- | Durable journal records own the same normal/collateral overlay while they
 -- are potentially spendable. Terminal and in-ledger records have released it.
 hasLiveClaim :: DurableSubmission -> Bool
-hasLiveClaim DurableSubmission{durableStatus} =
-    durableStatus
-        `elem` [AuthorizedE, BroadcastingE, SubmittedE, OutcomeUnknownE]
+hasLiveClaim row@DurableSubmission{durableStatus} =
+    durableStatus `elem` [AuthorizedE, BroadcastingE, SubmittedE]
+        || durableStatus == OutcomeUnknownE && not (isRollbackConflict row)
 
 decodeDurable :: DurableSubmission -> Either String DecodedTx
 decodeDurable DurableSubmission{durableTxId = TxId txId, durableSealedTx} =

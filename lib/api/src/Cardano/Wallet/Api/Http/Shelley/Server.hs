@@ -4239,6 +4239,7 @@ submitTransaction ctx apiw@(ApiT wid) apitx = do
                 (tracerTxSubmit ctx)
                 db
                 nl
+                False
                 tx
                 sealedTx
                 expiration
@@ -5946,6 +5947,7 @@ postDappSubmission ctx (ApiT walletId)
                         (tracerTxSubmit ctx)
                         (worker ^. dbLayer)
                         (ctx ^. networkLayer)
+                        True
                         tx
                         sealed
                         expiration

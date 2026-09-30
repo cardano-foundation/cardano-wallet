@@ -920,6 +920,8 @@ instance IsServerError ErrSubmitTx where
             dappServerError DappIdentityConflictError
         ErrSubmitTxInputConflict ->
             dappServerError DappContextConflictError
+        ErrSubmitTxDappUnsupportedEra ->
+            dappServerError DappUnsupportedEraError
         ErrSubmitTxOutcomeUnknown ->
             dappServerError DappSubmissionUnavailableError
 instance IsServerError ErrUpdatePassphrase where
