@@ -279,6 +279,6 @@ durableSubmissionTableCount dbf = do
     [Sqlite.Single count] <-
         Sqlite.runSqlite (T.pack dbf)
             $ Sqlite.rawSql
-                "SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = 'dapp_submission'"
+                "SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name IN ('dapp_submission', 'dapp_submission_input')"
                 []
     pure count

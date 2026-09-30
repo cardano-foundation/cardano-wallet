@@ -30,7 +30,8 @@ import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..)
     )
 import Control.Exception
-    ( onException
+    ( bracket
+    , onException
     )
 import Control.Monad
     ( forM_
@@ -56,10 +57,13 @@ import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Database.Sqlite as Sqlite
 
--- | Introduce exact wallet-scoped submission state beside legacy pool records.
--- Live V5 rows are decoded before their exact active claims are written. Any
--- malformed body, identity mismatch, or conflicting claim aborts the one SQL
--- transaction, allowing the migration framework to restore its backup.
+-- | Copy V5 submissions without changing envelope bytes, identifiers,
+-- expiration or acceptance. Legacy live (0), in-ledger (1), expired (2) map
+-- to outcome-unknown (4), in-ledger (5), expired (6); every migrated row starts
+-- unauthorized with attempt generation zero and no broadcast/rejection data.
+-- Only live V5 rows claim normal/collateral inputs. Malformed bytes, identity
+-- mismatches or competing live claims abort the SQL transaction; the original
+-- submissions table and V5 backup remain available.
 migrateSubmissions :: Migration (ReadDBHandle IO) 5 6
 migrateSubmissions = mkMigration $ ReaderT $ \db -> do
     let conn = dbConn db
@@ -167,18 +171,15 @@ sqlHex value
             || ('A' <= c && c <= 'F')
 
 query :: Sqlite.Connection -> Text -> IO [[PersistValue]]
-query conn sql = do
-    statement <- Sqlite.prepare conn sql
-    let collect rows =
-            Sqlite.step statement >>= \case
-                Sqlite.Row -> Sqlite.columns statement >>= \row -> collect (row : rows)
-                Sqlite.Done -> pure $ reverse rows
-    rows <- collect []
-    Sqlite.finalize statement
-    pure rows
+query conn sql =
+    bracket (Sqlite.prepare conn sql) Sqlite.finalize $ \statement -> do
+        let collect rows =
+                Sqlite.step statement >>= \case
+                    Sqlite.Row -> Sqlite.columns statement >>= \row -> collect (row : rows)
+                    Sqlite.Done -> pure $ reverse rows
+        collect []
 
 execute :: Sqlite.Connection -> String -> IO ()
-execute conn sql = do
-    statement <- Sqlite.prepare conn (T.pack sql)
-    void $ Sqlite.step statement
-    Sqlite.finalize statement
+execute conn sql =
+    bracket (Sqlite.prepare conn (T.pack sql)) Sqlite.finalize
+        $ \statement -> void $ Sqlite.step statement
