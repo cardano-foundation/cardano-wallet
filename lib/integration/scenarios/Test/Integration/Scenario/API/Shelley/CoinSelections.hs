@@ -105,6 +105,7 @@ import Test.Integration.Framework.DSL
     , expectField
     , expectResponseCode
     , fixtureWallet
+    , getFromResponse
     , isValidDerivationPath
     , json
     , listAddresses
@@ -181,6 +182,43 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
                     , expectField
                         #metadata
                         (`shouldBe` Nothing)
+                    ]
+
+    it "PREFERRED_COLLATERAL - preserve when possible, spend when necessary" $
+        \ctx -> runResourceT $ do
+            source <- fixtureWallet ctx
+            target <- emptyWallet ctx
+            addr : _ <- fmap (view #id) <$> listAddresses @n ctx target
+            let amount = ApiAmount . minUTxOValue $ _mainEra ctx
+                payment = AddressAmount addr amount mempty
+            initial <- selectCoins @_ @'Shelley ctx source (payment :| [])
+            expectResponseCode HTTP.status200 initial
+            let chosen : _ = getFromResponse #inputs initial
+            let identity input = (input ^. #id, input ^. #index)
+                txid = chosen ^. #id
+                index = chosen ^. #index
+                preserve =
+                    addField "preferred_collateral"
+                        [json|[{"id": #{txid}, "index": #{index}}]|]
+            selectCoinsWith @_ @'Shelley ctx source (payment :| []) preserve
+                >>= flip verify
+                    [ expectResponseCode HTTP.status200
+                    , expectField #inputs
+                        (`shouldSatisfy` all ((/= identity chosen) . identity))
+                    , expectField #outputs
+                        (`shouldBe` [ApiCoinSelectionOutput addr amount mempty])
+                    ]
+            let available = source ^. #balance . #available . #toNatural
+                largeAmount =
+                    ApiAmount $ available - 5 * minUTxOValue (_mainEra ctx)
+                largePayment = AddressAmount addr largeAmount mempty
+            selectCoinsWith @_ @'Shelley ctx source (largePayment :| []) preserve
+                >>= flip verify
+                    [ expectResponseCode HTTP.status200
+                    , expectField #inputs
+                        (`shouldSatisfy` any ((== identity chosen) . identity))
+                    , expectField #outputs
+                        (`shouldBe` [ApiCoinSelectionOutput addr largeAmount mempty])
                     ]
 
     it
