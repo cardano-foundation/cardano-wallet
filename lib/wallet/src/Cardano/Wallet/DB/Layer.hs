@@ -79,6 +79,7 @@ import Cardano.Wallet.Checkpoints
 import Cardano.Wallet.DB
     ( ContextChange (..)
     , ContextClock (..)
+    , DBDurableSubmissions (..)
     , DBCheckpoints (..)
     , DBDurableSubmissions (..)
     , DBFactory (..)
@@ -100,6 +101,9 @@ import Cardano.Wallet.DB.Migration
 import Cardano.Wallet.DB.Sqlite.Migration.New
     ( latestVersion
     , runNewStyleMigrations
+    )
+import Cardano.Wallet.DB.Sqlite.Types
+    ( DappSubmissionStatusEnum (..)
     )
 import Cardano.Wallet.DB.Sqlite.Migration.Old
     ( DefaultFieldValues (..)
@@ -137,6 +141,7 @@ import Cardano.Wallet.DB.Store.Submissions.Operations
     ( DurableSubmission (..)
     , submissionMetaFromTxMeta
     )
+import qualified Cardano.Wallet.DB.Store.Submissions.Operations as Durable
 import Cardano.Wallet.DB.Store.Transactions.Decoration
     ( TxInDecorator
     , decorateTxInsForReadTxFromLookupTxOut

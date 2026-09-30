@@ -27,6 +27,7 @@ import Cardano.Wallet.Api
     , MigrateShelleyWallet
     , PostAnyAddress
     , PostDappDataSignature
+    , PostDappSubmission
     , PostDappWitnesses
     , PostTransactionContext
     , PostTransactionFeeOld
@@ -75,6 +76,8 @@ import Cardano.Wallet.Api.Types.Dapp.Context
     ( ApiDappDataSignRequest
     , ApiDappDataSignResponse
     , ApiDappCip95KeyState
+    , ApiDappSubmissionRequest
+    , ApiDappSubmissionResponse
     , ApiDappTransactionContextRequest
     , ApiDappTransactionContextResponse
     , ApiDappWitnessSignRequest
@@ -226,6 +229,13 @@ postTransactionFee
     -> ClientM ApiFee
 postTransactionFee =
     client (Proxy @("v2" :> PostTransactionFeeOld network))
+
+postDappSubmission
+    :: ApiT WalletId
+    -> ApiDappSubmissionRequest
+    -> ClientM ApiDappSubmissionResponse
+postDappSubmission =
+    client (Proxy @("v2" :> PostDappSubmission))
 
 balanceTransaction
     :: forall network

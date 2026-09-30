@@ -300,11 +300,16 @@ data DBLayer m s = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
     , atomically
         :: forall a. stm a -> m a
     -- ^ Execute operations of the database in isolation and atomically.
-    -- | The durable wallet-scoped submission journal.
+    , atomicallyWithContextChange
+        :: forall a. ContextChange -> stm a -> m a
+    , atomicallyReadContext
+        :: forall a. stm a -> m (a, ContextClock)
     , insertDurableSubmission
         :: DurableSubmission
         -> [DurableSubmissionInput]
         -> stm DurableSubmissionInsert
+    -- ^ The durable wallet-scoped submission journal. These operations share
+    -- the same database transaction boundary as context changes.
     , updateDurableSubmission
         :: DurableSubmission
         -> stm ()
@@ -315,10 +320,6 @@ data DBLayer m s = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -> stm (Maybe DurableSubmission)
     , readDurableSubmissions
         :: stm [DurableSubmission]
-    , atomicallyWithContextChange
-        :: forall a. ContextChange -> stm a -> m a
-    , atomicallyReadContext
-        :: forall a. stm a -> m (a, ContextClock)
     }
 
 data ContextChange
@@ -519,14 +520,14 @@ mkDBLayerFromParts ti wid_ DBLayerCollection{..} =
         , rollbackTo = rollbackTo_
         , getSchemaVersion = getSchemaVersion_
         , atomically = atomically_
+        , atomicallyWithContextChange = const atomically_
+        , atomicallyReadContext = \action ->
+            (\result -> (result, ContextClock 0 0 0 False)) <$> atomically_ action
         , insertDurableSubmission = insertDurableSubmission_ durableSubmissions_
         , updateDurableSubmission = updateDurableSubmission_ durableSubmissions_
         , claimDurableSubmissionAttempt =
             claimDurableSubmissionAttempt_ durableSubmissions_
         , readDurableSubmissions = readDurableSubmissions_ durableSubmissions_
-        , atomicallyWithContextChange = const atomically_
-        , atomicallyReadContext = \action ->
-            (\result -> (result, ContextClock 0 0 0 False)) <$> atomically_ action
         }
   where
     withSubmissions :: forall a. (TxSubmissions -> stm a) -> stm a
