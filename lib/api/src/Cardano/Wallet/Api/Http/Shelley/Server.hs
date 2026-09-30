@@ -506,6 +506,7 @@ import Cardano.Wallet.Api.Types.Certificate
 import Cardano.Wallet.Api.Types.Dapp.Context
     ( ApiDappHex (..)
     , ApiDappTransactionContextRequest (..)
+    , ApiDappVolatileDelta (..)
     , ApiDappTransactionContextResponse (..)
     , ApiDappWitnessResult (..)
     , ApiDappWitnessSignItem (..)
@@ -5916,6 +5917,7 @@ postDappWitnesses ctx (ApiT walletId) request = do
                     >>= either throwE pure . requireConwayNodeEra
                 let db = worker ^. W.dbLayer @IO @(SeqState n ShelleyKey)
                     pwd = coerce $ getApiT request.passphrase
+                requireFresh worker
                 W.withRootKey @(SeqState n ShelleyKey)
                     nullTracer
                     db
@@ -5926,15 +5928,32 @@ postDappWitnesses ctx (ApiT walletId) request = do
                         staged <-
                             traverse (signOne inventory root pwd)
                                 $ zip [0 :: Word32 ..] transactions
+                        requireFresh worker
                         pure $ ApiDappWitnessSignResponse 1 staged
             either throwDapp pure result
   where
+    contextRequest =
+        ApiDappTransactionContextRequest
+            1
+            request.context.network
+            (map (.cbor) request.transactions)
+    requireFresh worker = do
+        fresh <- liftIO $ resolveTransactionContext ctx worker (ApiT walletId) contextRequest
+        current <- either throwE pure fresh
+        let reviewed = request.context
+        unless
+            ( current.network == reviewed.network
+                && current.records == reviewed.records
+                && current.outputs == reviewed.outputs
+                && current.pendingOverlay == reviewed.pendingOverlay
+                && current.ownership == reviewed.ownership
+                && current.requiredWalletProofs == reviewed.requiredWalletProofs
+                && current.batchOverlay == reviewed.batchOverlay
+                && current.volatileDelta.nodeTransactionInputs
+                    == reviewed.volatileDelta.nodeTransactionInputs
+            )
+            $ throwE DappContextConflictError
     preflight = do
-        let contextRequest =
-                ApiDappTransactionContextRequest
-                    1
-                    request.context.network
-                    (map (.cbor) request.transactions)
         expectedNetwork <- configuredNetwork @n ctx
         validateDappWitnessBinding
             expectedNetwork
