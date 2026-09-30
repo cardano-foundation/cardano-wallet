@@ -5,6 +5,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -93,6 +94,9 @@ import Cardano.Wallet.Application.Tracers as Tracers
     , tracerDescriptions
     , tracerLabels
     , tracerSeverities
+    )
+import Cardano.Wallet.DB
+    ( DBFactory
     )
 import Cardano.Wallet.DB.Layer
     ( PersistAddressBook
@@ -304,12 +308,13 @@ serveWallet
     -> (URI -> IO ())
     -- ^ Callback to run before the main loop
     -> IO ExitCode
-serveWallet = serveWalletWithNetworkDecorator pure
+serveWallet = serveWalletWithNetworkDecorator pure id
 
--- | Allow the in-process latency benchmark to time or constrain node queries.
--- The ordinary server always uses the undecorated network layer.
+-- | Allow the in-process latency benchmark to time node queries and wallet
+-- database reads. The ordinary server uses undecorated layers.
 serveWalletWithNetworkDecorator
     :: (NetworkLayer IO (CardanoBlock StandardCrypto) -> IO (NetworkLayer IO (CardanoBlock StandardCrypto)))
+    -> (forall s. DBFactory IO s -> DBFactory IO s)
     -> BlockchainSource
     -> NetworkParameters
     -> PipeliningStrategy (CardanoBlock StandardCrypto)
@@ -328,7 +333,7 @@ serveWalletWithNetworkDecorator
     -> Block
     -> (URI -> IO ())
     -> IO ExitCode
-serveWalletWithNetworkDecorator decorateNetwork
+serveWalletWithNetworkDecorator decorateNetwork decorateDatabase
     blockchainSource
     netParams@NetworkParameters
         { protocolParameters
@@ -663,7 +668,7 @@ serveWalletWithNetworkDecorator decorateNetwork
                 (block0, netParams)
                 netLayer
                 txLayer
-                dbFactory
+                (decorateDatabase dbFactory)
                 tokenMetaClient
                 coworker
 
