@@ -23,6 +23,7 @@
 -- "Cardano.Wallet.Shelley.Transaction"
 module Cardano.Wallet.Application
     ( serveWallet
+    , serveWalletWithNetworkDecorator
     , module Tracers
     ) where
 
@@ -303,7 +304,31 @@ serveWallet
     -> (URI -> IO ())
     -- ^ Callback to run before the main loop
     -> IO ExitCode
-serveWallet
+serveWallet = serveWalletWithNetworkDecorator pure
+
+-- | Allow the in-process latency benchmark to time or constrain node queries.
+-- The ordinary server always uses the undecorated network layer.
+serveWalletWithNetworkDecorator
+    :: (NetworkLayer IO (CardanoBlock StandardCrypto) -> IO (NetworkLayer IO (CardanoBlock StandardCrypto)))
+    -> BlockchainSource
+    -> NetworkParameters
+    -> PipeliningStrategy (CardanoBlock StandardCrypto)
+    -> NetworkId
+    -> [PoolCertificate]
+    -> Tracers IO
+    -> Maybe FilePath
+    -> Maybe (Pool.DBDecorator IO)
+    -> HostPreference
+    -> Listen
+    -> Maybe Listen
+    -> Maybe TlsConfiguration
+    -> Maybe Settings
+    -> Maybe TokenMetadataServer
+    -> String
+    -> Block
+    -> (URI -> IO ())
+    -> IO ExitCode
+serveWalletWithNetworkDecorator decorateNetwork
     blockchainSource
     netParams@NetworkParameters
         { protocolParameters
@@ -336,12 +361,13 @@ serveWallet
             $ MsgNetworkName
             $ networkDiscriminantVal sNetwork
         netLayer <-
-            withNetworkLayer
-                networkTracer
-                pipeliningStrategy
-                blockchainSource
-                network
-                netParams
+            lift . decorateNetwork
+                =<< withNetworkLayer
+                    networkTracer
+                    pipeliningStrategy
+                    blockchainSource
+                    network
+                    netParams
         (stakePoolLayer, drepLayer) <- case blockchainSource of
             NodeSource{} -> do
                 stakePoolDbLayer <-
