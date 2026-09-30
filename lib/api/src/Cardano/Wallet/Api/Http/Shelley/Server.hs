@@ -6045,7 +6045,9 @@ getDappCip95KeyState
      . ApiLayer (SeqState n ShelleyKey)
     -> ApiT WalletId
     -> Handler ApiDappCip95KeyState
-getDappCip95KeyState ctx (ApiT walletId) =
+getDappCip95KeyState ctx (ApiT walletId) = do
+    liftIO (NW.currentNodeEra $ ctx ^. networkLayer)
+        >>= either throwDapp pure . requireConwayNodeEra
     withWorkerCtx
         ctx
         walletId
