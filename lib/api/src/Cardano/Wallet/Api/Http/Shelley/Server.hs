@@ -4233,16 +4233,28 @@ submitTransaction ctx apiw@(ApiT wid) apitx = do
                 walletTx
                     $ decodeTx tl (Read.EraValue Read.Dijkstra) sealedTx
             db = wrk ^. dbLayer
+        ttl <- liftIO $ W.transactionExpirySlot (NW.timeInterpreter nl) Nothing
+        let txCtx =
+                defaultTransactionCtx
+                    { txValidityInterval = (Nothing, fromMaybe ttl expiration)
+                    }
+        txMeta <-
+            handler
+                $ W.constructTxMeta
+                    db
+                    txCtx
+                    (getOurInps apiDecoded)
+                    (getOurOuts apiDecoded)
         liftHandler
-            $ void
-            $ W.submitWalletScoped
-                (tracerTxSubmit ctx)
+            $ W.submitTx
+                (wrk ^. logger)
                 db
                 nl
-                False
-                tx
-                sealedTx
-                expiration
+                BuiltTx
+                    { builtTx = tx
+                    , builtTxMeta = txMeta
+                    , builtSealedTx = sealedTx
+                    }
     pure $ ApiTxId (apiDecoded ^. #id)
   where
     tl = ctx ^. W.transactionLayer @k @'CredFromKeyK
