@@ -1887,6 +1887,12 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             let initialAmt = 3 * minUTxOValue (_mainEra ctx)
             wa <- fixtureWalletWith @n ctx [initialAmt]
             wb <- emptyWallet ctx
+            request @ApiWallet
+                ctx
+                ("PUT", "v2/wallets" </> wa ^. walletId)
+                Default
+                (Json [json|{"single_address_mode": false}|])
+                >>= expectField #singleAddressMode (`shouldBe` False)
             let amt = (minUTxOValue (_mainEra ctx) :: Natural)
 
             payload <- liftIO $ mkTxPayload ctx wb amt 1
