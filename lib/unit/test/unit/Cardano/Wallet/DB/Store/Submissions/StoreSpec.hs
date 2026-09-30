@@ -33,6 +33,7 @@ import Cardano.Wallet.DB.Store.Submissions.Operations
     , DurableSubmissionInsert (..)
     , SubmissionMeta (..)
     , claimDurableSubmissionAttempt
+    , isRollbackConflict
     , insertOrClassifyDurableSubmission
     , mkStoreSubmissions
     , readDurableSubmissions
@@ -69,6 +70,9 @@ import Control.Monad
     )
 import Cryptography.Hash.Core
     ( hash
+    )
+import Data.List
+    ( find
     )
 import Data.Quantity
     ( Quantity (..)
@@ -233,6 +237,54 @@ spec = do
                     [stored] <- readDurableSubmissions wid
                     pure $ durableStatus stored
                 status `shouldBe` OutcomeUnknownE
+
+            it "restores rolled-back claims after a competing submission releases them" $ \db -> do
+                let wid = WalletId $ hash @BS.ByteString "submission-rollback"
+                    tx1 = TxId $ Hash $ BS.replicate 32 1
+                    tx2 = TxId $ Hash $ BS.replicate 32 2
+                    tx3 = TxId $ Hash $ BS.replicate 32 3
+                    source = TxId $ Hash $ BS.replicate 32 4
+                    claim = DurableSubmissionInput source 0 NormalInputE
+                    submission tx =
+                        DurableSubmission wid tx (mockSealedTx "body")
+                            Nothing True AuthorizedE 0 Nothing Nothing Nothing Nothing
+                outcomes <- runQuery db $ do
+                    initializeWalletTable wid
+                    rawExecute
+                        "CREATE UNIQUE INDEX IF NOT EXISTS dapp_submission_claim ON dapp_submission_input \
+                        \(wallet_id, source_tx_id, source_index) WHERE active = 1"
+                        []
+                    first <- insertOrClassifyDurableSubmission (submission tx1) [claim]
+                    updateDurableSubmission (submission tx1)
+                        { durableAuthorized = False, durableStatus = InLedgerDappE }
+                    second <- insertOrClassifyDurableSubmission (submission tx2) [claim]
+                    updateDurableSubmission (submission tx1)
+                        { durableAuthorized = False, durableStatus = SubmittedE }
+                    rows <- readDurableSubmissions wid
+                    old <- maybe (fail "missing rolled-back row") pure
+                        $ find ((== tx1) . durableTxId) rows
+                    newer <- maybe (fail "missing competing row") pure
+                        $ find ((== tx2) . durableTxId) rows
+                    attempted <- claimDurableSubmissionAttempt wid tx1 0
+                        (read "2026-01-01 00:00:00 UTC")
+                    updateDurableSubmission newer
+                        { durableAuthorized = False, durableStatus = RejectedE }
+                    updateDurableSubmission old
+                        { durableAuthorized = False, durableStatus = SubmittedE }
+                    restoredRows <- readDurableSubmissions wid
+                    restored <- maybe (fail "missing restored row") pure
+                        $ find ((== tx1) . durableTxId) restoredRows
+                    blocked <- insertOrClassifyDurableSubmission (submission tx3) [claim]
+                    let migrated = (submission tx3)
+                            { durableAuthorized = False, durableStatus = OutcomeUnknownE }
+                    pure (first, second, isRollbackConflict old,
+                        durableStatus old, durableAuthorized old,
+                        durableStatus <$> attempted, isRollbackConflict restored,
+                        isRollbackConflict migrated, blocked)
+                outcomes `shouldBe`
+                    ( DurableSubmissionAuthorized, DurableSubmissionAuthorized,
+                      True, OutcomeUnknownE, False, Nothing, False, False,
+                      DurableSubmissionInputConflict )
 
 deriving instance Random SlotNo
 

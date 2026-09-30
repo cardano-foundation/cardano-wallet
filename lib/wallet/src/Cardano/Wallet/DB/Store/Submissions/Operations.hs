@@ -22,6 +22,7 @@ module Cardano.Wallet.DB.Store.Submissions.Operations
     , SubmissionMeta (..)
     , submissionMetaFromTxMeta
     , DurableSubmission (..)
+    , isRollbackConflict
     , DurableSubmissionInput (..)
     , DurableSubmissionInsert (..)
     , insertOrClassifyDurableSubmission
@@ -73,7 +74,6 @@ import Control.Lens
     )
 import Control.Monad
     ( forM_
-    , unless
     )
 import Control.Monad.Class.MonadThrow
     ( throwIO
@@ -182,6 +182,18 @@ data DurableSubmission = DurableSubmission
     , durableRejectionCode :: Maybe Text
     }
     deriving (Eq, Show)
+
+-- The existing nullable rejection-code column records an internal rollback
+-- conflict while keeping revision-1 submission statuses unchanged. Unlike
+-- migrated V5 outcome-unknown rows, these rows do not own active claims.
+rollbackConflictCode :: Text
+rollbackConflictCode = "rollback_conflict"
+
+isRollbackConflict :: DurableSubmission -> Bool
+isRollbackConflict DurableSubmission{durableStatus, durableRejectionCode} =
+    durableStatus == OutcomeUnknownE
+        && durableRejectionCode == Just rollbackConflictCode
+
 
 data DurableSubmissionInput = DurableSubmissionInput
     { durableInputTxId :: TxId
@@ -319,27 +331,35 @@ updateDurableSubmission DurableSubmission{..} = do
             , DappSubmissionTxId ==. durableTxId
             ]
             []
-    case durableStatus of
+    -- A rollback may race a newer submission that claimed the released input.
+    -- Keep the older row unclaimed and non-broadcastable until that claim is
+    -- released, rather than throwing from the wallet's reconciliation worker.
+    restored <- case durableStatus of
         SubmittedE
             | any
-                (\(Entity _ row) -> dappSubmissionStatus row == InLedgerDappE)
-                prior -> do
-                restored <-
-                    restoreDurableSubmissionClaims durableWalletId durableTxId
-                unless restored
-                    $ fail
-                        "cannot roll back a submission while another \
-                        \active claim owns one of its inputs"
-        _ -> pure ()
+                (\(Entity _ row) ->
+                    dappSubmissionStatus row == InLedgerDappE
+                        || dappSubmissionStatus row == OutcomeUnknownE
+                            && dappSubmissionRejectionCode row
+                                == Just rollbackConflictCode
+                )
+                prior ->
+                restoreDurableSubmissionClaims durableWalletId durableTxId
+        _ -> pure True
+    let finalStatus = if restored then durableStatus else OutcomeUnknownE
+        finalCode
+            | not restored = Just rollbackConflictCode
+            | durableRejectionCode == Just rollbackConflictCode = Nothing
+            | otherwise = durableRejectionCode
     update
         (DappSubmissionKey durableWalletId durableTxId)
-        [ DappSubmissionAuthorized =. durableAuthorized
-        , DappSubmissionStatus =. durableStatus
+        [ DappSubmissionAuthorized =. (restored && durableAuthorized)
+        , DappSubmissionStatus =. finalStatus
         , DappSubmissionAttemptGeneration =. durableAttemptGeneration
         , DappSubmissionBroadcastGeneration =. durableBroadcastGeneration
         , DappSubmissionBroadcastStarted =. durableBroadcastStarted
         , DappSubmissionAcceptance =. durableAcceptance
-        , DappSubmissionRejectionCode =. durableRejectionCode
+        , DappSubmissionRejectionCode =. finalCode
         ]
     case durableStatus of
         RejectedE -> releaseDurableSubmissionClaims durableWalletId durableTxId
