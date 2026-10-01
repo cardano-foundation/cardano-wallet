@@ -94,14 +94,16 @@ import Cardano.Ledger.Binary
     , shelleyProtVer
     )
 import Cardano.Ledger.Conway.Governance
-    ( VotingProcedures (VotingProcedures)
+    ( Voter (..)
+    , VotingProcedures (VotingProcedures)
     )
 import Cardano.Ledger.Conway.TxBody
     ( proposalProceduresTxBodyL
     , votingProceduresTxBodyL
     )
 import Cardano.Ledger.Conway.TxCert
-    ( ConwayTxCert (..)
+    ( ConwayGovCert (..)
+    , ConwayTxCert (..)
     )
 import Cardano.Ledger.Core
     ( addrTxWitsL
@@ -165,10 +167,12 @@ import Cardano.Wallet.Address.Derivation
     , Index (Index, getIndex)
     , Role (MutableAccount, UtxoExternal, UtxoInternal)
     , SoftDerivation (deriveAddressPublicKey)
+    , drepDerivationPath
     , stakeDerivationPath
     )
 import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey
+    , deriveDRepPublicKey
     )
 import Cardano.Wallet.Address.Discovery
     ( IsOurs (isOurs)
@@ -558,15 +562,11 @@ validVKeyWitnessHashes (Read.Tx ledgerTx) =
 supportedCredentialSurfaces :: DecodedTx -> Bool
 supportedCredentialSurfaces DecodedTx{transaction = Read.Tx ledgerTx} =
     all supportedCertificate (toList $ ledgerTx ^. bodyTxL . certsTxBodyL)
-        && Map.null voting
-        && null (ledgerTx ^. bodyTxL . proposalProceduresTxBodyL)
-  where
-    VotingProcedures voting = ledgerTx ^. bodyTxL . votingProceduresTxBodyL
 
 supportedCertificate :: ConwayTxCert era -> Bool
 supportedCertificate ConwayTxCertDeleg{} = True
-supportedCertificate ConwayTxCertPool{} = False
-supportedCertificate ConwayTxCertGov{} = False
+supportedCertificate ConwayTxCertPool{} = True
+supportedCertificate ConwayTxCertGov{} = True
 
 contextSets
     :: Set Ledger.TxIn
@@ -1058,55 +1058,63 @@ candidateFromOwnership
     -> Word32
     -> ApiDappOwnership
     -> Either DappError ProducibleCandidate
-candidateFromOwnership
-    discovery
-    transactionIndex
-    ApiDappOwnership
-        { credentialKind
-        , credential = ApiDappHex keyHash
-        , derivationPath
-        } = do
-        publicKey <- case (credentialKind, derivationPath) of
-            ( PaymentCredential
-                , [0x8000073c, 0x80000717, accountIndex, roleIndex, addressIndex]
-                )
-                    | accountIndex == getIndex account
-                        && roleIndex <= 1
-                        && addressIndex < 0x80000000 ->
-                        pure
-                            $ childPublicKey
-                            $ deriveAddressPublicKey
-                                (Seq.accountXPub discovery)
-                                (if roleIndex == 0 then UtxoExternal else UtxoInternal)
-                                (Index addressIndex)
-            (StakeCredential, path)
-                | path == stakePath ->
-                    pure
-                        $ childPublicKey
-                        $ deriveAddressPublicKey
-                            (Seq.accountXPub discovery)
-                            MutableAccount
-                            minBound
-            (PolicyCredential, [0x8000073f, 0x80000717, 0x80000000]) ->
-                maybe (Left DappInternalErrorResponse) (pure . childPublicKey)
-                    $ Seq.policyXPub discovery
-            _ -> Left DappInternalErrorResponse
-        requireEither DappInternalErrorResponse
-            $ blake2b224 publicKey == keyHash
-        pure
-            $ ProducibleCandidate
-                transactionIndex
-                credentialKind
-                derivationPath
-                keyHash
-      where
-        Seq.DerivationPrefix (_, _, account) = Seq.derivationPrefix discovery
-        stakePath =
-            map getDerivationIndex
-                $ NE.toList
-                $ stakeDerivationPath
-                $ Seq.derivationPrefix discovery
-        childPublicKey = xpubPublicKey . getRawKey ShelleyKeyS
+candidateFromOwnership discovery transactionIndex ApiDappOwnership
+                                                    { credentialKind
+                                                    , credential = ApiDappHex keyHash
+                                                    , derivationPath
+                                                    } = do
+    publicKey <- case (credentialKind, derivationPath) of
+        ( PaymentCredential
+            , [0x8000073c, 0x80000717, accountIndex, roleIndex, addressIndex]
+            )
+            | accountIndex == getIndex account
+                && roleIndex <= 1
+                && addressIndex < 0x80000000 ->
+                pure
+                    $ childPublicKey
+                    $ deriveAddressPublicKey
+                        (Seq.accountXPub discovery)
+                        (if roleIndex == 0 then UtxoExternal else UtxoInternal)
+                        (Index addressIndex)
+        (StakeCredential, path)
+            | path == stakePath ->
+                pure
+                    $ childPublicKey
+                    $ deriveAddressPublicKey
+                        (Seq.accountXPub discovery)
+                        MutableAccount
+                        minBound
+        (DRepCredential, path)
+            | path == drepPath ->
+                pure
+                    $ xpubPublicKey
+                    $ deriveDRepPublicKey
+                    $ getRawKey ShelleyKeyS (Seq.accountXPub discovery)
+        (PolicyCredential, [0x8000073f, 0x80000717, 0x80000000]) ->
+            maybe (Left DappInternalErrorResponse) (pure . childPublicKey)
+                $ Seq.policyXPub discovery
+        _ -> Left DappInternalErrorResponse
+    requireEither DappInternalErrorResponse
+        $ blake2b224 publicKey == keyHash
+    pure
+        $ ProducibleCandidate
+            transactionIndex
+            credentialKind
+            derivationPath
+            keyHash
+  where
+    Seq.DerivationPrefix (_, _, account) = Seq.derivationPrefix discovery
+    stakePath =
+        map getDerivationIndex
+            $ NE.toList
+            $ stakeDerivationPath
+            $ Seq.derivationPrefix discovery
+    drepPath =
+        map getDerivationIndex
+            $ NE.toList
+            $ drepDerivationPath
+            $ Seq.derivationPrefix discovery
+    childPublicKey = xpubPublicKey . getRawKey ShelleyKeyS
 
 obligationTransactionIndex :: ProofObligation -> Word32
 obligationTransactionIndex = \case
@@ -1218,37 +1226,51 @@ directProofObligations requested resolved =
     outputs =
         Map.fromList
             [(value.outpoint, output) | (_, value, output) <- resolved]
-    perTransaction
-        ( transactionIndex
-            , DecodedTx{transaction = Read.Tx ledgerTx, normal, collateral}
-            ) = do
-            normalProofs <- inputProofs transactionIndex NormalInputProof normal
-            collateralProofs <-
-                inputProofs transactionIndex CollateralProof collateral
-            let Withdrawals withdrawals = ledgerTx ^. bodyTxL . withdrawalsTxBodyL
-                withdrawalProofs =
-                    [ DirectProofObligation transactionIndex WithdrawalProof
-                        $ keyBytes keyHash
-                    | (AccountAddress _ (AccountId (KeyHashObj keyHash)), _) <-
-                        Map.toList withdrawals
-                    ]
-                certificateProofs =
-                    [ DirectProofObligation transactionIndex CertificateProof
-                        $ keyBytes keyHash
-                    | certificate <- toList $ ledgerTx ^. bodyTxL . certsTxBodyL
-                    , Just keyHash <- [getVKeyWitnessTxCert certificate]
-                    ]
-                signerProofs =
-                    [ DirectProofObligation transactionIndex RequiredSignerProof
-                        $ keyBytes keyHash
-                    | keyHash <- Set.toList $ ledgerTx ^. bodyTxL . reqSignerHashesTxBodyL
-                    ]
-            pure
-                $ normalProofs
-                    <> collateralProofs
-                    <> withdrawalProofs
-                    <> certificateProofs
-                    <> signerProofs
+    perTransaction ( transactionIndex
+                    , DecodedTx{transaction = Read.Tx ledgerTx, normal, collateral}
+                    ) = do
+        normalProofs <- inputProofs transactionIndex NormalInputProof normal
+        collateralProofs <-
+            inputProofs transactionIndex CollateralProof collateral
+        let Withdrawals withdrawals = ledgerTx ^. bodyTxL . withdrawalsTxBodyL
+            VotingProcedures voting = ledgerTx ^. bodyTxL . votingProceduresTxBodyL
+            withdrawalProofs =
+                [ DirectProofObligation transactionIndex WithdrawalProof
+                    $ keyBytes keyHash
+                | (AccountAddress _ (AccountId (KeyHashObj keyHash)), _) <-
+                    Map.toList withdrawals
+                ]
+            certificateProofs =
+                [ DirectProofObligation transactionIndex CertificateProof
+                    $ keyBytes keyHash
+                | certificate <- toList $ ledgerTx ^. bodyTxL . certsTxBodyL
+                , Just keyHash <- [getVKeyWitnessTxCert certificate]
+                ]
+            voteProofs =
+                [ DirectProofObligation transactionIndex CertificateProof keyHash
+                | voter <- Map.keys voting
+                , keyHash <- voterKeyHashes voter
+                ]
+            signerProofs =
+                [ DirectProofObligation transactionIndex RequiredSignerProof
+                    $ keyBytes keyHash
+                | keyHash <- Set.toList $ ledgerTx ^. bodyTxL . reqSignerHashesTxBodyL
+                ]
+        pure
+            $ normalProofs
+                <> collateralProofs
+                <> withdrawalProofs
+                <> certificateProofs
+                <> voteProofs
+                <> signerProofs
+    voterKeyHashes = \case
+        CommitteeVoter (KeyHashObj (LedgerKeys.KeyHash hash)) ->
+            [Crypto.hashToBytes hash]
+        DRepVoter (KeyHashObj (LedgerKeys.KeyHash hash)) ->
+            [Crypto.hashToBytes hash]
+        StakePoolVoter (LedgerKeys.KeyHash hash) ->
+            [Crypto.hashToBytes hash]
+        _ -> []
     inputProofs transactionIndex proofKind inputs =
         fmap catMaybes
             $ mapM
@@ -1276,13 +1298,25 @@ stakeEvidence discovery requested =
                 (Seq.accountXPub discovery)
                 MutableAccount
                 minBound
-    path =
+    stakePath =
         map getDerivationIndex
             $ NE.toList
             $ stakeDerivationPath
             $ Seq.derivationPrefix discovery
+    drepHash =
+        blake2b224
+            $ xpubPublicKey
+            $ deriveDRepPublicKey
+            $ getRawKey ShelleyKeyS (Seq.accountXPub discovery)
+    drepPath =
+        map getDerivationIndex
+            $ NE.toList
+            $ drepDerivationPath
+            $ Seq.derivationPrefix discovery
     transactionEvidence DecodedTx{transaction = Read.Tx ledgerTx} =
-        withdrawalEvidence ledgerTx <> certificateEvidence ledgerTx
+        withdrawalEvidence ledgerTx
+            <> certificateEvidence ledgerTx
+            <> voteEvidence ledgerTx
     withdrawalEvidence ledgerTx =
         concat
             [ evidence WithdrawalProof credential
@@ -1291,12 +1325,57 @@ stakeEvidence discovery requested =
       where
         Withdrawals withdrawals = ledgerTx ^. bodyTxL . withdrawalsTxBodyL
     certificateEvidence ledgerTx =
+        concatMap certificateOwnership
+            $ toList
+            $ ledgerTx ^. bodyTxL . certsTxBodyL
+    certificateOwnership certificate@ConwayTxCertDeleg{} =
+        stakeCertificateEvidence certificate
+    certificateOwnership certificate =
+        drepCertificateEvidence certificate
+    stakeCertificateEvidence certificate = case (getVKeyWitnessTxCert certificate, getScriptWitnessTxCert certificate) of
+        (Just (LedgerKeys.KeyHash hash), _) ->
+            evidence CertificateProof $ KeyHashObj $ LedgerKeys.KeyHash hash
+        (_, Just scriptHash) -> evidence CertificateProof $ ScriptHashObj scriptHash
+        _ -> []
+    voteEvidence ledgerTx =
         concat
-            [ case (getVKeyWitnessTxCert certificate, getScriptWitnessTxCert certificate) of
-                (Just (LedgerKeys.KeyHash hash), _) -> evidence CertificateProof $ KeyHashObj $ LedgerKeys.KeyHash hash
-                (_, Just scriptHash) -> evidence CertificateProof $ ScriptHashObj scriptHash
-                _ -> []
-            | certificate <- toList $ ledgerTx ^. bodyTxL . certsTxBodyL
+            [ drepEvidence CertificateProof credential
+            | voter <- Map.keys voting
+            , DRepVoter credential <- [voter]
+            ]
+      where
+        VotingProcedures voting = ledgerTx ^. bodyTxL . votingProceduresTxBodyL
+    drepCertificateEvidence = \case
+        certificate@(ConwayTxCertGov ConwayRegDRep{}) ->
+            maybe [] (drepKeyEvidence CertificateProof)
+                $ getVKeyWitnessTxCert certificate
+        certificate@(ConwayTxCertGov (ConwayUnRegDRep _ _)) ->
+            maybe [] (drepKeyEvidence CertificateProof)
+                $ getVKeyWitnessTxCert certificate
+        certificate@(ConwayTxCertGov ConwayUpdateDRep{}) ->
+            maybe [] (drepKeyEvidence CertificateProof)
+                $ getVKeyWitnessTxCert certificate
+        _ -> []
+    drepKeyEvidence proofKind (LedgerKeys.KeyHash hash) =
+        drepEvidence proofKind $ KeyHashObj $ LedgerKeys.KeyHash hash
+    drepEvidence proofKind = \case
+        KeyHashObj (LedgerKeys.KeyHash hash) ->
+            let bytes = Crypto.hashToBytes hash
+                owned = bytes == drepHash
+            in  [ ApiDappOwnership
+                    DRepCredential
+                    (ApiDappHex bytes)
+                    (if owned then OwnedKey else Unowned)
+                    (if owned then drepPath else [])
+                    [proofKind]
+                ]
+        ScriptHashObj (Ledger.ScriptHash hash) ->
+            [ ApiDappOwnership
+                DRepCredential
+                (ApiDappHex $ Crypto.hashToBytes hash)
+                ScriptOwned
+                []
+                [proofKind]
             ]
     evidence proofKind = \case
         KeyHashObj (LedgerKeys.KeyHash hash) ->
@@ -1307,7 +1386,7 @@ stakeEvidence discovery requested =
                         StakeCredential
                         (ApiDappHex bytes)
                         (if owned then OwnedKey else Unowned)
-                        (if owned then path else [])
+                        (if owned then stakePath else [])
                         [proofKind]
             in  [row]
         ScriptHashObj (Ledger.ScriptHash hash) ->

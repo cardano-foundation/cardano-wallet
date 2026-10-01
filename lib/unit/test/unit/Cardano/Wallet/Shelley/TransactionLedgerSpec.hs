@@ -582,6 +582,8 @@ spec = describe "TransactionSpec" $ do
         prop
             "V1 and V2 sign the exact original body with the same VKey witness"
             $ forAll genShelleyKeyAndPwd (uncurry prop_dappVKeyWitnessesMatch)
+        prop "V1 and V2 produce matching fixed role-3 DRep witnesses"
+            $ forAll genShelleyKeyAndPwd (uncurry prop_dappDRepVKeyWitnessesMatch)
         prop "rejects candidate path/key-hash mismatches"
             $ forAll
                 genShelleyKeyAndPwd
@@ -3186,6 +3188,54 @@ prop_dappVKeyWitnessesMatch xprvKey encPwd = ioProperty $ withFastKdfForTesting 
   where
     wrongBody = minimalConwayTxBody & feeTxBodyL .~ Ledger.Coin 1_000_001
 
+prop_dappDRepVKeyWitnessesMatch
+    :: ShelleyKey 'RootK XPrv
+    -> Passphrase "encryption"
+    -> Property
+prop_dappDRepVKeyWitnessesMatch xprvKey encPwd = ioProperty $ withFastKdfForTesting $ do
+    let userPwd = Passphrase $ case encPwd of Passphrase bytes -> bytes
+        encryptionPwd = preparePassphrase EncryptWithPBKDF2 userPwd
+        rootKey =
+            liftRawKey ShelleyKeyS
+                $ CC.xPrvChangePass encPwd encryptionPwd (getRawKey ShelleyKeyS xprvKey)
+        drepPath = [0x8000073c, 0x80000717, 0x80000000, 3, 0]
+        accountKey =
+            Shelley.deriveAccountPrivateKeyShelley
+                (Index 0x8000073c)
+                encryptionPwd
+                (getRawKey ShelleyKeyS rootKey)
+                (Index 0x80000000)
+        drepKey = Shelley.deriveDRepPrivateKey encryptionPwd accountKey
+        drepCredential = blake2b224 $ xpubPublicKey $ toXPub drepKey
+        rawXprv =
+            CC.xPrvChangePass encPwd (mempty :: BS.ByteString)
+                $ getRawKey ShelleyKeyS xprvKey
+        raw128 = CC.unXPrv rawXprv
+        masterKey96 = BS.take 64 raw128 <> BS.drop 96 raw128
+        wrongBody = minimalConwayTxBody & feeTxBodyL .~ Ledger.Coin 1_000_001
+    ekeyE <- encryptedCreateDirectWithTweak masterKey96 userPwd
+    case ekeyE of
+        Left _ -> pure False
+        Right ekey -> do
+            v1 <-
+                signDappWitnesses
+                    (RootKeyAccessV1 rootKey EncryptWithPBKDF2)
+                    userPwd
+                    minimalConwayTxBody
+                    [(drepPath, drepCredential)]
+            v2 <-
+                signDappWitnesses
+                    (RootKeyAccessV2 ekey Nothing userPwd)
+                    userPwd
+                    minimalConwayTxBody
+                    [(drepPath, drepCredential)]
+            pure $ case (v1, v2) of
+                (Right [witness1], Right [witness2]) ->
+                    witness1 == witness2
+                        && verifiesDappWitness minimalConwayTxBody witness1
+                        && not (verifiesDappWitness wrongBody witness1)
+                _ -> False
+
 prop_dappVKeyWitnessRejectsHashMismatch
     :: ShelleyKey 'RootK XPrv
     -> Passphrase "encryption"
@@ -3223,31 +3273,26 @@ prop_dappDataSignsExactBytes xprvKey encPwd = ioProperty $ withFastKdfForTesting
         rootKey =
             liftRawKey ShelleyKeyS
                 $ CC.xPrvChangePass encPwd encryptionPwd (getRawKey ShelleyKeyS xprvKey)
-        path = [0x8000073c, 0x80000717, 0x80000000, 0, 0]
+        paymentPath = [0x8000073c, 0x80000717, 0x80000000, 0, 0]
+        drepPath = [0x8000073c, 0x80000717, 0x80000000, 3, 0]
         accountKey =
             Shelley.deriveAccountPrivateKeyShelley
                 (Index 0x8000073c)
                 encryptionPwd
                 (getRawKey ShelleyKeyS rootKey)
                 (Index 0x80000000)
-        addressKey =
+        paymentKey =
             Shelley.deriveAddressPrivateKeyShelley
                 encryptionPwd
                 accountKey
                 UtxoExternal
                 (Index 0)
-        credential = blake2b224 $ xpubPublicKey $ toXPub addressKey
+        drepKey = Shelley.deriveDRepPrivateKey encryptionPwd accountKey
+        paymentCredential = blake2b224 $ xpubPublicKey $ toXPub paymentKey
+        drepCredential = blake2b224 $ xpubPublicKey $ toXPub drepKey
         message = BS.pack [0x00, 0xff, 0x80, 0x41]
         altered = BS.reverse message
-        rawXprv =
-            CC.xPrvChangePass encPwd (mempty :: BS.ByteString)
-                $ getRawKey ShelleyKeyS xprvKey
-        raw128 = CC.unXPrv rawXprv
-        masterKey96 = BS.take 64 raw128 <> BS.drop 96 raw128
-    ekeyE <- encryptedCreateDirectWithTweak masterKey96 userPwd
-    case ekeyE of
-        Left _ -> pure False
-        Right ekey -> do
+        signBoth ekey path credential = do
             v1 <-
                 signDappData
                     (RootKeyAccessV1 rootKey EncryptWithPBKDF2)
@@ -3269,6 +3314,18 @@ prop_dappDataSignsExactBytes xprvKey encPwd = ioProperty $ withFastKdfForTesting
                         && verifiesDappData message public signature
                         && not (verifiesDappData altered public signature)
                 _ -> False
+        rawXprv =
+            CC.xPrvChangePass encPwd (mempty :: BS.ByteString)
+                $ getRawKey ShelleyKeyS xprvKey
+        raw128 = CC.unXPrv rawXprv
+        masterKey96 = BS.take 64 raw128 <> BS.drop 96 raw128
+    ekeyE <- encryptedCreateDirectWithTweak masterKey96 userPwd
+    case ekeyE of
+        Left _ -> pure False
+        Right ekey -> do
+            payment <- signBoth ekey paymentPath paymentCredential
+            drep <- signBoth ekey drepPath drepCredential
+            pure $ payment && drep
 
 verifiesDappData :: ByteString -> ByteString -> ByteString -> Bool
 verifiesDappData message public signature = case ( VKey <$> rawDeserialiseVerKeyDSIGN public :: Maybe (VKey Witness)

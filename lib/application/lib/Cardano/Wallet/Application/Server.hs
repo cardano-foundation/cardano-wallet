@@ -153,6 +153,7 @@ isSensitiveDappRoute request = case Wai.pathInfo request of
             `elem` [ "transaction-context"
                    , "transaction-witnesses"
                    , "data-signatures"
+                   , "cip95-key-state"
                    ]
 
 -- | Run an action with a TCP socket bound to a port specified by the `Listen`

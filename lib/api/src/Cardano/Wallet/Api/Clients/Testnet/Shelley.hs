@@ -45,6 +45,7 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Api.Types.Dapp.Context
     ( ApiDappDataSignRequest
     , ApiDappDataSignResponse
+    , ApiDappCip95KeyState
     , ApiDappTransactionContextRequest
     , ApiDappTransactionContextResponse
     , ApiDappWitnessSignRequest
@@ -214,6 +215,11 @@ dappDataSignature
     -> ApiDappDataSignRequest
     -> ClientM ApiDappDataSignResponse
 dappDataSignature = Shelley.dappDataSignature
+
+dappCip95KeyState
+    :: ApiT WalletId
+    -> ClientM ApiDappCip95KeyState
+dappCip95KeyState = Shelley.dappCip95KeyState
 
 postExternalTransaction
     :: ApiT SealedTx -> ClientM ApiTxId
