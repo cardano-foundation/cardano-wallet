@@ -2521,6 +2521,23 @@ components:
         execution_unit_prices:
           <<: *executionUnitPrices
 
+    ApiPreferredCollateral: &ApiPreferredCollateral
+      type: array
+      description: |
+        Wallet outpoints to preserve as collateral when selecting ordinary inputs.
+        Selection first balances without them, then retries with the complete
+        available UTxO if necessary. Unknown or unavailable outpoints have no
+        effect. This preference does not lock funds.
+      items:
+        type: object
+        required: [id, index]
+        properties:
+          id: *transactionId
+          index:
+            type: integer
+            minimum: 0
+            maximum: 4294967295
+
     ApiSelectCoinsPayments: &ApiSelectCoinsPayments
       type: object
       required:
@@ -2529,6 +2546,7 @@ components:
         payments: *transactionOutputs
         withdrawal: *transactionWithdrawalRequestSelf
         metadata: *transactionMetadata
+        preferred_collateral: *ApiPreferredCollateral
 
     ApiSelectCoinsRedemption: &ApiSelectCoinsRedemption
       type: object
@@ -2539,6 +2557,7 @@ components:
         payments: *transactionOutputs
         withdrawal: *transactionRedemptionRequest
         metadata: *transactionMetadata
+        preferred_collateral: *ApiPreferredCollateral
 
     ApiSelectCoinsAction: &ApiSelectCoinsAction
       type: object
@@ -2546,6 +2565,7 @@ components:
         - delegation_action
       properties:
         delegation_action: *delegationAction
+        preferred_collateral: *ApiPreferredCollateral
 
     ApiSelectCoinsData: &ApiSelectCoinsData
       type: object
@@ -3603,6 +3623,7 @@ components:
         passphrase:
           <<: *lenientPassphrase
           description: The source wallet's master passphrase.
+        preferred_collateral: *ApiPreferredCollateral
 
     ApiWalletMigrationPlanPostData: &ApiWalletMigrationPlanPostData
       type: object
@@ -3986,6 +4007,7 @@ components:
         withdrawal: *transactionWithdrawalRequestSelf
         metadata: *transactionMetadata
         time_to_live: *transactionTTL
+        preferred_collateral: *ApiPreferredCollateral
 
     # ADP-908 Deprecated
     ApiPostRedemptionData: &ApiPostRedemptionData
@@ -4000,6 +4022,7 @@ components:
           description: The wallet's master passphrase.
         payments: *transactionOutputs
         withdrawal: *transactionRedemptionRequest
+        preferred_collateral: *ApiPreferredCollateral
 
     # ADP-910 Deprecated
     ApiPostTransactionFeeDataByron: &ApiPostTransactionFeeDataByron
@@ -4019,6 +4042,7 @@ components:
         withdrawal: *transactionWithdrawalRequestSelf
         metadata: *transactionMetadata
         time_to_live: *transactionTTL
+        preferred_collateral: *ApiPreferredCollateral
 
     # ADP-910 Deprecated
     ApiPostRedemptionFeeData: &ApiPostRedemptionFeeData
@@ -4029,6 +4053,7 @@ components:
       properties:
         payments: *transactionOutputs
         withdrawal: *transactionRedemptionRequest
+        preferred_collateral: *ApiPreferredCollateral
 
     ApiPostRandomAddressData: &ApiPostRandomAddressData
       type: object
@@ -4111,6 +4136,7 @@ components:
         withdrawal: *transactionWithdrawalRequestSelf
         metadata: *transactionMetadata
         encrypt_metadata: *encryptMetadata
+        preferred_collateral: *ApiPreferredCollateral
         mint_burn:
           type: array
           items: *ApiMintBurnData
@@ -8360,6 +8386,12 @@ paths:
         fees can only be estimated.
       parameters:
         - *parametersWalletId
+        - name: preferred_collateral
+          in: query
+          required: false
+          description: JSON-encoded ApiPreferredCollateral array.
+          schema:
+            type: string
       responses: *responsesGetDelegationFee
 
   /stake-pools/*/wallets/{walletId}:

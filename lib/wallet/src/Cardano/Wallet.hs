@@ -2844,11 +2844,12 @@ balanceTx
     => WalletLayer IO s
     -> Write.PParams era
     -> TimeTranslation
+    -> Set TxIn
     -> Write.PartialTx era
     -> IO (Write.Tx era)
-balanceTx wrk pp timeTranslation partialTx = do
+balanceTx wrk pp timeTranslation preferredCollateral partialTx = do
     (utxo, wallet, _txs) <- liftIO $ readWalletUTxO wrk
-    let utxoIndex = utxoIndexFromWalletUTxO utxo
+    let (utxoIndex, fallback) = collateralSelectionIndexes preferredCollateral utxo
 
     -- Resolve inputs using LSQ. Useful for foreign reference inputs supplied by
     -- the user when calling transactions-construct, or in transactions-balance.
@@ -2873,13 +2874,12 @@ balanceTx wrk pp timeTranslation partialTx = do
                     )
 
     let changeState = getState wallet
-    (tx, _changeState') <-
-        throwBalanceTxErr
-            $ Write.balanceTx
+        balance index =
+            Write.balanceTx
                 pp
                 timeTranslation
                 utxoAssumptions
-                utxoIndex
+                index
                 (defaultChangeAddressGen argGenChange)
                 changeState
                 -- In case of conflicts, the data looked up from the node will win.
@@ -2887,6 +2887,10 @@ balanceTx wrk pp timeTranslation partialTx = do
                     & over #extraUTxO (lookedUpUTxO <>)
                     & over #stakeKeyDeposits (lookedUpDeposits <>)
                 )
+    (tx, _changeState') <-
+        throwBalanceTxErr $
+            balance utxoIndex `catchE` \err ->
+                maybe (throwE err) balance fallback
 
     return tx
   where
@@ -3492,23 +3496,25 @@ buildTransactionPure
                         )
                         (Left preSelection)
                         (Coin 0)
-            let utxoIndex :: Write.UTxOIndex era
-                utxoIndex = utxoIndexFromWalletUTxO utxo
-            withExceptT Left
-                $ Write.balanceTx @_ @_ @s
-                    pparams
-                    timeTranslation
-                    (utxoAssumptionsForWallet (walletFlavor @s))
-                    utxoIndex
-                    changeAddrGen
-                    (getState wallet)
-                    Write.PartialTx
-                        { tx = unsignedTx
-                        , extraUTxO = Write.UTxO mempty
-                        , redeemers = []
-                        , timelockKeyWitnessCounts = mempty
-                        , stakeKeyDeposits = Write.StakeKeyDepositAssumeCurrent
-                        }
+            let (utxoIndex, fallback) = collateralSelectionIndexes (txPreferredCollateral txCtx) utxo
+                balance index =
+                    Write.balanceTx @_ @_ @s
+                        pparams
+                        timeTranslation
+                        (utxoAssumptionsForWallet (walletFlavor @s))
+                        index
+                        changeAddrGen
+                        (getState wallet)
+                        Write.PartialTx
+                            { tx = unsignedTx
+                            , extraUTxO = Write.UTxO mempty
+                            , redeemers = []
+                            , timelockKeyWitnessCounts = mempty
+                            , stakeKeyDeposits = Write.StakeKeyDepositAssumeCurrent
+                            }
+            withExceptT Left $
+                balance utxoIndex `catchE` \err ->
+                    maybe (throwE err) balance fallback
 
 -- HACK: 'mkUnsignedTransaction' takes a reward account 'XPub' even when the
 -- wallet is a Byron wallet, and doesn't actually have a reward account.
@@ -3878,7 +3884,6 @@ submitWalletScoped tr DBLayer{..} nw tx sealed expiration = do
     let normal = claim NormalInputE <$> map fst (resolvedInputs tx)
         collateral = claim CollateralInputE <$> map fst (resolvedCollateralInputs tx)
         claims = normal <> collateral
-        outpoints = Set.fromList . fmap claimOutpoint
         submission =
             DurableSubmission
                 walletId_
@@ -3892,8 +3897,6 @@ submitWalletScoped tr DBLayer{..} nw tx sealed expiration = do
                 Nothing
                 Nothing
                 Nothing
-    when (not $ Set.disjoint (outpoints normal) (outpoints collateral))
-        $ throwE ErrSubmitTxInputConflict
     decision <-
         lift
             $ atomicallyWithContextChange PendingContextChange
@@ -3908,8 +3911,6 @@ submitWalletScoped tr DBLayer{..} nw tx sealed expiration = do
   where
     claim role TxIn{inputId, inputIx} =
         DurableSubmissionInput (Sql.TxId inputId) inputIx role
-    claimOutpoint DurableSubmissionInput{durableInputTxId, durableInputIndex} =
-        (durableInputTxId, durableInputIndex)
     broadcast authorized = do
         started <- lift getCurrentTime
         mBroadcasting <-
@@ -4512,8 +4513,9 @@ delegationFee
     => DBLayer IO s
     -> NetworkLayer IO Read.ConsensusBlock
     -> ChangeAddressGen s
+    -> Set TxIn
     -> IO DelegationFee
-delegationFee db@DBLayer{..} netLayer changeAddressGen = do
+delegationFee db@DBLayer{..} netLayer changeAddressGen preferredCollateral = do
     (Write.PParamsInAnyRecentEra _era protocolParams, timeTranslation) <-
         readNodeTipStateForTxWrite netLayer
     feePercentiles <-
@@ -4524,6 +4526,7 @@ delegationFee db@DBLayer{..} netLayer changeAddressGen = do
             changeAddressGen
             defaultTransactionCtx
                 { txDeposit = Just $ toWallet $ Write.stakeKeyDeposit protocolParams
+                , txPreferredCollateral = preferredCollateral
                 }
             -- It would seem that we should add a delegation action
             -- to the partial tx we construct, this was not done
@@ -4565,6 +4568,8 @@ transactionFee
             liftIO . atomically
                 $ readDBVar walletState
                 <&> WalletState.getLatest
+        let (primaryIndex, fallback) =
+                collateralSelectionIndexes (txPreferredCollateral txCtx) (availableUTxO mempty wallet)
         utxoIndex <-
             -- Important:
             --
@@ -4580,9 +4585,7 @@ transactionFee
             -- fully evaluated, as all fields of the 'UTxOIndex' type are
             -- strict, and each field is defined in terms of 'Data.Map.Strict'.
             --
-            evaluate
-                $ utxoIndexFromWalletUTxO
-                $ availableUTxO mempty wallet
+            evaluate primaryIndex
         let era = Write.recentEra @era
             network =
                 sNetworkIdToLedger
@@ -4642,17 +4645,19 @@ transactionFee
                     , stakeKeyDeposits = Write.StakeKeyDepositAssumeCurrent
                     }
 
+        let balance index =
+                Write.balanceTx @_ @_ @s
+                    protocolParams
+                    timeTranslation
+                    (utxoAssumptionsForWallet (walletFlavor @s))
+                    index
+                    changeAddressGen
+                    (getState wallet)
+                    ptx
         wrapErrBalanceTx $ calculateFeePercentiles $ do
-            res <-
-                runExceptT
-                    $ Write.balanceTx @_ @_ @s
-                        protocolParams
-                        timeTranslation
-                        (utxoAssumptionsForWallet (walletFlavor @s))
-                        utxoIndex
-                        changeAddressGen
-                        (getState wallet)
-                        ptx
+            res <- runExceptT $
+                balance utxoIndex `catchE` \err ->
+                    maybe (throwE err) balance fallback
             case fst <$> res of
                 Right tx ->
                     pure $ Fee $ Convert.toWallet $ tx ^. bodyTxL . feeTxBodyL
@@ -5348,6 +5353,23 @@ normalizeSharedAddress st addr = case Shared.ready st of
 {-------------------------------------------------------------------------------
                                    Helpers
 -------------------------------------------------------------------------------}
+
+-- Preserve designated collateral whenever ordinary UTxO can balance the request.
+-- The full index is shared and remains unevaluated unless the fallback is needed.
+collateralSelectionIndexes
+    :: Write.IsRecentEra era
+    => Set TxIn
+    -> UTxO
+    -> (Write.UTxOIndex era, Maybe (Write.UTxOIndex era))
+collateralSelectionIndexes preferred original@(UTxO entries)
+    | Map.size ordinary == Map.size entries =
+        (utxoIndexFromWalletUTxO original, Nothing)
+    | otherwise =
+        ( utxoIndexFromWalletUTxO (UTxO ordinary)
+        , Just (utxoIndexFromWalletUTxO original)
+        )
+  where
+    ordinary = Map.withoutKeys entries preferred
 
 utxoIndexFromWalletUTxO
     :: forall era. Write.IsRecentEra era => UTxO -> Write.UTxOIndex era

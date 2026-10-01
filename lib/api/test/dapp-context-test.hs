@@ -8,6 +8,7 @@
 
 module Main (main) where
 
+
 import Cardano.Ledger.Allegra.Scripts
     ( ValidityInterval (..)
     , mkRequireAllOfTimelock
@@ -211,6 +212,16 @@ main = hspec $ do
                     `shouldSatisfy` elem (expected, [])
         it "keeps a requested Byron destination accepted and unclassified" $ do
             outputOnlyOwnership byronAddress `shouldBe` []
+        it "accepts a read-only snapshot without permitting an empty signing batch" $ do
+            decodeRequest
+                "{\"revision\":1,\"network\":{\"network_id\":0,\"network_magic\":1,\"genesis_hash\":\"0000000000000000000000000000000000000000000000000000000000000000\"},\"transactions\":[]}"
+                `shouldSatisfy` isRight
+            decodeDappWitnessSignRequest (validWitnessRequest [])
+                `shouldSatisfy` isLeft
+            validateTransactionContextResponseForRequest
+                (ApiDappTransactionContextRequest 1 dappNetwork [])
+                (validDappWitnessContext [])
+                `shouldSatisfy` isRight
         it "strictly validates the closed request schema" $ do
             decodeRequest validRequest `shouldSatisfy` isRight
             mapM_

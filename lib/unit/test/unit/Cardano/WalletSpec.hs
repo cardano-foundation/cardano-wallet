@@ -148,9 +148,6 @@ import Cardano.Wallet.DB.Fixtures
 import Cardano.Wallet.DB.Layer
     ( newBootDBLayerInMemory
     )
-import Cardano.Wallet.DB.Store.Submissions.Operations
-    ( TxSubmissionsStatus
-    )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( block0
     , dummyNetworkLayer
@@ -490,14 +487,11 @@ import qualified Cardano.Wallet.Address.Book as Sqlite
 import qualified Cardano.Wallet.Address.Derivation.Byron as Byron
 import qualified Cardano.Wallet.Address.Derivation.Icarus as Icarus
 import qualified Cardano.Wallet.Balance.Migration as Migration
-import qualified Cardano.Wallet.DB.Sqlite.Types as DB
 import qualified Cardano.Wallet.DB.Store.Checkpoints.Store as Sqlite
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Read as Read
 import qualified Cardano.Wallet.Read.Hash as Hash
-import qualified Cardano.Wallet.Submissions.Submissions as Smbs
-import qualified Cardano.Wallet.Submissions.TxStatus as Sbms
 import qualified Data.ByteArray as BA
 import qualified Data.ByteArray.Encoding as BAE
 import qualified Data.ByteString as BS

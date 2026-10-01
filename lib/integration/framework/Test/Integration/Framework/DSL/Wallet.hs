@@ -241,6 +241,7 @@ fundWallet amt = do
                         , withdrawal = Nothing
                         , metadata = Nothing
                         , timeToLive = Nothing
+                        , preferredCollateral = Nothing
                         }
             submitTx payload
 
