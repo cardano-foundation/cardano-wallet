@@ -1,4 +1,6 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Cardano.Wallet.DB.Store.Checkpoints.MigrationSpec where
@@ -41,6 +43,7 @@ import Cardano.Wallet.DB.Sqlite.Migration.New
     )
 import Cardano.Wallet.DB.Store.Checkpoints.Migration
     ( migratePrologue
+    , migrateSingleAddressMode
     )
 import Cardano.Wallet.DB.Store.Checkpoints.Store
     ( PersistAddressBook (..)
@@ -48,21 +51,40 @@ import Cardano.Wallet.DB.Store.Checkpoints.Store
 import Cardano.Wallet.Primitive.NetworkId
     ( NetworkDiscriminant (..)
     )
+import Control.Monad
+    ( void
+    )
 import Control.Tracer
     ( nullTracer
     )
 import Data.Proxy
     ( Proxy (..)
     )
+import Database.Persist.Types
+    ( PersistValue (..)
+    )
+import System.Directory
+    ( removeFile
+    )
+import System.IO
+    ( hClose
+    )
+import System.IO.Temp
+    ( withSystemTempFile
+    )
 import Test.Hspec
     ( Spec
     , describe
     , it
+    , shouldBe
     )
 import Prelude
 
+import qualified Data.Text as T
+import qualified Database.Sqlite as Sqlite
+
 spec :: Spec
-spec =
+spec = do
     describe "migratePrologue :: Migration _ 3 4" $ do
         it "'migrate' db sequential table"
             $ testCanLoadAfterMigration
@@ -79,6 +101,58 @@ spec =
                 (Proxy :: Proxy (RndState 'Mainnet))
                 "api-bench/rnd.423b423718660431ebfe9c761cd72e64ee5065ac.sqlite"
 
+
+    describe "migrateSingleAddressMode :: Migration _ 6 7" $ do
+        it "enables Shelley account 0 once and preserves controls" $
+            withSystemTempFile "single-address-mode.sqlite" $ \path handle -> do
+                hClose handle
+                removeFile path
+                conn <- Sqlite.open $ T.pack path
+                execute conn
+                    "CREATE TABLE database_schema_version \
+                    \(name TEXT PRIMARY KEY, version INTEGER NOT NULL)"
+                execute conn
+                    "INSERT INTO database_schema_version VALUES ('schema', 6)"
+                execute conn
+                    "CREATE TABLE seq_state \
+                    \(derivation_prefix TEXT NOT NULL, change_addr_mode TEXT NOT NULL)"
+                mapM_ (execute conn)
+                    [ "INSERT INTO seq_state VALUES \
+                      \('2147485500/2147485463/2147483648', 'single')"
+                    , "INSERT INTO seq_state VALUES \
+                      \('2147485500/2147485463/2147483648', 'increasing')"
+                    , "INSERT INTO seq_state VALUES ('byron', 'increasing')"
+                    , "INSERT INTO seq_state VALUES \
+                      \('2147485500/2147485463/2147483648', 'corrupt')"
+                    ]
+                Sqlite.close conn
+                runMigrations
+                    (newMigrationInterface nullTracer)
+                    path
+                    migrateSingleAddressMode
+                conn' <- Sqlite.open $ T.pack path
+                rows <- query conn'
+                    "SELECT derivation_prefix, change_addr_mode FROM seq_state ORDER BY rowid"
+                rows `shouldBe`
+                    [ [PersistText shelleyPrefix, PersistText "single_receiving"]
+                    , [PersistText shelleyPrefix, PersistText "single_receiving"]
+                    , [PersistText "byron", PersistText "increasing"]
+                    , [PersistText shelleyPrefix, PersistText "corrupt"]
+                    ]
+                execute conn'
+                    "UPDATE seq_state SET change_addr_mode = 'increasing' WHERE rowid = 1"
+                Sqlite.close conn'
+                runMigrations
+                    (newMigrationInterface nullTracer)
+                    path
+                    migrateSingleAddressMode
+                conn'' <- Sqlite.open $ T.pack path
+                [[PersistText persistedOff]] <-
+                    query conn'' "SELECT change_addr_mode FROM seq_state WHERE rowid = 1"
+                persistedOff `shouldBe` "increasing"
+                Sqlite.close conn''
+          where
+            shelleyPrefix = "2147485500/2147485463/2147483648"
 -- | Test that the 'Store' can load the database after migration.
 testCanLoadAfterMigration
     :: forall s
@@ -110,3 +184,19 @@ withCopiedAndMigrated file action =
 withCopiedFile :: FilePath -> (FilePath -> IO a) -> IO a
 withCopiedFile orig action =
     snd <$> withinCopiedFile orig (\path _ -> action path)
+
+query :: Sqlite.Connection -> T.Text -> IO [[PersistValue]]
+query conn sql = do
+    statement <- Sqlite.prepare conn sql
+    let collect rows = Sqlite.step statement >>= \case
+            Sqlite.Row -> Sqlite.columns statement >>= \row -> collect (row : rows)
+            Sqlite.Done -> pure $ reverse rows
+    rows <- collect []
+    Sqlite.finalize statement
+    pure rows
+
+execute :: Sqlite.Connection -> T.Text -> IO ()
+execute conn sql = do
+    statement <- Sqlite.prepare conn sql
+    void $ Sqlite.step statement
+    Sqlite.finalize statement

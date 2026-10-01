@@ -975,10 +975,12 @@ instance PersistField ChangeAddressMode where
 changeAddressModeFromText :: Text -> Either Text ChangeAddressMode
 changeAddressModeFromText = \case
     "single" -> Right SingleChangeAddress
+    "single_receiving" -> Right SingleReceivingAddress
     "increasing" -> Right IncreasingChangeAddresses
     other -> Left $ "Invalid ChangeAddressMode: " <> other
 
 textFromChangeAddressMode :: ChangeAddressMode -> Text
 textFromChangeAddressMode = \case
     SingleChangeAddress -> "single"
+    SingleReceivingAddress -> "single_receiving"
     IncreasingChangeAddresses -> "increasing"

@@ -285,10 +285,11 @@ import Cardano.Balance.Tx.TimeTranslation
 import Cardano.Balance.Tx.Tx
     ( toRecentEraGADT
     )
+import Cardano.Binary.FixedSizeCodec
+    ( rawDecodeFixedSized
+    )
 import Cardano.Crypto.DSIGN
     ( VerKeyDSIGN
-    , rawDeserialiseSigDSIGN
-    , rawDeserialiseVerKeyDSIGN
     , verifyDSIGN
     , verifySignedDSIGN
     )
@@ -721,7 +722,6 @@ import Cardano.Wallet.Tracing.Extra
     ( BracketLog
     , BracketLog' (..)
     , bracketTracer
-    , formatResultMsg
     , resultSeverity
     , traceResult
     )
@@ -2761,12 +2761,10 @@ signDappData root userPwd path expectedHash message = do
         | BS.length public /= 32 || BS.length signature /= 64 =
             Left "invalid data signature length"
         | otherwise = do
-            vkey <-
-                maybe (Left "invalid data public key") Right
-                    $ (rawDeserialiseVerKeyDSIGN public :: Maybe (VerKeyDSIGN DSIGN))
-            sig <-
-                maybe (Left "invalid data signature") Right
-                    $ rawDeserialiseSigDSIGN signature
+            vkey <- maybe (Left "invalid data public key") Right
+                $ (rawDecodeFixedSized public :: Maybe (VerKeyDSIGN DSIGN))
+            sig <- maybe (Left "invalid data signature") Right
+                $ rawDecodeFixedSized signature
             if verifyDSIGN () vkey message sig == Right ()
                 then Right result
                 else Left "generated data signature does not verify"

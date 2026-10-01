@@ -500,6 +500,14 @@ x-oneChangeAddressMode: &oneChangeAddressMode
   type: boolean
   default: false
 
+x-singleAddressMode: &singleAddressMode
+  description: |
+    Use the first external receiving address for automatically generated
+    wallet outputs, including change. This option cannot be supplied together
+    with `one_change_address_mode`.
+  type: boolean
+  default: true
+
 x-restorationMode: &restorationMode
   description: |
     The wallet restoration mode determines since when the wallet should
@@ -3359,6 +3367,7 @@ components:
       required:
         - id
         - address_pool_gap
+        - single_address_mode
         - balance
         - assets
         - delegation
@@ -3368,6 +3377,7 @@ components:
       properties:
         id: *walletId
         address_pool_gap: *walletAddressPoolGap
+        single_address_mode: *singleAddressMode
         balance: *walletBalance
         assets: *walletAssetsBalance
         delegation: *ApiWalletDelegation
@@ -3410,6 +3420,7 @@ components:
         passphrase: *walletPassphrase
         address_pool_gap: *walletAddressPoolGap
         one_change_address_mode: *oneChangeAddressMode
+        single_address_mode: *singleAddressMode
         restoration_mode: *restorationMode
 
     ApiAccountPostData: &ApiAccountPostData
@@ -3422,6 +3433,7 @@ components:
         name: *walletName
         account_public_key: *walletAccountXPubkey
         address_pool_gap: *walletAddressPoolGap
+        single_address_mode: *singleAddressMode
         restoration_mode: *restorationMode
 
     ApiWalletOrAccountPostData: &ApiWalletOrAccountPostData
@@ -3860,6 +3872,7 @@ components:
       properties:
         name: *walletName
         one_change_address_mode: *oneChangeAddressMode
+        single_address_mode: *singleAddressMode
 
     ApiPostAccountKeyData: &ApiPostAccountKeyData
       type: object
