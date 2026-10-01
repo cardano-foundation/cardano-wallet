@@ -26,6 +26,7 @@ module Cardano.Wallet.Api.Http.Shelley.TransactionContext
     , validVKeyWitnessHashes
     , buildProofInventory
     , buildBatchOverlay
+    , buildReviewedProofInventory
     , candidateOwnershipAssociations
     , requiredProofs
     , scriptProofKinds
@@ -33,6 +34,7 @@ module Cardano.Wallet.Api.Http.Shelley.TransactionContext
     , dependencySource
     , evaluateObligation
     , configuredNetwork
+    , reviewedBatchComplete
     , validatePendingProvenance
     ) where
 
@@ -147,6 +149,7 @@ import Cardano.Read.Ledger.Tx.CollateralOutputs
     )
 import Cardano.Read.Ledger.Tx.Output
     ( Output (Output)
+    , deserializeOutput
     )
 import Cardano.Read.Ledger.Tx.ReferenceInputs
     ( ReferenceInputs (ReferenceInputs)
@@ -353,7 +356,6 @@ data ProducibleCandidate = ProducibleCandidate
     { candidateTransactionIndex :: !Word32
     , candidateCredentialKind :: !ApiDappCredentialKind
     , candidatePath :: ![Word32]
-    , candidatePublicKey :: !ByteString
     , candidateKeyHash :: !ByteString
     }
     deriving (Eq, Ord, Show)
@@ -977,6 +979,56 @@ proofInventory requested obligations candidates ownership =
                 ]
             )
 
+buildReviewedProofInventory
+    :: [DecodedTx]
+    -> ApiDappTransactionContextResponse
+    -> Either DappError ProofInventory
+buildReviewedProofInventory requested response = do
+    resolved <- mapM decodeContextOutput response.outputs
+    directObligations <- directProofObligations requested resolved
+    nativeObligations <- reviewedNativeProofObligations requested resolved
+    let obligations = directObligations <> nativeObligations
+        candidates =
+            [ ProducibleCandidate
+                transactionIndex
+                credentialKind
+                derivationPath
+                credential
+            | ( transactionIndex
+                , ApiDappOwnership
+                    { credentialKind
+                    , credential = ApiDappHex credential
+                    , derivationPath
+                    }
+                ) <-
+                candidateOwnershipAssociations obligations response.ownership
+            ]
+    proofInventory
+        requested
+        obligations
+        (Set.toList $ Set.fromList candidates)
+        response.ownership
+  where
+    decodeContextOutput
+        value@ApiDappContextOutput
+            { sourceTransactionOutputCbor = ApiDappHex source
+            } = do
+            output <-
+                first
+                    (const DappInternalErrorResponse)
+                    ( deserializeOutput (BL.fromStrict source)
+                        :: Either DecoderError (Output Read.Conway)
+                    )
+            pure ("", value, output)
+
+reviewedBatchComplete :: [Bool] -> ProofInventory -> Bool
+reviewedBatchComplete partialSigns inventory =
+    and
+        [ partialSign
+            || Map.findWithDefault False index inventory.aggregateSatisfaction
+        | (index, partialSign) <- zip [0 :: Word32 ..] partialSigns
+        ]
+
 candidateOwnershipAssociations
     :: [ProofObligation]
     -> [ApiDappOwnership]
@@ -1046,7 +1098,6 @@ candidateFromOwnership
                 transactionIndex
                 credentialKind
                 derivationPath
-                publicKey
                 keyHash
       where
         Seq.DerivationPrefix (_, _, account) = Seq.derivationPrefix discovery
@@ -1574,6 +1625,75 @@ timelockKeys script
     | Just (_, scripts) <- getRequireMOfTimelock script =
         Set.unions $ timelockKeys <$> toList scripts
     | otherwise = mempty
+
+reviewedNativeProofObligations
+    :: [DecodedTx]
+    -> [(ByteString, ApiDappContextOutput, Output Read.Conway)]
+    -> Either DappError [ProofObligation]
+reviewedNativeProofObligations requested resolved =
+    fmap concat $ mapM perTransaction $ zip [0 :: Word32 ..] requested
+  where
+    outputs =
+        Map.fromList
+            [(value.outpoint, output) | (_, value, output) <- resolved]
+    perTransaction
+        ( transactionIndex
+            , DecodedTx
+                { transaction = Read.Tx ledgerTx
+                , normal
+                , collateral
+                , reference
+                }
+            ) = do
+            referenceScriptMap <-
+                Map.fromList . concat <$> mapM referenceScripts (Set.toList reference)
+            let scriptMap = Map.union (ledgerTx ^. witsTxL . scriptTxWitsL) referenceScriptMap
+                mintScripts =
+                    [ (PolicyProof, hash)
+                    | PolicyID hash <-
+                        Set.toList $ policies $ ledgerTx ^. bodyTxL . mintTxBodyL
+                    ]
+            spendingScripts <-
+                fmap catMaybes
+                    $ mapM spendingScript
+                    $ Set.toList
+                    $ normal <> collateral
+            fmap catMaybes
+                $ mapM (nativeObligation transactionIndex ledgerTx scriptMap)
+                $ mintScripts <> [(NativeScriptProof, hash) | hash <- spendingScripts]
+    spendingScript input = do
+        output <-
+            maybe (Left DappContextUnavailableError) Right
+                $ Map.lookup (toOutpoint input) outputs
+        pure $ case output of
+            Output ledgerOutput -> case ledgerOutput ^. addrTxOutL of
+                AddrBootstrap{} -> Nothing
+                Addr _ (KeyHashObj _) _ -> Nothing
+                Addr _ (ScriptHashObj hash) _ -> Just hash
+    referenceScripts input = do
+        output <-
+            maybe (Left DappContextUnavailableError) Right
+                $ Map.lookup (toOutpoint input) outputs
+        pure $ case output of
+            Output ledgerOutput ->
+                [ (hashScript script, script)
+                | script <- toList $ ledgerOutput ^. referenceScriptTxOutL
+                ]
+    nativeObligation transactionIndex ledgerTx scriptMap (proofKind, scriptHash) = do
+        script <-
+            maybe (Left DappContextUnavailableError) Right
+                $ Map.lookup scriptHash scriptMap
+        requireEither DappInternalErrorResponse
+            $ hashScript script == scriptHash
+        pure
+            $ ( \timelock ->
+                    NativeProofObligation
+                        transactionIndex
+                        proofKind
+                        timelock
+                        (ledgerTx ^. bodyTxL . vldtTxBodyL)
+              )
+                <$> getNativeScript script
 
 keyBytes :: LedgerKeys.KeyHash discriminator -> ByteString
 keyBytes (LedgerKeys.KeyHash hash) = Crypto.hashToBytes hash
