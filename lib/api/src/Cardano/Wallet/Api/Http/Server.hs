@@ -144,6 +144,7 @@ import Cardano.Wallet.Api.Http.Shelley.Server
     , postRandomWallet
     , postRandomWalletFromXPrv
     , postSharedWallet
+    , postTransactionContext
     , postTransactionFeeOld
     , postTransactionOld
     , postTrezorWallet
@@ -414,6 +415,7 @@ server byron icarus shelley multisig spl drepLayer ntp blockchainSource =
             :<|> balanceTransaction shelley
             :<|> decodeTransaction shelley
             :<|> submitTransaction @_ @_ @_ @n shelley
+            :<|> postTransactionContext @n shelley
 
     shelleyMigrations :: Server (ShelleyMigrations n)
     shelleyMigrations =

@@ -235,17 +235,28 @@ assertErrorResponse status code (ExpectedError msg) response = do
 spec_MalformedParam :: Request -> ExpectedError -> Session ()
 spec_MalformedParam malformedRequest expectedError = do
     response <- request malformedRequest
-    assertErrorResponse 400 "bad_request" expectedError response
+    assertEndpointError
+        malformedRequest
+        400
+        "bad_request"
+        expectedError
+        response
 
 spec_WrongAcceptHeader :: Request -> ExpectedError -> Session ()
 spec_WrongAcceptHeader malformedRequest expectedError = do
     response <- request malformedRequest
-    assertErrorResponse 406 "not_acceptable" expectedError response
+    assertEndpointError
+        malformedRequest
+        406
+        "not_acceptable"
+        expectedError
+        response
 
 spec_WrongContentTypeHeader :: Request -> ExpectedError -> Session ()
 spec_WrongContentTypeHeader malformedRequest expectedError = do
     response <- request malformedRequest
-    assertErrorResponse
+    assertEndpointError
+        malformedRequest
         415
         "unsupported_media_type"
         expectedError
@@ -254,7 +265,28 @@ spec_WrongContentTypeHeader malformedRequest expectedError = do
 spec_NotAllowedMethod :: Request -> ExpectedError -> Session ()
 spec_NotAllowedMethod malformedRequest expectedError = do
     response <- request malformedRequest
-    assertErrorResponse 405 "method_not_allowed" expectedError response
+    assertEndpointError
+        malformedRequest
+        405
+        "method_not_allowed"
+        expectedError
+        response
+
+assertEndpointError
+    :: Request -> Int -> Text -> ExpectedError -> SResponse -> Session ()
+assertEndpointError request' status code expected response
+    | isTransactionContext request' =
+        assertErrorResponse
+            400
+            "dapp_invalid_request"
+            "Invalid backend request"
+            response
+    | otherwise = assertErrorResponse status code expected response
+  where
+    isTransactionContext req = case pathInfo req of
+        "v2" : "wallets" : _walletId : "transaction-context" : _ -> True
+        "wallets" : _walletId : "transaction-context" : _ -> True
+        _ -> False
 
 --
 -- Generic API Spec

@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 
 -- |
@@ -8,6 +9,7 @@
 -- application.
 module Cardano.Wallet.Application.Tls
     ( TlsConfiguration (..)
+    , clientManagerSettings
     , requireClientAuth
     ) where
 
@@ -15,23 +17,44 @@ import Data.Default
     ( Default (..)
     )
 import Data.X509
-    ( ExtKeyUsagePurpose (..)
+    ( CertificateChain (..)
+    , ExtKeyUsagePurpose (..)
     , HashALG (..)
     )
 import Data.X509.CertificateStore
     ( makeCertificateStore
     )
+import Data.X509.Extra
+    ( validateDefaultWithIP
+    )
 import Data.X509.File
-    ( readSignedObject
+    ( readKeyFile
+    , readSignedObject
     )
 import Data.X509.Validation
     ( ValidationChecks (..)
     , ValidationHooks (..)
     )
+import Network.HTTP.Client
+    ( ManagerSettings
+    )
+import Network.HTTP.Client.TLS
+    ( mkManagerSettings
+    )
 import Network.TLS
     ( CertificateRejectReason (..)
     , CertificateUsage (..)
+    , ClientHooks (..)
+    , ClientParams (..)
+    , Credentials (..)
     , ServerHooks (..)
+    , Shared (..)
+    , Supported (..)
+    , defaultParamsClient
+    , noSessionManager
+    )
+import Network.TLS.Extra.Cipher
+    ( ciphersuite_default
     )
 import Network.Wai.Handler.WarpTLS
     ( TLSSettings (..)
@@ -40,6 +63,7 @@ import Network.Wai.Handler.WarpTLS
 import Prelude
 
 import qualified Data.X509.Validation as X509
+import qualified Network.Connection as Connection
 
 -- | Path to a x.509 PKI for mutual client-server authentication.
 data TlsConfiguration = TlsConfiguration
@@ -48,6 +72,39 @@ data TlsConfiguration = TlsConfiguration
     , tlsSvKey :: !FilePath
     }
     deriving (Show)
+
+clientManagerSettings :: TlsConfiguration -> IO ManagerSettings
+clientManagerSettings TlsConfiguration{tlsCaCert, tlsSvCert, tlsSvKey} = do
+    credentials <- readCredentials tlsSvCert tlsSvKey
+    caChain <- readSignedObject tlsCaCert
+    pure
+        $ mkManagerSettings
+            (Connection.TLSSettings $ clientParams caChain credentials)
+            Nothing
+  where
+    clientParams caChain credentials =
+        (defaultParamsClient "127.0.0.1" "")
+            { clientUseServerNameIndication = True
+            , clientWantSessionResume = Nothing
+            , clientShared =
+                def
+                    { sharedCredentials = Credentials [credentials]
+                    , sharedCAStore = makeCertificateStore caChain
+                    , sharedSessionManager = noSessionManager
+                    }
+            , clientHooks =
+                def
+                    { onCertificateRequest = const . pure . Just $ credentials
+                    , onServerCertificate = validateDefaultWithIP
+                    }
+            , clientSupported = def{supportedCiphers = ciphersuite_default}
+            }
+
+    readCredentials certFile keyFile = do
+        certs <- readSignedObject certFile
+        readKeyFile keyFile >>= \case
+            key : _ -> pure (CertificateChain certs, key)
+            [] -> fail "TLS client key file is empty"
 
 -- Create TLS settings for a Warp Handler from the given TLS configuration.
 -- These settings will expect clients to provide a valid TLS certificate during

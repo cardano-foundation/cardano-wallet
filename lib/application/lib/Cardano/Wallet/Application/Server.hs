@@ -5,6 +5,7 @@ module Cardano.Wallet.Application.Server
     ( Listen (..)
     , walletListenFromEnv
     , start
+    , isSensitiveDappRoute
     , withListeningSocket
     , ListenError (..)
 
@@ -58,6 +59,7 @@ import Network.Wai.Middleware.Logging
     ( ApiLog
     , newApiLoggerSettings
     , obfuscateKeys
+    , suppressDetails
     , withApiLogger
     )
 import Network.Wai.Middleware.ServerError
@@ -79,6 +81,7 @@ import System.IO.Error
 import Prelude
 
 import qualified Data.Text as T
+import qualified Network.Wai as Wai
 import qualified Network.Wai.Handler.Warp as Warp
 import qualified Network.Wai.Handler.WarpTLS as Warp
 
@@ -127,7 +130,7 @@ start settings tr tlsConfig socket application = do
         $ handleRawError (curry toServerError)
         $ withApiLogger
             tr
-            logSettings
+            (suppressDetails isSensitiveDappRoute logSettings)
             application
   where
     sensitive :: [Text]
@@ -138,6 +141,12 @@ start settings tr tlsConfig socket application = do
         , "mnemonic_sentence"
         , "mnemonic_second_factor"
         ]
+
+isSensitiveDappRoute :: Wai.Request -> Bool
+isSensitiveDappRoute request = case Wai.pathInfo request of
+    "v2" : "wallets" : _walletId : "transaction-context" : _ -> True
+    "wallets" : _walletId : "transaction-context" : _ -> True
+    _ -> False
 
 -- | Run an action with a TCP socket bound to a port specified by the `Listen`
 -- parameter.

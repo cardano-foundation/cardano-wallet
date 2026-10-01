@@ -73,6 +73,9 @@ data Context = Context
     , _walletPort
         :: Port "wallet"
     -- ^ Server TCP port.
+    , _nodeSocketPath
+        :: FilePath
+    -- ^ Node socket used by isolated integration-test connections.
     , _faucet
         :: Faucet
     -- ^ Provides access to funded wallets.

@@ -58,6 +58,7 @@ library framework
     , cardano-wallet-api
     , cardano-wallet-application
     , cardano-wallet-application-extras
+    , cardano-wallet-application-tls
     , cardano-wallet-application:shelley
     , cardano-wallet-launcher
     , cardano-wallet-network-layer
@@ -141,6 +142,7 @@ library scenarios
     , cardano-crypto
     , cardano-crypto-class
     , cardano-ledger-alonzo
+    , cardano-ledger-api
     , cardano-ledger-core
     , cardano-ledger-read
     , cardano-protocol-tpraos
