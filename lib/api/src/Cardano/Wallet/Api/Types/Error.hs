@@ -20,6 +20,7 @@ module Cardano.Wallet.Api.Types.Error
       ApiError (..)
     , ApiErrorInfo (..)
     , ApiErrorMessage (..)
+    , DappError (..)
 
       -- * Specific API error types
     , ApiErrorSharedWalletNoSuchCosigner (..)
@@ -276,6 +277,14 @@ apiErrorInfoOptions =
                 , contentsFieldName = "info"
                 }
         }
+
+data DappError
+    = InvalidDappRequest
+    | DappContextConflictError
+    | DappContextUnavailableError
+    | DappInternalErrorResponse
+    | DappDeprecatedCertificateError
+    deriving (Eq, Show)
 
 data ApiErrorUnsupportedEra = ApiErrorUnsupportedEra
     { unsupportedEra :: !ApiEra
