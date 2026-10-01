@@ -128,8 +128,6 @@ withBootDBLayer timeInterpreter wid params k = do
               walletState = error "MVar.walletState: not implemented"
             , transactionsStore = error "MVar.transactionsStore: not implemented"
             , readCheckpoint = throwErrorReadDB db mReadCheckpoint
-            , readInSubmissionTransactions =
-                error "readInSubmissionTransactions not tested in State Machine tests"
             , listCheckpoints = fromMaybe [] <$> readDBMaybe db mListCheckpoints
             , rollbackTo =
                 noErrorAlterDB db

@@ -40,7 +40,7 @@ import Cardano.Wallet.DB.Migration
     ( Version
     )
 import Cardano.Wallet.DB.Sqlite.Types
-    ( TxId (TxId)
+    ( TxId
     )
 import Cardano.Wallet.DB.Store.Submissions.Layer
     ( getInSubmissionTransaction
@@ -244,7 +244,6 @@ data DBLayer m s = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
     -- ^ 'Store' containing all transactions of all wallets in the database.
     , readCheckpoint :: stm (Wallet s)
     -- ^ Fetch the most recent checkpoint of a given wallet.
-    , readInSubmissionTransactions :: stm [(Hash "Tx", WST.SealedTx)]
     , listCheckpoints
         :: stm [ChainPoint]
     -- ^ List all known checkpoint tips, ordered by slot ids from the oldest
@@ -453,12 +452,6 @@ mkDBLayerFromParts ti wid_ DBLayerCollection{..} =
         , walletState = walletsDB_ dbCheckpoints
         , transactionsStore = transactionsStore_
         , readCheckpoint = readCheckpoint'
-        , readInSubmissionTransactions = withSubmissions $ \submissions ->
-            pure
-                [ (txid, sealed)
-                | TxStatusMeta (Subm.InSubmission _ (TxId txid, sealed)) _ <-
-                    getInSubmissionTransactions submissions
-                ]
         , listCheckpoints = listCheckpoints_ dbCheckpoints
         , putTxHistory = putTxHistory_ dbTxHistory
         , readTransactions = \minWithdrawal order range status limit maddress ->
