@@ -123,6 +123,10 @@ import Cardano.Wallet.DB.StateMachine
     , prop_sequential
     , validateGenerators
     )
+import Cardano.Wallet.DB.Store.Submissions.Operations
+    ( DurableSubmission (..)
+    , DurableSubmissionInput (..)
+    )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( block0
     , dummyGenesisParameters
@@ -197,6 +201,7 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
 import Cardano.Wallet.Primitive.Types.Tx
     ( Tx (..)
     , TxScriptValidity (..)
+    , mockSealedTx
     )
 import Cardano.Wallet.Primitive.Types.Tx.TransactionInfo
     ( TransactionInfo (..)
@@ -342,6 +347,7 @@ import Test.Hspec
     ( Expectation
     , Spec
     , SpecWith
+    , anyException
     , around
     , before
     , beforeWith
@@ -350,6 +356,7 @@ import Test.Hspec
     , it
     , shouldBe
     , shouldContain
+    , shouldNotBe
     , shouldNotContain
     , shouldReturn
     , shouldSatisfy
@@ -414,6 +421,7 @@ import qualified Data.List as L
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
+import qualified Database.Persist as P
 import qualified Database.Persist.Sqlite as Sqlite
 import qualified UnliftIO.STM as STM
 
@@ -1030,6 +1038,186 @@ fileModeSpec = do
                             view #slotNo (currentTip cp) `shouldBe` (SlotNo 0)
 
                             getTxsInLedger db `shouldReturn` []
+
+                -- rollbackTo_ moves every in-ledger durable submission accepted
+                -- after the rollback point back to Submitted, which re-acquires
+                -- the input claims released when it landed. The assertions
+                -- read the database file back after the layer is closed.
+                let txid name = DB.TxId (dummyHash name)
+                    durable tx authorized =
+                        DurableSubmission
+                            { durableWalletId = testWid
+                            , durableTxId = txid tx
+                            , durableSealedTx = mockSealedTx tx
+                            , durableExpiration = Nothing
+                            , durableAuthorized = authorized
+                            , durableStatus = DB.AuthorizedE
+                            , durableAttemptGeneration = 0
+                            , durableBroadcastGeneration = Nothing
+                            , durableBroadcastStarted = Nothing
+                            , durableAcceptance = Nothing
+                            , durableRejectionCode = Nothing
+                            }
+                    input source = DurableSubmissionInput (txid source) 0
+                    landedAt300 sub =
+                        sub
+                            { durableStatus = DB.InLedgerDappE
+                            , durableAcceptance = Just (SlotNo 300)
+                            }
+                    advanceToSlot300 db = do
+                        mockApply db (dummyHash "block1") []
+                        mockApply db (dummyHash "block2") []
+                        mockApply db (dummyHash "block3") []
+                    readSubmissions f =
+                        fmap
+                            ( fmap P.entityVal
+                                :: [P.Entity DB.DappSubmission] -> [DB.DappSubmission]
+                            )
+                            $ Sqlite.runSqlite (T.pack f)
+                            $ P.selectList [] []
+                    activeOwners f source =
+                        fmap (L.sort . fmap (DB.dappSubmissionInputTxId . P.entityVal))
+                            $ Sqlite.runSqlite (T.pack f)
+                            $ P.selectList
+                                [ DB.DappSubmissionInputSourceTxId P.==. txid source
+                                , DB.DappSubmissionInputActive P.==. True
+                                ]
+                                []
+                    status name =
+                        fmap DB.dappSubmissionStatus
+                            . L.find ((== txid name) . DB.dappSubmissionTxId)
+
+                it
+                    "rollback of an in-ledger durable submission completes, keeps \
+                    \its evidence, and leaves a contested input with its owner"
+                    $ \f -> do
+                        withShelleyFileBootDBLayer f
+                            $ \db@DBLayer
+                                { atomically
+                                , rollbackTo
+                                , readCheckpoint
+                                , insertDurableSubmission
+                                , updateDurableSubmission
+                                } -> do
+                                    advanceToSlot300 db
+                                    -- "landed" is accepted at slot 300. Its collateral
+                                    -- stays unspent and its claim is released, so
+                                    -- "pending" claims the same UTxO.
+                                    atomically $ do
+                                        void
+                                            $ insertDurableSubmission
+                                                (durable "landed" True)
+                                                [ input "collateral" DB.CollateralInputE
+                                                , input "spent" DB.NormalInputE
+                                                ]
+                                        updateDurableSubmission
+                                            (landedAt300 $ durable "landed" True)
+                                        void
+                                            $ insertDurableSubmission
+                                                (durable "pending" True)
+                                                [input "collateral" DB.CollateralInputE]
+                                    atomically . void $ rollbackTo (At $ SlotNo 200)
+                                    cp <- atomically readCheckpoint
+                                    view #slotNo (currentTip cp) `shouldBe` SlotNo 0
+                        rows <- readSubmissions f
+                        L.sort (DB.dappSubmissionTxId <$> rows)
+                            `shouldBe` L.sort [txid "landed", txid "pending"]
+                        status "landed" rows `shouldNotBe` Just DB.InLedgerDappE
+                        -- The contested collateral stays with its current owner;
+                        -- the reverted submission's own uncontested input is
+                        -- reserved again, because it may still land.
+                        activeOwners f "collateral" `shouldReturn` [txid "pending"]
+                        activeOwners f "spent" `shouldReturn` [txid "landed"]
+
+                it
+                    "rollback keeps an unauthorized durable submission unauthorized"
+                    $ \f -> do
+                        withShelleyFileBootDBLayer f
+                            $ \db@DBLayer
+                                { atomically
+                                , rollbackTo
+                                , insertDurableSubmission
+                                , updateDurableSubmission
+                                } -> do
+                                    advanceToSlot300 db
+                                    -- The V6 migration writes legacy submissions with
+                                    -- authorized = 0; reverting them must keep that.
+                                    atomically $ do
+                                        void
+                                            $ insertDurableSubmission
+                                                (durable "legacy" False)
+                                                [input "spent" DB.NormalInputE]
+                                        updateDurableSubmission
+                                            (landedAt300 $ durable "legacy" False)
+                                    atomically . void $ rollbackTo (At $ SlotNo 200)
+                        rows <- readSubmissions f
+                        DB.dappSubmissionAuthorized <$> rows `shouldBe` [False]
+
+                it
+                    "rollback revives a durable submission that expired after the \
+                    \rollback point"
+                    $ \f -> do
+                        withShelleyFileBootDBLayer f
+                            $ \db@DBLayer
+                                { atomically
+                                , rollbackTo
+                                , insertDurableSubmission
+                                , updateDurableSubmission
+                                } -> do
+                                    advanceToSlot300 db
+                                    -- Expires at slot 250, after the point the chain
+                                    -- rolls back to. The legacy submissions spec
+                                    -- (specifications/Cardano/Wallet/Submissions,
+                                    -- moveTip_changes_transaction_statuses) sends such
+                                    -- a transaction back to InSubmission.
+                                    let late =
+                                            (durable "late" True)
+                                                { durableExpiration = Just (SlotNo 250)
+                                                }
+                                    atomically $ do
+                                        void
+                                            $ insertDurableSubmission
+                                                late
+                                                [input "spent" DB.NormalInputE]
+                                        updateDurableSubmission
+                                            late{durableStatus = DB.ExpiredDappE}
+                                    atomically . void $ rollbackTo (At $ SlotNo 200)
+                        rows <- readSubmissions f
+                        status "late" rows `shouldNotBe` Just DB.ExpiredDappE
+                        activeOwners f "spent" `shouldReturn` [txid "late"]
+
+                it
+                    "a freshly created database rejects a second active claim on \
+                    \an outpoint and accepts a released duplicate"
+                    $ \f -> do
+                        withShelleyFileBootDBLayer f
+                            $ \DBLayer{atomically, insertDurableSubmission} ->
+                                atomically $ do
+                                    void
+                                        $ insertDurableSubmission
+                                            (durable "first" True)
+                                            [input "shared" DB.NormalInputE]
+                                    void
+                                        $ insertDurableSubmission
+                                            (durable "second" True)
+                                            [input "other" DB.NormalInputE]
+                        -- Bypass the application-level check and point the
+                        -- second claim at the first one's outpoint: only the
+                        -- database can refuse it.
+                        let moveSecondOntoShared =
+                                Sqlite.runSqlite (T.pack f)
+                                    $ P.updateWhere
+                                        [DB.DappSubmissionInputTxId P.==. txid "second"]
+                                        [DB.DappSubmissionInputSourceTxId P.=. txid "shared"]
+                        moveSecondOntoShared `shouldThrow` anyException
+                        -- Once the first claim is released, the same move is
+                        -- allowed: the uniqueness covers active claims only.
+                        Sqlite.runSqlite (T.pack f)
+                            $ P.updateWhere
+                                [DB.DappSubmissionInputTxId P.==. txid "first"]
+                                [DB.DappSubmissionInputActive P.=. False]
+                        moveSecondOntoShared
+                        activeOwners f "shared" `shouldReturn` [txid "second"]
 
     describe "random operation chunks property" $ do
         it

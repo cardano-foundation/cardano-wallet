@@ -22,6 +22,9 @@ import Cardano.Wallet.DB.Sqlite.Migration.New
     ( newMigrationInterface
     , runNewStyleMigrations
     )
+import Control.Monad
+    ( forM_
+    )
 import Control.Tracer
     ( nullTracer
     )
@@ -123,6 +126,46 @@ spec = do
                     $ Sqlite.rawSql "SELECT count(*) FROM submissions" []
                 legacy `shouldBe` [Sqlite.Single (3 :: Int)]
                 BS.readFile (dbf <> ".v5.bak") `shouldReturn` v5
+        it
+            "migrates two live V5 submissions that share a collateral input"
+            $ withSystemTempDirectory "test"
+            $ \dir -> do
+                -- Collateral is not consumed when a script transaction
+                -- succeeds, so two pending transactions in the legacy pool
+                -- may legitimately name the same collateral UTxO (1111..#0).
+                -- Spending inputs differ (2222..#0 and 3333..#0).
+                let dbf = dir <> "/wallet.sqlite"
+                    txA = sharedCollateralTxA
+                    txB = sharedCollateralTxB
+                createV5DatabaseWith dbf sharedCollateralSubmissions
+                runNewStyleMigrations nullTracer dbf
+                schemaVersion dbf `shouldReturn` 6
+                -- Both submissions are kept as evidence, as live legacy rows.
+                rows <-
+                    Sqlite.runSqlite (T.pack dbf)
+                        $ Sqlite.rawSql
+                            "SELECT tx_id, status, authorized FROM dapp_submission ORDER BY tx_id"
+                            []
+                rows
+                    `shouldBe` [
+                                   ( Sqlite.Single txB
+                                   , Sqlite.Single (4 :: Int)
+                                   , Sqlite.Single (0 :: Int)
+                                   )
+                               ,
+                                   ( Sqlite.Single txA
+                                   , Sqlite.Single 4
+                                   , Sqlite.Single 0
+                                   )
+                               ]
+                -- Each spending input is actively claimed by its own transaction.
+                activeClaimOwners dbf (T.replicate 32 "22") `shouldReturn` [txA]
+                activeClaimOwners dbf (T.replicate 32 "33") `shouldReturn` [txB]
+                -- The shared collateral is recorded for both transactions and
+                -- actively claimed by exactly one of them.
+                recordedClaims dbf (T.replicate 32 "11") `shouldReturn` 2
+                length <$> activeClaimOwners dbf (T.replicate 32 "11")
+                    `shouldReturn` 1
         it
             "rolls back malformed V5 submissions and leaves a restorable backup"
             $ withSystemTempDirectory "test"
@@ -281,4 +324,76 @@ durableSubmissionTableCount dbf = do
             $ Sqlite.rawSql
                 "SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name IN ('dapp_submission', 'dapp_submission_input')"
                 []
+    pure count
+
+-- | A V5 database whose live legacy submissions are the given
+-- (transaction id, transaction CBOR hex) pairs.
+createV5DatabaseWith :: FilePath -> [(Text, Text)] -> IO ()
+createV5DatabaseWith dbf submissions =
+    Sqlite.runSqlite (T.pack dbf) $ do
+        Sqlite.rawExecute
+            "CREATE TABLE database_schema_version (name TEXT PRIMARY KEY, version INTEGER NOT NULL)"
+            []
+        Sqlite.rawExecute
+            "INSERT INTO database_schema_version (name, version) VALUES ('schema', 5)"
+            []
+        Sqlite.rawExecute
+            "CREATE TABLE wallet (wallet_id TEXT PRIMARY KEY)"
+            []
+        Sqlite.rawExecute
+            "CREATE TABLE submissions (wallet_id TEXT NOT NULL, tx_id TEXT NOT NULL, tx BLOB NOT NULL, expiration INTEGER NULL, status INTEGER NOT NULL, acceptance INTEGER NULL)"
+            []
+        Sqlite.rawExecute "INSERT INTO wallet (wallet_id) VALUES ('00')" []
+        forM_ submissions $ \(txId, txHex) ->
+            Sqlite.rawExecute
+                ( "INSERT INTO submissions (wallet_id, tx_id, tx, expiration, status, acceptance) VALUES ('00', '"
+                    <> txId
+                    <> "', X'"
+                    <> txHex
+                    <> "', NULL, 0, NULL)"
+                )
+                []
+
+-- | Two well-formed transactions with distinct spending inputs and the same
+-- collateral input; each id is the blake2b-256 of its body.
+sharedCollateralSubmissions :: [(Text, Text)]
+sharedCollateralSubmissions =
+    [
+        ( sharedCollateralTxA
+        , "84a40081825820222222222222222222222222222222222222222222222222222222222222222200018182581d60aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1a000f424002000d81825820111111111111111111111111111111111111111111111111111111111111111100a0f5f6"
+        )
+    ,
+        ( sharedCollateralTxB
+        , "84a40081825820333333333333333333333333333333333333333333333333333333333333333300018182581d60aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1a000f424002000d81825820111111111111111111111111111111111111111111111111111111111111111100a0f5f6"
+        )
+    ]
+
+sharedCollateralTxA :: Text
+sharedCollateralTxA = "df6ac54c4a21a765ee129400c444edd398593e19f9cf98af323c1adcdf46e3fb"
+
+sharedCollateralTxB :: Text
+sharedCollateralTxB = "cb2c8237e73cecea43da8651f6717c17cec817839c53c66479f76143b9cfccd0"
+
+-- | Transactions holding an active claim on output 0 of the given source.
+activeClaimOwners :: FilePath -> Text -> IO [Text]
+activeClaimOwners dbf source =
+    fmap Sqlite.unSingle
+        <$> Sqlite.runSqlite
+            (T.pack dbf)
+            ( Sqlite.rawSql
+                "SELECT tx_id FROM dapp_submission_input \
+                \WHERE source_tx_id = ? AND source_index = 0 AND active = 1 \
+                \ORDER BY tx_id"
+                [Sqlite.PersistText source]
+            )
+
+-- | Claims recorded on output 0 of the given source, active or released.
+recordedClaims :: FilePath -> Text -> IO Int
+recordedClaims dbf source = do
+    [Sqlite.Single count] <-
+        Sqlite.runSqlite (T.pack dbf)
+            $ Sqlite.rawSql
+                "SELECT count(*) FROM dapp_submission_input \
+                \WHERE source_tx_id = ? AND source_index = 0"
+                [Sqlite.PersistText source]
     pure count
