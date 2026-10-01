@@ -149,7 +149,11 @@ isSensitiveDappRoute request = case Wai.pathInfo request of
     _ -> False
   where
     sensitive route =
-        route `elem` ["transaction-context", "transaction-witnesses"]
+        route
+            `elem` [ "transaction-context"
+                   , "transaction-witnesses"
+                   , "data-signatures"
+                   ]
 
 -- | Run an action with a TCP socket bound to a port specified by the `Listen`
 -- parameter.
