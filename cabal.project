@@ -53,7 +53,7 @@ index-state: 2026-08-14T13:38:07Z
 
 index-state:
   , hackage.haskell.org 2026-08-14T13:38:07Z
-  , cardano-haskell-packages 2026-09-03T10:20:53Z
+  , cardano-haskell-packages 2026-09-23T18:57:23Z
 
 packages:
   lib/address-derivation-discovery
@@ -125,8 +125,8 @@ source-repository-package
 source-repository-package
   type: git
   location: https://github.com/cardano-foundation/cardano-ledger-read
-  tag: ad4a0d5df468769b30e54e1ab215a9146333721a
-  --sha256: 0lz9z61fmlh7qa7v52apqxg8ya8a98fq90g97spvib4767fln9l3
+  tag: ced4673368183173b915aa517f486fa766a0b424
+  --sha256: 0q8k07vwmcx44j2brf73r7qm7hcm2iny4ibynzx0lpb4l9fa51lc
 
 -- END cardano-ledger-read
 --------------------------------------------------------------------------------
@@ -137,8 +137,8 @@ source-repository-package
 source-repository-package
   type: git
   location: https://github.com/cardano-foundation/cardano-balance-transaction
-  tag: 6ec3c4d2b3185827e9bd6d1c30e666e1c6056da8
-  --sha256: 1ak1wvw01adygvnv7hysnvrl8xywrbczllznqsdqvkmkv4qlk2gv
+  tag: 897577325745729552495a9add56c713630c497e
+  --sha256: 1qdhdz3k2nc87xz2gqriy4yvmch8r2jb1g096skwvarkk1y96ykm
 
 -- END cardano-balance-tx
 --------------------------------------------------------------------------------
@@ -180,11 +180,11 @@ constraints:
   , cardano-crypto-praos ==2.2.4.0
   , cardano-crypto-wrapper ==1.7.0.0
   , cardano-data ==1.3.1.0
-  , cardano-ledger-allegra ==1.10.0.0
+  , cardano-ledger-allegra ==1.10.1.0
   , cardano-ledger-alonzo ==1.16.0.0
   , cardano-ledger-api ==1.14.0.0
   , cardano-ledger-babbage ==1.14.0.0
-  , cardano-ledger-binary ==1.9.0.0
+  , cardano-ledger-binary ==1.9.1.0
   , cardano-ledger-byron ==1.3.0.0
   , cardano-ledger-conway ==1.23.0.0
   , cardano-ledger-core ==1.21.0.0
@@ -192,7 +192,7 @@ constraints:
   , cardano-ledger-shelley ==1.19.0.1
   , cardano-prelude ==0.2.2.0
   , cardano-protocol-tpraos ==1.6.0.0
-  , cardano-slotting ==0.2.1.0
+  , cardano-slotting ==0.2.2.0
   , cardano-strict-containers ==0.1.6.0
   , cardano-diffusion ==1.1.1.0
   , io-classes ==1.8.0.1
@@ -206,9 +206,9 @@ constraints:
   , small-steps ==1.1.4.0
   , vector-map ==1.2.1.0
   , mempack ==0.2.1.0
-  , plutus-core ==1.65.0.0
-  , plutus-ledger-api ==1.65.0.0
-  , plutus-tx ==1.65.0.0
+  , plutus-core ==1.70.0.0
+  , plutus-ledger-api ==1.70.0.0
+  , plutus-tx ==1.70.0.0
 
   -- Keep the TLS chain current. Nothing in the cardano-node 11.1.1 pin set
   -- requires an old tls, but with no lower bound the solver settled on
