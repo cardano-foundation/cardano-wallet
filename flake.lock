@@ -3,11 +3,11 @@
     "CHaP": {
       "flake": false,
       "locked": {
-        "lastModified": 1788439818,
-        "narHash": "sha256-+sjKSr1tFhiLrxhplOOToCjXMyWZV4ZbvYOdkqwHzBg=",
+        "lastModified": 1790191427,
+        "narHash": "sha256-4ubg44mIo99VnGF7zH0GCGL4ty8ruW1dzDF8OsrX9Yk=",
         "owner": "intersectmbo",
         "repo": "cardano-haskell-packages",
-        "rev": "95889113a879bc92976bba48cf743bd78f99710f",
+        "rev": "6eb65fb4b6efe04ff586ad807ae022a36523e6af",
         "type": "github"
       },
       "original": {
@@ -20,11 +20,11 @@
     "CHaP_2": {
       "flake": false,
       "locked": {
-        "lastModified": 1788439818,
-        "narHash": "sha256-+sjKSr1tFhiLrxhplOOToCjXMyWZV4ZbvYOdkqwHzBg=",
+        "lastModified": 1790191427,
+        "narHash": "sha256-4ubg44mIo99VnGF7zH0GCGL4ty8ruW1dzDF8OsrX9Yk=",
         "owner": "intersectmbo",
         "repo": "cardano-haskell-packages",
-        "rev": "95889113a879bc92976bba48cf743bd78f99710f",
+        "rev": "6eb65fb4b6efe04ff586ad807ae022a36523e6af",
         "type": "github"
       },
       "original": {
@@ -310,16 +310,16 @@
         "utils": "utils_2"
       },
       "locked": {
-        "lastModified": 1788497980,
-        "narHash": "sha256-CtK+wqJag1WAFLjEj9dEWenughnPSfm4qAihvTE7xHg=",
+        "lastModified": 1790286962,
+        "narHash": "sha256-2ra+PXU9/rfXaDzO8RrU1bF9dTQ2UmeCOijIuJd8Gs8=",
         "owner": "IntersectMBO",
         "repo": "cardano-node",
-        "rev": "c2ebdc87dfe07706a83e52f219e712c60d1b0a56",
+        "rev": "938cba990357ae7c4b7f95c8f75dd9d31174bbeb",
         "type": "github"
       },
       "original": {
         "owner": "IntersectMBO",
-        "ref": "11.1.1",
+        "ref": "11.1.3",
         "repo": "cardano-node",
         "type": "github"
       }
@@ -1742,11 +1742,11 @@
         "sodium": "sodium_2"
       },
       "locked": {
-        "lastModified": 1787718550,
-        "narHash": "sha256-Wkevfb7P201JHWpP4sbSg3HEO4YDPuCrwvARatfF2RI=",
+        "lastModified": 1790286057,
+        "narHash": "sha256-ChMZHexsinJn+tlhpvnFnAJcNha4B7TwXtQ+faPDLsY=",
         "owner": "input-output-hk",
         "repo": "iohk-nix",
-        "rev": "af463a46dbe9c6e2db6b2639c0f35f5689e0c3a8",
+        "rev": "74bae4f8427769ac0952b245b362f9e05520170c",
         "type": "github"
       },
       "original": {
