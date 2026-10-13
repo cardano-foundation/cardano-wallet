@@ -39,4 +39,6 @@ Before you submit, don't forget to:
   To close a GitHub issue when this PR is merged, use an explicit closing reference:
   Closes #123
   Fixes #123
+  If this PR is only one step of the issue, use Part of #123 (or Towards #123):
+  the issue is referenced but not closed. Put Closes on the final PR of the issue.
 -->

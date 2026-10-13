@@ -26,6 +26,9 @@ import Cardano.Ledger.Coin
 import Cardano.Ledger.Mary.Value
     ( MaryValue (..)
     )
+import Cardano.Read.Ledger.Eras
+    ( Era (..)
+    )
 import Cardano.Read.Ledger.Tx.Outputs
     ( Outputs (..)
     , getEraOutputs
@@ -145,6 +148,12 @@ import Data.Foldable
 import Data.Map.Strict
     ( Map
     )
+import Data.Maybe
+    ( fromMaybe
+    )
+import Data.Sequence.Strict
+    ( fromList
+    )
 import Data.Set
     ( Set
     )
@@ -168,6 +177,10 @@ import Test.Hspec
     )
 import Test.QuickCheck
     ( generate
+    , property
+    , tabulate
+    , (.&&.)
+    , (===)
     )
 import UnliftIO.Async
     ( async
@@ -184,10 +197,12 @@ import qualified Cardano.Chain.UTxO as Byron
 import qualified Cardano.Ledger.Address as SL
 import qualified Cardano.Ledger.Alonzo.TxOut as Alonzo
 import qualified Cardano.Ledger.Babbage.TxOut as Babbage
+import qualified Cardano.Ledger.Core as LC
 import qualified Cardano.Ledger.Shelley as SL
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Wallet.Network.Implementation as NL
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
+import qualified Data.ByteString as BS
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Streaming.Prelude as S
@@ -228,6 +243,24 @@ noFunds = FaucetFunds [] [] []
 
 spec :: Spec
 spec = do
+    describe "txOutFromOutput" $ do
+        let addr =
+                fromMaybe (error "test ledger address is well-formed")
+                    $ SL.decodeAddr
+                    $ BS.pack (0x01 : replicate 28 0x11 ++ replicate 28 0x22)
+            val = MaryValue (Coin 42) mempty
+            outputsFor :: Era era -> Outputs era
+            outputsFor tag = case tag of
+                Conway -> Outputs (fromList [LC.mkBasicTxOut addr val])
+                Dijkstra -> Outputs (fromList [LC.mkBasicTxOut addr val])
+                _ -> error "outputsFor: era not exercised by this test"
+        it "converts Dijkstra outputs exactly like Conway"
+            $ property
+            $ tabulate "era evaluated" ["Conway", "Dijkstra"]
+            $ let expected = [TxOut (SL.serialiseAddr addr) 42]
+              in  txOutFromOutput (outputsFor Conway) === expected
+                    .&&. txOutFromOutput (outputsFor Dijkstra) === expected
+
     describe "withService control" $ do
         it "can start" $ do
             testService Step $ \_ _ -> pure ()
@@ -459,9 +492,21 @@ txOutFromOutput = case theEra :: Era era of
     Mary -> \(Outputs os) -> fromMaryTxOut <$> toList os
     Alonzo -> \(Outputs os) -> fromAlonzoTxOut <$> toList os
     Babbage -> \(Outputs os) -> fromBabbageTxOut <$> toList os
-    Conway -> \(Outputs os) -> fromConwayTxOut <$> toList os
-    Dijkstra -> error "txOutFromOutput: DijkstraEra not yet supported"
+    Conway -> \(Outputs os) -> fromBabbageLikeTxOut <$> toList os
+    Dijkstra -> \(Outputs os) -> fromBabbageLikeTxOut <$> toList os
   where
+    -- Every era from Babbage onwards shares the Babbage output shape, so one
+    -- local conversion serves them: only the serialised address and the coin
+    -- survive; datums and reference scripts are dropped.
+    fromBabbageLikeTxOut
+        :: ( LC.EraTxOut era
+           , LC.Value era ~ MaryValue
+           )
+        => Babbage.BabbageTxOut era
+        -> TxOut
+    fromBabbageLikeTxOut (Babbage.BabbageTxOut addr (MaryValue (Coin amount) _) _ _) =
+        TxOut (SL.serialiseAddr addr) amount
+
     fromByronTxOut :: Byron.TxOut -> TxOut
     fromByronTxOut (Byron.TxOut addr amount) =
         TxOut (serialize' addr) (fromIntegral $ unsafeGetLovelace amount)
@@ -484,10 +529,5 @@ txOutFromOutput = case theEra :: Era era of
 
     fromBabbageTxOut :: Babbage.BabbageTxOut Babbage -> TxOut
     fromBabbageTxOut
-        (Babbage.BabbageTxOut addr (MaryValue (Coin amount) _) _ _) =
-            TxOut (SL.serialiseAddr addr) amount
-
-    fromConwayTxOut :: Babbage.BabbageTxOut Conway -> TxOut
-    fromConwayTxOut
         (Babbage.BabbageTxOut addr (MaryValue (Coin amount) _) _ _) =
             TxOut (SL.serialiseAddr addr) amount

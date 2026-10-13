@@ -1045,9 +1045,8 @@ txConstraints protocolParams witnessTag =
         -> Write.TxOut era
     mkLedgerTxOut address bundle =
         case era of
-            Write.RecentEraConway -> Convert.toConwayTxOut txOut
-            Write.RecentEraDijkstra ->
-                error "mkLedgerTxOut: Dijkstra era not yet supported"
+            Write.RecentEraConway -> Convert.toBabbageTxOutInEra txOut
+            Write.RecentEraDijkstra -> Convert.toBabbageTxOutInEra txOut
       where
         txOut = TxOut address bundle
 

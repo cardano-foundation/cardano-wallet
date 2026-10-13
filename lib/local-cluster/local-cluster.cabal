@@ -1,6 +1,6 @@
 cabal-version: 3.6
 name:          local-cluster
-version:       2026.8.21
+version:       2026.9.16
 synopsis:      Local cluster of cardano nodes
 homepage:      https://github.com/cardano-foundation/cardano-wallet
 license:       Apache-2.0
@@ -241,6 +241,7 @@ common test-common
     , cardano-ledger-mary
     , cardano-ledger-read
     , cardano-ledger-shelley
+    , cardano-strict-containers
     , cardano-wallet-launcher
     , cardano-wallet-network-layer
     , cardano-wallet-primitive

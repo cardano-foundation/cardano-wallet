@@ -127,6 +127,7 @@ module Cardano.Wallet
     , ErrAddCosignerKey (..)
     , ErrConstructSharedWallet (..)
     , normalizeSharedAddress
+    , utxoIndexFromWalletUTxO
     , constructUnbalancedSharedTransaction
 
       -- ** Address
@@ -4860,9 +4861,8 @@ utxoIndexFromWalletUTxO
 utxoIndexFromWalletUTxO utxo =
     Write.constructUTxOIndex
         $ case Write.recentEra :: Write.RecentEra era of
-            Write.RecentEraConway -> Convert.toLedgerUTxOConway utxo
-            Write.RecentEraDijkstra ->
-                error "utxoIndexFromWalletUTxO: Dijkstra era not yet supported"
+            Write.RecentEraConway -> Convert.toLedgerUTxOInEra utxo
+            Write.RecentEraDijkstra -> Convert.toLedgerUTxOInEra utxo
 
 {-------------------------------------------------------------------------------
                                    Errors
