@@ -1450,6 +1450,14 @@ ledgerScriptWitnessParitySpec' eraW =
                 `shouldBe` (new ^. bodyTxL . mintTxBodyL)
             shouldHaveBodyParity eraW sel ws emptyCtx
 
+        it "8. same-policy mint: reference source then inline source" $ do
+            let (sel, ws) = samePolicyMixedMint 2 1
+            shouldHaveBodyParity eraW sel ws emptyCtx
+
+        it "9. same-policy mint: inline source then reference source" $ do
+            let (sel, ws) = samePolicyMixedMint 1 2
+            shouldHaveBodyParity eraW sel ws emptyCtx
+
         prop "prop_buildLedgerTx_matches_cardanoApi_on_script_witnesses"
             $ withMaxSuccess 100
             $ forAll genParityCase
@@ -1660,7 +1668,14 @@ parityMintValue sel ws =
                 (toCardanoPolicyId (policyId aid))
                 (assets, wit)
             ]
-    merge (a1, w) (a2, _) = (a1 <> a2, w)
+    merge (a1, w1) (a2, w2) = (a1 <> a2, preferInline w1 w2)
+    preferInline w1 w2 =
+        case (isInline w1, isInline w2) of
+            (False, True) -> w2
+            _ -> w1
+    isInline w = case w of
+        AnyScriptWitnessSimple (SScript _) -> True
+        _ -> False
 
 -- | Build the new ledger body via buildLedgerTx (extended with ScriptWitnesses).
 buildNewParityTx
@@ -2230,6 +2245,35 @@ mkAsset policyByte assetByte =
     AssetId
         (UnsafeTokenPolicyId $ Hash $ BS.pack $ replicate 28 policyByte)
         (UnsafeAssetName $ BS.pack [assetByte])
+
+-- | Two mint assets on one policy: inline script and a reference
+-- input. Asset-name bytes set TokenMap.toFlatList order.
+samePolicyMixedMint
+    :: Word8
+    -> Word8
+    -> (SelectionOf TxOut, ScriptWitnesses)
+samePolicyMixedMint inlineAsset refAsset =
+    let script = mkScript 81
+        aidInline = mkAsset 0x43 inlineAsset
+        aidRef = mkAsset 0x43 refAsset
+        refIn = TxIn dummyTxId 161
+        sel =
+            (mkSimpleSelection (Coin 10_000_000) [mkOut 1 2_000_000])
+                { assetsToMint =
+                    TokenMap.fromFlatList
+                        [ (aidInline, TokenQuantity 5)
+                        , (aidRef, TokenQuantity 3)
+                        ]
+                }
+        ws =
+            noScriptWitnesses
+                { swMintingSources =
+                    Map.fromList
+                        [ (aidInline, Left script)
+                        , (aidRef, Right (ReferenceInput refIn))
+                        ]
+                }
+    in  (sel, ws)
 
 mkOut :: Word8 -> Word64 -> TxOut
 mkOut idx coins = TxOut (dummyAddress idx) (coinToBundle coins)

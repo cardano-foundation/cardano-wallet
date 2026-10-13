@@ -20,7 +20,7 @@
       then repoint `reviewResponseTx` at F2 and delete the legacy arm and any
       helper it orphans.
 - [x] T7 Point `shouldHaveBodyParity` and `propParity` at F1.
-- [x] T8 GREEN: all enumerated scenarios and the property pass. Any scenario
+- [ ] T8 GREEN: all enumerated scenarios and the property pass. Any scenario
       that cannot agree is reported, not softened.
 - [x] T9 Re-run T4's perturbation and capture the red.
 
@@ -28,4 +28,4 @@
 
 - [x] T10 Closure gate green; record all three rows; lower any `MAX` that falls.
 - [x] T11 `git diff --name-only` shows no `lib/integration/**` path.
-- [x] T12 #5288 criteria 1, 2, 4, 5, 6 each checked, with the command per row.
+- [ ] T12 #5288 criteria 1, 2, 4, 5, 6 each checked, with the command per row.
