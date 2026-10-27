@@ -34,6 +34,9 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
+import Cardano.Wallet.Primitive.Types.DRep
+    ( DRepKeyHash
+    )
 import Cardano.Wallet.Transaction
     ( DelegationAction
     )
@@ -95,6 +98,15 @@ data Context = Context
     -- cardano-wallet:integration, or when the wallet supports minting.
     --
     -- Cannot be used by several tests at a time. (!)
+    , _registerNewDRep :: IO DRepKeyHash
+    -- ^ Generate DRep keys on the local cluster and register the DRep.
+    -- Returns once the ledger holds the registration.
+    , _registerDRep :: DRepKeyHash -> IO ()
+    -- ^ Register a DRep made by '_registerNewDRep' again, after
+    -- '_retireDRep'. Returns once the ledger holds the registration.
+    , _retireDRep :: DRepKeyHash -> IO ()
+    -- ^ Retire a DRep made by '_registerNewDRep'. Returns once the ledger
+    -- no longer holds the DRep.
     , _preprodWallets
         :: [WalletId]
     -- ^ Only non-empty when when running against preprod.

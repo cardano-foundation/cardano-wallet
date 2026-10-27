@@ -155,6 +155,9 @@ import Cardano.Wallet.Primitive.Ledger.Convert
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException
     )
+import Cardano.Wallet.Primitive.Types.DRep
+    ( DRep (..)
+    )
 import Cardano.Wallet.Primitive.Types.MetadataEncryption
     ( ErrMetadataDecryption (..)
     , ErrMetadataEncryption (..)
@@ -505,10 +508,13 @@ instance IsServerError ErrConstructTx where
         ErrConstructTxWithdrawalWithoutVoting ->
             apiError err403 WithdrawalNotPossibleWithoutVote
                 $ mconcat
-                    [ "I cannot construct a transaction that contains withdrawals "
-                    , "if the wallet is not voting in the Conway era onwards. "
-                    , "Please delegate again (in that case, the wallet will automatically vote to abstain), "
-                    , "or make a vote transaction before the withdrawal transaction."
+                    [ "I cannot build a transaction that withdraws rewards, "
+                    , "because the ledger holds no vote delegation for the "
+                    , "wallet's reward account. This is the case for a wallet "
+                    , "that never voted, and for a wallet whose DRep has "
+                    , "retired. Please delegate the vote to a DRep, to "
+                    , "'abstain' or to 'no_confidence', and wait until that "
+                    , "transaction is in the ledger before withdrawing."
                     ]
         ErrConstructTxFromMetadataEncryption ErrIncorrectRawMetadata ->
             apiError err403 InvalidMetadataEncryption
@@ -985,6 +991,17 @@ instance IsServerError ErrCannotVote where
                 $ mconcat
                     [ "I couldn't cast a vote. "
                     , "Voting is not available before the Conway era."
+                    ]
+        ErrDRepNotRegistered drep ->
+            apiError err404 NotFound
+                $ mconcat
+                    [ "I couldn't delegate the vote to "
+                    , toText (FromDRepID drep)
+                    , ": the ledger holds no registered DRep with this "
+                    , "identifier, and it refuses a vote delegation to an "
+                    , "unregistered DRep. A DRep that has retired is no longer "
+                    , "registered. Delegate the vote to a registered DRep, "
+                    , "to abstain or to no_confidence."
                     ]
 
 instance IsServerError ErrCannotQuit where

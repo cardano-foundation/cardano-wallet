@@ -15,6 +15,7 @@ module Cardano.Wallet.Primitive.Types.DRep
     , DRepMetadata (..)
     , DRepMetaReference (..)
     , DRepSummary (..)
+    , VoteDelegation (..)
     , encodeDRepIDBech32
     , decodeDRepIDBech32
     , fstByteDRepKeyHash
@@ -168,6 +169,21 @@ instance FromText DRep where
 
 instance Buildable DRep where
     build = build . toText
+
+-- | The vote delegation that the ledger holds for a reward account.
+data VoteDelegation
+    = -- | The ledger holds no vote delegation for the account. An account
+      -- whose stake key is not registered has none.
+      VoteNotDelegated
+    | -- | The account delegates its vote to a DRep, to 'Abstain' or to
+      -- 'NoConfidence'.
+      VoteDelegatedTo DRep
+    deriving (Eq, Generic, Show, Ord)
+    deriving anyclass (NFData)
+
+instance Buildable VoteDelegation where
+    build VoteNotDelegated = "not delegated"
+    build (VoteDelegatedTo drep) = build drep
 
 data DRepAnchor = DRepAnchor
     { drepAnchorUrl :: !Text

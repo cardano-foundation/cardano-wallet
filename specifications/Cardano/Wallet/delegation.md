@@ -9,7 +9,11 @@ A user can
 * delegate their funds to a stake pool ("**staking**") in order to earn rewards from **block production**.
 * delegate their **voting** power (one ADA = one vote) to a decentralized representative (DRep) in order to participate in **governance**.
 
-These two statuses are coupled: A user who delegates funds to a stake pool, but does not delegate their voting power to a DRep, will not be able to withdraw the rewards earned from delegation. This restriction is meant to incentivize user participation in governance.
+These two statuses are coupled: from protocol version 10 the ledger rejects a withdrawal from a key-hash reward account that holds no vote delegation, whatever the amount (rule `ConwayWdrlNotDelegatedToDRep`). A user who delegates funds to a stake pool, but does not delegate their voting power, will not be able to withdraw the rewards earned from delegation. This restriction is meant to incentivize user participation in governance.
+
+The vote delegation that satisfies the rule is a delegation to a DRep, to the pre-defined option _abstain_, or to the pre-defined option _no confidence_. During the Conway bootstrap phase (protocol version 9) the rule does not apply. It never applies to a script-hash reward account, which is the reward account of a shared wallet.
+
+The wallet decides each withdrawal from the vote delegation that the ledger holds for the reward account, which it reads from the node at every tip. The wallet's own history of certificates is the fallback only until the first read. The two can differ: a vote delegation made outside the wallet is in the ledger and not in the history, and the retirement of a DRep removes the vote delegation of every reward account delegated to it, which the history does not record.
 
 Voting is the defining new feature of the Conway era, specified in [CIP-1694][cip-1694].
 
@@ -90,7 +94,7 @@ Each delegation certificate that is sent to the blockchain can induce a status t
 3. _vote_ : delegate voting power to a rep
 4. _delegateAndVote_ : simultaneously delegate stake to a stake pool identifier and delegate voting power to a rep
 
-The following diagrams shows the last four transitions, which move the status to an active status. Note that _voting_ and _staking_ are "sticky": Once the wallet is delegating to a stake pool, or delegating its voting power, the only way to undo this status is to _deregister_ the reward account.
+The following diagrams shows the last four transitions, which move the status to an active status. Note that _voting_ and _staking_ are "sticky" in the wallet's history: Once the wallet is delegating to a stake pool, or delegating its voting power, the only way to undo this status in the history is to _deregister_ the reward account. The ledger can undo a vote delegation without a certificate of the wallet: when the DRep retires, the ledger removes the vote delegation of every reward account delegated to it, and the wallet's history still shows the vote until the wallet delegates its vote again.
 
 ```mermaid
 stateDiagram

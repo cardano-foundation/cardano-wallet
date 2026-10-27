@@ -1,4 +1,5 @@
-# Typecheck the formal delegation model of issue #5350 with a pinned Agda.
+# Typecheck the formal delegation model of issues #5350 and #5466 with a
+# pinned Agda.
 #
 # `specifications/Cardano/Wallet/Delegation.agda` is library-free: it imports
 # nothing, so this check needs no Agda library set, no agda2hs, and no
@@ -26,6 +27,11 @@ pkgs.runCommand "delegation-agda"
     export AGDA_DIR="$NIX_BUILD_TOP/agda"
     mkdir -p "$AGDA_DIR"
     mkdir -p "$out"
+
+    # The sandbox locale cannot encode the model's Unicode, so Agda would
+    # abort while printing an error and leave only its first lines in each
+    # mutant's log. Agda reads its output encoding from the locale.
+    export LC_ALL=C.UTF-8
 
     relative=Cardano/Wallet/Delegation.agda
 
@@ -90,7 +96,27 @@ pkgs.runCommand "delegation-agda"
       '  chooseVote True = SameVote' \
       '  chooseVote True = DifferentVote'
 
+    mutate AGDA-5466-WDRL-LEDGER \
+      'withdrawalDecision PostBootstrap KeyHashCred NoDelegation history = False' \
+      'withdrawalDecision PostBootstrap KeyHashCred NoDelegation history = True'
+
+    mutate AGDA-5466-WDRL-EXEMPT \
+      'withdrawalDecision Bootstrap credKind ledgerVote history = True' \
+      'withdrawalDecision Bootstrap credKind ledgerVote history = False'
+
+    mutate AGDA-5466-WDRL-UNREAD \
+      'withdrawalDecision PostBootstrap KeyHashCred Unread history = isJust history' \
+      'withdrawalDecision PostBootstrap KeyHashCred Unread history = True'
+
+    mutate AGDA-5466-VOTE-LEDGER \
+      '  ledgerVoteDecision t (DelegatedTo d) dlg = decideAgainst t (Just d)' \
+      '  ledgerVoteDecision t (DelegatedTo d) dlg = voteDecision t dlg'
+
+    mutate AGDA-5466-VOTE-UNREAD \
+      '  ledgerVoteDecision t Unread dlg = voteDecision t dlg' \
+      '  ledgerVoteDecision t Unread dlg = DifferentVote'
+
     cp "model/$relative" "$out/Delegation.agda"
     agda --version > "$out/agda-version.txt"
-    echo "delegation-agda: model typechecks, all 4 law mutations rejected"
+    echo "delegation-agda: model typechecks, all 9 law mutations rejected"
   ''

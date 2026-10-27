@@ -651,10 +651,11 @@
           # Heinrich: I don't quite understand the 'checks' attribute. See also
           # https://www.reddit.com/r/NixOS/comments/x5cjmz/comment/in0qqm6/?utm_source=share&utm_medium=web2x&context=3
           checks = packages.checks // {
-            # Formal delegation model of issue #5350. Uses the plain,
-            # overlay-free nixpkgs so that the pinned Agda is a cache hit;
-            # the model itself is library-free.
-            # See specs/5350-redelegate-previous-drep/.
+            # Formal delegation model of issues #5350 and #5466. Uses the
+            # plain, overlay-free nixpkgs so that the pinned Agda is a cache
+            # hit; the model itself is library-free.
+            # See specs/5350-redelegate-previous-drep/ and
+            # specs/5466-ledger-vote-delegation/.
             delegation-agda = import ./nix/delegation-agda.nix {
               pkgs = nixpkgs-unstable.legacyPackages.${system};
               model = ./specifications/Cardano/Wallet/Delegation.agda;

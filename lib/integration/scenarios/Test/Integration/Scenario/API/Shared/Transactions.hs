@@ -198,6 +198,7 @@ import Test.Integration.Framework.DSL
     , postWallet
     , request
     , sharedAccPubKeyFromMnemonics
+    , shouldHaveDelegationHistory
     , signSharedTx
     , submitSharedTxWithWid
     , toQueryString
@@ -2553,13 +2554,17 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 request @ApiWallet ctx (Link.getWallet @'Shared party1) Default Empty
                     >>= flip
                         verify
-                        [ expectField #delegation (`shouldBe` delegating (ApiT pool1) [])
+                        [ expectField
+                            #delegation
+                            (`shouldHaveDelegationHistory` delegating (ApiT pool1) [])
                         ]
             eventually "party2: Wallet is delegating to pool1" $ do
                 request @ApiWallet ctx (Link.getWallet @'Shared party2) Default Empty
                     >>= flip
                         verify
-                        [ expectField #delegation (`shouldBe` delegating (ApiT pool1) [])
+                        [ expectField
+                            #delegation
+                            (`shouldHaveDelegationHistory` delegating (ApiT pool1) [])
                         ]
 
             -- <-- 1st boundary (A+2 / A+3)
@@ -2697,13 +2702,17 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 request @ApiWallet ctx (Link.getWallet @'Shared party1) Default Empty
                     >>= flip
                         verify
-                        [ expectField #delegation (`shouldBe` delegating (ApiT pool2) [])
+                        [ expectField
+                            #delegation
+                            (`shouldHaveDelegationHistory` delegating (ApiT pool2) [])
                         ]
             eventually "party2: Wallet is delegating to pool2" $ do
                 request @ApiWallet ctx (Link.getWallet @'Shared party2) Default Empty
                     >>= flip
                         verify
-                        [ expectField #delegation (`shouldBe` delegating (ApiT pool2) [])
+                        [ expectField
+                            #delegation
+                            (`shouldHaveDelegationHistory` delegating (ApiT pool2) [])
                         ]
 
             eventually "Party1's wallet has joined another pool" $ do
@@ -2942,13 +2951,17 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 request @ApiWallet ctx (Link.getWallet @'Shared party1) Default Empty
                     >>= flip
                         verify
-                        [ expectField #delegation (`shouldBe` notDelegating [])
+                        [ expectField
+                            #delegation
+                            (`shouldHaveDelegationHistory` notDelegating [])
                         ]
             eventually "party2: Wallet is not delegating" $ do
                 request @ApiWallet ctx (Link.getWallet @'Shared party2) Default Empty
                     >>= flip
                         verify
-                        [ expectField #delegation (`shouldBe` notDelegating [])
+                        [ expectField
+                            #delegation
+                            (`shouldHaveDelegationHistory` notDelegating [])
                         ]
 
             waitNumberOfEpochBoundaries 2 ctx
@@ -3266,7 +3279,9 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                     Empty
                     >>= flip
                         verify
-                        [ expectField #delegation (`shouldBe` delegating (ApiT pool1) [])
+                        [ expectField
+                            #delegation
+                            (`shouldHaveDelegationHistory` delegating (ApiT pool1) [])
                         ]
             eventually "Shared Wallet 2 is delegating to pool2" $ do
                 request @ApiWallet
@@ -3276,7 +3291,9 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                     Empty
                     >>= flip
                         verify
-                        [ expectField #delegation (`shouldBe` delegating (ApiT pool2) [])
+                        [ expectField
+                            #delegation
+                            (`shouldHaveDelegationHistory` delegating (ApiT pool2) [])
                         ]
 
             waitNumberOfEpochBoundaries 4 ctx

@@ -128,6 +128,7 @@ test-suite unit
   build-depends:
     , base
     , bytestring
+    , cardano-ledger-core
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
     , cardano-wallet-read
@@ -144,3 +145,5 @@ test-suite unit
   other-modules:
     Cardano.Wallet.Network.Checkpoints.PolicySpec
     Cardano.Wallet.Network.LightSpec
+    Cardano.Wallet.Network.LocalStateQuery.DRepsSpec
+    Cardano.Wallet.Network.LocalStateQuery.RewardAccountSpec

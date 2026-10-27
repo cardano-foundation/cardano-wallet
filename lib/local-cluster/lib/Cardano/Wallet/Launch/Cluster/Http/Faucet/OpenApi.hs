@@ -5,6 +5,7 @@ module Cardano.Wallet.Launch.Cluster.Http.Faucet.OpenApi
     ( faucetDefinitions
     , faucetPaths
     , sendAssetsSchema
+    , clusterDRepSchema
     ) where
 
 import Control.Lens
@@ -25,6 +26,8 @@ import Data.OpenApi
     , HasParameters (..)
     , HasPost (..)
     , HasProperties (..)
+    , HasRequestBody (..)
+    , HasRequired (..)
     , HasSchema (..)
     , HasSummary (..)
     , HasType (..)
@@ -35,9 +38,13 @@ import Data.OpenApi
     , PathItem
     , Reference (..)
     , Referenced (..)
+    , RequestBody
     , Response
     , Schema
     , _Inline
+    )
+import Data.Text
+    ( Text
     )
 import Network.HTTP.Media
     ( MediaType
@@ -47,6 +54,7 @@ import Prelude
 faucetDefinitions :: Definitions Schema
 faucetDefinitions =
     [ ("SendAssets", sendAssetsSchema)
+    , ("ClusterDRep", clusterDRepSchema)
     ]
 
 sendAssetsSchema :: Schema
@@ -128,8 +136,24 @@ assetNameSchema =
                , ("policy", Inline $ mempty & type_ ?~ OpenApiString)
                ]
 
+-- | A DRep whose keys the local cluster holds, named by the hash of its
+-- verification key.
+clusterDRepSchema :: Schema
+clusterDRepSchema =
+    mempty
+        & type_ ?~ OpenApiObject
+        & required .~ ["key_hash"]
+        & properties
+            .~ [ ("key_hash", Inline $ mempty & type_ ?~ OpenApiString)
+               ]
+
 faucetPaths :: InsOrdHashMap FilePath PathItem
-faucetPaths = [sendFaucetAssetsPath]
+faucetPaths =
+    [ sendFaucetAssetsPath
+    , registerNewDRepPath
+    , registerDRepPath
+    , retireDRepPath
+    ]
 
 sendFaucetAssetsPath :: (FilePath, PathItem)
 sendFaucetAssetsPath = ("/send/assets", pathItem)
@@ -156,3 +180,54 @@ sendFaucetAssetsPath = ("/send/assets", pathItem)
         "No Content"
             & _Inline . content . at ("application/json" :: MediaType)
                 ?~ mempty
+
+registerNewDRepPath :: (FilePath, PathItem)
+registerNewDRepPath = ("/drep/register-new", pathItem)
+  where
+    pathItem :: PathItem
+    pathItem = mempty & post ?~ operation
+    operation :: Operation
+    operation =
+        mempty
+            & summary
+                ?~ "Generate DRep keys and register the DRep, \
+                   \returning once the ledger holds the registration"
+            & at 200 ?~ at200
+    at200 :: Referenced Response
+    at200 =
+        "Ok"
+            & _Inline . content . at ("application/json" :: MediaType)
+                ?~ (mempty & schema ?~ Ref (Reference "ClusterDRep"))
+
+registerDRepPath :: (FilePath, PathItem)
+registerDRepPath =
+    clusterDRepPath
+        "/drep/register"
+        "Register a DRep whose keys the cluster holds, \
+        \returning once the ledger holds the registration"
+
+retireDRepPath :: (FilePath, PathItem)
+retireDRepPath =
+    clusterDRepPath
+        "/drep/retire"
+        "Retire a DRep whose keys the cluster holds, \
+        \returning once the ledger no longer holds the DRep"
+
+clusterDRepPath :: FilePath -> Text -> (FilePath, PathItem)
+clusterDRepPath path summary' = (path, pathItem)
+  where
+    pathItem :: PathItem
+    pathItem = mempty & post ?~ operation
+    operation :: Operation
+    operation =
+        mempty
+            & summary ?~ summary'
+            & requestBody ?~ Inline body
+            & at 204 ?~ at204
+    body :: RequestBody
+    body =
+        mempty
+            & content . at ("application/json" :: MediaType)
+                ?~ (mempty & schema ?~ Ref (Reference "ClusterDRep"))
+    at204 :: Referenced Response
+    at204 = Inline "No Content"

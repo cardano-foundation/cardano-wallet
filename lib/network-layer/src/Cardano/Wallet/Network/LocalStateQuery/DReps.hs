@@ -9,6 +9,9 @@
 -- Local state queries for DRep registry data (Conway era and later).
 module Cardano.Wallet.Network.LocalStateQuery.DReps
     ( listDReps
+    , isDRepRegistered
+    , credToDRepID
+    , drepIDToCred
     ) where
 
 import Cardano.Ledger.BaseTypes
@@ -46,6 +49,7 @@ import Cardano.Wallet.Primitive.Types.DRep
     )
 import Data.ByteString.Short
     ( fromShort
+    , toShort
     )
 import Data.Map.Strict
     ( Map
@@ -105,6 +109,36 @@ drepQuery = do
     distr <- LSQry (Shelley.GetDRepStakeDistr Set.empty)
     pure $ Map.foldrWithKey (buildEntry epochNo distr) [] states
 
+-- | Whether the ledger holds a DRep as registered.
+--
+-- Sends 'Shelley.GetDRepState' with the DRep's credential only, because an
+-- empty set of credentials returns the state of every DRep. The answer is
+-- whether the credential is a key of the ledger's DRep map, which is the
+-- condition under which the ledger accepts a vote delegation to the DRep. A
+-- registered DRep past its expiry epoch is therefore registered.
+--
+-- Returns 'Nothing' when the connected node is running a pre-Conway era.
+isDRepRegistered :: DRepID -> LSQ' (Maybe Bool)
+isDRepRegistered drepId =
+    onAnyEra
+        (pure Nothing) -- Byron
+        (pure Nothing) -- Shelley
+        (pure Nothing) -- Allegra
+        (pure Nothing) -- Mary
+        (pure Nothing) -- Alonzo
+        (pure Nothing) -- Babbage
+        (Just <$> registrationQuery) -- Conway
+        (Just <$> registrationQuery) -- Dijkstra
+  where
+    credential = drepIDToCred drepId
+
+    registrationQuery
+        :: (ConwayEraGov era, ConwayEraCertState era)
+        => LSQ (Shelley.ShelleyBlock proto era) IO Bool
+    registrationQuery =
+        Map.member credential
+            <$> LSQry (Shelley.GetDRepState (Set.singleton credential))
+
 buildEntry
     :: EpochNo
     -> Map Ledger.DRep Coin
@@ -132,6 +166,7 @@ buildEntry (EpochNo currentEpoch) distr cred DRepState{..} acc =
                         }
             in  reg : acc
 
+-- | The 'DRepID' of a ledger DRep credential.
 credToDRepID
     :: SL.Credential SL.DRepRole
     -> Maybe DRepID
@@ -148,6 +183,14 @@ credToDRepID = \case
             $ DRepScriptHash
             $ fromShort
             $ Crypto.hashToBytesShort h
+
+-- | The ledger credential of a 'DRepID'; the inverse of 'credToDRepID'.
+drepIDToCred :: DRepID -> SL.Credential SL.DRepRole
+drepIDToCred = \case
+    DRepFromKeyHash (DRepKeyHash h) ->
+        SL.KeyHashObj $ SL.KeyHash $ Crypto.UnsafeHash $ toShort h
+    DRepFromScriptHash (DRepScriptHash h) ->
+        SL.ScriptHashObj $ Hashes.ScriptHash $ Crypto.UnsafeHash $ toShort h
 
 fromAnchor :: Anchor -> DRepAnchor
 fromAnchor anchor =

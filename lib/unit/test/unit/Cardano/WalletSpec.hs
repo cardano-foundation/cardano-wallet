@@ -46,11 +46,19 @@ import Cardano.Crypto.WalletHD.Encrypted
     , encryptedPublic
     , publicKeyByteString
     )
+import Cardano.Ledger.BaseTypes
+    ( ProtVer (..)
+    , natVersion
+    )
+import Cardano.Ledger.Core
+    ( ppProtocolVersionL
+    )
 import Cardano.Mnemonic
     ( SomeMnemonic (..)
     )
 import Cardano.Wallet
-    ( ErrUpdatePassphrase (..)
+    ( ErrConstructTx (..)
+    , ErrUpdatePassphrase (..)
     , ErrWithRootKey (..)
     , InitialState (..)
     , LocalTxSubmissionConfig (..)
@@ -129,6 +137,7 @@ import Cardano.Wallet.DB.Store.Submissions.Operations
     )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( block0
+    , dummyLedgerProtocolParameters
     , dummyNetworkLayer
     , dummyNetworkParameters
     , dummySlottingParameters
@@ -182,6 +191,9 @@ import Cardano.Wallet.Primitive.Types.Address.Gen
 import Cardano.Wallet.Primitive.Types.AssetId.Gen
     ( genAssetIdLargeRange
     )
+import Cardano.Wallet.Primitive.Types.Certificates
+    ( DelegationCertificate (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
@@ -190,6 +202,12 @@ import Cardano.Wallet.Primitive.Types.Coin.Gen
     )
 import Cardano.Wallet.Primitive.Types.Credentials
     ( HashedCredentials (..)
+    )
+import Cardano.Wallet.Primitive.Types.DRep
+    ( DRep (..)
+    , DRepID (..)
+    , DRepKeyHash (..)
+    , VoteDelegation (..)
     )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
@@ -322,12 +340,14 @@ import Data.Either
     )
 import Data.Function
     ( on
+    , (&)
     )
 import Data.Functor.Identity
     ( Identity (..)
     )
 import Data.Generics.Internal.VL
     ( iso
+    , set
     , view
     , (^.)
     )
@@ -385,6 +405,7 @@ import Test.Hspec
     , it
     , shouldBe
     , shouldSatisfy
+    , shouldThrow
     , xit
     )
 import Test.QuickCheck
@@ -448,7 +469,11 @@ import Prelude
 
 import qualified Cardano.Balance.Tx.Eras as Write
     ( AnyRecentEra (AnyRecentEra)
+    , Conway
     , RecentEra (RecentEraConway, RecentEraDijkstra)
+    )
+import qualified Cardano.Balance.Tx.Tx as Write
+    ( PParams
     )
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet as W
@@ -458,6 +483,7 @@ import qualified Cardano.Wallet.Address.Derivation.Icarus as Icarus
 import qualified Cardano.Wallet.Balance.Migration as Migration
 import qualified Cardano.Wallet.DB.Sqlite.Types as DB
 import qualified Cardano.Wallet.DB.Store.Checkpoints.Store as Sqlite
+import qualified Cardano.Wallet.IO.Delegation as IODeleg
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Read as Read
@@ -561,6 +587,111 @@ spec = describe "Cardano.WalletSpec" $ do
         it
             "LocalTxSubmission updates are limited in frequency"
             (property prop_throttle)
+
+    describe "assertIsVoting" $ do
+        let keyAccount = FromKeyHash (BS.replicate 28 1)
+            scriptAccount = FromScriptHash (BS.replicate 28 2)
+            drep =
+                FromDRepID (DRepFromKeyHash (DRepKeyHash (BS.replicate 28 3)))
+            refused = Left ErrConstructTxWithdrawalWithoutVoting
+            afterBootstrap = assertIsVotingWith False
+            inBootstrap = assertIsVotingWith True
+
+        it "refuses a retired DRep: the history holds a vote, the ledger none"
+            $ afterBootstrap keyAccount (Just VoteNotDelegated) (Just drep)
+                >>= (`shouldBe` refused)
+
+        it "permits a vote delegation made outside the wallet"
+            $ afterBootstrap keyAccount (Just (VoteDelegatedTo drep)) Nothing
+                >>= (`shouldBe` Right ())
+
+        it "refuses a key-hash account whose ledger value is not delegated"
+            $ afterBootstrap keyAccount (Just VoteNotDelegated) Nothing
+                >>= (`shouldBe` refused)
+
+        it "decides from the history when the ledger value is unread"
+            $ do
+                afterBootstrap keyAccount Nothing (Just drep)
+                    >>= (`shouldBe` Right ())
+                afterBootstrap keyAccount Nothing Nothing >>= (`shouldBe` refused)
+
+        it "permits a script-hash account without a vote delegation"
+            $ afterBootstrap scriptAccount (Just VoteNotDelegated) Nothing
+                >>= (`shouldBe` Right ())
+
+        it "permits every account in the bootstrap phase"
+            $ inBootstrap keyAccount (Just VoteNotDelegated) Nothing
+                >>= (`shouldBe` Right ())
+
+        it "does not refuse a transaction without a self-withdrawal" $ do
+            WalletLayerFixture db _ _ <- setupFixture dummyStateF testWallet
+            result <-
+                runExceptT
+                    $ W.assertIsVoting
+                        mockNetworkLayer
+                        db
+                        Write.RecentEraConway
+                        (ledgerPParams False)
+                        NoWithdrawal
+            result `shouldBe` Right ()
+
+    describe "quitWithdrawal" $ do
+        let account = FromKeyHash (BS.replicate 28 1)
+            path = DerivationIndex 0 :| []
+        it "builds no withdrawal at a zero balance"
+            $ W.quitWithdrawal account path (Coin 0)
+            & \case
+                NoWithdrawal -> pure ()
+                _ -> expectationFailure "expected no withdrawal"
+        it "withdraws a positive balance"
+            $ W.quitWithdrawal account path (Coin 1)
+            & \case
+                WithdrawalSelf a p c ->
+                    (a, p, c) `shouldBe` (account, path, Coin 1)
+                _ -> expectationFailure "expected a self-withdrawal"
+
+    describe "assertDRepRegistered" $ do
+        let drepId = DRepFromKeyHash (DRepKeyHash (BS.replicate 28 3))
+            drep = FromDRepID drepId
+            afterBootstrap = ledgerPParams False
+            answering answer =
+                (mockNetworkLayer :: NetworkLayer IO Read.ConsensusBlock)
+                    { isDRepRegistered = const (pure answer)
+                    }
+            -- Fails the example when the registration is queried.
+            unqueried =
+                (mockNetworkLayer :: NetworkLayer IO Read.ConsensusBlock)
+                    { isDRepRegistered = \_ -> do
+                        expectationFailure "the registration was queried"
+                        pure Nothing
+                    }
+            refused :: W.WalletException -> Bool
+            refused = \case
+                W.ExceptionVoting (W.ErrDRepNotRegistered d) -> d == drepId
+                _ -> False
+
+        it "refuses a DRep that the ledger does not hold as registered"
+            $ IODeleg.assertDRepRegistered
+                (answering (Just False))
+                afterBootstrap
+                drep
+            `shouldThrow` refused
+
+        it "accepts a DRep that the ledger holds as registered"
+            $ IODeleg.assertDRepRegistered
+                (answering (Just True))
+                afterBootstrap
+                drep
+
+        it "does not refuse without an answer about the registration"
+            $ IODeleg.assertDRepRegistered (answering Nothing) afterBootstrap drep
+
+        it "does not query the registration of Abstain or NoConfidence" $ do
+            IODeleg.assertDRepRegistered unqueried afterBootstrap Abstain
+            IODeleg.assertDRepRegistered unqueried afterBootstrap NoConfidence
+
+        it "does not query the registration in the bootstrap phase"
+            $ IODeleg.assertDRepRegistered unqueried (ledgerPParams True) drep
 
     describe "Migration" $ do
         describe "migrationPlanToSelectionWithdrawals" $ do
@@ -948,6 +1079,48 @@ walletPasswordChangeV1ToV2PreservesPublicKey = do
     pubKeyAfter `shouldBe` pubKeyBefore
 
 -- | A fixed (WalletId, WalletName, DummyState) used by the migration tests.
+-- | Protocol parameters of Conway, in the bootstrap phase (protocol version 9)
+-- or after it (version 10).
+ledgerPParams :: Bool -> Write.PParams Write.Conway
+ledgerPParams bootstrap =
+    set
+        ppProtocolVersionL
+        (ProtVer (if bootstrap then natVersion @9 else natVersion @10) 0)
+        dummyLedgerProtocolParameters
+
+-- | Run 'W.assertIsVoting' on a self-withdrawal from the given reward account,
+-- with a network layer that answers the ledger's vote delegation, and a wallet
+-- whose delegation history holds the given vote.
+assertIsVotingWith
+    :: Bool
+    -- ^ Whether the protocol version is in the bootstrap phase.
+    -> RewardAccount
+    -> Maybe VoteDelegation
+    -- ^ The ledger's vote delegation, or unread.
+    -> Maybe DRep
+    -- ^ The vote in the wallet's history, if any.
+    -> IO (Either ErrConstructTx ())
+assertIsVotingWith bootstrap account ledgerVote history = do
+    WalletLayerFixture db@DBLayer{..} _ _ <-
+        setupFixture dummyStateF testWallet
+    forM_ history $ \drep ->
+        atomically
+            $ W.putDelegationCertificate
+                walletState
+                (CertVoteAndDelegate account Nothing (Just drep))
+                (SlotNo 1)
+    let nl =
+            (mockNetworkLayer :: NetworkLayer IO Read.ConsensusBlock)
+                { getCachedVoteDelegation = const (pure ledgerVote)
+                }
+    runExceptT
+        $ W.assertIsVoting
+            nl
+            db
+            Write.RecentEraConway
+            (ledgerPParams bootstrap)
+            (WithdrawalSelf account (DerivationIndex 0 :| []) (Coin 1_000_000))
+
 testWallet :: (WalletId, WalletName, DummyState)
 testWallet =
     ( WalletId (hash @BS.ByteString "migration-test-wallet")

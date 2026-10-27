@@ -699,6 +699,9 @@ withShelleyServer tracers action = withFaucet $ \faucetClientEnv -> do
                     , _smashUrl = ""
                     , _mainEra = maxBound
                     , _mintSeaHorseAssets = error "mintSeaHorseAssets not available"
+                    , _registerNewDRep = error "registerNewDRep not available"
+                    , _registerDRep = error "registerDRep not available"
+                    , _retireDRep = error "retireDRep not available"
                     , _preprodWallets = []
                     }
     race_

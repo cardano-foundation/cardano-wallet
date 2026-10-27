@@ -19,11 +19,19 @@ import Cardano.Wallet.Launch.Cluster.ClusterM
     ( ClusterM
     , runClusterM
     )
+import Cardano.Wallet.Launch.Cluster.DRep
+    ( genDRepKeys
+    , registerDRep
+    , retireDRep
+    )
 import Cardano.Wallet.Launch.Cluster.Faucet
     ( sendFaucetAssetsTo
     )
 import Cardano.Wallet.Launch.Cluster.Http.Faucet.API
     ( FaucetAPI
+    )
+import Cardano.Wallet.Launch.Cluster.Http.Faucet.ClusterDRep
+    ( ClusterDRep (..)
     )
 import Cardano.Wallet.Launch.Cluster.Http.Faucet.SendFaucetAssets
     ( SendFaucetAssets (..)
@@ -31,6 +39,9 @@ import Cardano.Wallet.Launch.Cluster.Http.Faucet.SendFaucetAssets
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..)
+    )
+import Cardano.Wallet.Primitive.Types.DRep
+    ( DRepKeyHash
     )
 import Control.Exception
     ( throwIO
@@ -47,6 +58,7 @@ import Servant
     , NoContent (..)
     , ServerError (..)
     , err500
+    , (:<|>) (..)
     )
 import UnliftIO
     ( MonadIO (..)
@@ -60,8 +72,11 @@ import Prelude
 import qualified Cardano.Address as Address
 
 -- | Handlers for local-cluster application
-newtype FaucetHandlers = FaucetHandlers
+data FaucetHandlers = FaucetHandlers
     { handleSendAssets :: SendFaucetAssets -> IO ()
+    , handleRegisterNewDRep :: IO DRepKeyHash
+    , handleRegisterDRep :: DRepKeyHash -> IO ()
+    , handleRetireDRep :: DRepKeyHash -> IO ()
     }
 
 -- Handler for sending assets to some addresses
@@ -102,19 +117,50 @@ mkFaucetHandlers
     -> FaucetHandlers
 mkFaucetHandlers mRelayConnection config =
     FaucetHandlers
-        { handleSendAssets = \ass -> do
-            mConn <- getNodeConn mRelayConnection
-            case mConn of
-                Just relayConnection ->
-                    runClusterM config
-                        $ sendFaucetAssetsHandler relayConnection ass
-                Nothing ->
-                    throwIO
-                        err500{errBody = "The relay node is not available yet"}
+        { handleSendAssets = \ass ->
+            withRelayConnection $ \relayConnection ->
+                sendFaucetAssetsHandler relayConnection ass
+        , handleRegisterNewDRep =
+            withRelayConnection $ \relayConnection -> do
+                drep <- genDRepKeys
+                registerDRep relayConnection drep
+                pure drep
+        , handleRegisterDRep = \drep ->
+            withRelayConnection $ \relayConnection ->
+                registerDRep relayConnection drep
+        , handleRetireDRep = \drep ->
+            withRelayConnection $ \relayConnection ->
+                retireDRep relayConnection drep
         }
+  where
+    withRelayConnection :: (CardanoNodeConn -> ClusterM a) -> IO a
+    withRelayConnection action = do
+        mConn <- getNodeConn mRelayConnection
+        case mConn of
+            Just relayConnection ->
+                runClusterM config $ action relayConnection
+            Nothing ->
+                throwIO
+                    err500{errBody = "The relay node is not available yet"}
 
 mkFaucetServer
     :: FaucetHandlers
     -> ServerT (FaucetAPI n) Handler
-mkFaucetServer handlers (WithNetwork ass) =
-    liftIO $ handleSendAssets handlers ass $> NoContent
+mkFaucetServer handlers =
+    sendAssets
+        :<|> registerNewDRep
+        :<|> registerDRep'
+        :<|> retireDRep'
+  where
+    sendAssets :: WithNetwork SendFaucetAssets n' -> Handler NoContent
+    sendAssets (WithNetwork ass) =
+        liftIO $ handleSendAssets handlers ass $> NoContent
+    registerNewDRep :: Handler ClusterDRep
+    registerNewDRep =
+        liftIO $ ClusterDRep <$> handleRegisterNewDRep handlers
+    registerDRep' :: ClusterDRep -> Handler NoContent
+    registerDRep' (ClusterDRep drep) =
+        liftIO $ handleRegisterDRep handlers drep $> NoContent
+    retireDRep' :: ClusterDRep -> Handler NoContent
+    retireDRep' (ClusterDRep drep) =
+        liftIO $ handleRetireDRep handlers drep $> NoContent

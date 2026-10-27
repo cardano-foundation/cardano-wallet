@@ -354,6 +354,7 @@ import Test.Integration.Framework.DSL
     , request
     , rewardWallet
     , selectCoins
+    , shouldHaveDelegationHistory
     , signTx
     , submitTxWithWid
     , unsafeRequest
@@ -4094,7 +4095,9 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 getSrcWallet
                     >>= flip
                         verify
-                        [ expectField #delegation (`shouldBe` delegating (ApiT pool1) [])
+                        [ expectField
+                            #delegation
+                            (`shouldHaveDelegationHistory` delegating (ApiT pool1) [])
                         ]
 
             waitNumberOfEpochBoundaries 2 ctx
@@ -4181,7 +4184,9 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 getSrcWallet
                     >>= flip
                         verify
-                        [ expectField #delegation (`shouldBe` delegating (ApiT pool2) [])
+                        [ expectField
+                            #delegation
+                            (`shouldHaveDelegationHistory` delegating (ApiT pool2) [])
                         ]
 
             -- there's currently no withdrawals in the wallet
@@ -4322,7 +4327,10 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 getSrcWallet
                     >>= flip
                         verify
-                        [expectField #delegation (`shouldBe` notDelegating [])]
+                        [ expectField
+                            #delegation
+                            (`shouldHaveDelegationHistory` notDelegating [])
+                        ]
 
             -- transaction history shows deposit returned
             request @(ApiTransaction n) ctx queryTx3 Default Empty
@@ -4455,7 +4463,9 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 getSrcWallet
                     >>= flip
                         verify
-                        [ expectField #delegation (`shouldBe` delegating (ApiT pool1) [])
+                        [ expectField
+                            #delegation
+                            (`shouldHaveDelegationHistory` delegating (ApiT pool1) [])
                         ]
 
             waitNumberOfEpochBoundaries 2 ctx
@@ -4542,7 +4552,9 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 getSrcWallet
                     >>= flip
                         verify
-                        [ expectField #delegation (`shouldBe` delegating (ApiT pool2) [])
+                        [ expectField
+                            #delegation
+                            (`shouldHaveDelegationHistory` delegating (ApiT pool2) [])
                         ]
 
             -- there's currently no withdrawals in the wallet
@@ -4664,7 +4676,9 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 getSrcWallet
                     >>= flip
                         verify
-                        [ expectField #delegation (`shouldBe` delegating (ApiT pool1) [])
+                        [ expectField
+                            #delegation
+                            (`shouldHaveDelegationHistory` delegating (ApiT pool1) [])
                         ]
 
             waitNumberOfEpochBoundaries 2 ctx
@@ -4780,7 +4794,9 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 getSrcWallet
                     >>= flip
                         verify
-                        [ expectField #delegation (`shouldBe` delegating (ApiT pool1) [])
+                        [ expectField
+                            #delegation
+                            (`shouldHaveDelegationHistory` delegating (ApiT pool1) [])
                         ]
 
             waitNumberOfEpochBoundaries 2 ctx
@@ -5046,7 +5062,9 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             request @ApiWallet ctx (Link.getWallet @'Shelley src) Default Empty
                 >>= flip
                     verify
-                    [ expectField #delegation (`shouldBe` expectedDelegation)
+                    [ expectField
+                        #delegation
+                        (`shouldHaveDelegationHistory` expectedDelegation)
                     ]
 
     it "TRANS_NEW_JOIN_01f - Cannot re-join the same pool in Babbage" $ \ctx ->
@@ -5141,7 +5159,9 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                         verify
                         [ expectField
                             #delegation
-                            (`shouldBe` votingAndDelegating (ApiT pool1) (ApiT Abstain) [])
+                            ( `shouldHaveDelegationHistory`
+                                votingAndDelegating (ApiT pool1) (ApiT Abstain) []
+                            )
                         ]
 
             rTx3 <-
@@ -5537,7 +5557,9 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 verify
                     rWa
                     [ expectSuccess
-                    , expectField #delegation (`shouldBe` delegating (ApiT pool') [])
+                    , expectField
+                        #delegation
+                        (`shouldHaveDelegationHistory` delegating (ApiT pool') [])
                     ]
 
             eventually "Destination wallet balance is as expected" $ do

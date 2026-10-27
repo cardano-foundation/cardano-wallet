@@ -1,0 +1,39 @@
+{
+    "samples": [
+        {
+            "status": "not_delegated"
+        },
+        {
+            "status": "not_delegated"
+        },
+        {
+            "status": "not_delegated"
+        },
+        {
+            "status": "delegated",
+            "voting": "no_confidence"
+        },
+        {
+            "status": "delegated",
+            "voting": "abstain"
+        },
+        {
+            "status": "not_delegated"
+        },
+        {
+            "status": "delegated",
+            "voting": "no_confidence"
+        },
+        {
+            "status": "not_delegated"
+        },
+        {
+            "status": "not_delegated"
+        },
+        {
+            "status": "delegated",
+            "voting": "drep1ytsqnl3m9nvzmkwz5f5kzl4uyy9dz587c5nnhr4v555lqwctrk9xy"
+        }
+    ],
+    "seed": -1664864151
+}

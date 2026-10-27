@@ -138,7 +138,8 @@ import Cardano.Wallet.Launch.Cluster.FileOf
     , toFilePath
     )
 import Cardano.Wallet.Launch.Cluster.Process
-    ( RunFaucetQ
+    ( FaucetQ (..)
+    , RunFaucetQ (..)
     , RunMonitorQ
     , WalletPresence (..)
     , defaultEnvVars
@@ -766,7 +767,7 @@ setupContext
     -> IO ()
 setupContext
     TestingCtx{..}
-    runFaucetQ
+    runFaucetQ@(RunFaucetQ queryFaucet)
     ctx
     faucetClientEnv
     poolGarbageCollectionEvents
@@ -803,6 +804,9 @@ setupContext
                                 runFaucetQ
                                 batchSize
                                 (nPerAddr, c, addrs)
+                    , _registerNewDRep = queryFaucet RegisterNewDRepQ
+                    , _registerDRep = queryFaucet . RegisterDRepQ
+                    , _retireDRep = queryFaucet . RetireDRepQ
                     , _preprodWallets = []
                     }
 
