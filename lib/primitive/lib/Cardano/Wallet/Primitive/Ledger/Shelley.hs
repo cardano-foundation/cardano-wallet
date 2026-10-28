@@ -399,7 +399,8 @@ emptyGenesis gp =
 -- | The protocol client version. Distinct from the codecs version.
 nodeToClientVersions :: [NodeToClientVersion]
 nodeToClientVersions =
-    [NodeToClientV_16 .. NodeToClientV_22]
+    -- Node 11.2 requires V23, already supported by our consensus codecs.
+    [NodeToClientV_16 .. NodeToClientV_23]
 
 --------------------------------------------------------------------------------
 --
