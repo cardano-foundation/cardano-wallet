@@ -27,6 +27,7 @@ module Cardano.Wallet.DB.Layer
 
       -- * Open a database for a specific 'WalletId'
     , withLoadDBLayerFromFile
+    , withMigratedDBLayerFromFile
     , withBootDBLayerFromFile
     , newBootDBLayerInMemory
     , withBootDBLayerInMemory
@@ -49,11 +50,11 @@ import Cardano.DB.Sqlite
     , SqliteContext (..)
     , matchWrongVersionError
     , newInMemorySqliteContext
-    , noAutoMigrations
     , noManualMigration
     , runManualOldMigrations
     , withDBHandle
     , withSqliteContextFile
+    , withSqliteContextFileUnmigrated
     )
 import Cardano.DB.Sqlite.Delete
     ( DeleteSqliteDatabaseLog
@@ -198,6 +199,7 @@ import Control.Exception
 import Control.Monad
     ( forM
     , unless
+    , when
     )
 import Control.Monad.IO.Class
     ( MonadIO (..)
@@ -268,8 +270,10 @@ import System.FilePath
     )
 import UnliftIO.Exception
     ( Exception
+    , SomeException
     , bracket
     , throwIO
+    , tryAny
     , tryJust
     )
 import UnliftIO.MVar
@@ -290,6 +294,7 @@ import qualified Cardano.Wallet.Read.Tx as Read
 import qualified Data.Delta.Update as Delta
 import qualified Data.Generics.Internal.VL as L
 import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Database.Persist.Sqlite as Sqlite
 
@@ -349,18 +354,46 @@ newDBFactory wf tr defaultFieldValues ti = \case
                 }
     Just databaseDir -> do
         refs <- newRefCount
+        -- Wallets whose database file this factory has migrated, or created
+        -- at the current schema, since the process started. A load of a
+        -- recorded wallet skips the migration step if the file still reports
+        -- the latest schema version; otherwise the record is dropped and the
+        -- step runs.
+        migrated <- newMVar Set.empty
+        let markMigrated wid = modifyMVar_ migrated (pure . Set.insert wid)
+            forgetMigrated wid = modifyMVar_ migrated (pure . Set.delete wid)
+            isMigrated wid = Set.member wid <$> readMVar migrated
         pure
             DBFactory
                 { withDatabaseLoad = \wid action ->
-                    withRef refs wid
-                        $ withLoadDBLayerFromFile
-                            wf
-                            (contramap (MsgWalletDB (databaseFile wid)) tr)
-                            ti
-                            wid
-                            (Just defaultFieldValues)
-                            (databaseFile wid)
-                            action
+                    withRef refs wid $ do
+                        let trWallet = contramap (MsgWalletDB (databaseFile wid)) tr
+                        known <- isMigrated wid
+                        reused <-
+                            if known
+                                then
+                                    withMigratedDBLayerFromFile
+                                        wf
+                                        trWallet
+                                        ti
+                                        wid
+                                        (databaseFile wid)
+                                        action
+                                else pure Nothing
+                        case reused of
+                            Just result -> pure result
+                            Nothing -> do
+                                -- The file is not at the current schema
+                                -- any more, so the record no longer holds.
+                                when known $ forgetMigrated wid
+                                withLoadDBLayerFromFile
+                                    wf
+                                    trWallet
+                                    ti
+                                    wid
+                                    (Just defaultFieldValues)
+                                    (databaseFile wid)
+                                    (\db -> markMigrated wid >> action db)
                 , withDatabaseBoot = \wid params action ->
                     withRef refs wid
                         $ withBootDBLayerFromFile
@@ -371,7 +404,7 @@ newDBFactory wf tr defaultFieldValues ti = \case
                             (Just defaultFieldValues)
                             params
                             (databaseFile wid)
-                            action
+                            (\db -> markMigrated wid >> action db)
                 , removeDatabase = \wid -> do
                     let widp = pretty wid
                     -- try to wait for all 'withDatabaseBoot' calls to finish before
@@ -385,6 +418,7 @@ newDBFactory wf tr defaultFieldValues ti = \case
                             $ MsgRemovingInUse widp inUse
                         traceWith tr $ MsgRemoving widp
                         let trDel = contramap (MsgRemovingDatabaseFile widp) tr
+                        forgetMigrated wid
                         deleteSqliteDatabase trDel (databaseFile wid)
                 , listDatabases =
                     findDatabases key tr databaseDir
@@ -565,18 +599,46 @@ withLoadDBLayerFromFile
     -- ^ Action to run.
     -> IO a
 withLoadDBLayerFromFile wF tr ti wid defaultFieldValues dbFile action = do
-    let trDB = contramap MsgDB tr
-    migrateDBFile trDB wF defaultFieldValues dbFile
+    migrateDBFile (contramap MsgDB tr) wF defaultFieldValues dbFile
         >>= throwMigrationError
-    res <- withSqliteContextFile
-        trDB
-        dbFile
-        noManualMigration
-        noAutoMigrations
-        $ \ctx -> do
-            dblayer <- loadDBLayerFromSqliteContext wF ti wid ctx
-            action dblayer
-    throwMigrationError res
+    withSqliteContextFileUnmigrated (contramap MsgDB tr) dbFile $ \ctx -> do
+        dblayer <- loadDBLayerFromSqliteContext wF ti wid ctx
+        action dblayer
+
+-- | Load a 'DBLayer' from a file that this process has already migrated,
+-- without running the migration step. The file is opened once.
+--
+-- The schema version is read on the open connection first. If it is not the
+-- latest version, the action is not run and the result is 'Nothing', and the
+-- caller loads the file with 'withLoadDBLayerFromFile' instead.
+withMigratedDBLayerFromFile
+    :: forall s a
+     . PersistAddressBook s
+    => WalletFlavorS s
+    -- ^ Wallet flavor
+    -> Tracer IO WalletDBLog
+    -- ^ Logging object
+    -> TimeInterpreter IO
+    -- ^ Time interpreter for slot to time conversions.
+    -> W.WalletId
+    -- ^ Wallet ID of the database.
+    -> FilePath
+    -- ^ Path to database file
+    -> (DBLayer IO s -> IO a)
+    -- ^ Action to run.
+    -> IO (Maybe a)
+withMigratedDBLayerFromFile wF tr ti wid dbFile action =
+    withSqliteContextFileUnmigrated (contramap MsgDB tr) dbFile $ \ctx -> do
+        current <- isLatestSchema ctx
+        if current
+            then
+                Just
+                    <$> (loadDBLayerFromSqliteContext wF ti wid ctx >>= action)
+            else pure Nothing
+  where
+    isLatestSchema ctx =
+        either (\(_ :: SomeException) -> False) (== latestVersion)
+            <$> tryAny (runQuery ctx getSchemaVersion')
 
 -- | Create a 'DBLayer' in a file.
 --
