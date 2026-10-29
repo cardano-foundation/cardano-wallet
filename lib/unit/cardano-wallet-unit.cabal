@@ -194,6 +194,7 @@ test-suite unit
     Cardano.Byron.Codec.CborSpec
     Cardano.CLISpec
     Cardano.DB.Sqlite.DeleteSpec
+    Cardano.DB.SqliteSpec
     Cardano.Pool.DB.Arbitrary
     Cardano.Pool.DB.LayerSpec
     Cardano.Pool.DB.MVarSpec

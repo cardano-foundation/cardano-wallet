@@ -40,6 +40,9 @@ module Cardano.Wallet.DB.LayerSpec
 
 import Cardano.DB.Sqlite
     ( DBLog (..)
+    , beginShutdownAfter
+    , newShutdownDeadline
+    , shutdownCloseBounds
     )
 import Cardano.DB.Sqlite.Migration.Old
     ( DBField
@@ -102,11 +105,13 @@ import Cardano.Wallet.DB
     , DBLayerParams (..)
     )
 import Cardano.Wallet.DB.Layer
-    ( DefaultFieldValues (..)
+    ( DBFactoryLog (..)
+    , DefaultFieldValues (..)
     , PersistAddressBook
     , WalletDBLog (..)
     , newBootDBLayerInMemory
     , newDBFactory
+    , newDBFactoryUsing
     , withBootDBLayerFromFile
     , withBootDBLayerInMemory
     , withLoadDBLayerFromFile
@@ -243,6 +248,7 @@ import Control.Monad.Trans.Except
     )
 import Control.Tracer
     ( Tracer
+    , mkTracer
     )
 import Cryptography.Hash.Core
     ( hash
@@ -263,6 +269,11 @@ import Data.Generics.Internal.VL.Lens
     )
 import Data.Generics.Labels
     (
+    )
+import Data.IORef
+    ( atomicModifyIORef'
+    , newIORef
+    , readIORef
     )
 import Data.Kind
     ( Type
@@ -305,6 +316,9 @@ import Database.Persist.Sql
     )
 import Database.Persist.Sqlite
     ( Single (..)
+    )
+import GHC.Clock
+    ( getMonotonicTime
     )
 import Numeric.Natural
     ( Natural
@@ -657,6 +671,44 @@ fileModeSpec = do
 
                 concurrently conn (threadDelay 50_000 >> rm)
                     `shouldReturn` ((), False)
+
+        it "withDatabaseLoad closes a database under the shutdown deadline" $ do
+            -- The close bounds given to the factory apply to a database that
+            -- is loaded, not only to one that is booted: a query that is
+            -- still running when the shutdown deadline has begun is waited
+            -- for until that deadline, and the wait is traced.
+            withSystemTempDirectory "DBFactory" $ \dir -> do
+                deadline <- newShutdownDeadline
+                logs <- newIORef []
+                let tr = mkTracer $ \msg -> atomicModifyIORef' logs $ \xs -> (msg : xs, ())
+                DBFactory{..} <-
+                    newDBFactoryUsing
+                        (shutdownCloseBounds deadline)
+                        ShelleyWallet
+                        tr
+                        defaultFieldValues
+                        dummyTimeInterpreter
+                        (Just dir)
+                withDatabaseBoot testWid testDBLayerParams
+                    $ \(_ :: DBLayer IO TestState) -> pure ()
+                inside <- newEmptyMVar
+                resume <- newEmptyMVar
+                finished <- newEmptyMVar
+                start <- getMonotonicTime
+                withDatabaseLoad testWid $ \(DBLayer{..} :: DBLayer IO TestState) -> do
+                    void $ forkIO $ do
+                        atomically $ liftIO $ putMVar inside () >> takeMVar resume
+                        putMVar finished ()
+                    takeMVar inside
+                    beginShutdownAfter 0.3 deadline
+                elapsed <- subtract start <$> getMonotonicTime
+                msgs <- reverse <$> readIORef logs
+                elapsed `shouldSatisfy` (>= 0.3)
+                elapsed `shouldSatisfy` (< 5)
+                length [() | MsgWalletDB _ (MsgDB (MsgCloseWaitTimedOut _ _)) <- msgs]
+                    `shouldBe` 1
+                putMVar resume ()
+                takeMVar finished
 
     describe "Sqlite database file" $ do
         let writeSomething _ = pure ()

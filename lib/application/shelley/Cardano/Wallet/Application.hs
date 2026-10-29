@@ -29,6 +29,12 @@ module Cardano.Wallet.Application
 import Cardano.Crypto.Init
     ( cryptoInit
     )
+import Cardano.DB.Sqlite
+    ( ShutdownDeadline
+    , beginShutdown
+    , newShutdownDeadline
+    , shutdownCloseBounds
+    )
 import Cardano.Wallet
     ( WalletException
     )
@@ -335,6 +341,7 @@ serveWallet
             $ ApiApplicationLog
             $ MsgNetworkName
             $ networkDiscriminantVal sNetwork
+        shutdownDeadline <- lift newShutdownDeadline
         netLayer <-
             withNetworkLayer
                 networkTracer
@@ -346,6 +353,7 @@ serveWallet
             NodeSource{} -> do
                 stakePoolDbLayer <-
                     withStakePoolDbLayer
+                        shutdownDeadline
                         poolsDbTracer
                         databaseDir
                         mPoolDatabaseDecorator
@@ -379,10 +387,10 @@ serveWallet
                             supervised
                     void $ Concurrent.forkIO supervised
                 pure (spl, drl)
-        randomApi <- withRandomApi netId netLayer
-        icarusApi <- withIcarusApi netId netLayer
-        shelleyApi <- withShelleyApi netId netLayer
-        multisigApi <- withMultisigApi netId netLayer
+        randomApi <- withRandomApi shutdownDeadline netId netLayer
+        icarusApi <- withIcarusApi shutdownDeadline netId netLayer
+        shelleyApi <- withShelleyApi shutdownDeadline netId netLayer
+        multisigApi <- withMultisigApi shutdownDeadline netId netLayer
         ntpClient <- withNtpClient ntpClientTracer
         eShelleyUiSocket <- bindShelleyUiSocket
         eShelleySocket <- bindApiSocket
@@ -446,23 +454,25 @@ serveWallet
                     $ ContT
                     $ withListeningSocket hostPref listenUi
 
-        withRandomApi netId netLayer =
-            withDrainedApiLayer
+        withRandomApi deadline netId netLayer =
+            withDrainedApiLayer deadline
                 $ apiLayer
+                    deadline
                     (newTransactionLayer ByronKeyS netId)
                     netLayer
                     Server.idleWorker
 
-        withIcarusApi netId netLayer =
-            withDrainedApiLayer
+        withIcarusApi deadline netId netLayer =
+            withDrainedApiLayer deadline
                 $ apiLayer
+                    deadline
                     (newTransactionLayer IcarusKeyS netId)
                     netLayer
                     Server.idleWorker
 
-        withShelleyApi netId netLayer =
-            withDrainedApiLayer
-                $ apiLayer (newTransactionLayer ShelleyKeyS netId) netLayer
+        withShelleyApi deadline netId netLayer =
+            withDrainedApiLayer deadline
+                $ apiLayer deadline (newTransactionLayer ShelleyKeyS netId) netLayer
                 $ \wrk _ ->
                     Server.manageRewardBalance
                         <$> view typed
@@ -470,9 +480,10 @@ serveWallet
                         <*> view typed
                         $ wrk
 
-        withMultisigApi netId netLayer =
-            withDrainedApiLayer
+        withMultisigApi deadline netId netLayer =
+            withDrainedApiLayer deadline
                 $ apiLayer
+                    deadline
                     (newTransactionLayer SharedKeyS netId)
                     netLayer
                     Server.idleWorker
@@ -582,14 +593,16 @@ serveWallet
                , WalletFlavor s
                , KeyOf s ~ k
                )
-            => TransactionLayer k (CredFromOf s) SealedTx
+            => ShutdownDeadline
+            -> TransactionLayer k (CredFromOf s) SealedTx
             -> NetworkLayer IO (CardanoBlock StandardCrypto)
             -> (WorkerCtx (ApiLayer s) -> WalletId -> IO ())
             -> IO (ApiLayer s)
-        apiLayer txLayer netLayer coworker = do
+        apiLayer deadline txLayer netLayer coworker = do
             tokenMetaClient <- newMetadataClient tokenMetadataTracer tokenMetaUri
             dbFactory <-
-                Sqlite.newDBFactory
+                Sqlite.newDBFactoryUsing
+                    (shutdownCloseBounds deadline)
                     (walletFlavor @s)
                     walletDbTracer
                     ( DefaultFieldValues
@@ -656,16 +669,23 @@ withNtpClient tr = do
 
 -- | Acquire a wallet API layer and drain its worker registry on both
 -- normal and asynchronous release.
+--
+-- The first drain starts the 'ShutdownDeadline' that all the connections
+-- closed by the drains and by the release of the stake pool database wait
+-- for.
 withDrainedApiLayer
     :: forall s r
      . HasWorkerRegistry s (ApiLayer s)
-    => IO (ApiLayer s)
+    => ShutdownDeadline
+    -> IO (ApiLayer s)
     -> ContT r IO (ApiLayer s)
-withDrainedApiLayer acquire =
+withDrainedApiLayer deadline acquire =
     ContT $ \restore -> do
         layer <- acquire
         restore layer
-            `finally` drain (view (workerRegistry @s) layer)
+            `finally` ( beginShutdown deadline
+                            >> drain (view (workerRegistry @s) layer)
+                      )
 
 -- | Default DRep metadata fetch interval: 15 minutes in microseconds.
 drepMetadataFetchIntervalMicros :: Int
