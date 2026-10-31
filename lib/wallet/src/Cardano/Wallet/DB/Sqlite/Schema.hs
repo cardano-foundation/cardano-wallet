@@ -39,6 +39,8 @@ import Cardano.Wallet.Address.Discovery.Shared
 import Cardano.Wallet.DB.Sqlite.Types
     ( BlockHeight
     , BlockId
+    , DappSubmissionInputRole (..)
+    , DappSubmissionStatusEnum (..)
     , HDPassphrase
     , TxId
     , TxSubmissionStatusEnum (..)
@@ -504,6 +506,44 @@ Submissions
     submissionMetaResubmitted       SlotNo              sql=resubmitted
 
     Primary submissionTxId
+    deriving Show Generic Eq
+
+-- Durable, exact externally-authorized envelopes. Kept beside the legacy
+-- submissions table so old wallet recovery remains readable during migration.
+DappSubmission
+    dappSubmissionWallet              W.WalletId                sql=wallet_id
+    dappSubmissionTxId                TxId                      sql=tx_id
+    dappSubmissionTx                  W.SealedTx                sql=tx
+    dappSubmissionExpiration          SlotNo Maybe              sql=expiration
+    dappSubmissionAuthorized          Bool                      sql=authorized
+    dappSubmissionStatus              DappSubmissionStatusEnum  sql=status
+    dappSubmissionAttemptGeneration   Word64                    sql=attempt_generation
+    dappSubmissionBroadcastGeneration Word64 Maybe              sql=broadcast_generation
+    dappSubmissionBroadcastStarted    UTCTime Maybe             sql=broadcast_started
+    dappSubmissionAcceptance          SlotNo Maybe              sql=acceptance
+    dappSubmissionRejectionCode       Text Maybe                sql=rejection_code
+
+    Primary dappSubmissionWallet dappSubmissionTxId
+    Foreign Wallet OnDeleteCascade dapp_submission dappSubmissionWallet
+    deriving Show Generic Eq
+
+-- Claims are rows rather than an encoded blob, making overlap checks and
+-- pending-context overlays deterministic. Reference inputs never appear here.
+DappSubmissionInput
+    dappSubmissionInputWallet         W.WalletId                sql=wallet_id
+    dappSubmissionInputTxId           TxId                      sql=tx_id
+    dappSubmissionInputSourceTxId     TxId                      sql=source_tx_id
+    dappSubmissionInputSourceIndex    Word32                    sql=source_index
+    dappSubmissionInputRole           DappSubmissionInputRole   sql=role
+    dappSubmissionInputActive         Bool                      sql=active
+
+    Primary
+        dappSubmissionInputWallet
+        dappSubmissionInputTxId
+        dappSubmissionInputSourceTxId
+        dappSubmissionInputSourceIndex
+        dappSubmissionInputRole
+    Foreign DappSubmission OnDeleteCascade dapp_submission_input dappSubmissionInputWallet dappSubmissionInputTxId
     deriving Show Generic Eq
 
 SubmissionsSlots
