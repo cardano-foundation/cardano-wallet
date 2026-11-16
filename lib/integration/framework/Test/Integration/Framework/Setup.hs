@@ -25,6 +25,9 @@ module Test.Integration.Framework.Setup
 import Cardano.Address
     ( NetworkTag (..)
     )
+import Cardano.Address.Crypto.Wallet
+    ( XPrv
+    )
 import Cardano.Address.Script
     ( Cosigner (..)
     , Script (RequireSignatureOf)
@@ -32,9 +35,6 @@ import Cardano.Address.Script
     )
 import Cardano.Address.Style.Shelley
     ( shelleyTestnet
-    )
-import Cardano.Crypto.Wallet
-    ( XPrv
     )
 import Cardano.Faucet.Mnemonics
     ( unsafeMnemonic
