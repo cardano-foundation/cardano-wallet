@@ -657,13 +657,13 @@ import "cardano-addresses" Codec.Binary.Encoding
     )
 import Prelude
 
+import qualified Cardano.Address.Crypto.Wallet as CC
 import qualified Cardano.Address.Script as CA
 import qualified Cardano.Balance.Tx.Tx as Write
     ( DatumHash
     , datumHashFromBytes
     , datumHashToBytes
     )
-import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Address.Derivation as AD
 import qualified Cardano.Wallet.Api.Types.Amount as ApiAmount
 import qualified Cardano.Wallet.Primitive.Types as W
