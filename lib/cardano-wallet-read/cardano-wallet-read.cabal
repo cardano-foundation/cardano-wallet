@@ -142,10 +142,10 @@ library
     , fmt
     , generics-sop
     , lens
-    , memory
     , nothunks
     , operational
     , QuickCheck
+    , ram
     , text
     , time
     , transformers
@@ -181,6 +181,6 @@ test-suite test
     , cardano-wallet-read
     , hspec
     , lens
-    , memory
     , QuickCheck
+    , ram
     , with-utf8
