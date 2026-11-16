@@ -7,7 +7,7 @@ module Cardano.Wallet.Address.States.Features
     )
 where
 
-import Cardano.Crypto.Wallet
+import Cardano.Address.Crypto.Wallet
     ( XPrv
     )
 import Cardano.Wallet.Address.Derivation

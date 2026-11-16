@@ -37,7 +37,7 @@ module Cardano.Wallet.Address.Discovery.SequentialAny
     , Prologue (..)
     ) where
 
-import Cardano.Crypto.Wallet
+import Cardano.Address.Crypto.Wallet
     ( XPub
     )
 import Cardano.Ledger.Address

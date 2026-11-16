@@ -28,14 +28,14 @@ module Cardano.Wallet.Address.Derivation.Shared
     , purposeCIP1854
     ) where
 
-import Cardano.Address.Derivation
-    ( xpubPublicKey
-    )
-import Cardano.Crypto.Wallet
+import Cardano.Address.Crypto.Wallet
     ( XPrv
     , XPub
     , unXPub
     , xpub
+    )
+import Cardano.Address.Derivation
+    ( xpubPublicKey
     )
 import Cardano.Mnemonic
     ( SomeMnemonic

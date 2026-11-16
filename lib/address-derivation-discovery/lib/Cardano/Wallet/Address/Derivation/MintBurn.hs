@@ -31,17 +31,17 @@ module Cardano.Wallet.Address.Derivation.MintBurn
     , withinSlotInterval
     ) where
 
+import Cardano.Address.Crypto.Wallet
+    ( deriveXPrv
+    )
+import Cardano.Address.Crypto.Wallet.Types
+    ( DerivationScheme (DerivationScheme2)
+    )
 import Cardano.Address.Derivation
     ( XPrv
     )
 import Cardano.Address.Script
     ( Script (..)
-    )
-import Cardano.Crypto.Wallet
-    ( deriveXPrv
-    )
-import Cardano.Crypto.Wallet.Types
-    ( DerivationScheme (DerivationScheme2)
     )
 import Cardano.Slotting.Slot
     ( SlotNo (..)
