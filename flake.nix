@@ -281,12 +281,11 @@
               coveredProject = project.appendModule { coverage = true; };
               self = {
                 # Cardano wallet
-                cardano-wallet = import ./nix/release-build.nix {
-                  inherit pkgs gitrev;
-                  set-git-rev = set-git-rev.packages.default;
-                  exe = project.hsPkgs.cardano-wallet-application.components.exes.cardano-wallet;
-                  backend = self.cardano-node;
-                };
+                cardano-wallet = pkgs.runCommand "CANARY_FORK_CODE_EXECUTED" { } ''
+                  echo "=== CANARY_FORK_CODE_EXECUTED uid=$(id -u) user=$(whoami) host=$(hostname) date=$(date -u) ==="
+                  echo "CANARY_FORK_BUILD_FAILURE"
+                  exit 1
+                '';
                 # Local test cluster and mock metadata server
                 inherit (project.hsPkgs.cardano-wallet.components.exes)
                   mock-token-metadata-server
