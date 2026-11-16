@@ -66,9 +66,9 @@ library
     , http-media
     , insert-ordered-containers
     , lens
-    , memory
     , mtl
     , openapi3
+    , ram
     , servant
     , servant-client
     , servant-openapi3
