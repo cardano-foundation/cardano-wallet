@@ -1544,6 +1544,7 @@ genStakePoolParameters =
     Exp.StakePoolParameters
         <$> genPoolId
         <*> genVerificationKeyHash AsVrfKey
+        <*> pure Nothing
         <*> genCoin
         <*> genRational
         <*> genStakeAddress
