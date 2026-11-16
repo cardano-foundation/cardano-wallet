@@ -69,6 +69,7 @@ import Prelude
 import qualified Data.ByteArray as BA
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
+import qualified Memory.ByteArray as Memory
 
 {-------------------------------------------------------------------------------
                            Passphrases from the user
@@ -95,6 +96,13 @@ newtype Passphrase (purpose :: Symbol) = Passphrase
     deriving newtype (Semigroup, Monoid, NFData, ByteArrayAccess)
 
 type role Passphrase phantom
+
+-- | @cardano-crypto-wallet@ takes passphrases through the 'ByteArrayAccess' class
+-- of @memory@, a different class from the one of @ram@ used above. The bytes are
+-- not copied.
+instance Memory.ByteArrayAccess (Passphrase purpose) where
+    length (Passphrase p) = BA.length p
+    withByteArray (Passphrase p) = BA.withByteArray p
 
 -- | Little trick to be able to provide our own "random" salt in order to
 -- deterministically re-compute a passphrase hash from a known salt. Note that,
