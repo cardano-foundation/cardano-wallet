@@ -316,7 +316,10 @@ networkInfoSpec = describe "getNetworkInformation" $ do
                     }
 
             era1Params =
-                HF.defaultEraParams (SecurityParam $ unsafeNonZero 2) (mkSlotLength 1)
+                HF.defaultEraParams
+                    (SecurityParam $ unsafeNonZero 2)
+                    (mkSlotLength 1)
+                    HF.NoPerasEnabled
             summary =
                 HF.summaryWithExactly
                     $ exactlyOne

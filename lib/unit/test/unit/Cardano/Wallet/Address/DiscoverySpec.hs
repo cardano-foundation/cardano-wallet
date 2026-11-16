@@ -83,7 +83,7 @@ import Test.QuickCheck
     )
 import Prelude
 
-import qualified Cardano.Crypto.Wallet as CC
+import qualified Cardano.Address.Crypto.Wallet as CC
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.Text as T

@@ -2407,13 +2407,13 @@ instance Malformed (BodyParam ApiPostPolicyIdData) where
                     ( [aesonQQ|
             { "policy_script_template": ""
             }|]
-                    , "Error in $['policy_script_template']: expected Object only, but encountered String"
+                    , "Error in $['policy_script_template']: Cosigner should be of the form: cosigner#num"
                     )
                 ,
                     ( [aesonQQ|
             { "policy_script_template": 1
             }|]
-                    , "Error in $['policy_script_template']: expected Object only, but encountered Number"
+                    , "Error in $['policy_script_template']: expected Object or String, but encountered Number"
                     )
                 ]
 
