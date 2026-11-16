@@ -237,7 +237,7 @@ if impl(ghc == 8.10.7)
 
 -- Using RDRAND instead of /dev/urandom as an entropy source for key
 -- generation is dubious. Set the flag so we use /dev/urandom by default.
-package cryptonite
+package crypton
   flags: -support_rdrand
 
 package cardano-config
