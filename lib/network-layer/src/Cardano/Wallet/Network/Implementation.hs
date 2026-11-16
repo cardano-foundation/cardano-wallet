@@ -29,6 +29,12 @@ module Cardano.Wallet.Network.Implementation
     , newObserver
     , ObserverLog (..)
 
+      -- * Testing
+    , RetryHandlers
+    , recoveringNodeConnection
+    , retryOnConnectionLost
+    , handleIOException
+
       -- * Logging
     , Log (..)
     ) where
@@ -233,6 +239,7 @@ import Data.Functor.Contravariant
     )
 import Data.List
     ( isInfixOf
+    , isPrefixOf
     )
 import Data.List.NonEmpty
     ( NonEmpty
@@ -268,6 +275,9 @@ import Fmt
     , pretty
     , (+|)
     , (|+)
+    )
+import GHC.IO.Exception
+    ( IOErrorType (InvalidArgument)
     )
 import GHC.Stack
     ( HasCallStack
@@ -361,7 +371,9 @@ import Ouroboros.Network.Protocol.LocalTxSubmission.Type
     , SubmitResult (..)
     )
 import System.IO.Error
-    ( isDoesNotExistError
+    ( ioeGetErrorType
+    , ioeGetLocation
+    , isDoesNotExistError
     , isResourceVanishedError
     )
 import UnliftIO.Async
@@ -1244,6 +1256,8 @@ connectClient tr handlers client vData conn = withIOManager $ \manager ->
             , nctHandshakeTracer = contramap MsgHandshakeTracer tr
             }
 
+-- | Run an action, retrying it with a backoff policy whenever one of
+-- the handlers asks for it.
 recoveringNodeConnection
     :: Tracer IO ConnectionStatusLog -> RetryHandlers -> IO a -> IO a
 recoveringNodeConnection tr handlers action =
@@ -1272,9 +1286,12 @@ retryOnConnectionLost tr =
             $ MsgConnectionLost >$< tr
     ]
 
--- When the node's connection vanished, we may also want to handle things in a
--- slightly different way depending on whether we are a waller worker or just
--- the node's tip thread.
+-- | Trace an 'IOException' and decide whether the connection to the
+-- node should be retried.
+--
+-- When the node's connection vanished, we may also want to handle
+-- things in a slightly different way depending on whether we are a
+-- wallet worker or just the node's tip thread.
 handleIOException
     :: Tracer IO IOException -> IOException -> IO RetryAction
 handleIOException tr e = traceWith tr e $> retryAction
@@ -1292,7 +1309,21 @@ handleIOException tr e = traceWith tr e $> retryAction
         -- immediately (i.e. connect() returns EAGAIN), try again. This happens
         -- because the node's listen queue is quite short.
         | "resource exhausted" `isInfixOf` show e = ConsultPolicy
+        -- Overlapped I/O on a Windows named pipe that failed, for
+        -- example with ERROR_OPERATION_ABORTED (995) when a pending
+        -- read is cancelled. GHC maps such codes to InvalidArgument,
+        -- so the location is the discriminator.
+        | isNamedPipeError e = ConsultPolicy
         | otherwise = DontRetry
+
+-- | Whether the error is a failed overlapped read or write on a
+-- Windows named pipe. Win32-network builds the location of such
+-- errors in @withIOCPData@ as @withIODataPtr (...)@, and an
+-- unmapped Windows error code becomes 'InvalidArgument'.
+isNamedPipeError :: IOException -> Bool
+isNamedPipeError e =
+    "withIODataPtr" `isPrefixOf` ioeGetLocation e
+        && ioeGetErrorType e == InvalidArgument
 
 handleMuxError
     :: Tracer IO ReasonConnectionLost -> Error -> IO RetryAction
@@ -1418,7 +1449,10 @@ instance HasSeverityAnnotation ConnectionStatusLog where
         MsgCouldntConnect{} -> Warning
         MsgHandshakeTracer{} -> Debug
         MsgConnectionLost reason -> case reason of
-            ReasonException ie | isResourceVanishedError ie -> Warning
+            ReasonException ie
+                | isResourceVanishedError ie
+                    || isNamedPipeError ie ->
+                    Warning
             ReasonException _ie -> Debug
             ReasonMuxError muxError ->
                 case muxError of

@@ -135,7 +135,9 @@ test-suite unit
     , contra-tracer
     , hspec
     , io-classes
+    , network-mux
     , QuickCheck
+    , retry
     , text
     , transformers
 
@@ -143,4 +145,5 @@ test-suite unit
   main-is:            Main.hs
   other-modules:
     Cardano.Wallet.Network.Checkpoints.PolicySpec
+    Cardano.Wallet.Network.ImplementationSpec
     Cardano.Wallet.Network.LightSpec
