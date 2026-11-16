@@ -82,9 +82,9 @@ library common
     , http-media
     , lens
     , lucid
-    , memory
     , mtl
     , operational
+    , ram
     , servant
     , servant-server
     , string-interpolate
