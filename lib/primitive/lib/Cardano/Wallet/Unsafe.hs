@@ -39,7 +39,7 @@ module Cardano.Wallet.Unsafe
     , unsafeMkSomeMnemonicFromEntropy
     ) where
 
-import Cardano.Crypto.Wallet
+import Cardano.Address.Crypto.Wallet
     ( XPrv
     , XPub
     )
@@ -119,7 +119,7 @@ import GHC.TypeLits
     )
 import Prelude
 
-import qualified Cardano.Crypto.Wallet as CC
+import qualified Cardano.Address.Crypto.Wallet as CC
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Codec.CBOR.Decoding as CBOR
 import qualified Codec.CBOR.Read as CBOR

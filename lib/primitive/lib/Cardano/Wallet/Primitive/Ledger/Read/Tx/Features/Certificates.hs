@@ -198,7 +198,7 @@ mkShelleyCertsK
     -> [W.Certificate]
 mkShelleyCertsK (Certificates cs) = map fromShelleyCert $ toList cs
 
-mkPoolRegistrationCertificate :: StakePoolParams -> W.Certificate
+mkPoolRegistrationCertificate :: StakePoolParams era -> W.Certificate
 mkPoolRegistrationCertificate pp =
     W.CertificateOfPool
         $ Registration

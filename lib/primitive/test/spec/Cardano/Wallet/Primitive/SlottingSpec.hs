@@ -290,16 +290,19 @@ spec = do
                     (RelativeTime 20)
                     (SlotNo 20)
                     (Cardano.EpochNo 1)
-                    HF.NoPerasEnabled
+                    (HF.boundNextPerasRound HF.initBound)
             t2 =
                 HF.Bound
                     (RelativeTime 40)
                     (SlotNo 40)
                     (Cardano.EpochNo 2)
-                    HF.NoPerasEnabled
+                    (HF.boundNextPerasRound HF.initBound)
 
             era1Params =
-                HF.defaultEraParams (SecurityParam (unsafeNonZero 2)) (mkSlotLength 1)
+                HF.defaultEraParams
+                    (SecurityParam (unsafeNonZero 2))
+                    (mkSlotLength 1)
+                    HF.NoPerasEnabled
             summary =
                 HF.summaryWithExactly
                     $ exactlyTwo
