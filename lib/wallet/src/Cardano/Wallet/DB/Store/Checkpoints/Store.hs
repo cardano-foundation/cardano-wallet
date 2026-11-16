@@ -156,6 +156,10 @@ import Data.Functor
 import Data.Generics.Internal.VL.Lens
     ( (^.)
     )
+import Data.IntCast
+    ( intCast
+    , intCastMaybe
+    )
 import Data.Kind
     ( Type
     )
@@ -164,6 +168,7 @@ import Data.Map.Strict
     )
 import Data.Maybe
     ( fromJust
+    , fromMaybe
     , isJust
     , isNothing
     )
@@ -185,6 +190,7 @@ import Data.Typeable
     )
 import Data.Word
     ( Word64
+    , Word8
     )
 import Database.Persist.Sql
     ( Entity (..)
@@ -655,7 +661,7 @@ instance
                     ( serializeXPub @(key 'AccountK)
                         $ liftRawKey SharedKeyS xpub
                     )
-                    c
+                    (cosignerColumn c)
                 | ((Cosigner c), xpub) <- Map.assocs cs
                 ]
 
@@ -784,7 +790,16 @@ selectCosigners wid cred = do
             []
   where
     cosignerFromEntity (CosignerKey _ _ key c) =
-        (Cosigner c, unsafeDeserializeXPub key)
+        (Cosigner (intCast c), unsafeDeserializeXPub key)
+
+-- | The database keeps a cosigner index in one byte, while @cardano-addresses@
+-- counts cosigners in a 'Word'. The API only accepts indices up to 255.
+cosignerColumn :: Word -> Word8
+cosignerColumn c = fromMaybe err $ intCastMaybe c
+  where
+    err =
+        error
+            $ "cosignerColumn: cosigner index out of range: " <> show c
 
 -- | Check whether we have ever stored checkpoints for a multi-signature pool
 --

@@ -12,7 +12,7 @@
 -- decrypts the XPrv, and outputs both raw hex and cardano-cli text envelope.
 module Main (main) where
 
-import Cardano.Crypto.Wallet
+import Cardano.Address.Crypto.Wallet
     ( unXPrv
     , xPrvChangePass
     )

@@ -14,7 +14,7 @@
 -- matches the expected decrypted XPrv.
 module Main (main) where
 
-import Cardano.Crypto.Wallet
+import Cardano.Address.Crypto.Wallet
     ( unXPrv
     , xPrvChangePass
     )

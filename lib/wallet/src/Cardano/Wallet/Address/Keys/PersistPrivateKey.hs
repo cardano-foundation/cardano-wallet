@@ -11,12 +11,12 @@ module Cardano.Wallet.Address.Keys.PersistPrivateKey
     , unsafeDeserializeXPrv
     ) where
 
-import Cardano.Address.Derivation
-    ( XPrv
-    )
-import Cardano.Crypto.Wallet
+import Cardano.Address.Crypto.Wallet
     ( unXPrv
     , xprv
+    )
+import Cardano.Address.Derivation
+    ( XPrv
     )
 import Cardano.Crypto.WalletHD.Encrypted
     ( EncryptedKey

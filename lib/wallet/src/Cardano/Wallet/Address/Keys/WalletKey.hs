@@ -22,6 +22,11 @@ module Cardano.Wallet.Address.Keys.WalletKey
     , afterByron
     ) where
 
+import Cardano.Address.Crypto.Wallet
+    ( XPub
+    , toXPub
+    , unXPub
+    )
 import Cardano.Address.Derivation
     ( XPrv
     , xpubPublicKey
@@ -29,11 +34,6 @@ import Cardano.Address.Derivation
 import Cardano.Address.KeyHash
     ( KeyHash (KeyHash)
     , KeyRole
-    )
-import Cardano.Crypto.Wallet
-    ( XPub
-    , toXPub
-    , unXPub
     )
 import Cardano.Wallet.Address.Derivation.Byron
     ( ByronKey (..)
