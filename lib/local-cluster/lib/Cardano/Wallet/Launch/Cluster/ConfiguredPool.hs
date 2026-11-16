@@ -484,6 +484,7 @@ configurePool metadataServer recipe = do
                                 $ Ledger.KeyHashObj stakePubHash
                         , sppOwners = Set.fromList [stakePubHash]
                         , sppRelays = mempty
+                        , sppBlsKey = SNothing
                         , sppMetadata =
                             SJust
                                 $ Ledger.PoolMetadata
