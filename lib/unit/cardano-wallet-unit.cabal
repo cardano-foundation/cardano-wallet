@@ -208,6 +208,7 @@ test-suite unit
     Cardano.Wallet.Address.DiscoverySpec
     Cardano.Wallet.Address.Keys.PersistPrivateKeySpec
     Cardano.Wallet.Address.PoolSpec
+    Cardano.Wallet.Api.DeadWalletListingSpec
     Cardano.Wallet.Api.DRepSpec
     Cardano.Wallet.Api.Malformed
     Cardano.Wallet.Api.ServerSpec

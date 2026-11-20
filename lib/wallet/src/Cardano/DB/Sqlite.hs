@@ -26,6 +26,7 @@
 module Cardano.DB.Sqlite
     ( SqliteContext (..)
     , withSqliteContextFile
+    , withSqliteContextFileUnmigrated
     , newInMemorySqliteContext
     , ForeignKeysSetting (..)
 
@@ -262,21 +263,36 @@ withSqliteContextFile
 withSqliteContextFile tr fp old auto action = runExceptT $ do
     ExceptT $ withDBHandle tr fp $ runManualOldMigrations tr old
     ExceptT $ withDBHandle tr fp $ runAutoMigration tr auto
-    lift $ do
-        lock <- newMVar ()
-        withDBHandle tr fp $ \DBHandle{dbBackend} ->
-            let
-                -- Run a query on the open database,
-                -- but retry on busy.
-                runQuery :: SqlPersistT IO a -> IO a
-                runQuery cmd =
-                    observe
-                        . retryOnBusy tr retryOnBusyTimeout
-                        $ withMVar lock
-                        $ const
-                        $ runSqlConn cmd dbBackend
-            in
-                action (SqliteContext{runQuery})
+    lift $ withSqliteContextFileUnmigrated tr fp action
+
+-- | Open a database file once and provide a safe 'SqliteContext' for it,
+-- without running any migration.
+--
+-- This is the only function that builds a 'SqliteContext' for a file:
+-- 'withSqliteContextFile' runs its two migration steps and then calls it, and
+-- callers that know the file is already migrated call it directly.
+withSqliteContextFileUnmigrated
+    :: Tracer IO DBLog
+    -- ^ Logging
+    -> FilePath
+    -- ^ Database file
+    -> (SqliteContext -> IO a)
+    -> IO a
+withSqliteContextFileUnmigrated tr fp action = do
+    lock <- newMVar ()
+    withDBHandle tr fp $ \DBHandle{dbBackend} ->
+        let
+            -- Run a query on the open database,
+            -- but retry on busy.
+            runQuery :: SqlPersistT IO a -> IO a
+            runQuery cmd =
+                observe
+                    . retryOnBusy tr retryOnBusyTimeout
+                    $ withMVar lock
+                    $ const
+                    $ runSqlConn cmd dbBackend
+        in
+            action (SqliteContext{runQuery})
   where
     observe :: IO a -> IO a
     observe = bracketTracer (contramap MsgRun tr)

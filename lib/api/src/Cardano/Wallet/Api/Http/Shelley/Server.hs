@@ -804,6 +804,7 @@ import Data.Generics.Labels
     )
 import Data.Generics.Product
     ( HasField'
+    , HasType
     , typed
     )
 import Data.IntCast
@@ -977,6 +978,9 @@ import qualified Network.Ntp as Ntp
 
 type MkApiWallet ctx s w =
     ctx
+    -> WorkerCtx ctx
+    -- ^ The wallet's own resources, from its worker or, when the worker has
+    -- exited, from its database.
     -> WalletId
     -> Wallet s
     -> WalletMetadata
@@ -1142,13 +1146,11 @@ mkShelleyWallet
        , s ~ SeqState n k
        , IsOurs s Address
        , IsOurs s RewardAccount
-       , HasWorkerRegistry s ctx
        )
     => MkApiWallet ctx s ApiWallet
-mkShelleyWallet ctx@ApiLayer{..} wid cp meta delegation pending progress = do
-    reward <- withWorkerCtx @_ @s ctx wid liftE liftE $ \wrk ->
-        -- never fails - returns zero if balance not found
-        liftIO $ W.fetchRewardBalance @s $ wrk ^. dbLayer
+mkShelleyWallet ApiLayer{..} wrk wid cp meta delegation pending progress = do
+    -- never fails - returns zero if balance not found
+    reward <- liftIO $ W.fetchRewardBalance @s $ wrk ^. dbLayer
 
     let ti = timeInterpreter netLayer
 
@@ -1492,11 +1494,10 @@ mkSharedWallet
     :: forall ctx s k n
      . ( ctx ~ ApiLayer s
        , s ~ SharedState n k
-       , HasWorkerRegistry s ctx
        , Shared.SupportsDiscovery n k
        )
     => MkApiWallet ctx s ApiSharedWallet
-mkSharedWallet ctx wid cp meta delegation pending progress =
+mkSharedWallet ctx wrk wid cp meta delegation pending progress =
     case Shared.ready st of
         Shared.Pending ->
             pure
@@ -1512,9 +1513,8 @@ mkSharedWallet ctx wid cp meta delegation pending progress =
                         ApiScriptTemplate <$> Shared.delegationTemplate st
                     }
         Shared.Active _ -> do
-            reward <- withWorkerCtx @_ @s ctx wid liftE liftE $ \wrk ->
-                -- never fails - returns zero if balance not found
-                liftIO $ W.fetchRewardBalance @s $ wrk ^. dbLayer
+            -- never fails - returns zero if balance not found
+            reward <- liftIO $ W.fetchRewardBalance @s $ wrk ^. dbLayer
 
             let ti = timeInterpreter $ ctx ^. networkLayer
             apiDelegation <-
@@ -1675,8 +1675,7 @@ postLegacyWallet ctx (rootXPrv, pwd) createWallet = do
 
 mkLegacyWallet
     :: forall ctx s
-     . ( HasWorkerRegistry s ctx
-       , HasDBFactory s ctx
+     . ( HasType (DBLayer IO s) (WorkerCtx ctx)
        , KnownDiscovery s
        , HasNetworkLayer IO ctx
        , IsOurs s Address
@@ -1684,6 +1683,7 @@ mkLegacyWallet
        , WalletFlavor s
        )
     => ctx
+    -> WorkerCtx ctx
     -> WalletId
     -> Wallet s
     -> WalletMetadata
@@ -1691,7 +1691,7 @@ mkLegacyWallet
     -> Set Tx
     -> SyncProgress
     -> Handler ApiByronWallet
-mkLegacyWallet ctx wid cp meta _ pending progress = do
+mkLegacyWallet ctx wrk wid cp meta _ pending progress = do
     -- NOTE
     -- Legacy wallets imported through via XPrv might have an empty passphrase
     -- set. The passphrase is empty from a client perspective, but in practice
@@ -1746,10 +1746,9 @@ mkLegacyWallet ctx wid cp meta _ pending progress = do
             $ W.withRootKey @s nullTracer db wid mempty Prelude.id (\_ -> pure ())
 
     hideInfoForEmptyPassphrase info =
-        withWorkerCtx @_ @s ctx wid liftE liftE $ \wrk ->
-            matchEmptyPassphrase (wrk ^. typed) <&> \case
-                Right{} -> Nothing
-                Left{} -> Just $ toApiPassphraseInfo info
+        matchEmptyPassphrase (wrk ^. typed) <&> \case
+            Right{} -> Nothing
+            Left{} -> Just $ toApiPassphraseInfo info
 
 -- | A 64-bit seed for the Byron HD-random address generator, drawn from the
 -- system CSPRNG rather than the process-global 'StdGen'.
@@ -1978,7 +1977,7 @@ getWallet ctx mkApiWallet (ApiT wid) = do
             handler $ W.readWallet wrk
         progress <- liftIO $ W.walletSyncProgress @_ @_ ctx cp
         (,meta ^. #creationTime)
-            <$> mkApiWallet ctx wid cp meta delegation pending progress
+            <$> mkApiWallet ctx wrk wid cp meta delegation pending progress
 
     whenNotResponding _ = Handler
         $ ExceptT
@@ -1988,7 +1987,7 @@ getWallet ctx mkApiWallet (ApiT wid) = do
             (cp, (meta, delegation), pending) <-
                 handler $ W.readWallet wrk
             (,meta ^. #creationTime)
-                <$> mkApiWallet ctx wid cp meta delegation pending NotResponding
+                <$> mkApiWallet ctx wrk wid cp meta delegation pending NotResponding
 
 listWallets
     :: forall ctx s apiWallet
