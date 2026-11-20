@@ -46,6 +46,13 @@ data Maybe (a : Set) : Set where
   Nothing : Maybe a
   Just    : a → Maybe a
 
+isJust : ∀ {a : Set} → Maybe a → Bool
+isJust Nothing = False
+isJust (Just _) = True
+
+just-injective : ∀ {a : Set} {x y : a} → Just x ≡ Just y → x ≡ y
+just-injective refl = refl
+
 data List (a : Set) : Set where
   []  : List a
   _∷_ : a → List a → List a
@@ -241,6 +248,137 @@ data VoteDecision : Set where
   SameVote      : VoteDecision
   DifferentVote : VoteDecision
 
+{-----------------------------------------------------------------------------
+    Issue #5466 — decisions from the vote delegation that the ledger holds
+
+    A DRep's retirement removes every vote delegation to it from the ledger,
+    so the wallet's history can record a vote that the ledger no longer holds,
+    and from protocol version 10 the ledger refuses a withdrawal from a
+    key-hash reward account that holds no vote delegation.  Two decisions
+    therefore follow the ledger's vote delegation when the wallet has read
+    it, and the wallet's history only when it has not: the withdrawal
+    decision F11 below, and the duplicate-vote decision F12 in the
+    'DuplicateVote' module.  Each named law has a QuickCheck mirror over the
+    Haskell implementation, listed in
+    specs/5466-ledger-vote-delegation/functions-model.md:
+
+      AGDA-5466-WDRL-LEDGER → prop_withdrawalPermittedFollowsLedger
+      AGDA-5466-WDRL-EXEMPT → prop_withdrawalPermittedExempt
+      AGDA-5466-WDRL-UNREAD → prop_withdrawalPermittedUnreadFollowsHistory
+      AGDA-5466-VOTE-LEDGER → prop_ledgerVoteRequestFollowsLedger
+      AGDA-5466-VOTE-UNREAD → prop_ledgerVoteRequestUnreadIs5350
+
+    The three withdrawal laws partition the inputs: WDRL-EXEMPT covers the
+    bootstrap phase and script-hash accounts, and the other two cover a
+    key-hash account after the bootstrap phase, split on whether the ledger
+    value has been read.
+------------------------------------------------------------------------------}
+
+-- | D6 — the ledger's vote delegation for a reward account, as the wallet
+-- observes it.  'Unread' stands for a value that the wallet has not read, or
+-- an era before Conway; 'NoDelegation' for a ledger that holds no vote
+-- delegation for the account; 'DelegatedTo' for a delegation to a DRep
+-- credential, to Abstain or to No Confidence.
+data LedgerVote : Set where
+  Unread       : LedgerVote
+  NoDelegation : LedgerVote
+  DelegatedTo  : DRep → LedgerVote
+
+-- | D6 — whether the protocol version is in the Conway bootstrap phase.
+data Phase : Set where
+  Bootstrap     : Phase
+  PostBootstrap : Phase
+
+-- | D6 — the kind of credential of a reward account.
+data CredKind : Set where
+  KeyHashCred    : CredKind
+  ScriptHashCred : CredKind
+
+-- | F11 — the withdrawal decision, with the history's vote given as the DRep
+-- of the latest delegation status, if any.  Its clauses follow the guards of
+-- the Haskell 'withdrawalPermitted' in order: permitted in the bootstrap
+-- phase; permitted for a script-hash reward account; decided by a read
+-- ledger value alone, one clause per constructor; and decided by the
+-- history when the ledger value is unread.
+withdrawalDecision : Phase → CredKind → LedgerVote → Maybe DRep → Bool
+withdrawalDecision Bootstrap credKind ledgerVote history = True
+withdrawalDecision PostBootstrap ScriptHashCred ledgerVote history = True
+withdrawalDecision PostBootstrap KeyHashCred NoDelegation history = False
+withdrawalDecision PostBootstrap KeyHashCred (DelegatedTo d) history = True
+withdrawalDecision PostBootstrap KeyHashCred Unread history = isJust history
+
+-- The predicates below are defined independently of 'withdrawalDecision',
+-- so that the laws relate the definition to a specification rather than to
+-- itself.
+
+-- | A ledger value that the wallet has read.
+data IsRead : LedgerVote → Set where
+  readNone      : IsRead NoDelegation
+  readDelegated : ∀ (d : DRep) → IsRead (DelegatedTo d)
+
+-- | A ledger value that holds a vote delegation.
+data IsDelegated : LedgerVote → Set where
+  delegated : ∀ (d : DRep) → IsDelegated (DelegatedTo d)
+
+-- | The phases and credential kinds that the ledger exempts from holding a
+-- vote delegation: every account in the bootstrap phase, and a script-hash
+-- account in every phase.
+data IsExempt : Phase → CredKind → Set where
+  bootstrapPhase : ∀ (c : CredKind) → IsExempt Bootstrap c
+  scriptHash     : ∀ (p : Phase) → IsExempt p ScriptHashCred
+
+-- | A history that records a vote.
+data HoldsVote : Maybe DRep → Set where
+  holdsVote : ∀ (d : DRep) → HoldsVote (Just d)
+
+-- | AGDA-5466-WDRL-LEDGER — after the bootstrap phase, a key-hash reward
+-- account whose ledger value has been read may withdraw exactly when the
+-- ledger holds a vote delegation for it, whatever the history records.  A
+-- decision from the history alone violates this law once the DRep that the
+-- history names has retired.
+AGDA-5466-WDRL-LEDGER
+  : ∀ (v : LedgerVote) (history : Maybe DRep)
+  → IsRead v
+  → ( IsDelegated v
+      → withdrawalDecision PostBootstrap KeyHashCred v history ≡ True
+    )
+    ⋀
+    ( (IsDelegated v → Empty)
+      → withdrawalDecision PostBootstrap KeyHashCred v history ≡ False
+    )
+AGDA-5466-WDRL-LEDGER _ history readNone =
+  (λ ()) , (λ notDelegated → refl)
+AGDA-5466-WDRL-LEDGER _ history (readDelegated d) =
+  (λ isDelegated → refl) , (λ notDelegated → absurd (notDelegated (delegated d)))
+
+-- | AGDA-5466-WDRL-EXEMPT — every account in the bootstrap phase, and a
+-- script-hash account in every phase, may withdraw, whatever the ledger
+-- value and the history are.
+AGDA-5466-WDRL-EXEMPT
+  : ∀ (p : Phase) (c : CredKind) (v : LedgerVote) (history : Maybe DRep)
+  → IsExempt p c
+  → withdrawalDecision p c v history ≡ True
+AGDA-5466-WDRL-EXEMPT _ _ v history (bootstrapPhase c) = refl
+AGDA-5466-WDRL-EXEMPT _ _ v history (scriptHash Bootstrap) = refl
+AGDA-5466-WDRL-EXEMPT _ _ v history (scriptHash PostBootstrap) = refl
+
+-- | AGDA-5466-WDRL-UNREAD — after the bootstrap phase, a key-hash reward
+-- account whose ledger value is unread may withdraw exactly when the history
+-- records a vote.
+AGDA-5466-WDRL-UNREAD
+  : ∀ (history : Maybe DRep)
+  → ( HoldsVote history
+      → withdrawalDecision PostBootstrap KeyHashCred Unread history ≡ True
+    )
+    ⋀
+    ( (HoldsVote history → Empty)
+      → withdrawalDecision PostBootstrap KeyHashCred Unread history ≡ False
+    )
+AGDA-5466-WDRL-UNREAD Nothing =
+  (λ ()) , (λ noVote → refl)
+AGDA-5466-WDRL-UNREAD (Just d) =
+  (λ voted → refl) , (λ noVote → absurd (noVote (holdsVote d)))
+
 -- | The duplicate-vote decision needs to compare two 'DRep's.  'DRep' is
 -- abstract here, so its equality is a module parameter together with its
 -- correctness laws — exactly as the surrounding module abstracts the order on
@@ -326,3 +464,52 @@ module DuplicateVote
           t
           (statusDRep (effectiveDelegationStatus d))
           different
+
+  -- | F12 — the duplicate-vote decision from the ledger's vote delegation.
+  -- Its clauses follow the Haskell 'ledgerVoteRequestFor' in order: a
+  -- delegation that the ledger holds is compared with the target; a ledger
+  -- that holds no vote delegation makes every request a different vote; and
+  -- an unread value leaves the decision to F4.
+  ledgerVoteDecision : DRep → LedgerVote → Delegation → VoteDecision
+  ledgerVoteDecision t (DelegatedTo d) dlg = decideAgainst t (Just d)
+  ledgerVoteDecision t NoDelegation dlg = DifferentVote
+  ledgerVoteDecision t Unread dlg = voteDecision t dlg
+
+  -- | AGDA-5466-VOTE-LEDGER — a read ledger value decides alone: the request
+  -- repeats the vote delegation in force exactly when the ledger holds a
+  -- delegation to the target, whatever the history records.
+  AGDA-5466-VOTE-LEDGER
+    : ∀ (t : DRep) (v : LedgerVote) (d : Delegation)
+    → IsRead v
+    → (v ≡ DelegatedTo t → ledgerVoteDecision t v d ≡ SameVote)
+      ⋀
+      ( (v ≡ DelegatedTo t → Empty)
+        → ledgerVoteDecision t v d ≡ DifferentVote
+      )
+  AGDA-5466-VOTE-LEDGER t _ d readNone =
+    (λ ()) , (λ different → refl)
+  AGDA-5466-VOTE-LEDGER t _ d (readDelegated e) = rejects , accepts
+    where
+      rejects
+        : DelegatedTo e ≡ DelegatedTo t
+        → ledgerVoteDecision t (DelegatedTo e) d ≡ SameVote
+      rejects same =
+        trans
+          (cong (λ v → ledgerVoteDecision t v d) same)
+          (decideAgainst-refl t)
+
+      accepts
+        : (DelegatedTo e ≡ DelegatedTo t → Empty)
+        → ledgerVoteDecision t (DelegatedTo e) d ≡ DifferentVote
+      accepts different =
+        decideAgainst-differs
+          t
+          (Just e)
+          (λ same → different (cong DelegatedTo (just-injective same)))
+
+  -- | AGDA-5466-VOTE-UNREAD — while the ledger value is unread, the decision
+  -- is F4's, taken from the effective delegation status alone.
+  AGDA-5466-VOTE-UNREAD
+    : ∀ (t : DRep) (d : Delegation)
+    → ledgerVoteDecision t Unread d ≡ voteDecision t d
+  AGDA-5466-VOTE-UNREAD t d = refl

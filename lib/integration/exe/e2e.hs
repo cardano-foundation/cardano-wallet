@@ -254,6 +254,12 @@ configureContext (E2EConfig preprodMnemonics alreadyRunningWallet) action =
                         error "_smashUrl not implemented"
                     , _mintSeaHorseAssets =
                         error "_mintSeaHorseAssets not implemented"
+                    , _registerNewDRep =
+                        error "_registerNewDRep not implemented"
+                    , _registerDRep =
+                        error "_registerDRep not implemented"
+                    , _retireDRep =
+                        error "_retireDRep not implemented"
                     , _preprodWallets =
                         []
                     }

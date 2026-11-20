@@ -124,6 +124,7 @@ import Test.Integration.Framework.DSL
     , minUTxOValue
     , notDelegating
     , postTransactionViaCLI
+    , shouldHaveDelegationHistory
     , updateWalletNameViaCLI
     , updateWalletPassphraseViaCLI
     , updateWalletPassphraseWithMnemonicViaCLI
@@ -272,7 +273,9 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
             , expectCliField (#balance . #available) (`shouldBe` ApiAmount 0)
             , expectCliField (#balance . #total) (`shouldBe` ApiAmount 0)
             , expectCliField (#balance . #reward) (`shouldBe` ApiAmount 0)
-            , expectCliField #delegation (`shouldBe` notDelegating [])
+            , expectCliField
+                #delegation
+                (`shouldHaveDelegationHistory` notDelegating [])
             , expectCliField #passphrase (`shouldNotBe` Nothing)
             ]
 
@@ -583,7 +586,9 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
             , expectCliField
                 (#balance . #reward)
                 (`shouldBe` ApiAmount 0)
-            , expectCliField #delegation (`shouldBe` notDelegating [])
+            , expectCliField
+                #delegation
+                (`shouldHaveDelegationHistory` notDelegating [])
             , expectCliField #passphrase (`shouldNotBe` Nothing)
             ]
 
@@ -639,7 +644,10 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
                 0
                 (#balance . #reward)
                 (`shouldBe` ApiAmount 0)
-            , expectCliListField 0 #delegation (`shouldBe` notDelegating [])
+            , expectCliListField
+                0
+                #delegation
+                (`shouldHaveDelegationHistory` notDelegating [])
             , expectCliListField 0 walletId (`shouldBe` T.pack w1)
             ]
 

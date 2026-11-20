@@ -14,6 +14,7 @@ module Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Certificates
     ( getCertificates
     , fromStakeCredential
     , fromConwayCert
+    , fromLedgerDRep
     )
 where
 
@@ -265,6 +266,7 @@ mkDelegationVoting deposit cred = \case
                 (Just $ fromPoolKeyHash pool)
                 (Just $ fromLedgerDRep vote)
 
+-- | Convert a ledger 'Ledger.DRep' to the wallet's 'DRep'.
 fromLedgerDRep :: Ledger.DRep -> DRep
 fromLedgerDRep = \case
     Ledger.DRepAlwaysAbstain -> Abstain

@@ -158,6 +158,7 @@ import Test.Integration.Framework.DSL
     , postSharedWallet
     , request
     , sharedAccPubKeyFromMnemonics
+    , shouldHaveDelegationHistory
     , signSharedTx
     , submitSharedTxWithWid
     , unsafeRequest
@@ -281,7 +282,7 @@ spec = describe "SHARED_WALLETS" $ do
                     (`shouldBe` mempty)
                 , expectField
                     (traverse . #delegation)
-                    (`shouldBe` notDelegating [])
+                    (`shouldHaveDelegationHistory` notDelegating [])
                 , expectField
                     (traverse . #passphrase)
                     (`shouldNotBe` Nothing)
@@ -623,7 +624,7 @@ spec = describe "SHARED_WALLETS" $ do
                     (`shouldBe` mempty)
                 , expectField
                     (traverse . #delegation)
-                    (`shouldBe` notDelegating [])
+                    (`shouldHaveDelegationHistory` notDelegating [])
                 , expectField
                     (traverse . #passphrase)
                     (`shouldBe` Nothing)
@@ -1801,7 +1802,7 @@ spec = describe "SHARED_WALLETS" $ do
                 , expectListField
                     0
                     (traverse . #delegation)
-                    (`shouldBe` notDelegating [])
+                    (`shouldHaveDelegationHistory` notDelegating [])
                 , expectListField
                     0
                     (traverse . #delegationScriptTemplate)

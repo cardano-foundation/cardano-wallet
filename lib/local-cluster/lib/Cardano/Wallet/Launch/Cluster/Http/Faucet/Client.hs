@@ -17,7 +17,13 @@ module Cardano.Wallet.Launch.Cluster.Http.Faucet.Client
 where
 
 import Cardano.Wallet.Launch.Cluster.Http.Faucet.API
-    ( SendFaucetAssetsAPI
+    ( RegisterDRepAPI
+    , RegisterNewDRepAPI
+    , RetireDRepAPI
+    , SendFaucetAssetsAPI
+    )
+import Cardano.Wallet.Launch.Cluster.Http.Faucet.ClusterDRep
+    ( ClusterDRep (..)
     )
 import Cardano.Wallet.Launch.Cluster.Http.Faucet.SendFaucetAssets
     ( SendFaucetAssets
@@ -29,6 +35,9 @@ import Cardano.Wallet.Launch.Cluster.Http.Monitor.Client
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId
     , SNetworkId
+    )
+import Cardano.Wallet.Primitive.Types.DRep
+    ( DRepKeyHash
     )
 import Control.Monad.IO.Class
     ( MonadIO (..)
@@ -63,17 +72,32 @@ import Prelude
 -- | Queries that can be run against the local cluster
 data FaucetQ a where
     SendFaucetAssetsQ :: SendFaucetAssets -> FaucetQ ()
+    -- | Generate DRep keys and register the DRep. Returns once the ledger
+    -- holds the registration.
+    RegisterNewDRepQ :: FaucetQ DRepKeyHash
+    -- | Register a DRep whose keys the cluster holds, such as one retired
+    -- with 'RetireDRepQ'. Returns once the ledger holds the registration.
+    RegisterDRepQ :: DRepKeyHash -> FaucetQ ()
+    -- | Retire a DRep whose keys the cluster holds. Returns once the ledger
+    -- no longer holds the DRep.
+    RetireDRepQ :: DRepKeyHash -> FaucetQ ()
 
 -- | Existential wrapper for any application query that has a show instance
 data AnyFaucetQ = forall a. Show a => AnyFaucetQ (FaucetQ a)
 
 instance Show AnyFaucetQ where
     show (AnyFaucetQ (SendFaucetAssetsQ _)) = "SendFaucetAssets"
+    show (AnyFaucetQ RegisterNewDRepQ) = "RegisterNewDRep"
+    show (AnyFaucetQ (RegisterDRepQ drep)) = "RegisterDRep " <> show drep
+    show (AnyFaucetQ (RetireDRepQ drep)) = "RetireDRep " <> show drep
 
 -- | Opaque record of the client application
-newtype Faucet n = Faucet
+data Faucet n = Faucet
     { sendFaucetAssets
         :: WithNetwork SendFaucetAssets n -> ClientM NoContent
+    , registerNewDRep :: ClientM ClusterDRep
+    , registerDRep :: ClusterDRep -> ClientM NoContent
+    , retireDRep :: ClusterDRep -> ClientM NoContent
     }
 
 -- | Construct the client application given the network id witness
@@ -81,6 +105,9 @@ mkFaucet :: forall n. HasSNetworkId n => SNetworkId n -> Faucet n
 mkFaucet _ =
     Faucet
         { sendFaucetAssets = client (Proxy @(SendFaucetAssetsAPI n))
+        , registerNewDRep = client (Proxy @RegisterNewDRepAPI)
+        , registerDRep = client (Proxy @RegisterDRepAPI)
+        , retireDRep = client (Proxy @RetireDRepAPI)
         }
 
 newtype MsgFaucetClient = MsgFaucetRequest AnyFaucetQ
@@ -115,3 +142,15 @@ newFaucetQ query tr Faucet{..} = do
                     liftIO
                         $ query
                         $ sendFaucetAssets (WithNetwork assets) $> ()
+                RegisterNewDRepQ ->
+                    liftIO
+                        $ clusterDRepKeyHash
+                            <$> query registerNewDRep
+                RegisterDRepQ drep ->
+                    liftIO
+                        $ query
+                        $ registerDRep (ClusterDRep drep) $> ()
+                RetireDRepQ drep ->
+                    liftIO
+                        $ query
+                        $ retireDRep (ClusterDRep drep) $> ()

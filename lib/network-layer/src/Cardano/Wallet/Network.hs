@@ -56,7 +56,9 @@ import Cardano.Wallet.Primitive.Types.Coin
     ( Coin
     )
 import Cardano.Wallet.Primitive.Types.DRep
-    ( DRepRegistration
+    ( DRepID
+    , DRepRegistration
+    , VoteDelegation
     )
 import Cardano.Wallet.Primitive.Types.ProtocolParameters
     ( ProtocolParameters
@@ -161,6 +163,14 @@ data NetworkLayer m block = NetworkLayer
         :: m (Maybe [DRepRegistration])
     -- ^ Query all registered DReps with their voting power and status.
     -- Returns 'Nothing' when the connected node is running a pre-Conway era.
+    , isDRepRegistered
+        :: DRepID
+        -> m (Maybe Bool)
+    -- ^ Query whether the ledger holds a DRep as registered, with the DRep's
+    -- credential only. Nothing is cached: every call queries the node.
+    --
+    -- A registered DRep past its expiry epoch is registered. Returns
+    -- 'Nothing' when the connected node is running a pre-Conway era.
     , stakeDistribution
         :: Coin -- Stake to consider for rewards
         -> m StakePoolsSummary
@@ -178,6 +188,16 @@ data NetworkLayer m block = NetworkLayer
     --
     -- If there is no cached value, it will return `Coin 0`, and add the
     -- account to the internal set of observed account, such that it will be
+    -- fetched later.
+    , getCachedVoteDelegation
+        :: RewardAccount
+        -> m (Maybe VoteDelegation)
+    -- ^ Return the cached vote delegation of an account, which comes from
+    -- the same read of the ledger as its cached reward balance.
+    --
+    -- Returns 'Nothing' if there is no cached value, or if the node was in
+    -- an era before Conway at the last read. In the first case, it adds the
+    -- account to the internal set of observed accounts, such that it will be
     -- fetched later.
     , fetchRewardAccountBalances
         :: Set RewardAccount

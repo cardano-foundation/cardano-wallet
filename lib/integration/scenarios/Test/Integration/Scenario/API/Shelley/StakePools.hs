@@ -204,6 +204,7 @@ import Test.Integration.Framework.DSL
     , replaceStakeKey
     , request
     , rewardWallet
+    , shouldHaveDelegationHistory
     , signTx
     , submitTxWithWid
     , triggerMaintenanceAction
@@ -632,7 +633,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                         verify
                         [ expectField
                             #delegation
-                            (`shouldBe` delegating (ApiT pool) [])
+                            (`shouldHaveDelegationHistory` delegating (ApiT pool) [])
                         ]
 
             -- joinStakePool would try once again joining pool and voting Abstain
@@ -663,7 +664,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                         verify
                         [ expectField
                             #delegation
-                            (`shouldBe` delegating (ApiT pool) [])
+                            (`shouldHaveDelegationHistory` delegating (ApiT pool) [])
                         ]
 
             waitForTxStatus ctx w InLedger . getResponse
@@ -675,7 +676,9 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                         verify
                         [ expectField
                             #delegation
-                            (`shouldBe` votingAndDelegating (ApiT pool) (ApiT Abstain) [])
+                            ( `shouldHaveDelegationHistory`
+                                votingAndDelegating (ApiT pool) (ApiT Abstain) []
+                            )
                         ]
 
             -- joinStakePool would try once again joining the same pool but fails
@@ -730,7 +733,9 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                 getSrcWallet
                     >>= flip
                         verify
-                        [ expectField #delegation (`shouldBe` onlyVoting voting [])
+                        [ expectField
+                            #delegation
+                            (`shouldHaveDelegationHistory` onlyVoting voting [])
                         ]
 
             pool1 : pool2 : _ <- map (view #id) <$> notRetiringPools ctx
@@ -744,7 +749,9 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                         verify
                         [ expectField
                             #delegation
-                            (`shouldBe` votingAndDelegating (ApiT pool1) voting [])
+                            ( `shouldHaveDelegationHistory`
+                                votingAndDelegating (ApiT pool1) voting []
+                            )
                         ]
 
             -- joinStakePool would try once again joining pool and fail as we have already voted
@@ -770,7 +777,9 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                         verify
                         [ expectField
                             #delegation
-                            (`shouldBe` votingAndDelegating (ApiT pool2) voting [])
+                            ( `shouldHaveDelegationHistory`
+                                votingAndDelegating (ApiT pool2) voting []
+                            )
                         ]
 
     it
@@ -817,7 +826,9 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                 getSrcWallet
                     >>= flip
                         verify
-                        [ expectField #delegation (`shouldBe` onlyVoting voting [])
+                        [ expectField
+                            #delegation
+                            (`shouldHaveDelegationHistory` onlyVoting voting [])
                         ]
 
             pool1 : pool2 : _ <- map (view #id) <$> notRetiringPools ctx
@@ -831,7 +842,9 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                         verify
                         [ expectField
                             #delegation
-                            (`shouldBe` votingAndDelegating (ApiT pool1) voting [])
+                            ( `shouldHaveDelegationHistory`
+                                votingAndDelegating (ApiT pool1) voting []
+                            )
                         ]
 
             -- joinStakePool would try once again joining pool and fail as we have already voted
@@ -857,7 +870,9 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                         verify
                         [ expectField
                             #delegation
-                            (`shouldBe` votingAndDelegating (ApiT pool2) voting [])
+                            ( `shouldHaveDelegationHistory`
+                                votingAndDelegating (ApiT pool2) voting []
+                            )
                         ]
 
     it "STAKE_POOLS_JOIN_03 - Cannot join a pool that has retired" $ \ctx -> runResourceT $ do
@@ -994,7 +1009,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
         request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty
             >>= flip
                 verify
-                [expectField #delegation (`shouldBe` deleg pool1)]
+                [expectField #delegation (`shouldHaveDelegationHistory` deleg pool1)]
 
         -- join another stake pool
         waitForTxStatus ctx w InLedger . getResponse
@@ -1006,7 +1021,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty
                 >>= flip
                     verify
-                    [expectField #delegation (`shouldBe` deleg pool2)]
+                    [expectField #delegation (`shouldHaveDelegationHistory` deleg pool2)]
 
     it "STAKE_POOLS_JOIN_04 - Rewards accumulate" $ \ctx -> runResourceT $ do
         w <- fixtureWallet ctx
@@ -1261,7 +1276,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty
                 >>= flip
                     verify
-                    [expectField #delegation (`shouldBe` deleg)]
+                    [expectField #delegation (`shouldHaveDelegationHistory` deleg)]
 
             -- Cannot join the same pool
             liftIO
@@ -1423,7 +1438,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                     Empty
                     >>= flip
                         verify
-                        [ expectField #delegation (`shouldBe` deleg)
+                        [ expectField #delegation (`shouldHaveDelegationHistory` deleg)
                         ]
 
                 rQuit <- quitStakePool @n ctx (w, fixturePassphrase)
@@ -1467,7 +1482,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                         verify
                         [ expectField
                             #delegation
-                            (`shouldBe` notDelegating [])
+                            (`shouldHaveDelegationHistory` notDelegating [])
                         , expectField
                             (#balance . #total)
                             (.>= ApiAmount (depositAmt ctx))
@@ -1517,7 +1532,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                     Empty
                     >>= flip
                         verify
-                        [ expectField #delegation (`shouldBe` deleg)
+                        [ expectField #delegation (`shouldHaveDelegationHistory` deleg)
                         ]
 
                 response <- quitStakePool @n ctx (w, fixturePassphrase)

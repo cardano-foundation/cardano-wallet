@@ -174,6 +174,7 @@ import Test.Integration.Framework.DSL
     , postWallet'
     , rawRequest
     , request
+    , shouldHaveDelegationHistory
     , unsafeResponse
     , verify
     , walletId
@@ -269,7 +270,9 @@ spec = describe "SHELLEY_WALLETS" $ do
             , expectField (#balance . #reward) (`shouldBe` ApiAmount 0)
             , expectField (#assets . #total) (`shouldBe` mempty)
             , expectField (#assets . #available) (`shouldBe` mempty)
-            , expectField #delegation (`shouldBe` notDelegating [])
+            , expectField
+                #delegation
+                (`shouldHaveDelegationHistory` notDelegating [])
             , expectField #passphrase (`shouldNotBe` Nothing)
             ]
         let wid = getFromResponse Prelude.id r
@@ -352,7 +355,9 @@ spec = describe "SHELLEY_WALLETS" $ do
                     , expectField
                         (#balance . #reward)
                         (`shouldBe` ApiAmount 0)
-                    , expectField #delegation (`shouldBe` notDelegating [])
+                    , expectField
+                        #delegation
+                        (`shouldHaveDelegationHistory` notDelegating [])
                     , expectField #passphrase (`shouldNotBe` Nothing)
                     ]
                 eventually "listed wallet's state = Ready" $ do
@@ -912,7 +917,9 @@ spec = describe "SHELLEY_WALLETS" $ do
                     (#balance . #reward)
                     (`shouldBe` ApiAmount 0)
                 , expectField (#state . #getApiT) (`shouldBe` Ready)
-                , expectField #delegation (`shouldBe` notDelegating [])
+                , expectField
+                    #delegation
+                    (`shouldHaveDelegationHistory` notDelegating [])
                 , expectField walletId (`shouldBe` w ^. walletId)
                 , expectField #passphrase (`shouldNotBe` Nothing)
                 ]
@@ -977,7 +984,10 @@ spec = describe "SHELLEY_WALLETS" $ do
                 0
                 (#balance . #reward)
                 (`shouldBe` ApiAmount 0)
-            , expectListField 0 #delegation (`shouldBe` notDelegating [])
+            , expectListField
+                0
+                #delegation
+                (`shouldHaveDelegationHistory` notDelegating [])
             ]
 
     it "WALLETS_LIST_01 - Wallets are listed from oldest to newest" $ \ctx -> runResourceT $ do
@@ -1040,7 +1050,9 @@ spec = describe "SHELLEY_WALLETS" $ do
                 , expectField
                     (#balance . #total)
                     (`shouldBe` ApiAmount 0)
-                , expectField #delegation (`shouldBe` notDelegating [])
+                , expectField
+                    #delegation
+                    (`shouldHaveDelegationHistory` notDelegating [])
                 , expectField walletId (`shouldBe` walId)
                 , expectField #passphrase (`shouldBe` passLastUpdateValue)
                 ]

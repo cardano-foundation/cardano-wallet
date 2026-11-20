@@ -102,6 +102,7 @@ import Cardano.Wallet.Primitive.Types.Coin
     )
 import Cardano.Wallet.Primitive.Types.DRep
     ( DRep
+    , DRepID
     )
 import Cardano.Wallet.Primitive.Types.Pool
     ( PoolId
@@ -405,6 +406,9 @@ data ErrCannotJoin
 data ErrCannotVote
     = ErrAlreadyVoted DRep
     | ErrWrongEra
+    | -- | The ledger does not hold the DRep as registered, and refuses a vote
+      -- delegation to it.
+      ErrDRepNotRegistered DRepID
     deriving (Generic, Eq, Show)
 
 data ErrCannotQuit

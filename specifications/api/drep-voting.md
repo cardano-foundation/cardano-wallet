@@ -26,7 +26,7 @@ Specifically:
     ...
     }
     ```
-    When in Voltaire era user should expect 403 error with response: "Withdrawals are not possible without participating in the voting. Please re-join the stake pool. If `voting` field is missing abstaining from voting is set."
+    When in Voltaire era user should expect 403 error `withdrawal_not_possible_without_vote` when the ledger holds no vote delegation for the wallet's reward account, because the ledger rejects every withdrawal from such an account. This happens for a wallet that never voted and for a wallet whose DRep has retired. The remedy is a vote delegation to a DRep, to `abstain` or to `no_confidence`, in a transaction that is in the ledger before the withdrawal; re-joining the stake pool with `vote` set does this. Joining a stake pool without `vote` votes `abstain` automatically only for a wallet whose history holds no vote, so it does not repair a wallet whose DRep has retired. The ledger accepts withdrawals from a shared wallet's reward account without a vote delegation, so the error is not returned for it.
 
 2. Re-joining with explicit abstain from voting (this is default when `vote` field is missing).
 

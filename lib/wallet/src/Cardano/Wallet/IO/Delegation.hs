@@ -19,14 +19,24 @@ module Cardano.Wallet.IO.Delegation
     , joinStakePool
     , quitStakePool
     , joinDRep
+    , assertDRepRegistered
+    , assertDifferentVoting
     )
 where
 
+import Cardano.Ledger.Conway
+    ( hardforkConwayBootstrapPhase
+    )
+import Cardano.Ledger.Core
+    ( ppProtocolVersionL
+    )
 import Cardano.Pool.Types
     ( PoolId
     )
 import Cardano.Wallet
-    ( WalletException (..)
+    ( ErrCannotVote (..)
+    , ErrConstructTx (..)
+    , WalletException (..)
     , WalletLayer (..)
     , WalletLog (..)
     , dbLayer
@@ -91,7 +101,8 @@ import Cardano.Wallet.Primitive.Types
     , WalletId
     )
 import Cardano.Wallet.Primitive.Types.DRep
-    ( DRep
+    ( DRep (..)
+    , VoteDelegation
     )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount
@@ -107,6 +118,15 @@ import Control.Exception
     )
 import Control.Monad
     ( forM
+    , when
+    )
+import Control.Monad.IO.Class
+    ( liftIO
+    )
+import Control.Monad.Trans.Except
+    ( ExceptT
+    , runExceptT
+    , throwE
     )
 import Control.Tracer
     ( traceWith
@@ -131,6 +151,7 @@ import Data.Time.Clock
     )
 import Prelude
 
+import qualified Cardano.Balance.Tx.Eras as Write
 import qualified Cardano.Balance.Tx.Tx as Write
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.Address.Discovery.Sequential as Seq
@@ -142,7 +163,8 @@ import qualified Cardano.Wallet.Transaction as Tx
 ------------------------------------------------------------------------------}
 handleDelegationVoteRequest
     :: forall s
-     . WalletLayer IO s
+     . WalletFlavor s
+    => WalletLayer IO s
     -> CurrentEpochSlotting
     -> IO (Set PoolId)
     -> (PoolId -> IO PoolLifeCycleStatus)
@@ -317,6 +339,7 @@ selectCoinsForQuit ctx = do
 
     action <-
         quitStakePoolDelegationAction ctx currentEpochSlotting withdrawal
+    assertWithdrawalPermitted netLayer db era pp withdrawal
 
     let changeAddrGen = W.defaultChangeAddressGen (delegationAddressS @n)
 
@@ -499,6 +522,18 @@ quitStakePoolDelegationAction ctx currentEpochSlotting withdrawal = do
   where
     db = ctx ^. dbLayer
 
+-- | Refuse a self-withdrawal that the ledger would refuse.
+assertWithdrawalPermitted
+    :: NetworkLayer IO block
+    -> DBLayer IO s
+    -> Write.RecentEra era
+    -> Write.PParams era
+    -> Withdrawal
+    -> IO ()
+assertWithdrawalPermitted netLayer db era pp withdrawal =
+    runExceptT (W.assertIsVoting netLayer db era pp withdrawal)
+        >>= either (throwIO . ExceptionConstructTx) pure
+
 -- | Send a transaction to the network where we quit staking.
 quitStakePool
     :: forall s n k
@@ -515,15 +550,17 @@ quitStakePool
     -> IO (W.BuiltTx, UTCTime)
 quitStakePool ctx walletId passphrase = do
     (rewardAccount, _, derivationPath) <- W.readRewardAccount db
-    withdrawal <-
-        WithdrawalSelf rewardAccount derivationPath
-            <$> getCachedRewardAccountBalance netLayer rewardAccount
+    balance <- getCachedRewardAccountBalance netLayer rewardAccount
+    let withdrawal = W.quitWithdrawal rewardAccount derivationPath balance
 
     currentEpochSlotting <- W.getCurrentEpochSlotting netLayer
     pp <- currentProtocolParameters netLayer
+    (Write.PParamsInAnyRecentEra era ledgerPP, _) <-
+        W.readNodeTipStateForTxWrite netLayer
 
     action <-
         quitStakePoolDelegationAction ctx currentEpochSlotting withdrawal
+    assertWithdrawalPermitted netLayer db era ledgerPP withdrawal
 
     ttl <- W.transactionExpirySlot ti Nothing
     let transactionCtx =
@@ -604,20 +641,15 @@ joinDRep ctx wid drep passphrase = do
     txLayer = ctx ^. transactionLayer
 
 joinDRepVotingAction
-    :: WalletLayer IO s
+    :: WalletFlavor s
+    => WalletLayer IO s
     -> DRep
     -> IO Tx.VotingAction
 joinDRepVotingAction ctx drep = do
-    (Write.PParamsInAnyRecentEra era _, _) <-
+    (Write.PParamsInAnyRecentEra era pp, _) <-
         W.readNodeTipStateForTxWrite netLayer
-    currentEpochSlotting <- W.getCurrentEpochSlotting netLayer
-    (calculateWalletDelegations, stakeKeyIsRegistered) <-
-        db & \DBLayer{atomically, walletState} ->
-            atomically
-                $ (,)
-                    <$> readDelegation walletState
-                    <*> W.isStakeKeyRegistered walletState
-    let dlg = calculateWalletDelegations currentEpochSlotting
+    assertDRepRegistered netLayer pp drep
+    (ledger, dlg, stakeKeyIsRegistered) <- readVoteState ctx
 
     traceWith tr
         $ W.MsgWallet
@@ -626,26 +658,27 @@ joinDRepVotingAction ctx drep = do
     either
         (throwIO . ExceptionVoting)
         pure
-        (WD.joinDRepVotingAction era drep dlg stakeKeyIsRegistered)
+        (WD.joinDRepVotingAction era drep ledger dlg stakeKeyIsRegistered)
   where
     netLayer = ctx ^. networkLayer
-    db = ctx ^. dbLayer
     tr = ctx ^. logger
 
 voteAction
-    :: WalletLayer IO s
+    :: WalletFlavor s
+    => WalletLayer IO s
     -> DRep
     -> IO (Tx.VotingAction, VoteRequest)
 voteAction ctx action = do
-    currentEpochSlotting <- W.getCurrentEpochSlotting netLayer
-    (calculateWalletDelegations, stakeKeyIsRegistered) <-
-        db & \DBLayer{atomically, walletState} ->
-            atomically
-                $ (,)
-                    <$> readDelegation walletState
-                    <*> W.isStakeKeyRegistered walletState
-    let dlg = calculateWalletDelegations currentEpochSlotting
-    let request = WD.voteRequestFor action dlg
+    -- Only a vote to a DRep credential needs the protocol parameters, for the
+    -- registration check.
+    case action of
+        FromDRepID _ -> do
+            (Write.PParamsInAnyRecentEra _ pp, _) <-
+                W.readNodeTipStateForTxWrite netLayer
+            assertDRepRegistered netLayer pp action
+        _ -> pure ()
+    (ledger, dlg, stakeKeyIsRegistered) <- readVoteState ctx
+    let request = WD.ledgerVoteRequestFor action ledger dlg
 
     traceWith tr
         $ W.MsgWallet
@@ -656,6 +689,74 @@ voteAction ctx action = do
             then (Tx.Vote action, request)
             else (Tx.VoteRegisteringKey action, request)
   where
-    db = ctx ^. dbLayer
     tr = ctx ^. logger
+    netLayer = ctx ^. networkLayer
+
+-- | Refuse a vote delegation to a DRep credential that the ledger does not
+-- hold as registered, before anything is built for it.
+--
+-- Queries the node for the target's registration only for a DRep credential
+-- and outside the Conway bootstrap phase; see 'WD.guardDRepRegistered' for the
+-- decision.
+assertDRepRegistered
+    :: Write.IsRecentEra era
+    => NetworkLayer IO block
+    -> Write.PParams era
+    -> DRep
+    -> IO ()
+assertDRepRegistered netLayer pp target = do
+    let bootstrap = hardforkConwayBootstrapPhase (pp ^. ppProtocolVersionL)
+    registered <- case target of
+        FromDRepID drep | not bootstrap -> isDRepRegistered netLayer drep
+        _ -> pure Nothing
+    either (throwIO . ExceptionVoting) pure
+        $ WD.guardDRepRegistered bootstrap target registered
+
+-- | Refuse, in Conway, a vote that repeats the vote delegation in force, as
+-- decided by 'WD.ledgerVoteRequestFor'.
+assertDifferentVoting
+    :: WalletFlavor s
+    => WalletLayer IO s
+    -> Maybe Tx.VotingAction
+    -> Write.RecentEra era
+    -> ExceptT ErrConstructTx IO ()
+assertDifferentVoting ctx votingActionM = \case
+    Write.RecentEraConway -> case votingActionM of
+        Nothing -> pure ()
+        Just vote -> do
+            let target = votedDRep vote
+            (ledger, dlg, _) <- liftIO $ readVoteState ctx
+            when
+                (WD.ledgerVoteRequestFor target ledger dlg == VotedSameAsBefore)
+                $ throwE
+                $ ErrConstructTxVoting ErrWrongEra
+    _ -> pure ()
+  where
+    votedDRep = \case
+        Tx.VoteRegisteringKey drep -> drep
+        Tx.Vote drep -> drep
+
+-- | Read what the duplicate-vote decision needs: the vote delegation that the
+-- ledger holds for the wallet's reward account, the wallet's delegation
+-- history, and whether its stake key is registered.
+readVoteState
+    :: WalletFlavor s
+    => WalletLayer IO s
+    -> IO (Maybe VoteDelegation, WalletDelegation, Bool)
+readVoteState ctx = do
+    ledger <- W.readCachedVoteDelegation netLayer db
+    currentEpochSlotting <- W.getCurrentEpochSlotting netLayer
+    (calculateWalletDelegations, stakeKeyIsRegistered) <-
+        db & \DBLayer{atomically, walletState} ->
+            atomically
+                $ (,)
+                    <$> readDelegation walletState
+                    <*> W.isStakeKeyRegistered walletState
+    pure
+        ( ledger
+        , calculateWalletDelegations currentEpochSlotting
+        , stakeKeyIsRegistered
+        )
+  where
+    db = ctx ^. dbLayer
     netLayer = ctx ^. networkLayer

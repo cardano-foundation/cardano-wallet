@@ -3311,6 +3311,42 @@ components:
           epoch_number: 14
           epoch_start_time: 2020-01-22T10:06:39.037Z
 
+    ApiWalletLedgerVote: &ApiWalletLedgerVote
+      description: |
+        The vote delegation that the ledger holds for the wallet's reward
+        account, as of the wallet's last read of it, which runs when the node
+        tip changes. Absent until the wallet has read it, and in eras before
+        Conway.
+
+        `active` and `next` report the certificates in the wallet's own
+        transactions. This field also reflects changes made outside them: the
+        retirement of a DRep removes the vote delegation of every account
+        delegated to it. From protocol version 10 the ledger refuses a
+        withdrawal from a key-hash reward account that has no vote delegation.
+      oneOf:
+        - type: object
+          title: vote delegated
+          additionalProperties: false
+          required:
+            - status
+            - voting
+          properties:
+            status:
+              type: string
+              enum:
+                - delegated
+            voting: *ApiDRep
+        - type: object
+          title: no vote delegation
+          additionalProperties: false
+          required:
+            - status
+          properties:
+            status:
+              type: string
+              enum:
+                - not_delegated
+
     ApiWalletDelegation: &ApiWalletDelegation
       description: Delegation settings
       type: object
@@ -3333,6 +3369,7 @@ components:
         next:
           type: array
           items: *ApiWalletDelegationNext
+        ledger_vote: *ApiWalletLedgerVote
 
     ApiWallet: &ApiWallet
       type: object
@@ -5062,8 +5099,17 @@ x-errWithdrawalNotPossibleWithoutVote: &errWithdrawalNotPossibleWithoutVote
     message:
       type: string
       description: |
-        Occurs when attempting to create a transaction that contains withdrawals
-        but previous voting was not performed (in Conway era onwards).
+        Occurs when a request would put a withdrawal from the wallet's own
+        reward account into a transaction, and the ledger holds no vote
+        delegation for that account (in Conway era onwards, outside the
+        bootstrap phase). The ledger rejects every such withdrawal, whatever
+        its amount. The account holds no vote delegation when its stake key
+        never voted, and also when the DRep it voted for has retired, because
+        a DRep's retirement removes the vote delegation of every account
+        delegated to it. To withdraw, delegate the vote to a DRep, to
+        `abstain` or to `no_confidence`, and wait until that transaction is
+        in the ledger. A shared wallet's reward account is a script hash, and
+        the ledger accepts its withdrawals without a vote delegation.
     code:
       type: string
       enum: ['withdrawal_not_possible_without_vote']
@@ -5695,7 +5741,14 @@ x-errSameVote: &errSameVote
   properties:
     message:
       type: string
-      description: May occur in Conway onwards when the same vote was cast.
+      description: |
+        May occur in Conway onwards when the requested vote delegation is the
+        one in force. When the wallet has read the vote delegation that the
+        ledger holds for its reward account (`delegation.ledger_vote`), that
+        is the one in force, whatever the wallet's delegation history says.
+        Until then, the one in force is the vote of the wallet's latest
+        delegation status: the last entry of `delegation.next`, else
+        `delegation.active`.
     code:
       type: string
       enum: ['same_vote']
@@ -6339,7 +6392,10 @@ x-responsesCreateWalletMigrationPlan: &responsesCreateWalletMigrationPlan
     description: Forbidden
     content:
       application/json:
-        schema: *errNothingToMigrate
+        schema:
+          oneOf:
+            - <<: *errNothingToMigrate
+            - <<: *errWithdrawalNotPossibleWithoutVote
   202:
     description: Accepted
     content:
@@ -6361,6 +6417,7 @@ x-responsesMigrateWallet: &responsesMigrateWallet
             - <<: *errNothingToMigrate
             - <<: *errNoRootKey
             - <<: *errWrongEncryptionPassphrase
+            - <<: *errWithdrawalNotPossibleWithoutVote
   202:
     description: Accepted
     content:
@@ -6457,6 +6514,7 @@ x-responsesSelectCoins: &responsesSelectCoins
             - <<: *errInvalidCoinSelection
             - <<: *errOutputTokenQuantityExceedsLimit
             - <<: *errOutputTokenBundleSizeExceedsLimit
+            - <<: *errWithdrawalNotPossibleWithoutVote
   200:
     description: OK
     content:
@@ -6551,6 +6609,7 @@ x-responsesPostTransaction: &responsesPostTransaction
             - <<: *errNoRootKey
             - <<: *errWrongEncryptionPassphrase
             - <<: *errUnsupportedEra
+            - <<: *errWithdrawalNotPossibleWithoutVote
   202:
     description: Accepted
     content:
@@ -6559,8 +6618,6 @@ x-responsesPostTransaction: &responsesPostTransaction
 
 x-responsesConstructTransaction: &responsesConstructTransaction
   <<:
-    - *responsesErr404WalletNotFound
-    - *responsesErr404WalletNotInitialized
     - *responsesErr406
     - *responsesErr415UnsupportedMediaType
   400:
@@ -6570,6 +6627,15 @@ x-responsesConstructTransaction: &responsesConstructTransaction
         schema:
           oneOf:
             - <<: *errBadRequest
+  404:
+    description: Not Found
+    content:
+      application/json:
+        schema:
+          oneOf:
+            - <<: *errNoSuchWallet
+            - <<: *errWalletNotInitialized
+            - <<: *errNotFound
   403:
     description: Forbidden
     content:
@@ -6720,6 +6786,7 @@ x-responsesPostTransactionFee: &responsesPostTransactionFee
             - <<: *errOutputTokenQuantityExceedsLimit
             - <<: *errOutputTokenBundleSizeExceedsLimit
             - <<: *errTransactionIsTooBig
+            - <<: *errWithdrawalNotPossibleWithoutVote
   202:
     description: Accepted
     content:
@@ -6965,6 +7032,7 @@ x-responsesJoinDRep: &responsesJoinDRep
             - <<: *errNoSuchWallet
             - <<: *errWalletNotInitialized
             - <<: *errNoSuchPool
+            - <<: *errNotFound
   202:
     description: Accepted
     content:
@@ -6990,6 +7058,7 @@ x-responsesQuitStakePool: &responsesQuitStakePool
             - <<: *errWrongEncryptionPassphrase
             - <<: *errNotDelegatingTo
             - <<: *errNonNullRewards
+            - <<: *errWithdrawalNotPossibleWithoutVote
   202:
     description: Accepted
     content:

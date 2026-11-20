@@ -157,6 +157,7 @@ module Cardano.Wallet.Api.Types
     , ApiWalletDelegation (..)
     , ApiWalletDelegationNext (..)
     , ApiWalletDelegationStatus (..)
+    , ApiWalletLedgerVote (..)
     , ApiWalletInput (..)
     , ApiWalletMigrationBalance (..)
     , ApiWalletMigrationPlan (..)
@@ -1029,10 +1030,45 @@ instance FromJSON (ApiT PassphraseScheme) where
 data ApiWalletDelegation = ApiWalletDelegation
     { active :: !ApiWalletDelegationNext
     , next :: ![ApiWalletDelegationNext]
+    , ledgerVote :: !(Maybe ApiWalletLedgerVote)
     }
     deriving (Eq, Generic, Show)
     deriving (FromJSON, ToJSON) via DefaultRecord ApiWalletDelegation
     deriving anyclass (NFData)
+
+-- | The vote delegation that the ledger holds for a reward account.
+data ApiWalletLedgerVote
+    = -- | The account delegates its vote to a DRep, to @abstain@ or to
+      -- @no_confidence@.
+      ApiLedgerVoteDelegated !(ApiT DRep)
+    | -- | The ledger holds no vote delegation for the account.
+      ApiLedgerVoteNotDelegated
+    deriving (Eq, Generic, Show)
+    deriving anyclass (NFData)
+
+instance ToJSON ApiWalletLedgerVote where
+    toJSON = \case
+        ApiLedgerVoteDelegated drep ->
+            Aeson.object
+                [ "status" Aeson..= Aeson.String "delegated"
+                , "voting" Aeson..= drep
+                ]
+        ApiLedgerVoteNotDelegated ->
+            Aeson.object ["status" Aeson..= Aeson.String "not_delegated"]
+
+-- | Accepts exactly the two shapes that 'toJSON' produces: a @delegated@
+-- status with @voting@, and a @not_delegated@ status without it.
+instance FromJSON ApiWalletLedgerVote where
+    parseJSON = Aeson.withObject "ApiWalletLedgerVote" $ \o -> do
+        status <- o Aeson..: "status"
+        case (status, Aeson.member "voting" o) of
+            ("delegated", True) -> ApiLedgerVoteDelegated <$> o Aeson..: "voting"
+            ("delegated", False) ->
+                fail "a 'delegated' ledger vote requires 'voting'"
+            ("not_delegated", False) -> pure ApiLedgerVoteNotDelegated
+            ("not_delegated", True) ->
+                fail "a 'not_delegated' ledger vote has no 'voting'"
+            _ -> fail $ "Invalid ledger vote status: " <> T.unpack status
 
 data ApiWalletDelegationNext = ApiWalletDelegationNext
     { status :: !ApiWalletDelegationStatus

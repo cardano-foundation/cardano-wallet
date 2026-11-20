@@ -1,6 +1,17 @@
 {
     "components": {
         "schemas": {
+            "ClusterDRep": {
+                "properties": {
+                    "key_hash": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "key_hash"
+                ],
+                "type": "object"
+            },
             "MonitorState": {
                 "enum": [
                     "waiting",
@@ -275,6 +286,61 @@
                     }
                 },
                 "summary": "Switch the local-cluster monitor"
+            }
+        },
+        "/drep/register": {
+            "post": {
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ClusterDRep"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    }
+                },
+                "summary": "Register a DRep whose keys the cluster holds, returning once the ledger holds the registration"
+            }
+        },
+        "/drep/register-new": {
+            "post": {
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClusterDRep"
+                                }
+                            }
+                        },
+                        "description": "Ok"
+                    }
+                },
+                "summary": "Generate DRep keys and register the DRep, returning once the ledger holds the registration"
+            }
+        },
+        "/drep/retire": {
+            "post": {
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ClusterDRep"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    }
+                },
+                "summary": "Retire a DRep whose keys the cluster holds, returning once the ledger no longer holds the DRep"
             }
         },
         "/ready": {

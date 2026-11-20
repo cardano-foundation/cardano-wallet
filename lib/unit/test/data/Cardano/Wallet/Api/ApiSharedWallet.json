@@ -1,226 +1,23 @@
 {
     "samples": [
         {
-            "account_index": "1",
-            "address_pool_gap": 32004,
-            "delegation_script_template": {
-                "cosigners": {
-                    "cosigner#0": "acct_shared_xvk1qszqyqqqqvqsgqqyqqqsgqsrqypsqqsrqgpqyqczqgzqqqgrqqpqgpqqqqqsqqgyqspsxqqzqqpsgpqqqyqszqqyqvpsyqqyqypqgqsgewh3r"
-                },
-                "template": {
-                    "some": {
-                        "at_least": 1,
-                        "from": [
-                            {
-                                "any": [
-                                    {
-                                        "active_until": 2
-                                    },
-                                    "cosigner#0"
-                                ]
-                            }
-                        ]
-                    }
-                }
-            },
-            "id": "ec7ea7d3261932106b3581dfae655dc584731c0f",
-            "name": "8LGS𧡨",
-            "payment_script_template": {
-                "cosigners": {
-                    "cosigner#2": "acct_shared_xvk1qvpsxqcyqqqqxqcpqypsxqszqqqqzpqqqqqsgqspqqpsyqqpqgpsypqpqsqqyqqrqszqzpqrqqpqqqcqqvzqyqcyqspsqqqqqvpsyqcellayn"
-                },
-                "template": {
-                    "any": [
-                        "cosigner#2"
-                    ]
-                }
-            },
-            "state": {
-                "status": "incomplete"
-            }
-        },
-        {
-            "account_index": "0",
-            "address_pool_gap": 71881,
+            "account_index": "2",
+            "address_pool_gap": 8074,
             "assets": {
                 "available": [],
                 "total": []
             },
             "balance": {
                 "available": {
+                    "quantity": 12448664229610394,
+                    "unit": "lovelace"
+                },
+                "reward": {
                     "quantity": 0,
                     "unit": "lovelace"
                 },
-                "reward": {
-                    "quantity": 16981996248933888,
-                    "unit": "lovelace"
-                },
                 "total": {
-                    "quantity": 1134716833472424,
-                    "unit": "lovelace"
-                }
-            },
-            "delegation": {
-                "active": {
-                    "status": "delegating",
-                    "target": "pool1qqqsqqqqqqqqqqqzqypqyqqqqgqsqqgzqqpqqqgqqqpqyckhaep"
-                },
-                "next": [
-                    {
-                        "changes_at": {
-                            "epoch_number": 2,
-                            "epoch_start_time": "1861-10-15T10:34:34.412451471315Z"
-                        },
-                        "status": "not_delegating"
-                    },
-                    {
-                        "changes_at": {
-                            "epoch_number": 2,
-                            "epoch_start_time": "1899-02-13T13:00:00Z"
-                        },
-                        "status": "delegating",
-                        "target": "pool1qqpqyqqzqyqqyqsqqyqsyqqqqgqszqqqqgqsqqgpqgqqq27kd4z"
-                    }
-                ]
-            },
-            "delegation_script_template": {
-                "cosigners": {
-                    "cosigner#6": "acct_shared_xvk1qyqqyqgzqgpqzqqzqqqqyqqqqgpqzqqpqypqyqspqyqqzqsqqgpqzqszqqpqzqspqqqszqqzqyqqqqqpqgqqyqgpqqqqyqsqqyqsqqq8w8swd"
-                },
-                "template": "cosigner#6"
-            },
-            "id": "823034d6e7e126748e9068345f3b9b04e2f7c690",
-            "name": "[&",
-            "passphrase": {
-                "encryption_method": "scrypt",
-                "last_updated_at": "1889-09-23T00:00:00Z"
-            },
-            "payment_script_template": {
-                "cosigners": {
-                    "cosigner#1": "acct_shared_xvk1qyqqzqgpqgpqqqszqqqqqqqqqgqqzqqpqqqqqqqpqqqszqgqqypqqqspqgqsyqqpqqqqyqszqqqqzqgzqqqqyqgzqypqqqszqyqsyqqln4l6v"
-                },
-                "template": "cosigner#1"
-            },
-            "state": {
-                "progress": {
-                    "quantity": 56.37,
-                    "unit": "percent"
-                },
-                "status": "syncing"
-            },
-            "tip": {
-                "absolute_slot_number": 1,
-                "epoch_number": 0,
-                "height": {
-                    "quantity": 1,
-                    "unit": "block"
-                },
-                "slot_number": 1,
-                "time": "1898-04-07T02:00:00Z"
-            }
-        },
-        {
-            "account_index": "0",
-            "address_pool_gap": 68693,
-            "assets": {
-                "available": [],
-                "total": []
-            },
-            "balance": {
-                "available": {
-                    "quantity": 7998934729011804,
-                    "unit": "lovelace"
-                },
-                "reward": {
-                    "quantity": 26030747940547196,
-                    "unit": "lovelace"
-                },
-                "total": {
-                    "quantity": 32081322301089508,
-                    "unit": "lovelace"
-                }
-            },
-            "delegation": {
-                "active": {
-                    "status": "delegating",
-                    "target": "pool1qgpqqqqpqgqsqqqzqypqqqgpqqqqyqgzqypqqqqqqyqqyz2fd2m"
-                },
-                "next": [
-                    {
-                        "changes_at": {
-                            "epoch_number": 1,
-                            "epoch_start_time": "1878-10-08T19:20:33.201626803014Z"
-                        },
-                        "status": "delegating",
-                        "target": "pool1qqqqqqgqqqqsqqqqqgqqqqgzqqpqqqgzqgqqqqqzqyqqynpfvs2"
-                    }
-                ]
-            },
-            "delegation_script_template": {
-                "cosigners": {
-                    "cosigner#4": "acct_shared_xvk1qgpqqqgpqgpqzqqqqypqqqgzqypqqqqpqqqsyqspqyqsqqgqqypqqqqpqqqszqgpqgqsyqspqqqsqqsqqyqsyqspqyqqqqgpqyqqqqsm7v5p2"
-                },
-                "template": {
-                    "any": [
-                        "cosigner#4"
-                    ]
-                }
-            },
-            "id": "681ecf1ba31f9499a9d55ed2723ed30d814c111d",
-            "name": "y",
-            "passphrase": {
-                "encryption_method": "pbkdf2-hmac-sha512",
-                "last_updated_at": "1878-05-03T17:17:37.857586719815Z"
-            },
-            "payment_script_template": {
-                "cosigners": {
-                    "cosigner#1": "acct_shared_xvk1qqqsyqgzqgqsqqqzqqqsyqszqqpqzqgqqqpqyqsqqyqszqgzqyqqyqsqqypqzqgpqgpqqqqpqqqszqgpqgpqyqszqgqqyqgqqyqsyqgqxc5fu"
-                },
-                "template": {
-                    "any": [
-                        {
-                            "active_from": 1
-                        },
-                        "cosigner#1"
-                    ]
-                }
-            },
-            "state": {
-                "progress": {
-                    "quantity": 26.89,
-                    "unit": "percent"
-                },
-                "status": "syncing"
-            },
-            "tip": {
-                "absolute_slot_number": 2,
-                "epoch_number": 0,
-                "height": {
-                    "quantity": 1,
-                    "unit": "block"
-                },
-                "slot_number": 1,
-                "time": "1879-03-18T23:21:48Z"
-            }
-        },
-        {
-            "account_index": "0",
-            "address_pool_gap": 96084,
-            "assets": {
-                "available": [],
-                "total": []
-            },
-            "balance": {
-                "available": {
-                    "quantity": 32204788913769744,
-                    "unit": "lovelace"
-                },
-                "reward": {
-                    "quantity": 42448543827073907,
-                    "unit": "lovelace"
-                },
-                "total": {
-                    "quantity": 0,
+                    "quantity": 2807405943625524,
                     "unit": "lovelace"
                 }
             },
@@ -232,19 +29,263 @@
             },
             "delegation_script_template": {
                 "cosigners": {
-                    "cosigner#1": "acct_shared_xvk1qqqsyqspqgqszqgpqypqzqspqypqqqgzqgqqyqszqgpqzqgpqgqqzqqzqypqqqgpqypqyqgpqqqszqqqqypqqqgpqqpqyqqqqqqsqqs6yql9y"
+                    "cosigner#3": "acct_shared_xvk1qqqqqqspqypqzqsqqyqqqqsqqypqqqszqqqszqsqqgpqqqqpqqqszqgzqypqqqqzqqqsyqqqqqqqzqqqqgpqzqszqyqsqqqqqqqqzqglnevgf"
                 },
-                "template": "cosigner#1"
+                "template": {
+                    "some": {
+                        "at_least": 2,
+                        "from": [
+                            {
+                                "active_from": 1
+                            },
+                            "cosigner#3"
+                        ]
+                    }
+                }
             },
-            "id": "4ae5c71f09ae2f6b2ec8cca2b5ce8c2b8b44d197",
-            "name": "𪣣𗆁",
+            "id": "a629d1b9040275f3a9ac3e5b4c163f0fbd549551",
+            "name": ":",
+            "passphrase": {
+                "encryption_method": "scrypt",
+                "last_updated_at": "1863-08-01T09:48:58Z"
+            },
             "payment_script_template": {
                 "cosigners": {
-                    "cosigner#1": "acct_shared_xvk1qgpqqqqqqqqqyqqqqypqyqqqqgpqyqqzqqpqzqgqqgqqzqgzqgqszqgzqqqsyqqzqqqqqqqpqgqqqqszqgqqqqqpqgqsqqqzqypqqqg8arrr2"
+                    "cosigner#1": "acct_shared_xvk1qgqqzqqpqgqqyqgzqgqqqqgzqyqqzqgpqgpqyqgpqyqqyqspqgqszqspqgpqqqsqqqpqqqgpqgpqzqgpqgqqzqsqqgqszqqqqqqqzqg562t53"
+                },
+                "template": {
+                    "some": {
+                        "at_least": 1,
+                        "from": [
+                            "cosigner#1",
+                            {
+                                "active_from": 1
+                            }
+                        ]
+                    }
+                }
+            },
+            "state": {
+                "progress": {
+                    "quantity": 80.4,
+                    "unit": "percent"
+                },
+                "status": "syncing"
+            },
+            "tip": {
+                "absolute_slot_number": 2,
+                "epoch_number": 1,
+                "height": {
+                    "quantity": 1,
+                    "unit": "block"
+                },
+                "slot_number": 1,
+                "time": "1892-06-11T03:41:29Z"
+            }
+        },
+        {
+            "account_index": "0",
+            "address_pool_gap": 64971,
+            "assets": {
+                "available": [],
+                "total": []
+            },
+            "balance": {
+                "available": {
+                    "quantity": 0,
+                    "unit": "lovelace"
+                },
+                "reward": {
+                    "quantity": 30108927727483105,
+                    "unit": "lovelace"
+                },
+                "total": {
+                    "quantity": 32228057570770041,
+                    "unit": "lovelace"
+                }
+            },
+            "delegation": {
+                "active": {
+                    "status": "not_delegating"
+                },
+                "ledger_vote": {
+                    "status": "delegated",
+                    "voting": "drep1ygqqqqgqqyqqqqqpqyqsqqgpqyqqyqgzqqqqzqsqqgqsqqshzcv3l"
+                },
+                "next": []
+            },
+            "delegation_script_template": {
+                "cosigners": {
+                    "cosigner#1": "acct_shared_xvk1qqpqyqqqqyqqzqqqqqqsyqgqqgqqyqqzqyqsyqszqyqqyqgqqgqqyqgzqyqqzqgpqqpqqqgpqgpqqqqpqyqqqqqqqgpqzqqqqqqqqqs80hehu"
                 },
                 "template": {
                     "all": [
                         "cosigner#1"
+                    ]
+                }
+            },
+            "id": "408810620054253e5360ecdef59350bec35f088c",
+            "name": "🬯E",
+            "passphrase": {
+                "encryption_method": "argon2id-v2",
+                "last_updated_at": "1878-05-22T09:00:00Z"
+            },
+            "payment_script_template": {
+                "cosigners": {
+                    "cosigner#3": "acct_shared_xvk1qqqsqqqqqgqsqqszqgpqqqqzqqqsqqgzqyqszqgqqgpqqqgzqqqqqqgqqqpqyqqpqqqsyqspqypqqqgqqgpqyqqpqgqqzqspqqqsqqgnjpctj"
+                },
+                "template": {
+                    "all": [
+                        "cosigner#3"
+                    ]
+                }
+            },
+            "state": {
+                "status": "ready"
+            },
+            "tip": {
+                "absolute_slot_number": 2,
+                "epoch_number": 1,
+                "height": {
+                    "quantity": 0,
+                    "unit": "block"
+                },
+                "slot_number": 0,
+                "time": "1866-03-19T20:59:00.686597444553Z"
+            }
+        },
+        {
+            "account_index": "2",
+            "address_pool_gap": 80704,
+            "assets": {
+                "available": [],
+                "total": []
+            },
+            "balance": {
+                "available": {
+                    "quantity": 3848142476069459,
+                    "unit": "lovelace"
+                },
+                "reward": {
+                    "quantity": 15799130486727859,
+                    "unit": "lovelace"
+                },
+                "total": {
+                    "quantity": 27003366006529695,
+                    "unit": "lovelace"
+                }
+            },
+            "delegation": {
+                "active": {
+                    "status": "delegating",
+                    "target": "pool1qyqszqgpqqqqqqqpqqqqqqgqqgqsyqqzqyqszqgqqqqsyztc9ep"
+                },
+                "next": [
+                    {
+                        "changes_at": {
+                            "epoch_number": 2,
+                            "epoch_start_time": "1863-06-27T03:00:00Z"
+                        },
+                        "status": "delegating",
+                        "target": "pool1qyqsqqsqqgqsyqspqqqqyqqzqyqqqqqpqyqsqqsqqgpqyzw3aak"
+                    }
+                ]
+            },
+            "delegation_script_template": {
+                "cosigners": {
+                    "cosigner#1": "acct_shared_xvk1qgqqqqgqqgqszqqpqgqqqqsqqyqqyqsqqypqqqqzqqqsyqgqqyqqzqgzqqpqqqgpqgqszqqzqyqqzqqzqgqqqqspqgqqzqsqqqqsqqsx6hkhz"
+                },
+                "template": "cosigner#1"
+            },
+            "id": "c391f88c8918ce882e3c8b2dfdacb89005694ff9",
+            "name": "5c",
+            "passphrase": {
+                "encryption_method": "argon2id-v2",
+                "last_updated_at": "1863-01-04T05:00:00Z"
+            },
+            "payment_script_template": {
+                "cosigners": {
+                    "cosigner#0": "acct_shared_xvk1qypqzqgzqqqqqqgqqgqsyqqpqypqzqqpqgqsyqgzqqqqyqqqqgqqzqsqqgpqqqgzqypqzqqpqqpqyqqpqgqszqqpqyqsqqsqqgpqzqgq54fq7"
+                },
+                "template": {
+                    "all": [
+                        "cosigner#0"
+                    ]
+                }
+            },
+            "state": {
+                "status": "ready"
+            },
+            "tip": {
+                "absolute_slot_number": 1,
+                "epoch_number": 0,
+                "height": {
+                    "quantity": 1,
+                    "unit": "block"
+                },
+                "slot_number": 0,
+                "time": "1894-07-15T19:30:19.719311440141Z"
+            }
+        },
+        {
+            "account_index": "0",
+            "address_pool_gap": 27910,
+            "assets": {
+                "available": [],
+                "total": []
+            },
+            "balance": {
+                "available": {
+                    "quantity": 0,
+                    "unit": "lovelace"
+                },
+                "reward": {
+                    "quantity": 4333814813224702,
+                    "unit": "lovelace"
+                },
+                "total": {
+                    "quantity": 22417266951284753,
+                    "unit": "lovelace"
+                }
+            },
+            "delegation": {
+                "active": {
+                    "status": "not_delegating"
+                },
+                "ledger_vote": {
+                    "status": "delegated",
+                    "voting": "drep1ygqsqqgpqypqyqszqqqsqqsqqgqsqqszqqqszqqqqgqszqg5xvqrl"
+                },
+                "next": [
+                    {
+                        "changes_at": {
+                            "epoch_number": 1,
+                            "epoch_start_time": "1881-05-22T08:00:00Z"
+                        },
+                        "status": "delegating",
+                        "target": "pool1qgqqyqszqgpqyqszqgqsqqqzqyqqqqsqqyqqyqqpqgpqq5knruk"
+                    }
+                ]
+            },
+            "delegation_script_template": {
+                "cosigners": {
+                    "cosigner#0": "acct_shared_xvk1qyqqyqgzqgqszqqpqqpqqqgqqgqsqqgpqyqqzqspqyqsqqqzqgpqqqqzqyqqyqqpqqqqyqgzqgqszqgzqqqqqqgzqqqsqqgpqgqsyqqlguvtp"
+                },
+                "template": "cosigner#0"
+            },
+            "id": "a7bf85d8a0524be0ebed4351d6375fa02ceda4b5",
+            "name": "𢡉",
+            "passphrase": {
+                "encryption_method": "pbkdf2-hmac-sha512",
+                "last_updated_at": "1890-08-18T17:41:21.93612917852Z"
+            },
+            "payment_script_template": {
+                "cosigners": {
+                    "cosigner#5": "acct_shared_xvk1qyqqzqszqypqqqqpqyqqzqqqqgpqzqqzqgqszqsqqgqsyqgpqyqqzqgpqqqqqqqpqqpqyqspqqpqyqszqgpqqqqqqgqszqspqqqsyqgjf2rkh"
+                },
+                "template": {
+                    "any": [
+                        "cosigner#5"
                     ]
                 }
             },
@@ -255,121 +296,38 @@
                 "absolute_slot_number": 3,
                 "epoch_number": 1,
                 "height": {
-                    "quantity": 0,
+                    "quantity": 1,
                     "unit": "block"
                 },
-                "slot_number": 1,
-                "time": "1878-05-06T15:00:00Z"
+                "slot_number": 0,
+                "time": "1899-01-02T11:25:10.535716481612Z"
             }
         },
         {
             "account_index": "1",
-            "address_pool_gap": 61070,
-            "assets": {
-                "available": [],
-                "total": []
-            },
-            "balance": {
-                "available": {
-                    "quantity": 18354242100844811,
-                    "unit": "lovelace"
-                },
-                "reward": {
-                    "quantity": 45000000000000000,
-                    "unit": "lovelace"
-                },
-                "total": {
-                    "quantity": 2359130235822698,
-                    "unit": "lovelace"
-                }
-            },
-            "delegation": {
-                "active": {
-                    "status": "delegating",
-                    "target": "pool1qqqsqqqpqgpqqqspqypqyqqpqyqsqqqqqqqqzqqpqqqszsch08v"
-                },
-                "next": []
-            },
-            "delegation_script_template": {
-                "cosigners": {
-                    "cosigner#4": "acct_shared_xvk1qqqsqqgpqyqsqqspqgqqqqgpqyqqyqqzqypqqqszqgpqyqqzqqqszqsqqqqqzqqqqqqqzqgqqgpqqqqzqyqszqqzqgqsqqspqgpqzqs4p9qw2"
-                },
-                "template": {
-                    "all": [
-                        "cosigner#4"
-                    ]
-                }
-            },
-            "id": "82cf6baf3ce60a491d463b4ca30092793ebe7714",
-            "name": "k,",
-            "passphrase": {
-                "encryption_method": "scrypt",
-                "last_updated_at": "1900-09-14T00:00:00Z"
-            },
+            "address_pool_gap": 11071,
+            "id": "7261d3f19ec5329d5860f1902a74fb79fddc70ab",
+            "name": "X",
             "payment_script_template": {
                 "cosigners": {
-                    "cosigner#8": "acct_shared_xvk1qgpqqqsqqqqszqgzqgqqqqsqqgpqzqgzqqqqzqspqqqszqqzqyqsyqqqqyqqqqqzqyqszqgqqyqqyqqqqgqsqqqqqypqzqqpqqpqyqqqerxtq"
-                },
-                "template": "cosigner#8"
-            },
-            "state": {
-                "progress": {
-                    "quantity": 82.98,
-                    "unit": "percent"
-                },
-                "status": "syncing"
-            },
-            "tip": {
-                "absolute_slot_number": 2,
-                "epoch_number": 1,
-                "height": {
-                    "quantity": 0,
-                    "unit": "block"
-                },
-                "slot_number": 0,
-                "time": "1896-09-19T20:00:00Z"
-            }
-        },
-        {
-            "account_index": "0",
-            "address_pool_gap": 2219,
-            "delegation_script_template": {
-                "cosigners": {
-                    "cosigner#8": "acct_shared_xvk1qszqqqcrqvzqqqcrqypsgqcpqypqgqqpqspsqqqqqvzqxqszqgpsyqcrqqpqxqszqspsqqgyqqpqyqgqqqqsyqsyqyqsqqsyqsqsqqc0vddsc"
-                },
-                "template": {
-                    "any": [
-                        {
-                            "some": {
-                                "at_least": 1,
-                                "from": [
-                                    {
-                                        "active_from": 0
-                                    },
-                                    "cosigner#8"
-                                ]
-                            }
-                        }
-                    ]
-                }
-            },
-            "id": "b3ed640cf65b912d78e3c1671bdf86c43a9fd13a",
-            "name": "YQ䑱텞7",
-            "payment_script_template": {
-                "cosigners": {
-                    "cosigner#1": "acct_shared_xvk1qvzqgqqyqqpsgqqzqqpqyqqpqszqyqqpqsqsxqqqqvqsqqcrqgqqqqgyqsqsgpqpqvzqqqqpqvqqzqcqqqpsyqsyqgqsyqspqgzqzqcna3ned"
+                    "cosigner#1": "acct_shared_xvk1qqzqxqcrqgqqgpqrqvpqxqsrqgpsqqspqgzqyqqqqqzqqpqqqgpqgqqzqspqyqcqqyzqqpqyqypsyqqpqqqsgqsyqgqsgqszqypsgqsl0kms3",
+                    "cosigner#4": "acct_shared_xvk1qypsgqcrqgpqxqgyqqqsqpqpqgqsqqsqqqqqxpqzqvqqxqqrqszqxqcqqgqqzpqrqszqqqqrqgzqzqsyqqpqyqcrqvpsgqgzqgzqgpqajwecj"
                 },
                 "template": {
                     "some": {
                         "at_least": 1,
                         "from": [
                             {
-                                "any": [
-                                    {
-                                        "active_until": 1
-                                    },
-                                    "cosigner#1"
-                                ]
+                                "some": {
+                                    "at_least": 1,
+                                    "from": [
+                                        {
+                                            "active_until": 0
+                                        },
+                                        "cosigner#1",
+                                        "cosigner#4"
+                                    ]
+                                }
                             }
                         ]
                     }
@@ -381,255 +339,215 @@
         },
         {
             "account_index": "2",
-            "address_pool_gap": 76027,
+            "address_pool_gap": 78299,
             "assets": {
                 "available": [],
                 "total": []
             },
             "balance": {
                 "available": {
-                    "quantity": 7634016996974216,
+                    "quantity": 17798374388394862,
                     "unit": "lovelace"
                 },
                 "reward": {
-                    "quantity": 32220093377725980,
+                    "quantity": 23476708725506528,
                     "unit": "lovelace"
                 },
                 "total": {
-                    "quantity": 37410644345060116,
+                    "quantity": 6448050420475840,
                     "unit": "lovelace"
                 }
             },
             "delegation": {
                 "active": {
-                    "status": "not_delegating"
+                    "status": "delegating",
+                    "target": "pool1qyqqzqszqqqsqqgqqyqqyqspqypqqqgqqgqsqqqpqgpqzap87eh"
+                },
+                "ledger_vote": {
+                    "status": "not_delegated"
                 },
                 "next": []
             },
             "delegation_script_template": {
                 "cosigners": {
-                    "cosigner#3": "acct_shared_xvk1qyqqyqqzqgqsyqgqqypqyqqzqgqszqgqqqpqqqgpqqqqyqspqgqqzqqzqyqqyqszqgpqyqgpqgqqyqqqqyqszqsqqgqqzqgzqqpqqqg9lzdps"
+                    "cosigner#1": "acct_shared_xvk1qqpqyqqpqypqzqgqqqqqzqsqqyqqyqsqqyqqyqgqqypqzqgzqqqszqqqqqqsyqgzqqqszqgpqqqqzqgqqyqsqqqzqyqqzqgzqyqszqqrkjuf9"
                 },
-                "template": {
-                    "some": {
-                        "at_least": 1,
-                        "from": [
-                            "cosigner#3",
-                            {
-                                "active_from": 1
-                            }
-                        ]
-                    }
-                }
+                "template": "cosigner#1"
             },
-            "id": "88f549e22b2eacc141e8872723a9844235b5120f",
-            "name": "!",
+            "id": "cf6dfe77e66598c751238628dcc68d06a788b20c",
+            "name": "_",
             "passphrase": {
                 "encryption_method": "scrypt",
-                "last_updated_at": "1886-03-19T02:31:06Z"
+                "last_updated_at": "1893-06-03T02:00:00Z"
             },
             "payment_script_template": {
                 "cosigners": {
-                    "cosigner#1": "acct_shared_xvk1qqqsqqszqqqsqqsqqgqqzqspqgqqyqsqqypqzqspqqpqqqqpqypqzqgpqyqszqgqqgpqqqqpqgqqyqqqqgqqzqsqqgqqzqgzqqqsyqqvlztsj"
+                    "cosigner#6": "acct_shared_xvk1qqpqyqqzqqqqyqgpqgpqzqqzqgqszqgpqyqsqqgzqgqsyqszqqpqqqgqqyqsyqqpqqqsqqspqgqszqgqqyqsyqgzqqpqyqszqyqszqq0dvjdk"
                 },
                 "template": {
                     "some": {
                         "at_least": 1,
                         "from": [
-                            "cosigner#1"
+                            "cosigner#6"
                         ]
                     }
                 }
             },
             "state": {
-                "status": "ready"
+                "progress": {
+                    "quantity": 32.77,
+                    "unit": "percent"
+                },
+                "status": "syncing"
             },
             "tip": {
-                "absolute_slot_number": 2,
-                "epoch_number": 1,
+                "absolute_slot_number": 3,
+                "epoch_number": 0,
                 "height": {
                     "quantity": 1,
                     "unit": "block"
                 },
                 "slot_number": 1,
-                "time": "1898-08-06T19:22:01.864228176631Z"
+                "time": "1894-08-15T20:29:25.543097448058Z"
+            }
+        },
+        {
+            "account_index": "2",
+            "address_pool_gap": 80181,
+            "delegation_script_template": {
+                "cosigners": {
+                    "cosigner#2": "acct_shared_xvk1qvqsqqqzqyqszqsqqgzqxpqzqspsyqgqqvpsqqqrqyqqqqgrqqzqyqgrqsqszpqpqypqqqcpqgzqgqqyqvpsyqqyqyqsyqsqqvpszpqnljgtu"
+                },
+                "template": {
+                    "some": {
+                        "at_least": 1,
+                        "from": [
+                            "cosigner#2"
+                        ]
+                    }
+                }
+            },
+            "id": "264af538672aa5cecaaa98e164647c4b19a4a8f9",
+            "name": "t𩎁",
+            "payment_script_template": {
+                "cosigners": {
+                    "cosigner#3": "acct_shared_xvk1qypqzpqpqvpqyqqyqyzqyqgrqvzqyqgzqqpsgqsyqypqxqcqqsqqzpqqqgqsypqrqgqsxqszqspqzqgrqszqxpqrqsqszqqqqgpsyqg6xuumn"
+                },
+                "template": {
+                    "some": {
+                        "at_least": 1,
+                        "from": [
+                            "cosigner#3"
+                        ]
+                    }
+                }
+            },
+            "state": {
+                "status": "incomplete"
             }
         },
         {
             "account_index": "0",
-            "address_pool_gap": 13789,
-            "assets": {
-                "available": [],
-                "total": []
-            },
-            "balance": {
-                "available": {
-                    "quantity": 32539741285591088,
-                    "unit": "lovelace"
-                },
-                "reward": {
-                    "quantity": 0,
-                    "unit": "lovelace"
-                },
-                "total": {
-                    "quantity": 0,
-                    "unit": "lovelace"
-                }
-            },
-            "delegation": {
-                "active": {
-                    "status": "not_delegating"
-                },
-                "next": [
-                    {
-                        "changes_at": {
-                            "epoch_number": 0,
-                            "epoch_start_time": "1869-10-29T18:28:01.444409645353Z"
-                        },
-                        "status": "not_delegating"
-                    }
-                ]
-            },
+            "address_pool_gap": 33328,
             "delegation_script_template": {
                 "cosigners": {
-                    "cosigner#1": "acct_shared_xvk1qgqsyqgpqqqqzqgzqqpqyqqqqgqsqqgqqgqszqszqypqzqszqgpqzqqqqyqsyqgpqgqsqqgzqyqqzqsqqgpqyqsqqypqqqsqqypqzqqyzxptd"
+                    "cosigner#2": "acct_shared_xvk1qgzqxqspqvqsqpqqqsqszpqrqqpsqqqrqgpsgqqqqvpszqqzqvzqxqsqqqzqqpqzqvqqyqqrqspsxqcrqsqqgqqpqyqszqqqqgpsxqsq4xdmc"
                 },
                 "template": {
                     "some": {
-                        "at_least": 2,
+                        "at_least": 1,
                         "from": [
-                            "cosigner#1",
                             {
-                                "active_from": 0
+                                "some": {
+                                    "at_least": 1,
+                                    "from": [
+                                        "cosigner#2",
+                                        "cosigner#2"
+                                    ]
+                                }
                             }
                         ]
                     }
                 }
             },
-            "id": "c9e507e1c19e38a12c9f63b42879f8d3bb469ed0",
-            "name": "Q",
-            "passphrase": {
-                "encryption_method": "pbkdf2-hmac-sha512",
-                "last_updated_at": "1900-06-29T16:00:42.12669903758Z"
-            },
+            "id": "2800a797bb97e6a5d8a3347e2b45b935c80b87de",
+            "name": "2x𪌗賐𝘻",
             "payment_script_template": {
                 "cosigners": {
-                    "cosigner#1": "acct_shared_xvk1qqqqqqgqqgpqzqqzqyqsyqgpqypqyqsqqgqqzqspqgqqzqqqqypqzqsqqqpqzqsqqypqyqqpqqpqzqqpqypqzqqpqqqqzqqzqqqsqqsnxc6l2"
+                    "cosigner#0": "acct_shared_xvk1qspqyqgzqgpsxqqrqypqzqqzqspsgpqyqqpqqqqqqspqyqcyqqqqgpqzqyqsyqgqqgqsqqcyqqzqxpqyqgpsxqqqqsqqyqqpqgpszqgzwp57p"
                 },
                 "template": {
                     "all": [
                         {
                             "active_until": 1
                         },
-                        "cosigner#1"
+                        {
+                            "active_until": 0
+                        },
+                        "cosigner#0"
                     ]
                 }
             },
             "state": {
-                "status": "ready"
-            },
-            "tip": {
-                "absolute_slot_number": 1,
-                "epoch_number": 1,
-                "height": {
-                    "quantity": 1,
-                    "unit": "block"
-                },
-                "slot_number": 1,
-                "time": "1905-10-20T22:01:58.034804890833Z"
+                "status": "incomplete"
             }
         },
         {
-            "account_index": "0",
-            "address_pool_gap": 13546,
-            "assets": {
-                "available": [],
-                "total": []
-            },
-            "balance": {
-                "available": {
-                    "quantity": 30281634727828452,
-                    "unit": "lovelace"
-                },
-                "reward": {
-                    "quantity": 45000000000000000,
-                    "unit": "lovelace"
-                },
-                "total": {
-                    "quantity": 0,
-                    "unit": "lovelace"
-                }
-            },
-            "delegation": {
-                "active": {
-                    "status": "not_delegating"
-                },
-                "next": [
-                    {
-                        "changes_at": {
-                            "epoch_number": 2,
-                            "epoch_start_time": "1874-06-03T08:00:00Z"
-                        },
-                        "status": "not_delegating"
-                    }
-                ]
-            },
+            "account_index": "4",
+            "address_pool_gap": 1168,
             "delegation_script_template": {
                 "cosigners": {
-                    "cosigner#1": "acct_shared_xvk1qqqqzqsqqgqqzqszqqpqzqqpqypqyqgzqqpqyqgzqqpqzqgqqyqqyqspqyqsyqqpqqqqyqszqypqqqsqqqqsqqgpqqpqyqgzqqqqqqs3rgdke"
-                },
-                "template": "cosigner#1"
-            },
-            "id": "d7712e11e6c5503417b9a7ad71f7dabcf6fbbad7",
-            "name": "~",
-            "passphrase": {
-                "encryption_method": "pbkdf2-hmac-sha512",
-                "last_updated_at": "1861-02-13T21:03:02Z"
-            },
-            "payment_script_template": {
-                "cosigners": {
-                    "cosigner#1": "acct_shared_xvk1qqpqyqspqgqqzqgpqgqszqqzqgpqyqszqgqqqqqpqqqqzqgpqgqqzqszqypqzqgpqgqqyqgqqgpqyqgpqgpqyqqqqypqyqgpqqqqqqqz20jd4"
+                    "cosigner#1": "acct_shared_xvk1qyzqzqcyqgpszqsyqspszqczqyqsgpqzqvqqgqsrqvpqgqqqqgzqyqqrqvpsypqrqvqsxpqyqgzqqqgyqvzqgqgpqypsxqgrqvqsqqg9jk923"
                 },
                 "template": {
                     "any": [
-                        "cosigner#1"
+                        "cosigner#1",
+                        {
+                            "active_from": 1
+                        }
+                    ]
+                }
+            },
+            "id": "a166ef526cb3ff81ea393da22ae20bd20241eb98",
+            "name": "𘳃m",
+            "payment_script_template": {
+                "cosigners": {
+                    "cosigner#9": "acct_shared_xvk1qqqszqqyqqqqzpqrqgpsgqczqspsyqcqqvzqyqgrqgqqzqqzqqpqgqspqspqyqsqqgqsqqspqqpqxqqrqvpsyqqrqypqxqqrqszqzpq9rpnd3"
+                },
+                "template": {
+                    "any": [
+                        "cosigner#9",
+                        {
+                            "active_from": 1
+                        }
                     ]
                 }
             },
             "state": {
-                "progress": {
-                    "quantity": 4.77,
-                    "unit": "percent"
-                },
-                "status": "syncing"
-            },
-            "tip": {
-                "absolute_slot_number": 1,
-                "epoch_number": 0,
-                "height": {
-                    "quantity": 0,
-                    "unit": "block"
-                },
-                "slot_number": 0,
-                "time": "1867-12-01T09:00:00Z"
+                "status": "incomplete"
             }
         },
         {
-            "account_index": "2",
-            "address_pool_gap": 95790,
-            "id": "b254887e44889485bda8b95bb3e7d226b5e7ee25",
-            "name": "*6𱐿_",
+            "account_index": "3",
+            "address_pool_gap": 81809,
+            "id": "79a8fd474dd029cde9a517fe2fefa77fdaaaf29f",
+            "name": "YR9",
             "payment_script_template": {
                 "cosigners": {
-                    "cosigner#2": "acct_shared_xvk1qvqqypqrqsqsxqqqqqzqzqsqqgpqqqczqvpsqqszqypqzqczqvqsyqcrqgqsqqqrqvpszqqqqvpqgpqpqszqgqgqqyqqgqsqqszqgqcgphgdn"
+                    "cosigner#3": "acct_shared_xvk1qgzqqqgpqgpsqqgpqqqsgqcrqgqqyqgzqqqqzqqqqgpsgpqpqqzqyqsyqszqgpqzqvzqgqgqqvqqqqcqqgqsqqqrqszqgpqzqqpsxpqduq2x7"
                 },
                 "template": {
-                    "any": [
+                    "all": [
                         {
-                            "all": [
-                                "cosigner#5",
-                                "cosigner#2"
-                            ]
+                            "some": {
+                                "at_least": 2,
+                                "from": [
+                                    {
+                                        "active_from": 1
+                                    },
+                                    "cosigner#3"
+                                ]
+                            }
                         }
                     ]
                 }
@@ -639,5 +557,5 @@
             }
         }
     ],
-    "seed": -1500034355
+    "seed": -1123922605
 }

@@ -11,8 +11,10 @@ module Cardano.Wallet.Delegation
     , guardVoting
     , quitStakePoolDelegationAction
     , joinDRepVotingAction
+    , guardDRepRegistered
     , effectiveDelegationStatus
     , voteRequestFor
+    , ledgerVoteRequestFor
     , DelegationRequest (..)
     , VoteRequest (..)
     ) where
@@ -39,6 +41,7 @@ import Cardano.Wallet.Primitive.Types.Coin
     )
 import Cardano.Wallet.Primitive.Types.DRep
     ( DRep (..)
+    , VoteDelegation (..)
     )
 import Cardano.Wallet.Transaction
     ( ErrCannotJoin (..)
@@ -280,16 +283,55 @@ voteRequestFor target dlg =
         W.DelegatingVoting _ drep -> drep == target
         _ -> False
 
+-- | Duplicate-vote classification from the vote delegation that the ledger
+-- holds, when it has been read, and otherwise from 'voteRequestFor'.
+--
+-- A known ledger value decides alone: the request repeats the delegation in
+-- force exactly when the ledger holds a delegation to the target, whatever
+-- the wallet's history records.
+ledgerVoteRequestFor
+    :: DRep
+    -> Maybe VoteDelegation
+    -- ^ The vote delegation that the ledger holds, if it has been read.
+    -> W.WalletDelegation
+    -> VoteRequest
+ledgerVoteRequestFor target ledger dlg = case ledger of
+    Just (VoteDelegatedTo drep)
+        | drep == target -> VotedSameAsBefore
+        | otherwise -> VotedDifferently
+    Just VoteNotDelegated -> VotedDifferently
+    Nothing -> voteRequestFor target dlg
+
+-- | Refuse a vote delegation to a DRep credential that the ledger does not
+-- hold as registered, which the ledger refuses from protocol version 10.
+--
+-- 'Abstain' and 'NoConfidence' need no registration, and nothing is refused
+-- in the Conway bootstrap phase or without an answer about the registration.
+guardDRepRegistered
+    :: Bool
+    -- ^ Whether the protocol version is in the Conway bootstrap phase.
+    -> DRep
+    -> Maybe Bool
+    -- ^ Whether the ledger holds the target as registered, if known.
+    -> Either ErrCannotVote ()
+guardDRepRegistered bootstrap target registered = case target of
+    FromDRepID drep
+        | not bootstrap && registered == Just False ->
+            Left $ ErrDRepNotRegistered drep
+    _ -> Right ()
+
 joinDRepVotingAction
     :: forall era
      . Write.IsRecentEra era
     => Write.RecentEra era
     -> DRep
+    -> Maybe VoteDelegation
+    -- ^ The vote delegation that the ledger holds, if it has been read.
     -> W.WalletDelegation
     -> Bool
     -> Either ErrCannotVote Tx.VotingAction
-joinDRepVotingAction era targetDRep dlg stakeKeyIsRegistered = do
-    when (voteRequestFor targetDRep dlg == VotedSameAsBefore)
+joinDRepVotingAction era targetDRep ledger dlg stakeKeyIsRegistered = do
+    when (ledgerVoteRequestFor targetDRep ledger dlg == VotedSameAsBefore)
         $ Left
         $ ErrAlreadyVoted targetDRep
     second (const votingAction) $ guardEraIsConway era

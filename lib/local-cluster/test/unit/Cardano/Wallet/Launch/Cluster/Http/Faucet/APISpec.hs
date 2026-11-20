@@ -6,6 +6,9 @@ module Cardano.Wallet.Launch.Cluster.Http.Faucet.APISpec
     )
 where
 
+import Cardano.Wallet.Launch.Cluster.Http.Faucet.ClusterDRep
+    ( genClusterDRep
+    )
 import Cardano.Wallet.Launch.Cluster.Http.Faucet.SendFaucetAssets
     ( genSendFaucetAssets
     )
@@ -51,3 +54,8 @@ spec = do
             $ forAll
                 (genSendFaucetAssets @Mainnet)
                 validate
+    describe "/drep endpoints" $ do
+        it "json payload roundtrips"
+            $ forAll genClusterDRep jsonRoundtrip
+        it "json payload validates random data"
+            $ forAll genClusterDRep validate

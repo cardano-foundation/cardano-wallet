@@ -205,6 +205,7 @@ module Test.Integration.Framework.DSL
     , delegating
     , onlyVoting
     , votingAndDelegating
+    , shouldHaveDelegationHistory
     , getSlotParams
     , arbitraryStake
     , delegateToPool
@@ -4113,6 +4114,7 @@ notDelegating nexts =
                 ApiWalletDelegationNext NotDelegating Nothing Nothing (Just epochInfo)
             Just pid ->
                 ApiWalletDelegationNext Delegating (Just pid) Nothing (Just epochInfo)
+        , ledgerVote = Nothing
         }
 
 delegating
@@ -4155,6 +4157,18 @@ votingAndDelegating pidActive drep nexts =
                 (Just drep)
                 Nothing
         }
+
+-- | Expect a delegation object to report the delegation history of another:
+-- the same 'active' and 'next' statuses, which the wallet derives from the
+-- certificates in its own transactions. No other field is compared.
+shouldHaveDelegationHistory
+    :: HasCallStack
+    => ApiWalletDelegation
+    -> ApiWalletDelegation
+    -> Expectation
+shouldHaveDelegationHistory actual expected =
+    (actual ^. #active, actual ^. #next)
+        `shouldBe` (expected ^. #active, expected ^. #next)
 
 getRetirementEpoch :: StakePool -> Maybe EpochNo
 getRetirementEpoch = fmap (view #epochNumber) . view #retirement
@@ -4308,6 +4322,8 @@ delegateToPool ctx = do
         getSrcWallet
             >>= flip
                 verify
-                [ expectField #delegation (`shouldBe` delegating (ApiT pool1) [])
+                [ expectField
+                    #delegation
+                    (`shouldHaveDelegationHistory` delegating (ApiT pool1) [])
                 ]
     return (src, pool1)

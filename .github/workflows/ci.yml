@@ -108,7 +108,7 @@ jobs:
           fetch-depth: 0
       # Typechecks specifications/Cardano/Wallet/Delegation.agda and requires
       # the same Agda command to reject one deliberate mutation per named
-      # #5350 law, so the check is proven able to fail on every run.
+      # #5350 and #5466 law, so the check is proven able to fail on every run.
       - name: Typecheck the delegation model
         run: nix build --quiet --print-build-logs .#checks.x86_64-linux.delegation-agda
 

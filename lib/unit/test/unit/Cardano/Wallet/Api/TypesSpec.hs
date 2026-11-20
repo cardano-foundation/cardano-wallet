@@ -226,6 +226,7 @@ import Cardano.Wallet.Api.Types
     , ApiWalletDelegationStatus (..)
     , ApiWalletDiscovery (..)
     , ApiWalletInput (..)
+    , ApiWalletLedgerVote (..)
     , ApiWalletMigrationBalance (..)
     , ApiWalletMigrationPlan (..)
     , ApiWalletMigrationPlanPostData (..)
@@ -557,6 +558,9 @@ import Data.OpenApi.Declare
     , declare
     , look
     )
+import Data.OpenApi.Schema.Validation
+    ( validateToJSONWithPatternChecker
+    )
 import Data.Percentage
     ( Percentage
     )
@@ -873,6 +877,7 @@ spec = do
         jsonTest @ApiWalletDelegation
         jsonTest @ApiWalletDelegationNext
         jsonTest @ApiWalletDelegationStatus
+        jsonTest @ApiWalletLedgerVote
         jsonTest @ApiWalletMigrationBalance
         jsonTest @ApiWalletPassphrase
         jsonTest @ApiWalletPassphraseInfo
@@ -915,6 +920,25 @@ spec = do
             `shouldBe` "\"argon2id-v2\""
         it "unknown encryption_method string is rejected"
             $ Aeson.eitherDecode @(ApiT PassphraseScheme) "\"unknown-scheme\""
+            `shouldSatisfy` isLeft
+
+    describe "ApiWalletLedgerVote JSON encoding" $ do
+        it "a vote delegation encodes its status and DRep"
+            $ toJSON (ApiLedgerVoteDelegated (ApiT Abstain))
+            `shouldBe` Aeson.object
+                [ "status" .= Aeson.String "delegated"
+                , "voting" .= Aeson.String "abstain"
+                ]
+        it "no vote delegation encodes its status only"
+            $ toJSON ApiLedgerVoteNotDelegated
+            `shouldBe` Aeson.object ["status" .= Aeson.String "not_delegated"]
+        it "a 'delegated' status without 'voting' is rejected"
+            $ Aeson.eitherDecode @ApiWalletLedgerVote
+                "{\"status\": \"delegated\"}"
+            `shouldSatisfy` isLeft
+        it "a 'not_delegated' status with 'voting' is rejected"
+            $ Aeson.eitherDecode @ApiWalletLedgerVote
+                "{\"status\": \"not_delegated\", \"voting\": \"abstain\"}"
             `shouldSatisfy` isLeft
 
     describe "ApiIncompleteSharedWallet passphrase regression" $ do
@@ -997,6 +1021,29 @@ spec = do
 
             check @WalletPostData
             check @AccountPostData
+
+    describe
+        "Verify that JSON encoding schema validated for type, \
+        \checking string patterns"
+        $ do
+            let match regex sourc =
+                    matchTest
+                        (makeRegexOpts compBlank execBlank $ T.unpack regex)
+                        (T.unpack sourc)
+                check
+                    :: forall v
+                     . (ToJSON v, ToSchema v, Show v, Arbitrary v)
+                    => Spec
+                check = prop (show $ typeRep (Proxy @v))
+                    $ forAll arbitrary
+                    $ \(v :: v) ->
+                        let es = validateToJSONWithPatternChecker match v
+                        in  counterexample (show (v, es))
+                                $ length es
+                                `shouldBe` 0
+
+            check @ApiWalletDelegation
+            check @ApiWalletLedgerVote
 
     describe
         "verify that every path specified by the servant server matches an \
@@ -1865,6 +1912,14 @@ instance Arbitrary ApiWalletDelegation where
         ApiWalletDelegation
             <$> fmap (\x -> x{changesAt = Nothing}) arbitrary
             <*> oneof [vector i | i <- [0 .. 2]]
+            <*> arbitrary
+
+instance Arbitrary ApiWalletLedgerVote where
+    arbitrary =
+        oneof
+            [ ApiLedgerVoteDelegated <$> arbitrary
+            , pure ApiLedgerVoteNotDelegated
+            ]
 
 instance Arbitrary PoolId where
     arbitrary = do
@@ -3396,6 +3451,9 @@ instance ToSchema ApiWalletDelegationNext where
 
 instance ToSchema ApiWalletDelegation where
     declareNamedSchema _ = declareSchemaForDefinition "ApiWalletDelegation"
+
+instance ToSchema ApiWalletLedgerVote where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiWalletLedgerVote"
 
 instance ToSchema ApiPostRandomAddressData where
     declareNamedSchema _ = declareSchemaForDefinition "ApiPostRandomAddressData"

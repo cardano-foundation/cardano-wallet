@@ -13,7 +13,8 @@ module Cardano.Wallet.Network.LocalStateQuery
     ) where
 
 import Cardano.Wallet.Network.LocalStateQuery.DReps
-    ( listDReps
+    ( isDRepRegistered
+    , listDReps
     )
 import Cardano.Wallet.Network.LocalStateQuery.Extra
     ( currentEra
@@ -24,7 +25,9 @@ import Cardano.Wallet.Network.LocalStateQuery.PParams
     , slottingParamsLegacy
     )
 import Cardano.Wallet.Network.LocalStateQuery.RewardAccount
-    ( fetchRewardAccounts
+    ( RewardAccountState (..)
+    , fetchRewardAccountStates
+    , fetchRewardAccounts
     , getStakeDelegDeposits
     )
 import Cardano.Wallet.Network.LocalStateQuery.StakeDistribution

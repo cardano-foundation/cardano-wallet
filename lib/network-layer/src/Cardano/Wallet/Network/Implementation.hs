@@ -248,9 +248,6 @@ import Data.Map
     ( Map
     , (!)
     )
-import Data.Maybe
-    ( fromMaybe
-    )
 import Data.Proxy
     ( Proxy (..)
     )
@@ -538,6 +535,9 @@ withNodeNetworkLayerBase
                 , listDReps =
                     bracketQuery "listDReps" tr
                         $ queryRewardQ `send` SomeLSQ LSQ.listDReps
+                , isDRepRegistered = \drep ->
+                    bracketQuery "isDRepRegistered" tr
+                        $ queryRewardQ `send` SomeLSQ (LSQ.isDRepRegistered drep)
                 , stakeDistribution =
                     _stakeDistribution queryRewardQ
                 , getUTxOByTxIn =
@@ -546,6 +546,8 @@ withNodeNetworkLayerBase
                     _getStakeDelegDeposits queryRewardQ
                 , getCachedRewardAccountBalance =
                     _getCachedRewardAccountBalance rewardsObserver
+                , getCachedVoteDelegation =
+                    _getCachedVoteDelegation rewardsObserver
                 , fetchRewardAccountBalances =
                     fetchRewardAccounts tr queryRewardQ
                 , timeInterpreter =
@@ -708,7 +710,11 @@ withNodeNetworkLayerBase
         -- TODO(#2042): Make wallets call manually, with matching stopObserving.
         _getCachedRewardAccountBalance rewardsObserver k = do
             startObserving rewardsObserver k
-            fromMaybe (W.Coin 0) <$> query rewardsObserver k
+            maybe (W.Coin 0) LSQ.rewardBalance <$> query rewardsObserver k
+
+        _getCachedVoteDelegation rewardsObserver k = do
+            startObserving rewardsObserver k
+            (>>= LSQ.voteDelegation) <$> query rewardsObserver k
 
         _timeInterpreter
             :: HasCallStack
@@ -1068,7 +1074,7 @@ newRewardBalanceFetcher
     -> STM IO (Tip (CardanoBlock StandardCrypto))
     -- ^ STM action for observing the current tip
     -> TQueue IO (LocalStateQueryCmd (CardanoBlock StandardCrypto) IO)
-    -> IO (Observer IO W.RewardAccount W.Coin)
+    -> IO (Observer IO W.RewardAccount LSQ.RewardAccountState)
 newRewardBalanceFetcher tr readNodeTip queryRewardQ = do
     (ob, refresh) <- newObserver (contramap MsgObserverLog tr) fetch
     link =<< async (observeForever readNodeTip refresh)
@@ -1077,12 +1083,27 @@ newRewardBalanceFetcher tr readNodeTip queryRewardQ = do
     fetch
         :: Tip (CardanoBlock StandardCrypto)
         -> Set W.RewardAccount
-        -> IO (Maybe (Map W.RewardAccount W.Coin))
+        -> IO (Maybe (Map W.RewardAccount LSQ.RewardAccountState))
     fetch _tip accounts | Set.null accounts = pure (Just mempty)
     fetch _tip accounts = do
         -- NOTE: We no longer need the tip to run LSQ queries. The local state
         -- query client will automatically acquire the latest tip.
-        Just <$> fetchRewardAccounts tr queryRewardQ accounts
+        Just <$> fetchRewardAccountStates tr queryRewardQ accounts
+
+-- | Read the reward balance and the vote delegation of each given account in
+-- one local state query, so that both come from the same ledger state.
+fetchRewardAccountStates
+    :: Tracer IO Log
+    -> TQueue IO (LocalStateQueryCmd (CardanoBlock StandardCrypto) IO)
+    -> Set W.RewardAccount
+    -> IO (Map W.RewardAccount LSQ.RewardAccountState)
+fetchRewardAccountStates tr queryRewardQ accounts = do
+    liftIO
+        $ traceWith tr
+        $ MsgFetchRewardAccountBalance accounts
+
+    bracketQuery "queryRewardAccountStates" tr
+        $ queryRewardQ `send` SomeLSQ (LSQ.fetchRewardAccountStates accounts)
 
 fetchRewardAccounts
     :: Tracer IO Log
@@ -1521,7 +1542,8 @@ data Log where
     MsgInterpreterLog :: TimeInterpreterLog -> Log
     MsgQuery :: String -> BracketLog -> Log
     MsgQueryTime :: String -> DiffTime -> Log
-    MsgObserverLog :: ObserverLog W.RewardAccount W.Coin -> Log
+    MsgObserverLog
+        :: ObserverLog W.RewardAccount LSQ.RewardAccountState -> Log
 
 data QueryClientName
     = TipSyncClient
