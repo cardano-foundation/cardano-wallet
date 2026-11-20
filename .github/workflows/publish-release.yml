@@ -24,15 +24,69 @@ permissions:
   pull-requests: write
 
 jobs:
+  resolve-tag:
+    name: "Resolve release tag"
+    if: ${{ github.event_name == 'workflow_dispatch' || !github.event.release.prerelease }}
+    runs-on: nix-enabled-runners
+    outputs:
+      tag: ${{ steps.resolve.outputs.tag }}
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      DISPATCH_TAG: ${{ github.event.inputs.tag }}
+      EVENT_TAG: ${{ github.event.release.tag_name }}
+    steps:
+      - name: Resolve and validate the release tag
+        id: resolve
+        shell: nix shell --quiet nixpkgs#gh -c bash -e {0}
+        run: |
+          # An explicit workflow_dispatch input is a human decision: trust it
+          # verbatim, so re-running side-effects for any tag still works.
+          if [ -n "$DISPATCH_TAG" ]; then
+            echo "tag=$DISPATCH_TAG" >> "$GITHUB_OUTPUT"
+            echo "using dispatch tag: $DISPATCH_TAG"
+            exit 0
+          fi
+
+          tag="$EVENT_TAG"
+
+          # Publishing a draft whose tag GitHub has not materialised yields a
+          # placeholder "untagged-<hash>" in the release payload, and a real git
+          # tag by that name. Seen 2026-07-23 and 2026-09-16. Each time every
+          # downstream step that interpolates the tag failed, with two
+          # unrelated-looking errors: "no assets match the file pattern" and
+          # "couldn't find remote ref refs/heads/release-candidate/untagged-...".
+          # Asset names always carry the intended tag, so recover it from them.
+          case "$tag" in
+            untagged-*)
+              echo "::warning::release payload carried placeholder tag '$tag'; recovering it from asset names"
+              tag=$(gh release view "$EVENT_TAG" \
+                      --repo "$GITHUB_REPOSITORY" \
+                      --json assets \
+                      --jq '.assets[].name' \
+                    | sed -n 's/^cardano-wallet.*-\(v[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}\)-.*$/\1/p' \
+                    | sort -u | head -1)
+              ;;
+          esac
+
+          if ! printf '%s' "$tag" | grep -qE '^v[0-9]{4}-[0-9]{2}-[0-9]{2}$'; then
+            echo "::error::could not resolve a release tag (payload='$EVENT_TAG', resolved='$tag')."
+            echo "::error::Fix the release's tag, then re-run this workflow via workflow_dispatch with an explicit tag."
+            exit 1
+          fi
+
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "resolved tag: $tag"
+
   push-docker:
     name: "Push Docker Image"
     # Skip for prereleases (nightly/test are published as prereleases and
     # already had their docker image pushed by release.yml).
     if: ${{ github.event_name == 'workflow_dispatch' || !github.event.release.prerelease }}
     runs-on: nix-enabled-runners
+    needs: resolve-tag
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      TAG: ${{ github.event.inputs.tag || github.event.release.tag_name }}
+      TAG: ${{ needs.resolve-tag.outputs.tag }}
     steps:
       - name: Download docker-image asset
         shell: nix shell --quiet nixpkgs#gh -c bash -e {0}
@@ -66,11 +120,12 @@ jobs:
     name: "Update Documentation Links"
     if: ${{ github.event_name == 'workflow_dispatch' || !github.event.release.prerelease }}
     runs-on: nix-enabled-runners
+    needs: resolve-tag
     permissions:
       contents: write
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      TAG: ${{ github.event.inputs.tag || github.event.release.tag_name }}
+      TAG: ${{ needs.resolve-tag.outputs.tag }}
     steps:
       - name: Checkout gh-pages
         uses: actions/checkout@v6
@@ -95,14 +150,15 @@ jobs:
     name: "Create merge-back PR"
     if: ${{ github.event_name == 'workflow_dispatch' || !github.event.release.prerelease }}
     runs-on: nix-enabled-runners
+    needs: resolve-tag
     permissions:
       contents: read
       pull-requests: write
       issues: write
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      TAG: ${{ github.event.inputs.tag || github.event.release.tag_name }}
-      MERGE_BACK_HEAD_BRANCH: release-candidate/${{ github.event.inputs.tag || github.event.release.tag_name }}
+      TAG: ${{ needs.resolve-tag.outputs.tag }}
+      MERGE_BACK_HEAD_BRANCH: release-candidate/${{ needs.resolve-tag.outputs.tag }}
       MERGE_BACK_PRERELEASE: ${{ github.event_name == 'release' && github.event.release.prerelease }}
     steps:
       - name: Checkout
