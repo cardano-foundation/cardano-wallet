@@ -26,7 +26,19 @@
 module Cardano.DB.Sqlite
     ( SqliteContext (..)
     , withSqliteContextFile
+    , withSqliteContextFileUsing
+    , ErrConnectionClosed (..)
+    , CloseBounds (..)
+    , defaultCloseBounds
+    , closeWaitTimeout
+    , ShutdownDeadline
+    , newShutdownDeadline
+    , beginShutdown
+    , beginShutdownAfter
+    , shutdownCloseTimeout
+    , shutdownCloseBounds
     , newInMemorySqliteContext
+    , newInMemorySqliteContextUsing
     , ForeignKeysSetting (..)
 
       -- * DB Connections
@@ -85,6 +97,8 @@ import Control.Lens
     )
 import Control.Monad
     ( join
+    , void
+    , when
     )
 import Control.Monad.Logger
     ( LogLevel (..)
@@ -123,6 +137,9 @@ import Data.Functor
     )
 import Data.List.Split
     ( chunksOf
+    )
+import Data.Maybe
+    ( fromMaybe
     )
 import Data.Proxy
     ( Proxy (..)
@@ -168,6 +185,9 @@ import Fmt
     , (|+)
     , (||+)
     )
+import GHC.Clock
+    ( getMonotonicTime
+    )
 import GHC.Generics
     ( Generic
     )
@@ -180,16 +200,31 @@ import System.Log.FastLogger
 import UnliftIO.Compat
     ( handleIf
     )
+import UnliftIO.Concurrent
+    ( forkIO
+    , threadDelay
+    )
 import UnliftIO.Exception
-    ( Exception
+    ( Exception (..)
     , bracket
+    , catchAny
+    , mask_
     , throwIO
     , tryJust
     )
-import UnliftIO.MVar
-    ( newMVar
-    , withMVar
-    , withMVarMasked
+import UnliftIO.STM
+    ( TMVar
+    , TVar
+    , atomically
+    , newTMVarIO
+    , newTVarIO
+    , putTMVar
+    , readTVar
+    , readTVarIO
+    , swapTVar
+    , takeTMVar
+    , tryTakeTMVar
+    , writeTVar
     )
 import Prelude
 
@@ -208,13 +243,29 @@ newtype SqliteContext = SqliteContext
     { runQuery :: forall a. SqlPersistT IO a -> IO a
     }
 
+-- | Open an in-memory database and provide a 'SqliteContext' for it, with
+-- an action that closes it.
+--
+-- The close action waits for queries as described for
+-- 'withSqliteContextFile'. A query after it throws 'ErrConnectionClosed'
+-- for @:memory:@, and running the close action again does nothing.
 newInMemorySqliteContext
     :: Tracer IO DBLog
     -> ManualMigration
     -> Migration
     -> ForeignKeysSetting
     -> IO (IO (), SqliteContext)
-newInMemorySqliteContext tr manualMigrations autoMigration disableFK = do
+newInMemorySqliteContext = newInMemorySqliteContextUsing defaultCloseBounds
+
+-- | Like 'newInMemorySqliteContext', with the given 'CloseBounds'.
+newInMemorySqliteContextUsing
+    :: CloseBounds
+    -> Tracer IO DBLog
+    -> ManualMigration
+    -> Migration
+    -> ForeignKeysSetting
+    -> IO (IO (), SqliteContext)
+newInMemorySqliteContextUsing bounds tr manualMigrations autoMigration disableFK = do
     db <- newDBHandleInMemory tr
     throwLeft =<< runManualOldMigrations tr manualMigrations db
     throwLeft =<< runAutoMigration tr autoMigration db
@@ -225,7 +276,7 @@ newInMemorySqliteContext tr manualMigrations autoMigration disableFK = do
     -- We still use a lock with the in-memory database to protect it from
     -- concurrent accesses and ensure database integrity in case where multiple
     -- threads would be reading/writing from/to it.
-    lock <- newMVar (dbBackend db)
+    lock <- newQueryLock (dbBackend db)
     let trFK = contramap MsgUpdatingForeignKeysSetting tr
         useForeignKeys :: IO a -> IO a
         useForeignKeys
@@ -234,11 +285,30 @@ newInMemorySqliteContext tr manualMigrations autoMigration disableFK = do
             | otherwise = id
         runQuery :: forall a. SqlPersistT IO a -> IO a
         runQuery cmd =
-            withMVarMasked
-                lock
-                (observe . useForeignKeys . runSqlConn cmd)
+            mask_
+                $ withQueryLock
+                    (dbFile db)
+                    lock
+                    (observe . useForeignKeys . runSqlConn cmd)
 
-    return (closeDBHandle tr db, SqliteContext{runQuery})
+    return
+        ( closeWithQueryLock bounds tr (dbFile db) lock (closeDBHandle tr db)
+        , SqliteContext{runQuery}
+        )
+
+-- | Thrown by 'runQuery' once the connection of its 'SqliteContext' is
+-- closing or closed: the 'withSqliteContextFile' scope that made the
+-- context has ended, or the close action returned by
+-- 'newInMemorySqliteContext' has run. Carries the database path, which is
+-- @:memory:@ for an in-memory database. The query is not run.
+newtype ErrConnectionClosed = ErrConnectionClosed FilePath
+    deriving (Eq, Show)
+
+instance Exception ErrConnectionClosed where
+    displayException (ErrConnectionClosed fp) =
+        "The connection to the database "
+            <> fp
+            <> " is closed, so the query was not run."
 
 -- | Throw 'Left' as an exception in the monad.
 throwLeft :: Exception e => Either e b -> IO b
@@ -248,38 +318,237 @@ throwLeft = \case
 
 -- | Sets up query logging and timing, runs schema migrations if necessary and
 -- provide a safe 'SqliteContext' for interacting with the database.
+--
+-- The connection is closed when the action returns or throws. From then on,
+-- 'runQuery' throws 'ErrConnectionClosed', also for a query that was
+-- waiting for its turn. A query that is already running is waited for, for
+-- up to 'closeWaitTimeout'. If it is still running after that,
+-- 'MsgCloseWaitTimedOut' is traced and the connection is closed by a
+-- background thread as soon as the query returns it, so the connection is
+-- never closed under a running query and the database file is released.
 withSqliteContextFile
     :: Tracer IO DBLog
     -- ^ Logging
     -> FilePath
-    -- ^ Database file
+    -- ^ Database file location
     -> ManualMigration
-    -- ^ Manual migrations
+    -- ^ Old manual migrations
     -> Migration
-    -- ^ Auto migration
+    -- ^ Auto migrations
     -> (SqliteContext -> IO a)
     -> IO (Either MigrationError a)
-withSqliteContextFile tr fp old auto action = runExceptT $ do
+withSqliteContextFile = withSqliteContextFileUsing defaultCloseBounds
+
+-- | Like 'withSqliteContextFile', with the given 'CloseBounds'.
+withSqliteContextFileUsing
+    :: CloseBounds
+    -> Tracer IO DBLog
+    -> FilePath
+    -> ManualMigration
+    -> Migration
+    -> (SqliteContext -> IO a)
+    -> IO (Either MigrationError a)
+withSqliteContextFileUsing bounds tr fp old auto action = runExceptT $ do
     ExceptT $ withDBHandle tr fp $ runManualOldMigrations tr old
     ExceptT $ withDBHandle tr fp $ runAutoMigration tr auto
-    lift $ do
-        lock <- newMVar ()
-        withDBHandle tr fp $ \DBHandle{dbBackend} ->
-            let
-                -- Run a query on the open database,
-                -- but retry on busy.
-                runQuery :: SqlPersistT IO a -> IO a
-                runQuery cmd =
-                    observe
-                        . retryOnBusy tr retryOnBusyTimeout
-                        $ withMVar lock
-                        $ const
-                        $ runSqlConn cmd dbBackend
-            in
-                action (SqliteContext{runQuery})
+    lift $ withProtectedConnection bounds tr fp action
+
+-- | Open the connection to the database file behind a query lock, and run
+-- the action with a 'SqliteContext' whose queries take the lock. The
+-- connection is closed with 'closeWithQueryLock' and the given
+-- 'CloseBounds' when the action returns or throws. Every opener of a file
+-- database that is queried after its migrations goes through this function,
+-- so that the lock and the bounds apply to it.
+withProtectedConnection
+    :: CloseBounds
+    -> Tracer IO DBLog
+    -> FilePath
+    -> (SqliteContext -> IO a)
+    -> IO a
+withProtectedConnection bounds tr fp action =
+    bracket open close $ \(_, lock) ->
+        let
+            -- Run a query on the open database,
+            -- but retry on busy.
+            runQuery :: SqlPersistT IO a -> IO a
+            runQuery cmd =
+                observe
+                    . retryOnBusy tr retryOnBusyTimeout
+                    $ withQueryLock fp lock (runSqlConn cmd)
+        in
+            action (SqliteContext{runQuery})
   where
+    open = do
+        db <- newDBHandle tr fp
+        lock <- newQueryLock (dbBackend db)
+        pure (db, lock)
+    close (db, lock) =
+        closeWithQueryLock bounds tr fp lock (closeDBHandleRetrying tr db)
     observe :: IO a -> IO a
     observe = bracketTracer (contramap MsgRun tr)
+
+{-------------------------------------------------------------------------------
+                            Query lock
+-------------------------------------------------------------------------------}
+
+-- | Gives one query at a time the use of a connection, and lets the
+-- connection be closed only when no query is using it.
+data QueryLock = QueryLock
+    { lockOpen :: TVar Bool
+    -- ^ 'False' from the moment the connection starts closing.
+    , lockBackend :: TMVar SqlBackend
+    -- ^ Empty while a query uses the connection.
+    }
+
+newQueryLock :: SqlBackend -> IO QueryLock
+newQueryLock backend = QueryLock <$> newTVarIO True <*> newTMVarIO backend
+
+-- | Run an action with sole use of the connection. Throws
+-- 'ErrConnectionClosed' for the given path, without running the action,
+-- once 'closeWithQueryLock' has started, including when the action was
+-- already waiting for the connection.
+withQueryLock :: FilePath -> QueryLock -> (SqlBackend -> IO a) -> IO a
+withQueryLock fp QueryLock{lockOpen, lockBackend} =
+    bracket acquire (atomically . putTMVar lockBackend)
+  where
+    acquire =
+        atomically (readTVar lockOpen >>= takeIfOpen)
+            >>= maybe (throwIO $ ErrConnectionClosed fp) pure
+    takeIfOpen open
+        | open = Just <$> takeTMVar lockBackend
+        | otherwise = pure Nothing
+
+-- | Refuse further queries, then wait for the query that is using the
+-- connection until the deadline given by 'CloseBounds', and run the given
+-- action that closes the connection.
+--
+-- If a query is still using the connection at the deadline,
+-- 'MsgCloseWaitTimedOut' is traced and a background thread runs the closing
+-- action once the query has returned the connection. The connection is
+-- therefore never freed under a running query, and is not held open for
+-- the life of the process. Does nothing when called again.
+closeWithQueryLock
+    :: CloseBounds
+    -> Tracer IO DBLog
+    -> FilePath
+    -> QueryLock
+    -> IO ()
+    -> IO ()
+closeWithQueryLock bounds tr fp QueryLock{lockOpen, lockBackend} closeConnection = do
+    wasOpen <- atomically $ swapTVar lockOpen False
+    when wasOpen $ do
+        start <- getMonotonicTime
+        deadline <- closeDeadline bounds start
+        free <- atomically (tryTakeTMVar lockBackend)
+        case free of
+            Just _ -> closeConnection
+            Nothing -> do
+                traceWith tr $ MsgCloseWaitStarted fp
+                waitFree deadline >>= \case
+                    True -> closeConnection
+                    False -> do
+                        now <- getMonotonicTime
+                        traceWith tr
+                            $ MsgCloseWaitTimedOut fp
+                            $ realToFrac (now - start)
+                        -- The thread runs with the mask of the release
+                        -- that called this function. Nothing waits for it.
+                        void
+                            $ forkIO
+                            $ ( do
+                                    void $ atomically $ takeTMVar lockBackend
+                                    closeConnection
+                              )
+                                `catchAny` \e ->
+                                    traceWith tr
+                                        $ MsgCloseFailed fp
+                                        $ T.pack
+                                        $ displayException e
+  where
+    waitFree :: Double -> IO Bool
+    waitFree deadline = do
+        threadDelay closeWaitStep
+        atomically (tryTakeTMVar lockBackend) >>= \case
+            Just _ -> pure True
+            Nothing -> do
+                now <- getMonotonicTime
+                if now >= deadline then pure False else waitFree deadline
+
+-- | The limits for waiting on a query that is still running when its
+-- connection is closed.
+data CloseBounds = CloseBounds
+    { closeBound :: NominalDiffTime
+    -- ^ How long a single close waits, when no shutdown is in progress.
+    , closeShutdown :: Maybe ShutdownDeadline
+    -- ^ When given and 'beginShutdown' has been called on it before a close
+    -- starts, that close waits until that one deadline instead of for
+    -- 'closeBound'. A close that started earlier keeps its own deadline.
+    }
+
+-- | A single close waits for up to 'closeWaitTimeout'.
+defaultCloseBounds :: CloseBounds
+defaultCloseBounds = CloseBounds closeWaitTimeout Nothing
+
+-- | Closes that wait for the given shutdown deadline while it is armed.
+shutdownCloseBounds :: ShutdownDeadline -> CloseBounds
+shutdownCloseBounds = CloseBounds closeWaitTimeout . Just
+
+-- | A point in time on the monotonic clock, in seconds, shared by all the
+-- connections that are closed while the process shuts down. It is unset
+-- until 'beginShutdown'.
+newtype ShutdownDeadline = ShutdownDeadline (TVar (Maybe Double))
+
+-- | A 'ShutdownDeadline' that has not begun. Closes that start before
+-- 'beginShutdown' is called on it wait for 'closeBound'.
+newShutdownDeadline :: IO ShutdownDeadline
+newShutdownDeadline = ShutdownDeadline <$> newTVarIO Nothing
+
+-- | Set the deadline to 'shutdownCloseTimeout' from now, unless it is
+-- already set.
+beginShutdown :: ShutdownDeadline -> IO ()
+beginShutdown = beginShutdownAfter shutdownCloseTimeout
+
+-- | Like 'beginShutdown', with the given time in place of
+-- 'shutdownCloseTimeout'.
+beginShutdownAfter :: NominalDiffTime -> ShutdownDeadline -> IO ()
+beginShutdownAfter limit (ShutdownDeadline var) = do
+    now <- getMonotonicTime
+    atomically
+        $ readTVar var >>= \case
+            Just _ -> pure ()
+            Nothing -> writeTVar var $ Just $ now + realToFrac limit
+
+closeDeadline :: CloseBounds -> Double -> IO Double
+closeDeadline CloseBounds{closeBound, closeShutdown} start = do
+    shared <-
+        maybe
+            (pure Nothing)
+            (\(ShutdownDeadline v) -> readTVarIO v)
+            closeShutdown
+    pure $ fromMaybe (start + realToFrac closeBound) shared
+
+-- | How long closing one connection waits for a query that is still using
+-- it, when the process is not shutting down, for example when a wallet
+-- worker stops. A query that runs SQL finishes well within this time. Only
+-- a query that is blocked outside SQLite, such as one waiting for the node
+-- to answer, reaches it.
+closeWaitTimeout :: NominalDiffTime
+closeWaitTimeout = 10
+
+-- | How long all the connections closed during shutdown wait in total,
+-- counted from 'beginShutdown', which the first drain of a wallet API layer
+-- calls before it stops its workers. A supervising process that stops the
+-- wallet waits a bounded time before it kills it, and the closes plus the
+-- exit of the process must fit within that time. 'closeWaitTimeout' is not
+-- added for each wallet API layer and for the stake pool database, because
+-- they all wait for the same deadline.
+shutdownCloseTimeout :: NominalDiffTime
+shutdownCloseTimeout = 40
+
+-- | Interval, in microseconds, at which closing a connection checks whether
+-- the query using it has finished.
+closeWaitStep :: Int
+closeWaitStep = 10_000
 
 {-------------------------------------------------------------------------------
     SQL connection life-cycle
@@ -498,6 +767,9 @@ data DBLog
     | MsgStatementAlreadyFinalized Text
     | MsgUpdatingForeignKeysSetting ForeignKeysSetting
     | MsgRetryOnBusy Int RetryLog
+    | MsgCloseWaitStarted FilePath
+    | MsgCloseWaitTimedOut FilePath NominalDiffTime
+    | MsgCloseFailed FilePath Text
     deriving (Generic, Show, Eq, ToJSON)
 
 data RetryLog = MsgRetry | MsgRetryGaveUp | MsgRetryDone
@@ -519,6 +791,9 @@ instance HasSeverityAnnotation DBLog where
         MsgUpdatingForeignKeysSetting{} -> Debug
         MsgRetryOnBusy _ _ -> Debug
         MsgOpenSingleConnection _ -> Debug
+        MsgCloseWaitStarted _ -> Info
+        MsgCloseWaitTimedOut _ _ -> Warning
+        MsgCloseFailed _ _ -> Warning
 
 instance ToText DBLog where
     toText = \case
@@ -542,6 +817,20 @@ instance ToText DBLog where
             "Attempted to close an already closed connection: " <> msg
         MsgStatementAlreadyFinalized msg ->
             "Statement already finalized: " <> msg
+        MsgCloseWaitStarted fp ->
+            "Waiting for a query to finish before closing the database \
+            \connection ("
+                +| fp
+                |+ ")."
+        MsgCloseWaitTimedOut fp waited ->
+            "A query was still using the database connection ("
+                +| fp
+                |+ ") after "
+                +|| waited
+                ||+ ", so the connection is closed when that query returns."
+        MsgCloseFailed fp err ->
+            ("Closing the database connection (" +| fp |+ ") failed: ")
+                <> err
         MsgMigrationOld msg -> toText msg
         MsgUpdatingForeignKeysSetting value ->
             mconcat

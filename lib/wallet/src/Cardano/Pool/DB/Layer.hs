@@ -25,6 +25,7 @@ module Cardano.Pool.DB.Layer
     ( newDBLayer
     , withDBLayer
     , withDecoratedDBLayer
+    , withDecoratedDBLayerUsing
     , DBDecorator (..)
     , undecoratedDB
     , defaultFilePath
@@ -33,11 +34,13 @@ module Cardano.Pool.DB.Layer
     ) where
 
 import Cardano.DB.Sqlite
-    ( DBLog (..)
+    ( CloseBounds
+    , DBLog (..)
     , ForeignKeysSetting (ForeignKeysEnabled)
     , SqliteContext (..)
-    , newInMemorySqliteContext
-    , withSqliteContextFile
+    , defaultCloseBounds
+    , newInMemorySqliteContextUsing
+    , withSqliteContextFileUsing
     )
 import Cardano.DB.Sqlite.Migration.Old
     ( DBField (..)
@@ -272,11 +275,24 @@ withDecoratedDBLayer
     -> (DBLayer IO -> IO a)
     -- ^ Action to run.
     -> IO a
-withDecoratedDBLayer dbDecorator tr mDatabaseDir ti action = do
+withDecoratedDBLayer = withDecoratedDBLayerUsing defaultCloseBounds
+
+-- | Like 'withDecoratedDBLayer', with the given 'CloseBounds' for closing
+-- the connection.
+withDecoratedDBLayerUsing
+    :: CloseBounds
+    -> DBDecorator IO
+    -> Tracer IO PoolDbLog
+    -> Maybe FilePath
+    -> TimeInterpreter IO
+    -> (DBLayer IO -> IO a)
+    -> IO a
+withDecoratedDBLayerUsing bounds dbDecorator tr mDatabaseDir ti action = do
     case mDatabaseDir of
         Nothing ->
             bracket
-                ( newInMemorySqliteContext
+                ( newInMemorySqliteContextUsing
+                    bounds
                     tr'
                     createViews
                     migrateAll
@@ -286,7 +302,8 @@ withDecoratedDBLayer dbDecorator tr mDatabaseDir ti action = do
                 (action . decorateDBLayer dbDecorator . newDBLayer tr ti . snd)
         Just fp -> handlingPersistError tr fp $ do
             res <-
-                withSqliteContextFile
+                withSqliteContextFileUsing
+                    bounds
                     tr'
                     fp
                     createViews

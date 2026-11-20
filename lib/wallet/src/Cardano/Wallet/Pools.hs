@@ -40,6 +40,11 @@ module Cardano.Wallet.Pools
     )
 where
 
+import Cardano.DB.Sqlite
+    ( ShutdownDeadline
+    , beginShutdown
+    , shutdownCloseBounds
+    )
 import Cardano.Pool.DB
     ( DBLayer (..)
     , ErrPointAlreadyExists (..)
@@ -342,21 +347,26 @@ withNodeStakePoolLayer tr settings dbLayer@DBLayer{..} netParams genesisPools ne
                 >=> const startMetadataThread
     newStakePoolLayer gcStatus netLayer dbLayer restartMetadataThread
 
+-- | The stake pool database is closed during shutdown. Its close starts the
+-- shared 'ShutdownDeadline' if no wallet API layer has done so yet.
 withStakePoolDbLayer
-    :: Tracer IO PoolDbLog
+    :: ShutdownDeadline
+    -> Tracer IO PoolDbLog
     -> Maybe FilePath
     -> Maybe (Pool.DBDecorator IO)
     -> NetworkLayer IO block
     -> ContT r IO (PoolDb.DBLayer IO)
-withStakePoolDbLayer poolDbTracer databaseDir poolDbDecorator netLayer =
-    ContT
-        $ Pool.withDecoratedDBLayer
+withStakePoolDbLayer deadline poolDbTracer databaseDir poolDbDecorator netLayer =
+    ContT $ \k ->
+        Pool.withDecoratedDBLayerUsing
+            (shutdownCloseBounds deadline)
             (fromMaybe Pool.undecoratedDB poolDbDecorator)
             poolDbTracer
             (Pool.defaultFilePath <$> databaseDir)
             ( neverFails "withPoolsMonitoring never forecasts into the future"
                 $ timeInterpreter netLayer
             )
+            (\db -> k db `finally` beginShutdown deadline)
 
 newStakePoolLayer
     :: forall sc

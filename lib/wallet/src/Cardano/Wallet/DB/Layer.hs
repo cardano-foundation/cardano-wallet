@@ -22,12 +22,15 @@
 module Cardano.Wallet.DB.Layer
     ( -- * Directory of single-file wallet databases
       newDBFactory
+    , newDBFactoryUsing
     , findDatabases
     , DBFactoryLog (..)
 
       -- * Open a database for a specific 'WalletId'
     , withLoadDBLayerFromFile
+    , withLoadDBLayerFromFileUsing
     , withBootDBLayerFromFile
+    , withBootDBLayerFromFileUsing
     , newBootDBLayerInMemory
     , withBootDBLayerInMemory
 
@@ -44,9 +47,11 @@ module Cardano.Wallet.DB.Layer
     ) where
 
 import Cardano.DB.Sqlite
-    ( DBLog (..)
+    ( CloseBounds
+    , DBLog (..)
     , ForeignKeysSetting (ForeignKeysEnabled)
     , SqliteContext (..)
+    , defaultCloseBounds
     , matchWrongVersionError
     , newInMemorySqliteContext
     , noAutoMigrations
@@ -54,6 +59,7 @@ import Cardano.DB.Sqlite
     , runManualOldMigrations
     , withDBHandle
     , withSqliteContextFile
+    , withSqliteContextFileUsing
     )
 import Cardano.DB.Sqlite.Delete
     ( DeleteSqliteDatabaseLog
@@ -304,6 +310,20 @@ newDBFactory
      . PersistAddressBook s
     => WalletFlavorS s
     -> Tracer IO DBFactoryLog
+    -> DefaultFieldValues
+    -> TimeInterpreter IO
+    -> Maybe FilePath
+    -> IO (DBFactory IO s)
+newDBFactory = newDBFactoryUsing defaultCloseBounds
+
+-- | Like 'newDBFactory', with the given 'CloseBounds' for the connections of
+-- the databases in the directory.
+newDBFactoryUsing
+    :: forall s
+     . PersistAddressBook s
+    => CloseBounds
+    -> WalletFlavorS s
+    -> Tracer IO DBFactoryLog
     -- ^ Logging object
     -> DefaultFieldValues
     -- ^ Default database field values, used during migration.
@@ -312,7 +332,7 @@ newDBFactory
     -> Maybe FilePath
     -- ^ Path to database directory, or Nothing for in-memory database
     -> IO (DBFactory IO s)
-newDBFactory wf tr defaultFieldValues ti = \case
+newDBFactoryUsing bounds wf tr defaultFieldValues ti = \case
     Nothing -> do
         -- NOTE1
         -- For the in-memory database, we do actually preserve the database
@@ -353,7 +373,8 @@ newDBFactory wf tr defaultFieldValues ti = \case
             DBFactory
                 { withDatabaseLoad = \wid action ->
                     withRef refs wid
-                        $ withLoadDBLayerFromFile
+                        $ withLoadDBLayerFromFileUsing
+                            bounds
                             wf
                             (contramap (MsgWalletDB (databaseFile wid)) tr)
                             ti
@@ -363,7 +384,8 @@ newDBFactory wf tr defaultFieldValues ti = \case
                             action
                 , withDatabaseBoot = \wid params action ->
                     withRef refs wid
-                        $ withBootDBLayerFromFile
+                        $ withBootDBLayerFromFileUsing
+                            bounds
                             wf
                             (contramap (MsgWalletDB (databaseFile wid)) tr)
                             ti
@@ -564,19 +586,43 @@ withLoadDBLayerFromFile
     -> (DBLayer IO s -> IO a)
     -- ^ Action to run.
     -> IO a
-withLoadDBLayerFromFile wF tr ti wid defaultFieldValues dbFile action = do
-    let trDB = contramap MsgDB tr
-    migrateDBFile trDB wF defaultFieldValues dbFile
-        >>= throwMigrationError
-    res <- withSqliteContextFile
-        trDB
-        dbFile
-        noManualMigration
-        noAutoMigrations
-        $ \ctx -> do
-            dblayer <- loadDBLayerFromSqliteContext wF ti wid ctx
-            action dblayer
-    throwMigrationError res
+withLoadDBLayerFromFile = withLoadDBLayerFromFileUsing defaultCloseBounds
+
+-- | Like 'withLoadDBLayerFromFile', with the given 'CloseBounds'.
+withLoadDBLayerFromFileUsing
+    :: forall s a
+     . PersistAddressBook s
+    => CloseBounds
+    -> WalletFlavorS s
+    -> Tracer IO WalletDBLog
+    -> TimeInterpreter IO
+    -> W.WalletId
+    -> Maybe DefaultFieldValues
+    -> FilePath
+    -> (DBLayer IO s -> IO a)
+    -> IO a
+withLoadDBLayerFromFileUsing
+    bounds
+    wF
+    tr
+    ti
+    wid
+    defaultFieldValues
+    dbFile
+    action = do
+        let trDB = contramap MsgDB tr
+        migrateDBFile trDB wF defaultFieldValues dbFile
+            >>= throwMigrationError
+        res <- withSqliteContextFileUsing
+            bounds
+            trDB
+            dbFile
+            noManualMigration
+            noAutoMigrations
+            $ \ctx -> do
+                dblayer <- loadDBLayerFromSqliteContext wF ti wid ctx
+                action dblayer
+        throwMigrationError res
 
 -- | Create a 'DBLayer' in a file.
 --
@@ -603,18 +649,44 @@ withBootDBLayerFromFile
     -> (DBLayer IO s -> IO a)
     -- ^ Action to run.
     -> IO a
-withBootDBLayerFromFile wF tr ti wid _defaultFieldValues params dbFile action =
-    do
-        let trDB = contramap MsgDB tr
-        res <- withSqliteContextFile
-            trDB
-            dbFile
-            createSchemaVersionTableIfMissing'
-            migrateAll
-            $ \ctx -> do
-                dblayer <- bootDBLayerFromSqliteContext wF ti wid params ctx
-                action dblayer
-        throwMigrationError res
+withBootDBLayerFromFile = withBootDBLayerFromFileUsing defaultCloseBounds
+
+-- | Like 'withBootDBLayerFromFile', with the given 'CloseBounds'.
+withBootDBLayerFromFileUsing
+    :: forall s a
+     . PersistAddressBook s
+    => CloseBounds
+    -> WalletFlavorS s
+    -> Tracer IO WalletDBLog
+    -> TimeInterpreter IO
+    -> W.WalletId
+    -> Maybe DefaultFieldValues
+    -> DBLayerParams s
+    -> FilePath
+    -> (DBLayer IO s -> IO a)
+    -> IO a
+withBootDBLayerFromFileUsing
+    bounds
+    wF
+    tr
+    ti
+    wid
+    _defaultFieldValues
+    params
+    dbFile
+    action =
+        do
+            let trDB = contramap MsgDB tr
+            res <- withSqliteContextFileUsing
+                bounds
+                trDB
+                dbFile
+                createSchemaVersionTableIfMissing'
+                migrateAll
+                $ \ctx -> do
+                    dblayer <- bootDBLayerFromSqliteContext wF ti wid params ctx
+                    action dblayer
+            throwMigrationError res
 
 -- | Create a 'DBLayer' in memory.
 --

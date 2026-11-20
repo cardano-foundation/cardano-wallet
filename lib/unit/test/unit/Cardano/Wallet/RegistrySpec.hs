@@ -1,6 +1,8 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE NumericUnderscores #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -9,6 +11,13 @@ module Cardano.Wallet.RegistrySpec
     ( spec
     ) where
 
+import Cardano.DB.Sqlite
+    ( ErrConnectionClosed (..)
+    , SqliteContext (..)
+    , noAutoMigrations
+    , noManualMigration
+    , withSqliteContextFile
+    )
 import Cardano.Wallet.Primitive.Types
     ( WalletId (..)
     )
@@ -24,6 +33,7 @@ import Cardano.Wallet.Registry
     , register
     , unregister
     , workerId
+    , workerResource
     , workerThread
     )
 import Cardano.Wallet.Tracing.Trace
@@ -38,11 +48,17 @@ import Control.Monad
     , replicateM
     , void
     )
+import Control.Monad.IO.Class
+    ( liftIO
+    )
 import Control.Tracer
     ( Tracer
     )
 import Cryptography.Hash.Core
     ( hash
+    )
+import Data.Int
+    ( Int64
     )
 import Data.Maybe
     ( isNothing
@@ -50,12 +66,28 @@ import Data.Maybe
 import Data.Text
     ( Text
     )
+import Database.Persist.Sql
+    ( PersistValue (..)
+    , Single (..)
+    , SqlPersistT
+    , rawExecute
+    , rawSql
+    )
+import GHC.Conc
+    ( BlockReason (..)
+    , ThreadStatus (..)
+    , threadStatus
+    )
 import GHC.Generics
     ( Generic
+    )
+import System.FilePath
+    ( (</>)
     )
 import Test.Hspec
     ( Spec
     , describe
+    , expectationFailure
     , it
     , shouldBe
     , shouldReturn
@@ -73,18 +105,23 @@ import Test.QuickCheck.Monadic
     )
 import UnliftIO.Async
     ( async
+    , asyncThreadId
     , race
     , wait
     )
 import UnliftIO.Concurrent
-    ( threadDelay
+    ( ThreadId
+    , threadDelay
     , throwTo
     )
 import UnliftIO.Exception
     ( SomeException (..)
     , bracket
+    , displayException
     , finally
+    , fromException
     , throwIO
+    , try
     , uninterruptibleMask_
     )
 import UnliftIO.MVar
@@ -93,10 +130,15 @@ import UnliftIO.MVar
     , newEmptyMVar
     , newMVar
     , putMVar
+    , readMVar
     , swapMVar
     , takeMVar
     , tryPutMVar
+    , tryReadMVar
     , tryTakeMVar
+    )
+import UnliftIO.Temporary
+    ( withSystemTempDirectory
     )
 import Prelude hiding
     ( lookup
@@ -125,6 +167,12 @@ spec = do
         it
             "Does not return until 'before' is completed"
             (property workerIsUsableAfterBefore)
+        it
+            "Keeps its database open for a running query when 'main' fails"
+            (runningQueryOutlivesWorker workerDies)
+        it
+            "Keeps its database open for a running query when unregistered"
+            (runningQueryOutlivesWorker workerIsUnregistered)
     describe "drain" $ do
         it
             "is idempotent and leaves the registry empty"
@@ -421,6 +469,110 @@ unregisterDoesNotTerminateAnotherWorker = do
     assertAbsent registry widKeep
     assertAbsent registry widDrop
 
+-- | Stop a worker started by 'registerDbWorker' by letting its 'main' throw.
+workerDies
+    :: MVar ()
+    -> WorkerRegistry WalletId SqliteContext
+    -> WalletId
+    -> IO ()
+workerDies die _ _ = putMVar die ()
+
+-- | Stop a worker the way 'drain' does.
+workerIsUnregistered
+    :: MVar ()
+    -> WorkerRegistry WalletId SqliteContext
+    -> WalletId
+    -> IO ()
+workerIsUnregistered _ = unregister
+
+-- | A worker whose resource is a file-backed 'SqliteContext' stops while a
+-- request is running a query on that database and another query is waiting
+-- for its turn. The waiting query is refused, the worker closes the
+-- database only after the running query has committed, the request's next
+-- query fails with 'ErrConnectionClosed', the worker leaves the registry,
+-- and the database of another worker keeps answering.
+runningQueryOutlivesWorker
+    :: ( MVar ()
+         -> WorkerRegistry WalletId SqliteContext
+         -> WalletId
+         -> IO ()
+       )
+    -- ^ Stops the worker, given the 'MVar' that its 'main' waits on.
+    -> IO ()
+runningQueryOutlivesWorker stop =
+    withSystemTempDirectory "registry" $ \dir -> do
+        registry <- empty
+        widStop <- generate arbitrary
+        widKeep <- generate arbitrary
+        dieStop <- newEmptyMVar
+        dieKeep <- newEmptyMVar
+        releasedStop <- newEmptyMVar
+        releasedKeep <- newEmptyMVar
+        let dbStop = dir </> "stop.sqlite"
+        stopped <-
+            registerDbWorker registry dbStop widStop dieStop releasedStop
+        kept <-
+            registerDbWorker
+                registry
+                (dir </> "keep.sqlite")
+                widKeep
+                dieKeep
+                releasedKeep
+        inQuery <- newEmptyMVar
+        resume <- newEmptyMVar
+        let db = workerResource stopped
+        request <- async $ do
+            first <- try $ runQuery db $ do
+                insertRow 1
+                liftIO $ putMVar inQuery () >> takeMVar resume
+                insertRow 2
+            second <- try $ runQuery db $ insertRow 3
+            pure (first, second)
+        let body = do
+                takeMVar inQuery
+                waiting <- startWaitingQuery db
+                stop dieStop registry widStop
+                -- The waiting query is refused once the worker has started
+                -- to close the database, so the request's second query
+                -- starts after that.
+                refused <-
+                    race (threadDelay 5_000_000) (takeMVar waiting)
+                releasedEarly <- tryReadMVar releasedStop
+                putMVar resume ()
+                (first, second) <- wait request
+                case first of
+                    Left (e :: SomeException) ->
+                        expectationFailure
+                            $ "the running query failed: "
+                                <> displayException e
+                    Right () -> pure ()
+                case releasedEarly of
+                    Nothing -> pure ()
+                    Just () ->
+                        expectationFailure
+                            "the database was closed under the running query"
+                case refused of
+                    Left () ->
+                        expectationFailure
+                            "a waiting query was not refused when closing"
+                    Right (Left (e :: SomeException)) ->
+                        fromException e
+                            `shouldBe` Just (ErrConnectionClosed dbStop)
+                    Right (Right ()) ->
+                        expectationFailure "a waiting query ran while closing"
+                case second of
+                    Left (e :: SomeException) ->
+                        fromException e
+                            `shouldBe` Just (ErrConnectionClosed dbStop)
+                    Right () ->
+                        expectationFailure
+                            "a query ran after the database was closed"
+                assertFilled "database release" releasedStop
+                waitUntilAbsent registry widStop "stopped worker"
+                runQuery (workerResource kept) (insertRow 7 >> readRows)
+                    `shouldReturn` [7]
+        body `finally` (tryPutMVar resume () >> drain registry)
+
 {-------------------------------------------------------------------------------
                       Tests machinery, Arbitrary instances
 -------------------------------------------------------------------------------}
@@ -438,6 +590,81 @@ instance HasWorkerCtx DummyResource DummyCtx where
     type WorkerMsg DummyCtx = Text
     type WorkerKey DummyCtx = WalletId
     hoistResource _ _ = id
+
+data DbCtx
+    = DbCtx
+        (Tracer IO (WorkerLog WalletId Text))
+        SqliteContext
+    deriving (Generic)
+
+instance HasWorkerCtx SqliteContext DbCtx where
+    type WorkerCtx DbCtx = DbCtx
+    type WorkerMsg DbCtx = Text
+    type WorkerKey DbCtx = WalletId
+    hoistResource db _ (DbCtx tr _) = DbCtx tr db
+
+-- | Register a worker whose resource is a 'SqliteContext' on a new file
+-- holding a table @t@. Its 'main' throws once @die@ is filled, and
+-- @released@ is filled after the database is closed.
+registerDbWorker
+    :: WorkerRegistry WalletId SqliteContext
+    -> FilePath
+    -> WalletId
+    -> MVar ()
+    -> MVar ()
+    -> IO (Worker WalletId SqliteContext)
+registerDbWorker registry fp wid die released =
+    register registry ctx wid config >>= \case
+        Nothing -> fail "expected worker to start"
+        Just worker -> pure worker
+  where
+    ctx = DbCtx nullTracer noDatabase
+    noDatabase = SqliteContext $ \_ -> throwIO $ userError "no database"
+    config =
+        MkWorker
+            { workerBefore = \_ _ -> pure ()
+            , workerMain = \_ _ -> do
+                readMVar die
+                throwIO $ userError "worker died"
+            , workerAfter = \_ _ -> pure ()
+            , workerAcquire = \use ->
+                ( withSqliteContextFile
+                    nullTracer
+                    fp
+                    noManualMigration
+                    noAutoMigrations
+                    (\db -> runQuery db createTable >> use db)
+                    >>= either (throwIO . userError . show) pure
+                )
+                    `finally` void (tryPutMVar released ())
+            }
+
+createTable :: SqlPersistT IO ()
+createTable = rawExecute "CREATE TABLE t (x INTEGER NOT NULL)" []
+
+insertRow :: Int64 -> SqlPersistT IO ()
+insertRow x = rawExecute "INSERT INTO t (x) VALUES (?)" [PersistInt64 x]
+
+readRows :: SqlPersistT IO [Int64]
+readRows = fmap unSingle <$> rawSql "SELECT x FROM t ORDER BY x" []
+
+-- | Start a query in another thread, and return once it is blocked waiting
+-- for its turn on the database.
+startWaitingQuery
+    :: SqliteContext -> IO (MVar (Either SomeException ()))
+startWaitingQuery db = do
+    result <- newEmptyMVar
+    query <- async $ try (runQuery db (pure ())) >>= putMVar result
+    waitUntilBlocked (asyncThreadId query)
+    pure result
+
+waitUntilBlocked :: ThreadId -> IO ()
+waitUntilBlocked tid =
+    threadStatus tid >>= \case
+        ThreadBlocked BlockedOnSTM -> pure ()
+        ThreadFinished -> fail "the waiting query finished instead of waiting"
+        ThreadDied -> fail "the waiting query died instead of waiting"
+        _ -> threadDelay 1_000 >> waitUntilBlocked tid
 
 -- A reasonably 'long' delay to test asynchronous race conditions, in us
 newtype Delay = Delay Int deriving (Show)
@@ -540,7 +767,7 @@ assertAbsent registry wid = do
     isNothing found `shouldBe` True
 
 waitUntilAbsent
-    :: WorkerRegistry WalletId DummyResource
+    :: WorkerRegistry WalletId resource
     -> WalletId
     -> String
     -> IO ()
