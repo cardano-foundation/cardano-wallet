@@ -47,6 +47,19 @@ import Cardano.Api
     , CardanoEra (..)
     , InAnyCardanoEra (..)
     )
+import Cardano.Api.Experimental.AnyScriptWitness
+    ( AnyScriptWitness (..)
+    )
+import Cardano.Api.Experimental.Certificate
+    ( Certificate (..)
+    )
+import Cardano.Api.Experimental.Simple.Script
+    ( SimpleScript (..)
+    , SimpleScriptOrReferenceInput (..)
+    )
+import Cardano.Api.Experimental.Tx
+    ( AnyWitness (..)
+    )
 import Cardano.Api.Extra
     ( CardanoApiEra
     , cardanoApiEraConstraints
@@ -108,6 +121,7 @@ import Cardano.Ledger.Api
     , bootAddrTxWitsL
     , eraProtVerLow
     , hashScript
+    , referenceScriptTxOutL
     , scriptTxWitsL
     , witsTxL
     )
@@ -203,6 +217,12 @@ import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Withdrawals
     )
 import Cardano.Wallet.Primitive.Ledger.Read.Tx.Sealed
     ( fromSealedTx
+    )
+import Cardano.Wallet.Primitive.Ledger.Shelley
+    ( toCardanoAssetName
+    , toCardanoPolicyId
+    , toCardanoStakeCredential
+    , toCardanoTxIn
     )
 import Cardano.Wallet.Primitive.Model
     ( Wallet
@@ -309,8 +329,7 @@ import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..)
     )
 import Cardano.Wallet.Shelley.Transaction
-    ( mkUnsignedTx
-    , newTransactionLayer
+    ( newTransactionLayer
     )
 import Cardano.Wallet.Shelley.Transaction.Build
     ( mkLedgerTx
@@ -491,6 +510,8 @@ import Test.Utils.Pretty
 import Prelude
 
 import qualified Cardano.Api as Cardano
+import qualified Cardano.Api.Experimental.Era as ExpEra
+import qualified Cardano.Api.Experimental.Tx as Exp
 import qualified Cardano.Balance.Tx.Eras as Write
     ( Conway
     , RecentEra (RecentEraConway, RecentEraDijkstra)
@@ -1277,17 +1298,15 @@ ledgerMintPlumbingSpec' era =
 --------------------------------------------------------------------------------
 -- Script-witness parity (PR #5288)
 --
--- Six enumerated scenarios + one property compare two builders byte-for-byte:
---   * Cardano.Wallet.Shelley.Transaction.mkUnsignedTx
---   * Cardano.Wallet.Shelley.Transaction.Ledger.buildLedgerTx
+-- Enumerated scenarios + one property compare two independent builders:
+--   * Cardano.Api.Experimental.makeUnsignedTx (migration-window oracle)
+--   * Cardano.Wallet.Shelley.Transaction.Unsigned.buildLedgerTx
 --
--- Both builders now produce a ledger 'Write.Tx Write.Conway' directly
--- (mkUnsignedTx retired its cardano-api body in #5411), so the comparison is
--- between the two production entry points. We compare:
+-- We compare:
 --   (a) CBOR of `tx ^. bodyTxL` (via serialize @Conway)
 --   (b) `tx ^. witsTxL . scriptTxWitsL`
 --
--- See specs/008-script-witness-parity/{spec,data-model,plan,research}.md.
+-- See specs/5288-parity-oracle/{spec,data-model,plan}.md.
 --------------------------------------------------------------------------------
 
 ledgerScriptWitnessParitySpec :: AnyRecentEra -> Spec
@@ -1423,15 +1442,23 @@ ledgerScriptWitnessParitySpec' eraW =
                             TokenMap.singleton aid (TokenQuantity 4)
                         }
             let ws = noScriptWitnesses{swMintingSources = mintMap}
-            let legacy = buildLegacyParityTx eraW sel ws emptyCtx
+            let api = buildCardanoApiParityTx eraW sel ws emptyCtx
             let new = buildNewParityTx eraW sel ws emptyCtx
             -- MultiAsset parity: both builders must encode the burn the
             -- same way in the ledger mint field.
-            (legacy ^. bodyTxL . mintTxBodyL)
+            (api ^. bodyTxL . mintTxBodyL)
                 `shouldBe` (new ^. bodyTxL . mintTxBodyL)
             shouldHaveBodyParity eraW sel ws emptyCtx
 
-        prop "prop_buildLedgerTx_matches_mkUnsignedTx_on_script_witnesses"
+        it "8. same-policy mint: reference source then inline source" $ do
+            let (sel, ws) = samePolicyMixedMint 2 1
+            shouldHaveBodyParity eraW sel ws emptyCtx
+
+        it "9. same-policy mint: inline source then reference source" $ do
+            let (sel, ws) = samePolicyMixedMint 1 2
+            shouldHaveBodyParity eraW sel ws emptyCtx
+
+        prop "prop_buildLedgerTx_matches_cardanoApi_on_script_witnesses"
             $ withMaxSuccess 100
             $ forAll genParityCase
             $ \(ParityCase sel ws ctx) ->
@@ -1468,49 +1495,187 @@ parityTtl = (Nothing, SlotNo 100)
 parityFee :: Coin
 parityFee = Coin 200_000
 
--- | Build the body via mkUnsignedTx, which (like 'buildNewParityTx') yields
--- a ledger 'Write.Tx Write.Conway' directly since #5411.
-buildLegacyParityTx
+-- | Migration-window oracle for script-witness parity.
+--
+-- Delete this helper and the cardano-api arm of
+-- 'shouldHaveBodyParity' / 'propParity' when the wallet ledger
+-- builder is the only remaining production constructor.
+buildCardanoApiParityTx
     :: RecentEra Write.Conway
     -> SelectionOf TxOut
     -> ScriptWitnesses
     -> ScriptParityCtx
     -> Write.Tx Write.Conway
-buildLegacyParityTx _eraW sel ws ctx =
-    let networkId = Cardano.Mainnet
-        certsLedger = case ctxDelegation ctx of
-            Nothing -> []
-            Just (cred, depositM, action) ->
-                certificateFromDelegationActionLedger
-                    Write.RecentEraConway
-                    cred
-                    depositM
-                    action
-        (mintTokens, burnTokens) =
-            mintBurnFromMintingSources
-                (view #assetsToMint sel)
-                (view #assetsToBurn sel)
-                (swMintingSources ws)
-        body = case mkUnsignedTx
-            networkId
-            parityTtl
-            (Right sel :: Either PreSelection (SelectionOf TxOut))
-            Nothing
-            (ctxWithdrawal ctx)
-            certsLedger
-            parityFee
-            mintTokens
-            burnTokens
-            (swMintingSources ws)
-            (swNativeInputs ws)
-            (swStakingScript ws)
-            (swReferenceScript ws) of
-            Left err ->
-                error
-                    $ "buildLegacyParityTx: mkUnsignedTx failed: "
-                        <> show err
-            Right b -> b
-    in  body
+buildCardanoApiParityTx _eraW sel ws ctx =
+    case Exp.makeUnsignedTx ExpEra.ConwayEra bodyContent of
+        Left err ->
+            error
+                $ "buildCardanoApiParityTx: makeUnsignedTx failed: "
+                    <> show err
+        Right (Exp.UnsignedTx tx) -> tx
+  where
+    bodyContent =
+        Exp.defaultTxBodyContent
+            & Exp.setTxIns (parityTxIns sel ws)
+            & Exp.setTxInsReference (parityRefIns ws)
+            & Exp.setTxOuts (parityTxOuts sel ws)
+            & Exp.setTxFee (toLedgerCoin parityFee)
+            & Exp.setTxValidityUpperBound (snd parityTtl)
+            & Exp.setTxWithdrawals (parityWithdrawals ws ctx)
+            & Exp.setTxCertificates (parityCerts ws ctx)
+            & Exp.setTxMintValue (parityMintValue sel ws)
+
+nativeSimpleScript
+    :: Script KeyHash -> SimpleScript Write.Conway
+nativeSimpleScript script =
+    SimpleScript (toLedgerTimelockScript @Write.Conway script)
+
+stakingWitness
+    :: ScriptWitnesses -> AnyWitness Write.Conway
+stakingWitness ws = case swStakingScript ws of
+    Nothing -> AnyKeyWitnessPlaceholder
+    Just script ->
+        AnySimpleScriptWitness
+            $ SScript
+            $ nativeSimpleScript script
+
+parityTxIns
+    :: SelectionOf TxOut
+    -> ScriptWitnesses
+    -> [(Cardano.TxIn, AnyWitness Write.Conway)]
+parityTxIns sel ws =
+    [ (toCardanoTxIn txin, witness txin)
+    | (txin, _) <- F.toList (view #inputs sel)
+    ]
+  where
+    witness txin = case Map.lookup txin (swNativeInputs ws) of
+        Nothing -> AnyKeyWitnessPlaceholder
+        Just script ->
+            AnySimpleScriptWitness
+                $ SScript
+                $ nativeSimpleScript script
+
+parityRefIns
+    :: ScriptWitnesses -> Exp.TxInsReference Write.Conway
+parityRefIns ws =
+    Exp.TxInsReference
+        [ toCardanoTxIn txin
+        | Right (ReferenceInput txin) <-
+            Map.elems (swMintingSources ws)
+        ]
+        Set.empty
+
+parityTxOuts
+    :: SelectionOf TxOut
+    -> ScriptWitnesses
+    -> [Exp.TxOut Write.Conway]
+parityTxOuts sel ws =
+    case ( swReferenceScript ws
+         , map (toBabbageTxOutInEra @Write.Conway) outs
+         ) of
+        (Just script, firstOut : rest) ->
+            Exp.TxOut (attachRef script firstOut)
+                : map Exp.TxOut rest
+        (_, ledgerOuts) -> map Exp.TxOut ledgerOuts
+  where
+    outs = view #outputs sel ++ F.toList (view #change sel)
+    attachRef script firstOut =
+        firstOut
+            & referenceScriptTxOutL
+                .~ SJust
+                    ( NativeScript
+                        (toLedgerTimelockScript script)
+                    )
+
+parityWithdrawals
+    :: ScriptWitnesses
+    -> ScriptParityCtx
+    -> Exp.TxWithdrawals Write.Conway
+parityWithdrawals ws ctx =
+    Exp.TxWithdrawals $ case ctxWithdrawal ctx of
+        NoWithdrawal -> []
+        WithdrawalSelf acc _ amt -> [entry acc amt]
+        WithdrawalExternal acc _ amt _ -> [entry acc amt]
+  where
+    entry acc amt =
+        ( Cardano.makeStakeAddress
+            Cardano.Mainnet
+            (toCardanoStakeCredential acc)
+        , toLedgerCoin amt
+        , stakingWitness ws
+        )
+
+parityCerts
+    :: ScriptWitnesses
+    -> ScriptParityCtx
+    -> Exp.TxCertificates Write.Conway
+parityCerts ws ctx =
+    Exp.mkTxCertificates
+        ExpEra.ConwayEra
+        [ (Certificate cert, stakingWitness ws)
+        | cert <- certs
+        ]
+  where
+    certs = case ctxDelegation ctx of
+        Nothing -> []
+        Just (cred, depositM, action) ->
+            certificateFromDelegationActionLedger
+                Write.RecentEraConway
+                cred
+                depositM
+                action
+
+parityMintValue
+    :: SelectionOf TxOut
+    -> ScriptWitnesses
+    -> Exp.TxMintValue Write.Conway
+parityMintValue sel ws =
+    Exp.TxMintValue
+        $ Map.unionsWith merge
+        $ ( TokenMap.toFlatList (view #assetsToMint sel)
+                >>= collect False
+          )
+            <> ( TokenMap.toFlatList (view #assetsToBurn sel)
+                    >>= collect True
+               )
+  where
+    collect burn (aid, TokenQuantity q) =
+        let src = case Map.lookup aid (swMintingSources ws) of
+                Nothing ->
+                    error
+                        $ "parityMintValue: no ScriptSource for "
+                            <> show aid
+                Just s -> s
+            qty =
+                Cardano.Quantity
+                    $ (if burn then negate else id)
+                    $ fromIntegral q
+            assets =
+                Cardano.PolicyAssets
+                    $ Map.singleton
+                        (toCardanoAssetName (assetName aid))
+                        qty
+            wit = case src of
+                Left script ->
+                    AnyScriptWitnessSimple
+                        $ SScript
+                        $ nativeSimpleScript script
+                Right (ReferenceInput txin) ->
+                    AnyScriptWitnessSimple
+                        $ SReferenceScript
+                        $ toCardanoTxIn txin
+        in  [ Map.singleton
+                (toCardanoPolicyId (policyId aid))
+                (assets, wit)
+            ]
+    merge (a1, w1) (a2, w2) = (a1 <> a2, preferInline w1 w2)
+    preferInline w1 w2 =
+        case (isInline w1, isInline w2) of
+            (False, True) -> w2
+            _ -> w1
+    isInline w = case w of
+        AnyScriptWitnessSimple (SScript _) -> True
+        _ -> False
 
 -- | Build the new ledger body via buildLedgerTx (extended with ScriptWitnesses).
 buildNewParityTx
@@ -1542,16 +1707,6 @@ buildNewParityTx eraW sel ws ctx =
             ledgerMint
             ws
 
--- | Pass the selection's mint and burn TokenMaps through to the legacy
--- builder unchanged. The minting-sources map is unused for the split but
--- threaded so the signature mirrors the new builder's @ScriptWitnesses@.
-mintBurnFromMintingSources
-    :: TokenMap.TokenMap
-    -> TokenMap.TokenMap
-    -> Map AssetId ScriptSource
-    -> (TokenMap.TokenMap, TokenMap.TokenMap)
-mintBurnFromMintingSources mint burn _ = (mint, burn)
-
 shouldHaveBodyParity
     :: RecentEra Write.Conway
     -> SelectionOf TxOut
@@ -1559,10 +1714,10 @@ shouldHaveBodyParity
     -> ScriptParityCtx
     -> IO ()
 shouldHaveBodyParity eraW sel ws ctx = do
-    let legacy = buildLegacyParityTx eraW sel ws ctx
+    let api = buildCardanoApiParityTx eraW sel ws ctx
     let new = buildNewParityTx eraW sel ws ctx
-    parityBodyCbor legacy `shouldBe` parityBodyCbor new
-    parityScriptWits legacy `shouldBe` parityScriptWits new
+    parityBodyCbor api `shouldBe` parityBodyCbor new
+    parityScriptWits api `shouldBe` parityScriptWits new
 
 parityBodyCbor :: Write.Tx Write.Conway -> BL.ByteString
 parityBodyCbor t = serialize (eraProtVerLow @Write.Conway) (t ^. bodyTxL)
@@ -1581,13 +1736,13 @@ propParity
     -> ScriptParityCtx
     -> Property
 propParity eraW sel ws ctx =
-    let legacy = buildLegacyParityTx eraW sel ws ctx
+    let api = buildCardanoApiParityTx eraW sel ws ctx
         new = buildNewParityTx eraW sel ws ctx
     in  conjoin
             [ counterexample "body CBOR differs"
-                $ parityBodyCbor legacy === parityBodyCbor new
+                $ parityBodyCbor api === parityBodyCbor new
             , counterexample "scriptTxWitsL differs"
-                $ parityScriptWits legacy === parityScriptWits new
+                $ parityScriptWits api === parityScriptWits new
             ]
 
 --------------------------------------------------------------------------------
@@ -1625,9 +1780,12 @@ reviewResponse5413Spec = describe "5413 review response" $ do
 
     it "balanceTx appends the script for its selected input" $ do
         balanced <- balanceReviewResponseTx (Coin 1_000_000)
-        let scripts = parityScriptWits balanced
-        Map.keysSet scripts
-            `shouldSatisfy` Set.member reviewAddedInputScriptHash
+        let declared = Map.keysSet $ parityScriptWits reviewTx
+            observed = Map.keysSet $ parityScriptWits balanced
+        Set.member reviewAddedInputScriptHash declared
+            `shouldBe` False
+        Set.member reviewAddedInputScriptHash observed
+            `shouldBe` True
   where
     reviewTx = reviewResponseTx (Coin 1_000_000)
 
@@ -1643,7 +1801,7 @@ roundTripThroughCardanoApi tx =
 
 reviewResponseTx :: Coin -> Write.Tx Write.Conway
 reviewResponseTx inputCoin =
-    buildLegacyParityTx
+    buildNewParityTx
         Write.RecentEraConway
         (reviewResponseSelection inputCoin)
         reviewResponseWitnesses
@@ -2087,6 +2245,35 @@ mkAsset policyByte assetByte =
     AssetId
         (UnsafeTokenPolicyId $ Hash $ BS.pack $ replicate 28 policyByte)
         (UnsafeAssetName $ BS.pack [assetByte])
+
+-- | Two mint assets on one policy: inline script and a reference
+-- input. Asset-name bytes set TokenMap.toFlatList order.
+samePolicyMixedMint
+    :: Word8
+    -> Word8
+    -> (SelectionOf TxOut, ScriptWitnesses)
+samePolicyMixedMint inlineAsset refAsset =
+    let script = mkScript 81
+        aidInline = mkAsset 0x43 inlineAsset
+        aidRef = mkAsset 0x43 refAsset
+        refIn = TxIn dummyTxId 161
+        sel =
+            (mkSimpleSelection (Coin 10_000_000) [mkOut 1 2_000_000])
+                { assetsToMint =
+                    TokenMap.fromFlatList
+                        [ (aidInline, TokenQuantity 5)
+                        , (aidRef, TokenQuantity 3)
+                        ]
+                }
+        ws =
+            noScriptWitnesses
+                { swMintingSources =
+                    Map.fromList
+                        [ (aidInline, Left script)
+                        , (aidRef, Right (ReferenceInput refIn))
+                        ]
+                }
+    in  (sel, ws)
 
 mkOut :: Word8 -> Word64 -> TxOut
 mkOut idx coins = TxOut (dummyAddress idx) (coinToBundle coins)
