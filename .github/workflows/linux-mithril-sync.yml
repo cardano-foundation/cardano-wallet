@@ -31,7 +31,10 @@ jobs:
       NODE_LOGS_FILE: ./logs/node.log
       WALLET_LOGS_FILE: ./logs/wallet.log
       CLEANUP_DB: "true"
-      MITHRIL_UTXO_HD_FLAVOR: LMDB
+      # The node config selects the V2InMemory ledger backend, which only loads
+      # an in-memory snapshot. Leaving the flavour unset keeps the downloaded
+      # snapshot as it is; converting it to LMDB makes the node skip it and
+      # replay the ledger from genesis.
       NETWORK: mainnet
     steps:
       - name: Checkout
@@ -45,6 +48,17 @@ jobs:
           rm -rf logs databases
           mkdir -p logs
           ./snapshot.sh
+          # Temporary: the runner has vanished mid-sync leaving no log. Print
+          # memory figures to the job log every minute; stops with this step.
+          (
+            while kill -0 $$ 2>/dev/null; do
+              echo "=== memory $(date -u +%FT%TZ) ==="
+              free -m
+              ps -eo rss,comm --sort=-rss | head -5
+              dmesg 2>/dev/null | grep -i -E 'out of memory|killed process' | tail -3 || true
+              sleep 60
+            done
+          ) &
           runtime_path=$(nix shell --quiet .#cardano-wallet .#cardano-node .#cardano-cli --command printenv PATH)
           export PATH="$runtime_path"
           exec bash ./run.sh sync 14400
