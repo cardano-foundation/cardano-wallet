@@ -43,6 +43,10 @@ module Cardano.Wallet.Address.Discovery.Shared
     , liftDelegationAddress
     ) where
 
+import Cardano.Address.Crypto.Wallet
+    ( XPrv
+    , XPub
+    )
 import Cardano.Address.Script
     ( Cosigner (..)
     , ErrValidateScriptTemplate (..)
@@ -57,10 +61,6 @@ import Cardano.Address.Style.Shelley
     ( Credential (..)
     , delegationAddress
     , paymentAddress
-    )
-import Cardano.Crypto.Wallet
-    ( XPrv
-    , XPub
     )
 import Cardano.Wallet.Address.Derivation
     ( AccountIxForStaking (..)

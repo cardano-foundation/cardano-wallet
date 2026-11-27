@@ -136,7 +136,6 @@ test-suite unit
     , lattices
     , lens
     , local-cluster
-    , memory
     , monad-logger
     , MonadRandom
     , monoid-subclasses
@@ -157,6 +156,7 @@ test-suite unit
     , quickcheck-classes
     , quickcheck-instances
     , quickcheck-state-machine
+    , ram
     , random
     , regex-pcre-builtin
     , resourcet

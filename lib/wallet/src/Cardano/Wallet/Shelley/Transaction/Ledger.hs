@@ -135,6 +135,7 @@ import Cardano.Wallet.Primitive.Types.Tx.TxOut
     )
 import Cardano.Wallet.Shelley.Transaction
     ( signTransaction
+    , toLedgerXPrv
     , txConstraints
     , txWitnessTagForKey
     , _txRewardWithdrawalCost
@@ -164,12 +165,12 @@ import Data.Generics.Internal.VL.Lens
     )
 import Prelude
 
+import qualified Cardano.Address.Crypto.Wallet as Crypto.HD
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Byron as Byron
 import qualified Cardano.Balance.Tx.Eras as Write
 import qualified Cardano.Balance.Tx.Tx as Write
 import qualified Cardano.Crypto as CC
-import qualified Cardano.Crypto.Wallet as Crypto.HD
 import qualified Cardano.Crypto.WalletHD.Encrypted as EncHD
     ( Signature (..)
     )
@@ -408,6 +409,7 @@ mkByronWitnessLedger _era body net addr (xprv, pwd) =
         extractHash $ hashAnnotated @_ @EraIndependentTxBody body
     signingKey =
         CC.SigningKey
+            $ toLedgerXPrv
             $ Crypto.HD.xPrvChangePass pwd BS.empty xprv
     addrAttr =
         Byron.mkAttributes

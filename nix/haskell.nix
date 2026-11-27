@@ -429,6 +429,20 @@ haskell-nix.cabalProject' [
           # Windows cross-compilation fixes (from cardano-node)
           (
             { lib, pkgs, ... }:
+            let
+              # nixpkgs builds SQLite for Windows single-threaded and without
+              # loadable extensions, because its configure looks for pthreads
+              # and dlopen. SQLite uses Win32 mutexes and LoadLibrary there, so
+              # neither is needed: turn both back on.
+              sqlite = pkgs.sqlite.overrideAttrs (old: {
+                postConfigure = (old.postConfigure or "") + ''
+                  sed -i \
+                    -e 's/-DSQLITE_THREADSAFE=0/-DSQLITE_THREADSAFE=1/g' \
+                    -e 's/-DSQLITE_OMIT_LOAD_EXTENSION=1//g' \
+                    Makefile
+                '';
+              });
+            in
             lib.mkIf pkgs.stdenv.hostPlatform.isWindows {
               packages.unix-compat.postPatch = ''
                 sed -i 's/msvcrt//g' unix-compat.cabal
@@ -445,6 +459,29 @@ haskell-nix.cabalProject' [
               # haskell.nix patches streaming-commons < 0.2.3.1 for Windows
               # header file casing (Share.h). Don't clear the patch until
               # index-state is new enough to resolve 0.2.3.1.
+
+              # cardano-addresses >= 4.0.3 carries a copy of the C code of
+              # cardano-crypto (key derivation and ed25519) under the same global
+              # names. Template Haskell in a cross build loads whole package
+              # objects with GHC's own linker, which stops at the second
+              # definition of `clear`. Give the cardano-addresses copy its own
+              # names, in the C code and in the foreign imports.
+              packages.cardano-addresses.postPatch = ''
+                sed -i 's/cardano_crypto_/cardano_addresses_/g' \
+                  cbits/encrypted_sign.c cbits/ed25519/*
+                sed -i -E 's/\b(clear|scalar_add_no_overflow)\b/cardano_addresses_\1/g' \
+                  cbits/encrypted_sign.c
+                sed -i -E 's/\bwallet_encrypted_([a-z_]+)\b/cardano_addresses_wallet_encrypted_\1/g' \
+                  cbits/encrypted_sign.c lib/Cardano/Address/Crypto/Wallet/Encrypted.hs
+              '';
+
+              # direct-sqlite (a dependency of ouroboros-consensus) and
+              # persistent-sqlite each bundle their own copy of SQLite, which
+              # clash in the same way. Link both against one SQLite library.
+              packages.direct-sqlite.flags.systemlib = true;
+              packages.persistent-sqlite.flags.systemlib = true;
+              packages.direct-sqlite.components.library.libs = lib.mkForce [ sqlite ];
+              packages.persistent-sqlite.components.library.libs = lib.mkForce [ sqlite ];
             }
           )
 

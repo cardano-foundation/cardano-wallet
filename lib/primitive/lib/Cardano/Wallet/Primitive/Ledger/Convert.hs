@@ -549,7 +549,7 @@ toLedgerTimelockScript s = case s of
             $ StrictSeq.fromList
             $ map toLedgerTimelockScript contents
     RequireSomeOf num contents ->
-        Scripts.RequireMOf (intCast num)
+        Scripts.RequireMOf (convertRequired num)
             $ StrictSeq.fromList
             $ map toLedgerTimelockScript contents
     ActiveUntilSlot slot ->
@@ -567,6 +567,17 @@ toLedgerTimelockScript s = case s of
                 $ unwords
                     [ "toLedgerTimelockScript:"
                     , "Unexpected out of bounds SlotNo"
+                    , show x
+                    ]
+
+    convertRequired :: Word -> Int
+    convertRequired x = fromMaybe err $ intCastMaybe x
+      where
+        err =
+            error
+                $ unwords
+                    [ "toLedgerTimelockScript:"
+                    , "Unexpected out of bounds RequireSomeOf count"
                     , show x
                     ]
 

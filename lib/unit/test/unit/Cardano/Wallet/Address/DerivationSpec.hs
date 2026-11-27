@@ -105,7 +105,7 @@ import Test.Text.Roundtrip
     )
 import Prelude
 
-import qualified Cardano.Crypto.Wallet as CC
+import qualified Cardano.Address.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Address.Derivation.Byron as Byron
 import qualified Cardano.Wallet.Address.Derivation.Icarus as Icarus
 import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley

@@ -23,6 +23,11 @@ module Cardano.WalletSpec
     ( spec
     ) where
 
+import Cardano.Address.Crypto.Wallet
+    ( XPub
+    , toXPub
+    , xpub
+    )
 import Cardano.Address.Derivation
     ( XPrv
     )
@@ -32,11 +37,6 @@ import Cardano.Balance.Tx.Balance
     )
 import Cardano.Balance.Tx.SizeEstimation
     ( TxWitnessTag (..)
-    )
-import Cardano.Crypto.Wallet
-    ( XPub
-    , toXPub
-    , xpub
     )
 import Cardano.Crypto.WalletHD.Encrypted
     ( DerivationScheme (..)
@@ -446,11 +446,11 @@ import UnliftIO.Concurrent
     )
 import Prelude
 
+import qualified Cardano.Address.Crypto.Wallet as CC
 import qualified Cardano.Balance.Tx.Eras as Write
     ( AnyRecentEra (AnyRecentEra)
     , RecentEra (RecentEraConway, RecentEraDijkstra)
     )
-import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.Address.Book as Sqlite
 import qualified Cardano.Wallet.Address.Derivation.Byron as Byron

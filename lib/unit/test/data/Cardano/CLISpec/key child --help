@@ -6,6 +6,8 @@ Available options:
   -h,--help                Show this help text
   DERIVATION-PATH          Slash-separated derivation path.
                            Hardened indexes are marked with a 'H'
-                           (e.g. 1852H/1815H/0H/0).
+                           or a single quote (e.g.
+                           1852H/1815H/0H/0 or
+                           m/1852'/1815'/0'/2/0).
 
-The parent key is read from stdin.
+The parent key is read from stdin. Hardened indexes can be written with the legacy 'H' suffix or the standard single-quote (') suffix. An optional 'm/' prefix denotes absolute derivation from the master key.

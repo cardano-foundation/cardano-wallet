@@ -93,7 +93,6 @@ library
     , int-cast
     , lattices
     , lens
-    , memory
     , mempack
     , MonadRandom
     , monoid-subclasses
@@ -110,6 +109,7 @@ library
     , pretty-simple
     , QuickCheck
     , quiet
+    , ram
     , random
     , safe
     , scientific
@@ -271,7 +271,6 @@ test-suite test
     , hspec
     , hspec-core
     , lens
-    , memory
     , ouroboros-consensus
     , ouroboros-consensus:cardano
     , ouroboros-network:api
@@ -280,6 +279,7 @@ test-suite test
     , quickcheck-instances
     , quickcheck-monoid-subclasses
     , quickcheck-quid
+    , ram
     , sop-extras
     , string-qq
     , text

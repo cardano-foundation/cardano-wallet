@@ -136,7 +136,6 @@ library
     , lens
     , lens-aeson
     , machines
-    , memory
     , mtl
     , network
     , OddWord
@@ -146,6 +145,7 @@ library
     , pathtype
     , profunctors
     , QuickCheck
+    , ram
     , retry
     , servant
     , servant-client

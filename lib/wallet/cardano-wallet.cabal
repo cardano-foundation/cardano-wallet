@@ -100,7 +100,6 @@ library
     , io-classes
     , lens
     , list-transformer
-    , memory
     , monad-logger
     , MonadRandom
     , monoid-subclasses
@@ -121,6 +120,7 @@ library
     , profunctors
     , QuickCheck
     , quiet
+    , ram
     , random
     , retry
     , safe
@@ -282,8 +282,8 @@ library mock-token-metadata
     , cardano-wallet
     , cardano-wallet-primitive
     , generic-lens
-    , memory
     , network-uri
+    , ram
     , servant
     , servant-server
     , text
@@ -302,14 +302,14 @@ executable wallet-key-export
     , base
     , base16-bytestring
     , bytestring
-    , cardano-crypto
+    , cardano-addresses
     , cardano-wallet
     , cardano-wallet-secrets
-    , memory
     , monad-logger
     , mtl
     , persistent
     , persistent-sqlite
+    , ram
     , resourcet
     , text
 
@@ -323,18 +323,17 @@ test-suite wallet-key-export-test
     , base16-bytestring
     , bytestring
     , cardano-addresses
-    , cardano-crypto
     , cardano-crypto-wallet
     , cardano-wallet
     , cardano-wallet-primitive
     , cardano-wallet-secrets
     , contra-tracer
     , directory
-    , memory
     , persistent
     , persistent-sqlite
     , process
     , QuickCheck
+    , ram
     , temporary
     , text
     , text-class

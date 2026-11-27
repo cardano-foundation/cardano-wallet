@@ -182,7 +182,8 @@ import Data.List
     , isSubsequenceOf
     )
 import Data.Maybe
-    ( isJust
+    ( fromMaybe
+    , isJust
     )
 import Data.Text.Class
     ( ToText (..)
@@ -1167,7 +1168,9 @@ instance IsServerError ErrAddCosignerKey where
                     SharedWalletNoSuchCosigner
                         ApiErrorSharedWalletNoSuchCosigner
                             { cosignerIndex =
-                                ApiCosignerIndex cosignerIndex
+                                ApiCosignerIndex
+                                    $ fromMaybe cosignerOutOfRange
+                                    $ intCastMaybe cosignerIndex
                             , credentialType =
                                 ApiCredentialType credType
                             }
@@ -1179,6 +1182,11 @@ instance IsServerError ErrAddCosignerKey where
                         , "template for a non-existing cosigner index:"
                         , pretty cosignerIndex
                         ]
+                -- The API only accepts cosigner indices up to 255.
+                cosignerOutOfRange =
+                    error
+                        $ "ErrAddCosignerKey: cosigner index out of range: "
+                            <> show cosignerIndex
             in  apiError err403 errorInfo errorMessage
         ErrAddCosignerKey CannotUpdateSharedWalletKey ->
             apiError err403 SharedWalletCannotUpdateKey

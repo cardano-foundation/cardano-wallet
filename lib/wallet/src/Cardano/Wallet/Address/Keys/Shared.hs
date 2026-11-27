@@ -28,6 +28,10 @@ module Cardano.Wallet.Address.Keys.Shared
     , toSharedWalletId
     ) where
 
+import Cardano.Address.Crypto.Wallet
+    ( XPub
+    , unXPub
+    )
 import Cardano.Address.Script
     ( Cosigner (..)
     , ErrValidateScriptTemplate (..)
@@ -39,10 +43,6 @@ import Cardano.Address.Script
     )
 import Cardano.Address.Script.Parser
     ( scriptToText
-    )
-import Cardano.Crypto.Wallet
-    ( XPub
-    , unXPub
     )
 import Cardano.Wallet.Address.Derivation
     ( Depth (..)

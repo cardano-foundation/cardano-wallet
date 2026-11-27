@@ -52,7 +52,6 @@ library framework
     , bech32-th
     , bytestring
     , cardano-addresses
-    , cardano-crypto
     , cardano-ledger-shelley
     , cardano-wallet
     , cardano-wallet-api
@@ -90,12 +89,12 @@ library framework
     , lens
     , local-cluster
     , local-cluster:local-cluster-process
-    , memory
     , microstache
     , monad-loops
     , mtl
     , network-uri
     , pathtype
+    , ram
     , resourcet
     , retry
     , serialise
@@ -138,7 +137,6 @@ library scenarios
     , bytestring
     , cardano-addresses
     , cardano-api
-    , cardano-crypto
     , cardano-crypto-class
     , cardano-ledger-alonzo
     , cardano-ledger-core
@@ -167,9 +165,9 @@ library scenarios
     , http-types
     , lens-aeson
     , local-cluster
-    , memory
     , pathtype
     , pretty-simple
+    , ram
     , resourcet
     , text
     , text-class

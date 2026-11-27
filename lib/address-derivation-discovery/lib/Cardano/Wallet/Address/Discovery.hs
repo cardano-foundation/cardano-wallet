@@ -35,7 +35,7 @@ module Cardano.Wallet.Address.Discovery
     , dropLowerPendingIxs
     ) where
 
-import Cardano.Crypto.Wallet
+import Cardano.Address.Crypto.Wallet
     ( XPub
     )
 import Cardano.Wallet.Address.Derivation

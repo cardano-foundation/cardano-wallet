@@ -28,6 +28,9 @@ module Cardano.Wallet.DB.Arbitrary
     , InitialCheckpoint (..)
     ) where
 
+import Cardano.Address.Crypto.Wallet
+    ( unXPrv
+    )
 import Cardano.Address.Derivation
     ( XPrv
     , XPub
@@ -36,9 +39,6 @@ import Cardano.Address.Script
     ( Cosigner (..)
     , Script (..)
     , ScriptTemplate (..)
-    )
-import Cardano.Crypto.Wallet
-    ( unXPrv
     )
 import Cardano.Mnemonic
     ( SomeMnemonic (..)

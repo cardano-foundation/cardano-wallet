@@ -18,8 +18,8 @@ import Cardano.Wallet.Primitive.Types.ProtocolMagic
     )
 import Prelude
 
+import qualified Cardano.Address.Crypto.Wallet as CC
 import qualified Cardano.Byron.Codec.Cbor as CBOR
-import qualified Cardano.Crypto.Wallet as CC
 import qualified Codec.CBOR.Write as CBOR
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS

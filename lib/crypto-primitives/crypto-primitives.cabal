@@ -52,10 +52,10 @@ library
   build-depends:
     , base
     , bytestring
-    , cryptonite
+    , crypton
     , extra
-    , memory
     , monoid-subclasses
+    , ram
 
 test-suite test
   import:             language, opts-exe
@@ -71,9 +71,9 @@ test-suite test
     , crypto-primitives
     , either
     , hspec
-    , memory
     , monoid-subclasses
     , QuickCheck
+    , ram
     , text
     , with-utf8
 

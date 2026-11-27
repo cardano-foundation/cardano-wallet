@@ -42,7 +42,7 @@ module Cardano.Wallet.Address.Derivation.Byron
     , deriveAddressPrivateKey
     ) where
 
-import Cardano.Crypto.Wallet
+import Cardano.Address.Crypto.Wallet
     ( DerivationScheme (DerivationScheme1)
     , XPrv
     , XPub

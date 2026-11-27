@@ -14,9 +14,6 @@ module Cardano.Wallet.Read.PParams.Mock
     ( mockPParamsConway
     ) where
 
-import Cardano.Ledger.Alonzo.PParams
-    ( OrdExUnits (..)
-    )
 import Cardano.Ledger.Babbage.PParams
     ( BabbagePParams (..)
     )
@@ -47,6 +44,7 @@ import Cardano.Ledger.Plutus
     , CostModels
     , ExUnits (..)
     , Language (..)
+    , OrdExUnits (..)
     , Prices (..)
     , mkCostModel
     , mkCostModels

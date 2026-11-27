@@ -39,7 +39,7 @@ module Cardano.Wallet.Address.Derivation.Shelley
     , toRewardAccountRaw
     ) where
 
-import Cardano.Crypto.Wallet
+import Cardano.Address.Crypto.Wallet
     ( DerivationScheme (..)
     , XPrv
     , XPub (..)

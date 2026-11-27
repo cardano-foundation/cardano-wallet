@@ -44,6 +44,7 @@ module Cardano.Wallet.Shelley.Transaction
     , TxWitnessTag (..)
     , mkByronWitness
     , mkShelleyWitness
+    , toLedgerXPrv
     , mkUnsignedTx
     , signTransaction
     , _txRewardWithdrawalCost
@@ -51,6 +52,9 @@ module Cardano.Wallet.Shelley.Transaction
     , txWitnessTagForKey
     ) where
 
+import Cardano.Address.Crypto.Wallet
+    ( XPub
+    )
 import Cardano.Address.Derivation
     ( XPrv
     , toXPub
@@ -83,9 +87,6 @@ import Cardano.Balance.Tx.SizeEstimation
     )
 import Cardano.Binary
     ( serialize'
-    )
-import Cardano.Crypto.Wallet
-    ( XPub
     )
 import Cardano.Ledger.Core
     ( TxCert
@@ -232,6 +233,7 @@ import Ouroboros.Network.Block
     )
 import Prelude
 
+import qualified Cardano.Address.Crypto.Wallet as Crypto.HD
 import qualified Cardano.Address.Script as CA
 import qualified Cardano.Address.Style.Shelley as CA
 import qualified Cardano.Api as Cardano
@@ -280,7 +282,10 @@ import qualified Cardano.Balance.Tx.Tx as Write
     )
 import qualified Cardano.Crypto as CC
 import qualified Cardano.Crypto.Hash.Class as Crypto
-import qualified Cardano.Crypto.Wallet as Crypto.HD
+import qualified Cardano.Crypto.Wallet as CardanoCrypto
+    ( XPrv
+    , xprv
+    )
 import qualified Cardano.Ledger.Api as Ledger
 import qualified Cardano.Ledger.Keys.Bootstrap as SL
 import qualified Cardano.Wallet.Primitive.Ledger.Convert as Convert
@@ -832,6 +837,15 @@ mkUnsignedTx
                 , swReferenceScript = refScriptM
                 }
 
+-- | The extended private key of @cardano-addresses@ is its own copy of the one
+-- in @cardano-crypto@, which is what the ledger and @cardano-api@ signing key
+-- types take. Both are the same 128 bytes.
+toLedgerXPrv :: XPrv -> CardanoCrypto.XPrv
+toLedgerXPrv =
+    either (error . ("toLedgerXPrv: " <>)) id
+        . CardanoCrypto.xprv
+        . Crypto.HD.unXPrv
+
 mkShelleyWitness
     :: forall era
      . Write.IsRecentEra era
@@ -846,6 +860,7 @@ mkShelleyWitness body key =
     unencrypt (xprv, pwd) =
         Cardano.WitnessPaymentExtendedKey
             $ Cardano.PaymentExtendedSigningKey
+            $ toLedgerXPrv
             $ Crypto.HD.xPrvChangePass pwd BS.empty xprv
 
 mkByronWitness
@@ -879,6 +894,7 @@ mkByronWitness
 
         unencrypt (xprv, pwd) =
             CC.SigningKey
+                $ toLedgerXPrv
                 $ Crypto.HD.xPrvChangePass pwd BS.empty xprv
 
         addrAttr =

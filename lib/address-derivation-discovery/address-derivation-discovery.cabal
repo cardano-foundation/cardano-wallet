@@ -47,7 +47,6 @@ library
     , binary
     , bytestring
     , cardano-addresses
-    , cardano-crypto
     , cardano-crypto-class
     , cardano-ledger-api
     , cardano-ledger-byron
@@ -67,10 +66,10 @@ library
     , generic-arbitrary
     , int-cast
     , lens
-    , memory
     , ouroboros-consensus:cardano
     , QuickCheck
     , quiet
+    , ram
     , random
     , safe
     , scientific

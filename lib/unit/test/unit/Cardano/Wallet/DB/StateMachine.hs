@@ -351,7 +351,7 @@ import UnliftIO.Exception
     )
 import Prelude
 
-import qualified Cardano.Crypto.Wallet as CC
+import qualified Cardano.Address.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Address.Pool as AddressPool
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Control.Foldl as Foldl

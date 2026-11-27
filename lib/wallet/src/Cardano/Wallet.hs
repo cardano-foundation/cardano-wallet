@@ -245,6 +245,10 @@ module Cardano.Wallet
     , putWalletCheckpoints
     ) where
 
+import Cardano.Address.Crypto.Wallet
+    ( toXPub
+    , xpub
+    )
 import Cardano.Address.Derivation
     ( XPrv
     , XPub
@@ -277,10 +281,6 @@ import Cardano.Balance.Tx.TimeTranslation
 import Cardano.Balance.Tx.Tx
     ( toRecentEraGADT
     )
-import Cardano.Crypto.Wallet
-    ( toXPub
-    , xpub
-    )
 import Cardano.Crypto.WalletHD.Encrypted
     ( DerivationScheme (..)
     , EncryptedKey
@@ -300,7 +300,7 @@ import Cardano.Crypto.WalletHD.Encrypted
     , withDecryptedExtKeyMaterial
     )
 import Cardano.Ledger.Api
-    ( EraTxBody (allInputsTxBodyF)
+    ( EraTx (allInputsTxBodyF)
     , addrTxWitsL
     , bodyTxL
     , feeTxBodyL
@@ -902,6 +902,7 @@ import Prelude hiding
     ( log
     )
 
+import qualified Cardano.Address.Crypto.Wallet as CC
 import qualified Cardano.Address.KeyHash as CA
 import qualified Cardano.Address.Script as CA
 import qualified Cardano.Address.Style.Shelley as CAShelley
@@ -931,7 +932,6 @@ import qualified Cardano.Balance.Tx.Tx as Write
     , getFeePerByte
     , stakeKeyDeposit
     )
-import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Crypto.WalletHD.Encrypted as EncHD
     ( Signature (..)
     )
@@ -4547,8 +4547,10 @@ signMetadataWith ctx wid pwd (role_, ix) metadata =
                 RootKeyAccessV2 ekey _ userPwd -> do
                     let DerivationPrefix (purpose, coinType, acctIx) =
                             Seq.derivationPrefix (getState cp)
+                        msg :: ByteString
                         msg =
-                            hash @ByteString @Blake2b_256
+                            BA.convert
+                                $ hash @ByteString @Blake2b_256
                                 $ serialize' shelleyProtVer
                                 $ toShelleyMetadata
                                 $ unTxMetadata metadata

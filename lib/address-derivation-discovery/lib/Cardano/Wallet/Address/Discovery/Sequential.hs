@@ -63,6 +63,9 @@ module Cardano.Wallet.Address.Discovery.Sequential
     , isOwned
     ) where
 
+import Cardano.Address.Crypto.Wallet
+    ( XPub
+    )
 import Cardano.Address.Derivation
     ( XPrv
     , xpubPublicKey
@@ -70,9 +73,6 @@ import Cardano.Address.Derivation
 import Cardano.Address.Script
     ( Cosigner (..)
     , ScriptTemplate (..)
-    )
-import Cardano.Crypto.Wallet
-    ( XPub
     )
 import Cardano.Wallet.Address.Derivation
     ( AddressParts (..)

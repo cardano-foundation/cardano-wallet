@@ -25,6 +25,9 @@
 
 module Cardano.Wallet.Shelley.TransactionLedgerSpec (spec) where
 
+import Cardano.Address.Crypto.Wallet.Types
+    ( DerivationScheme (DerivationScheme2)
+    )
 import Cardano.Address.Derivation
     ( XPrv
     , XPub
@@ -84,9 +87,6 @@ import Cardano.Balance.Tx.Sign
 import Cardano.Balance.Tx.SizeEstimation
     ( TxSkeleton (..)
     , estimateTxSize
-    )
-import Cardano.Crypto.Wallet.Types
-    ( DerivationScheme (DerivationScheme2)
     )
 import Cardano.Crypto.WalletHD.Encrypted
     ( encryptedCreateDirectWithTweak
@@ -490,6 +490,7 @@ import Test.Utils.Pretty
     )
 import Prelude
 
+import qualified Cardano.Address.Crypto.Wallet as CC
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Balance.Tx.Eras as Write
     ( Conway
@@ -503,7 +504,6 @@ import qualified Cardano.Balance.Tx.Tx as Write
     )
 import qualified Cardano.Crypto.Hash.Blake2b as Crypto
 import qualified Cardano.Crypto.Hash.Class as Crypto
-import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Crypto.WalletHD.Encrypted as EncHD
     ( DerivationScheme (..)
     , deriveExtKeyMaterial

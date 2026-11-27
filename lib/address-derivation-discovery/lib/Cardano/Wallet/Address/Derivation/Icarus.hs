@@ -29,7 +29,7 @@ module Cardano.Wallet.Address.Derivation.Icarus
     , minSeedLengthBytes
     ) where
 
-import Cardano.Crypto.Wallet
+import Cardano.Address.Crypto.Wallet
     ( DerivationScheme (..)
     , XPrv
     , XPub
@@ -140,8 +140,8 @@ import GHC.Generics
     )
 import Prelude
 
+import qualified Cardano.Address.Crypto.Wallet as CC
 import qualified Cardano.Byron.Codec.Cbor as CBOR
-import qualified Cardano.Crypto.Wallet as CC
 import qualified Codec.CBOR.Write as CBOR
 import qualified Cryptography.ECC.Edwards25519 as Ed25519
 import qualified Cryptography.KDF.PBKDF2 as PBKDF2

@@ -29,7 +29,7 @@ module Cardano.Wallet.Primitive.Passphrase
     , ErrWrongPassphrase (..)
     ) where
 
-import Cardano.Crypto.Wallet
+import Cardano.Address.Crypto.Wallet
     ( XPrv
     , xPrvChangePass
     )

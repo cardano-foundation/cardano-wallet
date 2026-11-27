@@ -203,7 +203,7 @@ import Test.Integration.Framework.TestData
     )
 import Prelude
 
-import qualified Cardano.Crypto.Wallet as CC
+import qualified Cardano.Address.Crypto.Wallet as CC
 import qualified Cardano.Faucet.Mnemonics as Mnemonics
 import qualified Cardano.Wallet.Api.Clients.Testnet.Shelley as C
 import qualified Cardano.Wallet.Api.Link as Link
